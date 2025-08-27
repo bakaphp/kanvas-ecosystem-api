@@ -49,6 +49,8 @@ class CreateContentSessionAction
             'creditApp' => 'https://kanvas.dev/credit-app',
             'tradeIn' => 'https://kanvas.dev/trade-in',
             'leadOwnerEmail' => $lead->owner?->email,
+            'customerName' => $people->name,
+            'leadOwnerName' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
         ];
 
         $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
