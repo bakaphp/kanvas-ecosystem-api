@@ -32,12 +32,15 @@ class ProcessVideoRequestAction
         // Construct the API URL based on video type
         $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $isGoogleService = false;
 
         /**
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = 'google/' . ltrim($videoModel, 'fal-ai/');
+            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoModel = str_replace('fal-ai/', '', $videoModel);
+            $isGoogleService = true;
         }
 
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
@@ -108,6 +111,7 @@ class ProcessVideoRequestAction
                 'status' => 'IN_QUEUE',
                 'api_url' => $apiUrl,
                 'video_type' => $isImageToVideo ? 'image-to-video' : 'text-to-video',
+                'is_google_service' => $isGoogleService,
             ];
         } catch (Exception $e) {
             return [
