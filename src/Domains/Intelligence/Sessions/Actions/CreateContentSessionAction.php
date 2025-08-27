@@ -39,19 +39,22 @@ class CreateContentSessionAction
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
             ],
-            $this->mapPeople($lead->people)
+            $this->mapPeople($lead->people, $lead)
         );
     }
 
-    protected function mapPeople(People $people, Lead $lead): array
+    protected function mapPeople(People $people, ?Lead $lead = null): array
     {
         $data = [
             'creditApp' => 'https://kanvas.dev/credit-app',
             'tradeIn' => 'https://kanvas.dev/trade-in',
-            'leadOwnerEmail' => $lead->owner?->email,
-            'customerName' => $people->name,
-            'leadOwnerName' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
         ];
+
+        if ($lead) {
+            $data['leadOwnerEmail'] = $lead->owner?->email;
+            $data['customerName'] = $people->name;
+            $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
+        }
 
         $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
 
