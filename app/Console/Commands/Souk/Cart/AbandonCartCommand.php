@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Souk\Cart\Enums\AbandonCartConfigEnum;
+use Kanvas\Souk\Cart\Enums\AbandonCartTemplateEnum;
 use Kanvas\Souk\Cart\Models\Cart;
 use Kanvas\Users\Models\Users;
 
@@ -64,21 +65,21 @@ class AbandonCartCommand extends Command
             };
 
             $emailTemplate = match ($intervalType) {
-                'first' => $app->get(AbandonCartConfigEnum::FIRST_EMAIL_TEMPLATE->value) ?? 'abandon-cart-first',
-                'second' => $app->get(AbandonCartConfigEnum::SECOND_EMAIL_TEMPLATE->value) ?? 'abandon-cart-second',
-                'third' => $app->get(AbandonCartConfigEnum::THIRD_EMAIL_TEMPLATE->value) ?? 'abandon-cart-third',
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
             };
 
             $pushTemplate = match ($intervalType) {
-                'first' => $app->get(AbandonCartConfigEnum::FIRST_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-first',
-                'second' => $app->get(AbandonCartConfigEnum::SECOND_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-second',
-                'third' => $app->get(AbandonCartConfigEnum::THIRD_PUSH_TEMPLATE->value) ?? 'abandon-cart-push-third',
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
             };
 
             $discountCode = match ($intervalType) {
-                'first' => $app->get(AbandonCartConfigEnum::FIRST_DISCOUNT_CODE->value),
-                'second' => $app->get(AbandonCartConfigEnum::SECOND_DISCOUNT_CODE->value),
-                'third' => $app->get(AbandonCartConfigEnum::THIRD_DISCOUNT_CODE->value),
+                'first' => $app->get(AbandonCartConfigEnum::FIRST_DISCOUNT_CODE->value) ?? null,
+                'second' => $app->get(AbandonCartConfigEnum::SECOND_DISCOUNT_CODE->value) ?? null,
+                'third' => $app->get(AbandonCartConfigEnum::THIRD_DISCOUNT_CODE->value) ?? null,
             };
 
             $intervals[$intervalType] = [
@@ -115,15 +116,22 @@ class AbandonCartCommand extends Command
 
         $cutoffTime = Carbon::now()->subHours($hoursAgo);
 
+        // Map notification count to interval type for better logic
+        $expectedNotificationCount = match ($intervalType) {
+            'first' => 0,   // No notifications sent yet
+            'second' => 1,  // First notification already sent
+            'third' => 2,   // Second notification already sent
+        };
+
         $abandonedCarts = Cart::where('apps_id', $app->getId())
             ->where('status', 'pending')
             ->where('updated_at', '<=', $cutoffTime)
             ->whereNotNull('users_id')
             ->whereNotNull('email')
-            ->where('notification_count', '<', $notificationCount)
+            ->where('notification_count', '=', $expectedNotificationCount)
             ->get();
 
-        $this->info("Found {$abandonedCarts->count()} carts abandoned for {$hoursAgo} hours");
+        $this->info("Found {$abandonedCarts->count()} carts abandoned for {$hoursAgo} hours with {$expectedNotificationCount} notifications sent");
 
         foreach ($abandonedCarts as $cart) {
             $this->processAbandonedCart($cart, $intervalType, $config);
@@ -162,7 +170,63 @@ class AbandonCartCommand extends Command
 
     private function getNotificationData(Cart $cart, string $intervalType, array $config): array
     {
-        return [
+        // Detect language from app settings or default to 'en'
+        $lang = $cart->app->metadata['language'] ?? 'en';
+        $userName = $cart->user->firstname ?? $cart->user->email ?? 'Customer';
+
+        // Get template texts using the enum
+        $emailTitleKey = match ($intervalType) {
+            'first' => 'email_first_title',
+            'second' => 'email_second_title', 
+            'third' => 'email_third_title',
+        };
+
+        $emailMessageKey = match ($intervalType) {
+            'first' => 'email_first_message',
+            'second' => 'email_second_message',
+            'third' => 'email_third_message',
+        };
+
+        $pushTitleKey = match ($intervalType) {
+            'first' => 'push_first_title',
+            'second' => 'push_second_title',
+            'third' => 'push_third_title',
+        };
+
+        $pushMessageKey = match ($intervalType) {
+            'first' => 'push_first_message',
+            'second' => 'push_second_message', 
+            'third' => 'push_third_message',
+        };
+
+        // Determine message keys based on interval and discount availability
+        $emailMessageKey = match ($intervalType) {
+            'first' => 'email_first_message',
+            'second' => $config['discount_code'] ? 'email_second_message' : 'email_second_message_no_discount',
+            'third' => $config['discount_code'] ? 'email_third_message' : 'email_third_message_no_discount',
+            default => 'email_first_message'
+        };
+
+        $pushMessageKey = match ($intervalType) {
+            'first' => 'push_first_message',
+            'second' => $config['discount_code'] ? 'push_second_message' : 'push_second_message_no_discount',
+            'third' => $config['discount_code'] ? 'push_third_message' : 'push_third_message_no_discount',
+            default => 'push_first_message'
+        };
+
+        // Build email message
+        $emailMessage = AbandonCartTemplateEnum::get($emailMessageKey, $lang);
+        if ($intervalType === 'first' || !$config['discount_code']) {
+            $emailMessage = sprintf($emailMessage, $userName);
+        } else {
+            $emailMessage = sprintf($emailMessage, $userName, $config['discount_code']);
+        }
+
+        // Build push message
+        $pushMessage = AbandonCartTemplateEnum::get($pushMessageKey, $lang);
+        if ($intervalType !== 'first' && $config['discount_code']) {
+            $pushMessage = sprintf($pushMessage, $config['discount_code']);
+        }        return [
             'cart_id' => $cart->id,
             'cart_uuid' => $cart->uuid,
             'amount' => $cart->amount,
@@ -176,7 +240,8 @@ class AbandonCartCommand extends Command
             'cart_items' => $cart->items ?? [],
             'cart_conditions' => $cart->conditions ?? [],
             'app' => $cart->app,
-            'user_name' => $cart->user->firstname ?? $cart->user->email ?? 'Customer',
+            'user_name' => $userName,
+            'language' => $lang,
             'email_template' => $config['email_template'],
             'push_template' => $config['push_template'],
             'urgency_level' => match ($intervalType) {
@@ -185,7 +250,19 @@ class AbandonCartCommand extends Command
                 'third' => 'high',
                 default => 'low'
             },
-            'discount_code' => $config['discount_code'], // App-configurable discount code
+            'discount_code' => $config['discount_code'],
+            // Template texts
+            'email_title' => AbandonCartTemplateEnum::get($emailTitleKey, $lang),
+            'email_message' => $emailMessage,
+            'push_title' => AbandonCartTemplateEnum::get($pushTitleKey, $lang),
+            'push_message' => $pushMessage,
+            'complete_purchase_text' => AbandonCartTemplateEnum::get('complete_purchase', $lang),
+            'continue_shopping_text' => AbandonCartTemplateEnum::get('continue_shopping', $lang),
+            'cart_summary_text' => AbandonCartTemplateEnum::get('cart_summary', $lang),
+            'item_text' => AbandonCartTemplateEnum::get('item', $lang),
+            'quantity_text' => AbandonCartTemplateEnum::get('quantity', $lang),
+            'price_text' => AbandonCartTemplateEnum::get('price', $lang),
+            'total_text' => AbandonCartTemplateEnum::get('total', $lang),
         ];
     }
 
