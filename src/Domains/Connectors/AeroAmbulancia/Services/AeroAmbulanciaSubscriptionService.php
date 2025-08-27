@@ -129,7 +129,7 @@ class AeroAmbulanciaSubscriptionService
         $phoneNumber = $beneficiaryData['phoneNumber'] ?? $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999));
 
         if (! preg_match('/^\d{10}$/', $phoneNumber)) {
-            throw new ValidationException('phoneNumber must be a valid phone number');
+            throw new ValidationException('phoneNumber must be a valid phone number ' . $phoneNumber);
         }
 
         return [
