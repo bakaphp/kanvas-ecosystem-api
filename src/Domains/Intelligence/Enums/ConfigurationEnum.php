@@ -17,4 +17,6 @@ enum ConfigurationEnum: string
     case ADK_BASE_URL = 'google_orchestrator_base_url';
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';
+
+    case AGENT_HAND_OFF = 'agent_hand_off';
 }

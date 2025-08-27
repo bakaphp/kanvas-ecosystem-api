@@ -231,11 +231,22 @@ class ExportOrdersAction
         return $data;
     }
 
+    private function formatDate($value): String
+    {
+        if ($value instanceof \Carbon\Carbon) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        return $value;
+    }
+
     private function getDateRange($orders): string
     {
+        // Get the date field to use (from metadata or default to created_at)
+        $dateField = $this->metadata['dateField'] ?? 'created_at';
         // Try to extract date range from where conditions first
         if ($this->params) {
-            $dateRange = $this->extractDateRangeFromWhere($this->params);
+            $dateRange = $this->extractDateRangeFromWhere($this->params, $dateField);
             if ($dateRange) {
                 return $dateRange;
             }
@@ -247,24 +258,25 @@ class ExportOrdersAction
         }
 
         if ($orders instanceof Builder) {
-            $minDate = $orders->min('created_at');
-            $maxDate = $orders->max('created_at');
+            $minDate = $orders->min($dateField);
+            $maxDate = $orders->max($dateField);
         } else {
-            $minDate = $orders->min('created_at');
-            $maxDate = $orders->max('created_at');
+            $minDate = $orders->min($dateField);
+            $maxDate = $orders->max($dateField);
         }
 
-        return "Desde: {$minDate->format('d/m/Y')} - Hasta: {$maxDate->format('d/m/Y')}";
+        return "Desde: {$this->formatDate($minDate)} - Hasta: {$this->formatDate($maxDate)}";
     }
 
-    private function extractDateRangeFromWhere(array $conditions): ?string
+    private function extractDateRangeFromWhere(array $conditions, string $dateField = 'created_at'): ?string
     {
+        $targetDateField = strtolower($dateField);
         // Check main condition
         if (isset($conditions['column'], $conditions['operator'], $conditions['value'])) {
             $column = strtolower($conditions['column']);
             $operator = strtoupper($conditions['operator']);
 
-            if ($column === 'created_at' && $operator === 'BETWEEN' && is_array($conditions['value']) && count($conditions['value']) >= 2) {
+            if ($column === $targetDateField && $operator === 'BETWEEN' && is_array($conditions['value']) && count($conditions['value']) >= 2) {
                 $startDate = Carbon::parse($conditions['value'][0]);
                 $endDate = Carbon::parse($conditions['value'][1]);
                 return "Desde: {$startDate->format('d/m/Y')} - Hasta: {$endDate->format('d/m/Y')}";
@@ -278,7 +290,7 @@ class ExportOrdersAction
                     $column = strtolower($andCondition['column']);
                     $operator = strtoupper($andCondition['operator']);
 
-                    if ($column === 'created_at' && $operator === 'BETWEEN' && is_array($andCondition['value']) && count($andCondition['value']) >= 2) {
+                    if ($column === $targetDateField && $operator === 'BETWEEN' && is_array($andCondition['value']) && count($andCondition['value']) >= 2) {
                         $startDate = Carbon::parse($andCondition['value'][0]);
                         $endDate = Carbon::parse($andCondition['value'][1]);
                         return "Desde: {$startDate->format('d/m/Y')} - Hasta: {$endDate->format('d/m/Y')}";

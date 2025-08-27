@@ -32,4 +32,15 @@ class Client
 
         return self::$instance;
     }
+
+    public static function validateCredentials(string $sid, string $token): bool
+    {
+        try {
+            $client = new TwilioClient($sid, $token);
+            $client->api->v2010->accounts->read([], 1);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }

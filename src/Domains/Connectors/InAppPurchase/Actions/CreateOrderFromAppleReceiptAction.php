@@ -12,6 +12,7 @@ use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
 use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
+use Imdhemy\AppStore\ValueObjects\Receipt;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\PurchaseTypeEnum;
@@ -67,8 +68,8 @@ class CreateOrderFromAppleReceiptAction
         $people = $this->createPeople();
         $orderData = $this->createOrderData(
             $receipt,
-            $verifiedReceipt->getReceipt(),
-            $people
+            $people,
+            $verifiedReceipt->getReceipt()
         );
 
         $order = (new CreateOrderAction($orderData))->execute();
@@ -106,9 +107,34 @@ class CreateOrderFromAppleReceiptAction
         ))->execute();
     }
 
-    private function createOrderData(array $allReceiptData, mixed $receipt, $people): Order
-    {
-        $orderItem = $this->createOrderItem($receipt->getInApp()[0]);
+    private function createOrderData(
+        array $allReceiptData,
+        People $people,
+        ?Receipt $receipt,
+    ): Order {
+        if ($receipt === null) {
+            $exception = new ValidationException('Receipt validation failed: null receipt received');
+            report($exception);
+
+            throw $exception;
+        }
+
+        // Get in-app purchases with detailed validation
+        $inAppPurchases = $receipt->getInApp();
+
+        if (empty($inAppPurchases)) {
+            $exception = new ValidationException(
+                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
+            );
+            report($exception);
+
+            throw $exception;
+        }
+
+        // Validate we have the expected purchase
+        $firstPurchase = $inAppPurchases[0];
+
+        $orderItem = $this->createOrderItem($firstPurchase);
 
         return new Order(
             app: $this->app,

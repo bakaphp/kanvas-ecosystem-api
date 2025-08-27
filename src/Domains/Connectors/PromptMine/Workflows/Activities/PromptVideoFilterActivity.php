@@ -45,6 +45,8 @@ class PromptVideoFilterActivity extends KanvasActivity
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
                     $result = $processVideoAction->execute();
 
+                    $params['video_url_key'] = isset($result['is_google_service']) && $result['is_google_service'] ? 'videoUri' : 'video_url';
+
                     if ($result['result'] && isset($result['request_id'])) {
                         // Schedule delayed processing using the service
                         $this->scheduleVideoProcessingCheck(
@@ -82,9 +84,9 @@ class PromptVideoFilterActivity extends KanvasActivity
         array $params
     ): void {
         dispatch(function () use ($entity, $app, $requestId, $videoModel, $params) {
-            $service = new VideoProcessingService($entity, $app);
+            $service = new VideoProcessingService($entity, $app, $params);
             $service->checkVideoProcessingStatus($requestId, $videoModel, $params);
-        })->delay(now()->addMinutes(5)); // Wait 8 minutes before first check
+        })->delay(now()->addMinutes(5)); // Wait 5 minutes before first check
     }
 
     /**

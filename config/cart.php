@@ -32,6 +32,7 @@ return [
             'id' => 'session_id',
             'items' => 'items',
             'conditions' => 'conditions',
+            'sync' => true, // Enable database synchronization
         ],
     ],
 ];

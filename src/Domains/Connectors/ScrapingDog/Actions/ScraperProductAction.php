@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapingDog\Actions;
 
+use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum as ScrapingDogConfigEnum;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Override;
 
 use function Sentry\captureException;
 
 class ScraperProductAction extends ScraperAction
 {
+    #[Override]
     public function execute(): array
     {
         $repository = new ScrapingDogRepository($this->app);
@@ -38,8 +41,11 @@ class ScraperProductAction extends ScraperAction
                         true
                     )
                 )->execute();
-                config()->set('scout.queue', false);
+                // config()->set('scout.queue', false);
                 $product->searchable();
+                $product->setTranslation('name', 'es', TranslateToSpanishAction::execute($data['name']) ?? $data['name']);
+                $product->setTranslation('description', 'es', TranslateToSpanishAction::execute($product->description) ?? $product->description);
+
                 $products[] = $product['id'];
             } catch (\Throwable $e) {
                 captureException($e);
@@ -56,14 +62,15 @@ class ScraperProductAction extends ScraperAction
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
         $channels = Channels::getDefault($this->companyBranch->company);
         $price = str_replace(['$', ','], '', $product['price'] ?? '0');
+        $asin = $product['parent_asin'] ?? $product['asin'];
 
         return [
             'name' => $product['title'],
             'description' => $product['description'] ?? '',
-            'slug' => $product['asin'],
-            'sku' => $product['asin'],
+            'slug' => $asin,
+            'sku' => $asin,
             'source' => 'amazon',
-            'source_id' => $product['asin'],
+            'source_id' => $asin,
             'files' => [
                 [
                     'url' => $product['image'],
@@ -75,9 +82,9 @@ class ScraperProductAction extends ScraperAction
             'variants' => [
                 [
                     'name' => $product['title'],
-                    'sku' => $product['asin'],
-                    'slug' => $product['asin'],
-                    'source_id' => $product['asin'],
+                    'sku' => $asin,
+                    'slug' => $asin,
+                    'source_id' => $asin,
                     'files' => [
                         [
                             'url' => $product['image'],

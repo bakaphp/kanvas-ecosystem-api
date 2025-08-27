@@ -13,6 +13,7 @@ use Imdhemy\GooglePlay\Products\ProductPurchase;
 use Imdhemy\Purchases\Facades\Product;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
+use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\PurchaseTypeEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -87,13 +88,14 @@ class CreateOrderFromGoogleReceiptAction
     private function verifyReceipt(array $receipt): ProductPurchase
     {
         $googlePaymentConfig = $this->app->get(ConfigurationEnum::GOOGLE_PAYMENT_CLIENT_CONFIG->value) ?? $this->app->get(ConfigurationEnum::GOOGLE_CLIENT_CONFIG->value);
-        if (empty($googlePaymentConfig)) {
+        $googlePackageName = $this->app->get(EnumsConfigurationEnum::GOOGLE_PLAY_PACKAGE_NAME->value);
+        if (empty($googlePaymentConfig) && empty($googlePackageName)) {
             throw new ValidationException('Google client config is missing');
         }
 
         $client = ClientFactory::createWithJsonKey($googlePaymentConfig);
 
-        return Product::googlePlay($client)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
+        return Product::googlePlay($client)->packageName($googlePackageName)->id($receipt['productId'])->token($receipt['purchaseToken'])->get();
     }
 
     private function createPeople(): People

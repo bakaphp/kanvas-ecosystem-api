@@ -14,10 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
@@ -88,6 +90,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasMessagesTrait;
     use AsTree;
 
     protected $table = 'orders';
@@ -283,9 +286,11 @@ class Order extends BaseModel
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the order with the highest order_number
-        $lastOrder = Order::where('companies_id', $this->companies_id)
-            ->where('apps_id', $this->apps_id)
+        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue()) === '1';
+        $lastOrder = Order::where('apps_id', $this->apps_id)
+            ->when(! $isB2BMode, fn ($q) => $q->where('companies_id', $this->companies_id))
             ->lockForUpdate() // Ensure no race conditions
+            ->withTrashed()
             ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
@@ -643,7 +648,7 @@ class Order extends BaseModel
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
-    public function calculateTotal(): void
+    public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
@@ -656,6 +661,9 @@ class Order extends BaseModel
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
         $this->discount_amount = (float) $discount;
-        $this->saveOrFail();
+
+        if ($autoSave) {
+            $this->saveOrFail();
+        }
     }
 }

@@ -4,8 +4,10 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -47,7 +49,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                         ->contains(fn ($attribute) => in_array($attribute->slug, ['late-fee-variant-id']) && ! empty($attribute->value));
                     })?->variant;
 
-                    $graceStartAt = now('America/New_York')->startOfDay()->addDays(1);
+                    $graceStartAt = $this->getStartGraceDay(now());
 
                     $order->metadata = [
                         ...$order->metadata ?? [],
@@ -55,12 +57,13 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             ...$order->metadata['data'] ?? [],
                             'terms_and_conditions' => true,
                             ...$variant ? [
-                                'late-fee-variant-id' => $variant->getAttributeBySlug('late-fee-variant-id')?->value,
+                                'late-fee-variant-id' => $variant->product?->getAttributeBySlug('late-fee-variant-id')?->value,
                                 'late_fee_grace_start_at' => $graceStartAt->toDateTimeString()
                             ] : [],
                         ],
                     ];
 
+                    $order->status = OrderStatusEnum::PENDING->value;
                     $order->saveQuietly();
                 }
 
@@ -82,5 +85,19 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
             },
             company: $order->company,
         );
+    }
+
+    public function getStartGraceDay(Carbon $createdAt, string $tz = 'America/New_York'): Carbon
+    {
+        $start = $createdAt->copy()->timezone($tz)->startOfDay()->addDay();
+        $dayOfWeek = (int) $createdAt->copy()->timezone($tz)->dayOfWeekIso;
+
+        // if friday move one extra day
+        if ($dayOfWeek === 5) {
+            $start = $start->addDay()->startOfDay();
+        } elseif ($dayOfWeek === 6 || $dayOfWeek === 7) {
+            $start = $start->next('Monday')->startOfDay();
+        }
+        return $start;
     }
 }
