@@ -99,7 +99,7 @@ class UserMessage extends BaseModel
                 ->whereExists(function ($query) use ($userId, $app) {
                     $query->select(DB::raw(1))
                         ->from('users_follows')
-                        ->whereColumn('messages.users_id','users_follows.entity_id')
+                        ->whereColumn('messages.users_id', 'users_follows.entity_id')
                         ->where('users_follows.users_id', '=', $userId)
                         ->where('users_follows.entity_namespace', '=', Users::class)
                         ->where('users_follows.is_deleted', '=', 0)
