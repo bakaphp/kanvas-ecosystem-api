@@ -64,17 +64,9 @@ class AbandonCartCommand extends Command
                 'third' => (int) ($app->get(AbandonCartConfigEnum::THIRD_HOURS->value) ?? 72),
             };
 
-            $emailTemplate = match ($intervalType) {
-                'first' => $app->get(AbandonCartConfigEnum::FIRST_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
-                'second' => $app->get(AbandonCartConfigEnum::SECOND_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
-                'third' => $app->get(AbandonCartConfigEnum::THIRD_EMAIL_TEMPLATE->value) ?? 'abandon-cart-simple',
-            };
-
-            $pushTemplate = match ($intervalType) {
-                'first' => $app->get(AbandonCartConfigEnum::FIRST_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
-                'second' => $app->get(AbandonCartConfigEnum::SECOND_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
-                'third' => $app->get(AbandonCartConfigEnum::THIRD_PUSH_TEMPLATE->value) ?? 'abandon-cart-simple',
-            };
+            // Use configurable templates with defaults
+            $emailTemplate = $app->get(AbandonCartConfigEnum::EMAIL_TEMPLATE->value) ?? 'abandoned-cart-email';
+            $pushTemplate = $app->get(AbandonCartConfigEnum::PUSH_TEMPLATE->value) ?? 'abandoned-cart-push';
 
             $discountCode = match ($intervalType) {
                 'first' => $app->get(AbandonCartConfigEnum::FIRST_DISCOUNT_CODE->value) ?? null,
@@ -291,6 +283,18 @@ class AbandonCartCommand extends Command
                 'action' => 'view_cart',
                 'type' => 'abandoned_cart',
                 'discount_code' => $notificationData['discount_code'],
+                // Enum-rendered texts for template
+                'email_title' => $notificationData['email_title'],
+                'email_message' => $notificationData['email_message'],
+                'push_title' => $notificationData['push_title'],
+                'push_message' => $notificationData['push_message'],
+                'complete_purchase_text' => $notificationData['complete_purchase_text'],
+                'continue_shopping_text' => $notificationData['continue_shopping_text'],
+                'cart_summary_text' => $notificationData['cart_summary_text'],
+                'item_text' => $notificationData['item_text'],
+                'quantity_text' => $notificationData['quantity_text'],
+                'price_text' => $notificationData['price_text'],
+                'total_text' => $notificationData['total_text'],
             ];
 
             // Create notification using Blank template with both email and push channels
