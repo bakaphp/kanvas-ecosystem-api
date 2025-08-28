@@ -43,7 +43,7 @@ class ProcessMessageTaskUpdatesAction
         if ($taskListItems->count() === 0) {
             return [
                 'success' => false,
-                'message' => 'No task list items found for the given verb and checklist ID. ' . $taskListItems->toRawSql(),
+                'message' => 'No task list items found for the given verb and checklist ID. ',
             ];
         }
 
