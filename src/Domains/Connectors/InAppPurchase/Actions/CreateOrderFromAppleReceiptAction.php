@@ -221,6 +221,6 @@ class CreateOrderFromAppleReceiptAction
 
     private function calculateTotal(array|Collection $orderItems): float
     {
-        return collect($orderItems)->sum( fn(OrderItem $item) => $item->quantity * $item->price);
+        return collect($orderItems)->sum(fn (OrderItem $item) => $item->quantity * $item->price);
     }
 }
