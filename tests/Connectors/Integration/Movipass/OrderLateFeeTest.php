@@ -304,4 +304,110 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals($total + 300, $reservation2->fresh()->getTotalAmount()); // 1 day + 60 days
         $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
     }
+
+    public function testAddAndRemoveLateFee(): void
+    {
+        Notification::fake();
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+        $this->apps->set(EnumsConfigurationEnum::GRACE_PERIOD_DAYS->value, '1');
+
+        // Create late fee product
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100
+            ]
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        // Create main product with late fee variant reference
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        // Add variants to channel and warehouse
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = "America/New_York";
+        Date::setTestNow(now()->startOfSecond());
+        $rightNow = CarbonImmutable::now($timezone);
+
+        // Create order with original item
+        $order = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(32)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
+                ]
+            ],
+        );
+
+        $originalTotal = $order->getTotalAmount();
+        $originalItemCount = $order->items()->count();
+
+        // Verify initial state - should have 1 item
+        $this->assertEquals(1, $originalItemCount);
+
+        // Add late fee using GenerateOrderLateFee action
+        new GenerateOrderLateFee($this->apps)->execute($rightNow->toDateTimeString(), [$order->getId()]);
+        $orderAfterLateFee = $order->fresh();
+
+        // Verify order has 2 items after adding late fee
+        $this->assertEquals(2, $orderAfterLateFee->items()->count());
+
+        // Now remove the late fee using the FixOrderItemCommand
+        // We'll fix it back to just the original product variant
+        print_r(["tha company" => $order->companies_id]);
+        Artisan::call('kanvas:movipass-fix-order-items', [
+            'app_id' => $this->apps->getId(),
+            'variant_id' => (string) $order->items->first()->variant_id,
+            '--order-ids' => "$order->id",
+            '--timezone' => $timezone,
+        ]);
+
+        $orderAfterFix = $order->fresh();
+
+        // Verify order has 1 item with correct price after removing late fee
+        $this->assertEquals(1, $orderAfterFix->items()->count());
+        $this->assertEquals($originalTotal, $orderAfterFix->getTotalAmount());
+
+        // Verify the remaining item is the original product, not the late fee
+        $remainingItem = $orderAfterFix->items()->first();
+        $this->assertEquals($product->variants()->first()->id, $remainingItem->variant_id);
+    }
 }
