@@ -8,31 +8,28 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
-use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
-use Imdhemy\AppStore\ValueObjects\Receipt;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
-use Kanvas\Connectors\InAppPurchase\Enums\PurchaseTypeEnum;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Spatie\LaravelData\DataCollection;
-use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
-use Exception;
-use Illuminate\Database\Eloquent\Collection;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
+use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromAppleReceiptAction
 {
@@ -224,6 +221,6 @@ class CreateOrderFromAppleReceiptAction
 
     private function calculateTotal(array|Collection $orderItems): float
     {
-        return collect($orderItems)->sum(fn(OrderItem $item) => $item->quantity * $item->price);
+        return collect($orderItems)->sum( fn(OrderItem $item) => $item->quantity * $item->price);
     }
 }
