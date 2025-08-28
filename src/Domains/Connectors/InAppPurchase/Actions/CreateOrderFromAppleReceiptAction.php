@@ -106,9 +106,7 @@ class CreateOrderFromAppleReceiptAction
             $order->saveCustomFields();
         }
 
-        // We get the product sku and the sku of the variant(ai_model) from the custom fields
-        // We also need to know if this is a consume or a purchase
-        match ($receipt['custom_fields']['purchase_type']) {
+        match ($product->get('purchase_type')) {
             WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToWalletAction($order))->execute(),
             WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
             default => throw new ValidationException('Invalid purchase type'),
