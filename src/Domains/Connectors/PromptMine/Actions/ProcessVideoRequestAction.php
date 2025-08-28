@@ -13,6 +13,8 @@ use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
 {
+    protected bool $isGoogleService = false;
+
     public function __construct(
         protected Message $entity,
         protected AppInterface $app,
@@ -41,6 +43,7 @@ class ProcessVideoRequestAction
             $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
+            $this->isGoogleService = true;
         }
 
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
@@ -230,9 +233,32 @@ class ProcessVideoRequestAction
      */
     protected function submitVideoRequest(array $payload, string $apiUrl): array
     {
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($apiUrl, $payload);
+        if ($this->isGoogleService) {
+            // For Google services, use multipart form data
+            $httpRequest = Http::asMultipart();
+            
+            // Add each field from payload as form data
+            foreach ($payload as $key => $value) {
+                if ($key === 'image_url') {
+                    // Download the image content and send as file
+                    $imageContent = Http::get($value)->body();
+                    $httpRequest = $httpRequest->attach(
+                        'image', 
+                        $imageContent, 
+                        'image.png' // Default filename, could be extracted from URL if needed
+                    );
+                } else {
+                    $httpRequest = $httpRequest->attach((string) $key, (string) $value);
+                }
+            }
+            
+            $response = $httpRequest->post($apiUrl);
+        } else {
+            // For non-Google services, use JSON
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($apiUrl, $payload);
+        }
 
         return $response->json();
     }
