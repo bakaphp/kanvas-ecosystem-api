@@ -43,7 +43,7 @@ class ProcessMessageTaskUpdatesAction
         if ($taskListItems->count() === 0) {
             return [
                 'success' => false,
-                'message' => 'No task list items found for the given verb and checklist ID.',
+                'message' => 'No task list items found for the given verb and checklist ID. ' . $taskListItems->toRawSql(),
             ];
         }
 
@@ -93,12 +93,12 @@ class ProcessMessageTaskUpdatesAction
 
         // Special handling for certain verbs
         if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation','bdc-needs-assessment'])) {
-            return $messageData['checklistId'] ?? $this->lead->company->get('default_checklist_id');
+            return $messageData['checkListId'] ?? $this->lead->company->get('default_checklist_id');
         }
 
         // Check parent message for checklist ID
         $parentData = $this->message->parent ? $this->message->parent->getMessage() : [];
-        $parentChecklistId = $parentData['checklistId'] ?? null;
+        $parentChecklistId = $parentData['checkListId'] ?? null;
 
         if ($parentChecklistId && (int) $parentChecklistId > 0) {
             return (int) $parentChecklistId;
