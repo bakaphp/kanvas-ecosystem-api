@@ -92,7 +92,7 @@ class ProcessMessageTaskUpdatesAction
         $data = $messageData['data'] ?? [];
 
         // Special handling for certain verbs
-        if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation'])) {
+        if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation','bdc-needs-assessment'])) {
             return $messageData['checklistId'] ?? $this->lead->company->get('default_checklist_id');
         }
 
