@@ -34,6 +34,7 @@ class CartFactory extends Factory
                 CartStatusEnum::ABANDONED->value,
                 CartStatusEnum::RECOVERED->value,
             ]),
+            'notification_count' => $this->faker->numberBetween(0, 3),
             'metadata' => $this->faker->optional(0.7)->randomElement([
                 ['source' => 'web', 'utm_campaign' => 'summer_sale'],
                 ['source' => 'mobile', 'app_version' => '2.1.0'],
@@ -69,6 +70,45 @@ class CartFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'users_id' => null,
             'email' => $this->faker->email(),
+        ]);
+    }
+
+    public function firstNotification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notification_count' => 0,
+            'status' => CartStatusEnum::PENDING->value,
+        ]);
+    }
+
+    public function secondNotification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notification_count' => 1,
+            'status' => CartStatusEnum::ABANDONED->value,
+        ]);
+    }
+
+    public function thirdNotification(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notification_count' => 2,
+            'status' => CartStatusEnum::ABANDONED->value,
+        ]);
+    }
+
+    public function maxNotifications(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notification_count' => 3,
+            'status' => CartStatusEnum::ABANDONED->value,
+        ]);
+    }
+
+    public function withNotificationCount(int $count): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'notification_count' => $count,
         ]);
     }
 }
