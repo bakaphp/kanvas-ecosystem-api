@@ -21,6 +21,7 @@ type User {
     addresses: [Address!] @HasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
+    is_verified: Boolean! @method(name: "getAppIsVerified")
     lastvisit: String
     timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
@@ -35,7 +36,8 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
-    total_unread_notifications: Int! @method(name: "getUnreadNotificationsCount")
+    total_unread_notifications: Int!
+        @method(name: "getUnreadNotificationsCount")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25

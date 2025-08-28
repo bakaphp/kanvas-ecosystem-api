@@ -789,6 +789,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->displayname ?? $this->displayname ?? '';
     }
 
+    public function getAppIsVerified(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return (bool) $user->is_verified;
+    }
+
     public function getAppEmail(): string
     {
         $user = $this->getAppProfile(app(Apps::class));
