@@ -27,6 +27,12 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
+use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
+use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
+use Exception;
+use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Inventory\Products\Models\Products;
 
 class CreateOrderFromAppleReceiptAction
 {
@@ -56,7 +62,13 @@ class CreateOrderFromAppleReceiptAction
             'transactionId' => $this->appleInAppPurchase->transaction_id,
             'transactionReceipt' => $this->appleInAppPurchase->receipt,
             'transactionDate' => $this->appleInAppPurchase->transaction_date,
+            'custom_fields' => $this->appleInAppPurchase->custom_fields,
         ];
+
+        //Check if we have a purchase type before verifying the receipt
+        if (! $receipt['custom_fields']['purchase_type']) {
+            throw new Exception('No purchase type provided');
+        }
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
@@ -66,10 +78,28 @@ class CreateOrderFromAppleReceiptAction
         }
 
         $people = $this->createPeople();
+
+        $product = Products::getByName(
+            $receipt['productId'],
+            $this->app,
+            $this->company,
+        );
+
+        $orderItems = [];
+        foreach ($receipt['variants_skus'] as $variantSku) {
+            $variant = Variants::getBySku(
+                $variantSku,
+                $this->company,
+                $this->app
+            );
+
+            $orderItems[] = $this->createOrderItem($variant);
+        }
+
         $orderData = $this->createOrderData(
             $receipt,
             $people,
-            $verifiedReceipt->getReceipt()
+            $orderItems
         );
 
         $order = (new CreateOrderAction($orderData))->execute();
@@ -79,7 +109,13 @@ class CreateOrderFromAppleReceiptAction
             $order->saveCustomFields();
         }
 
-        PurchaseTypeEnum::processPurchase($order);
+        // We get the product sku and the sku of the variant(ai_model) from the custom fields
+        // We also need to know if this is a consume or a purchase
+        match ($receipt['custom_fields']['purchase_type']) {
+            WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToWalletAction($order))->execute(),
+            WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
+            default => throw new ValidationException('Invalid purchase type'),
+        };
 
         return $order;
     }
@@ -110,31 +146,29 @@ class CreateOrderFromAppleReceiptAction
     private function createOrderData(
         array $allReceiptData,
         People $people,
-        ?Receipt $receipt,
+        array $orderItems,
     ): Order {
-        if ($receipt === null) {
-            $exception = new ValidationException('Receipt validation failed: null receipt received');
-            report($exception);
+        // if ($receipt === null) {
+        //     $exception = new ValidationException('Receipt validation failed: null receipt received');
+        //     report($exception);
 
-            throw $exception;
-        }
+        //     throw $exception;
+        // }
 
         // Get in-app purchases with detailed validation
-        $inAppPurchases = $receipt->getInApp();
+        // $inAppPurchases = $receipt->getInApp();
 
-        if (empty($inAppPurchases)) {
-            $exception = new ValidationException(
-                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
-            );
-            report($exception);
+        // if (empty($inAppPurchases)) {
+        //     $exception = new ValidationException(
+        //         'No in-app purchases found in receipt. This appears to be an app download receipt only.'
+        //     );
+        //     report($exception);
 
-            throw $exception;
-        }
+        //     throw $exception;
+        // }
 
         // Validate we have the expected purchase
-        $firstPurchase = $inAppPurchases[0];
-
-        $orderItem = $this->createOrderItem($firstPurchase);
+        // $firstPurchase = $inAppPurchases[0];
 
         return new Order(
             app: $this->app,
@@ -147,7 +181,7 @@ class CreateOrderFromAppleReceiptAction
             token: Str::random(32),
             shippingAddress: null,
             billingAddress: null,
-            total: $this->calculateTotal($orderItem),
+            total: $this->calculateTotal($orderItems),
             taxes: 0.0,
             totalDiscount: 0.0,
             totalShipping: 0.0,
@@ -155,8 +189,8 @@ class CreateOrderFromAppleReceiptAction
             orderNumber: '',
             shippingMethod: null,
             currency: $this->region->currency,
-            fulfillmentStatus: 'fulfilled',
-            items: OrderItem::collect([$orderItem], DataCollection::class),
+            fulfillmentStatus: 'pending',
+            items: OrderItem::collect($orderItems, DataCollection::class),
             metadata: $allReceiptData,
             weight: 0.0,
             checkoutToken: '',
@@ -165,17 +199,16 @@ class CreateOrderFromAppleReceiptAction
         );
     }
 
-    private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
+    private function createOrderItem(Variants $variant): OrderItem
     {
-        $variant = $this->getVariant($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
             app: $this->app,
             variant: $variant,
             name: $variant->name,
-            sku: $inAppData->getProductId(),
-            quantity: $inAppData->getQuantity(),
+            sku: $variant->getProductId(),
+            quantity: $variant->getQuantity($warehouse),
             price: $variant->getPrice($warehouse),
             tax: 0.0,
             discount: 0.0,
@@ -189,8 +222,8 @@ class CreateOrderFromAppleReceiptAction
         return Variants::getBySku($sku, $this->company, $this->app);
     }
 
-    private function calculateTotal(OrderItem $orderItem): float
+    private function calculateTotal(array|Collection $orderItems): float
     {
-        return $orderItem->quantity * $orderItem->price;
+        return collect($orderItems)->sum(fn(OrderItem $item) => $item->quantity * $item->price);
     }
 }
