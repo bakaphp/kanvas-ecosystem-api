@@ -219,7 +219,7 @@ class ProcessVideoRequestAction
             $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
         }
 
-        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
+        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
@@ -231,27 +231,27 @@ class ProcessVideoRequestAction
     /**
      * Submit a video generation request
      */
-    protected function submitVideoRequest(array $payload, string $apiUrl): array
+    protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
-        if ($this->isGoogleService) {
+        if ($this->isGoogleService && $isVideo) {
             // For Google services, use multipart form data
             $httpRequest = Http::asMultipart();
-            
+
             // Add each field from payload as form data
             foreach ($payload as $key => $value) {
                 if ($key === 'image_url') {
                     // Download the image content and send as file
                     $imageContent = Http::get($value)->body();
                     $httpRequest = $httpRequest->attach(
-                        'image', 
-                        $imageContent, 
+                        'image',
+                        $imageContent,
                         'image.png' // Default filename, could be extracted from URL if needed
                     );
                 } else {
                     $httpRequest = $httpRequest->attach((string) $key, (string) $value);
                 }
             }
-            
+
             $response = $httpRequest->post($apiUrl);
         } else {
             // For non-Google services, use JSON
