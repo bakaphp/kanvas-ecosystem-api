@@ -78,7 +78,7 @@ enum AbandonCartTemplateEnum: string
     public static function get(string $key, string $lang = 'en'): string
     {
         $enumKey = strtoupper($key) . '_' . strtoupper($lang);
-        
+
         foreach (self::cases() as $case) {
             if ($case->name === $enumKey) {
                 return $case->value;
