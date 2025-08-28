@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -67,6 +68,13 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                         ];
                     }
                     $imageUrl = $messageContent['ai_image']['image'];
+                }
+
+                if (! Str::isUrl($imageUrl)) {
+                    return [
+                        'result' => false,
+                        'message' => 'The provided image URL is not valid',
+                    ];
                 }
 
                 $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
