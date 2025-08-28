@@ -70,12 +70,12 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     $imageUrl = $messageContent['ai_image']['image'];
                 }
 
-                if (! Str::isUrl($imageUrl)) {
-                    return [
-                        'result' => false,
-                        'message' => 'The provided image URL is not valid',
-                    ];
-                }
+                /*                 if (! Str::isUrl($imageUrl)) {
+                                    return [
+                                        'result' => false,
+                                        'message' => 'The provided image URL is not valid',
+                                    ];
+                                } */
 
                 $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
                 $fileName = basename($tempFilePath);
