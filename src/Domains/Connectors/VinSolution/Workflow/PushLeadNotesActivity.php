@@ -52,7 +52,7 @@ class PushLeadNotesActivity extends KanvasActivity
                     message: $message,
                 );
 
-                new ProcessMessageTaskUpdatesAction(
+                $processMessageTaskUpdatesAction = new ProcessMessageTaskUpdatesAction(
                     message: $message,
                     lead: $lead,
                     user: $message->user,
@@ -64,6 +64,7 @@ class PushLeadNotesActivity extends KanvasActivity
                     'note' => $leadNoteAction->execute(),
                     'results' => $results,
                     'message' => 'VinSolution integration completed successfully',
+                    'taskUpdates' => $processMessageTaskUpdatesAction,
                 ];
             },
             company: $company,
