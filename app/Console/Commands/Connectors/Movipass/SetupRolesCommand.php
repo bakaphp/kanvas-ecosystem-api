@@ -56,6 +56,11 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
             ],
+            "update-vouchers" => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
             "download-orders" => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
