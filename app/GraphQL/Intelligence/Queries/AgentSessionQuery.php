@@ -40,6 +40,7 @@ class AgentSessionQuery
             'user' => $session->user,
             'company_config' => $session->agent->type->config,
             'content' => $session->content,
+            'channel_tags' => $session->channel->tags->pluck('name')->toArray(),
         ];
     }
 }
