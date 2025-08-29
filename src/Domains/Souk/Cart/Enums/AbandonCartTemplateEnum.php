@@ -68,7 +68,7 @@ enum AbandonCartTemplateEnum: string
     case PRICE_EN = 'Price';
     case PRICE_ES = 'Precio';
     case TOTAL_EN = 'Total';
-    case TOTAL_ES = 'Total';
+    case TOTAL_ES = 'Totales';
     case DISMISS_EN = 'Dismiss';
     case DISMISS_ES = 'Cerrar';
 
