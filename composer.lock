@@ -163,16 +163,16 @@
         },
         {
             "name": "amphp/amp",
-            "version": "v3.1.0",
+            "version": "v3.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amphp/amp.git",
-                "reference": "7cf7fef3d667bfe4b2560bc87e67d5387a7bcde9"
+                "reference": "fa0ab33a6f47a82929c38d03ca47ebb71086a93f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amphp/amp/zipball/7cf7fef3d667bfe4b2560bc87e67d5387a7bcde9",
-                "reference": "7cf7fef3d667bfe4b2560bc87e67d5387a7bcde9",
+                "url": "https://api.github.com/repos/amphp/amp/zipball/fa0ab33a6f47a82929c38d03ca47ebb71086a93f",
+                "reference": "fa0ab33a6f47a82929c38d03ca47ebb71086a93f",
                 "shasum": ""
             },
             "require": {
@@ -232,7 +232,7 @@
             ],
             "support": {
                 "issues": "https://github.com/amphp/amp/issues",
-                "source": "https://github.com/amphp/amp/tree/v3.1.0"
+                "source": "https://github.com/amphp/amp/tree/v3.1.1"
             },
             "funding": [
                 {
@@ -240,7 +240,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-01-26T16:07:39+00:00"
+            "time": "2025-08-27T21:42:00+00:00"
         },
         {
             "name": "amphp/byte-stream",
@@ -1197,16 +1197,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.355.0",
+            "version": "3.356.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "17e7dd50a31164d18f4767636fd5d1c123f714e0"
+                "reference": "6b44237a218485bf43a0015600aebf43cb726d4e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/17e7dd50a31164d18f4767636fd5d1c123f714e0",
-                "reference": "17e7dd50a31164d18f4767636fd5d1c123f714e0",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6b44237a218485bf43a0015600aebf43cb726d4e",
+                "reference": "6b44237a218485bf43a0015600aebf43cb726d4e",
                 "shasum": ""
             },
             "require": {
@@ -1288,9 +1288,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.355.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.356.7"
             },
-            "time": "2025-08-18T18:15:09+00:00"
+            "time": "2025-08-28T18:14:39+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
@@ -3038,7 +3038,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.408.0",
+            "version": "v0.409.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -3076,7 +3076,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.408.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.409.0"
             },
             "time": "2025-06-04T17:28:44+00:00"
         },
@@ -3308,16 +3308,16 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.48.2",
+            "version": "v1.48.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "729daea71dc30549d8e331dcde35825fe3bc4474"
+                "reference": "028f54ad28cdd023686e650e5c21798c6735c317"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/729daea71dc30549d8e331dcde35825fe3bc4474",
-                "reference": "729daea71dc30549d8e331dcde35825fe3bc4474",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/028f54ad28cdd023686e650e5c21798c6735c317",
+                "reference": "028f54ad28cdd023686e650e5c21798c6735c317",
                 "shasum": ""
             },
             "require": {
@@ -3359,9 +3359,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.48.2"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.48.3"
             },
-            "time": "2025-07-18T20:06:03+00:00"
+            "time": "2025-08-18T18:45:43+00:00"
         },
         {
             "name": "google/common-protos",
@@ -5662,16 +5662,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.18.0",
+            "version": "v10.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "be9b14c37915429f0d60a305d786f93632b4b09c"
+                "reference": "996b2a8b5ccc583e7df667c8aac924a46bc8bdd3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/be9b14c37915429f0d60a305d786f93632b4b09c",
-                "reference": "be9b14c37915429f0d60a305d786f93632b4b09c",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/996b2a8b5ccc583e7df667c8aac924a46bc8bdd3",
+                "reference": "996b2a8b5ccc583e7df667c8aac924a46bc8bdd3",
                 "shasum": ""
             },
             "require": {
@@ -5739,7 +5739,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2025-08-19T02:10:57+00:00"
+            "time": "2025-08-26T14:24:24+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -10844,23 +10844,23 @@
         },
         {
             "name": "react/promise",
-            "version": "v3.2.0",
+            "version": "v3.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/reactphp/promise.git",
-                "reference": "8a164643313c71354582dc850b42b33fa12a4b63"
+                "reference": "23444f53a813a3296c1368bb104793ce8d88f04a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/reactphp/promise/zipball/8a164643313c71354582dc850b42b33fa12a4b63",
-                "reference": "8a164643313c71354582dc850b42b33fa12a4b63",
+                "url": "https://api.github.com/repos/reactphp/promise/zipball/23444f53a813a3296c1368bb104793ce8d88f04a",
+                "reference": "23444f53a813a3296c1368bb104793ce8d88f04a",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.1.0"
             },
             "require-dev": {
-                "phpstan/phpstan": "1.10.39 || 1.4.10",
+                "phpstan/phpstan": "1.12.28 || 1.4.10",
                 "phpunit/phpunit": "^9.6 || ^7.5"
             },
             "type": "library",
@@ -10905,7 +10905,7 @@
             ],
             "support": {
                 "issues": "https://github.com/reactphp/promise/issues",
-                "source": "https://github.com/reactphp/promise/tree/v3.2.0"
+                "source": "https://github.com/reactphp/promise/tree/v3.3.0"
             },
             "funding": [
                 {
@@ -10913,7 +10913,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2024-05-24T10:39:05+00:00"
+            "time": "2025-08-19T18:57:03+00:00"
         },
         {
             "name": "recombee/php-api-client",
@@ -11285,16 +11285,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.14.2",
+            "version": "4.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "bfeec74303d60d3f8bc33701ab3e86f8a8729f17"
+                "reference": "0d09baf3700869ec4b723c95eb466de56c3d74b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/bfeec74303d60d3f8bc33701ab3e86f8a8729f17",
-                "reference": "bfeec74303d60d3f8bc33701ab3e86f8a8729f17",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/0d09baf3700869ec4b723c95eb466de56c3d74b6",
+                "reference": "0d09baf3700869ec4b723c95eb466de56c3d74b6",
                 "shasum": ""
             },
             "require": {
@@ -11358,7 +11358,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.14.2"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.15.1"
             },
             "funding": [
                 {
@@ -11370,7 +11370,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-07-21T08:28:29+00:00"
+            "time": "2025-08-28T15:45:14+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
@@ -14929,16 +14929,16 @@
         },
         {
             "name": "symfony/polyfill-intl-icu",
-            "version": "v1.32.0",
+            "version": "v1.33.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-icu.git",
-                "reference": "763d2a91fea5681509ca01acbc1c5e450d127811"
+                "reference": "bfc8fa13dbaf21d69114b0efcd72ab700fb04d0c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/763d2a91fea5681509ca01acbc1c5e450d127811",
-                "reference": "763d2a91fea5681509ca01acbc1c5e450d127811",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/bfc8fa13dbaf21d69114b0efcd72ab700fb04d0c",
+                "reference": "bfc8fa13dbaf21d69114b0efcd72ab700fb04d0c",
                 "shasum": ""
             },
             "require": {
@@ -14993,7 +14993,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.32.0"
+                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.33.0"
             },
             "funding": [
                 {
@@ -15005,11 +15005,15 @@
                     "type": "github"
                 },
                 {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
                     "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-12-21T18:38:29+00:00"
+            "time": "2025-06-20T22:24:30+00:00"
         },
         {
             "name": "symfony/polyfill-intl-idn",
