@@ -180,7 +180,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $lead = new CreateLeadAction($leadData)->execute();
         $lead->addTags([
-            'twilio',
+            'SMS',
             'ai-agent',
         ]);
 
