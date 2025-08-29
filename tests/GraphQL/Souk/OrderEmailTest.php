@@ -17,8 +17,6 @@ class OrderEmailTest extends OrderBase
     use HasStripeConfiguration;
     protected $orderTypeName = 'reservation';
 
-
-
     public function testSendOrderEmail()
     {
         $user = auth()->user();
