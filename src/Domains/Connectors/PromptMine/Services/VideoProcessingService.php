@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Services;
 
+use Baka\Support\Str;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
@@ -12,11 +13,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -31,7 +34,8 @@ class VideoProcessingService
 
     public function __construct(
         protected Message $entity,
-        protected Apps $app
+        protected Apps $app,
+        protected array $config = []
     ) {
     }
 
@@ -59,6 +63,8 @@ class VideoProcessingService
                 return;
             }
 
+            //$this->validateImageLimit($this->entity, $params);
+
             // Poll for the result with retries
             $result = $this->pollForVideoResult($requestId, $videoModel);
 
@@ -71,6 +77,7 @@ class VideoProcessingService
             } elseif ($result['status'] === 'FAILED') {
                 // Update status to failed
                 $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
+                $this->failedNotification($result, $params);
             } else {
                 // If still processing, schedule another check in 2 minutes
                 $this->scheduleVideoProcessingRetry($requestId, $videoModel, $params);
@@ -79,6 +86,34 @@ class VideoProcessingService
             report($e);
             $this->updateVideoProcessingStatus('FAILED', $e->getMessage());
         }
+    }
+
+    public function failedNotification(array $result, array $params): void
+    {
+        //send notification
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['push']
+        );
+        $errorProcessingImageNotification = new ImageProcessingPushNotification(
+            user: $this->entity->user,
+            entity: $this->entity,
+            message: $result['error'] ?? 'Video processing failed',
+            title: 'Video processing failed',
+            via: $endViaList,
+            templates: [
+                'email_template' => $params['email_template'],
+                'push_template' => $params['push_template'],
+            ],
+        );
+
+        //send to the user profile when it fails
+        $errorProcessingImageNotification->setData([
+            'destination_id' => $this->entity->getId(),
+            'destination_type' => 'USER',
+            'destination_event' => 'FOLLOWING',
+        ]);
+        $this->entity->user->notify($errorProcessingImageNotification);
     }
 
     public function retryVideoProcessingCheck(
@@ -135,10 +170,23 @@ class VideoProcessingService
         $maxAttempts = 3;
         $attempt = 0;
 
+        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
+
         // Reconstruct API URL for polling
         $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
         $baseApiUrl = $this->app->get('PROMPT_VIDEO_API_URL');
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $isGoogleService = false;
+
+        /**
+         * if its google use the specific api route
+         */
+        if (Str::contains($videoModel, 'veo')) {
+            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoModel = str_replace('fal-ai/', '', $videoModel);
+            $isGoogleService = true;
+        }
+
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
         while ($attempt < $maxAttempts) {
@@ -154,16 +202,21 @@ class VideoProcessingService
                 ]);
 
                 $statusData = $statusResponse->json();
-
                 if ($statusData['status'] === 'COMPLETED') {
                     // Get the result
-                    $resultResponse = Http::withHeaders([
-                        'Content-Type' => 'application/json',
-                    ])->post($apiUrl, [
+                    $completedData = [
                         'operation' => 'result',
                         'requestId' => $requestId,
                         'model' => $videoModel,
-                    ]);
+                    ];
+
+                    if (isset($statusData['videoUri'])) {
+                        $completedData['videoUri'] = $statusData['videoUri'];
+                    }
+
+                    $resultResponse = Http::withHeaders([
+                        'Content-Type' => 'application/json',
+                    ])->post($apiUrl, $completedData);
 
                     $resultData = $resultResponse->json();
                     $videoUrl = $this->extractVideoUrl($resultData);
@@ -176,7 +229,7 @@ class VideoProcessingService
                 } elseif ($statusData['status'] === 'FAILED') {
                     return [
                         'status' => 'FAILED',
-                        'error' => 'Video processing failed on external service',
+                        'error' => $statusData['error'] ?? 'Video processing failed on external service',
                         'details' => $statusData,
                     ];
                 } else {
@@ -419,5 +472,54 @@ class VideoProcessingService
 
             return null;
         }
+    }
+
+    public function validateImageLimit(Message $message, array $params): array
+    {
+        try {
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                messageJsonFilters: ['type' => 'video-format']
+            ))->execute();
+        } catch (Throwable $e) {
+            //report($e);
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['push']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => $params['email_template'],
+                        'push_template' => $params['push_template'],
+                    ],
+                );
+
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+            } catch (Throwable $e) {
+                report($e);
+            }
+            $message->delete();
+
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Error checking message post limit: ' . $e->getMessage(),
+            ];
+        }
+
+        return [];
     }
 }
