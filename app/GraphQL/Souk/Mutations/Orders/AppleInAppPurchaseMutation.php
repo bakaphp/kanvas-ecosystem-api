@@ -14,7 +14,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
+use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -62,7 +62,7 @@ class AppleInAppPurchaseMutation
 
         //Make the transaction here?
         match ($product->get('purchase_type')) {
-            ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToWalletAction($order))->execute(),
+            ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(),
             ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
             default => throw new Exception('Invalid purchase type'),
         };
