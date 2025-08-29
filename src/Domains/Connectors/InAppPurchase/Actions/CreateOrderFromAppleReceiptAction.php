@@ -19,16 +19,12 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
-use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
-use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromAppleReceiptAction
@@ -76,11 +72,11 @@ class CreateOrderFromAppleReceiptAction
 
         $people = $this->createPeople();
 
-        $product = Products::getByName(
-            $receipt['productId'],
-            $this->app,
-            $this->company,
-        );
+        // $product = Products::getByName(
+        //     $receipt['productId'],
+        //     $this->app,
+        //     $this->company,
+        // );
 
         $orderItems = [];
         foreach ($receipt['variants_skus'] as $variantSku) {
@@ -105,12 +101,6 @@ class CreateOrderFromAppleReceiptAction
             $order->setCustomFields($this->appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
-
-        match ($product->get('purchase_type')) {
-            WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToWalletAction($order))->execute(),
-            WalletConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
-            default => throw new ValidationException('Invalid purchase type'),
-        };
 
         return $order;
     }
