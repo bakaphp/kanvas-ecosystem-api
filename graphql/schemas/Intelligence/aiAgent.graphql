@@ -5,7 +5,7 @@ type AIAgentSession {
     company: Company!
     company_config: Mixed
     content: Mixed
-    channel_tags: [String]
+    channel: String
 }
 
 extend type Query @guard {
