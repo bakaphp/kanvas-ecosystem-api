@@ -395,7 +395,7 @@ class OrderLateFeeTest extends TestCase
         print_r(["tha company" => $order->companies_id]);
         Artisan::call('kanvas:movipass-fix-order-items', [
             'app_id' => $this->apps->getId(),
-            'variant_id' => (string) $order->items->first()->variant_id,
+            '--substitute-item' => "{$lateFee->variants()->first()->id},  {$order->items->first()->variant_id}",
             '--order-ids' => "$order->id",
             '--timezone' => $timezone,
         ]);
@@ -403,11 +403,14 @@ class OrderLateFeeTest extends TestCase
         $orderAfterFix = $order->fresh();
 
         // Verify order has 1 item with correct price after removing late fee
-        $this->assertEquals(1, $orderAfterFix->items()->count());
-        $this->assertEquals($originalTotal, $orderAfterFix->getTotalAmount());
+        $this->assertEquals(2, $orderAfterFix->items()->count());
+        $this->assertEquals($orderAfterFix->getTotalAmount(), $originalTotal * 2);
 
         // Verify the remaining item is the original product, not the late fee
-        $remainingItem = $orderAfterFix->items()->first();
-        $this->assertEquals($product->variants()->first()->id, $remainingItem->variant_id);
+        $remainingItems = $orderAfterFix->items()->get();
+
+        foreach ($remainingItems as $item) {
+            $this->assertEquals($product->variants()->first()->id, $item->variant_id);
+        }
     }
 }
