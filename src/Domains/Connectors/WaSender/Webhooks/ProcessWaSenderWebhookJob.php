@@ -26,6 +26,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -1039,6 +1040,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->name = $name;
                 $channel->save();
             }
+
+            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'WhatsApp');
 
             if ($lead && empty($channel->entity_namespace)) {
                 $channel->entity_namespace = get_class($lead->people);

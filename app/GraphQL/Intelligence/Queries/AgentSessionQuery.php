@@ -6,6 +6,7 @@ namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 
@@ -40,7 +41,7 @@ class AgentSessionQuery
             'user' => $session->user,
             'company_config' => $session->agent->type->config,
             'content' => $session->content,
-            'channel_tags' => $session->channel->tags->pluck('name')->toArray(),
+            'channel' => $session->channel->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
         ];
     }
 }

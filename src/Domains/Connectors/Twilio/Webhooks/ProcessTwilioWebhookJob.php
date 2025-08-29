@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -251,6 +252,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'twilio',
                 'ai-agent',
             ]);
+            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SMS');
 
             return $channel;
         }, 5);
