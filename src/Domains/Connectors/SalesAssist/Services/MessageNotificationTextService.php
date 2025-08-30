@@ -50,8 +50,8 @@ class MessageNotificationTextService
 
         //variables for stage messages
         $values = [
-            'sendingUser' => $engagementMessage->users,
-            'stage' => $this->engagement->getStage(),
+            'sendingUser' => $engagementMessage->user,
+            'stage' => $this->engagement->stage,
             'message' => $engagementMessage,
             'messageData' => $messageData,
             'companyAction' => $this->engagement->companyAction,

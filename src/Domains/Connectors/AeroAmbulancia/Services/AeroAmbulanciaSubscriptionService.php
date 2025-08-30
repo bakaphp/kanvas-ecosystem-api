@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\AeroAmbulancia\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Carbon\Carbon;
 use Kanvas\Connectors\AeroAmbulancia\Client;
 use Kanvas\Connectors\AeroAmbulancia\Enums\ConfigurationEnum;
@@ -126,7 +127,8 @@ class AeroAmbulanciaSubscriptionService
         $typeId = ['passport' => '2', 'id' => '1'];
 
         // Ensure phone number is valid or use a placeholder
-        $phoneNumber = $beneficiaryData['phoneNumber'] ?? $people->getPhones()->first()?->value ?? '809732' . sprintf('%04d', random_int(0, 9999));
+        $phoneNumber = ! empty($beneficiaryData['phoneNumber']) ? $beneficiaryData['phoneNumber'] : ($people->getPhones()->first()?->getCleanPhone() ?? '809732' . sprintf('%04d', random_int(0, 9999)));
+        $phoneNumber = Str::limit($phoneNumber, 10, '');
 
         if (! preg_match('/^\d{10}$/', $phoneNumber)) {
             throw new ValidationException('phoneNumber must be a valid phone number ' . $phoneNumber);

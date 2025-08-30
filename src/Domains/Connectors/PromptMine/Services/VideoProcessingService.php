@@ -13,11 +13,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -61,6 +63,8 @@ class VideoProcessingService
                 return;
             }
 
+            //$this->validateImageLimit($this->entity, $params);
+
             // Poll for the result with retries
             $result = $this->pollForVideoResult($requestId, $videoModel);
 
@@ -73,6 +77,7 @@ class VideoProcessingService
             } elseif ($result['status'] === 'FAILED') {
                 // Update status to failed
                 $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
+                $this->failedNotification($result, $params);
             } else {
                 // If still processing, schedule another check in 2 minutes
                 $this->scheduleVideoProcessingRetry($requestId, $videoModel, $params);
@@ -81,6 +86,34 @@ class VideoProcessingService
             report($e);
             $this->updateVideoProcessingStatus('FAILED', $e->getMessage());
         }
+    }
+
+    public function failedNotification(array $result, array $params): void
+    {
+        //send notification
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['push']
+        );
+        $errorProcessingImageNotification = new ImageProcessingPushNotification(
+            user: $this->entity->user,
+            entity: $this->entity,
+            message: $result['error'] ?? 'Video processing failed',
+            title: 'Video processing failed',
+            via: $endViaList,
+            templates: [
+                'email_template' => $params['email_template'],
+                'push_template' => $params['push_template'],
+            ],
+        );
+
+        //send to the user profile when it fails
+        $errorProcessingImageNotification->setData([
+            'destination_id' => $this->entity->getId(),
+            'destination_type' => 'USER',
+            'destination_event' => 'FOLLOWING',
+        ]);
+        $this->entity->user->notify($errorProcessingImageNotification);
     }
 
     public function retryVideoProcessingCheck(
@@ -196,7 +229,7 @@ class VideoProcessingService
                 } elseif ($statusData['status'] === 'FAILED') {
                     return [
                         'status' => 'FAILED',
-                        'error' => 'Video processing failed on external service',
+                        'error' => $statusData['error'] ?? 'Video processing failed on external service',
                         'details' => $statusData,
                     ];
                 } else {
@@ -439,5 +472,54 @@ class VideoProcessingService
 
             return null;
         }
+    }
+
+    public function validateImageLimit(Message $message, array $params): array
+    {
+        try {
+            (new CheckMessagePostLimitAction(
+                message: $message,
+                //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
+                messageJsonFilters: ['type' => 'video-format']
+            ))->execute();
+        } catch (Throwable $e) {
+            //report($e);
+            try {
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['push']
+                );
+                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                    user: $message->user,
+                    entity: $message,
+                    message: 'You have reached your daily image generation limit.',
+                    title: 'Daily Limit Reached',
+                    via: $endViaList,
+                    templates: [
+                        'email_template' => $params['email_template'],
+                        'push_template' => $params['push_template'],
+                    ],
+                );
+
+                //send to the user profile when it fails
+                $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+                $message->user->notify($errorProcessingImageNotification);
+            } catch (Throwable $e) {
+                report($e);
+            }
+            $message->delete();
+
+            return [
+                'result' => false,
+                'message_id' => $message->getId(),
+                'message' => 'Error checking message post limit: ' . $e->getMessage(),
+            ];
+        }
+
+        return [];
     }
 }
