@@ -15,7 +15,6 @@ use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\GooglePlayInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
-use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
@@ -29,7 +28,6 @@ use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromGoogleReceiptAction
 {
-    private const string DEFAULT_CURRENCY = 'USD';
     private AppInterface $app;
     private CompanyInterface $company;
     private UserInterface $user;
@@ -53,6 +51,7 @@ class CreateOrderFromGoogleReceiptAction
             'productId' => $this->googlePlayInAppPurchase->product_id,
             'orderId' => $this->googlePlayInAppPurchase->order_id,
             'purchaseToken' => $this->googlePlayInAppPurchase->purchase_token,
+            'custom_fields' => $this->googlePlayInAppPurchase->custom_fields,
         ];
 
         $verifiedReceipt = $this->verifyReceipt($receipt);
@@ -106,7 +105,17 @@ class CreateOrderFromGoogleReceiptAction
 
     private function createOrderData(array $allReceiptData, People $people): Order
     {
-        $orderItem = $this->createOrderItem($allReceiptData);
+        $firstVariant = $this->getVariant($allReceiptData['productId']);
+        $orderItems = [];
+
+        $orderItem = $this->createOrderItem(
+            $firstVariant,
+            1  // Google Play doesn't have quantity in receipt
+        );
+
+        $orderItems[] = $orderItem;
+
+        $this->processCustomFieldsVariants($orderItems);
 
         return new Order(
             app: $this->app,
@@ -119,7 +128,7 @@ class CreateOrderFromGoogleReceiptAction
             token: Str::random(32),
             shippingAddress: null,
             billingAddress: null,
-            total: $this->calculateTotal($orderItem),
+            total: $this->calculateTotal($orderItems),
             taxes: 0.0,
             totalDiscount: 0.0,
             totalShipping: 0.0,
@@ -128,7 +137,7 @@ class CreateOrderFromGoogleReceiptAction
             shippingMethod: null,
             currency: $this->region->currency,
             fulfillmentStatus: 'fulfilled',
-            items: OrderItem::collect([$orderItem], DataCollection::class),
+            items: OrderItem::collect($orderItems, DataCollection::class),
             metadata: $allReceiptData,
             weight: 0.0,
             checkoutToken: '',
@@ -137,21 +146,20 @@ class CreateOrderFromGoogleReceiptAction
         );
     }
 
-    private function createOrderItem(array $inAppData): OrderItem
+    private function createOrderItem(Variants $variant, int $quantity): OrderItem
     {
-        $variant = $this->getVariant($inAppData['productId']);
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
             app: $this->app,
             variant: $variant,
             name: $variant->name,
-            sku: $inAppData['productId'],
-            quantity: 1,
+            sku: $variant->sku,
+            quantity: $quantity,
             price: $variant->getPrice($warehouse),
             tax: 0.0,
             discount: 0.0,
-            currency: Currencies::getByCode(self::DEFAULT_CURRENCY),
+            currency: $this->region->currency,
             quantityShipped: 0
         );
     }
@@ -161,8 +169,48 @@ class CreateOrderFromGoogleReceiptAction
         return Variants::getBySku($sku, $this->company, $this->app);
     }
 
-    private function calculateTotal(OrderItem $orderItem): float
+    /**
+     * @param array<OrderItem> $orderItems
+     */
+    private function calculateTotal(array $orderItems): float
     {
-        return $orderItem->quantity * $orderItem->price;
+        return array_reduce($orderItems, fn ($total, $item) =>
+            $total + ($item->quantity * $item->price), 0);
+    }
+
+    private function processCustomFieldsVariants(array &$orderItems): void
+    {
+        /**
+         * Normalize custom_fields to associative array: ['name' => value]
+         * Example input:
+         * [
+         *   ['name' => 'message_id', 'value' => 1],
+         *   ['name' => 'variants_skus', 'value' => [ ... ]]
+         * ]
+         */
+        $customFieldsAssoc = [];
+        if (! empty($this->googlePlayInAppPurchase->custom_fields)) {
+            foreach ($this->googlePlayInAppPurchase->custom_fields as $field) {
+                if (isset($field['name']) && array_key_exists('value', $field)) {
+                    $customFieldsAssoc[$field['name']] = $field['value'];
+                }
+            }
+        }
+
+        if (! empty($customFieldsAssoc['variants_skus']) && is_array($customFieldsAssoc['variants_skus'])) {
+            foreach ($customFieldsAssoc['variants_skus'] as $lineItemVariant) {
+                if (! is_array($lineItemVariant) || ! isset($lineItemVariant['sku'])) {
+                    continue;
+                }
+
+                $variant = $this->getVariant($lineItemVariant['sku']);
+                $orderItem = $this->createOrderItem(
+                    $variant,
+                    $lineItemVariant['quantity'] ?? 1
+                );
+
+                $orderItems[] = $orderItem;
+            }
+        }
     }
 }

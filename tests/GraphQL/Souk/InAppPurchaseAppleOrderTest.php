@@ -13,7 +13,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Tests\TestCase;
 
-class InAppPurchaseOrderTest extends TestCase
+class InAppPurchaseAppleOrderTest extends TestCase
 {
     public function testCreateOrderFromAppleInAppPurchase()
     {
