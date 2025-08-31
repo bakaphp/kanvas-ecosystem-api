@@ -8,11 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Exception;
-use Illuminate\Database\Eloquent\Collection;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
+use Imdhemy\AppStore\ValueObjects\Receipt;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -58,11 +57,6 @@ class CreateOrderFromAppleReceiptAction
             'custom_fields' => $this->appleInAppPurchase->custom_fields,
         ];
 
-        //Check if we have a purchase type before verifying the receipt
-        if (! $receipt['custom_fields']['purchase_type']) {
-            throw new Exception('No purchase type provided');
-        }
-
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
 
@@ -71,28 +65,10 @@ class CreateOrderFromAppleReceiptAction
         }
 
         $people = $this->createPeople();
-
-        // $product = Products::getByName(
-        //     $receipt['productId'],
-        //     $this->app,
-        //     $this->company,
-        // );
-
-        $orderItems = [];
-        foreach ($receipt['variants_skus'] as $variantSku) {
-            $variant = Variants::getBySku(
-                $variantSku,
-                $this->company,
-                $this->app
-            );
-
-            $orderItems[] = $this->createOrderItem($variant);
-        }
-
         $orderData = $this->createOrderData(
             $receipt,
             $people,
-            $orderItems
+            $verifiedReceipt->getReceipt()
         );
 
         $order = (new CreateOrderAction($orderData))->execute();
@@ -131,29 +107,50 @@ class CreateOrderFromAppleReceiptAction
     private function createOrderData(
         array $allReceiptData,
         People $people,
-        array $orderItems,
+        ?Receipt $receipt,
     ): Order {
-        // if ($receipt === null) {
-        //     $exception = new ValidationException('Receipt validation failed: null receipt received');
-        //     report($exception);
+        if ($receipt === null) {
+            $exception = new ValidationException('Receipt validation failed: null receipt received');
+            report($exception);
 
-        //     throw $exception;
-        // }
+            throw $exception;
+        }
 
         // Get in-app purchases with detailed validation
-        // $inAppPurchases = $receipt->getInApp();
+        $inAppPurchases = $receipt->getInApp();
 
-        // if (empty($inAppPurchases)) {
-        //     $exception = new ValidationException(
-        //         'No in-app purchases found in receipt. This appears to be an app download receipt only.'
-        //     );
-        //     report($exception);
+        if (empty($inAppPurchases)) {
+            $exception = new ValidationException(
+                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
+            );
+            report($exception);
 
-        //     throw $exception;
-        // }
+            throw $exception;
+        }
 
         // Validate we have the expected purchase
-        // $firstPurchase = $inAppPurchases[0];
+        $firstPurchase = $inAppPurchases[0];
+        $firstVariant = $this->getVariant($firstPurchase->getProductId());
+        $orderItems = [];
+
+        $orderItem = $this->createOrderItem(
+            $firstVariant,
+            $firstPurchase->getQuantity()
+        );
+
+        $orderItems[] = $orderItem;
+
+        if (! empty($this->appleInAppPurchase->custom_fields['variants_skus'])) {
+            foreach ($this->appleInAppPurchase->custom_fields['variants_skus'] as $lineItemVariant) {
+                $variant = $this->getVariant($lineItemVariant['sku']);
+                $orderItem = $this->createOrderItem(
+                    $variant,
+                    $lineItemVariant['quantity'] ?? 1
+                );
+
+                $orderItems[] = $orderItem;
+            }
+        }
 
         return new Order(
             app: $this->app,
@@ -174,7 +171,7 @@ class CreateOrderFromAppleReceiptAction
             orderNumber: '',
             shippingMethod: null,
             currency: $this->region->currency,
-            fulfillmentStatus: 'pending',
+            fulfillmentStatus: 'fulfilled',
             items: OrderItem::collect($orderItems, DataCollection::class),
             metadata: $allReceiptData,
             weight: 0.0,
@@ -184,20 +181,22 @@ class CreateOrderFromAppleReceiptAction
         );
     }
 
-    private function createOrderItem(Variants $variant): OrderItem
+    private function createOrderItem(Variants $variant, int $quantity): OrderItem
     {
+        //$variant = $this->getVariant($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
             app: $this->app,
             variant: $variant,
             name: $variant->name,
-            sku: $variant->getProductId(),
-            quantity: $variant->getQuantity($warehouse),
+            sku: $variant->sku,
+            //quantity: $inAppData->getQuantity(),
+            quantity: $quantity,
             price: $variant->getPrice($warehouse),
             tax: 0.0,
             discount: 0.0,
-            currency: Currencies::getByCode(self::DEFAULT_CURRENCY),
+            currency: $this->region->currency, //Currencies::getByCode(self::DEFAULT_CURRENCY),
             quantityShipped: 0
         );
     }
@@ -207,8 +206,13 @@ class CreateOrderFromAppleReceiptAction
         return Variants::getBySku($sku, $this->company, $this->app);
     }
 
-    private function calculateTotal(array|Collection $orderItems): float
+    /**
+     * @param array<OrderItem> $orderItems
+     */
+    private function calculateTotal(array $orderItems): float
     {
-        return collect($orderItems)->sum(fn (OrderItem $item) => $item->quantity * $item->price);
+        // return $orderItem->quantity * $orderItem->price;
+        return array_reduce($orderItems, fn ($total, $item) =>
+            $total + ($item->quantity * $item->price), 0);
     }
 }
