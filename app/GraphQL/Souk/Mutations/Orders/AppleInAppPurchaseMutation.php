@@ -84,7 +84,7 @@ class AppleInAppPurchaseMutation
 
                 if (in_array($attributeValue, $walletTypes, true)) {
                     match ($attributeValue) {
-                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(),
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(), //@todo also support company?
                         ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
                         default => null
                     };
