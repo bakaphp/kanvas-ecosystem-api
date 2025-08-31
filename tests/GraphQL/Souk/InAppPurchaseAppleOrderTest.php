@@ -22,7 +22,7 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, getenv('TEST_APPLE_PAYMENT_SHARED_SECRET'));
+        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -88,7 +88,7 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, getenv('TEST_APPLE_PAYMENT_SHARED_SECRET'));
+        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -166,7 +166,7 @@ class InAppPurchaseAppleOrderTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, getenv('TEST_APPLE_PAYMENT_SHARED_SECRET'));
+        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, env('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
