@@ -140,17 +140,7 @@ class CreateOrderFromAppleReceiptAction
 
         $orderItems[] = $orderItem;
 
-        if (! empty($this->appleInAppPurchase->custom_fields['variants_skus'])) {
-            foreach ($this->appleInAppPurchase->custom_fields['variants_skus'] as $lineItemVariant) {
-                $variant = $this->getVariant($lineItemVariant['sku']);
-                $orderItem = $this->createOrderItem(
-                    $variant,
-                    $lineItemVariant['quantity'] ?? 1
-                );
-
-                $orderItems[] = $orderItem;
-            }
-        }
+        $this->processCustomFieldsVariants($orderItems);
 
         return new Order(
             app: $this->app,
@@ -214,5 +204,41 @@ class CreateOrderFromAppleReceiptAction
         // return $orderItem->quantity * $orderItem->price;
         return array_reduce($orderItems, fn ($total, $item) =>
             $total + ($item->quantity * $item->price), 0);
+    }
+
+    private function processCustomFieldsVariants(array &$orderItems): void
+    {
+        /**
+         * Normalize custom_fields to associative array: ['name' => value]
+         * Example input:
+         * [
+         *   ['name' => 'message_id', 'value' => 1],
+         *   ['name' => 'variants_skus', 'value' => [ ... ]]
+         * ]
+         */
+        $customFieldsAssoc = [];
+        if (! empty($this->appleInAppPurchase->custom_fields)) {
+            foreach ($this->appleInAppPurchase->custom_fields as $field) {
+                if (isset($field['name']) && array_key_exists('value', $field)) {
+                    $customFieldsAssoc[$field['name']] = $field['value'];
+                }
+            }
+        }
+
+        if (! empty($customFieldsAssoc['variants_skus']) && is_array($customFieldsAssoc['variants_skus'])) {
+            foreach ($customFieldsAssoc['variants_skus'] as $lineItemVariant) {
+                if (! is_array($lineItemVariant) || ! isset($lineItemVariant['sku'])) {
+                    continue;
+                }
+
+                $variant = $this->getVariant($lineItemVariant['sku']);
+                $orderItem = $this->createOrderItem(
+                    $variant,
+                    $lineItemVariant['quantity'] ?? 1
+                );
+
+                $orderItems[] = $orderItem;
+            }
+        }
     }
 }
