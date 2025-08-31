@@ -117,7 +117,7 @@ final class CustomerTest extends TestCase
         $people = People::factory()->withAppId($app->getId())->withCompanyId($product->company->id)->create();
 
         $people->addEmail(fake()->email);
-        $people->addPhone('18093505111');
+        $people->addPhone(fake()->phoneNumbers);
 
         $createShopifyCustomer = new CreateShopifyCustomerAction(
             $people,
