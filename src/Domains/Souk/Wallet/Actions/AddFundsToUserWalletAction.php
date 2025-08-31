@@ -8,7 +8,6 @@ use Bavix\Wallet\Models\Transaction;
 use Exception;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class AddFundsToUserWalletAction
 {
@@ -19,20 +18,7 @@ class AddFundsToUserWalletAction
 
     public function execute(): Transaction
     {
-        $userCompany = $this->order->getMetadata('user_company_id');
-        if (! $userCompany) {
-            throw new Exception('User company not found in order metadata.');
-        }
-
-        ///$company = Companies::getById($userCompany); hotfix while we figure it out
         $user = $this->order->user;
-        $company = $user->getCurrentCompany();
-
-        UsersRepository::belongsToThisApp(
-            $this->order->user,
-            $this->order->app,
-            $company
-        );
 
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $user->createAppWallet($this->order->app, ['name' => $tag]);
