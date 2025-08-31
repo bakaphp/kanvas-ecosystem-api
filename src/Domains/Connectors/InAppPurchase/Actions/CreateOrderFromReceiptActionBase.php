@@ -13,7 +13,6 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -94,7 +93,7 @@ abstract class CreateOrderFromReceiptActionBase
          */
         $customFieldsAssoc = [];
         $customFields = $this->getCustomFields();
-        
+
         if (! empty($customFields)) {
             foreach ($customFields as $field) {
                 if (isset($field['name']) && array_key_exists('value', $field)) {
@@ -122,7 +121,7 @@ abstract class CreateOrderFromReceiptActionBase
 
     /**
      * Create Order DTO with common parameters.
-     * 
+     *
      * @param array<OrderItem> $orderItems
      */
     protected function createOrderDto(
@@ -165,7 +164,7 @@ abstract class CreateOrderFromReceiptActionBase
     protected function handleCustomFieldsOnOrder(ModelsOrder $order): void
     {
         $customFields = $this->getCustomFields();
-        
+
         if (! empty($customFields)) {
             $order->setCustomFields($customFields);
             $order->saveCustomFields();
