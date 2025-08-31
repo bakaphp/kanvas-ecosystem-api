@@ -66,7 +66,7 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
         ', [
             'input' => $receipt,
         ]);
-        
+
         $response->assertSuccessful();
         $response->assertJsonStructure([
             'data' => [
