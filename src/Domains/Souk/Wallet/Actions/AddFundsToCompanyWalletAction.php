@@ -11,7 +11,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 
-class AddFundsToWalletAction
+class AddFundsToCompanyWalletAction
 {
     public function __construct(
         protected Order $order,
