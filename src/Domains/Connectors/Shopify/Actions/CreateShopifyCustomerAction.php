@@ -103,7 +103,7 @@ class CreateShopifyCustomerAction
         if (! empty($phone)) {
             $customerData['phone'] = $phone;
         }
-        
+
         return $customerData;
     }
 
