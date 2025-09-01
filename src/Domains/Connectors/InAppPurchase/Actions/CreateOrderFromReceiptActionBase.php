@@ -15,6 +15,8 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
 
@@ -144,11 +146,11 @@ abstract class CreateOrderFromReceiptActionBase
             taxes: 0.0,
             totalDiscount: 0.0,
             totalShipping: 0.0,
-            status: 'completed',
+            status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
             shippingMethod: null,
             currency: $this->region->currency,
-            fulfillmentStatus: 'fulfilled',
+            fulfillmentStatus: OrderFulfillmentStatusEnum::PENDING->value,
             items: OrderItem::collect($orderItems, DataCollection::class),
             metadata: $metadata,
             weight: 0.0,
