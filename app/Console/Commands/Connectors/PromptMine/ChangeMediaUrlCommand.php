@@ -8,9 +8,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Companies\Models\Companies;
 
 class ChangeMediaUrlCommand extends Command
 {
@@ -54,7 +54,7 @@ class ChangeMediaUrlCommand extends Command
         Message::fromApp($app)
             ->where('companies_id', $company->getId())
             ->where('messages_types_id', $messageType->getKey())
-            ->chunk(100, function ($messages) use ($app){
+            ->chunk(100, function ($messages) use ($app) {
                 foreach ($messages as $message) {
                     DB::beginTransaction();
                     try {
