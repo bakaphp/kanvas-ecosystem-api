@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Providers;
 
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use NotificationChannels\Twilio\TwilioProvider;
-use Illuminate\Support\Facades\Schema;
 
 class NotificationTwilioProvider extends TwilioProvider
 {
