@@ -89,7 +89,8 @@ class CreateShopifyCustomerAction
     {
         $phone = $this->people->getPhones()->first()?->value;
         if (! empty($phone)) {
-            $phone = Str::startsWith($phone, '+') ? $phone : '+' . $phone;
+            $phone = Str::sanitizePhoneNumber($phone);
+            $phone = Str::startsWith($phone, '+1') ? $phone : '+1' . $phone;
         }
 
         $customerData = [
@@ -102,7 +103,7 @@ class CreateShopifyCustomerAction
         if (! empty($phone)) {
             $customerData['phone'] = $phone;
         }
-
+        
         return $customerData;
     }
 
