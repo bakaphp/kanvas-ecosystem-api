@@ -34,6 +34,7 @@
         "joelwmale/laravel-cart": "^1.2",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
+        "laravel-notification-channels/twilio": "^4.1",
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.6.0",
         "laravel/framework": "^12.0",

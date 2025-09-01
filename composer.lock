@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3cee37389154a70ebb4bc9e6b38b948d",
+    "content-hash": "085bf41b5c20bac3b7f55126f3b09a48",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -5085,6 +5085,86 @@
                 "source": "https://github.com/laravel-notification-channels/expo/tree/v2.1.0"
             },
             "time": "2025-02-24T22:52:18+00:00"
+        },
+        {
+            "name": "laravel-notification-channels/twilio",
+            "version": "4.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel-notification-channels/twilio.git",
+                "reference": "ee3fff9daf91d11f5e0f120c2752f3b51c9dec6d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel-notification-channels/twilio/zipball/ee3fff9daf91d11f5e0f120c2752f3b51c9dec6d",
+                "reference": "ee3fff9daf91d11f5e0f120c2752f3b51c9dec6d",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/events": "^11.0 || ^12.0",
+                "illuminate/notifications": "^11.0 || ^12.0",
+                "illuminate/queue": "^11.0 || ^12.0",
+                "illuminate/support": "^11.0 || ^12.0",
+                "php": "^8.2",
+                "twilio/sdk": "^7.16 || ^8.3"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.21",
+                "mockery/mockery": "^1.0",
+                "orchestra/testbench": "^9.0 || ^10.0",
+                "phpunit/phpunit": "^10.5 || ^11.5.10"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "NotificationChannels\\Twilio\\TwilioProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "NotificationChannels\\Twilio\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Philip Iezzi",
+                    "email": "pipo@onlime.ch",
+                    "homepage": "https://github.com/onlime",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Gregorio Hernández Caso",
+                    "email": "gregoriohc@gmail.com",
+                    "homepage": "https://github.com/gregoriohc",
+                    "role": "Developer"
+                },
+                {
+                    "name": "atymic",
+                    "email": "atymicq@gmail.com",
+                    "homepage": "https://atymic.dev",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Provides Twilio notification channel for Laravel",
+            "keywords": [
+                "call",
+                "laravel",
+                "mms",
+                "notification",
+                "sms",
+                "twilio"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel-notification-channels/twilio/issues",
+                "source": "https://github.com/laravel-notification-channels/twilio"
+            },
+            "time": "2025-07-07T10:26:10+00:00"
         },
         {
             "name": "laravel-workflow/laravel-workflow",

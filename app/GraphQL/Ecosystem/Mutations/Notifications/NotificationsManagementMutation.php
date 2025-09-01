@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -17,6 +18,7 @@ use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Repositories\UsersRepository;
+use NotificationChannels\Twilio\TwilioChannel;
 
 class NotificationsManagementMutation
 {
@@ -76,6 +78,24 @@ class NotificationsManagementMutation
         $notification->setFromUser($user);
         $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
+
+        return true;
+    }
+
+    public function sendSmsNotification(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+
+        $notification = new Blank(
+            '',
+            [],
+            [TwilioChannel::class],
+            $user
+        );
+        $notification->data['message'] = $request['message'];
+        $notification->data['route_number'] = $request['phone'];
+        $notification->data['from'] = app(Apps::class)->get(ConfigurationEnum::TWILIO_PHONE_NUMBER->value);
+        Notification::route(TwilioChannel::class, $request['phone'])->notify($notification);
 
         return true;
     }

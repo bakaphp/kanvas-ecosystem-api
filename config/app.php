@@ -194,6 +194,7 @@ return [
         App\Providers\SearchServiceProvider::class,
         App\Providers\CartServiceProvider::class,
         App\Providers\PaymentProcessorServiceProvider::class,
+        Kanvas\Connectors\Twilio\Providers\NotificationTwilioProvider::class
     ],
 
     /*

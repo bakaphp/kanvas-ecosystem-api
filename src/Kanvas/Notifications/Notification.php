@@ -29,6 +29,7 @@ use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use NotificationChannels\Twilio\TwilioSmsMessage;
 use Override;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
@@ -62,7 +63,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             'app' => $this->app,
             'options' => $options,
         ];
-
         $this->configureFromOptions($options);
     }
 
@@ -242,5 +242,17 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $this->interaction = Interactions::getByName($name, $this->app);
         } catch (ModelNotFoundException $e) {
         }
+    }
+
+    public function toTwilio($notifiable): TwilioSmsMessage
+    {
+        return (new TwilioSmsMessage())
+            ->content($this->data['message'])
+            ->from($this->data['from']);
+    }
+
+    public function routeNotificationForTwilio()
+    {
+        return $this->data['route_number'];
     }
 }
