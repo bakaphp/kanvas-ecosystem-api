@@ -45,7 +45,7 @@ class PushFollowRecommendationNotificationCommand extends Command
         $this->overwriteAppService($app);
 
         $notificationMessages = [
-            "✨ Based on your interests, we think you'd like @username! Tap to view their profile.",
+            "✨ Based on your interests, we think you would like @username! Tap to view their profile.",
             "We found a creator you might like! @username creates AI prompts about [category] that match your interests.",
             "Heads up! @username created something you might like. (Others do!)",
             "You and @username have similar tastes! See their latest creation."
