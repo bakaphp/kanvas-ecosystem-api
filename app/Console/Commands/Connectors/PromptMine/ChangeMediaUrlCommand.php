@@ -37,7 +37,6 @@ class ChangeMediaUrlCommand extends Command
      */
     public function handle()
     {
-
         $appId = (int) $this->option('appId');
         $messageType = (int) $this->option('messageType');
         $companyId = (int) $this->option('companyId');
@@ -46,7 +45,6 @@ class ChangeMediaUrlCommand extends Command
         $messageType = MessageType::fromApp($app)->where('id', $messageType)->firstOrFail();
         $company = Companies::where('id', $companyId)->where('is_deleted', 0)->firstOrFail();
         $this->refactorMediaUrl($app, $messageType, $company);
-
     }
 
     private function refactorMediaUrl(Apps $app, MessageType $messageType, Companies $company): void
@@ -74,14 +72,12 @@ class ChangeMediaUrlCommand extends Command
     private function toCdnUrl(Message $message): void
     {
         $messageData = $message->message;
-
         match ($messageData['type']) {
             'video-format' => $messageData['video'] = str_replace(self::OLD_MEDIA_URL, self::CDN_URL, $messageData['video']),
             'image-format' => $messageData['image'] = str_replace(self::OLD_MEDIA_URL, self::CDN_URL, $messageData['image']),
         };
 
         $message->message = $messageData;
-
-        $message->saveOrFail();
+        $message->save();
     }
 }
