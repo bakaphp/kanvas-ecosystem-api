@@ -57,8 +57,9 @@ class PushFollowRecommendationNotificationCommand extends Command
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)
-            ->chunk(100, function ($users) use ($app, $via, $notificationMessages, $messageType) {
-                foreach ($users as $user) {
+            ->chunk(100, function ($usersAssocs) use ($app, $via, $notificationMessages, $messageType) {
+                foreach ($usersAssocs as $userAssoc) {
+                    $user = $userAssoc->user;
                     $recommendedUsers = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user)->get();
                     if (empty($recommendedUser)) {
                         continue;
