@@ -26,7 +26,7 @@ class ChangeMediaUrlCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:change-media-url {appId=78} {messageType=588} {companyId=2626}';
+    protected $signature = 'kanvas:promptmine-change-media-url {appId=78} {messageType=588} {companyId=2626}';
 
     /**
      * The console command description.
