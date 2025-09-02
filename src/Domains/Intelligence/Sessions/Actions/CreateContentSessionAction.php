@@ -61,6 +61,7 @@ class CreateContentSessionAction
         try {
             $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
         } catch (Exception $e) {
+            report($e);
             $background = $this->agent?->role;
         }
 
