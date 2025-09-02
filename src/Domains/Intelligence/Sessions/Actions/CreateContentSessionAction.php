@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
@@ -57,7 +58,11 @@ class CreateContentSessionAction
             $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
         }
 
-        $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+        try {
+            $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+        } catch (Exception $e) {
+            $background = $this->agent?->role;
+        }
 
         return [
             'branch' => $this->branch,
