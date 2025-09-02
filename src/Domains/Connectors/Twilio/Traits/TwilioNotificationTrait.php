@@ -3,12 +3,13 @@
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Traits;
-
+use Kanvas\Companies\Models\Companies;
 trait TwilioNotificationTrait
 {
     protected string $message;
     protected string $from;
     protected string $to;
+    protected Companies $company;
 
     public function setMessage(string $message): self
     {
@@ -44,5 +45,17 @@ trait TwilioNotificationTrait
     public function getToNumber(): string
     {
         return $this->to;
+    }
+
+    public function getCompany(): Companies
+    {
+        return $this->company;
+    }
+
+    public function setCompany(Companies $company): self
+    {
+        $this->company = $company;
+
+        return $this;
     }
 }

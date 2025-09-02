@@ -91,6 +91,7 @@ class NotificationsManagementMutation
         $notification->setMessage($request['message']);
         $notification->setFrom($company->get(ConfigurationEnum::TWILIO_PHONE_NUMBER->value));
         $notification->setTo($request['phone']);
+        $notification->setCompany($company);
         Notification::route(TwilioNotificationChannel::class, $request['phone'])->notify($notification);
 
         return true;

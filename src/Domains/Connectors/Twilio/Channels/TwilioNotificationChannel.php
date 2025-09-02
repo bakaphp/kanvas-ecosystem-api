@@ -10,7 +10,7 @@ class TwilioNotificationChannel
 {
     public function send($notifiable, SmsNotification $notification): void
     {
-        $company = auth()->user()?->getCurrentCompany();
+        $company = $notification->getCompany();
         if (! $company) {
             $app = app(Apps::class);
         }

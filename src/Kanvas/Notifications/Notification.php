@@ -243,16 +243,4 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         } catch (ModelNotFoundException $e) {
         }
     }
-
-    public function toTwilio($notifiable): TwilioSmsMessage
-    {
-        return (new TwilioSmsMessage())
-            ->content($this->data['message'])
-            ->from($this->data['from']);
-    }
-
-    public function routeNotificationForTwilio()
-    {
-        return $this->data['route_number'];
-    }
 }
