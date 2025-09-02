@@ -59,6 +59,9 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 $entity->parent_id = $entity->messsage['remix_parent_id'];
                 $entity->save();
 
+                // Increment the parent prompt counter
+                $entity->parent->increment('total_children');
+
                 return [
                     'message' => 'Remix created successfully',
                     'result' => true,
