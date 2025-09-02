@@ -53,6 +53,7 @@ class CreateContentSessionAction
         if ($lead) {
             $data['leadOwnerEmail'] = $lead->owner?->email;
             $data['customerName'] = $people->name;
+            $data['leadEmail'] = $people->getEmails()->first()?->value ?? '';
             $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
         }
 
