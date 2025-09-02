@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Twilio\Rest\Client as TwilioClient;
-use Kanvas\Companies\Models\Companies;
+
 class Client
 {
     protected static ?TwilioClient $instance = null;
