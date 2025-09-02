@@ -29,7 +29,6 @@ use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use NotificationChannels\Twilio\TwilioSmsMessage;
 use Override;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Traits;
+
 use Kanvas\Companies\Models\Companies;
+
 trait TwilioNotificationTrait
 {
     protected string $message;
