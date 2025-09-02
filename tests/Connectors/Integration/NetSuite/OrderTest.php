@@ -267,6 +267,7 @@ final class OrderTest extends TestCase
     {
         $company = Companies::first();
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $salesOrderId = env('NET_SUITE_SALES_ORDER_ID');
 
@@ -274,7 +275,7 @@ final class OrderTest extends TestCase
             $this->markTestSkipped('NET_SUITE_SALES_ORDER_ID environment variable not set');
         }
 
-        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company);
+        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company, $user);
 
         // Use reflection to access the private getSalesOrderById method
         $reflection = new \ReflectionClass($processOrderAction);
@@ -296,6 +297,7 @@ final class OrderTest extends TestCase
     {
         $company = Companies::first();
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $salesOrderId = env('NET_SUITE_SALES_ORDER_ID');
 
@@ -303,7 +305,7 @@ final class OrderTest extends TestCase
             $this->markTestSkipped('NET_SUITE_SALES_ORDER_ID environment variable not set');
         }
 
-        $result = new ProcessNetSuiteSalesOrderAction($app, $company)->execute($salesOrderId, 5);
+        $result = new ProcessNetSuiteSalesOrderAction($app, $company, $user)->execute($salesOrderId, 5);
 
         $this->assertNotNull($result);
     }
@@ -312,8 +314,9 @@ final class OrderTest extends TestCase
     {
         $app = app(Apps::class);
         $company = Companies::first();
+        $user = auth()->user();
 
-        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company);
+        $processOrderAction = new ProcessNetSuiteSalesOrderAction($app, $company, $user);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessageMatches('/Error retrieving sales order|Sales order .* not found/');
