@@ -284,7 +284,7 @@ class Order extends BaseModel
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the order with the highest order_number
-        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue()) === '1';
+        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue());
         $lastOrder = Order::where('apps_id', $this->apps_id)
             ->when(! $isB2BMode, fn ($q) => $q->where('companies_id', $this->companies_id))
             ->lockForUpdate() // Ensure no race conditions
