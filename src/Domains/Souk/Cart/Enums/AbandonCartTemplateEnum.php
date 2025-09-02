@@ -67,8 +67,7 @@ enum AbandonCartTemplateEnum: string
     case QUANTITY_ES = 'Cantidad';
     case PRICE_EN = 'Price';
     case PRICE_ES = 'Precio';
-    case TOTAL_EN = 'Total';
-    case TOTAL_ES = 'Total';
+    case TOTAL = 'Total';
     case DISMISS_EN = 'Dismiss';
     case DISMISS_ES = 'Cerrar';
 
@@ -81,6 +80,14 @@ enum AbandonCartTemplateEnum: string
 
         foreach (self::cases() as $case) {
             if ($case->name === $enumKey) {
+                return $case->value;
+            }
+        }
+
+        // Try without language suffix for universal cases like TOTAL
+        $universalKey = strtoupper($key);
+        foreach (self::cases() as $case) {
+            if ($case->name === $universalKey) {
                 return $case->value;
             }
         }
