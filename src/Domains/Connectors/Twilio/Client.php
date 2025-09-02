@@ -27,7 +27,6 @@ class Client
         if (self::$instance === null) {
             $sid = $entity->get(ConfigurationEnum::TWILIO_ACCOUNT_SID->value);
             $token = $entity->get(ConfigurationEnum::TWILIO_AUTH_TOKEN->value);
-            dump($sid, $token,$entity);
             self::$instance = new TwilioClient($sid, $token);
         }
 
