@@ -121,6 +121,7 @@ class RedisStorage implements ArrayAccess
                         'updated_at' => now(),
                     ]);
                     $this->cartModel = $existingUserCart;
+
                     return;
                 } else {
                     // If different session_id, soft delete old cart and create new one
