@@ -45,19 +45,8 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity) {
-                $message = is_array($entity->message) ? $entity->message : json_decode($entity->message, true);
-                if (empty($message['remix_parent_id'])) {
-                    return [
-                        'message' => 'Remix already created',
-                        'result' => false,
-                        'user_id' => $entity->user->getId(),
-                        'message_data' => $message,
-                        'message_id' => $entity->getId(),
-                    ];
-                }
-
                 // Assign the remix_parent_id as the parent_id of the message, creating a remix.
-                $entity->parent_id = $message['remix_parent_id'];
+                $entity->parent_id = $entity->message['remix_parent_id'];
                 $entity->save();
                 $entity->parent->increment('total_children');
 
@@ -65,7 +54,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     'message' => 'Remix created successfully',
                     'result' => true,
                     'user_id' => $entity->user->getId(),
-                    'message_data' => $message,
+                    'message_data' => $entity->message,
                     'message_id' => $entity->getId(),
                 ];
             },
