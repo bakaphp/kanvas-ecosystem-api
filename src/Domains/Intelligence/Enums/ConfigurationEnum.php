@@ -19,4 +19,5 @@ enum ConfigurationEnum: string
     case ADK_APP_NAME = 'google_orchestrator_app_name';
 
     case AGENT_HAND_OFF = 'agent_hand_off';
+    case AGENT_CHANNEL_TYPE = 'agent_channel_type';
 }

@@ -68,7 +68,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             ->withTrashed()
             ->first();
 
-        if ($productModel->is_deleted) {
+        if ($productModel && $productModel->is_deleted) {
             $productModel->is_deleted = false;
             $productModel->save();
         }

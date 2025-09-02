@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Souk\Discounts;
+namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
