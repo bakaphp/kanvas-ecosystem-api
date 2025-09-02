@@ -55,8 +55,9 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     ];
                 }
 
+                $message = is_array($entity->message) ? $entity->message : json_decode($entity->message, true);
                 // Assign the remix_parent_id as the parent_id of the message, creating a remix.
-                $entity->parent_id = $entity->messsage['remix_parent_id'];
+                $entity->parent_id = $message['remix_parent_id'];
                 $entity->save();
                 $entity->parent->increment('total_children');
 
