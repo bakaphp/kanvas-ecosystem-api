@@ -158,7 +158,7 @@ class RedisStorage implements ArrayAccess
 
         $this->cartModel = Cart::create([
             'apps_id' => $this->app->getId(),
-            'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
+            'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 0,
             'users_id' => $this->user?->id,
             'email' => $this->user?->email,
             'session_id' => $sessionKey,
