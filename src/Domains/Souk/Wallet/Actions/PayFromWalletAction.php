@@ -41,6 +41,10 @@ class PayFromWalletAction
         $cart = app(Cart::class);
 
         foreach ($this->order->items as $item) {
+            //if they are coins we cant deduct from the wallet
+            if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value !== null) {
+                continue;
+            }
             //$total += $item->getTotal();
             $cart = $cart->withItem(
                 product: $item->variant,

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
-use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
@@ -53,19 +51,7 @@ class AppleInAppPurchaseMutation
             $order->saveCustomFields();
         }
 
-        //Check if product really exists again
-        $product = Products::getByName(
-            $order->metadata['productId'],
-            $app,
-            $company,
-        );
-
-        //Make the transaction here?
-        match ($product->get('purchase_type')) {
-            ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(),
-            ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
-            default => throw new Exception('Invalid purchase type'),
-        };
+        $this->processWalletTransaction($order);
 
         /**
          * @todo move this to the create order DTO
@@ -79,5 +65,33 @@ class AppleInAppPurchaseMutation
         );
 
         return $order;
+    }
+
+    protected function processWalletTransaction(Order $order): void
+    {
+        $walletTypes = [
+        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value,
+        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value,
+    ];
+
+        foreach ($order->items as $item) {
+            foreach ($walletTypes as $type) {
+                $attributeValue = $item->variant->getAttributeBySlug($type)?->value;
+
+                if ($attributeValue === null) {
+                    continue;
+                }
+
+                if (in_array($attributeValue, $walletTypes, true)) {
+                    match ($attributeValue) {
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(), //@todo also support company?
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
+                        default => null
+                    };
+
+                    return; // Exit the entire method after first wallet operation
+                }
+            }
+        }
     }
 }

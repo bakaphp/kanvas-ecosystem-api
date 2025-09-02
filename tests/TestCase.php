@@ -25,6 +25,8 @@ class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->app->instance('env', 'testing');
+
         Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing
     }
 

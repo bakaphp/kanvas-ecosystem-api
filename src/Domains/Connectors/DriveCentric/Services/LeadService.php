@@ -11,6 +11,7 @@ use Kanvas\Connectors\DriveCentric\Client;
 class LeadService
 {
     public Client $client;
+
     public function __construct(
         protected Apps $app,
         protected Companies $companies
@@ -24,6 +25,7 @@ class LeadService
         $response = $client->post('{+endpoint}/api/stores/{+storeId}/deal/upsert', [
             'deal' => $lead,
         ]);
-        return $response->json()['deal'];
+
+        return $response->json()['deal'] ?? [];
     }
 }

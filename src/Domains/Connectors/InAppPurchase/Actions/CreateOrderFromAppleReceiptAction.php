@@ -4,36 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\InAppPurchase\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
-use Baka\Users\Contracts\UserInterface;
-use Exception;
-use Illuminate\Database\Eloquent\Collection;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
+use Imdhemy\AppStore\ValueObjects\Receipt;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
-use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
-use Spatie\LaravelData\DataCollection;
+use Override;
 
-class CreateOrderFromAppleReceiptAction
+class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 {
     private const DEFAULT_CURRENCY = 'USD';
-    private AppInterface $app;
-    private CompanyInterface $company;
-    private UserInterface $user;
-    private Regions $region;
 
     public function __construct(
         protected readonly AppleInAppPurchaseReceipt $appleInAppPurchase,
@@ -48,6 +35,7 @@ class CreateOrderFromAppleReceiptAction
     /**
      * @throws ValidationException
      */
+    #[Override]
     public function execute(): ModelsOrder
     {
         $receipt = [
@@ -58,11 +46,6 @@ class CreateOrderFromAppleReceiptAction
             'custom_fields' => $this->appleInAppPurchase->custom_fields,
         ];
 
-        //Check if we have a purchase type before verifying the receipt
-        if (! $receipt['custom_fields']['purchase_type']) {
-            throw new Exception('No purchase type provided');
-        }
-
         $verifiedReceipt = $this->verifyReceipt($receipt);
         $receiptStatus = $verifiedReceipt->getStatus();
 
@@ -71,41 +54,27 @@ class CreateOrderFromAppleReceiptAction
         }
 
         $people = $this->createPeople();
-
-        // $product = Products::getByName(
-        //     $receipt['productId'],
-        //     $this->app,
-        //     $this->company,
-        // );
-
-        $orderItems = [];
-        foreach ($receipt['variants_skus'] as $variantSku) {
-            $variant = Variants::getBySku(
-                $variantSku,
-                $this->company,
-                $this->app
-            );
-
-            $orderItems[] = $this->createOrderItem($variant);
-        }
-
         $orderData = $this->createOrderData(
             $receipt,
             $people,
-            $orderItems
+            $verifiedReceipt->getReceipt()
         );
 
         $order = (new CreateOrderAction($orderData))->execute();
 
-        if (! empty($this->appleInAppPurchase->custom_fields)) {
-            $order->setCustomFields($this->appleInAppPurchase->custom_fields);
-            $order->saveCustomFields();
-        }
+        $this->handleCustomFieldsOnOrder($order);
 
         return $order;
     }
 
-    private function verifyReceipt(array $receipt): ReceiptResponse
+    #[Override]
+    protected function getCustomFields(): array
+    {
+        return $this->appleInAppPurchase->custom_fields;
+    }
+
+    #[Override]
+    protected function verifyReceipt(array $receipt): ReceiptResponse
     {
         $sharedSecret = $this->app->get(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value);
 
@@ -119,96 +88,45 @@ class CreateOrderFromAppleReceiptAction
         return $verifier->verify(true, $this->runInSandbox ? $client : null);
     }
 
-    private function createPeople(): People
-    {
-        return (new CreatePeopleFromUserAction(
-            $this->app,
-            $this->company->defaultBranch,
-            $this->user
-        ))->execute();
-    }
-
     private function createOrderData(
         array $allReceiptData,
         People $people,
-        array $orderItems,
+        ?Receipt $receipt,
     ): Order {
-        // if ($receipt === null) {
-        //     $exception = new ValidationException('Receipt validation failed: null receipt received');
-        //     report($exception);
+        if ($receipt === null) {
+            $exception = new ValidationException('Receipt validation failed: null receipt received');
+            report($exception);
 
-        //     throw $exception;
-        // }
+            throw $exception;
+        }
 
         // Get in-app purchases with detailed validation
-        // $inAppPurchases = $receipt->getInApp();
+        $inAppPurchases = $receipt->getInApp();
 
-        // if (empty($inAppPurchases)) {
-        //     $exception = new ValidationException(
-        //         'No in-app purchases found in receipt. This appears to be an app download receipt only.'
-        //     );
-        //     report($exception);
+        if (empty($inAppPurchases)) {
+            $exception = new ValidationException(
+                'No in-app purchases found in receipt. This appears to be an app download receipt only.'
+            );
+            report($exception);
 
-        //     throw $exception;
-        // }
+            throw $exception;
+        }
 
         // Validate we have the expected purchase
-        // $firstPurchase = $inAppPurchases[0];
+        $firstPurchase = $inAppPurchases[0];
+        $firstVariant = $this->getVariant($firstPurchase->getProductId());
+        /** @var array<OrderItem> $orderItems */
+        $orderItems = [];
 
-        return new Order(
-            app: $this->app,
-            region: $this->region,
-            company: $this->company,
-            people: $people,
-            user: $this->user,
-            email: $this->user->email,
-            phone: $this->user->cell_phone_number,
-            token: Str::random(32),
-            shippingAddress: null,
-            billingAddress: null,
-            total: $this->calculateTotal($orderItems),
-            taxes: 0.0,
-            totalDiscount: 0.0,
-            totalShipping: 0.0,
-            status: 'completed',
-            orderNumber: '',
-            shippingMethod: null,
-            currency: $this->region->currency,
-            fulfillmentStatus: 'pending',
-            items: OrderItem::collect($orderItems, DataCollection::class),
-            metadata: $allReceiptData,
-            weight: 0.0,
-            checkoutToken: '',
-            paymentGatewayName: ['manual'],
-            languageCode: null,
+        $orderItem = $this->createOrderItem(
+            $firstVariant,
+            $firstPurchase->getQuantity()
         );
-    }
 
-    private function createOrderItem(Variants $variant): OrderItem
-    {
-        $warehouse = $this->region->warehouses()->firstOrFail();
+        $orderItems[] = $orderItem;
 
-        return new OrderItem(
-            app: $this->app,
-            variant: $variant,
-            name: $variant->name,
-            sku: $variant->getProductId(),
-            quantity: $variant->getQuantity($warehouse),
-            price: $variant->getPrice($warehouse),
-            tax: 0.0,
-            discount: 0.0,
-            currency: Currencies::getByCode(self::DEFAULT_CURRENCY),
-            quantityShipped: 0
-        );
-    }
+        $this->processCustomFieldsVariants($orderItems);
 
-    private function getVariant(string $sku): Variants
-    {
-        return Variants::getBySku($sku, $this->company, $this->app);
-    }
-
-    private function calculateTotal(array|Collection $orderItems): float
-    {
-        return collect($orderItems)->sum(fn (OrderItem $item) => $item->quantity * $item->price);
+        return $this->createOrderDto($orderItems, $people, $allReceiptData);
     }
 }
