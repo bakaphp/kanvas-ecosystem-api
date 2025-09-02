@@ -44,7 +44,7 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
                 new AgentMonitoring($inspector)
             );
         }
-        $client = Client::getInstance($this->message->app);
+        $client = Client::getInstance($this->message->company);
         $to = str_replace('twilio-', '', $this->channel->slug);
         $to = "+{$to}";
         $onChunk = function ($text, $data) use ($client, $to, $params): void {

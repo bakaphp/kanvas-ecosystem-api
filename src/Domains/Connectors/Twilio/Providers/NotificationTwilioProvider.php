@@ -15,7 +15,6 @@ class NotificationTwilioProvider extends TwilioProvider
     {
         if (Schema::hasTable('apps_settings')) {
             $app = $this->app->make(Apps::class);
-
             config([
                 'twilio-notification-channel.account_sid' => $app->get(ConfigurationEnum::TWILIO_ACCOUNT_SID->value),
                 'twilio-notification-channel.auth_token' => $app->get(ConfigurationEnum::TWILIO_AUTH_TOKEN->value),

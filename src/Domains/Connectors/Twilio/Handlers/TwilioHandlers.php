@@ -21,8 +21,8 @@ class TwilioHandlers extends BaseIntegration
         if (! $validated) {
             throw new \Exception('Failed to validate Twilio connection');
         }
-        $this->app->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, $this->data['account_sid']);
-        $this->app->set(ConfigurationEnum::TWILIO_AUTH_TOKEN->value, $this->data['auth_token']);
+        $this->company->set(ConfigurationEnum::TWILIO_ACCOUNT_SID->value, $this->data['account_sid']);
+        $this->company->set(ConfigurationEnum::TWILIO_AUTH_TOKEN->value, $this->data['auth_token']);
 
         // Handle incoming messages from Twilio
         return true;
