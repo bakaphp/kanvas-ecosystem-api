@@ -49,6 +49,10 @@ class CreateContentSessionAction
         $data = [
             'creditApp' => 'https://kanvas.dev/credit-app',
             'tradeIn' => 'https://kanvas.dev/trade-in',
+            'customerName' => null,
+            'leadEmail' => null,
+            'leadOwnerName' => null,
+            'leadOwnerEmail' => null,
         ];
 
         if ($lead) {
