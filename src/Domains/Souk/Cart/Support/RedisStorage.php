@@ -149,13 +149,6 @@ class RedisStorage implements ArrayAccess
 
     protected function createCartModel(string $sessionKey): void
     {
-        if ($this->user?->id) {
-            Cart::where('users_id', $this->user->id)
-                ->where('apps_id', $this->app->getId())
-                ->whereIn('status', ['pending', 'abandoned'])
-                ->delete();
-        }
-
         $this->cartModel = Cart::create([
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 0,
