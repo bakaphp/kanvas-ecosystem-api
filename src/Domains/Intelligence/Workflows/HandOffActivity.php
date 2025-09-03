@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Intelligence\Workflows;
+namespace Kanvas\Intelligence\Workflows;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;

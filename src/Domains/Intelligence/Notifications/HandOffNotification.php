@@ -12,7 +12,7 @@ use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 class HandOffNotification extends Notification
 {
     public array $channels = [
-        'email',
+        'mail',
         OneSignalNotificationChannel::class,
     ];
 
