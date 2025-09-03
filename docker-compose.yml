@@ -29,10 +29,10 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - "host.docker.internal:host-gateway"
-        # command:
-            # - "sh"
-            # - "-c"
-            # - "php artisan octane:start --server=swoole --task-workers=10 --workers=8 --watch"
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan octane:start --server=swoole --task-workers=10 --workers=8 --watch"
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
