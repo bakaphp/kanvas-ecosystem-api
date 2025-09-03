@@ -15,6 +15,8 @@ use Kanvas\Workflow\KanvasActivity;
 
 class HandOffActivity extends KanvasActivity
 {
+    public $tries = 3;
+
     public function execute(Lead $lead, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -24,7 +26,9 @@ class HandOffActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                    return ['Handoff was set previously'];
+                }
 
                 try {
                     if ($rotation = LeadRotation::getById($params['rotation_id'], $app)) {
@@ -46,6 +50,10 @@ class HandOffActivity extends KanvasActivity
                             ]
                     )
                 );
+
+                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+
+                return ['success' => true, 'message' => 'Lead handed off to ' . $leadOwner->id];
             }
         );
     }
