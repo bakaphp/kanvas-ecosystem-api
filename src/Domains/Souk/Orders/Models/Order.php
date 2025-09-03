@@ -19,6 +19,7 @@ use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
@@ -89,6 +90,7 @@ class Order extends BaseModel
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasMessagesTrait;
     use AsTree;
 
     protected $table = 'orders';

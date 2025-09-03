@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Services\B2BConfigurationService;
@@ -55,7 +56,16 @@ class AddAdminsToCompanyAction
     public function getAdmins(
         AppInterface $app
     ): Collection {
+        $mainAdmins = $app->get(B2BSettingsEnums::B2B_COMPANY_ADMIN_EMAILS->getValue()); // Custom field with comma-separated emails
+        $mainAdminEmails = array_map('trim', explode(',', $mainAdmins ?? ''));
+
         Bouncer::scope()->to(RolesEnums::getScope($app));
-        return Users::whereIs(RolesEnums::OWNER->value)->get();
+        $appAdmins = Users::whereIs(RolesEnums::OWNER->value)->get();
+
+        $allowedAdmins = $appAdmins->filter(function ($user) use ($mainAdminEmails) {
+            return in_array($user->email, $mainAdminEmails);
+        });
+
+        return $allowedAdmins;
     }
 }
