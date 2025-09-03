@@ -48,6 +48,7 @@ class CreateMessageFromTypeAction
             $entityId
         );
         $message = $action->execute();
+
         return $message;
     }
 
@@ -75,6 +76,7 @@ class CreateMessageFromTypeAction
 
             if ($required && ($value === null || $value === '')) {
                 $errors[] = "Field '$field' is required";
+
                 continue;
             }
 
@@ -94,11 +96,16 @@ class CreateMessageFromTypeAction
         if (! empty($errors)) {
             throw new ValidationException('Template validation failed: ' . implode(', ', $errors));
         }
+
         return $result;
     }
 
-    private function processNestedArrayFields(array $arrayFields, array $data, array &$result, array &$errors): void
-    {
+    private function processNestedArrayFields(
+        array $arrayFields,
+        array $data,
+        array &$result,
+        array &$errors
+    ): void {
         $groupedFields = [];
 
         foreach ($arrayFields as $field => $config) {
@@ -115,6 +122,7 @@ class CreateMessageFromTypeAction
                         $errors[] = "Field '{$arrayName}.{$fieldName}' is required";
                     }
                 }
+
                 continue;
             }
 
@@ -124,6 +132,7 @@ class CreateMessageFromTypeAction
             foreach ($arrayData as $index => $item) {
                 if (! is_array($item)) {
                     $processedArray[$index] = $item;
+
                     continue;
                 }
 
@@ -137,6 +146,7 @@ class CreateMessageFromTypeAction
 
                     if ($required && ($value === null || $value === '')) {
                         $errors[] = "Field '{$arrayName}[{$index}].{$fieldName}' is required";
+
                         continue;
                     }
 
@@ -158,7 +168,7 @@ class CreateMessageFromTypeAction
         }
     }
 
-    private function getNestedValue(array $data, string $key)
+    private function getNestedValue(array $data, string $key): mixed
     {
         $keys = explode('.', $key);
         $value = $data;
@@ -174,8 +184,11 @@ class CreateMessageFromTypeAction
         return $value;
     }
 
-    private function setNestedValue(array &$result, string $key, $value): void
-    {
+    private function setNestedValue(
+        array &$result,
+        string $key,
+        mixed $value
+    ): void {
         $keys = explode('.', $key);
         $current = &$result;
         $lastKey = array_pop($keys);
@@ -190,33 +203,34 @@ class CreateMessageFromTypeAction
         $current[$lastKey] = $value;
     }
 
-    private function convertType($value, string $type, string $field)
-    {
+    private function convertType(
+        mixed $value,
+        string $type,
+        string $field
+    ): mixed {
         switch ($type) {
             case 'integer':
                 if (! is_numeric($value)) {
                     throw new ValidationException("Field '$field' must be an integer");
                 }
-                return (int) $value;
 
+                return (int) $value;
             case 'number':
                 if (! is_numeric($value)) {
                     throw new ValidationException("Field '$field' must be a number");
                 }
-                return (float) $value;
 
+                return (float) $value;
             case 'boolean':
                 return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
             case 'string':
                 return (string) $value;
-
             case 'array':
                 if (! is_array($value)) {
                     throw new ValidationException("Field '$field' must be an array");
                 }
-                return $value;
 
+                return $value;
             default:
                 return $value;
         }
