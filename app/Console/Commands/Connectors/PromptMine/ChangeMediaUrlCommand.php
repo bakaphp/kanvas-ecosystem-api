@@ -87,7 +87,6 @@ class ChangeMediaUrlCommand extends Command
                 if (! isset($messageData['video']) || strpos($messageData['video'], self::CDN_URL) === false) {
                     return $this->uploadToS3($messageData['video'], $messageData['type'], $message->user, $message->app, $message->company);
                 }
-                
             })(),
             'image-format' => $messageData['image'] = (function () use ($messageData, $message) {
                 if (! isset($messageData['image']) || strpos($messageData['image'], self::CDN_URL) === false) {
