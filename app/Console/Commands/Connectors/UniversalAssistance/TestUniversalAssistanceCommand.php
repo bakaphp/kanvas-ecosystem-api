@@ -35,7 +35,7 @@ class TestUniversalAssistanceCommand extends Command
 
         try {
             $app = Apps::find(90);
-            if (!$app) {
+            if (! $app) {
                 $this->error('App with ID 90 not found');
                 return 1;
             }
@@ -84,7 +84,6 @@ class TestUniversalAssistanceCommand extends Command
             $this->info('Test completed.');
             $this->displayResult($result);
             $order->delete();
-
         } catch (\Exception $e) {
             $this->error('Error in test: ' . $e->getMessage());
             $this->line('Stack trace:');
@@ -144,8 +143,11 @@ class TestUniversalAssistanceCommand extends Command
         $this->line('Query parameters:');
         $this->table(
             ['Field', 'Value'],
-            array_map(fn($key, $value) => [$key, is_array($value) ? json_encode($value) : $value],
-                     array_keys($data), $data)
+            array_map(
+                fn ($key, $value) => [$key, is_array($value) ? json_encode($value) : $value],
+                array_keys($data),
+                $data
+            )
         );
     }
 
@@ -166,15 +168,18 @@ class TestUniversalAssistanceCommand extends Command
             // Is an array of arrays (multiple results)
             $headers = array_keys($result[0]);
             $rows = array_map(function ($item) {
-                return array_map(fn($value) => is_array($value) ? json_encode($value) : $value, $item);
+                return array_map(fn ($value) => is_array($value) ? json_encode($value) : $value, $item);
             }, $result);
             $this->table($headers, $rows);
-        } elseif (is_array($result) && !isset($result[0])) {
+        } elseif (is_array($result) && ! isset($result[0])) {
             // Is an associative array (single result)
             $this->table(
                 ['Field', 'Value'],
-                array_map(fn($key, $value) => [$key, is_array($value) ? json_encode($value) : $value],
-                         array_keys($result), $result)
+                array_map(
+                    fn ($key, $value) => [$key, is_array($value) ? json_encode($value) : $value],
+                    array_keys($result),
+                    $result
+                )
             );
         } else {
             // Other type of response
