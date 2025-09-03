@@ -90,6 +90,46 @@ class RedisStorage implements ArrayAccess
 
     protected function loadOrCreateCartModel(string $sessionKey): void
     {
+        if ($this->user?->id) {
+            // Look for existing pending or abandoned cart from the user
+            $existingUserCart = Cart::where('users_id', $this->user->id)
+                ->where('apps_id', $this->app->getId())
+                ->whereIn('status', ['pending', 'abandoned'])
+                ->where('is_deleted', 0)
+                ->orderBy('updated_at', 'desc')
+                ->first();
+
+            if ($existingUserCart) {
+                // If same session_id, update the existing cart with all current data
+                if ($existingUserCart->session_id === $sessionKey) {
+                    $totalAmount = 0;
+                    foreach ($this->data[$this->itemsKey] as $item) {
+                        $totalAmount += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                    }
+
+                    $existingUserCart->update([
+                        'email' => $this->user->email,
+                        'users_id' => $this->user->id,
+                        'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
+                        'amount' => $totalAmount,
+                        'currency' => 'usd',
+                        'items' => $this->data[$this->itemsKey],
+                        'conditions' => $this->data[$this->conditionsKey],
+                        'metadata' => [
+                            'last_updated' => Carbon::now()->toISOString(),
+                        ],
+                        'updated_at' => now(),
+                    ]);
+                    $this->cartModel = $existingUserCart;
+
+                    return;
+                } else {
+                    // If different session_id, soft delete old cart and create new one
+                    $existingUserCart->delete();
+                }
+            }
+        }
+
         $this->cartModel = Cart::firstOrCreate(
             [
                 'session_id' => $sessionKey,
@@ -98,6 +138,7 @@ class RedisStorage implements ArrayAccess
             [
                 'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
                 'users_id' => $this->user?->id,
+                'email' => $this->user?->email,
                 'amount' => 0.00,
                 'currency' => 'usd',
                 'status' => 'pending',
@@ -113,6 +154,7 @@ class RedisStorage implements ArrayAccess
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 0,
             'users_id' => $this->user?->id,
+            'email' => $this->user?->email,
             'session_id' => $sessionKey,
             'amount' => 0.00,
             'currency' => 'usd',

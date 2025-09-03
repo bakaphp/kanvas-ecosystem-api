@@ -28,8 +28,6 @@ class AgentSessionQuery
                 $session->company->defaultBranch,
             )->execute();
 
-            //$content = $session->content;
-            $content['background'] = $session->agent->role;
             $session->content = $content;
             $session->update();
         }
@@ -41,7 +39,7 @@ class AgentSessionQuery
             'user' => $session->user,
             'company_config' => $session->agent->type->config,
             'content' => $session->content,
-            'channel' => $session->channel->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
+            'channel' => $session->channel?->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
         ];
     }
 }

@@ -115,11 +115,11 @@ class AbandonCartCommand extends Command
             'third' => 2,   // Second notification already sent
         };
 
-        $abandonedCarts = Cart::where('apps_id', $app->getId())
+        $abandonedCarts = Cart::with('user') // Cargar relación user
+            ->where('apps_id', $app->getId())
             ->where('status', 'pending')
             ->where('updated_at', '<=', $cutoffTime)
             ->whereNotNull('users_id')
-            ->whereNotNull('email')
             ->where('notification_count', '=', $expectedNotificationCount)
             ->get();
 
@@ -140,6 +140,11 @@ class AbandonCartCommand extends Command
                 return;
             }
 
+            if (empty($user->email)) {
+                $this->warn("Cart {$cart->id} - user has no email, skipping");
+                return;
+            }
+
             // Mark cart as abandoned if it's the first notification
             if ($intervalType === 'first' && $cart->status === 'pending') {
                 $cart->update(['status' => 'abandoned']);
@@ -153,7 +158,7 @@ class AbandonCartCommand extends Command
             // Update cart metadata to mark notification as sent
             $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
 
-            $this->info("Sent {$intervalType} notification for cart {$cart->id} to user {$user->email}");
+            $this->info("Sent {$intervalType} notification for cart {$cart->id} to email {$user->email}");
         } catch (\Exception $e) {
             Log::error("Failed to process abandoned cart {$cart->id}: " . $e->getMessage());
             $this->error("Error processing cart {$cart->id}: " . $e->getMessage());
