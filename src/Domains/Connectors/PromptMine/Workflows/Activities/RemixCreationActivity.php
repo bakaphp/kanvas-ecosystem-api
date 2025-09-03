@@ -47,7 +47,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Assign the remix_parent_id as the parent_id of the message, creating a remix.
 
-                if (!array_key_exists('remix_parent_id', $entity->message) || is_null($entity->message['remix_parent_id'])) {
+                if (! array_key_exists('remix_parent_id', $entity->message) || is_null($entity->message['remix_parent_id'])) {
                     return [
                         'message' => 'Message does not have a remix parent ID, not a remix or no value for remix_parent_id',
                         'message_id' => $entity->getId(),
