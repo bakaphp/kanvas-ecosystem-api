@@ -473,16 +473,16 @@
         },
         {
             "name": "amphp/parallel",
-            "version": "v2.3.1",
+            "version": "v2.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amphp/parallel.git",
-                "reference": "5113111de02796a782f5d90767455e7391cca190"
+                "reference": "321b45ae771d9c33a068186b24117e3cd1c48dce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amphp/parallel/zipball/5113111de02796a782f5d90767455e7391cca190",
-                "reference": "5113111de02796a782f5d90767455e7391cca190",
+                "url": "https://api.github.com/repos/amphp/parallel/zipball/321b45ae771d9c33a068186b24117e3cd1c48dce",
+                "reference": "321b45ae771d9c33a068186b24117e3cd1c48dce",
                 "shasum": ""
             },
             "require": {
@@ -545,7 +545,7 @@
             ],
             "support": {
                 "issues": "https://github.com/amphp/parallel/issues",
-                "source": "https://github.com/amphp/parallel/tree/v2.3.1"
+                "source": "https://github.com/amphp/parallel/tree/v2.3.2"
             },
             "funding": [
                 {
@@ -553,7 +553,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-21T01:56:09+00:00"
+            "time": "2025-08-27T21:55:40+00:00"
         },
         {
             "name": "amphp/parser",
@@ -5088,16 +5088,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.34",
+            "version": "1.0.35",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "a0d3ff623dbda9faf546df92d58536f16e0feab8"
+                "reference": "de6e4e36baa5f3d0e6233d56303b32809e1612f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/a0d3ff623dbda9faf546df92d58536f16e0feab8",
-                "reference": "a0d3ff623dbda9faf546df92d58536f16e0feab8",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/de6e4e36baa5f3d0e6233d56303b32809e1612f0",
+                "reference": "de6e4e36baa5f3d0e6233d56303b32809e1612f0",
                 "shasum": ""
             },
             "require": {
@@ -5138,9 +5138,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.34"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.35"
             },
-            "time": "2025-04-12T21:54:08+00:00"
+            "time": "2025-08-31T18:57:31+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -5232,16 +5232,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.26.4",
+            "version": "v12.27.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "085a367a32ba86fcfa647bfc796098ae6f795b09"
+                "reference": "3fdcf8f3788fcb154df12ebf1fe0dd4a199e92a8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/085a367a32ba86fcfa647bfc796098ae6f795b09",
-                "reference": "085a367a32ba86fcfa647bfc796098ae6f795b09",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/3fdcf8f3788fcb154df12ebf1fe0dd4a199e92a8",
+                "reference": "3fdcf8f3788fcb154df12ebf1fe0dd4a199e92a8",
                 "shasum": ""
             },
             "require": {
@@ -5445,7 +5445,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-08-29T14:15:53+00:00"
+            "time": "2025-09-02T15:32:28+00:00"
         },
         {
             "name": "laravel/octane",
