@@ -53,7 +53,6 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         'result' => false,
                     ];
                 }
-              
                 $entity->parent_id = $entity->message['remix_parent_id'];
                 $entity->save();
                 $entity->parent->increment('total_children');
