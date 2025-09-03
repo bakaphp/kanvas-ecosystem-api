@@ -27,9 +27,8 @@ class HandOffActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return [];
+                    return ['Handoff was set previously'];
                 }
-                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
                 try {
                     if ($rotation = LeadRotation::getById($params['rotation_id'], $app)) {
@@ -51,6 +50,8 @@ class HandOffActivity extends KanvasActivity
                             ]
                     )
                 );
+
+                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
                 return ['success' => true, 'message' => 'Lead handed off to ' . $leadOwner->id];
             }
