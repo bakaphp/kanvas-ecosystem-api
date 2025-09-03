@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\Models\BaseModel;
@@ -96,17 +95,15 @@ class UserMessage extends BaseModel
         $userId = $user->getId();
 
         return Message::query()
-                ->whereExists(function ($query) use ($userId, $app) {
-                    $query->select(DB::raw(1))
-                        ->from('users_follows')
-                        ->whereColumn('messages.users_id', 'users_follows.entity_id')
+                ->join('users_follows', function ($join) use ($userId, $app) {
+                    $join->on('messages.users_id', '=', 'users_follows.entity_id')
                         ->where('users_follows.users_id', '=', $userId)
                         ->where('users_follows.entity_namespace', '=', Users::class)
                         ->where('users_follows.is_deleted', '=', 0)
                         ->where('users_follows.apps_id', '=', $app->getId()); // Add app filtering
                 })
                 ->leftJoin('user_messages', function ($join) use ($userId, $app) {
-                    $join->on('messages.id', '=', 'user_messages.messages_id') // Fix: use uuid instead of id
+                    $join->on('messages.id', '=', 'user_messages.messages_id')
                         ->where('user_messages.users_id', '=', $userId)
                         ->where('user_messages.apps_id', '=', $app->getId())
                         ->where('user_messages.is_deleted', '=', 0);
@@ -114,7 +111,8 @@ class UserMessage extends BaseModel
                 ->where('messages.is_deleted', 0)
                 ->where('messages.apps_id', $app->getId())
                 ->where('messages.users_id', '<>', $userId)
-                ->select('messages.*');
+                ->select('messages.*')
+                ->distinct(); // Add distinct to prevent duplicates
     }
 
     /**
