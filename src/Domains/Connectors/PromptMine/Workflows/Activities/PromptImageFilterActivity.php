@@ -55,8 +55,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilterName = $entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
+        $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
 
         $company = $this->getCompany($app, $entity);
 
@@ -64,7 +66,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi, $isGeminiBanana) {
                 $entity->setPrivate();
 
                 if (! empty($this->validateImageLimit($entity, $params))) {
@@ -105,6 +107,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                                 'message' => 'Failed to retrieve processed image',
                             ];
                         }
+                    } elseif ($isGeminiBanana) {
+                        // Process with Gemini-Nano-Banana
+                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter);
+                        if ($fileSystemRecord === null) {
+                            return [
+                                'result' => false,
+                                'filter' => $imageFilter,
+                                'message' => 'Failed to retrieve processed image',
+                            ];
+                        }
+                        // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
+                        $processedImageUrl = null;
                     } else {
                         // Process with fal.ai
                         list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
@@ -386,6 +400,68 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $filename,
             $entity->user
         );
+    }
+
+    /**
+     * Process image with Gemini-Nano-Banana
+     */
+    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter): ?Filesystem
+    {
+        $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
+        $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
+
+        $imageContent = Http::get($imageUrl)->body();
+        if (empty($imageContent)) {
+            throw new Exception("Failed to download image from URL: {$imageUrl}");
+        }
+
+        // Extract filename from URL or use a default
+        $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
+
+        // Create multipart request
+        $response = Http::asMultipart()
+            ->attach('image', $imageContent, $filename)
+            ->attach('model', 'gemini-2.5-flash-image-preview')
+            ->attach('prompt', $prompt)
+            ->post($apiUrl);
+
+        if (! $response->successful()) {
+            throw new Exception('Gemini Banana API request failed: ' . $response->body());
+        }
+
+        $responseData = $response->json();
+
+        // Extract the URL from the response structure
+        // Response format: { "0": { "url": "...", "file_name": "...", ... } }
+        $processedImageUrl = null;
+        if (isset($responseData['0']['url'])) {
+            $processedImageUrl = $responseData['0']['url'];
+        } elseif (isset($responseData[0]['url'])) {
+            $processedImageUrl = $responseData[0]['url'];
+        }
+
+        if (! $processedImageUrl) {
+            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($responseData));
+        }
+
+        // Optimize and upload the processed image
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
+        $fileName = basename($tempFilePath);
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tempFilePath);
+
+        $uploadedFile = new UploadedFile(
+            $tempFilePath,
+            $fileName,
+            $mimeType,
+            null,
+            true
+        );
+
+        $filesystem = new FilesystemServices($entity->app);
+
+        return $filesystem->upload($uploadedFile, $entity->user);
     }
 
     /**
