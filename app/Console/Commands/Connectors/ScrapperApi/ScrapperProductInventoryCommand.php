@@ -182,7 +182,7 @@ class ScrapperProductInventoryCommand extends Command
             if (is_array($completeProduct['price'])) {
                 continue;
             }
-            
+
             if (isset($completeProduct['price'])) {
                 $completeProduct['price'] = $this->cleanPrice($completeProduct['price']);
             }
