@@ -47,7 +47,6 @@ class AllProductsPublishedOnChannel
         $variantsTable = $variants->getTable();
 
         if (! empty($args['search'])) {
-
             $productIds = Products::search($args['search'])->keys();
             $query = Products::query()
                 ->whereIn('products.id', $productIds)
@@ -61,7 +60,6 @@ class AllProductsPublishedOnChannel
 
             return $query;
         } else {
-
             $query = Products::query()
                 ->join($variantsTable, $variantsTable . '.products_id', '=', 'products.id')
                 ->join($variantsChannelTable, $variantsChannelTable . '.products_variants_id', '=', $variantsTable . '.id')
