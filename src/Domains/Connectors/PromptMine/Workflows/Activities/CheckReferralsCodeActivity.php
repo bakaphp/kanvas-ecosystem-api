@@ -7,13 +7,10 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Souk\Discounts\Models\Discount;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -49,16 +46,13 @@ class CheckReferralsCodeActivity extends KanvasActivity implements WorkflowActiv
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params) {
-
-
-                //Search of product or variant to verify the code
                 $discountCode = Discount::fromApp($app)
                     ->where('code', Str::upper($entity->get('referral_code')))
                     ->where('is_active', true)
                     ->where('is_deleted', false)
                     ->first();
 
-                if (!$discountCode) {
+                if (! $discountCode) {
                     return [
                         'result' => false,
                         'users_id' => $entity->getId(),
