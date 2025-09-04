@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a957e609ab92a5a98551ec60b5419231",
+    "content-hash": "71fa4be08baca45ccb09cc0a2285a017",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4549,16 +4549,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "1.17.5",
+            "version": "2.0.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "e55472ca9a2c000a6fb42ff1694ca83e5f9879c7"
+                "reference": "e37f07335fee72bb01872097aff231bb9305a604"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/e55472ca9a2c000a6fb42ff1694ca83e5f9879c7",
-                "reference": "e55472ca9a2c000a6fb42ff1694ca83e5f9879c7",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/e37f07335fee72bb01872097aff231bb9305a604",
+                "reference": "e37f07335fee72bb01872097aff231bb9305a604",
                 "shasum": ""
             },
             "require": {
@@ -4594,9 +4594,7 @@
                 "typesense/typesense-php": "^5.0"
             },
             "bin": [
-                "bin/evaluation",
-                "bin/evaluation.bat",
-                "bin/evaluation.ps1"
+                "bin/neuron"
             ],
             "type": "library",
             "autoload": {
@@ -4617,9 +4615,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/1.17.5"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.0.5"
             },
-            "time": "2025-08-30T09:05:44+00:00"
+            "time": "2025-09-04T16:07:47+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
