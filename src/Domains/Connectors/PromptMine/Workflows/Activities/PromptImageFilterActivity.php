@@ -11,6 +11,7 @@ use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -289,9 +290,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             throw new Exception("Failed to download image from URL: {$imageUrl}");
         }
 
-        // Create a temporary file
-        $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');
-        file_put_contents($tempFile, $imageContents);
+        // Create a temporary file path using Laravel Storage
+        $tempFileName = 'temp/openai_img_' . Str::uuid()->toString() . '_' . $filename;
+        
+        // Store the image content in temporary storage
+        Storage::disk('local')->put($tempFileName, $imageContents);
+        $tempFile = Storage::disk('local')->path($tempFileName);
 
         // Get the file's mime type
         $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -310,7 +314,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $response = Http::timeout(200)
                     ->attach(
                         'image',
-                        file_get_contents($tempFile),
+                        $tempFile,
                         basename($imageUrl),
                         ['Content-Type' => $mimeType]
                     )
@@ -341,7 +345,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         // Delete the original temporary file
-        @unlink($tempFile);
+        Storage::disk('local')->delete($tempFileName);
 
         if (! $response->successful()) {
             $endViaList = array_map(
@@ -418,12 +422,24 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Extract filename from URL or use a default
         $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
 
-        // Create multipart request
-        $response = Http::asMultipart()
-            ->attach('image', $imageContent, $filename)
-            ->attach('model', 'gemini-2.5-flash-image-preview')
-            ->attach('prompt', $prompt)
-            ->post($apiUrl);
+        // Create a temporary file path using Laravel Storage
+        $tempFileName = 'temp/gemini_image_' . Str::uuid()->toString() . '_' . $filename;
+        
+        // Store the image content in temporary storage
+        Storage::disk('local')->put($tempFileName, $imageContent);
+        $tempFilePath = Storage::disk('local')->path($tempFileName);
+
+        try {
+            // Create multipart request
+            $response = Http::asMultipart()
+                ->attach('image', $tempFilePath, $filename)
+                ->attach('model', 'gemini-2.5-flash-image-preview')
+                ->attach('prompt', $prompt)
+                ->post($apiUrl);
+        } finally {
+            // Clean up temp file
+            Storage::disk('local')->delete($tempFileName);
+        }
 
         if (! $response->successful()) {
             throw new Exception('Gemini Banana API request failed: ' . $response->body());
