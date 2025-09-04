@@ -28,24 +28,20 @@ class PullNetSuiteSalesOrderWebhookJob extends ProcessWebhookJob
         $successMessage = 'NetSuite Sales order Not Processed';
 
         // Only process if order is approved
-        if ($orderStatus === 'Approved' && $mainCompanyId) {
-            $mainCompany = Companies::getById($mainCompanyId);
+        $mainCompany = Companies::getById($mainCompanyId);
 
-            $processSalesOrderAction = new ProcessNetSuiteSalesOrderAction(
-                $this->receiver->app,
-                $mainCompany,
-                $this->receiver->user
-            );
+        $processSalesOrderAction = new ProcessNetSuiteSalesOrderAction(
+            $this->receiver->app,
+            $mainCompany,
+            $this->receiver->user
+        );
 
-            try {
-                $processedProducts = $processSalesOrderAction->execute($orderId);
-                $successMessage = 'NetSuite Sales Order Stock Updated';
-            } catch (Exception $e) {
-                report($e);
-                $successMessage = 'NetSuite Sales Order Processing Failed: ' . $e->getMessage();
-            }
-        } elseif ($orderStatus !== 'Approved') {
-            $successMessage = 'NetSuite Sales Order Not Approved - Skipped';
+        try {
+            $processedProducts = $processSalesOrderAction->execute($orderId);
+            $successMessage = 'NetSuite Sales Order Stock Updated';
+        } catch (Exception $e) {
+            report($e);
+            $successMessage = 'NetSuite Sales Order Processing Failed: ' . $e->getMessage();
         }
 
         return [
