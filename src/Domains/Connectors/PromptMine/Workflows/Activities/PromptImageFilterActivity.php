@@ -407,11 +407,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
      */
     protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter): ?Filesystem
     {
-        // Use the already configured API URL and replace the path for Gemini-Nano-Banana
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
 
-        // Download the image content
         $imageContent = Http::get($imageUrl)->body();
         if (empty($imageContent)) {
             throw new Exception("Failed to download image from URL: {$imageUrl}");
@@ -423,7 +421,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Create multipart request
         $response = Http::asMultipart()
             ->attach('image', $imageContent, $filename)
-            ->attach('model', 'gemini-2.5-flash-image-preview') // Using the model from your example
+            ->attach('model', 'gemini-2.5-flash-image-preview')
             ->attach('prompt', $prompt)
             ->post($apiUrl);
 
