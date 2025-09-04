@@ -9,11 +9,11 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -27,11 +27,12 @@ class ScrapperProductInventoryCommand extends Command
     protected $signature = 'kanvas:scrapper-product-inventory 
                             {app_id : The application ID} 
                             {userId : The user ID} 
-                            {branch_id : The branch ID} 
+                            {company_id : The company ID} 
                             {region_id : The region ID}
                             {api_key : The Scraping Dog API key}
                             {base_url : The base URL to scrape (e.g., https://www..com)}
-                            {dealer_path : The dealer path (e.g., dealers/)}';
+                            {dealer_path : The dealer path (e.g., dealers/)}
+                            {--pages=1 : Number of pages to scrape (default: 1)}';
 
     /**
      * The console command description.
@@ -46,7 +47,7 @@ class ScrapperProductInventoryCommand extends Command
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
-        $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
+        $company = Companies::getById((int) $this->argument('company_id'));
         $regions = Regions::getById((int) $this->argument('region_id'));
         $user = Users::getById((int) $this->argument('userId'));
 
@@ -54,39 +55,58 @@ class ScrapperProductInventoryCommand extends Command
         $apiKey = $this->argument('api_key');
         $baseUrl = rtrim($this->argument('base_url'), '/'); // Remove trailing slash
         $dealerPath = ltrim($this->argument('dealer_path'), '/'); // Remove leading slash
+        $numberOfPages = (int) $this->option('pages');
 
-        $pageSkip = 0; // You can make this dynamic if needed
-        $cacheKey = 'scrapper_api_' . md5($baseUrl . '_' . $dealerPath) . '_pageskip_' . $pageSkip;
         $cacheMinutes = 60 * 24; // Cache for 24 hours
+        $allResults = [];
 
-        // Try to get cached results first
-        $results = Cache::remember($cacheKey, $cacheMinutes, function () use ($pageSkip, $apiKey, $baseUrl, $dealerPath) {
-            $response = Http::get('https://api.scrapingdog.com/scrape', [
-                'api_key' => $apiKey,
-                'url' => $baseUrl . '/' . $dealerPath . '/?PagingPageSkip=' . $pageSkip,
-                'dynamic' => 'false',
-                'ai_query' => 'Extract all the vehicle information you can + the detail link',
-            ]);
+        // Loop through the specified number of pages
+        for ($pageSkip = 0; $pageSkip < $numberOfPages; $pageSkip++) {
+            $this->info('Processing page ' . ($pageSkip + 1) . ' of ' . $numberOfPages . '...');
 
-            $responseBody = $response->body();
+            $cacheKey = 'scrapper_api_' . md5($baseUrl . '_' . $dealerPath) . '_pageskip_' . $pageSkip;
 
-            if (Str::isJson($responseBody)) {
-                return json_decode($responseBody, true);
+            // Try to get cached results first
+            $pageResults = Cache::remember($cacheKey, $cacheMinutes, function () use ($pageSkip, $apiKey, $baseUrl, $dealerPath) {
+                $response = Http::get('https://api.scrapingdog.com/scrape', [
+                    'api_key' => $apiKey,
+                    'url' => $baseUrl . '/' . $dealerPath . '/?PagingPageSkip=' . $pageSkip,
+                    'dynamic' => 'false',
+                    'ai_query' => 'Extract all the vehicle information you can + the detail link',
+                ]);
+
+                $responseBody = $response->body();
+
+                if (Str::isJson($responseBody)) {
+                    return json_decode($responseBody, true);
+                }
+
+                return null;
+            });
+
+            if ($pageResults === null) {
+                $this->warn('No products extracted for page ' . ($pageSkip + 1) . ', skipping...');
+
+                continue;
             }
 
-            return null;
-        });
+            // Merge results from this page
+            $allResults = array_merge($allResults, $pageResults);
+            $this->info('Found ' . count($pageResults) . ' products on page ' . ($pageSkip + 1));
+        }
 
-        if ($results === null) {
-            $this->error('Not product list extracted with scrapper api');
+        if (empty($allResults)) {
+            $this->error('No products extracted from any page with scrapper api');
 
             return;
         }
 
+        $results = $allResults;
+
         $importedProducts = [];
         $successCount = 0;
         $failedCount = 0;
-        
+
         foreach ($results as $resultDetail) {
             $product = [
                 'name' => $resultDetail['brand'] . ' ' . $resultDetail['model'] . ' ' . $resultDetail['year'],
@@ -196,14 +216,14 @@ class ScrapperProductInventoryCommand extends Command
             }
 
             // Transform the vehicle data into the required structure
-            $mappedProductData = $this->mapToProductStructure($completeProduct, $branch, $regions);
+            $mappedProductData = $this->mapToProductStructure($completeProduct, $company, $regions);
 
             try {
                 // Import the product using ProductImporterAction
                 $importedProduct = (
                     new ProductImporterAction(
                         ProductImporter::from($mappedProductData),
-                        $branch->company,
+                        $company,
                         $user,
                         $regions,
                         $app,
@@ -213,14 +233,15 @@ class ScrapperProductInventoryCommand extends Command
 
                 // Make the product searchable
                 $importedProduct->searchable();
-                
+
                 $importedProducts[] = $importedProduct;
                 $successCount++;
-                
+
                 $this->info('Successfully imported product: ' . $mappedProductData['name'] . ' (SKU: ' . $mappedProductData['sku'] . ')');
             } catch (Throwable $e) {
                 $this->error('Failed to import product: ' . $mappedProductData['name'] . ' - Error: ' . $e->getMessage());
                 $failedCount++;
+
                 continue;
             }
         }
@@ -263,11 +284,11 @@ class ScrapperProductInventoryCommand extends Command
     /**
      * Map vehicle data to the required structure.
      */
-    private function mapToProductStructure(array $vehicleData, CompaniesBranches $branch, Regions $region): array
+    private function mapToProductStructure(array $vehicleData, Companies $company, Regions $region): array
     {
-        // Get default warehouse and channel for the branch
-        $warehouse = $region->warehouses()->where('is_default', true)->first();
-        $channels = Channels::getDefault($branch->company);
+        // Get default warehouse and channel for the company
+        $warehouse = $region->defaultWarehouse;
+        $channels = Channels::getDefault($company);
 
         $price = (float) ($vehicleData['price'] ?? 0);
 
@@ -280,6 +301,10 @@ class ScrapperProductInventoryCommand extends Command
 
         // Extract description
         $observations = $vehicleData['observations'] ?? '';
+
+        if (is_array($observations)) {
+            $observations = implode("\n", $observations);
+        }
 
         // Map images to files structure
         $files = [];
@@ -300,7 +325,7 @@ class ScrapperProductInventoryCommand extends Command
             'description' => $observations,
             'price' => $price,
             'discountPrice' => null,
-            'slug' => Str::slug($sku),
+            'slug' => Str::slug($name . '-' . $sku),
             'sku' => $sku,
             'source' => 'website',
             'source_id' => $sku,
@@ -334,6 +359,15 @@ class ScrapperProductInventoryCommand extends Command
             'quantity' => 1,
             'attributes' => [],
             'files' => $files,
+            'warehouses' => [
+                [
+                    'id' => $warehouse?->id ?? 0,
+                    'price' => $price,
+                    'quantity' => 1,
+                    'sku' => $sku,
+                    'is_new' => true,
+                ],
+            ],
             'channels' => [
                 [
                     'price' => $price,
@@ -341,10 +375,10 @@ class ScrapperProductInventoryCommand extends Command
                     'is_published' => true,
                     'warehouses_id' => $warehouse?->id ?? 0,
                     'channels_id' => $channels?->id ?? 0,
-                ]
-            ]
+                ],
+            ],
         ];
-        
+
         $mappedProduct['variants'] = [$variant];
 
         return $mappedProduct;
