@@ -55,9 +55,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilterName = $entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
-        $isGeminiBanana = Str::contains($imageFilter, 'Gemini-Nano-Banana');
+        $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
 
         $company = $this->getCompany($app, $entity);
 
@@ -406,17 +407,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
      */
     protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter): ?Filesystem
     {
-        // Construct the API URL for Gemini-Nano-Banana
-        $geminiBananaApiUrl = $this->app->get('PROMPT_IMAGE_API_URL');
-        if (empty($geminiBananaApiUrl)) {
-            throw new Exception('Gemini Banana API URL not configured');
-        }
+        $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
+        $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
 
-        // Construct the full URL with the specific path for Gemini-Nano-Banana
-        // Format: /api/image/google/Gemini-Nano-Banana/i2i
-        $apiUrl = rtrim($geminiBananaApiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
-
-        // Download the image content
         $imageContent = Http::get($imageUrl)->body();
         if (empty($imageContent)) {
             throw new Exception("Failed to download image from URL: {$imageUrl}");
@@ -428,7 +421,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         // Create multipart request
         $response = Http::asMultipart()
             ->attach('image', $imageContent, $filename)
-            ->attach('model', 'gemini-2.5-flash-image-preview') // Using the model from your example
+            ->attach('model', 'gemini-2.5-flash-image-preview')
             ->attach('prompt', $prompt)
             ->post($apiUrl);
 
