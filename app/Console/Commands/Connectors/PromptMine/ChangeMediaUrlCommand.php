@@ -19,8 +19,6 @@ use Kanvas\Users\Models\Users;
 
 class ChangeMediaUrlCommand extends Command
 {
-    private const OLD_MEDIA_URL = 'https://s3.amazonaws.com/mc-canvas/';
-    private const NEW_MEDIA_URL = 'https://s3.amazonaws.com/promptmine-bucket/';
     private const CDN_URL = 'https://cdn.promptmine.ai/';
     /**
      * The name and signature of the console command.
@@ -48,6 +46,7 @@ class ChangeMediaUrlCommand extends Command
         $companyId = (int) $this->argument('companyId');
 
         $app = Apps::find($appId);
+        $app->reGenerateRedisSettings();
         $messageType = MessageType::fromApp($app)->where('id', $messageType)->firstOrFail();
         $company = Companies::where('id', $companyId)->where('is_deleted', 0)->firstOrFail();
         $this->refactorMediaUrl($app, $messageType, $company);
@@ -85,16 +84,14 @@ class ChangeMediaUrlCommand extends Command
         $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
         match ($messageData['type']) {
             'video-format' => $messageData['video'] = (function () use ($messageData, $message) {
-                if (! isset($messageData['video']) || strpos($messageData['video'], self::NEW_MEDIA_URL) === false) {
-                    $messageData['video'] = $this->uploadToS3($messageData['video'], $messageData['type'], $message->user, $message->app, $message->company);
+                if (! isset($messageData['video']) || strpos($messageData['video'], self::CDN_URL) === false) {
+                    return $this->uploadToS3($messageData['video'], $messageData['type'], $message->user, $message->app, $message->company);
                 }
-                return str_replace(self::NEW_MEDIA_URL, self::CDN_URL, $messageData['video']);
             })(),
             'image-format' => $messageData['image'] = (function () use ($messageData, $message) {
-                if (! isset($messageData['image']) || strpos($messageData['image'], self::NEW_MEDIA_URL) === false) {
-                    $messageData['image'] = $this->uploadToS3($messageData['image'], $messageData['type'], $message->user, $message->app, $message->company);
+                if (! isset($messageData['image']) || strpos($messageData['image'], self::CDN_URL) === false) {
+                    return $this->uploadToS3($messageData['image'], $messageData['type'], $message->user, $message->app, $message->company);
                 }
-                return str_replace(self::NEW_MEDIA_URL, self::CDN_URL, $messageData['image']);
             })(),
             default => null,
         };
@@ -105,6 +102,7 @@ class ChangeMediaUrlCommand extends Command
 
     private function uploadToS3(string $mediaUrl, string $type, Users $user, Apps $app, Companies $company): string
     {
+        echo(sprintf('Uploading %s to S3', $mediaUrl . PHP_EOL));
         // This uploads the image to the S3 bucket set on app settings "cloud-bucket". Remember to change the value if you want to upload somewhere else.
         $tempFilePath = match ($type) {
             'image-format' => ImageOptimizerService::optimizeImageFromUrl($mediaUrl),
@@ -125,6 +123,7 @@ class ChangeMediaUrlCommand extends Command
 
         $filesystem = new FilesystemServices($app, $company);
         $fileSystemRecord = $filesystem->upload($uploadedFile, $user);
+        echo(sprintf('Uploaded %s to S3', $fileSystemRecord->url . PHP_EOL));
         return $fileSystemRecord->url;
     }
 }

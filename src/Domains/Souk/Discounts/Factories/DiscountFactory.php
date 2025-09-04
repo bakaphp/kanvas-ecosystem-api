@@ -43,7 +43,7 @@ class DiscountFactory extends Factory
             'is_active' => $this->faker->boolean(80), // 80% chance of being active
             'usage_limit' => $this->faker->optional(0.6)->numberBetween(10, 1000),
             'usage_count' => 0,
-            'is_one_per_customer' => $this->faker->boolean(30), // 30% chance of one per customer
+            'is_one_per_customer' => 0, //$this->faker->boolean(30), // 30% chance of one per customer
             'is_deleted' => false,
         ];
     }
