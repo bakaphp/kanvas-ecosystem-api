@@ -81,7 +81,7 @@ extend type Query @guard {
 extend type Query {
     channelProducts(
         id: String!
-        search: String @search
+        search: String
         visitor: VisitorEntityInput
         where: _ @whereConditions(columnsEnum: ChannelProductFilterEnum)
         hasAttributesValues: _
