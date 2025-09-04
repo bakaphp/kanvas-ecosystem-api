@@ -55,6 +55,17 @@ class ProcessVideoRequestAction
             ];
         }
 
+        //add user credit
+        $orderCredit = $this->entity->user->get('order_credits', []);
+        $orderCredit['video'] ??= [];
+
+        if (isset($orderCredit['video'][$videoKey])) {
+            $orderCredit['video'][$videoKey]++;
+        } else {
+            $orderCredit['video'][$videoKey] = 1;
+        }
+        $this->entity->user->set('order_credits', $orderCredit, true);
+
         try {
             // Check if we already have a request_id (in case of retry)
             $existingRequestId = $this->entity->message['video_request_id'] ?? null;
@@ -115,6 +126,7 @@ class ProcessVideoRequestAction
                 'api_url' => $apiUrl,
                 'video_type' => $isImageToVideo ? 'image-to-video' : 'text-to-video',
                 'is_google_service' => $isGoogleService,
+                'videoKey' => $videoKey
             ];
         } catch (Exception $e) {
             return [

@@ -380,6 +380,14 @@ class VideoProcessingService
         $this->entity->message_types_id = MessageType::fromApp($this->entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
         $this->entity->update();
 
+        //reduce user credit
+        $orderCredit = $this->entity->user->get('order_credits', []);
+        $videoFilter = $params['videoKey'] ?? 'fal-ai/text-to-video';
+        if (isset($params['video'][$videoFilter]) && $orderCredit['video'][$videoFilter] > 0) {
+            $orderCredit['video'][$videoFilter] -= 1;
+            $this->entity->user->set('order_credits', $orderCredit, true);
+        }
+
         return [
             'message' => 'Video processed successfully',
             'total_delivery' => $totalDelivery,

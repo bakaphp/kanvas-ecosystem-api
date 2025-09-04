@@ -46,6 +46,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                     $result = $processVideoAction->execute();
 
                     $params['video_url_key'] = isset($result['is_google_service']) && $result['is_google_service'] ? 'videoUri' : 'video_url';
+                    $params['videoKey'] = $result['videoKey'] ?? null;
 
                     if ($result['result'] && isset($result['request_id'])) {
                         // Schedule delayed processing using the service
