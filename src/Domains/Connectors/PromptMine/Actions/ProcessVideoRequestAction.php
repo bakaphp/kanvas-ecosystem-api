@@ -9,6 +9,7 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
@@ -242,11 +243,27 @@ class ProcessVideoRequestAction
                 if ($key === 'image_url') {
                     // Download the image content and send as file
                     $imageContent = Http::get($value)->body();
+
+                    // Extract filename from URL or use default
+                    $filename = basename(parse_url($value, PHP_URL_PATH)) ?: 'image.png';
+
+                    // Create a temporary file path using Laravel Storage
+                    $tempFileName = 'temp/video_image_' . Str::uuid()->toString() . '_' . $filename;
+
+                    // Store the image content in temporary storage
+                    Storage::disk('local')->put($tempFileName, $imageContent);
+                    $tempFilePath = Storage::disk('local')->path($tempFileName);
+
                     $httpRequest = $httpRequest->attach(
                         'image',
-                        $imageContent,
-                        'image.png' // Default filename, could be extracted from URL if needed
+                        $tempFilePath,
+                        $filename
                     );
+
+                    // Clean up temp file after request is sent
+                    register_shutdown_function(function () use ($tempFileName) {
+                        Storage::disk('local')->delete($tempFileName);
+                    });
                 } else {
                     $httpRequest = $httpRequest->attach((string) $key, (string) $value);
                 }
