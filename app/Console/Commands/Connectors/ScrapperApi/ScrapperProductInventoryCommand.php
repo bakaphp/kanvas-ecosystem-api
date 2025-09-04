@@ -254,7 +254,7 @@ class ScrapperProductInventoryCommand extends Command
         $this->info('===================');
     }
 
-    private function cleanPrice(?string $price): ?string
+    private function cleanPrice(int|null|string $price): ?string
     {
         if ($price === null) {
             return null;
