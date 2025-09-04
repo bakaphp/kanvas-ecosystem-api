@@ -48,6 +48,7 @@ class CheckMessagePostLimitAction
          * update limit by orders
          */
         $totalOrdersToday = Order::fromApp($this->message->app)
+                                ->where('users_id', $this->message->user->getId())
                                 ->where('created_at', '>=', Carbon::now()->subHours($this->timeFrame))
                                 ->count();
 

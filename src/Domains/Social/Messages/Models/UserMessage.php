@@ -103,7 +103,7 @@ class UserMessage extends BaseModel
                         ->where('users_follows.apps_id', '=', $app->getId()); // Add app filtering
                 })
                 ->leftJoin('user_messages', function ($join) use ($userId, $app) {
-                    $join->on('messages.uuid', '=', 'user_messages.messages_id') // Fix: use uuid instead of id
+                    $join->on('messages.id', '=', 'user_messages.messages_id')
                         ->where('user_messages.users_id', '=', $userId)
                         ->where('user_messages.apps_id', '=', $app->getId())
                         ->where('user_messages.is_deleted', '=', 0);

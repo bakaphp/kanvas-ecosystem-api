@@ -37,7 +37,7 @@ class MessageNoteService
             }
         }
 
-        if ($this->message->hasParent()) {
+        if ($this->message->parent) {
             if ($files = $this->message->parent->getFiles()) {
                 $i = 1;
                 foreach ($files as $pdf) {
@@ -65,7 +65,7 @@ class MessageNoteService
      */
     public function filesViewUrl(Lead $lead): string
     {
-        $uuid = $this->message->hasParent() ? $this->message->parentMessage->uuid : $this->message->uuid;
+        $uuid = $this->message->parent ? $this->message->parent->uuid : $this->message->uuid;
         $url = $this->message->app->get(ConfigurationEnum::SALES_ASSIST_LANDING_PAGE->value) . '/global-viewer?lid=' . $lead->uuid . '&mid=' . $uuid . '&ia=1';
 
         return Url::getShortUrl(

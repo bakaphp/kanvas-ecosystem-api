@@ -20,7 +20,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.86.0",
+        "echolabsdev/prism": "^0.87.0",
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
@@ -53,7 +53,7 @@
         "mll-lab/laravel-graphiql": "^4.0.1",
         "nevadskiy/laravel-tree": "^0.6.0",
         "nuwave/lighthouse": "^6.0",
-        "openai-php/client": "^0.13.0",
+        "openai-php/client": "^0.16.0",
         "php-ffmpeg/php-ffmpeg": "*",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
@@ -98,7 +98,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.3.6"
+        "phpunit/phpunit": "12.3.7"
     },
     "autoload": {
         "psr-4": {

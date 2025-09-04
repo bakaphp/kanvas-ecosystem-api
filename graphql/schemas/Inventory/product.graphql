@@ -242,7 +242,7 @@ extend type Query @guard {
         hasVariants: _
             @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
-            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+            @whereHasConditions(relation: "categories", columns: ["id", "name", "slug"])
         hasWarehouses: _
             @whereHasConditions(
                 relation: "warehouses"

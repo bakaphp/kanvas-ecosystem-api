@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\Social\Channels\Models\Channel;
 use Override;
 
 /**
@@ -41,5 +42,10 @@ class Session extends BaseModel
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agents_id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class, 'channel_id');
     }
 }

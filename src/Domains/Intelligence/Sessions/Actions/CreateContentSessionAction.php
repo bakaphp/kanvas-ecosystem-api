@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
@@ -39,18 +40,34 @@ class CreateContentSessionAction
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
             ],
-            $this->mapPeople($lead->people)
+            $this->mapPeople($lead->people, $lead)
         );
     }
 
-    protected function mapPeople(People $people): array
+    protected function mapPeople(People $people, ?Lead $lead = null): array
     {
         $data = [
             'creditApp' => 'https://kanvas.dev/credit-app',
             'tradeIn' => 'https://kanvas.dev/trade-in',
+            'customerName' => null,
+            'leadEmail' => null,
+            'leadOwnerName' => null,
+            'leadOwnerEmail' => null,
         ];
 
-        $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+        if ($lead) {
+            $data['leadOwnerEmail'] = $lead->owner?->email;
+            $data['customerName'] = $people->name;
+            $data['leadEmail'] = $people->getEmails()->first()?->value ?? '';
+            $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
+        }
+
+        try {
+            $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+        } catch (Exception $e) {
+            report($e);
+            $background = $this->agent?->role;
+        }
 
         return [
             'branch' => $this->branch,
