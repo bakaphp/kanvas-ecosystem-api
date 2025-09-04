@@ -25,7 +25,7 @@ class ChangeMediaUrlCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:promptmine-change-media-url {appId=78} {messageType=588} {companyId=2626}';
+    protected $signature = 'kanvas:promptmine-change-media-url {appId=78} {messageType=588}';
 
     /**
      * The console command description.
@@ -43,19 +43,19 @@ class ChangeMediaUrlCommand extends Command
     {
         $appId = (int) $this->argument('appId');
         $messageType = (int) $this->argument('messageType');
-        $companyId = (int) $this->argument('companyId');
+        // $companyId = (int) $this->argument('companyId');
 
         $app = Apps::find($appId);
         $app->reGenerateRedisSettings();
         $messageType = MessageType::fromApp($app)->where('id', $messageType)->firstOrFail();
-        $company = Companies::where('id', $companyId)->where('is_deleted', 0)->firstOrFail();
-        $this->refactorMediaUrl($app, $messageType, $company);
+        // $company = Companies::where('id', $companyId)->where('is_deleted', 0)->firstOrFail();
+        $this->refactorMediaUrl($app, $messageType);
     }
 
-    private function refactorMediaUrl(Apps $app, MessageType $messageType, Companies $company): void
+    private function refactorMediaUrl(Apps $app, MessageType $messageType, Companies $company = null): void
     {
         Message::fromApp($app)
-            ->where('companies_id', $company->getId())
+            // ->where('companies_id', $company->getId())
             ->where('message_types_id', $messageType->getId())
             ->where('is_deleted', 0)
             ->orderBy('id', 'DESC')
