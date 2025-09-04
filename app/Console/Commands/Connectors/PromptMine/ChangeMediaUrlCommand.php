@@ -66,6 +66,12 @@ class ChangeMediaUrlCommand extends Command
                         echo('Updating Message ID ' . $message->getId() . PHP_EOL);
                         Log::info(sprintf('Updating Message ID %d:', $message->getId()));
 
+                        $messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
+
+                        if ($messageData['type'] == 'text-format') {
+                            echo('Message ID ' . $message->getId() . ' is a text-format message. Skipped' . PHP_EOL);
+                            continue;
+                        }
                         $this->toCdnUrl($message);
                         DB::commit();
                         echo('Successfully updated Message ID ' . $message->getId() . PHP_EOL);
