@@ -78,7 +78,7 @@ extend type Query @guard {
         )
 }
 
-extend type Query {
+extend type Query @guard {
     channelProducts(
         id: String!
         search: String
