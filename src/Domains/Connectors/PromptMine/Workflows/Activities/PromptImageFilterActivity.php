@@ -62,6 +62,17 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         $company = $this->getCompany($app, $entity);
 
+        //add user credit
+        $orderCredit = $entity->user->get('order_credits', []);
+        $orderCredit['image'] ??= [];
+
+        if (isset($orderCredit['image'][$imageFilter])) {
+            $orderCredit['image'][$imageFilter]++;
+        } else {
+            $orderCredit['image'][$imageFilter] = 1;
+        }
+        $entity->user->set('order_credits', $orderCredit, true);
+
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
@@ -144,7 +155,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $fileUrl,
                         $processedImageUrl,
                         $params,
-                        $requestId
+                        $requestId,
+                        $imageFilter
                     );
                 } catch (Exception $e) {
                     report($e);
@@ -473,7 +485,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         string $originalImageUrl,
         ?string $processedImageUrl = null,
         array $params = [],
-        ?string $requestId = null
+        ?string $requestId = null,
+        ?string $imageFilter = null
     ): array {
         // Lets generate a new title using ai if no title is set
         try {
@@ -558,6 +571,15 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if ($requestId !== null) {
             $result['request_id'] = $requestId;
         }
+
+        //reduce user credit
+        $orderCredit = $entity->user->get('order_credits', []);
+        if (isset($orderCredit['image'][$imageFilter]) && $orderCredit['image'][$imageFilter] > 0) {
+            $orderCredit['image'][$imageFilter] -= 1;
+            $entity->user->set('order_credits', $orderCredit, true);
+        }
+        //$orderCredit['image'][$entity->message['ai_model']['value']] += 1;
+        //$entity->user->set('order_credits', $orderCredit);
 
         //turn type to prompt
         $entity->message_types_id = MessageType::fromApp($entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
