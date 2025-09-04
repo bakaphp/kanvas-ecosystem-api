@@ -179,6 +179,10 @@ class ScrapperProductInventoryCommand extends Command
             $completeProduct = array_merge($product, $productDetails);
 
             // Clean all price fields in the complete product
+            if (is_array($completeProduct['price'])) {
+                continue;
+            }
+            
             if (isset($completeProduct['price'])) {
                 $completeProduct['price'] = $this->cleanPrice($completeProduct['price']);
             }
