@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Inventory\Channels\Models\Channels;
 
 class CreateContentSessionAction
 {
@@ -75,6 +76,7 @@ class CreateContentSessionAction
             'firstname' => $people->firstname,
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
+            'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),

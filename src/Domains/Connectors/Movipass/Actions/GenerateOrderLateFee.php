@@ -62,7 +62,11 @@ class GenerateOrderLateFee
             }
 
             $lateFee = Variants::find($completeOrder->metadata["data"]["late-fee-variant-id"]);
-            $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
+            $lateFeePrice = $lateFee?->getPriceInfoFromDefaultChannel()?->price;
+
+            if (! $lateFeePrice) {
+                return;
+            }
 
             $feeCount = max(1, ceil($order->days_late / 30));
 
