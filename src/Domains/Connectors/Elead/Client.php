@@ -92,12 +92,24 @@ class Client
     }
 
     /**
+     * Prepare the API path based on the environment.
+     */
+    protected function preparePath(string $path): string
+    {
+        if (app()->runningUnitTests()) {
+            return 'cdk-test' . $path;
+        }
+
+        return $path;
+    }
+
+    /**
      * Run Get request against Elead API.
      */
     public function get(string $path, array $params = []): array
     {
         $response = $this->client->get(
-            $path,
+            $this->preparePath($path),
             $this->setHeaders($params)
         );
 
@@ -120,7 +132,7 @@ class Client
         $params['body'] = json_encode($data);
 
         $response = $this->client->post(
-            $path,
+            $this->preparePath($path),
             $params
         );
 
@@ -145,7 +157,7 @@ class Client
         $params['body'] = json_encode($data);
 
         $response = $this->client->put(
-            $path,
+            $this->preparePath($path),
             $params
         );
 
@@ -166,7 +178,7 @@ class Client
         }
 
         $response = $this->client->delete(
-            $path,
+            $this->preparePath($path),
             $params
         );
 
