@@ -9,6 +9,7 @@ enum MovipassOrderStatusEnum: string
     case AWAITING_DELIVERY_CONFIRMATION = 'awaiting_delivery_confirmation';
     case DELIVERED = 'delivered';
     case PAID = 'paid';
-    case RELEASED = 'released';
+    case RELEASED = 'released_from_lot';
     case CANCELLED = 'cancelled';
+    case TRIAL_PHASE = 'trial_phase';
 }
