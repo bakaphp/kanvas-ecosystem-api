@@ -292,7 +292,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         // Create a temporary file path using Laravel Storage
         $tempFileName = 'temp/openai_img_' . Str::uuid()->toString() . '_' . $filename;
-        
+
         // Store the image content in temporary storage
         Storage::disk('local')->put($tempFileName, $imageContents);
         $tempFile = Storage::disk('local')->path($tempFileName);
@@ -424,7 +424,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         // Create a temporary file path using Laravel Storage
         $tempFileName = 'temp/gemini_image_' . Str::uuid()->toString() . '_' . $filename;
-        
+
         // Store the image content in temporary storage
         Storage::disk('local')->put($tempFileName, $imageContent);
         $tempFilePath = Storage::disk('local')->path($tempFileName);
