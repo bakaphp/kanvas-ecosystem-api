@@ -383,7 +383,7 @@ class VideoProcessingService
         //reduce user credit
         $orderCredit = $this->entity->user->get('order_credits', []);
         $videoFilter = $params['videoKey'] ?? 'fal-ai/text-to-video';
-        if (isset($params['video'][$videoFilter]) && $orderCredit['video'][$videoFilter] > 0) {
+        if (isset($orderCredit['video'][$videoFilter]) && $orderCredit['video'][$videoFilter] > 0) {
             $orderCredit['video'][$videoFilter] -= 1;
             $this->entity->user->set('order_credits', $orderCredit, true);
         }
