@@ -70,7 +70,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
                     $toStatus = $params['to_status'] ?? null;
 
-                    if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
+                    if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
                         $order->fulfill();
                     }
                 }
