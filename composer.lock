@@ -8534,16 +8534,16 @@
         },
         {
             "name": "openai-php/client",
-            "version": "v0.16.0",
+            "version": "v0.16.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/openai-php/client.git",
-                "reference": "d857954cb96731e183adc5e51e5f79d16717ab2a"
+                "reference": "7a59e4d896d83f8c923e0b3a5ebae0a5cddad2d6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/openai-php/client/zipball/d857954cb96731e183adc5e51e5f79d16717ab2a",
-                "reference": "d857954cb96731e183adc5e51e5f79d16717ab2a",
+                "url": "https://api.github.com/repos/openai-php/client/zipball/7a59e4d896d83f8c923e0b3a5ebae0a5cddad2d6",
+                "reference": "7a59e4d896d83f8c923e0b3a5ebae0a5cddad2d6",
                 "shasum": ""
             },
             "require": {
@@ -8605,7 +8605,7 @@
             ],
             "support": {
                 "issues": "https://github.com/openai-php/client/issues",
-                "source": "https://github.com/openai-php/client/tree/v0.16.0"
+                "source": "https://github.com/openai-php/client/tree/v0.16.1"
             },
             "funding": [
                 {
@@ -8621,7 +8621,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-08-26T12:28:37+00:00"
+            "time": "2025-09-04T14:32:16+00:00"
         },
         {
             "name": "paragonie/constant_time_encoding",
