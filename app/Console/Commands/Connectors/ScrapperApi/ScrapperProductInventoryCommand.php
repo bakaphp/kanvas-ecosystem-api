@@ -13,6 +13,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -32,7 +33,8 @@ class ScrapperProductInventoryCommand extends Command
                             {api_key : The Scraping Dog API key}
                             {base_url : The base URL to scrape (e.g., https://www..com)}
                             {dealer_path : The dealer path (e.g., dealers/)}
-                            {--pages=1 : Number of pages to scrape (default: 1)}';
+                            {--pages=1 : Number of pages to scrape (default: 1)}
+                            {--warehouse_id= : Optional warehouse ID to use instead of the region\'s default warehouse}';
 
     /**
      * The console command description.
@@ -51,6 +53,25 @@ class ScrapperProductInventoryCommand extends Command
         $regions = Regions::getById((int) $this->argument('region_id'));
         $user = Users::getById((int) $this->argument('userId'));
 
+        // Get optional warehouse if provided
+        $warehouse = null;
+        if ($warehouseId = $this->option('warehouse_id')) {
+            $warehouse = Warehouses::getById((int) $warehouseId);
+
+            // Validate warehouse belongs to the same company and region
+            if ($warehouse->companies_id !== $company->id) {
+                $this->error('The specified warehouse does not belong to the selected company.');
+
+                return;
+            }
+
+            if ($warehouse->regions_id !== $regions->id) {
+                $this->error('The specified warehouse does not belong to the selected region.');
+
+                return;
+            }
+        }
+
         // Get the new parameters
         $apiKey = $this->argument('api_key');
         $baseUrl = rtrim($this->argument('base_url'), '/'); // Remove trailing slash
@@ -59,6 +80,18 @@ class ScrapperProductInventoryCommand extends Command
 
         $cacheMinutes = 60 * 24; // Cache for 24 hours
         $allResults = [];
+
+        // Show which warehouse will be used
+        if ($warehouse) {
+            $this->info('Using warehouse: ' . $warehouse->name . ' (ID: ' . $warehouse->id . ')');
+        } else {
+            $defaultWarehouse = $regions->defaultWarehouse;
+            if ($defaultWarehouse) {
+                $this->info('Using default warehouse: ' . $defaultWarehouse->name . ' (ID: ' . $defaultWarehouse->id . ')');
+            } else {
+                $this->warn('No default warehouse found for the region.');
+            }
+        }
 
         // Loop through the specified number of pages
         for ($pageSkip = 0; $pageSkip < $numberOfPages; $pageSkip++) {
@@ -108,6 +141,11 @@ class ScrapperProductInventoryCommand extends Command
         $failedCount = 0;
 
         foreach ($results as $resultDetail) {
+            if (empty($resultDetail['brand']) || empty($resultDetail['model']) || empty($resultDetail['year']) || empty($resultDetail['detail_link'])) {
+                $this->warn('Skipping product due to missing essential information (brand, model, year, or detail link).');
+
+                continue;
+            }
             $product = [
                 'name' => $resultDetail['brand'] . ' ' . $resultDetail['model'] . ' ' . $resultDetail['year'],
                 'sku' => $resultDetail['detail_link'],
@@ -220,7 +258,7 @@ class ScrapperProductInventoryCommand extends Command
             }
 
             // Transform the vehicle data into the required structure
-            $mappedProductData = $this->mapToProductStructure($completeProduct, $company, $regions);
+            $mappedProductData = $this->mapToProductStructure($completeProduct, $company, $regions, $warehouse);
 
             try {
                 // Import the product using ProductImporterAction
@@ -288,10 +326,10 @@ class ScrapperProductInventoryCommand extends Command
     /**
      * Map vehicle data to the required structure.
      */
-    private function mapToProductStructure(array $vehicleData, Companies $company, Regions $region): array
+    private function mapToProductStructure(array $vehicleData, Companies $company, Regions $region, ?Warehouses $warehouse = null): array
     {
-        // Get default warehouse and channel for the company
-        $warehouse = $region->defaultWarehouse;
+        // Use provided warehouse or get default warehouse from region
+        $warehouse = $warehouse ?: $region->defaultWarehouse;
         $channels = Channels::getDefault($company);
 
         $price = (float) ($vehicleData['price'] ?? 0);
@@ -356,7 +394,7 @@ class ScrapperProductInventoryCommand extends Command
         $variant = [
             'name' => $name,
             'description' => $observations,
-            'slug' => Str::slug($sku),
+            'slug' => Str::slug($name . '-' . $sku),
             'sku' => $sku,
             'price' => $price,
             'discountPrice' => null,
