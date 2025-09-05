@@ -52,6 +52,7 @@ use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptIAPOrderActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptImageFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptVideoFilterActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\RemixCreationActivity;
@@ -241,6 +242,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PromptVideoFilterActivity::class,
             ConvertMessageImagesToPdfActivity::class,
             RemixCreationActivity::class,
+            PromptIAPOrderActivity::class,
         ];
 
         $createdActions = [];

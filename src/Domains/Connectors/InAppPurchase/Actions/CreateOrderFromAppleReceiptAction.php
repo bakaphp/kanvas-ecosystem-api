@@ -126,6 +126,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $orderItems[] = $orderItem;
 
         $this->processCustomFieldsVariants($orderItems);
+        $allReceiptData['source'] = 'apple';
 
         return $this->createOrderDto($orderItems, $people, $allReceiptData);
     }
