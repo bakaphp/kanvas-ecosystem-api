@@ -101,6 +101,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         $orderItems[] = $orderItem;
 
         $this->processCustomFieldsVariants($orderItems);
+        $allReceiptData['source'] = 'google_play';
 
         return $this->createOrderDto($orderItems, $people, $allReceiptData);
     }

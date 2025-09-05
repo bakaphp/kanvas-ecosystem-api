@@ -155,7 +155,7 @@ abstract class CreateOrderFromReceiptActionBase
             metadata: $metadata,
             weight: 0.0,
             checkoutToken: '',
-            paymentGatewayName: ['manual'],
+            paymentGatewayName: ['iap'],
             languageCode: null,
         );
     }
