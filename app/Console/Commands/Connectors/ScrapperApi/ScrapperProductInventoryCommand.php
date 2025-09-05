@@ -361,7 +361,7 @@ class ScrapperProductInventoryCommand extends Command
             'price' => $price,
             'discountPrice' => null,
             'quantity' => 1,
-            'attributes' => [],
+            'attributes' => $this->getVehicleAttributes($vehicleData),
             'files' => $files,
             'warehouses' => [
                 [
