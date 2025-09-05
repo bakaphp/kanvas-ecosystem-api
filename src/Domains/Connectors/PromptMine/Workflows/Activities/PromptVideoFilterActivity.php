@@ -41,6 +41,14 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
+                    // Deduct user credit based on the selected video filter
+                    $videoFilter = $entity->message['ai_model']['value'];
+                    $orderCredit = $entity->user->get('order_credits', []);
+                    if (isset($orderCredit['video'][$videoFilter]) && $orderCredit['video'][$videoFilter] > 0) {
+                        $orderCredit['video'][$videoFilter] -= 1;
+                        $entity->user->set('order_credits', $orderCredit, true);
+                    }
+
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
                     $result = $processVideoAction->execute();
@@ -59,6 +67,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                         );
                     }
 
+                    $result['videoFilter'] = $videoFilter ?? null;
                     return $result;
                 } catch (Exception $e) {
                     report($e);
