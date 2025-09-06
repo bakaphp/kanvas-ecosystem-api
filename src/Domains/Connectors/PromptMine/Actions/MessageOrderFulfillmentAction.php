@@ -5,48 +5,31 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
-use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class MessageOrderFulfillmentAction
 {
+    protected Users $user;
+
     public function __construct(protected Message $message)
     {
+        //why? dont know but the model cache causes issues
+        $this->user = Users::getById($this->message->users_id);
     }
 
-    public function execute(bool $generationFailed = false): void
+    public function execute(string $aiIndex): void
     {
-        // check user for orders
-        // check if order avaible is from the same module or class the user is strying to execute
-        // if $generationFailed is false, we will marke the order we found as fulffilled
-        // if not , we will keep it pending but add the user credits so frontend que validate
-        $orders = Order::fromApp($this->message->app)
-                        ->where('users_id', $this->message->users_id)
-                        ->where('fulfillment_status', OrderFulfillmentStatusEnum::PENDING->value)
-                        ->get();
+        // Deduct user credit based on the selected video filter
+        $modelIndex = $this->message->message['ai_model']['value'];
+        $orderCredit = $this->user->get('order_credits', []);
+        if (isset($orderCredit[$aiIndex][$modelIndex]) && $orderCredit[$aiIndex][$modelIndex] > 0) {
+            $orderCredit[$aiIndex][$modelIndex] -= 1;
 
-        if ($orders->count()) {
-            foreach ($orders as $order) {
-                if ($generationFailed === false) {
-                    $order->fulfillment_status = OrderFulfillmentStatusEnum::COMPLETED->value;
-                    $order->save();
-                } else { // keep it pending but add the user credits so frontend que validate
-                    //$order->addUserCredits();
-                    $this->addUserCredit($order);
-                }
-
-                return;
+            if ($orderCredit[$aiIndex][$modelIndex] == 0) {
+                unset($orderCredit[$aiIndex][$modelIndex]);
             }
-        }
-    }
 
-    private function addUserCredit(Order $order): void
-    {
-        // Logic to add user credits
-        $order->user->set('order_credits', [
-            'image' => [
-                'gpt-image-1' => 1,
-            ],
-        ]);
+            $this->user->set('order_credits', $orderCredit, true);
+        }
     }
 }

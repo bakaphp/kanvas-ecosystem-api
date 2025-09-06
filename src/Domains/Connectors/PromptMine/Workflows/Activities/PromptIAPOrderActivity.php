@@ -26,7 +26,6 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                 //add user credit
                 $orderCredit = $order->user->get('order_credits', []);
-                $orderCredit['video'] ??= [];
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -34,26 +33,40 @@ class PromptIAPOrderActivity extends KanvasActivity
                         continue;
                     }
 
-                    $videoKey = $variant->getAttributeBySlug('ai-model')?->value;
+                    $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
+                    $purchaseType = match (strtolower($variant->product->categories->first()->name)) {
+                        'texttotext' => 'text',
+                        'imagetovideo' => 'video',
+                        'texttoimage' => 'image',
+                        'texttovideo' => 'video',
+                        'imagetoimage' => 'image',
+                        default => 'text',
+                    };
 
-                    if (empty($videoKey)) {
+                    $orderCredit[$purchaseType] ??= [];
+
+                    if (empty($aiModelKey)) {
                         continue;
                     }
 
-                    if (isset($orderCredit['video'][$videoKey])) {
-                        $orderCredit['video'][$videoKey]++;
+                    if (isset($orderCredit[$purchaseType][$aiModelKey])) {
+                        $orderCredit[$purchaseType][$aiModelKey]++;
                     } else {
-                        $orderCredit['video'][$videoKey] = 1;
+                        $orderCredit[$purchaseType][$aiModelKey] = 1;
                     }
                 }
 
-                $order->user->set('order_credits', $orderCredit, true);
+                $order->user->set(
+                    'order_credits',
+                    $orderCredit,
+                    true
+                );
 
                 return [
                     'order_id' => $order->getId(),
                     'message' => 'User credits updated',
                     'total_delivery' => 1,
-                    'videoKey' => $videoKey ?? null,
+                    'key' => $aiModelKey ?? null,
                 ];
             },
             company: $order->company,
