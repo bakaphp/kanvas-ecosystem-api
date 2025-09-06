@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Pipelines\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -25,7 +26,7 @@ use Kanvas\ActionEngine\Models\BaseModel;
  */
 class PipelineStage extends BaseModel
 {
-    use UuidTrait;
+    use NoAppRelationshipTrait;
 
     protected $table = 'pipelines_stages';
     protected $guarded = [];
