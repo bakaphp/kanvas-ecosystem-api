@@ -20,6 +20,7 @@ class OrderEmailMutation
             'app' => $app,
             'company' => $order->company,
             'force_send' => true,
+            'order' => $order,
         ]));
 
         return true;
