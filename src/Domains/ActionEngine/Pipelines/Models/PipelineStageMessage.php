@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Pipelines\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
-use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
 
