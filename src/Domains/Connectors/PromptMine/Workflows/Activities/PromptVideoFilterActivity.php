@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
 use Kanvas\Enums\AppSettingsEnums;
@@ -41,13 +42,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
-                    // Deduct user credit based on the selected video filter
-                    $videoFilter = $entity->message['ai_model']['value'];
-                    $orderCredit = $entity->user->get('order_credits', []);
-                    if (isset($orderCredit['video'][$videoFilter]) && $orderCredit['video'][$videoFilter] > 0) {
-                        $orderCredit['video'][$videoFilter] -= 1;
-                        $entity->user->set('order_credits', $orderCredit, true);
-                    }
+                    new MessageOrderFulfillmentAction($entity)->execute('video');
 
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
@@ -67,7 +62,9 @@ class PromptVideoFilterActivity extends KanvasActivity
                         );
                     }
 
+                    $result['orderCredit'] = $orderCredit;
                     $result['videoFilter'] = $videoFilter ?? null;
+
                     return $result;
                 } catch (Exception $e) {
                     report($e);
