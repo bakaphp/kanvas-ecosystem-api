@@ -93,7 +93,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 }
 
                 // Deduct user credit based on the selected image filter
-                //why? dont know but the model cache causes issues
                 new MessageOrderFulfillmentAction($entity)->execute('image');
 
                 $fileUrl = $messageFiles->first()->url;
