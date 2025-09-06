@@ -20,13 +20,8 @@ class AgentSessionQuery
 
         $session = Session::getByUuidFromCompanyApp($request['id'], $company, $app);
 
-        if ($session->agent->role !== $session->content['background']) {
-            $content = new CreateContentSessionAction(
-                $session->entity_namespace,
-                $session->entity_id,
-                $session->agent,
-                $session->company->defaultBranch,
-            )->execute();
+        if (true){//$session->agent->role !== ($session->content['background'] ?? null)) {
+            $content = new CreateContentSessionAction($session)->execute();
 
             $session->content = $content;
             $session->update();
