@@ -20,7 +20,7 @@ class AgentSessionQuery
 
         $session = Session::getByUuidFromCompanyApp($request['id'], $company, $app);
 
-        if (true) {//$session->agent->role !== ($session->content['background'] ?? null)) {
+        if ($session->agent->role !== ($session->content['background'] ?? null)) {
             $content = new CreateContentSessionAction($session)->execute();
 
             $session->content = $content;

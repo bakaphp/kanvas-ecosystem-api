@@ -233,14 +233,14 @@ class Setup
             MessageType::firstOrCreate(
                 [
                     'apps_id' => $this->app->getId(),
-                    'languages_id' => 'EN',
+                    'languages_id' => 1,
                     'verb' => $action->slug,
                 ],
                 [
                     'apps_id' => $this->app->getId(),
                     'verb' => $action->slug,
                     'name' => $action->name,
-                    'languages_id' => 'EN',
+                    'languages_id' => 1,
                 ]
             );
         }
