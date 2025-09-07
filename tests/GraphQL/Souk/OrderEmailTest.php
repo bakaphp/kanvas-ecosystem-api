@@ -83,6 +83,7 @@ class OrderEmailTest extends OrderBase
             'X-Kanvas-Key' => $app->keys()->first()->client_secret_id,
         ]);
 
+        print_R( $response->json());
         $this->assertArrayHasKey('sendOrderEmail', $response->json('data'));
         $this->assertTrue($response->json('data.sendOrderEmail'));
     }

@@ -109,6 +109,9 @@ class CartDiscountIntegrationTest extends TestCase
         // Subtotal should be the original price
         $expectedSubtotal = $variantWarehouse->price;
         $expectedTotal = $expectedSubtotal * 0.9; // 10% discount
+        echo "expectedSubtotal: $expectedSubtotal, expectedTotal: $expectedTotal \n";
+        echo "subtotal: $subtotal, total: $total \n";
+
 
         $this->assertEquals($expectedSubtotal, $subtotal);
         $this->assertEquals($expectedTotal, $total); // 10% discount applied
