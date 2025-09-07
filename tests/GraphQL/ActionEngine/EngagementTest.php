@@ -236,6 +236,7 @@ class EngagementTest extends TestCase
             ],
         ]);
 
+        print_r($continueResponse->json());
         $continueResponse->assertOk();
 
         $responseData = $continueResponse->json();
