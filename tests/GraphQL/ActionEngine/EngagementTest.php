@@ -209,7 +209,6 @@ class EngagementTest extends TestCase
             ],
         ]);
 
-        print_r( $startResponse->json());
         $startResponse->assertOk();
 
         // Now continue the lead engagement
@@ -240,7 +239,6 @@ class EngagementTest extends TestCase
         $continueResponse->assertOk();
 
         $responseData = $continueResponse->json();
-print_r( $responseData);
         // Assert the response structure and required fields
         $this->assertArrayHasKey('data', $responseData);
         $this->assertArrayHasKey('continueLeadEngagement', $responseData['data']);

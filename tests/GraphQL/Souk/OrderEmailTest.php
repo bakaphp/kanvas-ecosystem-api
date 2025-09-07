@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\Connectors\Traits\HasStripeConfiguration;
@@ -21,6 +22,9 @@ class OrderEmailTest extends OrderBase
     {
         $user = auth()->user();
         $app = app(Apps::class);
+        $syncEmailTemplate = new SyncEmailTemplateAction($app, $user);
+        $syncEmailTemplate->execute();
+
         // Create a product
         $productResponse = $this->createProduct(attributes: [
             [
@@ -83,7 +87,6 @@ class OrderEmailTest extends OrderBase
             'X-Kanvas-Key' => $app->keys()->first()->client_secret_id,
         ]);
 
-        print_R( $response->json());
         $this->assertArrayHasKey('sendOrderEmail', $response->json('data'));
         $this->assertTrue($response->json('data.sendOrderEmail'));
     }
