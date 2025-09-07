@@ -128,7 +128,7 @@ class CreateEngagementAction
         $parentAction = $this->getActionInfo($this->app, $this->engagementData->action);
         $resolvedActionSlug = $parentAction['parent'];
 
-        // Action type mappings
+        // Action type mappings, @todo move this to be dynamic per app
         $actionMappings = [
             'creditApp' => [
                 ActionEnum::CREDIT_APP_2->value,
@@ -440,6 +440,9 @@ class CreateEngagementAction
         return $result;
     }
 
+    /**
+     * @todo remove this legacy hardcoded actions
+     */
     protected function getBaseAction(string $type, string $actionSlug): string
     {
         return match ($type) {
@@ -450,6 +453,9 @@ class CreateEngagementAction
         };
     }
 
+    /**
+     * @todo remove this legacy hardcoded actions
+     */
     protected function getFormType(string $type, string $actionSlug): ?string
     {
         $formTypes = [

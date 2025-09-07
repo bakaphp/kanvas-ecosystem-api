@@ -371,6 +371,11 @@ class Setup
         ];
 
         return [
+            'default' => $formsStage,
+
+            /**
+             * @todo remove these legacy hardcoded actions , make this dynamic per app
+             */
             'dealer-content' => $viewStage,
             'view-vehicle' => $viewStage,
             'trade-walk' => $formsStage,
@@ -394,7 +399,6 @@ class Setup
             'co-signer' => $formsStage,
             'co-signer-2' => $formsStage,
             'co-signer-3' => $formsStage,
-            'default' => $formsStage,
             'co-signer-4' => $formsStage,
             'co-signer-5' => $formsStage,
             'in-store-visit' => $viewStage,
