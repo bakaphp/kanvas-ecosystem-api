@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Stripe\PaymentLink;
 use Stripe\StripeClient;
 
 class StripePaymentLinkService
@@ -16,14 +20,16 @@ class StripePaymentLinkService
 
     public function __construct(
         protected AppInterface $app,
+        protected ?Companies $company = null
     ) {
-        $this->stripe = new StripeClient($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $stripeKey = $company ? $company->get(ConfigurationEnum::STRIPE_SECRET_KEY->value) : null;
+        $this->stripe = new StripeClient($stripeKey ?? $this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
 
     /**
      * Generate a Stripe Payment Link for the given order
      */
-    public function generatePaymentLink(Order $order, array $options = []): \Stripe\PaymentLink
+    public function generatePaymentLink(Order $order, array $options = []): PaymentLink
     {
         // Validate order has required data
         $this->validateOrder($order);
@@ -94,6 +100,66 @@ class StripePaymentLinkService
         // Store payment link ID in order metadata
         $order->addMetadata('stripe_payment_link_id', $paymentLink->id);
         $order->addMetadata('stripe_payment_link_url', $paymentLink->url);
+
+        return $paymentLink;
+    }
+
+    public function generatePaymentLinkFromLeadMessage(Lead $lead, Message $message, array $options = []): PaymentLink
+    {
+        $amount = (float) ($message->message['amount'] ?? $message->message['data']['amount'] ?? null);
+
+        if (! $amount || $amount <= 0) {
+            throw new ValidationException('Amount must be greater than 0');
+        }
+
+        // Check if payment link already exists for this order
+        if ($existingPaymentLinkId = $message->get('stripe_payment_link_id')) {
+            try {
+                return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
+            } catch (\Exception $e) {
+                // If retrieval fails, create a new one
+            }
+        }
+
+        $paymentLinkData = [
+            'line_items' => [
+            [
+                'price_data' => [
+                    'currency' => 'usd',
+                    'product_data' => [
+                        'name' => $options['product_name'] ?? 'Payment',
+                    ],
+                    'unit_amount' => $this->convertToStripeAmount($amount), // Amount in cents
+                ],
+                'quantity' => 1,
+            ],
+            ],
+            'customer_creation' => 'if_required',
+        ];
+
+        /*    if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
+               //$paymentLinkData['customer_creation'] = $email;
+               //$paymentLinkData['prefill_customer_email'] = $email;
+           } */
+
+        // Add metadata if provided
+        if (isset($options['metadata'])) {
+            $paymentLinkData['metadata'] = $options['metadata'];
+        }
+
+        // Add success URL if provided
+        if (isset($options['success_url'])) {
+            $paymentLinkData['after_completion'] = [
+                'type' => 'redirect',
+                'redirect' => ['url' => $options['success_url']],
+            ];
+        }
+
+        $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
+
+        // Store payment link ID in order metadata
+        $message->set('stripe_payment_link_id', $paymentLink->id);
+        $message->set('stripe_payment_link_url', $paymentLink->url);
 
         return $paymentLink;
     }
@@ -220,7 +286,7 @@ class StripePaymentLinkService
     /**
      * Retrieve payment link by order
      */
-    public function getPaymentLinkByOrder(Order $order): ?\Stripe\PaymentLink
+    public function getPaymentLinkByOrder(Order $order): ?PaymentLink
     {
         $paymentLinkId = $order->getMetadata('stripe_payment_link_id');
 
@@ -259,7 +325,7 @@ class StripePaymentLinkService
     /**
      * Create payment link with customer from existing person
      */
-    public function generatePaymentLinkWithCustomer(Order $order, array $options = []): \Stripe\PaymentLink
+    public function generatePaymentLinkWithCustomer(Order $order, array $options = []): PaymentLink
     {
         if ($order->people_id && $order->people) {
             $stripeCustomerService = new StripeCustomerService($this->app);
