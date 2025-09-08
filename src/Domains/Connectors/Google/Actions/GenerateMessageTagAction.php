@@ -42,9 +42,11 @@ class GenerateMessageTagAction
         }
 
         $additionalInstructions = "If you detect/encounter any of this please use the specific tag for it: 
-                - 'text to image': image
-                - 'text to video': video
-                - 'text to text': text";
+                - 'text-to-image': image
+                - 'text-to-video': video
+                - 'text-to-text': text
+                Take into account that it's possible that the message contains multiple topics, so choose the most relevant tags.
+                Also, not always the type of format(image, video, text) is evident, so use your best judgement.";
 
         $geminiTagService = new GeminiTagService();
         $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags, $additionalInstructions);
