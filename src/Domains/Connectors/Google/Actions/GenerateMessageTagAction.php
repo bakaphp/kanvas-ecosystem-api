@@ -41,11 +41,10 @@ class GenerateMessageTagAction
             return $this->message;
         }
 
-        $additionalInstructions = "If you detect/encounter any of this keys on the message please add theses specific tag for it: 
+        $additionalInstructions = "If you detect/encounter any of this keys on the message please add the specific tag for it: 
                 - 'image': image
                 - 'video': video
-                - 'nugget': text
-                Take into account that it's possible that the message contains multiple topics, so choose the most relevant tags.";
+                - 'nugget': text";
 
         $geminiTagService = new GeminiTagService();
         $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags, $additionalInstructions);
