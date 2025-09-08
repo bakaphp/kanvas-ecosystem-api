@@ -106,14 +106,14 @@ class StripePaymentLinkService
 
     public function generatePaymentLinkFromLeadMessage(Lead $lead, Message $message, array $options = []): PaymentLink
     {
-        $amount = $message->message['amount'] ?? $message->message['data']['amount'] ?? null;
+        $amount = (float) ($message->message['amount'] ?? $message->message['data']['amount'] ?? null);
 
         if (! $amount || $amount <= 0) {
             throw new ValidationException('Amount must be greater than 0');
         }
 
         // Check if payment link already exists for this order
-        if ($existingPaymentLinkId = $message->getMetadata('stripe_payment_link_id')) {
+        if ($existingPaymentLinkId = $message->get('stripe_payment_link_id')) {
             try {
                 return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
             } catch (\Exception $e) {
@@ -122,24 +122,25 @@ class StripePaymentLinkService
         }
 
         $paymentLinkData = [
-        'line_items' => [
-        [
-            'price_data' => [
-                'currency' => 'usd',
-                'product_data' => [
-                    'name' => $options['product_name'] ?? 'Payment',
+            'line_items' => [
+            [
+                'price_data' => [
+                    'currency' => 'usd',
+                    'product_data' => [
+                        'name' => $options['product_name'] ?? 'Payment',
+                    ],
+                    'unit_amount' => $this->convertToStripeAmount($amount), // Amount in cents
                 ],
-                'unit_amount' => $amount, // Amount in cents
+                'quantity' => 1,
             ],
-            'quantity' => 1,
-        ],
-        ],
-        'customer_creation' => 'if_required',
-    ];
+            ],
+            'customer_creation' => 'if_required',
+        ];
 
-        if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
-            $paymentLinkData['customer_email'] = $email;
-        }
+        /*    if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
+               //$paymentLinkData['customer_creation'] = $email;
+               //$paymentLinkData['prefill_customer_email'] = $email;
+           } */
 
         // Add metadata if provided
         if (isset($options['metadata'])) {

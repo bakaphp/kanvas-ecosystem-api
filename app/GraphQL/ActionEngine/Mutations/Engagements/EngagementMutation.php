@@ -306,6 +306,8 @@ class EngagementMutation
         if ($channel) {
             $channel->addMessage($createMessage, $user);
         }
+
+        $this->replaceLink($lead, $createMessage, $url, $action, $data);
         //save share history en company action history
         //generate link
         //create msg
@@ -490,19 +492,22 @@ class EngagementMutation
         string $url,
         string $action,
         array $data
-    ): string {
-        if ($action === 'get-get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
+    ): void {
+        if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
             $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
             $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, []);
 
             $messageData = $message->message ?? [];
-            $paymentShortLink = Url::getShortUrl($paymentLink->url, $app);
+            $paymentLinkFullLink = $paymentLink->url;
+            if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
+                $paymentLinkFullLink .= '?prefilled_email=' . urlencode($email);
+            }
+            $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
+
             $messageData['action_link'] = $paymentShortLink;
             $messageData['preview_link'] = $paymentShortLink;
             $message->message = $messageData;
             $message->saveOrFail();
         }
-
-        return $url;
     }
 }
