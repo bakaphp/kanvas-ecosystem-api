@@ -17,6 +17,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -26,6 +27,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -480,5 +482,27 @@ class EngagementMutation
         }
 
         return $result;
+    }
+
+    private function replaceLink(
+        Lead $lead,
+        Message $message,
+        string $url,
+        string $action,
+        array $data
+    ): string {
+        if ($action === 'get-get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
+            $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
+            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, []);
+
+            $messageData = $message->message ?? [];
+            $paymentShortLink = Url::getShortUrl($paymentLink->url, $app);
+            $messageData['action_link'] = $paymentShortLink;
+            $messageData['preview_link'] = $paymentShortLink;
+            $message->message = $messageData;
+            $message->saveOrFail();
+        }
+
+        return $url;
     }
 }

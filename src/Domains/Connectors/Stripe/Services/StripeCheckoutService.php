@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -17,14 +18,16 @@ class StripeCheckoutService
 
     public function __construct(
         protected AppInterface $app,
+        protected ?Companies $company = null
     ) {
-        $this->stripe = new StripeClient($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $stripeKey = $company ? $company->get(ConfigurationEnum::STRIPE_SECRET_KEY->value) : null;
+        $this->stripe = new StripeClient($stripeKey ?? $this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
 
     /**
      * Create a simple checkout session for the total order amount
      */
-    public function createCheckoutSession(Order $order, array $options = []): \Stripe\Checkout\Session
+    public function createCheckoutSession(Order $order, array $options = []): Session
     {
         $this->validateOrder($order);
 
@@ -73,7 +76,7 @@ class StripeCheckoutService
     /**
      * Create detailed checkout session with individual line items
      */
-    public function createDetailedCheckoutSession(Order $order, array $options = []): \Stripe\Checkout\Session
+    public function createDetailedCheckoutSession(Order $order, array $options = []): Session
     {
         $this->validateOrder($order);
 
