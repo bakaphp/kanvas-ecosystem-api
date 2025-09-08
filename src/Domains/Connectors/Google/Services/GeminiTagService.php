@@ -13,9 +13,12 @@ class GeminiTagService
     /**
      * Get the top 3 most relevant tags for a given message.
      */
-    public function generateTags(string $message, array $availableTags, int $limit = 3, string $additionalInstructions = ''): array
+    public function generateTags(string $message, array $availableTags, int $limit = 3): array
     {
-        $prompt = "Given the following message:\n\n\"$message\"\n\nSelect the **{$limit} most relevant** tags from this list: " . implode(', ', $availableTags) . PHP_EOL . $additionalInstructions;
+        $prompt = "Given the following message:\n\n\"$message\"\n\n Select THE TOP $limit tags from this list that best describe the message: " . implode(', ', $availableTags);
+
+
+        echo($prompt . PHP_EOL);
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($prompt)
