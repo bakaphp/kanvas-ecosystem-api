@@ -16,6 +16,7 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStageMessage;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Engagement.
@@ -37,6 +38,7 @@ use Kanvas\Social\Messages\Models\Message;
 class Engagement extends BaseModel
 {
     use UuidTrait;
+    use CanUseWorkflow;
 
     protected $table = 'engagements';
     protected $guarded = [];

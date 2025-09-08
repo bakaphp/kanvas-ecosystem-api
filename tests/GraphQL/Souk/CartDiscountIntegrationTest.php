@@ -108,8 +108,7 @@ class CartDiscountIntegrationTest extends TestCase
 
         // Subtotal should be the original price
         $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = $expectedSubtotal * 0.9; // 10% discount
-
+        $expectedTotal = round($expectedSubtotal * 0.9, 2); // 10% discount
         $this->assertEquals($expectedSubtotal, $subtotal);
         $this->assertEquals($expectedTotal, $total); // 10% discount applied
     }
@@ -314,7 +313,7 @@ class CartDiscountIntegrationTest extends TestCase
 
         // Verify discount was applied to cart
         $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = $expectedSubtotal * 0.85; // 15% off
+        $expectedTotal = round($expectedSubtotal * 0.85, 2); // 15% off
 
         $this->assertEquals($expectedSubtotal, $cartResponse->json('data.cartDiscountCodesUpdate.subtotal'));
         $this->assertEquals($expectedTotal, $cartResponse->json('data.cartDiscountCodesUpdate.total'));
