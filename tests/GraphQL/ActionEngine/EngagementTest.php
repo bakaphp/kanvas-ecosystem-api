@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\ActionEngine;
 
 use Kanvas\ActionEngine\Support\Setup;
+use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
@@ -21,6 +22,9 @@ class EngagementTest extends TestCase
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
         $title = fake()->title();
+        $app = app(Apps::class);
+        $syncEmailTemplate = new SyncEmailTemplateAction($app, $user);
+        $syncEmailTemplate->execute();
 
         if (empty($input)) {
             $input = [
@@ -84,6 +88,8 @@ class EngagementTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $syncEmailTemplate = new SyncEmailTemplateAction($app, $user);
+        $syncEmailTemplate->execute();
 
         $actions = [[
                 'id' => 7,
@@ -236,7 +242,6 @@ class EngagementTest extends TestCase
             ],
         ]);
 
-        print_r($continueResponse->json());
         $continueResponse->assertOk();
 
         $responseData = $continueResponse->json();
