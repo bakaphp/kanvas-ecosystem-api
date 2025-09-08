@@ -68,7 +68,7 @@ class CheckReferralsCodeActivity extends KanvasActivity implements WorkflowActiv
                     ];
                 }
 
-                $entity->set('order_credits', $app->get('free-generation-models'));
+                $entity->set('free-generation-credits', $app->get('free-generation-models'));
 
                 return [
                     'result' => true,
