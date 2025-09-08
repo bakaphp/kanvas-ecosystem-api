@@ -17,6 +17,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -26,6 +27,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -304,6 +306,8 @@ class EngagementMutation
         if ($channel) {
             $channel->addMessage($createMessage, $user);
         }
+
+        $this->replaceLink($lead, $createMessage, $url, $action, $data);
         //save share history en company action history
         //generate link
         //create msg
@@ -480,5 +484,30 @@ class EngagementMutation
         }
 
         return $result;
+    }
+
+    private function replaceLink(
+        Lead $lead,
+        Message $message,
+        string $url,
+        string $action,
+        array $data
+    ): void {
+        if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
+            $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
+            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, []);
+
+            $messageData = $message->message ?? [];
+            $paymentLinkFullLink = $paymentLink->url;
+            if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
+                $paymentLinkFullLink .= '?prefilled_email=' . urlencode($email);
+            }
+            $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
+
+            $messageData['action_link'] = $paymentShortLink;
+            $messageData['preview_link'] = $paymentShortLink;
+            $message->message = $messageData;
+            $message->saveOrFail();
+        }
     }
 }
