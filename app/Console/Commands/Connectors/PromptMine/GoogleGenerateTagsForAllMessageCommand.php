@@ -56,11 +56,11 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         foreach ($cursor as $message) {
             $generateMessageTagAction = new GenerateMessageTagAction($message);
-            $messageTags = $generateMessageTagAction->execute(
-                textLookupKey: 'ai_nugged.nugget',
-                totalTags: 3,
-                tags: $allTags
-            );
+            // $messageTags = $generateMessageTagAction->execute(
+            //     textLookupKey: 'ai_nugged.nugget',
+            //     totalTags: 3,
+            //     tags: $allTags
+            // );
 
             //also from the features
             if (! empty($featureTags)) {
