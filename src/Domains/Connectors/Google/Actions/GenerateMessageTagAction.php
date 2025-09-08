@@ -44,7 +44,7 @@ class GenerateMessageTagAction
         $additionalInstructions = "If you detect/encounter any of this keys on the message please add the specific tag for it: 
                 - 'image' or the key 'type' with a value 'image-format': image
                 - 'video' or the key 'type' with a value 'video-format': video
-                - 'nugget' or the key 'type' with a value 'text-format': text
+                - 'nugget' or the key 'type' with a value 'text-format': text \n
                 You should only assign one tag per type, if you detect more than one just assign the most relevant one.";
 
         $geminiTagService = new GeminiTagService();
