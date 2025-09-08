@@ -41,14 +41,16 @@ class GenerateMessageTagAction
             return $this->message;
         }
 
-        $additionalInstructions = "If you detect/encounter any of this keys on the message please add the specific tag for it: 
-                - 'image' or the key 'type' with a value 'image-format': image
-                - 'video' or the key 'type' with a value 'video-format': video
-                - 'nugget' or the key 'type' with a value 'text-format': text \n
-                You should only assign one tag per type, if you detect more than one just assign the most relevant one.";
-
         $geminiTagService = new GeminiTagService();
-        $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags, $additionalInstructions);
+        $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags);
+
+        //Let's add the type tags since the ai is doing whatever it wants
+        $tags[] = match ($messageData['type']) {
+            'image-format' => 'image',
+            'video-format' => 'video',
+            'text-format' => 'text',
+            default => null,
+        };
 
         if (! empty($tags)) {
             $this->message->addTags(
