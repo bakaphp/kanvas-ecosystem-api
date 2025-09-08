@@ -485,10 +485,14 @@ trait HasCustomFields
     {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static())->getTable();
+        $systemModuleLegacy = SystemModules::getLegacyNamespace(static::class);
+        $systemModules = $systemModuleLegacy !== static::class
+            ? [static::class, $systemModuleLegacy]
+            : [static::class];
 
         $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
-            ->where('apps_custom_fields.model_name', static::class)
+            ->whereIn('apps_custom_fields.model_name', $systemModules)
             ->where('apps_custom_fields.name', $name);
 
         if ($value !== null) {
