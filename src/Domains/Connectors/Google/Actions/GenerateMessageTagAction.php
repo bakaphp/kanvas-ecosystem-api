@@ -41,8 +41,13 @@ class GenerateMessageTagAction
             return $this->message;
         }
 
+        $additionalInstructions = "If you detect/encounter any of this please use the specific tag for it: 
+                - 'text to image': image
+                - 'text to video': video
+                - 'text to text': text";
+
         $geminiTagService = new GeminiTagService();
-        $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags);
+        $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags, $additionalInstructions);
 
         if (! empty($tags)) {
             $this->message->addTags(
