@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
@@ -225,7 +225,6 @@ class SyncZohoLeadAction
             return;
         }
 
-        // Dynamically get lead table fields from database schema
         $leadTableFields = $this->getLeadTableFields();
 
         foreach ($fieldMapping as $localFieldName => $zohoFieldConfig) {
@@ -268,17 +267,21 @@ class SyncZohoLeadAction
     }
 
     /**
-     * Dynamically get the column names from the leads table.
-     *
-     * @return array
+     * Dynamically get the column names from the leads table with caching.
      */
     protected function getLeadTableFields(): array
     {
         $leadModel = new Lead();
         $tableName = $leadModel->getTable();
         $connection = $leadModel->getConnection();
-        
-        // Get column names from the database schema
-        return Schema::connection($connection->getName())->getColumnListing($tableName);
+        $connectionName = $connection->getName();
+
+        // Create a unique cache key that includes the connection and table name
+        $cacheKey = "lead_table_fields_{$connectionName}_{$tableName}";
+
+        // Cache for 1 hour (3600 seconds)
+        return Cache::remember($cacheKey, 3600, function () use ($connectionName, $tableName) {
+            return Schema::connection($connectionName)->getColumnListing($tableName);
+        });
     }
 }
