@@ -12,8 +12,10 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Throwable;
-
+use Kanvas\Connectors\Twilio\Services\VerificationService;
 use function Sentry\captureException;
+use Kanvas\Connectors\Twilio\Resolvers\DestinationResolver;
+use Kanvas\Connectors\Twilio\Enums\VerificationChannelEnum;
 
 class TwoFactorAuthMutation
 {
@@ -27,14 +29,11 @@ class TwoFactorAuthMutation
         $app = app(Apps::class);
         $twilio = Client::getInstance($app);
         $user = auth()->user();
-
-        $verification = $twilio->verify
-            ->v2
-            ->services($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SID->value))
-            ->verifications
-            ->create('+' . $user->getAppProfile($app)->getTwoStepPhoneNumber(), 'sms');
-
-        return $verification->status === 'pending';
+        $request = $request['input'];
+        $channel = strtolower($request['channel'] ?? 'sms');
+        $channelEnum = VerificationChannelEnum::from($channel);
+        $verificationService = new VerificationService($app, new DestinationResolver($user, $app, $channelEnum));
+        return $verificationService->start($channelEnum);
     }
 
     /**
@@ -45,46 +44,19 @@ class TwoFactorAuthMutation
     public function verifyCode($rootValue, array $request): bool
     {
         $app = app(Apps::class);
-        $twilio = Client::getInstance($app);
         $user = auth()->user();
-        $code = $request['code'];
-        $userApp = $user->getAppProfile($app);
-
-        try {
-            $checkCode = $twilio->verify
-                    ->v2
-                    ->services($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SID->value))
-                    ->verificationChecks
-                    ->create(
-                        [
-                            'to' => '+' . $userApp->getTwoStepPhoneNumber(),
-                            'code' => $code,
-                        ]
-                    );
-
-            if ($checkCode->valid === true) {
-                $userApp->update([
-                    'phone_verified_at' => Carbon::now()->toDateTimeString(),
-                ]);
-
-                return true;
-            }
-        } catch (Throwable $e) {
-            //throw new ValidationException($e->getMessage());
-            Log::error($e->getMessage());
-            captureException($e);
-
-            return false;
-        }
-
-        return false;
+        $request = $request['input'];
+        $channel = strtolower($request['channel'] ?? 'sms');
+        $channelEnum = VerificationChannelEnum::from($channel);
+        $verificationService = new VerificationService($app, new DestinationResolver($user, $app, $channelEnum));
+        return $verificationService->check($user, $channelEnum, $request['code']);
     }
 
     public function setToggleTwoFactorAuthIn30Days($rootValue, array $request): bool
     {
         $user = auth()->user();
         $app = app(Apps::class);
-
+        
         $key = $user->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
         if ($request['active']) {

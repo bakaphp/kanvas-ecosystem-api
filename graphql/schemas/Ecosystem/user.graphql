@@ -191,6 +191,20 @@ input EmailInput {
     email: Email!
 }
 
+input SendVerificationInput {
+    channel: VerificationChannel = SMS
+}
+
+input VerifyCodeInput {
+    channel: VerificationChannel = SMS
+    code: String!
+}
+
+enum VerificationChannel {
+    SMS @enum(value: "sms")
+    EMAIL @enum(value: "email")
+}
+
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
@@ -271,12 +285,12 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@remove"
         )
-    sendVerificationCode: Boolean!
+    sendVerificationCode(input: SendVerificationInput!): Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@sendVerificationCode"
         )
-    verifyCode(code: String!): Boolean!
+    verifyCode(input: VerifyCodeInput!): Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@verifyCode"
