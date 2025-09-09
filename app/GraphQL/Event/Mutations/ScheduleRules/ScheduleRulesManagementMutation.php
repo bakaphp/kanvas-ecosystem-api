@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\ScheduleRules;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -31,6 +33,17 @@ class ScheduleRulesManagementMutation
             'cutoff_time_min' => $req['input']['cutoff_time_min'] ?? 0,
             'capacity_override' => $req['input']['capacity_override'] ?? null,
         ]);
+
+        // Dispatch job to generate time slots
+        $windowFrom = Carbon::now();
+        $windowTo = Carbon::now()->addYear();
+        
+        dispatch_sync(new GenerateTimeSlots(
+            $entity->id,
+            $scheduleRule->id,
+            $windowFrom,
+            $windowTo
+        ));
 
         return $scheduleRule;
     }

@@ -41,6 +41,24 @@ return new class () extends Migration {
             $table->timestamps();
             $table->index(['resources_id','window_start','window_end']);
         });
+
+        Schema::create('time_slots', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->bigInteger('apps_id')->index();
+            $table->bigInteger('companies_id')->index();
+            $table->unsignedBigInteger('resources_id')->index();
+            $table->string('resources_type', 255)->index();
+            $table->dateTime('start_at');           // UTC
+            $table->dateTime('end_at');             // UTC
+            $table->unsignedSmallInteger('capacity');
+            $table->enum('status', ['open','held','booked','blocked'])->default('open')->index(); // opcional derivar
+            $table->decimal('price_snapshot', 15, 2)->nullable();
+            $table->string('currency', 3)->default('USD');
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->unique(['resource_id', 'resource_type', 'start_at']);
+            $table->index(['resource_id', 'resource_type', 'start_at']);
+        });
     }
 
     /**
@@ -51,5 +69,7 @@ return new class () extends Migration {
         Schema::table('schedule_rules', function (Blueprint $table) {
             $table->dropColumn('schedule_rules');
         });
+
+        
     }
 };
