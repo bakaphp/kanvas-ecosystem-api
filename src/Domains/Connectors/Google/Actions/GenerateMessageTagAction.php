@@ -49,8 +49,8 @@ class GenerateMessageTagAction
             $tags[] = match ($messageData['type']) {
                 'image-format' => 'image',
                 'video-format' => 'video',
-            'text-format' => 'text',
-            default => null,
+                'text-format' => 'text',
+                default => null,
             };
         }
 
