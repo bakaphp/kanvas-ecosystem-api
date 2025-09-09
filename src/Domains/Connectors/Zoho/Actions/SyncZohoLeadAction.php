@@ -266,9 +266,6 @@ class SyncZohoLeadAction
         }
     }
 
-    /**
-     * Dynamically get the column names from the leads table with caching.
-     */
     protected function getLeadTableFields(): array
     {
         $leadModel = new Lead();
