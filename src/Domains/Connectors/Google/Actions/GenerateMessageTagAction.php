@@ -51,7 +51,8 @@ class GenerateMessageTagAction
                 'video-format' => 'video',
             'text-format' => 'text',
             default => null,
-        };
+            };
+        }
 
         if (! empty($tags)) {
             $this->message->addTags(
