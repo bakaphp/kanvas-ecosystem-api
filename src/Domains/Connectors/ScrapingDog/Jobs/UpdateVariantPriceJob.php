@@ -140,7 +140,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
 
             $variantData['channel'] = new ChannelInfoType()->price($variant, []);
             $variantData['product'] = Products::with(['files', 'categories'])
-                ->where('id', $variant->products_id)
+            ->where('id', $variant->products_id)
+            ->withTrashed()
                 ->first()
                 ->toArray();
 
