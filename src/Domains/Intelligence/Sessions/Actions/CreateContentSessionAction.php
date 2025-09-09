@@ -108,25 +108,30 @@ class CreateContentSessionAction
         $results = [];
 
         foreach ($actions as $key => $action) {
-            $engagement = new CreateEngagementAction(
-                Engagement::from(
-                    $this->session->app,
-                    $this->session->company,
-                    $this->entity->user,
-                    $this->entity,
-                    [
-                        'action' => $action,
-                        'request_id' => Str::uuid()->toString(),
-                        'source' => 'ai',
-                        'status' => 'sent',
-                        'data' => [],
-                    ],
-                    $this->entity->people
-                ),
-                false
-            );
-            $result = $engagement->execute();
-            $results[$key] = $result->message->message['action_link'] ?? null;
+            try {
+                $engagement = new CreateEngagementAction(
+                    Engagement::from(
+                        $this->session->app,
+                        $this->session->company,
+                        $this->entity->user,
+                        $this->entity,
+                        [
+                            'action' => $action,
+                            'request_id' => Str::uuid()->toString(),
+                            'source' => 'ai',
+                            'status' => 'sent',
+                            'data' => [],
+                        ],
+                        $this->entity->people
+                    ),
+                    false
+                );
+                $result = $engagement->execute();
+                $results[$key] = $result->message->message['action_link'] ?? null;
+            } catch (Exception $e) {
+                //report($e);
+                $results[$key] = null;
+            }
         }
 
         return $results;
