@@ -29,7 +29,7 @@ class ProcessNetSuiteSalesOrderAction
     /**
      * Process NetSuite order sales and update stock for affected products.
      */
-    public function execute(string $orderId, ?int $limit = null): array
+    public function execute(string|int $orderId, ?int $limit = null): array
     {
         $processedProducts = [];
 
