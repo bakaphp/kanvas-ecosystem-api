@@ -241,11 +241,28 @@ class LLMMessageResponseActivity extends KanvasActivity
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
 
-        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
-            $params['safety_tolerance'] = 1;
-            $params['enable_safety_checker'] = true;
-        }
 
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value) {
+            if (isset($message->message['platform']) && $message->message['platform'] === 'android') {
+                $params['safety_tolerance'] = 1;
+                $params['enable_safety_checker'] = true;
+            }
+
+            if (isset($message->message['image']) && $message->parent_id !== null) {
+                $previousChatResponse = Message::fromApp($message->app)
+                    ->where('id', '!=', $message->id)
+                    ->where('users_id', $message->users_id)
+                    ->where('companies_id', $message->companies_id)
+                    ->where('messages_types_id', $message->messages_types_id)
+                    ->orderBy('id', 'desc')
+                    ->first();
+                $previousChatResponseMessage = is_array($previousChatResponse->message) ? $previousChatResponse->message : json_decode($previousChatResponse->message, true);
+                $parentMessage = is_array($message->parent->message) ? $message->parent->message : json_decode($message->parent->message, true);
+                $params['previousImageUrl'] = isset($previousChatResponseMessage['image']) ? $previousChatResponseMessage['image'] : null;
+                $params['previousPrompts'] = [$parentMessage['prompt']];
+                $params['subscribe'] = true;
+            }
+        }
         $imageLimitValidation = $this->validateImageLimit($message);
 
         if ($imageLimitValidation !== null) {
@@ -313,11 +330,11 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
                 (string) json_encode([
-                'error' => 'You have reached your daily image generation limit.',
-                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
-                'limit' => $message->app->get('message-post-limit') ?? 0,
-                'flag' => true,
-            ]);
+                    'error' => 'You have reached your daily image generation limit.',
+                    'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                    'limit' => $message->app->get('message-post-limit') ?? 0,
+                    'flag' => true,
+                ]);
         }
 
         return null;
