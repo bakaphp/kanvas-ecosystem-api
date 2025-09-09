@@ -55,6 +55,7 @@ type Order {
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
+    discount_codes: [OrderDiscountRelation] @hasMany(relation: "orderDiscountCodes")
     transaction_link: String!
         @field(
             resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"

@@ -133,6 +133,12 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
+    public function orderDiscountCodes(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id')
+        ->with(['discount.discountType']);
+    }
+
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
