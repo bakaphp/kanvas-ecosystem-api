@@ -24,7 +24,7 @@ type Discount {
 
 type OrderDiscountRelation {
     code: String!
-    amount: Float!
+    amount: Money!
     value: Float!
     type: String!
 }

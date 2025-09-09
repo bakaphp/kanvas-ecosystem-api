@@ -134,6 +134,12 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
+    public function orderDiscountCodes(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id')
+        ->with(['discount.discountType']);
+    }
+
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
@@ -666,19 +672,5 @@ class Order extends BaseModel
         if ($autoSave) {
             $this->saveOrFail();
         }
-    }
-
-    public function getDiscountCodes(): Collection
-    {
-        return $this->orderDiscounts->map(function ($orderDiscount) {
-            return [
-                'code' => $orderDiscount->discount->code,
-                'amount' => $orderDiscount->amount,
-                'value' => $orderDiscount->discount->value,
-                'type' => $orderDiscount->discount->discountType->name
-            ];
-        });
-
-        return $data;
     }
 }
