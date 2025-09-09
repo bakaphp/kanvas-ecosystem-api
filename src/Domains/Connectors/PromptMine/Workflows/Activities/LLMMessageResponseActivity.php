@@ -257,9 +257,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ->orderBy('id', 'desc')
                     ->first();
                 $previousChatResponseMessage = is_array($previousChatResponse->message) ? $previousChatResponse->message : json_decode($previousChatResponse->message, true);
-                $parentMessage = is_array($message->parent->message) ? $message->parent->message : json_decode($message->parent->message, true);
+                $previousParentMessage = is_array($previousChatResponse->parent->message) ? $previousChatResponse->parent->message : json_decode($previousChatResponse->parent->message, true);
                 $params['previousImageUrl'] = isset($previousChatResponseMessage['image']) ? $previousChatResponseMessage['image'] : null;
-                $params['previousPrompts'] = [$parentMessage['prompt']];
+                $params['previousPrompts'] = [$previousParentMessage['prompt']];
                 $params['subscribe'] = true;
             }
         }
