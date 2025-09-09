@@ -50,26 +50,29 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         $totalMessages = $query->count();
 
         $this->output->progressStart($totalMessages);
-        $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
-        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending','text', 'image', 'video', 'nugget'];
-        $allTags = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
+        // $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
+        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget'];
+        $allTagsWithIgnore = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
+        $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
 
         foreach ($cursor as $message) {
+            // Remove all tags from the message
+            $message->removeTags($allTags);
             $generateMessageTagAction = new GenerateMessageTagAction($message);
-            // $messageTags = $generateMessageTagAction->execute(
-            //     textLookupKey: 'ai_nugged.nugget',
-            //     totalTags: 3,
-            //     tags: $allTags
-            // );
+            $messageTags = $generateMessageTagAction->execute(
+                textLookupKey: 'ai_nugged.nugget',
+                totalTags: 2,
+                tags: $allTagsWithIgnore
+            );
 
             //also from the features
-            if (! empty($featureTags)) {
-                $messageTags = $generateMessageTagAction->execute(
-                    textLookupKey: 'ai_nugged.nugget',
-                    tags: $featureTags,
-                    totalTags: 3
-                );
-            }
+            // if (! empty($featureTags)) {
+            //     $messageTags = $generateMessageTagAction->execute(
+            //         textLookupKey: 'ai_nugged.nugget',
+            //         tags: $featureTags,
+            //         totalTags: 3
+            //     );
+            // }
             $this->info('Message ID: ' . $message->getId() . ' Tags: ' . json_encode($messageTags->tags->pluck('name'), JSON_PRETTY_PRINT));
             //$this->newLine();
             $this->output->progressAdvance();
