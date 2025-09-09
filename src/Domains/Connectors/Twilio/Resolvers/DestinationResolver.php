@@ -22,7 +22,7 @@ class DestinationResolver
         $userAppProfile = $this->user->getAppProfile($this->app);
 
         return match ($this->channel) {
-            VerificationChannelEnum::SMS => '+'.$userAppProfile->getTwoStepPhoneNumber(),
+            VerificationChannelEnum::SMS => '+' . $userAppProfile->getTwoStepPhoneNumber(),
             VerificationChannelEnum::EMAIL => $userAppProfile->email,
         };
     }

@@ -4,18 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Client;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Users\Enums\UserConfigEnum;
-use Throwable;
-use Kanvas\Connectors\Twilio\Services\VerificationService;
-use function Sentry\captureException;
-use Kanvas\Connectors\Twilio\Resolvers\DestinationResolver;
 use Kanvas\Connectors\Twilio\Enums\VerificationChannelEnum;
+use Kanvas\Connectors\Twilio\Resolvers\DestinationResolver;
+use Kanvas\Connectors\Twilio\Services\VerificationService;
+use Kanvas\Users\Enums\UserConfigEnum;
 
 class TwoFactorAuthMutation
 {
@@ -56,7 +50,7 @@ class TwoFactorAuthMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        
+
         $key = $user->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
         if ($request['active']) {
