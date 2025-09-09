@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -665,5 +666,19 @@ class Order extends BaseModel
         if ($autoSave) {
             $this->saveOrFail();
         }
+    }
+
+    public function getDiscountCodes(): Collection
+    {
+        return $this->orderDiscounts->map(function ($orderDiscount) {
+            return [
+                'code' => $orderDiscount->discount->code,
+                'amount' => $orderDiscount->amount,
+                'value' => $orderDiscount->discount->value,
+                'type' => $orderDiscount->discount->discountType->name
+            ];
+        });
+
+        return $data;
     }
 }
