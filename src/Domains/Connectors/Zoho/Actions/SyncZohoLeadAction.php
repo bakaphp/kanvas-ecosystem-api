@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -46,7 +47,8 @@ class SyncZohoLeadAction
         try {
             $zohoLead = $zohoLead === null ? $zohoService->getLeadById($this->zohoLeadId) : $zohoLead;
         } catch (Exception $e) {
-            Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
+            //Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
+            report($e);
 
             return null;
         }
@@ -66,6 +68,7 @@ class SyncZohoLeadAction
 
         if (! $localLead) {
             $table = (new Lead())->getTable();
+            /** @var Lead|null $localLead */
             $localLead = Lead::query()->join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
                 ->where('apps_custom_fields.companies_id', $this->company->getId())
                 ->where('apps_custom_fields.model_name', 'Gewaer\\Models\\Leads') //legacy
@@ -189,6 +192,8 @@ class SyncZohoLeadAction
             $localLead->organization_id = $organization->getId();
         }
 
+        $companyZohoMapFields = $this->company->get(CustomFieldEnum::FIELDS_MAP->value);
+
         $localLead->people->firstname = $zohoLead->First_Name ?? $zohoLead->Full_Name;
         $localLead->people->lastname = $zohoLead->Last_Name;
         $localLead->firstname = $zohoLead->First_Name;
@@ -196,9 +201,84 @@ class SyncZohoLeadAction
         $localLead->title = $zohoLead->Full_Name;
         $localLead->description = $zohoLead->Description;
         $localLead->leads_status_id = $leadStatus->getId();
+
+        if (! empty($companyZohoMapFields)) {
+            $this->mapZohoCustomFields($localLead, $zohoLead, $companyZohoMapFields);
+        }
+
         $localLead->disableWorkflows();
         $localLead->saveOrFail();
 
         return $localLead;
+    }
+
+    /**
+     * Map custom fields from Zoho lead to local lead based on company field mapping configuration.
+     *
+     * @param Lead $localLead The local lead to set custom fields on
+     * @param Record $zohoLead The Zoho lead object containing the data
+     * @param array|null $fieldMapping The field mapping configuration
+     */
+    protected function mapZohoCustomFields(Lead $localLead, Record $zohoLead, ?array $fieldMapping): void
+    {
+        if ($fieldMapping === null || count($fieldMapping) === 0) {
+            return;
+        }
+
+        // Dynamically get lead table fields from database schema
+        $leadTableFields = $this->getLeadTableFields();
+
+        foreach ($fieldMapping as $localFieldName => $zohoFieldConfig) {
+            // Ensure localFieldName is a string
+            if (! is_string($localFieldName)) {
+                continue;
+            }
+
+            // Skip if the field is a standard lead table field
+            if (in_array($localFieldName, $leadTableFields)) {
+                continue;
+            }
+
+            // Get the Zoho field name
+            $zohoFieldName = is_array($zohoFieldConfig)
+                ? ($zohoFieldConfig['name'] ?? $localFieldName)
+                : $zohoFieldConfig;
+
+            // Check if the Zoho lead has this field and it has a value
+            if (isset($zohoLead->$zohoFieldName) && ! empty($zohoLead->$zohoFieldName)) {
+                $value = $zohoLead->$zohoFieldName;
+
+                // Handle date type conversion if specified
+                if (is_array($zohoFieldConfig) && isset($zohoFieldConfig['type']) && $zohoFieldConfig['type'] === 'date') {
+                    // Convert date format if needed
+                    try {
+                        $timestamp = strtotime($value);
+                        if ($timestamp !== false) {
+                            $value = date('Y-m-d', $timestamp);
+                        }
+                    } catch (Exception $e) {
+                        // Keep original value if date conversion fails
+                    }
+                }
+
+                // Set the custom field on the lead
+                $localLead->set($localFieldName, $value);
+            }
+        }
+    }
+
+    /**
+     * Dynamically get the column names from the leads table.
+     *
+     * @return array
+     */
+    protected function getLeadTableFields(): array
+    {
+        $leadModel = new Lead();
+        $tableName = $leadModel->getTable();
+        $connection = $leadModel->getConnection();
+        
+        // Get column names from the database schema
+        return Schema::connection($connection->getName())->getColumnListing($tableName);
     }
 }
