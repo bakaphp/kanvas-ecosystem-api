@@ -12,11 +12,10 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\VerificationChannelEnum;
 use Kanvas\Connectors\Twilio\Resolvers\DestinationResolver;
 use Kanvas\Users\Models\Users;
-
-use function Sentry\captureException;
-
 use Throwable;
 use Twilio\Rest\Client;
+
+use function Sentry\captureException;
 
 final class VerificationService
 {
