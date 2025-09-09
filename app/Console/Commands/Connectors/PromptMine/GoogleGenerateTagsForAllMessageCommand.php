@@ -61,7 +61,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
             $generateMessageTagAction = new GenerateMessageTagAction($message);
             $messageTags = $generateMessageTagAction->execute(
                 textLookupKey: 'ai_nugged.nugget',
-                totalTags:3,
+                totalTags: 3,
                 tags: $allTagsWithIgnore
             );
 
