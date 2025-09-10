@@ -6,7 +6,6 @@ namespace Kanvas\Social\Messages\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -28,13 +27,10 @@ class CheckMessagePostLimitAction
 
     /**
      * execute
-     *
-     * @return void
      */
-    public function execute()
+    public function execute(): void
     {
-        //Log::info("Checking with message type $this->messageTypeId");
-        $messageCount = Message::getUserMessageCountInTimeFrame(
+        $messageCount = Message::getUserMessageCountInTimeFrameBuilder(
             $this->message->user->getId(),
             $this->message->app,
             $this->timeFrame,
@@ -43,22 +39,28 @@ class CheckMessagePostLimitAction
             $this->messageJsonFilters
         );
 
+        //exclude message type
+        if ($this->message->app->get('exclude-message-type-from-limit')) {
+            $messageCount->whereNotIn('message_types_id', $this->message->app->get('exclude-message-type-from-limit'));
+        }
+
+        $messageCount = $messageCount->count();
+
         /**
          * @todo for now until the refactor
          * update limit by orders
          */
         $totalOrdersToday = Order::fromApp($this->message->app)
-                                ->where('users_id', $this->message->user->getId())
-                                ->where('created_at', '>=', Carbon::now()->subHours($this->timeFrame))
-                                ->count();
+                               ->where('users_id', $this->message->user->getId())
+                               ->where('created_at', '>=', Carbon::now()->subHours($this->timeFrame))
+                               ->count();
 
-        $messageCount += (int) $totalOrdersToday;
+        $messageCount -= (int) $totalOrdersToday;
 
         // $this->message->app->reGenerateRedisSettings();
-        //$messageLimit = $this->message->app->get('message-post-limit');
-        //Log:info("Message Count for today: $messageCount of $messageLimit");
-
-        if ($messageCount >= $this->message->app->get('message-post-limit')) {
+        $messageLimit = $this->message->app->get('message-post-limit');
+        $this->message->user->set('composer_ideas_used', $messageCount);
+        if ($messageCount > $messageLimit) {
             throw new Exception('Your daily limit has been reached.');
         }
     }
