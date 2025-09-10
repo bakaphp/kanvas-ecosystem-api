@@ -9,6 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
 use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
+use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -74,6 +76,18 @@ final class OrderTest extends TestCase
         );
 
         $this->variant = $variant;
+
+        $data = new NetSuite(
+            app: $this->apps,
+            company: $this->company,
+            account: env('NET_SUITE_ACCOUNT'),
+            consumerKey: env('NET_SUITE_CONSUMER_KEY'),
+            consumerSecret: env('NET_SUITE_CONSUMER_SECRET'),
+            token: env('NET_SUITE_TOKEN'),
+            tokenSecret: env('NET_SUITE_TOKEN_SECRET')
+        );
+
+        NetSuiteServices::setup($data);
     }
 
     public function createDraftOrder(): Order
