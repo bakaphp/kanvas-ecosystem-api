@@ -27,10 +27,8 @@ class CheckMessagePostLimitAction
 
     /**
      * execute
-     *
-     * @return void
      */
-    public function execute()
+    public function execute(): void
     {
         $messageCount = Message::getUserMessageCountInTimeFrameBuilder(
             $this->message->user->getId(),
