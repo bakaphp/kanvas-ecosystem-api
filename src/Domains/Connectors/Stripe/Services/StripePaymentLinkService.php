@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -38,7 +39,7 @@ class StripePaymentLinkService
         if ($existingPaymentLinkId = $order->getMetadata('stripe_payment_link_id')) {
             try {
                 return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // If retrieval fails, create a new one
             }
         }
@@ -116,7 +117,7 @@ class StripePaymentLinkService
         if ($existingPaymentLinkId = $message->get('stripe_payment_link_id')) {
             try {
                 return $this->stripe->paymentLinks->retrieve($existingPaymentLinkId);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // If retrieval fails, create a new one
             }
         }
@@ -197,7 +198,7 @@ class StripePaymentLinkService
                 $this->stripe->prices->retrieve($existingPriceId);
 
                 return $existingPriceId;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // If price doesn't exist, create a new one
             }
         }
@@ -296,7 +297,7 @@ class StripePaymentLinkService
 
         try {
             return $this->stripe->paymentLinks->retrieve($paymentLinkId);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
@@ -317,7 +318,7 @@ class StripePaymentLinkService
             $order->addMetadata('stripe_payment_link_deactivated', true);
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return false;
         }
     }

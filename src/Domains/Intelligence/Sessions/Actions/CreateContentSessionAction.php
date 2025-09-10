@@ -7,27 +7,34 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Inventory\Channels\Models\Channels;
 
 class CreateContentSessionAction
 {
+    protected Lead|People $entity;
+
     public function __construct(
-        public string $entityNamespace,
-        public int|string $entityId,
-        public ?Agent $agent = null,
-        public ?CompaniesBranches $branch = null,
+        protected Session|DataTransferObjectSession $session
     ) {
+        /** @psalm-suppress PropertyTypeCoercion */
+        $this->entity = match ($this->session->entity_namespace) {
+            People::class => People::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
+            Lead::class => Lead::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
+        };
     }
 
     public function execute(): array
     {
-        return match ($this->entityNamespace) {
-            People::class => $this->mapPeople(People::getById($this->entityId)),
-            Lead::class => $this->mapLead(Lead::getById($this->entityId)),
+        return match ($this->session->entity_namespace) {
+            People::class => $this->mapPeople($this->entity),
+            Lead::class => $this->mapLead($this->entity),
             default => [],
         };
     }
@@ -47,14 +54,13 @@ class CreateContentSessionAction
 
     protected function mapPeople(People $people, ?Lead $lead = null): array
     {
-        $data = [
-            'creditApp' => 'https://kanvas.dev/credit-app',
-            'tradeIn' => 'https://kanvas.dev/trade-in',
+        $checkList = $this->generateCheckListUrls();
+        $data = array_merge([
             'customerName' => null,
             'leadEmail' => null,
             'leadOwnerName' => null,
             'leadOwnerEmail' => null,
-        ];
+        ], $checkList);
 
         if ($lead) {
             $data['leadOwnerEmail'] = $lead->owner?->email;
@@ -64,14 +70,14 @@ class CreateContentSessionAction
         }
 
         try {
-            $background = $this->agent?->role !== null && is_array($this->agent->role) ? Blade::render(json_encode($this->agent->role), $data) : null;
+            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role) ? Blade::render(json_encode($this->session->agent->role), $data) : null;
         } catch (Exception $e) {
             report($e);
-            $background = $this->agent?->role;
+            $background = $this->session->agent?->role;
         }
 
         return [
-            'branch' => $this->branch,
+            'branch' => $this->session->company->branch,
             'people_id' => $people->id,
             'firstname' => $people->firstname,
             'lastname' => $people->lastname,
@@ -81,10 +87,53 @@ class CreateContentSessionAction
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'background' => Str::isJson($background) ? json_decode($background) : $background,
-            'checklist' => [
-                'creditApp' => 'https://kanvas.dev/credit-app',
-                'tradeIn' => 'https://kanvas.dev/trade-in',
-            ],
+            'checklist' => $checkList,
         ];
+    }
+
+    /**
+     * @todo this has to be based on the checklist this agent is tied to
+     */
+    protected function generateCheckListUrls(): array
+    {
+        if ($this->entity instanceof People) {
+            return [];
+        }
+
+        $actions = [
+            'creditApp' => 'credit-app',
+            'tradeIn' => 'add-trade',
+        ];
+
+        $results = [];
+
+        foreach ($actions as $key => $action) {
+            try {
+                $engagement = new CreateEngagementAction(
+                    Engagement::from(
+                        $this->session->app,
+                        $this->session->company,
+                        $this->entity->user,
+                        $this->entity,
+                        [
+                            'action' => $action,
+                            'request_id' => Str::uuid()->toString(),
+                            'source' => 'ai',
+                            'status' => 'sent',
+                            'data' => [],
+                        ],
+                        $this->entity->people
+                    ),
+                    false
+                );
+                $result = $engagement->execute();
+                $results[$key] = $result->message->message['action_link'] ?? null;
+            } catch (Exception $e) {
+                //report($e);
+                $results[$key] = null;
+            }
+        }
+
+        return $results;
     }
 }

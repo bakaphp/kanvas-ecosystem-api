@@ -15,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -91,6 +92,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     ];
                 }
 
+                // Deduct user credit based on the selected image filter
+                new MessageOrderFulfillmentAction($entity)->execute('image');
+
                 $fileUrl = $messageFiles->first()->url;
                 $fileSystemRecord = null;
                 $processedImageUrl = null;
@@ -144,7 +148,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $fileUrl,
                         $processedImageUrl,
                         $params,
-                        $requestId
+                        $requestId,
+                        $imageFilter
                     );
                 } catch (Exception $e) {
                     report($e);
@@ -473,7 +478,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         string $originalImageUrl,
         ?string $processedImageUrl = null,
         array $params = [],
-        ?string $requestId = null
+        ?string $requestId = null,
+        ?string $imageFilter = null
     ): array {
         // Lets generate a new title using ai if no title is set
         try {

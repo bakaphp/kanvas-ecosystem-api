@@ -15,12 +15,7 @@ class CreateSessionAction
 
     public function execute(): SessionModel
     {
-        $content = $this->session->content ? [] : new CreateContentSessionAction(
-            $this->session->entity_namespace,
-            $this->session->entity_id,
-            $this->session->agent,
-            $this->session->company->defaultBranch,
-        )->execute();
+        $content = $this->session->content ? [] : new CreateContentSessionAction($this->session)->execute();
 
         $sessionUuid = $this->session->channel->slug . '-' . $this->session->app->getId();
 

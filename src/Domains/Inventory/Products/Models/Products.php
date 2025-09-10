@@ -382,7 +382,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
+    /**
+     * productTypes.
+     * @deprecated
+     */
     public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    public function type(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }

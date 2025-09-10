@@ -15,8 +15,7 @@ class GeminiTagService
      */
     public function generateTags(string $message, array $availableTags, int $limit = 3): array
     {
-        $prompt = "Given the following message:\n\n\"$message\"\n\nSelect the **{$limit} most relevant** tags from this list: " . implode(', ', $availableTags);
-
+        $prompt = "Given the following message:\n\n\"$message\"\n\n Select THE TOP $limit tags from this list that best describe the message: " . implode(', ', $availableTags);
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($prompt)

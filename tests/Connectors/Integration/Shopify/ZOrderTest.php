@@ -76,13 +76,18 @@ final class ZOrderTest extends TestCase
         //$shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
         $people = People::factory()->withAppId($app->getId())->withCompanyId($product->company->id)->create();
 
+        $email = fake()->email;
+        $phone = fake('en_US')->phoneNumber;
+        $people->addEmail($email);
+        $people->addPhone($phone);
+
         $createOrder = new CreateOrderAction(
             new DataTransferObjectOrder(
                 app: $product->app,
                 region: $warehouse->region,
                 company: $product->company,
-                email: fake()->email,
-                phone: '18093505111',
+                email: $email,
+                phone: $phone,
                 people: $people,
                 user: $product->user,
                 token: Str::random(),
@@ -146,7 +151,7 @@ final class ZOrderTest extends TestCase
         );
 
         $order = $shopifyOrderService->addNoteToOrder(
-            getenv('TEST_SHOPIFY_ORDER_ID'),
+            env('TEST_SHOPIFY_ORDER_ID'),
             'This is a t3est note',
             ['key' => 'value', 'key2' => 'value2']
         );

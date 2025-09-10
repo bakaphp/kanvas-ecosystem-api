@@ -6,7 +6,9 @@ namespace Kanvas\Workflow\Traits;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Actions\CreateMessageFromTypeAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -151,9 +153,15 @@ trait ActivityIntegrationTrait
         string $messageTypeName,
         AppInterface $app,
         Model $entity
-    ): Message {
-        $messageType = MessagesTypesRepository::getGlobalByVerbAndName($messageTypeVerb, $messageTypeName, $app);
-        $systemModule = SystemModules::fromPublicApp()->where('model_name', get_class($entity))->firstOrFail();
+    ): ?Message {
+        try {
+            $messageType = MessagesTypesRepository::getGlobalByVerbAndName($messageTypeVerb, $messageTypeName, $app);
+            $systemModule = SystemModules::fromPublicApp()->where('model_name', get_class($entity))->firstOrFail();
+        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            report($e);
+
+            return null;
+        }
 
         $createMessageAction = new CreateMessageFromTypeAction(
             user: $entity->user,

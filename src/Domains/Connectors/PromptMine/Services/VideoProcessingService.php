@@ -379,7 +379,6 @@ class VideoProcessingService
         // Turn type to prompt
         $this->entity->message_types_id = MessageType::fromApp($this->entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
         $this->entity->update();
-
         return [
             'message' => 'Video processed successfully',
             'total_delivery' => $totalDelivery,

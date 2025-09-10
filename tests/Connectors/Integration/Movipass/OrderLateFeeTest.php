@@ -95,8 +95,8 @@ class OrderLateFeeTest extends TestCase
         $lateFeeProductResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late_fee',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $lateFee = Products::find($lateFeeProductResponse['id']);
@@ -104,7 +104,7 @@ class OrderLateFeeTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late-fee-variant-id',
-                'value' => $lateFee->variants()->first()->id
+                'value' => $lateFee->variants()->first()->id,
             ],
         ])->json()['data']['createProduct'];
 
@@ -138,7 +138,7 @@ class OrderLateFeeTest extends TestCase
             amount: 100
         );
 
-        $timezone = "America/New_York";
+        $timezone = 'America/New_York';
         Date::setTestNow(now()->startOfSecond());
         $rightNow = now($timezone);
         $today = now($timezone);
@@ -151,8 +151,8 @@ class OrderLateFeeTest extends TestCase
                 'data' => [
                     'start_at' => $rightNow->subDays(2)->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $rightNow->startOfDay()->addDays(1)->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $rightNow->startOfDay()->addDays(1)->toDateTimeString(),
+                ],
             ],
         );
 
@@ -166,8 +166,8 @@ class OrderLateFeeTest extends TestCase
                     'note' => 'test',
                     'start_at' => $yesterday->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $yesterday->startOfDay()->addDays(1)->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $yesterday->startOfDay()->addDays(1)->toDateTimeString(),
+                ],
             ],
         );
 
@@ -194,8 +194,8 @@ class OrderLateFeeTest extends TestCase
         $lateFeeProductResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late_fee',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $lateFee = Products::find($lateFeeProductResponse['id']);
@@ -203,7 +203,7 @@ class OrderLateFeeTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late-fee-variant-id',
-                'value' => $lateFee->variants()->first()->id
+                'value' => $lateFee->variants()->first()->id,
             ],
         ])->json()['data']['createProduct'];
 
@@ -237,7 +237,7 @@ class OrderLateFeeTest extends TestCase
             amount: 100
         );
 
-        $timezone = "America/New_York";
+        $timezone = 'America/New_York';
         Date::setTestNow(now()->startOfSecond());
         $rightNow = CarbonImmutable::now($timezone);
 
@@ -248,8 +248,8 @@ class OrderLateFeeTest extends TestCase
                 'data' => [
                     'start_at' => $rightNow->subDays(32)->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString(),
+                ],
             ],
         );
 
@@ -260,8 +260,8 @@ class OrderLateFeeTest extends TestCase
                 'data' => [
                     'start_at' => $rightNow->subDays(62)->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $rightNow->subDays(61)->startOfDay()->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $rightNow->subDays(61)->startOfDay()->toDateTimeString(),
+                ],
             ],
         );
 
@@ -272,11 +272,10 @@ class OrderLateFeeTest extends TestCase
                 'data' => [
                     'start_at' => $rightNow->subDays(61)->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $rightNow->subDays(60)->startOfDay()->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $rightNow->subDays(60)->startOfDay()->toDateTimeString(),
+                ],
             ],
         );
-
 
         $total = $reservation1->getTotalAmount();
 
@@ -315,8 +314,8 @@ class OrderLateFeeTest extends TestCase
         $lateFeeProductResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late_fee',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $lateFee = Products::find($lateFeeProductResponse['id']);
@@ -325,7 +324,7 @@ class OrderLateFeeTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'late-fee-variant-id',
-                'value' => $lateFee->variants()->first()->id
+                'value' => $lateFee->variants()->first()->id,
             ],
         ])->json()['data']['createProduct'];
 
@@ -360,7 +359,7 @@ class OrderLateFeeTest extends TestCase
             amount: 100
         );
 
-        $timezone = "America/New_York";
+        $timezone = 'America/New_York';
         Date::setTestNow(now()->startOfSecond());
         $rightNow = CarbonImmutable::now($timezone);
 
@@ -372,8 +371,8 @@ class OrderLateFeeTest extends TestCase
                 'data' => [
                     'start_at' => $rightNow->subDays(32)->toDateTimeString(),
                     'late-fee-variant-id' => $lateFee->variants()->first()->id,
-                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString()
-                ]
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString(),
+                ],
             ],
         );
 
@@ -392,7 +391,7 @@ class OrderLateFeeTest extends TestCase
 
         // Now remove the late fee using the FixOrderItemCommand
         // We'll fix it back to just the original product variant
-        print_r(["tha company" => $order->companies_id]);
+        //print_r(["tha company" => $order->companies_id]);
         Artisan::call('kanvas:movipass-fix-order-items', [
             'app_id' => $this->apps->getId(),
             '--substitute-item' => "{$lateFee->variants()->first()->id},  {$order->items->first()->variant_id}",
