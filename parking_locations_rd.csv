@@ -1,0 +1,5 @@
+No.,nombre,calle,Latitud,Longitud,tipo,Bloque,24h,Horario,Moneda,Precio,Precio hora pico,tiempo minimo,parqueos
+1,CPS Piantini,CPS Piantini,18.466518,-69.934883,Privado,TBD,si,,DOP,50.00,50.00,30,10
+2,CPS Santiago de los caballeros,CPS Santiago de los caballeros,19.461313,-70.70401,Privado,TBD,si,,DOP,50.00,50.00,30,5
+3,CPS San Vicente,CPS San Vicente,18.4905125,-69.8523405,Privado,TBD,si,,DOP,50.00,50.00,30,5
+4,CPS Punta Cana,CPS Punta Cana,18.633298,-68.393552,Privado,TBD,si,,DOP,50.00,50.00,30,5

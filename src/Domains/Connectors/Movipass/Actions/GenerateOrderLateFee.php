@@ -89,6 +89,7 @@ class GenerateOrderLateFee
                     "data" => [
                         ...$completeOrder->metadata["data"],
                         "late_fee_charged_at" => $timeZonedNow,
+                        "updated_by_system_at" => $timeZonedNow,
                     ]
                 ];
                 $completeOrder->calculateTotal(false);

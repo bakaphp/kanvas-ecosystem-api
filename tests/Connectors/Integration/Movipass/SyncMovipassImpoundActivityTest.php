@@ -20,6 +20,7 @@ use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
 use Tests\TestCase;
+use Illuminate\Support\Carbon;
 
 final class SyncMovipassImpoundActivityTest extends TestCase
 {

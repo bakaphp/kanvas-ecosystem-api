@@ -32,7 +32,7 @@ services:
         command:
             - "sh"
             - "-c"
-            - "php artisan octane:start --server=swoole --task-workers=10 --workers=8 --watch"
+            - "php artisan octane:start --server=swoole --task-workers=10 --workers=8"
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <iframe id="cardinal_collection_iframe" name="collectionIframe" height="10" width="10" style="display: 
+        none;"></iframe>
+    <form id="cardinal_collection_form" method="POST" target="collectionIframe" action="https://centinelapistag.cardinalcommerce.com/V1/Cruise/Collect">
+        <input id="cardinal_collection_form_input" type="hidden" name="JWT" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwNTExMTAwYi03M2Y1LTRjOTgtOTlmNi02Mjk2ZTVjMTBlYWEiLCJpYXQiOjE3NTEwNjYzNTQsImlzcyI6IjVlMjIwMDVmMzU2ZGNlMDNmMGY3ODcyZiIsImV4cCI6MTc1MTA2OTk1NCwiT3JnVW5pdElkIjoiNjg1ZGNkMjZhMGY4NzQ1ZTVkNzhmMzE3IiwiUmVmZXJlbmNlSWQiOiI4NzU1MDliMS0xYTYwLTQ4YTMtODhjYS00N2M3YzYwYWJlOGIifQ.Cch7XLvlGTaNAoDpJSQE6pFBDCwkbPrUlhk7AOYZL7Y">
+    </form>
+</body>
+
+<script>
+    window.onload = function () {
+        let cardinalCollectionForm = document.querySelector(
+            "#cardinal_collection_form"
+        );
+        if (cardinalCollectionForm) {
+            // form exists 
+            cardinalCollectionForm.submit();
+        }
+    };
+
+</script>
+
+</html>

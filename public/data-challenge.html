@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <iframe name=”step-up-iframe" height="400" width="400"></iframe>
+    <form id="step-up-form" target=”step-up-iframe" method="post" action="https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp?lang=es">
+        <input type="hidden" name="JWT" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjM2UzZGJlNi01ZTliLTRlNzMtODY5Yy00MjUzNDVlZTM4NTQiLCJpYXQiOjE3NTA4NjczOTQsImlzcyI6IjVkZDgzYmYwMGU0MjNkMTQ5OGRjYmFjYSIsImV4cCI6MTc1MDg3MDk5NCwiT3JnVW5pdElkIjoiNThhZTM0NWJkYTUyOTMzYzhjYjQ5NGUyIiwiUGF5bG9hZCI6eyJBQ1NVcmwiOiJodHRwczovLzBtZXJjaGFudGFjc3N0YWcuY2FyZGluYWxjb21tZXJjZS5jb20vTWVyY2hhbnRBQ1NXZWIvY3JlcS5qc3AiLCJQYXlsb2FkIjoiZXlKdFpYTnpZV2RsVkhsd1pTSTZJa05TWlhFaUxDSnRaWE56WVdkbFZtVnljMmx2YmlJNklqSXVNUzR3SWl3aWRHaHlaV1ZFVTFObGNuWmxjbFJ5WVc1elNVUWlPaUkzWVRjeFpEUXlaQzFtWXpoakxUUTRZemt0T0daak1DMWhNRGs1WXpRd056SmxNVGNpTENKaFkzTlVjbUZ1YzBsRUlqb2lNbVZrTVdKaVpHWXROakl4T0MwMFl6UXpMVGxrTVRNdE16YzROREJsT0dOak1UbGpJaXdpWTJoaGJHeGxibWRsVjJsdVpHOTNVMmw2WlNJNklqQXlJbjAiLCJUcmFuc2FjdGlvbklkIjoiTFRRQVk5SzRvYnRDb250b1R1NDAifSwiT2JqZWN0aWZ5UGF5bG9hZCI6dHJ1ZSwiUmV0dXJuVXJsIjoiaHR0cHM6Ly9ncmFwaGFwaWRldi5rYW52YXMuZGV2L3YxL3JlY2VpdmVyL2Y1MTcwM2Q3LWQyN2UtNGM2Zi04N2JhLTA1YmYyZWRjNGYxMyJ9.A9wFO1YbIcSdiEay4J7cZLPnWjrBsTCzqVhqn5z1qC8" id="step-up-form-input" />
+        <input type="hidden" name="MD" value="49163" />
+    </form>
+</body>
+
+<script>
+    window.onload = function () {
+        /************************************************************************************************
+         *  Test only block
+         ************************************************************************************************/
+        // const form = document.getElementById('step-up-form');
+        // const stepUpFormInput = document.getElementById('step-up-form-input');
+        // const queryParams = new URLSearchParams(window.location.search);
+        // const deviceDataUrl = queryParams.get('deviceDataUrl');
+        // const accessToken = queryParams.get('accessToken');
+        // const referenceId = queryParams.get('referenceId');
+        // // form.action = deviceDataUrl;
+        // stepUpFormInput.value = accessToken;
+
+        // if (!accessToken || !deviceDataUrl) {
+        //     console.log('No access token or device data URL found');
+        // }
+        /**************************************************************************************************
+         *  End of test only block
+         *************************************************************************************************/
+        let stepUpForm = document.querySelector("#step-up-form");
+        if (stepUpForm) {
+            // Step-Up form exists 
+            stepUpForm.submit();
+        }
+    };
+
+</script>
+
+</html>

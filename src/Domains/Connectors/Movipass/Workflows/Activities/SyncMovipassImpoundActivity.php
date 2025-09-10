@@ -89,15 +89,27 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
 
     public function getStartGraceDay(Carbon $createdAt, string $tz = 'America/New_York'): Carbon
     {
-        $start = $createdAt->copy()->timezone($tz)->startOfDay()->addDay();
-        $dayOfWeek = (int) $createdAt->copy()->timezone($tz)->dayOfWeekIso;
+        // Convert UTC server time to local timezone for calculations
+        $localTime = $createdAt->copy()->timezone($tz);
+        $dayOfWeek = (int) $localTime->dayOfWeekIso;
+
+        print_r([$localTime->format('Y-m-d H:i:s'), "Fecha en hora local"]);
+        
+        // Start with next day at start of day in local timezone
+        $start = $localTime->startOfDay()->addDay();
 
         // if friday move one extra day
         if ($dayOfWeek === 5) {
-            $start = $start->addDay()->startOfDay();
+            $start = $start->addDay();
         } elseif ($dayOfWeek === 6 || $dayOfWeek === 7) {
-            $start = $start->next('Monday')->startOfDay();
+            $start = $start->addDays(2);
         }
-        return $start;
+        PHP_EOL;
+        print_r([$start->format('Y-m-d H:i:s'), "Fecha de inicio en hora local"]);
+        
+        PHP_EOL;
+        print_r([$start->timezone('UTC')->format('Y-m-d H:i:s'), "Fecha de inicio en hora UTC"]);
+        // Convert back to UTC for return
+        return $start->timezone('UTC');
     }
 }
