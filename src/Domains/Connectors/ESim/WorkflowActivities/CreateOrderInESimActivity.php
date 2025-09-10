@@ -98,6 +98,9 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
 
                     $order->addTag(strtolower($order->metadata['source'] ?? 'website'));
+                    if (! empty($order->metadata['platformOS'])) {
+                        $order->addTag(strtolower($order->metadata['platformOS']));
+                    }
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {
