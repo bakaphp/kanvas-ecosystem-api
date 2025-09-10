@@ -22,6 +22,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -116,9 +117,12 @@ class CreateEngagementAction
 
         // Handle checklist task
         if ($this->engagementData->taskId !== null) {
-            $checkListTaskItem = TaskListItem::getById($this->engagementData->taskId);
-            if ($checkListTaskItem->task->company->getId() === $this->lead->company->getId()) {
-                $this->checkListId = $checkListTaskItem->task->getId();
+            try {
+                $checkListTaskItem = TaskListItem::getById($this->engagementData->taskId);
+                if ($checkListTaskItem->task->company->getId() === $this->lead->company->getId()) {
+                    $this->checkListId = $checkListTaskItem->task->getId();
+                }
+            } catch (ExceptionsModelNotFoundException|ModelNotFoundException $e) {
             }
         }
     }
