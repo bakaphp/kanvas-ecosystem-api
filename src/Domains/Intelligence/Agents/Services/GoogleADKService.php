@@ -11,6 +11,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -54,7 +55,11 @@ class GoogleADKService
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
 
         try {
-            $response = $this->client->post($endpoint);
+            $response = $this->client->post($endpoint, [
+                'json' => [
+                    'kanvas_app_id' => $this->app->key,
+                ],
+            ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (ClientException $e) {

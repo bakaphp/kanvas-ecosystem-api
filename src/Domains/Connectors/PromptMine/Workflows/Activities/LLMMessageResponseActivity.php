@@ -281,6 +281,10 @@ class LLMMessageResponseActivity extends KanvasActivity
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
         } catch (Throwable $e) {
+            if (! Str::contains($e->getMessage(), 'Your daily limit has been reached')) {
+                report($e);
+            }
+
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],

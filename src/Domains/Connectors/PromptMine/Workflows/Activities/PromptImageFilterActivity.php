@@ -174,7 +174,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
         } catch (Throwable $e) {
-            //report($e);
+            if (! Str::contains($e->getMessage(), 'Your daily limit has been reached')) {
+                report($e);
+            }
+
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
