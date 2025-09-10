@@ -1028,14 +1028,19 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 if ($lead) {
                     $channel->entity_namespace = get_class($lead->people);
                     $channel->entity_id = $lead->people->getId();
+
+                    $channel->save();
+
+                    $channel->addTags(
+                        [
+                            'whatsapp',
+                            'ai-agent',
+                        ],
+                        $lead->app,
+                        $lead->user,
+                        $lead->company
+                    );
                 }
-
-                $channel->save();
-
-                $channel->addTags([
-                    'whatsapp',
-                    'ai-agent',
-                ]);
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
                 $channel->save();

@@ -21,7 +21,8 @@ trait SearchProductWorkflowTrait
         Users $user,
         CompaniesBranches $companyBranch,
         Regions $region,
-        string $search
+        string $search,
+        ?string $searchType = null
     ) {
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
@@ -31,6 +32,7 @@ trait SearchProductWorkflowTrait
                 'companyBranch' => $companyBranch,
                 'region' => $region,
                 'search' => $search,
+                'search_type' => $searchType ?? '',
                 'uuid' => Str::uuid(),
             ]
         );
