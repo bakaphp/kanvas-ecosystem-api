@@ -507,6 +507,93 @@ class PeopleTest extends TestCase
             ]);
     }
 
+    public function testDeletePeopleAddress()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+
+        // First create a person with address
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {                
+                    id,
+                    address {
+                        id
+                        address
+                        city
+                    }
+                }
+            }
+        ', [
+            'input' => $input,
+        ]);
+
+        $response->assertOk();
+
+        $peopleId = $response->json('data.createPeople.id');
+        $addressId = $response->json('data.createPeople.address.0.id');
+
+        $this->assertNotNull($addressId);
+
+        // Delete the address
+        $deleteResponse = $this->graphQL('
+            mutation($id: ID!) {
+                deletePeopleAddress(id: $id)
+            }
+        ', [
+            'id' => $addressId,
+        ]);
+
+        $deleteResponse->assertJson([
+            'data' => [
+                'deletePeopleAddress' => true,
+            ],
+        ]);
+
+        // Verify the address was deleted by checking the person's addresses
+        $verifyResponse = $this->graphQL('
+            query($id: ID!) {
+                people(id: $id) {
+                    id
+                    address {
+                        id
+                    }
+                }
+            }
+        ', [
+            'id' => $peopleId,
+        ]);
+
+        $verifyResponse->assertOk();
+        // The address array should be empty after deletion
+        $this->assertEmpty($verifyResponse->json('data.people.address'));
+    }
+
     public function testImportUsers()
     {
         $user = auth()->user();

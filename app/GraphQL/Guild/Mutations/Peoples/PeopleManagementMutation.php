@@ -165,8 +165,6 @@ class PeopleManagementMutation
             throw new Exception('You do not have permission to delete this address');
         }
 
-        $address = $people->address()->where('id', (int) $req['id'])->firstOrFail();
-
-        return $address->delete();
+        return $peopleAddress->delete();
     }
 }
