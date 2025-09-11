@@ -128,7 +128,7 @@ class UpdatePeopleAction
 
             foreach ($deduplicatedAddresses as $address) {
                 $hasId = isset($address->id) && $address->id > 0;
-                $existingAddress = !$hasId ? $this->people->address()->where('address', $address->address)
+                $existingAddress = ! $hasId ? $this->people->address()->where('address', $address->address)
                     ->where('city', $address->city)
                     ->where('state', $address->state)
                     ->where('zip', $address->zip)
