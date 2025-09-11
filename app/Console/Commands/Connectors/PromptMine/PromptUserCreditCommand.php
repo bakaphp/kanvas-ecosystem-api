@@ -28,7 +28,7 @@ class PromptUserCreditCommand extends Command
      */
     public function handle(): void
     {
-        $app = Apps::getById((int) $this->option('app_id'));
+        $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
         $userConfigs = UserConfig::query()->where('name', 'composer_ideas_used')
