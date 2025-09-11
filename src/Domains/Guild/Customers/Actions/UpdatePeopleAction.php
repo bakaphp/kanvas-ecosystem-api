@@ -127,11 +127,13 @@ class UpdatePeopleAction
             $addresses = [];
 
             foreach ($deduplicatedAddresses as $address) {
-                $existingAddress = $this->people->address()->where('address', $address->address)
+                $hasId = isset($address->id) && $address->id > 0;
+                $existingAddress = !$hasId ? $this->people->address()->where('address', $address->address)
                     ->where('city', $address->city)
                     ->where('state', $address->state)
                     ->where('zip', $address->zip)
-                    ->first();
+                    ->first()
+                    : $this->people->address()->where('id', $address->id)->first();
 
                 if (! $existingAddress) {
                     $addresses[] = new Address([
@@ -150,6 +152,10 @@ class UpdatePeopleAction
                     ]);
                 } else {
                     $existingAddress->update([
+                        'address' => $address->address,
+                        'city' => $address->city,
+                        'state' => $address->state,
+                        'zip' => $address->zip,
                         'address_2' => $address->address_2,
                         'is_default' => $address->is_default,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),

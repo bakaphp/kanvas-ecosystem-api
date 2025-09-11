@@ -25,6 +25,7 @@ class Address extends Data
         public readonly ?int $country_id = null,
         public readonly ?int $address_type_id = null,
         public readonly ?float $duration = 0.0,
+        public readonly ?int $id = null
     ) {
     }
 
@@ -109,6 +110,7 @@ class Address extends Data
             country_id: $countryId,
             address_type_id: $data['address_type_id'] ?? null,
             duration: isset($data['duration']) ? (float) $data['duration'] : 0.0,
+            id: isset($data['id']) ? (int) $data['id'] : null
         );
     }
 
