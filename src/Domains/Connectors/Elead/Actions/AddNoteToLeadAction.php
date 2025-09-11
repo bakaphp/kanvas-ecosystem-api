@@ -36,6 +36,7 @@ class AddNoteToLeadAction
     {
         /** @var string $linkPreview */
         $linkPreview = '';
+
         try {
             $linkPreview = Url::getShortUrl($message['link'] ?? '', $this->lead->app);
         } catch (Throwable $e) {
@@ -47,7 +48,7 @@ class AddNoteToLeadAction
         if ($newLink !== null && $newLink !== '') {
             $linkPreview = $newLink;
         }
-        
+
         /** @var string $linkPreview */
 
         // Get the message from the engagement service

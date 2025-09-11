@@ -28,7 +28,7 @@ use Throwable;
 
 class PushLeadNotesActivity extends KanvasActivity
 {
-    public $tries = 10;
+    public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
@@ -51,7 +51,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 if (! $lead instanceof Lead) {
                     throw new Exception('Lead not found');
                 }
-                
+
                 $syncLeadAction = new SyncLeadAction($lead);
                 $eLeadOpportunity = $syncLeadAction->execute();
 
