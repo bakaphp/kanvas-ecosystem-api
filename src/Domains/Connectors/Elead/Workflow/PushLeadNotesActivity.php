@@ -266,5 +266,7 @@ class PushLeadNotesActivity extends KanvasActivity
 
             //throw new Exception('Failed to set task engagement status: ' . $e->getMessage());
         }
+
+        return [];
     }
 }
