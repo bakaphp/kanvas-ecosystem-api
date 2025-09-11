@@ -7,6 +7,7 @@ namespace App\GraphQL\Guild\Mutations\Peoples;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -14,6 +15,7 @@ use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Spatie\LaravelData\DataCollection;
@@ -148,5 +150,23 @@ class PeopleManagementMutation
         }
 
         return $peopleQuery->firstOrFail()->restoreRecord();
+    }
+
+    public function deletePeopleAddress(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $peopleAddress = ModelsAddress::getById((int) $req['id']);
+
+        $people = $peopleAddress->people;
+
+        if ($people->companies_id !== $user->getCurrentCompany()->getId() || $people->apps_id !== $app->getId()) {
+            throw new Exception('You do not have permission to delete this address');
+        }
+
+        $address = $people->address()->where('id', (int) $req['id'])->firstOrFail();
+
+        return $address->delete();
     }
 }
