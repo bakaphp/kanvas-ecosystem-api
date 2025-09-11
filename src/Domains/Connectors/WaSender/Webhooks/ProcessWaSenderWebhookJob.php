@@ -1024,7 +1024,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->apps_id = $this->receiver->app->getId();
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
-                
+
                 if ($lead) {
                     $channel->entity_namespace = get_class($lead->people);
                     $channel->entity_id = $lead->people->getId();
