@@ -14,21 +14,19 @@ class PromptUserCreditCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:prompts-user-credit {--appId=78} {--messageType=588} {--nuggetMessageType=588} {--companyId=2626}';
+    protected $signature = 'kanvas:prompts-user-credit {app_id}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Fix promptmine prompt data';
+    protected $description = 'Set user credit based on messages sent in the last 24 hours';
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->option('app_id'));
         $this->overwriteAppService($app);
@@ -37,7 +35,7 @@ class PromptUserCreditCommand extends Command
              ->where('value', '<>', 0)->get();
 
         foreach ($userConfigs as $userConfig) {
-            //$this->info('Resetting composer ideas for user id : ' . $userConfig->users_id);
+            $this->info('Resetting composer ideas for user id : ' . $userConfig->users_id);
 
             $messageCount = Message::getUserMessageCountInTimeFrameBuilder(
                 userId: $userConfig->user->getId(),
@@ -53,7 +51,7 @@ class PromptUserCreditCommand extends Command
             }
             $messageCount = $messageCount->count() ?? 0;
 
-            //$this->info("Message count: $messageCount");
+            $this->info("Message count: $messageCount");
             $userConfig->user->set('composer_ideas_used', $messageCount, true);
         }
     }
