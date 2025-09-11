@@ -1024,6 +1024,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->apps_id = $this->receiver->app->getId();
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
+                $channel->save();
 
                 if ($lead) {
                     $channel->entity_namespace = get_class($lead->people);
@@ -1046,13 +1047,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->save();
             }
 
-            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'WhatsApp');
-
             if ($lead && empty($channel->entity_namespace)) {
                 $channel->entity_namespace = get_class($lead->people);
                 $channel->entity_id = $lead->people->getId();
                 $channel->update();
             }
+
+            $channel->set(
+                ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                'WhatsApp'
+            );
 
             return $channel;
         }, 5); // 5 attempts with exponential backoff
