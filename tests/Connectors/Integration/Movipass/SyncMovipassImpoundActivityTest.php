@@ -344,7 +344,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         ]);
 
         $order->refresh();
-        print_r($result);
         $this->assertEquals($result['status'], 'processing');
         $this->assertEquals($result['message'], 'PDF generation started. You will receive an email with the download link when ready.');
     }

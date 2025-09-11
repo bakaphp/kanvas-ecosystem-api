@@ -75,16 +75,16 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                     if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
                         $order->fulfill();
                     }
-                    
+
                     if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
-                       $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
-                       $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
-                       $serviceName = $order->orderType->name ?? '';
-                       $paymentDate = $order->metadata["data"]["payment_date"] ?? "";
-                       
-                       $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
-                       
-                       return $this->generatePdfVoucher($order, $filename);
+                        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
+                        $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
+                        $serviceName = $order->orderType->name ?? '';
+                        $paymentDate = $order->metadata["data"]["payment_date"] ?? "";
+
+                        $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
+
+                        return $this->generatePdfVoucher($order, $filename);
                     }
                 }
 
@@ -119,7 +119,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
         GeneratePdfVoucherJob::dispatch(
             $order,
             $order->user,
-            'orders-pdf',
+            'order-release-voucher',
             $filename,
             []
         );

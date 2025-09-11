@@ -60,7 +60,7 @@ class GeneratePdfVoucherJob implements ShouldQueue
         ->withProperties([
             'order_id' => $this->entity->id,
             'order_number' => $this->entity->order_number,
-            'user_id' => $this->user->id, 
+            'user_id' => $this->user->id,
             'timestamp' => now(),
             'file_id' => $pdfFile->id,
             'file_path' => $pdfFile->path ?? $fullTempPath ?? $pdfFile->url
