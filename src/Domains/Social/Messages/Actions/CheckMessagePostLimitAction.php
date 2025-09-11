@@ -59,7 +59,7 @@ class CheckMessagePostLimitAction
 
         // $this->message->app->reGenerateRedisSettings();
         $messageLimit = $this->message->app->get('message-post-limit');
-        $this->message->user->set('composer_ideas_used', $messageCount);
+        $this->message->user->set('composer_ideas_used', $messageCount, true);
         if ($messageCount > $messageLimit) {
             throw new Exception('Your daily limit has been reached.');
         }
