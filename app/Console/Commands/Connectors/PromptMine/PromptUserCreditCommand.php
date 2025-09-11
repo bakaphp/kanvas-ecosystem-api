@@ -25,10 +25,8 @@ class PromptUserCreditCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->option('app_id'));
         $this->overwriteAppService($app);
