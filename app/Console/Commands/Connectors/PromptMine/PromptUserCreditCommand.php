@@ -37,7 +37,7 @@ class PromptUserCreditCommand extends Command
              ->where('value', '<>', 0)->get();
 
         foreach ($userConfigs as $userConfig) {
-            //$this->info('Resetting composer ideas for user id : ' . $userConfig->users_id);
+            $this->info('Resetting composer ideas for user id : ' . $userConfig->users_id);
 
             $messageCount = Message::getUserMessageCountInTimeFrameBuilder(
                 userId: $userConfig->user->getId(),
@@ -53,7 +53,7 @@ class PromptUserCreditCommand extends Command
             }
             $messageCount = $messageCount->count() ?? 0;
 
-            //$this->info("Message count: $messageCount");
+            $this->info("Message count: $messageCount");
             $userConfig->user->set('composer_ideas_used', $messageCount, true);
         }
     }
