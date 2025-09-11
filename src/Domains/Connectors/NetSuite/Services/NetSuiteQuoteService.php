@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Estimate;
@@ -65,6 +66,9 @@ class NetSuiteQuoteService
             $estimateItem = new EstimateItem();
             $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
 
+            $variantWarehouse = $orderItem->variant->variantWarehouses()->firstOrFail();
+            $locationID = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value);
+
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
@@ -72,7 +76,9 @@ class NetSuiteQuoteService
             $itemRef->internalId = $searchNetsuiteProductInfo[0]->internalId;
             $estimateItem->item = $itemRef;
 
-            $estimateItem->quantity = $orderItem->quantity;
+            $estimateItem->location = new RecordRef();
+            $estimateItem->location->internalId = $locationID;
+
             if ($customRate) {
                 $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
             }
