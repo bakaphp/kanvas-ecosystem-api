@@ -14,6 +14,9 @@ use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
+use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
+use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -228,7 +231,9 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMovipassImpoundActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
+            WorkflowPushLeadActivity::class,
             PushPeopleActivity::class,
+            WorkflowPushPeopleActivity::class,
             PushOrderToInvoiceActivity::class,
             CreateUniversalAssistanceQuoteActivity::class,
             CreateUniversalAssistanceVoucherActivity::class,
@@ -243,6 +248,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ConvertMessageImagesToPdfActivity::class,
             RemixCreationActivity::class,
             PromptIAPOrderActivity::class,
+            WorkflowPushLeadNotesActivity::class,
         ];
 
         $createdActions = [];
