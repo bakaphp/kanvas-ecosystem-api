@@ -67,8 +67,8 @@ class CreateEngagementAction
         $this->people = $engagementData->people ?? $this->lead->people;
         $this->prepareData();
         $this->resolveAction();
-        if ($engagementData->status === ActionStatusEnum::SENT && $this->allowDuplicate) {
-            $this->generateUrls();
+        if ($engagementData->status === ActionStatusEnum::SENT) {
+            $this->handleLinkGeneration();
         }
     }
 
@@ -106,6 +106,21 @@ class CreateEngagementAction
 
             return $engagement;
         });
+    }
+
+    private function handleLinkGeneration(): void
+    {
+        $previousLinkKey = 'previous_link_' . $this->engagementData->action;
+        $verifyPreviousLink = $this->lead->get($previousLinkKey);
+
+        if ($this->allowDuplicate) {
+            $this->generateUrls();
+        } elseif (! $verifyPreviousLink) {
+            $this->generateUrls();
+            $this->lead->set($previousLinkKey, $this->messageData);
+        } else {
+            $this->messageData = $verifyPreviousLink;
+        }
     }
 
     protected function prepareData(): void
@@ -386,6 +401,7 @@ class CreateEngagementAction
             ->where('companies_actions_id', $this->companyActionParent->getId())
             ->where('pipelines_stages_id', $sentStage->getId())
             ->where('slug', $this->actionSlug)
+            ->where('is_deleted', 0)
             ->orderBy('created_at', 'desc')
             ->first();
 

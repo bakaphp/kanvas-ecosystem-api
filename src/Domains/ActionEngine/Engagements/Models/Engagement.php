@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Engagements\Models;
 
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -39,6 +40,7 @@ class Engagement extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
+    use SoftDeletesTrait;
 
     protected $table = 'engagements';
     protected $guarded = [];
