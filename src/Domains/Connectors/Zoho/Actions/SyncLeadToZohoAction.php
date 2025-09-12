@@ -194,7 +194,7 @@ class SyncLeadToZohoAction
 
         $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
 
-        $attachments = $lead->get('Attachments');
+        $attachments = explode(',', $lead->get('Attachments'));
 
         if (! empty($attachments) && is_array($attachments)) {
             foreach ($attachments as $attachment) {
