@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Souk\Cart;
 
+use Baka\Traits\KanvasJobsTrait;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Souk\Cart\Enums\AbandonCartConfigEnum;
 use Kanvas\Souk\Cart\Enums\AbandonCartTemplateEnum;
@@ -21,6 +23,8 @@ use Kanvas\Users\Models\Users;
  */
 class AbandonCartCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'souk:abandon-cart';
     protected $description = 'Process abandoned cart notifications at specified intervals by applications';
 
@@ -36,6 +40,7 @@ class AbandonCartCommand extends Command
 
         if ($appsIds->isEmpty()) {
             $this->info('No apps have abandon cart notifications enabled.');
+
             return 0;
         }
 
@@ -43,6 +48,7 @@ class AbandonCartCommand extends Command
 
         foreach ($appsIds as $appId) {
             $app = Apps::getById($appId);
+            $this->overwriteAppService($app);
             $this->info("Processing abandoned carts for app: {$app->name} (ID: {$app->getId()})");
 
             // Process abandoned cart notifications
@@ -50,6 +56,7 @@ class AbandonCartCommand extends Command
         }
 
         $this->info('Abandoned cart notification process completed.');
+
         return 0;
     }
 
@@ -83,7 +90,7 @@ class AbandonCartCommand extends Command
                 },
                 'email_template' => $emailTemplate,
                 'push_template' => $pushTemplate,
-                'discount_code' => $discountCode
+                'discount_code' => $discountCode,
             ];
         }
 
@@ -105,6 +112,7 @@ class AbandonCartCommand extends Command
     {
         $hoursAgo = $config['hours'];
         $notificationCount = $config['notification_count'];
+        $limitNotificationAmount = $app->get('total_abandoned_cart_notifications');
 
         $cutoffTime = Carbon::now()->subHours($hoursAgo);
 
@@ -115,12 +123,16 @@ class AbandonCartCommand extends Command
             'third' => 2,   // Second notification already sent
         };
 
-        $abandonedCarts = Cart::with('user') // Cargar relación user
+        $abandonedCarts = Cart::with('user')
             ->where('apps_id', $app->getId())
             ->where('status', 'pending')
             ->where('updated_at', '<=', $cutoffTime)
             ->whereNotNull('users_id')
+            ->where('amount', '>', 0)
             ->where('notification_count', '=', $expectedNotificationCount)
+            ->when($limitNotificationAmount > 0, function ($query) use ($limitNotificationAmount) {
+                $query->limit((int) $limitNotificationAmount);
+            })
             ->get();
 
         $this->info("Found {$abandonedCarts->count()} carts abandoned for {$hoursAgo} hours with {$expectedNotificationCount} notifications sent");
@@ -137,11 +149,13 @@ class AbandonCartCommand extends Command
 
             if (! $user) {
                 $this->warn("Cart {$cart->id} has no associated user, skipping");
+
                 return;
             }
 
             if (empty($user->email)) {
                 $this->warn("Cart {$cart->id} - user has no email, skipping");
+
                 return;
             }
 
@@ -159,8 +173,8 @@ class AbandonCartCommand extends Command
             $this->markNotificationAsSent($cart, $config['notification_count'], $intervalType);
 
             $this->info("Sent {$intervalType} notification for cart {$cart->id} to email {$user->email}");
-        } catch (\Exception $e) {
-            Log::error("Failed to process abandoned cart {$cart->id}: " . $e->getMessage());
+        } catch (Exception $e) {
+            report($e);
             $this->error("Error processing cart {$cart->id}: " . $e->getMessage());
         }
     }
@@ -168,7 +182,7 @@ class AbandonCartCommand extends Command
     private function getNotificationData(Cart $cart, string $intervalType, array $config): array
     {
         // Detect language from app settings or default to 'en'
-        $lang = $cart->app->metadata['language'] ?? 'en';
+        $lang = $cart->app->metadata['language'] ?? 'es';
         $userName = $cart->user->firstname ?? $cart->user->email ?? 'Customer';
 
         // Get template texts using the enum
@@ -223,44 +237,46 @@ class AbandonCartCommand extends Command
         $pushMessage = AbandonCartTemplateEnum::get($pushMessageKey, $lang);
         if ($intervalType !== 'first' && $config['discount_code']) {
             $pushMessage = sprintf($pushMessage, $config['discount_code']);
-        }        return [
-            'cart_id' => $cart->id,
-            'cart_uuid' => $cart->uuid,
-            'amount' => $cart->amount,
-            'currency' => $cart->currency,
-            'abandoned_hours' => $config['hours'],
-            'notification_type' => $intervalType,
-            'notification_count' => $config['notification_count'],
-            'current_notification_count' => $cart->notification_count,
-            'items_count' => count($cart->items ?? []),
-            'session_id' => $cart->session_id,
-            'cart_items' => $cart->items ?? [],
-            'cart_conditions' => $cart->conditions ?? [],
-            'app' => $cart->app,
-            'user_name' => $userName,
-            'language' => $lang,
-            'email_template' => $config['email_template'],
-            'push_template' => $config['push_template'],
-            'urgency_level' => match ($intervalType) {
-                'first' => 'low',
-                'second' => 'medium',
-                'third' => 'high',
-                default => 'low'
-            },
-            'discount_code' => $config['discount_code'],
-            // Template texts
-            'email_title' => AbandonCartTemplateEnum::get($emailTitleKey, $lang),
-            'email_message' => $emailMessage,
-            'push_title' => AbandonCartTemplateEnum::get($pushTitleKey, $lang),
-            'push_message' => $pushMessage,
-            'complete_purchase_text' => AbandonCartTemplateEnum::get('complete_purchase', $lang),
-            'continue_shopping_text' => AbandonCartTemplateEnum::get('continue_shopping', $lang),
-            'cart_summary_text' => AbandonCartTemplateEnum::get('cart_summary', $lang),
-            'item_text' => AbandonCartTemplateEnum::get('item', $lang),
-            'quantity_text' => AbandonCartTemplateEnum::get('quantity', $lang),
-            'price_text' => AbandonCartTemplateEnum::get('price', $lang),
-            'total_text' => AbandonCartTemplateEnum::get('total', $lang),
-        ];
+        }
+
+        return [
+                'cart_id' => $cart->id,
+                'cart_uuid' => $cart->uuid,
+                'amount' => $cart->amount,
+                'currency' => $cart->currency,
+                'abandoned_hours' => $config['hours'],
+                'notification_type' => $intervalType,
+                'notification_count' => $config['notification_count'],
+                'current_notification_count' => $cart->notification_count,
+                'items_count' => count($cart->items ?? []),
+                'session_id' => $cart->session_id,
+                'cart_items' => $cart->items ?? [],
+                'cart_conditions' => $cart->conditions ?? [],
+                'app' => $cart->app,
+                'user_name' => $userName,
+                'language' => $lang,
+                'email_template' => $config['email_template'],
+                'push_template' => $config['push_template'],
+                'urgency_level' => match ($intervalType) {
+                    'first' => 'low',
+                    'second' => 'medium',
+                    'third' => 'high',
+                    default => 'low'
+                },
+                'discount_code' => $config['discount_code'],
+                // Template texts
+                'email_title' => AbandonCartTemplateEnum::get($emailTitleKey, $lang),
+                'email_message' => $emailMessage,
+                'push_title' => AbandonCartTemplateEnum::get($pushTitleKey, $lang),
+                'push_message' => $pushMessage,
+                'complete_purchase_text' => AbandonCartTemplateEnum::get('complete_purchase', $lang),
+                'continue_shopping_text' => AbandonCartTemplateEnum::get('continue_shopping', $lang),
+                'cart_summary_text' => AbandonCartTemplateEnum::get('cart_summary', $lang),
+                'item_text' => AbandonCartTemplateEnum::get('item', $lang),
+                'quantity_text' => AbandonCartTemplateEnum::get('quantity', $lang),
+                'price_text' => AbandonCartTemplateEnum::get('price', $lang),
+                'total_text' => AbandonCartTemplateEnum::get('total', $lang),
+            ];
     }
 
     private function sendNotification(Users $user, Cart $cart, array $notificationData): void
@@ -278,13 +294,13 @@ class AbandonCartCommand extends Command
                 'cart_id' => $cart->id,
                 'cart_uuid' => $cart->uuid,
                 'items_count' => $notificationData['items_count'],
-                'cart_items' => $notificationData['cart_items'],
-                'cart_conditions' => $notificationData['cart_conditions'],
+                //'cart_items' => $notificationData['cart_items'],
+                //'cart_conditions' => $notificationData['cart_conditions'],
                 'notification_type' => $notificationData['notification_type'],
                 'abandoned_hours' => $notificationData['abandoned_hours'],
-                'app' => $cart->app,
-                'user' => $user,
-                'cart' => $cart,
+                //'app' => $cart->app,
+                //'user' => $user,
+                //'cart' => $cart,
                 'action' => 'view_cart',
                 'type' => 'abandoned_cart',
                 'discount_code' => $notificationData['discount_code'],
@@ -306,18 +322,20 @@ class AbandonCartCommand extends Command
             $notification = new Blank(
                 $emailTemplateName,
                 $notificationChannelData,
-                ['mail', 'push'],
+                [NotificationChannelEnum::getNotificationChannelBySlug('push')],
                 $cart
             );
 
             // Set push template name for push notifications
             $notification->setPushTemplateName($pushTemplateName);
 
+            $user = Users::getById(2);
             // Send to user - templates will handle their own titles/subjects
             $user->notify($notification);
 
             $this->info("Notification sent for cart {$cart->uuid} (user: {$cart->users_id}) - {$notificationData['notification_type']} notification using email template: {$emailTemplateName}, push template: {$pushTemplateName}");
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            report($e);
             $this->error("Failed to send notification for cart {$cart->uuid}: " . $e->getMessage());
         }
     }
@@ -330,7 +348,7 @@ class AbandonCartCommand extends Command
 
         $cart->update([
             'notification_count' => $notificationCount,
-            'metadata' => $metadata
+            'metadata' => $metadata,
         ]);
     }
 }
