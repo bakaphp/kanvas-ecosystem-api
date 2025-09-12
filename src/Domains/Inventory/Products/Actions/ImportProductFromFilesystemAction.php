@@ -44,7 +44,7 @@ class ImportProductFromFilesystemAction
             if (isset($this->filesystemImports->filesystemMapper->configuration['channels_id'])) {
                 $variant['channels'][0]['channels_id'] = $this->filesystemImports->filesystemMapper->configuration['channels_id'];
 
-                $cleanPrice = function($price) {
+                $cleanPrice = function ($price) {
                     if (is_numeric($price)) {
                         return (float) $price;
                     }
