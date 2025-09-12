@@ -1052,10 +1052,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->update();
             }
 
-            $channel->set(
-                ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
-                'WhatsApp'
-            );
+            if ($channel->id) {
+                $channel->set(
+                    ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                    'WhatsApp'
+                );
+            }
 
             return $channel;
         }, 5); // 5 attempts with exponential backoff
