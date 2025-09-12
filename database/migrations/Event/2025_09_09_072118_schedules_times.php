@@ -39,8 +39,14 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->unique(['event_version_id','time_slots_id']);
-          });
-          
+        });
+
+        Schema::table('events', function (Blueprint $table) {
+            $table->unsignedBigInteger('resources_id')->nullable()->index();
+            $table->string('resources_type', 255)->nullable()->index();
+            $table->dateTime('start_at')->nullable();
+            $table->dateTime('end_at')->nullable(); 
+        });     
     }
 
     /**
