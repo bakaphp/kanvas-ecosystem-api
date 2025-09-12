@@ -194,6 +194,31 @@ class SyncLeadToZohoAction
 
         $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
 
+        $attachments = explode(',', $lead->get('Attachments'));
+
+        if (! empty($attachments) && is_array($attachments)) {
+            foreach ($attachments as $attachment) {
+                $attachment = trim($attachment);
+
+                if (empty($attachment)) {
+                    continue;
+                }
+
+                try {
+                    $fileContent = file_get_contents($attachment);
+                    $fileName = basename(parse_url($attachment, PHP_URL_PATH)) ?: 'attachment_' . uniqid();
+
+                    $zohoLead->uploadAttachment(
+                        (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                        $fileName,
+                        $fileContent
+                    );
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        }
+
         foreach ($lead->files()->get() as $file) {
             if (isset($syncFiles[$file->id])) {
                 continue;
