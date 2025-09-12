@@ -210,6 +210,7 @@ class SyncLeadToZohoAction
                     );
                 } catch (Throwable $e) {
                     //do nothing
+                    report($e);
                 }
             }
         }
