@@ -23,6 +23,7 @@ return new class () extends Migration {
             $table->decimal('price_snapshot', 15, 2)->nullable();
             $table->string('currency', 3)->default('USD');
             $table->json('meta')->nullable();
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->unique(['resources_id', 'resources_type', 'start_at']);
             $table->index(['resources_id', 'resources_type', 'start_at']);
@@ -35,6 +36,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_version_id')->index();
             $table->unsignedBigInteger('time_slots_id')->index();
             $table->unsignedSmallInteger('qty')->default(1);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->unique(['event_version_id','time_slots_id']);
           });

@@ -38,6 +38,7 @@ return new class () extends Migration {
             $table->dateTime('window_end');
             $table->enum('kind', ['blackout','extra_open']);
             $table->string('reason', 255)->nullable();
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->index(['resources_id','window_start','window_end']);
         });
