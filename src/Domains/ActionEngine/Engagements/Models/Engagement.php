@@ -44,6 +44,7 @@ class Engagement extends BaseModel
 
     protected $table = 'engagements';
     protected $guarded = [];
+    public const DELETED_AT = 'is_deleted';
 
     public function companyAction(): BelongsTo
     {
