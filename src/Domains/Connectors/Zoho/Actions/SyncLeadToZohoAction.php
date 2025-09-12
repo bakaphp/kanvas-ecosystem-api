@@ -188,7 +188,8 @@ class SyncLeadToZohoAction
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
     {
         $lead->load('files');
-        $attachments = explode(',', $lead->get('Attachments'));
+        $attachmentString = $lead->get('Attachments');
+        $attachments = $attachmentString ? explode(',', $attachmentString) : [];
 
         if (! $lead->files()->count() && empty($attachments)) {
             return;
