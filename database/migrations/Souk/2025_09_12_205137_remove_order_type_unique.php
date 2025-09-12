@@ -23,10 +23,6 @@ return new class () extends Migration {
             } catch (\Throwable $e) {
             }
         }
-
-        Schema::table('order_types', function (Blueprint $table) {
-            $table->unique(['name', 'companies_id', 'apps_id']);
-        });
     }
 
     /**
