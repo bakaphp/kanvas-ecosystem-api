@@ -198,9 +198,14 @@ class SyncLeadToZohoAction
 
         if (! empty($attachments) && is_array($attachments)) {
             foreach ($attachments as $attachment) {
+                $attachment = trim($attachment);
+
+                if (empty($attachment)) {
+                    continue;
+                }
+
                 try {
                     $fileContent = file_get_contents($attachment);
-
                     $fileName = basename(parse_url($attachment, PHP_URL_PATH)) ?: 'attachment_' . uniqid();
 
                     $zohoLead->uploadAttachment(
@@ -209,7 +214,6 @@ class SyncLeadToZohoAction
                         $fileContent
                     );
                 } catch (Throwable $e) {
-                    //do nothing
                     report($e);
                 }
             }
