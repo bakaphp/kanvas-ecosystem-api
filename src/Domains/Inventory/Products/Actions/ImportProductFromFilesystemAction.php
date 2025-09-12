@@ -43,8 +43,22 @@ class ImportProductFromFilesystemAction
 
             if (isset($this->filesystemImports->filesystemMapper->configuration['channels_id'])) {
                 $variant['channels'][0]['channels_id'] = $this->filesystemImports->filesystemMapper->configuration['channels_id'];
-                $variant['channels'][0]['price'] = $variant['price'] ?? 0.0;
-                $variant['channels'][0]['discounted_price'] = $variant['discounted_price'] ?? 0.0;
+
+                $cleanPrice = function($price) {
+                    if (is_numeric($price)) {
+                        return (float) $price;
+                    }
+
+                    if (is_string($price)) {
+                        $cleaned = preg_replace('/[\$,\s]/', '', $price);
+                        return (float) $cleaned;
+                    }
+
+                    return 0.0;
+                };
+
+                $variant['channels'][0]['price'] = $cleanPrice($variant['price'] ?? 0.0);
+                $variant['channels'][0]['discounted_price'] = $cleanPrice($variant['discounted_price'] ?? 0.0);
             }
             $listOfVariants[$variant['handler']][] = $variant;
         }
