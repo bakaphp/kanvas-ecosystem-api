@@ -110,16 +110,16 @@ class CreateEngagementAction
 
     private function handleLinkGeneration(): void
     {
-        $previousLinkKey = 'engagement_previous_link';
-        $verifyPreviousLink = $this->lead->get($previousLinkKey) ?? [];
-        $hasPreviousLinkData = ! empty($verifyPreviousLink) && is_array($verifyPreviousLink);
-        $actionExists = $hasPreviousLinkData && array_key_exists($this->engagementData->action, $verifyPreviousLink);
-
         if ($this->allowDuplicate) {
             $this->generateUrls();
 
             return;
         }
+
+        $previousLinkKey = 'engagement_previous_link';
+        $verifyPreviousLink = $this->lead->get($previousLinkKey) ?? [];
+        $hasPreviousLinkData = ! empty($verifyPreviousLink) && is_array($verifyPreviousLink);
+        $actionExists = $hasPreviousLinkData && array_key_exists($this->engagementData->action, $verifyPreviousLink);
 
         if (! $actionExists) {
             $this->generateUrls();
