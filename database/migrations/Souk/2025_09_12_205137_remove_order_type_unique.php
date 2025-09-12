@@ -11,7 +11,10 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('order_types', function (Blueprint $table) {
-            $table->dropUnique(['apps_id', 'name']);
+            try {
+                $table->dropUnique(['apps_id', 'name']);
+            } catch (\Illuminate\Database\QueryException $e) {
+            }
             $table->unique(['name', 'companies_id', 'apps_id']);
         });
     }
