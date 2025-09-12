@@ -329,7 +329,6 @@ class AbandonCartCommand extends Command
             // Set push template name for push notifications
             $notification->setPushTemplateName($pushTemplateName);
 
-            $user = Users::getById(2);
             // Send to user - templates will handle their own titles/subjects
             $user->notify($notification);
 
