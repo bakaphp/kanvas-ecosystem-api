@@ -13,6 +13,15 @@ type Event {
     type: EventType @belongsTo(relation: "eventType")
     class: EventClass @belongsTo(relation: "eventClass")
     category: EventCategory @belongsTo(relation: "eventCategory")
+    resources_id: ID
+    resources_type: String
+    resource: EventResource @morphTo
+    orders: [Order!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\Order"
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventBuilder@getOrders"
+        )
     versions: [EventVersion!]!
         @paginate(
             defaultCount: 25
@@ -132,13 +141,20 @@ input EventInput {
     type_id: ID!
     class_id: ID
     category_id: ID!
+    resources_id: ID
+    resources_type: String
+    participants: [String!]
     dates: [EventVersionDateInput!]!
 }
 
 input EventUpdateInput {
     name: String
     description: String
+    resources_id: ID
+    resources_type: String
 }
+
+union EventResource = Variant
 
 input EventVersionDateInput {
     date: Date!
@@ -146,6 +162,34 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
     end_time: String!
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input EventVersionInput {
+    event_id: ID!
+    name: String!
+    slug: String
+    description: String
+    classification: String
+    places_comments: String
+    participants_satisfaction: String
+    price_per_ticket: Float!
+    currency_id: ID!
+    agenda: Mixed
+    metadata: Mixed
+    dates: [EventVersionDateInput!]!
+}
+
+input EventVersionUpdateInput {
+    name: String
+    description: String
+    classification: String
+    places_comments: String
+    participants_satisfaction: String
+    price_per_ticket: Float
+    currency_id: ID
+    agenda: Mixed
+    metadata: Mixed
+    dates: [EventVersionDateInput!]
 }
 
 extend type Mutation @guard {
@@ -160,6 +204,28 @@ extend type Mutation @guard {
     deleteEvent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
+        )
+    
+    createEventVersion(input: EventVersionInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@create"
+        )
+    updateEventVersion(id: ID!, input: EventVersionUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@update"
+        )
+    deleteEventVersion(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@delete"
+        )
+    
+    addParticipantToEventVersion(event_version_id: ID!, participant_id: ID!): EventVersionParticipant!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@addParticipant"
+        )
+    removeParticipantFromEventVersion(event_version_id: ID!, participant_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@removeParticipant"
         )
 }
 

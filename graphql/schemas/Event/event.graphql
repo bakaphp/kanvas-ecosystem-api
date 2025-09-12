@@ -15,6 +15,13 @@ type Event {
     category: EventCategory @belongsTo(relation: "eventCategory")
     resources_id: ID
     resources_type: String
+    resource: EventResource @morphTo
+    orders: [Order!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\Order"
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventBuilder@getOrders"
+        )
     versions: [EventVersion!]!
         @paginate(
             defaultCount: 25
@@ -136,6 +143,7 @@ input EventInput {
     category_id: ID!
     resources_id: ID
     resources_type: String
+    participants: [String!]
     dates: [EventVersionDateInput!]!
 }
 
@@ -145,6 +153,8 @@ input EventUpdateInput {
     resources_id: ID
     resources_type: String
 }
+
+union EventResource = Variant
 
 input EventVersionDateInput {
     date: Date!

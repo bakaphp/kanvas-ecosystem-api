@@ -10,6 +10,7 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
@@ -70,5 +71,10 @@ class Event extends BaseModel
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
+    }
+
+    public function orders(): MorphMany
+    {
+        return $this->morphMany(\Kanvas\Souk\Orders\Models\Order::class, 'resources');
     }
 }

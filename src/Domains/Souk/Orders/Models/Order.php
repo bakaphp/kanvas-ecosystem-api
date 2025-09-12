@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -146,6 +147,11 @@ class Order extends BaseModel
     public function orderDiscounts(): HasMany
     {
         return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
+    }
+
+    public function resource(): MorphTo
+    {
+        return $this->morphTo('resources');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder

@@ -90,7 +90,9 @@ class CreateEventAction
                 $createParticipant->execute();
             }
 
-            $this->createEventOrder($event, []);
+            if ($event->resource_id) {
+                $this->createEventOrder($event, []);
+            }
 
             return $event;
         });
