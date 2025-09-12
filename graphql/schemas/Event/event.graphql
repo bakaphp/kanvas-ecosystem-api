@@ -15,12 +15,11 @@ type Event {
     category: EventCategory @belongsTo(relation: "eventCategory")
     resources_id: ID
     resources_type: String
-    resource: EventResource @morphTo
+    resource: EventResource @morphTo(relation: "resource")
     orders: [Order!]!
         @paginate(
             defaultCount: 25
-            model: "Kanvas\\Souk\\Orders\\Models\\Order"
-            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventBuilder@getOrders"
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventOrderBuilder@getEventOrders"
         )
     versions: [EventVersion!]!
         @paginate(

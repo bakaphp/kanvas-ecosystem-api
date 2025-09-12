@@ -16,6 +16,7 @@ use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 #[ObservedBy([EventObserver::class])]
@@ -75,6 +76,6 @@ class Event extends BaseModel
 
     public function orders(): MorphMany
     {
-        return $this->morphMany(\Kanvas\Souk\Orders\Models\Order::class, 'resources');
+        return $this->morphMany(Order::class, 'resources');
     }
 }

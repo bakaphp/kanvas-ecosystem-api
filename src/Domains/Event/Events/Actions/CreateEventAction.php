@@ -53,8 +53,8 @@ class CreateEventAction
                 'event_category_id' => $this->event->category->getId(),
                 'event_class_id' => $this->event->class->getId(),
                 'description' => $this->event->description,
-                'resources_id' => $this->event->resource->id,
-                'resources_type' => $this->event->resource->getMorphClass(),
+                'resources_id' => $this->event->resource?->id ?? null,
+                'resources_type' => $this->event->resource?->getMorphClass() ?? null,
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
@@ -90,7 +90,7 @@ class CreateEventAction
                 $createParticipant->execute();
             }
 
-            if ($event->resource_id) {
+            if ($event->resources_id && !$event->orders->count()) {
                 $this->createEventOrder($event, []);
             }
 

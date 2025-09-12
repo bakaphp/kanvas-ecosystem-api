@@ -32,7 +32,7 @@ class Event extends Data
         public readonly EventType $type,
         public readonly EventCategory $category,
         public readonly EventClass $class,
-        public readonly Model $resource,
+        public readonly ?Model $resource = null,
         #[DataCollectionOf(EventDate::class)]
         public readonly DataCollection $dates,
         public readonly ?string $description = null,
@@ -54,7 +54,7 @@ class Event extends Data
             status: self::getEntityByIdOrDefault(EventStatus::class, $app, $company, $data['status_id'] ?? null),
             type: EventType::getByIdFromCompanyApp($data['type_id'], $company, $app),
             category: EventCategory::getByIdFromCompanyApp($data['category_id'], $company, $app),
-            resource: $data["resources_id"] ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data["resources_id"] ?? null) : null,
+            resource: isset($data["resources_id"]) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data["resources_id"] ?? null) : null,
             class: self::getEntityByIdOrDefault(EventClass::class, $app, $company, $data['class_id'] ?? null),
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
