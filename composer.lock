@@ -4549,16 +4549,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.1.1",
+            "version": "2.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "761fb8e0c971bfda285112dd0073e8704abd2143"
+                "reference": "3bdead595839053dabbafd011e6a8f34f152df84"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/761fb8e0c971bfda285112dd0073e8704abd2143",
-                "reference": "761fb8e0c971bfda285112dd0073e8704abd2143",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/3bdead595839053dabbafd011e6a8f34f152df84",
+                "reference": "3bdead595839053dabbafd011e6a8f34f152df84",
                 "shasum": ""
             },
             "require": {
@@ -4615,9 +4615,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.1.1"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.2.2"
             },
-            "time": "2025-09-11T16:17:13+00:00"
+            "time": "2025-09-12T15:39:15+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
