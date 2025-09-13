@@ -74,6 +74,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                     'message' => 'User credits updated',
                     'total_delivery' => 1,
                     'key' => $aiModelKey ?? null,
+                    'related_key' => $aiModelRelated ?? null,
                 ];
             },
             company: $order->company,

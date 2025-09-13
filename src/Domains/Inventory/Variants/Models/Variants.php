@@ -793,7 +793,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         $query->where(function (Builder $nameQuery) use ($attributeName, $locale) {
             $nameQuery->where(function (Builder $jsonNameQuery) use ($attributeName, $locale) {
                 $jsonNameQuery->whereRaw('JSON_VALID(a.name) = 1')
-                              ->whereRaw('JSON_EXTRACT(a.name, ?.) = ?', ['$."' . $locale . '"', $attributeName]);
+                              ->whereRaw('JSON_EXTRACT(a.name, ?) = ?', ['$.' . $locale, $attributeName]);
             })
             ->orWhere('a.name', $attributeName)
             ->orWhere('a.slug', Str::slug($attributeName));
@@ -804,7 +804,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             // For JSON values, check the locale-specific value
             $valueQuery->where(function (Builder $jsonQuery) use ($attributeValue, $locale) {
                 $jsonQuery->whereRaw('JSON_VALID(pva.value) = 1')
-                          ->whereRaw('JSON_EXTRACT(pva.value, ?.) = ?', ['$."' . $locale . '"', $attributeValue]);
+                          ->whereRaw('JSON_EXTRACT(pva.value, ?) = ?', ['$.' . $locale, $attributeValue]);
             })
             // For plain text values
             ->orWhere('pva.value', $attributeValue);
