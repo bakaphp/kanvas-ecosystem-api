@@ -77,12 +77,6 @@ class CreateLeadContextInfoAction
             $leadContext
         );
 
-        //get the first message
-        //send the first message
-
-        //move to stage 2 of the pipeline
-        $this->lead->moveToNextPipelineStage();
-
         return $leadContext;
     }
 }

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
 use Override;
@@ -94,5 +95,11 @@ class Agent extends BaseModel
     public static function getModel(): Model
     {
         return new Agent();
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new AgentFactory();
     }
 }

@@ -6,12 +6,12 @@ namespace Kanvas\Intelligence\Agents\Factories;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Intelligence\Agents\Models\AgentModel;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 
-class AgentModelFactory extends Factory
+class AgentFactory extends Factory
 {
-    protected $model = AgentModel::class;
+    protected $model = Agent::class;
 
     #[Override]
     public function definition()
@@ -20,8 +20,10 @@ class AgentModelFactory extends Factory
             'uuid' => Str::uuid()->toString(),
             'name' => $this->faker->word(),
             'config' => [],
+            'agent_type_id' => 1,
+            'user_id' => 1,
+            'role' => [],
             'is_active' => true,
-            'is_published' => false,
         ];
     }
 

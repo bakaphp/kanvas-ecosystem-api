@@ -4,85 +4,68 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Leads\Actions;
 
-use Exception;
+use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Pipelines\Models\Pipeline;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
+use Prism\Prism\Schema\ObjectSchema;
+use Prism\Prism\Schema\StringSchema;
+use RuntimeException;
 
+/**
+ * Creates a structured first engagement message for a lead using AI.
+ *
+ * @example
+ * $action = new CreateLeadFirstEngagementMessageAction($lead);
+ * $response = $action->execute();
+ * // Returns: ['title' => 'Subject line', 'message' => 'Message body']
+ */
 class CreateLeadFirstEngagementMessageAction
 {
+    protected Agent $agent;
+
     public function __construct(
         protected Lead $lead
     ) {
+        $agentName = 'firstMessageEngagerAgent';
+        $this->agent = Agent::fromApp($lead->app)
+            ->fromCompany($lead->company)
+            ->where('name', $agentName)
+            ->firstOrFail();
     }
 
-    public function execute(array $params): array
+    public function execute(): array
     {
-        $leadTypePipeline = $this->lead->type?->name;
-
-        //set the bdc pipeline to follow based on the lead type
-        if ($leadTypePipeline === null || ! isset($params['pipelinesMapping'][$leadTypePipeline])) {
-            throw new Exception('No pipeline mapping found for lead type ' . $leadTypePipeline . ', please configure it.');
+        if (empty($this->agent->role['background']) || empty($this->agent->role['steps'])) {
+            throw new RuntimeException('Agent background or steps are empty');
         }
 
-        $pipelineId = $params['pipelinesMapping'][$leadTypePipeline];
+        $data = [
+            'lead' => $this->lead->toArray(),
+            'people' => $this->lead->people->toArray(),
+            'company' => $this->lead->company->toArray(),
+        ];
 
-        $pipeline = Pipeline::fromCompany($this->lead->company)
-            ->fromApp($this->lead->app)
-            ->where('id', $pipelineId)
-            ->where('is_deleted', 0)
-            ->firstOrFail();
-
-        $firstPipelineStage = $pipeline->stages->firstOrFail();
-        $this->lead->pipeline_id = $pipeline->id;
-        $this->lead->pipeline_stage_id = $firstPipelineStage->id;
-        $this->lead->saveOrFail();
-
-        $pipelineStageConfig = $firstPipelineStage->config;
-
-        if (empty($pipelineStageConfig)) {
-            throw new Exception('No configuration found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
-        }
-
-        $contextInvocableActions = $pipelineStageConfig['actions'];
-
-        if (empty($contextInvocableActions)) {
-            throw new Exception('No actions found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
-        }
-
-        $leadContext = [];
-        foreach ($contextInvocableActions as $action) {
-            $actionClass = $action['class'];
-            $actionParams = $action['params'] ?? [];
-            $contactIndex = $action['contact_index'] ?? null;
-
-            if (empty($actionClass)) {
-                throw new Exception('No action class found for action in pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
-            }
-
-            if (empty($contactIndex)) {
-                throw new Exception('No contact index found for action ' . $actionClass . ' in pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
-            }
-
-            $actionInstance = new $actionClass($this->lead);
-            $leadContext[$contactIndex] = $actionInstance->execute($actionParams);
-        }
-
-        if (empty($leadContext)) {
-            return [];
-        }
-
-        $this->lead->set(
-            ConfigurationEnum::LEAD_CONTEXT_INFO->value,
-            $leadContext
+        // Define the schema for the structured response
+        $schema = new ObjectSchema(
+            name: 'lead_engagement_message',
+            description: 'First engagement message structure for a lead',
+            properties: [
+                new StringSchema('title', 'The subject or title of the engagement message'),
+                new StringSchema('message', 'The main body of the engagement message'),
+            ],
+            requiredFields: ['title', 'message']
         );
 
-        //get the first message
-        //send the first message
+        $response = Prism::structured()
+                   ->using(Provider::Gemini, 'gemini-2.0-flash')
+                   ->withSchema($schema)
+                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
+                   ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data))
+                   ->asStructured();
 
-        //move to stage 2 of the pipeline
-        $this->lead->moveToNextPipelineStage();
-
-        return $leadContext;
+        // Return the structured data containing title and message
+        return $response->structured ?? [];
     }
 }

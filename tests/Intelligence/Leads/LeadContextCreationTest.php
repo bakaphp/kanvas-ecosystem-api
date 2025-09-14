@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence;
+namespace Tests\Intelligence\Leads;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
