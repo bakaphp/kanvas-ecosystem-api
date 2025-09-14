@@ -106,6 +106,7 @@ use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\Workflows\LeadAgentFirstInteractionActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
@@ -249,6 +250,7 @@ class KanvasWorkflowSynActionCommand extends Command
             RemixCreationActivity::class,
             PromptIAPOrderActivity::class,
             WorkflowPushLeadNotesActivity::class,
+            LeadAgentFirstInteractionActivity::class,
         ];
 
         $createdActions = [];
