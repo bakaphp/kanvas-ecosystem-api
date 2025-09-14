@@ -225,28 +225,6 @@ class Lead extends BaseModel
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
-    public function getCurrentPipelineStage(): ?PipelineStage
-    {
-        if ($this->pipeline_stage_id) {
-            return PipelineStage::find($this->pipeline_stage_id);
-        }
-
-        return null;
-    }
-
-    public function getNextPipelineStage(): ?PipelineStage
-    {
-        $currentStage = $this->getCurrentPipelineStage();
-        if ($currentStage) {
-            return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
-                ->where('weight', '>', $currentStage->weight)
-                ->orderBy('weight', 'asc')
-                ->first();
-        }
-
-        return null;
-    }
-
     public function isOpen(): bool
     {
         return $this->status < 2;
@@ -582,5 +560,36 @@ class Lead extends BaseModel
         }
 
         return $query;
+    }
+
+    public function getCurrentPipelineStage(): ?PipelineStage
+    {
+        if ($this->pipeline_stage_id) {
+            return PipelineStage::find($this->pipeline_stage_id);
+        }
+
+        return null;
+    }
+
+    public function getNextPipelineStage(): ?PipelineStage
+    {
+        $currentStage = $this->getCurrentPipelineStage();
+        if ($currentStage) {
+            return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
+                ->where('weight', '>', $currentStage->weight)
+                ->orderBy('weight', 'asc')
+                ->first();
+        }
+
+        return null;
+    }
+
+    public function moveToNextPipelineStage(): void
+    {
+        $nextStage = $this->getNextPipelineStage();
+        if ($nextStage) {
+            $this->pipeline_stage_id = $nextStage->id;
+            $this->saveOrFail();
+        }
     }
 }
