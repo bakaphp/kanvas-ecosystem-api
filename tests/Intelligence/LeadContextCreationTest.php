@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Intelligence;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Actions\CreateLeadContextInfoAction;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Tests\TestCase;
@@ -68,5 +70,7 @@ final class LeadContextCreationTest extends TestCase
         $this->assertIsArray($context);
         $this->assertArrayHasKey('company-work-hours', $context);
         $this->assertArrayHasKey('company-holidays', $context);
+        $this->assertEquals($lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value), $context);
+        $this->assertNotEmpty($lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value));
     }
 }
