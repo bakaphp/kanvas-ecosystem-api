@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Actions;
+namespace Kanvas\Intelligence\Leads\Actions;
 
 use Exception;
 use Kanvas\Guild\Leads\Models\Lead;

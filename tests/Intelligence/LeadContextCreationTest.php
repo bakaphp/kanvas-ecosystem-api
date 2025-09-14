@@ -8,8 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Support\Setup;
-use Kanvas\Intelligence\Agents\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Tests\TestCase;
@@ -44,12 +44,12 @@ final class LeadContextCreationTest extends TestCase
                 [
                     'class' => CompanyWorkHoursTool::class,
                     'params' => [],
-                    'contact_index' => 'company-work-hours',
+                    'contact_index' => 'company_work_hours',
                 ],
                 [
                     'class' => CompanyIsHolidayTool::class,
                     'params' => [],
-                    'contact_index' => 'company-holidays',
+                    'contact_index' => 'company_holidays',
                 ],
             ],
         ];
@@ -67,8 +67,8 @@ final class LeadContextCreationTest extends TestCase
         //print_r($context);
 
         $this->assertIsArray($context);
-        $this->assertArrayHasKey('company-work-hours', $context);
-        $this->assertArrayHasKey('company-holidays', $context);
+        $this->assertArrayHasKey('company_work_hours', $context);
+        $this->assertArrayHasKey('company_holidays', $context);
         $this->assertEquals($lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value), $context);
         $this->assertNotEmpty($lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value));
     }
