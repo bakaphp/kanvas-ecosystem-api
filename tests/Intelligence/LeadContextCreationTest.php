@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Support\Setup;

@@ -11,7 +11,6 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
