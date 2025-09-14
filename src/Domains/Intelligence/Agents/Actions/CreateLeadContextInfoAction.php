@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Exception;
-use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class CreateLeadContextInfoAction
@@ -26,7 +26,9 @@ class CreateLeadContextInfoAction
         }
 
         $pipelineId = $params['pipelinesMapping'][$leadTypePipeline];
-        $pipeline = Pipeline::where('companies_id', $this->lead->companies_id)
+
+        $pipeline = Pipeline::fromCompany($this->lead->company)
+            ->fromApp($this->lead->app)
             ->where('id', $pipelineId)
             ->where('is_deleted', 0)
             ->firstOrFail();
@@ -62,12 +64,12 @@ class CreateLeadContextInfoAction
                 throw new Exception('No contact index found for action ' . $actionClass . ' in pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
             }
 
-            $actionInstance = new $actionClass($lead);
+            $actionInstance = new $actionClass($this->lead);
             $leadContext[$contactIndex] = $actionInstance->execute($actionParams);
         }
 
         if (empty($leadContext)) {
-            return ['success' => false, 'message' => 'No context generated for the lead.'];
+            return [];
         }
 
         $this->lead->set(
@@ -81,6 +83,6 @@ class CreateLeadContextInfoAction
         //move to stage 2 of the pipeline
         $this->lead->moveToNextPipelineStage();
 
-        return ['success' => true, 'message' => 'Lead handed off to ' . $leadOwner->id];
+        return $leadContext;
     }
 }
