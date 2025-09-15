@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "94425c5778124ceaf2e66e3501a0a0f4",
+    "content-hash": "4ddfa7515820a285f9555e8367684207",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -7489,31 +7489,31 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v1.22.0",
+            "version": "v2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "e3e202309d4b23bb3ecd468450ee5ec567bf0dba"
+                "reference": "c68ad44c45fdc9bdec23550cd8153a9521c768d1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/e3e202309d4b23bb3ecd468450ee5ec567bf0dba",
-                "reference": "e3e202309d4b23bb3ecd468450ee5ec567bf0dba",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/c68ad44c45fdc9bdec23550cd8153a9521c768d1",
+                "reference": "c68ad44c45fdc9bdec23550cd8153a9521c768d1",
                 "shasum": ""
             },
             "require": {
                 "ext-curl": "*",
                 "ext-fileinfo": "*",
                 "ext-json": "*",
-                "php": ">=7.4",
+                "php": ">=8.1",
                 "setasign/fpdf": "^1.8",
                 "setasign/fpdi": "^2.6",
-                "smalot/pdfparser": "^2.11",
-                "symfony/console": ">=5.4"
+                "smalot/pdfparser": "^2.12",
+                "symfony/console": ">=6.0"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.38",
-                "madewithlove/license-checker": "^0.10.0",
+                "madewithlove/license-checker": "^v1.0",
                 "phpunit/phpunit": "^9.6",
                 "squizlabs/php_codesniffer": "^3.7"
             },
@@ -7538,9 +7538,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v1.22.0"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.0.1"
             },
-            "time": "2025-06-04T07:47:11+00:00"
+            "time": "2025-09-12T08:50:31+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
