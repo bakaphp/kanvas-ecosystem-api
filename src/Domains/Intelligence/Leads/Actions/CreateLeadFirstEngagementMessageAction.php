@@ -28,7 +28,7 @@ class CreateLeadFirstEngagementMessageAction
     public function __construct(
         protected Lead $lead
     ) {
-        $agentName = 'firstMessageEngagerAgent';
+        $agentName = 'FirstMessagingAgent';
         $this->agent = Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
             ->where('name', $agentName)
