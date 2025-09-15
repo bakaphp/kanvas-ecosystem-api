@@ -18,7 +18,7 @@ class CreateLeadTypeAction
     {
         $leadType = new LeadType();
         $leadType->apps_id = $this->leadTypeDto->apps->getId();
-        $leadType->companies_id = $this->leadTypeDto->company->getId();
+        $leadType->companies_id = $this->leadTypeDto->companies->getId();
         $leadType->name = $this->leadTypeDto->name;
         $leadType->description = $this->leadTypeDto->description;
         $leadType->is_active = $this->leadTypeDto->is_active;

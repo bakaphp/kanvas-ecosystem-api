@@ -110,7 +110,7 @@ class SyncLeadAction
                 foreach ($eLeadOpportunity->salesTeam as $salesTeam) {
                     if ((bool)$salesTeam['isPrimary']) {
                         $userConfig = UserConfig::where([
-                            'name' => CustomFieldEnum::getUserKey($this->company),
+                            'name' => CustomFieldEnum::getUserKey($this->lead->company),
                             'value' => $salesTeam['id'],
                         ])->first();
 
