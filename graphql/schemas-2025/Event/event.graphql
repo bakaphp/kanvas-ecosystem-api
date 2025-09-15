@@ -155,6 +155,7 @@ input EventUpdateInput {
 
 union EventResource = Variant
 
+
 input EventVersionDateInput {
     date: Date!
     start_time: String!
@@ -191,6 +192,15 @@ input EventVersionUpdateInput {
     dates: [EventVersionDateInput!]
 }
 
+input TimeSlotBookingInput {
+    time_slot_id: ID!
+    participants: [String!]!
+    event_name: String!
+    event_description: String
+    hold_id: String
+    metadata: Mixed
+}
+
 extend type Mutation @guard {
     createEvent(input: EventInput!): Event!
         @field(
@@ -225,6 +235,11 @@ extend type Mutation @guard {
     removeParticipantFromEventVersion(event_version_id: ID!, participant_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\EventVersions\\EventVersionMutation@removeParticipant"
+        )
+    
+    bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
 }
 

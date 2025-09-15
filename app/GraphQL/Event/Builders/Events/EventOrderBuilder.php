@@ -17,7 +17,7 @@ class EventOrderBuilder
     {
         /** @var Event $event */
         $event = $root;
-        
+
         return Order::fromApp()
             ->fromCompany()
             ->where('resources_type', get_class($event))

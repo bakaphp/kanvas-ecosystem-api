@@ -163,6 +163,15 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
 }
 
+input TimeSlotBookingInput {
+    time_slot_id: ID!
+    participants: [String!]!
+    event_name: String!
+    event_description: String
+    hold_id: String
+    metadata: Mixed
+}
+
 extend type Mutation @guard {
     createEvent(input: EventInput!): Event!
         @field(
@@ -175,6 +184,11 @@ extend type Mutation @guard {
     deleteEvent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
+        )
+    
+    bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
 }
 

@@ -15,10 +15,10 @@ type ScheduleRules {
     is_deleted: Boolean!
     created_at: DateTime
     updated_at: DateTime
-    resource: ScheduleResource @morphTo
+   resource: TimeSlotResource @morphTo(related: "resource")
 }
 
-union ScheduleResource = Product
+union ScheduleResource = Variant
 
 input ScheduleRulesInput {
     resources_id: ID!

@@ -19,7 +19,7 @@ class ScheduleRulesManagementMutation
         $app = app(Apps::class);
 
         $entity = $this->getEntity($req['input']['resources_type'], $req['input']['resources_id']);
-        
+
         $scheduleRule = ScheduleRules::create([
             'apps_id' => $app->getId(),
             'companies_id' => $user->getCurrentCompany()->getId(),
@@ -37,7 +37,7 @@ class ScheduleRulesManagementMutation
         // Dispatch job to generate time slots
         $windowFrom = Carbon::now();
         $windowTo = Carbon::now()->addYear();
-        
+
         dispatch_sync(new GenerateTimeSlots(
             $entity->id,
             $scheduleRule->id,

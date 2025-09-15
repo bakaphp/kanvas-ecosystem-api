@@ -16,7 +16,7 @@ type TimeSlots {
     resource: TimeSlotResource @morphTo
 }
 
-union TimeSlotResource = Product
+union TimeSlotResource = Variant | Product
 
 input TimeSlotsFilterInput {
     resources_id: ID
@@ -51,29 +51,5 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany"]
             model: "Kanvas\\Event\\Events\\Models\\TimeSlots"
             defaultCount: 25
-        )
-
-    timeSlotsForResource(
-        resources_id: ID!
-        resources_type: String!
-        date_from: DateTime
-        date_to: DateTime
-        status: String
-        orderBy: _ @orderBy(columns: ["start_at", "end_at", "capacity"])
-    ): [TimeSlots!]!
-        @field(
-            resolver: "App\\GraphQL\\Event\\Queries\\TimeSlots\\TimeSlotsQuery@getForResource"
-        )
-
-    availableTimeSlots(
-        resources_id: ID!
-        resources_type: String!
-        date_from: DateTime!
-        date_to: DateTime!
-        capacity_needed: Int = 1
-        orderBy: _ @orderBy(columns: ["start_at", "end_at"])
-    ): [TimeSlots!]!
-        @field(
-            resolver: "App\\GraphQL\\Event\\Queries\\TimeSlots\\TimeSlotsQuery@getAvailable"
         )
 }

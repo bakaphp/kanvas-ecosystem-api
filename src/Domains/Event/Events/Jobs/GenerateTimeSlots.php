@@ -41,14 +41,14 @@ class GenerateTimeSlots implements ShouldQueue {
 
       // 3) Compute capacity & price
       $capacity = $rule->capacity_override ?? $resource->default_capacity;
-      $price = $resource->variants()->first()?->getPriceInfoFromDefaultChannel()?->price;
+      $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
 
       TimeSlots::upsert([[
-        'resources_id'         => $resource->id,
-        'resources_type'       => $resource->getMorphClass(),
+        'resources_id'        => $resource->id,
+        'resources_type'      => $resource->getMorphClass(),
         'start_at'            => $localStart->clone()->setTimezone('UTC'),
         'apps_id'             => $rule->apps_id,
-        'companies_id'             => $rule->companies_id,
+        'companies_id'        => $rule->companies_id,
         'end_at'              => $localEnd->clone()->setTimezone('UTC'),
         'capacity'            => $capacity,
         'price_snapshot'      => $price,

@@ -35,7 +35,7 @@ class EventVersionMutation
 
         // Generate slug if not provided
         $slug = $args['input']['slug'] ?? Str::slug($args['input']['name']);
-        
+
         // Ensure slug uniqueness
         $originalSlug = $slug;
         $counter = 1;
@@ -66,7 +66,7 @@ class EventVersionMutation
         ]);
 
         // Add dates if provided
-        if (isset($args['input']['dates']) && !empty($args['input']['dates'])) {
+        if (isset($args['input']['dates']) && ! empty($args['input']['dates'])) {
             $dates = DataCollection::from($args['input']['dates'], EventVersionDto::class);
             $eventVersion->addDates($dates);
         }
@@ -90,11 +90,11 @@ class EventVersionMutation
         if (isset($updateData['dates'])) {
             // Handle dates update - first remove existing ones
             $eventVersion->dates()->delete();
-            
+
             // Add new dates
             $dates = DataCollection::from($updateData['dates'], EventVersionDto::class);
             $eventVersion->addDates($dates);
-            
+
             unset($updateData['dates']); // Remove from update data as it's handled separately
         }
 
