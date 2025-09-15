@@ -91,11 +91,11 @@ class BaseAgent extends RAG
     #[Override]
     protected function vectorStore(): VectorStoreInterface
     {
-       /*  return new PineconeVectorStore(
-            key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
-            indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
-            topK: 4
-        ); */
+        /*  return new PineconeVectorStore(
+             key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
+             indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
+             topK: 4
+         ); */
         return new MemoryVectorStore();
     }
 
