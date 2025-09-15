@@ -13,7 +13,6 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Spatie\LaravelData\DataCollection;
 
 class TimeSlotBookingMutation
 {
@@ -27,7 +26,7 @@ class TimeSlotBookingMutation
         $app = app(Apps::class);
 
         $input = $args['input'];
-        
+
         $timeSlot = TimeSlots::fromApp($app)
             ->fromCompany($company)
             ->findOrFail($input['time_slot_id']);

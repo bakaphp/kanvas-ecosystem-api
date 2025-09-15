@@ -50,6 +50,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::dropIfExists('schedule_rules');
-        Schema::dropIfExists('schedule_exceptions');        
+        Schema::dropIfExists('schedule_exceptions');
     }
 };

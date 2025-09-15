@@ -45,8 +45,8 @@ return new class () extends Migration {
             $table->unsignedBigInteger('resources_id')->nullable()->index();
             $table->string('resources_type', 255)->nullable()->index();
             $table->dateTime('start_at')->nullable();
-            $table->dateTime('end_at')->nullable(); 
-        });     
+            $table->dateTime('end_at')->nullable();
+        });
     }
 
     /**
