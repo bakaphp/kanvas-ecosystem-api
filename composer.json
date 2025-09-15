@@ -15,6 +15,7 @@
         "algolia/scout-extended": "^3.2",
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
+        "azuyalabs/yasumi": "^2.8",
         "bacon/bacon-qr-code": "^3.0",
         "bavix/laravel-wallet": "^11.4",
         "berkayk/onesignal-laravel": "^2.4",
