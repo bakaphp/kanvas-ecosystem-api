@@ -55,7 +55,6 @@ class CreateLeadContextInfoAction
             $actionClass = $action['class'];
             $actionParams = $action['params'] ?? [];
             $contactIndex = $action['contact_index'] ?? null;
-
             if (empty($actionClass)) {
                 throw new Exception('No action class found for action in pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
             }
@@ -66,16 +65,16 @@ class CreateLeadContextInfoAction
 
             $actionInstance = new $actionClass($this->lead);
             $leadContext[$contactIndex] = $actionInstance->execute($actionParams);
+            $this->lead->set(
+                ConfigurationEnum::LEAD_CONTEXT_INFO->value,
+                $leadContext
+            );
         }
 
         if (empty($leadContext)) {
             return [];
         }
 
-        $this->lead->set(
-            ConfigurationEnum::LEAD_CONTEXT_INFO->value,
-            $leadContext
-        );
 
         return $leadContext;
     }
