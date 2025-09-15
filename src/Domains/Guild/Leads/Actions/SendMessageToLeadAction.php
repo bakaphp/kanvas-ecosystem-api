@@ -21,9 +21,9 @@ class SendMessageToLeadAction
         //TODO. we need to add this message to the lead channel
 
         return match ($channel) {
-            LeadCommunicationChannelEnum::WHATSAPP->value => $this->lead->sendWhatsAppMessage($message),
-            LeadCommunicationChannelEnum::SMS->value => $this->lead->sendSmsMessage($message),
-            LeadCommunicationChannelEnum::EMAIL->value => $this->lead->sendEmailMessage($message),
+            LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
+            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($message),
+            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
     }
