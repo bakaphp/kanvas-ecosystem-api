@@ -72,6 +72,7 @@ class RealStateAgent extends BaseAgent
                         ];
                     }
                 } catch (\Exception $e) {
+                    report($e);
                     return [
                         'status' => 'error',
                         'message' => 'Error retrieving deals: ' . $e->getMessage(),
@@ -132,6 +133,7 @@ class RealStateAgent extends BaseAgent
                         ];
                     }
                 } catch (\Exception $e) {
+                    report($e);
                     return [
                         'status' => 'error',
                         'message' => 'Error retrieving properties: ' . $e->getMessage(),
@@ -200,6 +202,8 @@ class RealStateAgent extends BaseAgent
                         ];
                     }
                 } catch (\Exception $e) {
+                    report($e);
+
                     return [
                         'status' => 'error',
                         'message' => 'Error sending properties to deal: ' . $e->getMessage(),
@@ -247,6 +251,7 @@ class RealStateAgent extends BaseAgent
                         ];
                     }
                 } catch (\Exception $e) {
+                    report($e);
                     return [
                         'status' => 'error',
                         'message' => 'Error retrieving agent profile: ' . $e->getMessage(),
