@@ -561,7 +561,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $app = app(Apps::class);
 
-        $query = self::traitSearch($query, function($algolia, $searchTerm, $options) use ($callback, $limit) {
+        $query = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback, $limit) {
             $options['hitsPerPage'] = $limit;
 
             if ($callback) {
