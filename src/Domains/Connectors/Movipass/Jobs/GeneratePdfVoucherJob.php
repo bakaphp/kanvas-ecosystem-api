@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -44,15 +43,7 @@ class GeneratePdfVoucherJob implements ShouldQueue
         );
 
         $this->entity->addFile($pdfFile, $this->filename);
-
-        $tempFilePath = "pdfs/vouchers/{$this->filename}.pdf";
-        $fullTempPath = Storage::disk('public')->path($tempFilePath);
-
-        $isSavedInFileSystem = ! empty($pdfFile->url) && $pdfFile->url !== '/';
-        if (! $isSavedInFileSystem) {
-            Storage::disk('local')->put($tempFilePath, $pdfFile);
-            $fullTempPath = Storage::disk('local')->path($tempFilePath);
-        }
+        $this->entity->set("voucher_url", $pdfFile->url);
 
         activity()
         ->causedBy($this->user)
@@ -63,7 +54,8 @@ class GeneratePdfVoucherJob implements ShouldQueue
             'user_id' => $this->user->id,
             'timestamp' => now(),
             'file_id' => $pdfFile->id,
-            'file_path' => $pdfFile->path ?? $fullTempPath ?? $pdfFile->url
+            'file_url' =>  $pdfFile->url,
+            'file_path' => $pdfFile->path
         ])
         ->log('COMPROBANTE_DESPACHO_GENERADO');
     }
