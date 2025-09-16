@@ -7,12 +7,12 @@ namespace Kanvas\Intelligence\Leads\Actions;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use RuntimeException;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 /**
  * Creates a structured first engagement message for a lead using AI.

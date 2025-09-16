@@ -16,10 +16,10 @@ use Kanvas\Intelligence\Tools\ArtifactsTool;
 use Kanvas\Intelligence\Tools\CommunicationChannelTool;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\CompletionStatusTool;
+use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Intelligence\Tools\LeadRefTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
-use Kanvas\Intelligence\Tools\LeadIntentTool;
-use Kanvas\Intelligence\Tools\CompletionStatusTool;
 use Tests\TestCase;
 
 final class LeadContextCreationTest extends TestCase
