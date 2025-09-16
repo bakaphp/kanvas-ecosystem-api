@@ -12,6 +12,7 @@ use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 
 class CreateFakeLeadContextCommand extends Command
 {
@@ -59,6 +60,9 @@ class CreateFakeLeadContextCommand extends Command
         $lead->saveOrFail();
         $lead->pipeline_stage_id = $pipelineStageId ?? null;
         $lead->saveOrFail();
+
+        $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
+
         $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, [
             'isNew' => true,
             'yearFrom' => 2024,
