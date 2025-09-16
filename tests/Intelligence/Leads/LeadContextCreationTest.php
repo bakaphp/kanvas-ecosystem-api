@@ -18,6 +18,8 @@ use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\LeadRefTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Intelligence\Tools\LeadIntentTool;
+use Kanvas\Intelligence\Tools\CompletionStatusTool;
 use Tests\TestCase;
 
 final class LeadContextCreationTest extends TestCase
@@ -40,9 +42,9 @@ final class LeadContextCreationTest extends TestCase
             'opens_at_local' => '08:00:00',
             'closes_at_local' => '17:00:00',
         ]);
-        
+
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
-        
+
         $leadType = LeadType::firstOrCreate([
             'name' => 'Internet ',
             'companies_id' => $company->getId(),
@@ -50,7 +52,7 @@ final class LeadContextCreationTest extends TestCase
         ], [
             'description' => 'Internet Lead',
         ]);
-        
+
         $lead->leads_types_id = $leadType->id;
         $lead->saveOrFail();
         $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, [
@@ -65,7 +67,7 @@ final class LeadContextCreationTest extends TestCase
             'price' => 38995,
         ]);
         $lead->refresh();
-        
+
         $pipelineConfiguration = [
             'actions' => [
                 [
@@ -98,19 +100,28 @@ final class LeadContextCreationTest extends TestCase
                     'params' => [],
                     'contact_index' => 'artifacts',
                 ],
+                [
+                    'class' => LeadIntentTool::class,
+                    'params' => [],
+                    'contact_index' => 'lead_intent',
+                ],
+                [
+                    'class' => CompletionStatusTool::class,
+                    'params' => [],
+                    'contact_index' => 'completion_status',
+                ],
             ],
         ];
-        
+
         $pipelineStage = $lead->getCurrentPipelineStage();
         $pipelineStage->config = $pipelineConfiguration;
         $pipelineStage->saveOrFail();
-        
+
         $context = new CreateLeadContextInfoAction($lead)->execute([
             'pipelinesMapping' => [
                 'Internet ' => $lead->pipeline_id,
             ],
         ]);
-                
         $this->assertIsArray($context);
         $this->assertArrayHasKey('lead_ref', $context);
         $this->assertArrayHasKey('communication', $context);

@@ -39,6 +39,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
@@ -163,6 +164,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 ->where('apps_id', $this->receiver->app->getId())
                 ->first();
             $lastMessage = $channel->getLastMessage();
+            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
 
             if ($existingMessage) {
                 $message = $existingMessage;

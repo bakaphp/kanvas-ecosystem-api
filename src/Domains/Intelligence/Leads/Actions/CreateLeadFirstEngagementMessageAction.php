@@ -12,6 +12,7 @@ use Prism\Prism\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use RuntimeException;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 /**
  * Creates a structured first engagement message for a lead using AI.
@@ -45,6 +46,7 @@ class CreateLeadFirstEngagementMessageAction
             'lead' => $this->lead->toArray(),
             'people' => $this->lead->people->toArray(),
             'company' => $this->lead->company->toArray(),
+            'additional_context_information' => $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
 
         // Define the schema for the structured response
