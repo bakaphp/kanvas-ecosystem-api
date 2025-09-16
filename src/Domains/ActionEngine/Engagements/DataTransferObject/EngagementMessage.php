@@ -29,6 +29,8 @@ class EngagementMessage extends Data
         public readonly ?string $contactUuid = null,
         #[MapOutputName('checkListId')]
         public readonly int|string|null $checkListId = 0,
+        #[MapOutputName('taskItemId')]
+        public readonly int|string|null $taskItemId = null,
         #[MapOutputName('preFill')]
         public readonly ?array $preFill = [],
         public readonly ?string $via = null,
