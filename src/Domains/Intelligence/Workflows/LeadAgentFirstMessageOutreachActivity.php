@@ -56,7 +56,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $channel = ChannelDto::from([
                         'apps' => $app,
                         'companies' => $lead->company,
-                        'user' => $lead->user,
+                        'users' => $lead->user,
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
                         'name' => 'Lead ' . $lead->getId() . ' Session',
@@ -68,13 +68,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $channel = (new CreateChannelAction($channel))->execute();
 
                     $sessionDto = Session::from([
-                        'agent_id' => Agent::getById($params['agent_id']),
-                        'channel_id' => $channel->getId(),
+                        'agent' => Agent::getById($params['agent_id']),
+                        'channel' => $channel,
                         'app' => $app,
                         'company' => $lead->company,
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
-                        'user' => $lead->user,
+                        'user' => $lead->user->toArray(),
                         'canal_id' => $channel->slug,
                     ]);
                     new CreateSessionAction($sessionDto)->execute();
