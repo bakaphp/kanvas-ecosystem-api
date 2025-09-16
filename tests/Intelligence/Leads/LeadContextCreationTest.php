@@ -16,6 +16,8 @@ use Kanvas\Intelligence\Tools\ArtifactsTool;
 use Kanvas\Intelligence\Tools\CommunicationChannelTool;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\CompletionStatusTool;
+use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Intelligence\Tools\LeadRefTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Tests\TestCase;
@@ -98,6 +100,16 @@ final class LeadContextCreationTest extends TestCase
                     'params' => [],
                     'contact_index' => 'artifacts',
                 ],
+                [
+                    'class' => LeadIntentTool::class,
+                    'params' => [],
+                    'contact_index' => 'lead_intent',
+                ],
+                [
+                    'class' => CompletionStatusTool::class,
+                    'params' => [],
+                    'contact_index' => 'completion_status',
+                ],
             ],
         ];
 
@@ -110,7 +122,6 @@ final class LeadContextCreationTest extends TestCase
                 'Internet ' => $lead->pipeline_id,
             ],
         ]);
-
         $this->assertIsArray($context);
         $this->assertArrayHasKey('lead_ref', $context);
         $this->assertArrayHasKey('communication', $context);

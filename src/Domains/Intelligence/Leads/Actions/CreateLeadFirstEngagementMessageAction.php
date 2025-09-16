@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Leads\Actions;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Prism\Prism\Schema\ObjectSchema;
@@ -45,6 +46,7 @@ class CreateLeadFirstEngagementMessageAction
             'lead' => $this->lead->toArray(),
             'people' => $this->lead->people->toArray(),
             'company' => $this->lead->company->toArray(),
+            'additional_context_information' => $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
