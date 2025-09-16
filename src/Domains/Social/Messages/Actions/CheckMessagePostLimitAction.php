@@ -6,16 +6,16 @@ namespace Kanvas\Social\Messages\Actions;
 
 use Carbon\Carbon;
 use Exception;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class CheckMessagePostLimitAction
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
+    protected Users $user;
+    protected Apps $app;
+
     public function __construct(
         public Message $message,
         public int $timeFrame = 24,
@@ -23,6 +23,9 @@ class CheckMessagePostLimitAction
         public bool $getChildrenCount = false,
         public ?array $messageJsonFilters = null
     ) {
+        //why? dont know but the model cache causes issues
+        $this->user = Users::getById($this->message->users_id);
+        $this->app = Apps::getById($message->apps_id);
     }
 
     /**
@@ -30,6 +33,18 @@ class CheckMessagePostLimitAction
      */
     public function execute(): void
     {
+        $modelIndex = $this->message->message['ai_model']['value'] ?? null;
+        $orderCredit = $this->user->get('order_credits', []);
+        $aiIndex = match ($this->message->message['type'] ?? '') {
+            'video-format' => 'video',
+            'image-format' => 'image',
+            default => 'image',
+        };
+
+        if (isset($orderCredit[$aiIndex][$modelIndex]) && $orderCredit[$aiIndex][$modelIndex] > 0) {
+            return ;
+        }
+
         $messageCount = Message::getUserMessageCountInTimeFrameBuilder(
             $this->message->user->getId(),
             $this->message->app,
@@ -57,9 +72,9 @@ class CheckMessagePostLimitAction
 
         $messageCount -= (int) $totalOrdersToday;
 
-        // $this->message->app->reGenerateRedisSettings();
-        $messageLimit = $this->message->app->get('message-post-limit');
-        $this->message->user->set('composer_ideas_used', $messageCount, true);
+        $messageLimit = $this->app->get('message-post-limit');
+        $this->user->set('composer_ideas_used', $messageCount, true);
+
         if ($messageCount > $messageLimit) {
             throw new Exception('Your daily limit has been reached.');
         }

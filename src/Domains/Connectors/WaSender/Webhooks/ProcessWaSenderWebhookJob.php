@@ -1046,12 +1046,17 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->save();
             }
 
-            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'WhatsApp');
-
             if ($lead && empty($channel->entity_namespace)) {
                 $channel->entity_namespace = get_class($lead->people);
                 $channel->entity_id = $lead->people->getId();
                 $channel->update();
+            }
+
+            if ($channel->id) {
+                $channel->set(
+                    ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                    'WhatsApp'
+                );
             }
 
             return $channel;
@@ -1153,6 +1158,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $existingCustomer = People::getByCustomField(
+            'whatsapp_jid',
+            $jid,
+            $this->receiver->company
+        );
+
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
 
@@ -1187,6 +1198,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             ],
             tags: ['whatsapp', 'wa-contact']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
 
         $createAction = new CreatePeopleAction($peopleDto);
 

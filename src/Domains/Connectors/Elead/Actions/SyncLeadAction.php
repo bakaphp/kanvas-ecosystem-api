@@ -32,7 +32,7 @@ class SyncLeadAction
 
             if ($lead->owner) {
                 try {
-                    if ($leadOwnerId = $lead->owner->get(CustomFieldEnum::getUserKey($this->lead->companies))) {
+                    if ($leadOwnerId = $lead->owner->get(CustomFieldEnum::getUserKey($this->lead->company))) {
                         $eLeadOpportunity->reAssignPrimarySalesUser($leadOwnerId);
                     }
                 } catch (Throwable $e) {
@@ -59,7 +59,7 @@ class SyncLeadAction
                 $vehicleOfInterest
             );
 
-            if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->companies->get('enable_vehicle_checklist')) {
+            if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->company->get('enable_vehicle_checklist')) {
                 if (isset($vehicleOfInterest['mileage'])) {
                     $isNew = $vehicleOfInterest['mileage'] < 3000 ? 1 : 0;
                     $taskList = [
@@ -68,7 +68,7 @@ class SyncLeadAction
                     ];
 
                     $completeTaskList = TaskList::fromApp($this->lead->app)->where([
-                        'companies_id' => $this->lead->companies->getId(),
+                        'companies_id' => $this->lead->company->getId(),
                         'name' => $taskList[$isNew],
                         'apps_id' => $this->lead->app->getId(),
                     ])->first();
@@ -84,7 +84,7 @@ class SyncLeadAction
                     } else {
                         $lead->set('check_list_status', [
                             'mode' => 'automatic',
-                            'activeTaskListId' => $lead->companies->get('default_checklist_id'),
+                            'activeTaskListId' => $lead->company->get('default_checklist_id'),
                         ]);
                     }
                 }
@@ -110,7 +110,7 @@ class SyncLeadAction
                 foreach ($eLeadOpportunity->salesTeam as $salesTeam) {
                     if ((bool)$salesTeam['isPrimary']) {
                         $userConfig = UserConfig::where([
-                            'name' => CustomFieldEnum::getUserKey($this->company),
+                            'name' => CustomFieldEnum::getUserKey($this->lead->company),
                             'value' => $salesTeam['id'],
                         ])->first();
 
