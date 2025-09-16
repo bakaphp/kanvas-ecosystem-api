@@ -320,6 +320,7 @@ class CreateEngagementAction
             userUuid: $this->user->uuid,
             contactUuid: $this->people->uuid,
             checkListId: $this->checkListId,
+            taskItemId: $this->engagementData->taskId,
             preFill: [],
             via: $this->engagementData->via,
             product_id: $this->engagementData->data['product_id'] ?? null,
