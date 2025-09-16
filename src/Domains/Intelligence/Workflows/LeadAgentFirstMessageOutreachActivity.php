@@ -61,7 +61,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_namespace' => Lead::class,
                         'name' => 'Lead ' . $lead->getId() . ' Session',
                         'slug' => new CreateSessionUUidAction()->execute(
-                            LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value,
+                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $lead->people->phones->first()->value
                         ),
                     ]);
