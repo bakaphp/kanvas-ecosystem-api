@@ -1,12 +1,13 @@
 <?php
-declare(strict_types= 1);
+
+declare(strict_types=1);
+
 namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 
 class CommunicationChannelTool implements ContextToolInterface
 {
