@@ -49,7 +49,7 @@
         "league/oauth2-client": "2.7.0",
         "maatwebsite/excel": "^3.1",
         "meilisearch/meilisearch-php": "^1.4",
-        "mindee/mindee": "^1.21",
+        "mindee/mindee": "^2.0",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
         "nevadskiy/laravel-tree": "^0.6.0",
