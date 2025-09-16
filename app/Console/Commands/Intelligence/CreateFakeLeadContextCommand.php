@@ -62,9 +62,11 @@ class CreateFakeLeadContextCommand extends Command
             $leadTypeId = $leadType->id;
         }
         $lead->leads_types_id = $leadTypeId;
+        $lead->companies_branches_id = $company->defaultBranch->getId();
         $lead->saveOrFail();
         $lead->pipeline_stage_id = $pipelineStageId ?? null;
         $lead->saveOrFail();
+        $lead->people->addCellPhone(fake()->phoneNumber());
 
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
 
