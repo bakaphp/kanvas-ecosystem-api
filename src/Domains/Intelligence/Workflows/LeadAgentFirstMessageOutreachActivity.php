@@ -38,11 +38,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $leadContext['first_message'] = $firstLeadMessage;
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
+
                 //send the first message
-                new SendMessageToLeadAction($lead)->execute(
-                    $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                    $firstLeadMessage['message']
-                );
+                if (! isset($params['disable_sending'])) {
+                    new SendMessageToLeadAction($lead)->execute(
+                        $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                        $firstLeadMessage['message']
+                    );
+                }
 
                 //move to stage 2 of the pipeline
                 $lead->moveToNextPipelineStage();

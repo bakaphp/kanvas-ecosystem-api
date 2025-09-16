@@ -41,7 +41,7 @@ class NetSuiteQuoteService
         // Set basic quote information
         $estimate->tranId = 'QUOTE-' . $order->getOrderNumber();
         $orderPONumber = $order->getMetadata('poNumber') !== null ? (string) $order->getMetadata('poNumber') : null;
-        $orderMemo = $orderPONumber !== null ? 'Quote created from PO#' . $orderPONumber : 'Quote created from Order #' . $order->getOrderNumber();
+        $orderMemo = $orderPONumber !== null ? 'Quote created from PO#' . $orderPONumber : 'Quote created from Order NO.:' . $order->getOrderNumber();
         $estimate->memo = $order->customer_note ?? $orderMemo;
         $estimate->tranDate = date('c', strtotime($order->created_at->toDateString()));
 
@@ -67,7 +67,7 @@ class NetSuiteQuoteService
             $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
 
             $variantWarehouse = $orderItem->variant->variantWarehouses()->firstOrFail();
-            $locationID = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value);
+            $locationID = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? 4;
 
             // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();

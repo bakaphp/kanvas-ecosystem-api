@@ -49,6 +49,11 @@ class CreateLeadFirstEngagementMessageAction
             'additional_context_information' => $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
 
+        $data['leadOwnerEmail'] = $this->lead->owner?->email;
+        $data['customerName'] = $this->lead->people->name;
+        $data['leadEmail'] = $this->lead->people->getEmails()->first()?->value ?? '';
+        $data['leadOwnerName'] = $this->lead->owner?->firstname . ' ' . $this->lead->owner?->lastname;
+
         // Define the schema for the structured response
         $schema = new ObjectSchema(
             name: 'lead_engagement_message',
