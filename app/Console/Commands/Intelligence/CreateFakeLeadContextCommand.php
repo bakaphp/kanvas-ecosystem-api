@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 
 class CreateFakeLeadContextCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -31,6 +34,8 @@ class CreateFakeLeadContextCommand extends Command
         $pipelineStageId = $this->option('pipeline_stage_id');
         $company = Companies::getById((int) $companyId);
         $app = Apps::getById((int) $appId);
+        $this->overwriteAppService($app);
+
         $company->set(ConfigurationEnum::WORKING_DAYS->value, [
             'monday',
             'tuesday',
