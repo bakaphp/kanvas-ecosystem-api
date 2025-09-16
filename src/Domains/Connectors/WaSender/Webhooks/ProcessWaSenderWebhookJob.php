@@ -1158,6 +1158,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $existingCustomer = People::getByCustomField(
+            'whatsapp_jid',
+            $jid,
+            $this->receiver->company
+        );
+
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
 
@@ -1192,6 +1198,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             ],
             tags: ['whatsapp', 'wa-contact']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
 
         $createAction = new CreatePeopleAction($peopleDto);
 
