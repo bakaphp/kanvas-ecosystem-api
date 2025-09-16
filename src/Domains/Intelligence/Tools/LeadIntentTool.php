@@ -137,15 +137,12 @@ class LeadIntentTool implements ContextToolInterface
                 'internal_notes',
             ]
         );
-        $prompt = "Classify the lead according to the provided schema. Consider the additional context information: " . json_encode($data['additional_context_information']);
         $response = Prism::structured()
                    ->using(Provider::Gemini, 'gemini-2.0-flash')
                    ->withSchema($leadSchema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
                    ->asStructured();
-        dump($response->structured);
-
         return $response->structured;
     }
 }
