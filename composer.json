@@ -15,6 +15,7 @@
         "algolia/scout-extended": "^3.2",
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^2.2",
+        "azuyalabs/yasumi": "^2.8",
         "bacon/bacon-qr-code": "^3.0",
         "bavix/laravel-wallet": "^11.4",
         "berkayk/onesignal-laravel": "^2.4",
@@ -48,7 +49,7 @@
         "league/oauth2-client": "2.7.0",
         "maatwebsite/excel": "^3.1",
         "meilisearch/meilisearch-php": "^1.4",
-        "mindee/mindee": "^1.21",
+        "mindee/mindee": "^2.0",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
         "nevadskiy/laravel-tree": "^0.6.0",
@@ -98,7 +99,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.3.10"
+        "phpunit/phpunit": "12.3.11"
     },
     "autoload": {
         "psr-4": {

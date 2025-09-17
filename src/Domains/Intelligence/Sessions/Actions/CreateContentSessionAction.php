@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -47,6 +48,7 @@ class CreateContentSessionAction
                 'lead_channel_id' => $lead->uuid,
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
+                'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
             ],
             $this->mapPeople($lead->people, $lead)
         );
