@@ -79,9 +79,15 @@ class EventVersionMutation
      */
     public function update(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): EventVersion
     {
-        $eventVersion = EventVersion::fromApp()
-            ->fromCompany()
-            ->findOrFail($args['id']);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(\Kanvas\Apps\Models\Apps::class);
+
+        $eventVersion = EventVersion::firstOrCreate([
+            'id' => $args['id'],
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+        ]);
 
         $updateData = array_filter($args['input'], function ($value) {
             return $value !== null;

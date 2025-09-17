@@ -165,7 +165,7 @@ input EventVersionDateInput {
 
 input TimeSlotBookingInput {
     time_slot_id: ID!
-    participants: [String!]!
+    participants: Mixed
     event_name: String!
     event_description: String
     hold_id: String
