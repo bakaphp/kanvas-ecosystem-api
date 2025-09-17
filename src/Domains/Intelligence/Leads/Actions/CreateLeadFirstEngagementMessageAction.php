@@ -46,7 +46,12 @@ class CreateLeadFirstEngagementMessageAction
             'lead' => $this->lead->toArray(),
             'people' => $this->lead->people->toArray(),
             'company' => $this->lead->company->toArray(),
-            'additional_context_information' => $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+            'additional_context_information' => array_merge(
+                $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                ['people' => $this->lead->people->toArray()],
+                ['company' => $this->lead->company->toArray()],
+                ['lead' => $this->lead->toArray()]
+            ),
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
