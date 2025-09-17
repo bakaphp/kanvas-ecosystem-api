@@ -38,7 +38,7 @@ class Random
         return $part1 . $part2 . $part3;
     }
 
-    public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 200): string
+    public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 10): string
     {
         if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email format provided');
