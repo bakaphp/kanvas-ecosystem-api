@@ -12,10 +12,10 @@ return new class () extends Migration {
     {
         Schema::create('schedule_rules', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('apps_id')->index();
-            $table->bigInteger('companies_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('companies_id')->index();
             $table->uuid('uuid')->index();
-            $table->bigInteger('resources_id')->index();
+            $table->unsignedBigInteger('resources_id')->index();
             $table->string('resources_type', 255)->index();
             $table->dateTime('start_at');
             $table->dateTime('end_at')->nullable();
@@ -30,8 +30,8 @@ return new class () extends Migration {
 
         Schema::create('schedule_exceptions', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('apps_id')->index();
-            $table->bigInteger('companies_id')->index();
+            $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('resources_id')->index();
             $table->string('resources_type', 255)->index();
             $table->dateTime('window_start');

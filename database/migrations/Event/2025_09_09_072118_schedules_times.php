@@ -30,7 +30,7 @@ return new class () extends Migration {
         });
 
         Schema::create('event_version_slots', function (Blueprint $table) {
-            $table->bigIncrements();
+            $table->bigIncrements('id');
             $table->bigInteger('apps_id')->index();
             $table->bigInteger('companies_id')->index();
             $table->unsignedBigInteger('event_version_id')->index();
