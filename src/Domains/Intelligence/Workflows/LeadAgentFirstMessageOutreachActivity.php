@@ -45,13 +45,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
 
-                //send the first message
-                if (! isset($params['disable_sending'])) {
-                    new SendMessageToLeadAction($lead)->execute(
-                        $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                        $firstLeadMessage['message']
-                    );
-                }
                 if (isset($params['create_session'])) {
                     $channel = ChannelDto::from([
                         'apps' => $app,
@@ -78,6 +71,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'canal_id' => $channel->slug,
                     ]);
                     new CreateSessionAction($sessionDto)->execute();
+                }
+
+                //send the first message
+                if (! isset($params['disable_sending'])) {
+                    new SendMessageToLeadAction($lead)->execute(
+                        $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                        $firstLeadMessage['message']
+                    );
                 }
 
                 //move to stage 2 of the pipeline
