@@ -74,7 +74,7 @@ class CreateLeadFirstEngagementMessageAction
                    ->using(Provider::Gemini, 'gemini-2.0-flash')
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-                   ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data))
+                   ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']))
                    ->asStructured();
 
         // Return the structured data containing title and message
