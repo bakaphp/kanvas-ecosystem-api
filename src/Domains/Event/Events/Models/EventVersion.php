@@ -79,8 +79,7 @@ class EventVersion extends BaseModel
 
     public function addParticipant(Participant $participant): EventVersionParticipant
     {
-        $defaultParticipantType = ParticipantType::fromApp($this->app)
-        ->fromCompany($this->company)->first();
+        $defaultParticipantType = ParticipantType::fromApp($this->app)->first();
 
         $participantType = ParticipantType::fromApp($this->app)
             ->fromCompany($this->company)

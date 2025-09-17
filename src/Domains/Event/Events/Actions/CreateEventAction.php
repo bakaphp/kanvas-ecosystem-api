@@ -81,7 +81,7 @@ class CreateEventAction
                     $this->event->app,
                     $this->event->company->defaultBranch,
                     $this->event->user,
-                    $this->event->participants,
+                    $participant,
                     $eventVersion,
                     $participant
                 );
