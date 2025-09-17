@@ -73,7 +73,7 @@ class CreateLeadFirstEngagementMessageAction
         $response = Prism::structured()
                    ->using(Provider::Gemini, 'gemini-2.0-flash')
                    ->withSchema($schema)
-                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
+                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data['additional_context_information']))
                    ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']))
                    ->asStructured();
 
