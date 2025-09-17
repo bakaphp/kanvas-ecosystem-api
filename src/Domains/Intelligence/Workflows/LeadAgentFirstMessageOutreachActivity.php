@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateChannelSlugAction;
+use Kanvas\Intelligence\Sessions\Actions\CreateCanalIdAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -69,7 +70,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
                         'user' => $lead->user->toArray(),
-                        'canal_id' => new CreateChannelSlugAction()->execute(
+                        'canal_id' => new CreateCanalIdAction()->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $cellPhone
                         ),
