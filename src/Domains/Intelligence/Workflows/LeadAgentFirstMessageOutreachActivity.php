@@ -13,8 +13,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
+use Kanvas\Intelligence\Sessions\Actions\CreateChannelSlugAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
-use Kanvas\Intelligence\Sessions\Actions\CreateSessionUUidAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -44,6 +44,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $leadContext['first_message'] = $firstLeadMessage;
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
+                $cellPhone = str_replace('+', '', $lead->people->getCellPhones()->first()?->value);
 
                 if (isset($params['create_session'])) {
                     $channel = ChannelDto::from([
@@ -53,9 +54,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
                         'name' => 'Lead ' . $lead->getId() . ' Session',
-                        'slug' => new CreateSessionUUidAction()->execute(
+                        'slug' => new CreateChannelSlugAction()->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                            $lead->people->getCellPhones->first()->value
+                            $cellPhone
                         ),
                     ]);
                     $channel = (new CreateChannelAction($channel))->execute();
@@ -68,7 +69,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
                         'user' => $lead->user->toArray(),
-                        'canal_id' => $channel->slug,
+                        'canal_id' => new CreateChannelSlugAction()->execute(
+                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                            $cellPhone
+                        ),
                     ]);
                     new CreateSessionAction($sessionDto)->execute();
                 }

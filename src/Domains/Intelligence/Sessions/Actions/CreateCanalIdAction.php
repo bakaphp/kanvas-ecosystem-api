@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
-class CreateSessionUUidAction
+class CreateCanalIdAction
 {
     public function execute(string $channel, string $id): string
     {
