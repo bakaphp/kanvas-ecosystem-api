@@ -27,7 +27,7 @@ class LeadIntentTool implements ContextToolInterface
     ) {
         $agentName = 'LeadIntentTool';
         $this->agent = Agent::fromApp($entity->app)
-            // ->fromCompany($entity->company)
+            ->fromCompany($entity->company)
             ->where('name', $agentName)
             ->firstOrFail();
     }
