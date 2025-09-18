@@ -22,7 +22,7 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
 
-            $table->index(['event_id', 'resources_id', 'resource_type']);
+            $table->index(['event_id', 'resources_id', 'resources_type']);
             $table->index(['resources_id', 'resources_type']);
             $table->index(['apps_id', 'companies_id']);
         });

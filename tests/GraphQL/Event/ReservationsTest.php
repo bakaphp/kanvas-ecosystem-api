@@ -160,8 +160,8 @@ class ReservationsTest extends TestCase
                         id
                         name
                         resources {
-                            resource_id
-                            resource_type
+                            resources_id
+                            resources_type
                             quantity
                             metadata
                         }
@@ -190,8 +190,8 @@ class ReservationsTest extends TestCase
         // Verify the additional resources were stored in the pivot table
         $this->assertCount(1, $event['resources']);
         $resource = $event['resources'][0];
-        $this->assertEquals($variantResponse2['id'], $resource['resource_id']);
-        $this->assertEquals('variant', $resource['resource_type']);
+        $this->assertEquals($variantResponse2['id'], $resource['resources_id']);
+        $this->assertEquals('variant', $resource['resources_type']);
         $this->assertEquals(2, $resource['quantity']);
         $this->assertArrayHasKey('notes', $resource['metadata']);
         $this->assertEquals('Additional equipment needed', $resource['metadata']['notes']);
