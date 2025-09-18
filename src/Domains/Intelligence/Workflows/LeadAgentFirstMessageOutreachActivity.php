@@ -86,6 +86,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if ($lead->company->get('allow_session_hijack', false)
                     && $lead->company->get('overwrite_phone_number') !== null) {
                     $overwriteConfig = $lead->company->get('overwrite_phone_number');
+                    $overwriteConfig = array_flip($overwriteConfig);
                     $originalRemoteJid = $cellPhone . '@s.whatsapp.net';
 
                     if (isset($overwriteConfig[$originalRemoteJid])) {
