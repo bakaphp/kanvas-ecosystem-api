@@ -60,7 +60,7 @@ class GenerateTimeSlots implements ShouldQueue
               'currency'            => 'USD',
               'updated_at'          => now(),
               'created_at'          => now(),
-            ]], uniqueBy: ['resource_id', 'resource_type', 'start_at'], update: [
+            ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
               'end_at','capacity','price_snapshot','currency','updated_at'
             ]);
         }

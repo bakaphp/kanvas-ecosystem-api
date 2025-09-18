@@ -11,8 +11,8 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            // $table->unsignedBigInteger('resources_id')->nullable()->index();
-            // $table->string('resources_type', 255)->nullable()->index();
+            $table->unsignedBigInteger('resources_id')->nullable()->index();
+            $table->string('resources_type', 255)->nullable()->index();
         });
     }
 
@@ -22,8 +22,8 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn('resource_id');
-            $table->dropColumn('resource_type');
+            $table->dropColumn('resources_id');
+            $table->dropColumn('resources_type');
         });
     }
 };
