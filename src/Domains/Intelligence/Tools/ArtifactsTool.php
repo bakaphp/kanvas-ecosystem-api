@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
+use Override;
 
 class ArtifactsTool implements ContextToolInterface
 {
@@ -14,6 +15,7 @@ class ArtifactsTool implements ContextToolInterface
     ) {
     }
 
+    #[Override]
     public function execute(array $params = []): array
     {
         return [
