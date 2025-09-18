@@ -32,9 +32,9 @@ class Event extends Data
         public readonly EventType $type,
         public readonly EventCategory $category,
         public readonly EventClass $class,
-        public readonly ?Model $resource = null,
         #[DataCollectionOf(EventDate::class)]
         public readonly DataCollection $dates,
+        public readonly ?Model $resource = null,
         public readonly ?string $description = null,
         public readonly ?string $slug = null,
         public readonly array $participants = [],
