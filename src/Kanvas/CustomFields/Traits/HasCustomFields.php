@@ -394,26 +394,36 @@ trait HasCustomFields
     }
 
     /**
-     * Remove all the custom fields from the entity.
-     */
+    * Remove all the custom fields from the entity.
+    */
     public function deleteAllCustomFields(): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
         $this->deleteAllCustomFieldsFromRedis();
         $this->clearCustomFieldsCacheIfNeeded();
+        $legacySystemModule = SystemModules::getLegacyNamespace(get_class($this));
+        $hasLegacySystemModule = $legacySystemModule !== get_class($this);
+
+        $modelNames = $hasLegacySystemModule
+            ? [$legacySystemModule, get_class($this)]
+            : [get_class($this)];
+
+        $placeholders = implode(',', array_fill(0, count($modelNames), '?'));
+
+        $params = [
+            $companyId,
+            ...$modelNames,
+            $this->getKey(),
+        ];
 
         return DB::statement('
-            DELETE
-                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
-                    WHERE
-                        companies_id = :companies_id
-                        AND model_name = :model_name
-                        AND entity_id = :entity_id', [
-            'companies_id' => $companyId,
-            'model_name' => get_class($this),
-            'entity_id' => $this->getKey(),
-        ]);
+        DELETE
+            FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+                WHERE
+                    companies_id = ?
+                    AND model_name IN (' . $placeholders . ')
+                    AND entity_id = ?', $params);
     }
 
     /**
