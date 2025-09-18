@@ -45,6 +45,7 @@ use Spatie\LaravelData\DataCollection;
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
     protected int $timeThresholdInSeconds = 8;
+    protected bool $hijackSession = false;
 
     #[Override]
     public function execute(): array
@@ -73,7 +74,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
             if (isset($overwriteConfig[$originalRemoteJid])) {
                 $newPhone = $overwriteConfig[$originalRemoteJid];
-
+                $this->hijackSession = true;
                 // Override phone number in both locations
                 $payload['data']['messages']['remoteJid'] = $newPhone;
                 $payload['data']['messages']['key']['remoteJid'] = $newPhone;
@@ -1194,6 +1195,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             })->fromCompany($this->receiver->company)
                 ->fromApp($this->receiver->app)
             ->first();
+        }
+        
+        if ($existingCustomer && $this->hijackSession) {
+            return $existingCustomer;
         }
 
         // Prepare name parts
