@@ -82,6 +82,17 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     new CreateSessionAction($sessionDto)->execute();
                 }
 
+                //hijack session
+                if ($lead->company->get('allow_session_hijack', false)
+                    && $lead->company->get('overwrite_phone_number') !== null) {
+                    $overwriteConfig = $lead->company->get('overwrite_phone_number');
+                    $originalRemoteJid = $cellPhone . '@s.whatsapp.net';
+
+                    if (isset($overwriteConfig[$originalRemoteJid])) {
+                        unset($params['disable_sending']);
+                    }
+                }
+
                 //send the first message
                 if (! isset($params['disable_sending'])) {
                     new SendMessageToLeadAction($lead)->execute(
