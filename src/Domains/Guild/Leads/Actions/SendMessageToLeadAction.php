@@ -37,6 +37,18 @@ class SendMessageToLeadAction
 
         $cellphone = $this->lead->people->getCellPhones()->first()?->value;
 
+        if ($this->lead->company->get('allow_session_hijack', false)
+          && $this->lead->company->get('overwrite_phone_number') !== null
+        ) {
+            $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
+
+            $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
+                return str_contains($value, $cellphone);
+            });
+            $cellphone = array_keys($phone)[0];
+            $cellphone = str_replace('@s.whatsapp.net', '', $cellphone);
+        }
+
         if (! $cellphone) {
             throw new InvalidArgumentException('Lead does not have a cellphone number');
         }
