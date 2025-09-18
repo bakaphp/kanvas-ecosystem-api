@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Prism\Prism\Schema\ArraySchema;
@@ -30,6 +31,7 @@ class CompletionStatusTool implements ContextToolInterface
             ->firstOrFail();
     }
 
+    #[Override]
     public function execute(array $params = []): array
     {
         $data = [
