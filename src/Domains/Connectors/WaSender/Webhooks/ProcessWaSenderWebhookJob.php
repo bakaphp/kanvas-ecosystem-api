@@ -65,10 +65,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $this->timeThresholdInSeconds = $this->receiver->configuration['time_threshold_in_seconds'] ?? $this->timeThresholdInSeconds;
 
         //hijack session
-        if ($this->webhookRequest->app->get('allow_session_hijack', false)
-            && $this->webhookRequest->app->get('overwrite_phone_number') !== null
+        if ($this->receiver->app->get('allow_session_hijack', false)
+            && $this->receiver->app->get('overwrite_phone_number') !== null
             && isset($payload['data']['messages']['remoteJid'])) {
-            $overwriteConfig = $this->webhookRequest->app->get('overwrite_phone_number');
+            $overwriteConfig = $this->receiver->app->get('overwrite_phone_number');
             $originalRemoteJid = $payload['data']['messages']['remoteJid'];
 
             if (isset($overwriteConfig[$originalRemoteJid])) {
