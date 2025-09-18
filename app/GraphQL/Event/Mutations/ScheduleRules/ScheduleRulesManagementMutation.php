@@ -28,10 +28,12 @@ class ScheduleRulesManagementMutation
             'start_at' => $req['input']['start_at'],
             'end_at' => $req['input']['end_at'] ?? null,
             'rrule' => $req['input']['rrule'],
+            'day_rrule' => $req['input']['day_rrule'] ?? null,
             'slot_duration_min' => $req['input']['slot_duration_min'],
             'lead_time_min' => $req['input']['lead_time_min'] ?? 0,
             'cutoff_time_min' => $req['input']['cutoff_time_min'] ?? 0,
             'capacity_override' => $req['input']['capacity_override'] ?? null,
+            'metadata' => $req['input']['metadata'] ?? null,
         ]);
 
         // Dispatch job to generate time slots
@@ -61,10 +63,12 @@ class ScheduleRulesManagementMutation
             'start_at' => $req['input']['start_at'] ?? $scheduleRule->start_at,
             'end_at' => $req['input']['end_at'] ?? $scheduleRule->end_at,
             'rrule' => $req['input']['rrule'] ?? $scheduleRule->rrule,
+            'day_rrule' => $req['input']['day_rrule'] ?? $scheduleRule->day_rrule,
             'slot_duration_min' => $req['input']['slot_duration_min'] ?? $scheduleRule->slot_duration_min,
             'lead_time_min' => $req['input']['lead_time_min'] ?? $scheduleRule->lead_time_min,
             'cutoff_time_min' => $req['input']['cutoff_time_min'] ?? $scheduleRule->cutoff_time_min,
             'capacity_override' => $req['input']['capacity_override'] ?? $scheduleRule->capacity_override,
+            'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
         return $scheduleRule;

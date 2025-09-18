@@ -84,11 +84,12 @@ class EventVersion extends BaseModel
         $participantType = ParticipantType::fromApp($this->app)
             ->fromCompany($this->company)
             ->firstOrCreate(
-                ['name' => 'Attendee'], 
+                ['name' => 'Attendee'],
                 [
                     'name' => 'Attendee',
                     'users_id' => $defaultParticipantType->users_id
-                ]);
+                ]
+            );
 
         $eventVersionParticipant = EventVersionParticipant::withTrashed() // includes soft-deleted records
             ->where('event_version_id', $this->getId())

@@ -22,7 +22,7 @@ return new class () extends Migration {
             $table->enum('status', ['open','held','booked','blocked'])->default('open')->index(); // opcional derivar
             $table->decimal('price_snapshot', 15, 2)->nullable();
             $table->string('currency', 3)->default('USD');
-            $table->json('meta')->nullable();
+            $table->json('metadata')->nullable();
             $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->unique(['resources_id', 'resources_type', 'start_at']);
@@ -44,8 +44,13 @@ return new class () extends Migration {
         Schema::table('events', function (Blueprint $table) {
             $table->unsignedBigInteger('resources_id')->nullable()->index();
             $table->string('resources_type', 255)->nullable()->index();
-            $table->dateTime('start_at')->nullable();
-            $table->dateTime('end_at')->nullable();
+            $table->dateTime('start_at')->nullable()->index();
+            $table->dateTime('end_at')->nullable()->index();
+        });
+
+        Schema::table('event_versions', function (Blueprint $table) {
+            $table->dateTime('start_at')->nullable()->index();
+            $table->dateTime('end_at')->nullable()->index();
         });
     }
 
@@ -56,5 +61,11 @@ return new class () extends Migration {
     {
         Schema::dropIfExists('time_slots');
         Schema::dropIfExists('event_version_slots');
+        Schema::table('events', function (Blueprint $table) {
+            $table->dropColumn("resources_id");
+            $table->dropColumn("resources_type");
+            $table->dropColumn("start_at");
+            $table->dropColumn("end_at");
+        });
     }
 };

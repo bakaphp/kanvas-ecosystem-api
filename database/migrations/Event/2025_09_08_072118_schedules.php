@@ -20,9 +20,11 @@ return new class () extends Migration {
             $table->dateTime('start_at');
             $table->dateTime('end_at')->nullable();
             $table->string('rrule', 512);             // iCal RRULE
+            $table->string('day_rrule', 512)->nullable();             // iCal RRULE
             $table->unsignedSmallInteger('slot_duration_min');  // 10, 60, 90...
             $table->integer('lead_time_min')->default(0);       // antelación mínima
             $table->integer('cutoff_time_min')->default(0);     // límite de reserva
+            $table->json('metadata')->nullable();
             $table->unsignedSmallInteger('capacity_override')->nullable();
             $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();

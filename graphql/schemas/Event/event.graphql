@@ -5,6 +5,8 @@ type Event {
     slug: String!
     description: String
     version_count: Int!
+    start_at: String
+    end_at: String
     user: User! @belongsTo(relation: "user")
     company: Company! @belongsTo(relation: "company")
     theme: EventTheme @belongsTo(relation: "theme")
@@ -15,7 +17,7 @@ type Event {
     category: EventCategory @belongsTo(relation: "eventCategory")
     resources_id: ID
     resources_type: String
-    resource: EventResource @morphTo(relation: "resource")
+    resource: EventResourceUnion @morphTo(relation: "resource")
     orders: [Order!]!
         @paginate(
             defaultCount: 25
@@ -26,6 +28,7 @@ type Event {
             defaultCount: 25
             builder: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getEventVersion"
         )
+    resources: [EventResource!]! @hasMany(relation: "resources")
     created_at: DateTime
     updated_at: DateTime
     files: [Filesystem!]!
@@ -65,6 +68,8 @@ type EventVersion {
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")
     total_attendees: Int!
+    start_at: String
+    end_at: String
     participants: [EventVersionParticipant!]!
         @paginate(
             defaultCount: 25
@@ -153,7 +158,17 @@ input EventUpdateInput {
     resources_type: String
 }
 
-union EventResource = Variant
+type EventResource {
+    id: ID!
+    event_id: ID!
+    resources_id: ID!
+    resources_type: String!
+    metadata: Mixed
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+union EventResourceUnion = Variant
 
 input EventVersionDateInput {
     date: Date!
@@ -164,12 +179,26 @@ input EventVersionDateInput {
 }
 
 input TimeSlotBookingInput {
-    time_slot_id: ID!
+    time_slot_id: ID
+    variant_id: ID
     participants: Mixed
     event_name: String!
     event_description: String
     hold_id: String
     metadata: Mixed
+}
+
+input ResourceBookingInput {
+    resources_id: ID!
+    resources_type: String
+    start_at: String!
+    end_at: String
+    participants: Mixed
+    event_name: String
+    event_description: String
+    hold_id: String
+    metadata: Mixed
+    resources: Mixed
 }
 
 extend type Mutation @guard {
@@ -189,6 +218,11 @@ extend type Mutation @guard {
     bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
+        )
+    
+    bookResource(input: ResourceBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@book"
         )
 }
 

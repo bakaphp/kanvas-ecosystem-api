@@ -78,4 +78,9 @@ class Event extends BaseModel
     {
         return $this->morphMany(Order::class, 'resources');
     }
+
+    public function resources(): HasMany
+    {
+        return $this->hasMany(EventResource::class);
+    }
 }

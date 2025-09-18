@@ -23,6 +23,7 @@ class ScheduleRules extends BaseModel
         'lead_time_min' => 'integer',
         'cutoff_time_min' => 'integer',
         'capacity_override' => 'integer',
+        'metadata' => 'array',
     ];
 
     protected $fillable = [
@@ -34,10 +35,12 @@ class ScheduleRules extends BaseModel
         'start_at',
         'end_at',
         'rrule',
+        'day_rrule',
         'slot_duration_min',
         'lead_time_min',
         'cutoff_time_min',
         'capacity_override',
+        'metadata',
         'is_deleted',
     ];
 

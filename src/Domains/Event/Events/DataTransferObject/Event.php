@@ -38,6 +38,7 @@ class Event extends Data
         public readonly ?string $description = null,
         public readonly ?string $slug = null,
         public readonly array $participants = [],
+        public readonly array $resources = [],
         public readonly ?string $meeting_link = null,
     ) {
     }
@@ -60,6 +61,7 @@ class Event extends Data
             description: $data['description'] ?? null,
             slug: $data['slug'] ?? null,
             participants: $data['participants'] ?? [],
+            resources: $data['resources'] ?? [],
             meeting_link: $data['meeting_link'] ?? null
         );
     }

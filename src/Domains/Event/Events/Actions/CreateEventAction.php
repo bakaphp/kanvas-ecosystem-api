@@ -11,6 +11,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
+use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -23,6 +24,7 @@ use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\SystemModules\Models\SystemModules;
 use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
@@ -90,6 +92,11 @@ class CreateEventAction
 
             if ($event->resources_id && ! $event->orders->count()) {
                 $this->createEventOrder($event, []);
+            }
+
+            // Store additional resources in pivot table
+            if (count($this->event->resources)) {
+                $this->storeEventResources($event, $this->event->resources);
             }
 
             return $event;
@@ -193,5 +200,22 @@ class CreateEventAction
         $kanvasOrder->resources_id =  $event->id;
         $kanvasOrder->resources_type =  $event->getMorphClass();
         $kanvasOrder->saveQuietly();
+    }
+
+    protected function storeEventResources(ModelsEvent $event, array $resources): void
+    {
+        foreach ($resources as $resourceData) {
+            if (isset($resourceData['resources_id']) && isset($resourceData['resources_type'])) {
+                $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceData['resources_type']);
+                EventResource::create([
+                    'apps_id' => $event->apps_id,
+                    'companies_id' => $event->companies_id,
+                    'event_id' => $event->getId(),
+                    'resources_id' => $resourceData['resources_id'],
+                    'resources_type' => $resourceClass,
+                    'metadata' => $resourceData['metadata'] ?? null,
+                ]);
+            }
+        }
     }
 }
