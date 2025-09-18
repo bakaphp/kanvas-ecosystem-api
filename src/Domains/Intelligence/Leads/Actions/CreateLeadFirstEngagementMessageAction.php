@@ -69,15 +69,14 @@ class CreateLeadFirstEngagementMessageAction
             ],
             requiredFields: ['title', 'message']
         );
-
+        $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.0-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-flash')
                    ->withSchema($schema)
-                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-                   ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data))
+                   ->withPrompt($prompt)
                    ->asStructured();
 
         // Return the structured data containing title and message
-        return $response->structured ?? [];
+        return [...$response->structured ?? [], ['background' => $prompt]];
     }
 }
