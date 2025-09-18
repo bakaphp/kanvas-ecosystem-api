@@ -47,6 +47,7 @@ class HandOffActivity extends KanvasActivity
                         data: [
                                 'lead' => $lead,
                                 'agent' => $leadOwner,
+                                ...$params
                             ]
                     )
                 );

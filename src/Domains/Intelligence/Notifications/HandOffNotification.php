@@ -25,5 +25,6 @@ class HandOffNotification extends Notification
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName($templateName);
         $this->setData($data);
+        $this->setPushTemplateName('lead_handoff_push_notification');
     }
 }
