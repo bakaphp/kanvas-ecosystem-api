@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -1168,6 +1169,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
+
+        // also find customer by phone number if not found by JID
+        if (! $existingCustomer) {
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneNumber) {
+                $query->where('value', $phoneNumber)
+                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+            })->fromCompany($this->receiver->company)
+                ->fromApp($this->receiver->app)
+            ->first();
+        }
 
         // Prepare name parts
         $displayName = $name ?? $this->extractContactName($jid);
