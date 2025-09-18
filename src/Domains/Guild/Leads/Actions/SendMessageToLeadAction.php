@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Exception;
 use InvalidArgumentException;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -66,8 +67,11 @@ class SendMessageToLeadAction
             $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
 
             $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                return str_contains($value, $cellphone);
+                return str_contains($value, str_replace('+', '', $cellphone));
             });
+            if (! $phone) {
+                throw new Exception('No hijack number found for this phone number');
+            }
             $cellphone = array_keys($phone)[0];
             $cellphone = str_replace('@s.whatsapp.net', '', $cellphone);
         }
