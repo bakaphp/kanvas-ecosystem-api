@@ -1190,11 +1190,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
             $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneNumber) {
-                $query->where('value', $phoneNumber)
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-            })->fromCompany($this->receiver->company)
+                        })->fromCompany($this->receiver->company)
                 ->fromApp($this->receiver->app)
-            ->first();
+                ->first();
         }
 
         if ($existingCustomer && $this->hijackSession) {
