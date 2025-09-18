@@ -44,6 +44,14 @@ class GenerateMessageTagAction
         $geminiTagService = new GeminiTagService();
         $tags = $geminiTagService->generateTags($messageText, $tags, $totalTags);
 
+        //Let's add the type tags since the ai is doing whatever it wants
+        $tags[] = match ($messageData['type']) {
+            'image-format' => 'image',
+            'video-format' => 'video',
+            'text-format' => 'text',
+            default => null,
+        };
+
         if (! empty($tags)) {
             $this->message->addTags(
                 $tags

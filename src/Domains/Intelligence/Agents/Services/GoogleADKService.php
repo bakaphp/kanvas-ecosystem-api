@@ -54,7 +54,11 @@ class GoogleADKService
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
 
         try {
-            $response = $this->client->post($endpoint);
+            $response = $this->client->post($endpoint, [
+                'json' => [
+                    'kanvas_app_id' => $this->app->key,
+                ],
+            ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (ClientException $e) {

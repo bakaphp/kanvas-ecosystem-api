@@ -765,4 +765,66 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'description' => 'Purchase of Variant ID#' . $this->getId(),
         ];
     }
+
+    /**
+     * Search for variants based on attribute name and value.
+     *
+     * @example
+     * // Search for variants with color attribute = 'red'
+     * $variants = Variants::searchByAttributeValue('color', 'red')->get();
+     */
+    public static function searchByAttributeValue(
+        AppInterface $app,
+        string $attributeName,
+        mixed $attributeValue,
+        string $locale = 'en',
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null,
+    ): Builder {
+        $query = self::query()
+            ->join('products_variants_attributes as pva', 'products_variants.id', '=', 'pva.products_variants_id')
+            ->join('attributes as a', 'pva.attributes_id', '=', 'a.id')
+            ->where('products_variants.is_deleted', 0)
+            ->where('products_variants.apps_id', $app->getId())
+            ->where('a.is_deleted', 0)
+            ->where('pva.is_deleted', 0);
+
+        // Handle attribute name - check both JSON and plain text formats
+        $query->where(function (Builder $nameQuery) use ($attributeName, $locale) {
+            $nameQuery->where(function (Builder $jsonNameQuery) use ($attributeName, $locale) {
+                $jsonNameQuery->whereRaw('JSON_VALID(a.name) = 1')
+                              ->whereRaw('JSON_EXTRACT(a.name, ?) = ?', ['$.' . $locale, $attributeName]);
+            })
+            ->orWhere('a.name', $attributeName)
+            ->orWhere('a.slug', Str::slug($attributeName));
+        });
+
+        // Handle attribute value - check both JSON and plain text formats
+        $query->where(function (Builder $valueQuery) use ($attributeValue, $locale) {
+            // For JSON values, check the locale-specific value
+            $valueQuery->where(function (Builder $jsonQuery) use ($attributeValue, $locale) {
+                $jsonQuery->whereRaw('JSON_VALID(pva.value) = 1')
+                          ->whereRaw('JSON_EXTRACT(pva.value, ?) = ?', ['$.' . $locale, $attributeValue]);
+            })
+            // For plain text values
+            ->orWhere('pva.value', $attributeValue);
+
+            // If it's a string, also check case-insensitive
+            if (is_string($attributeValue)) {
+                $valueQuery->orWhereRaw('LOWER(pva.value) = ?', [strtolower($attributeValue)]);
+            }
+        });
+
+        if ($company) {
+            $query->where('products_variants.companies_id', $company->getId());
+        } else {
+            if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+            }
+        }
+
+        // Select only variant columns to avoid ambiguity
+        return $query->select('products_variants.*')
+                     ->distinct();
+    }
 }

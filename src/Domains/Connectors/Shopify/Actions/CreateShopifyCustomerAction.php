@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -86,13 +87,24 @@ class CreateShopifyCustomerAction
 
     protected function prepareCustomerData(): array
     {
-        return [
+        $phone = $this->people->getPhones()->first()?->value;
+        if (! empty($phone)) {
+            $phone = Str::sanitizePhoneNumber($phone);
+            $phone = Str::startsWith($phone, '+1') ? $phone : '+1' . $phone;
+        }
+
+        $customerData = [
             'first_name' => $this->people->firstname,
             'last_name' => $this->people->lastname,
             'email' => $this->people->getEmails()->first()?->value,
-            'phone' => $this->people->getPhones()->first()?->value,
             'addresses' => $this->prepareAddresses(),
         ];
+
+        if (! empty($phone)) {
+            $customerData['phone'] = $phone;
+        }
+
+        return $customerData;
     }
 
     protected function prepareAddresses(): array

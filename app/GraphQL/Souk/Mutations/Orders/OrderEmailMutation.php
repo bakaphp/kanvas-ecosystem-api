@@ -19,6 +19,8 @@ class OrderEmailMutation
         $order->user->notify(new NewOrderNotification($order, [
             'app' => $app,
             'company' => $order->company,
+            'force_send' => true,
+            'order' => $order,
         ]));
 
         return true;

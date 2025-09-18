@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
@@ -234,6 +235,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function generateImageResponse(Message $message): string
     {
+        new MessageOrderFulfillmentAction($message)->execute('image');
+
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
         $params = [];
@@ -281,6 +284,10 @@ class LLMMessageResponseActivity extends KanvasActivity
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
         } catch (Throwable $e) {
+            if (! Str::contains($e->getMessage(), 'Your daily limit has been reached')) {
+                report($e);
+            }
+
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],

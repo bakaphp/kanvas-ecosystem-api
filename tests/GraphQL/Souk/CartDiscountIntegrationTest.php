@@ -22,8 +22,6 @@ class CartDiscountIntegrationTest extends TestCase
         $user = auth()->user();
         $app = app(Apps::class);
 
-        //$this->app['auth']->forgetGuards();
-
         // Create a discount type
         $discountType = DiscountType::firstOrCreate([
             'name' => 'Percentage',
@@ -51,9 +49,9 @@ class CartDiscountIntegrationTest extends TestCase
         $discountCode = $discountFactory->code;
 
         // Add item to cart
-        $this->graphQL('
+        $response = $this->graphQL('
             mutation addToCart($items: [CartItemInput!]!) {
-                cartAdd(items: $items) {
+                addToCart(items: $items) {
                     id
                     name
                     price
@@ -110,8 +108,7 @@ class CartDiscountIntegrationTest extends TestCase
 
         // Subtotal should be the original price
         $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = $expectedSubtotal * 0.9; // 10% discount
-
+        $expectedTotal = round($expectedSubtotal * 0.9, 2); // 10% discount
         $this->assertEquals($expectedSubtotal, $subtotal);
         $this->assertEquals($expectedTotal, $total); // 10% discount applied
     }
@@ -128,7 +125,7 @@ class CartDiscountIntegrationTest extends TestCase
         // First add an item to cart
         $this->graphQL('
             mutation addToCart($items: [CartItemInput!]!) {
-                cartAdd(items: $items) {
+                addToCart(items: $items) {
                     id
                 }
             }
@@ -206,7 +203,7 @@ class CartDiscountIntegrationTest extends TestCase
         // Add to cart
         $this->graphQL('
             mutation addToCart($items: [CartItemInput!]!) {
-                cartAdd(items: $items) {
+                addToCart(items: $items) {
                     id
                 }
             }
@@ -283,7 +280,7 @@ class CartDiscountIntegrationTest extends TestCase
         // Add item to cart
         $this->graphQL('
             mutation addToCart($items: [CartItemInput!]!) {
-                cartAdd(items: $items) {
+                addToCart(items: $items) {
                     id
                 }
             }
@@ -316,7 +313,7 @@ class CartDiscountIntegrationTest extends TestCase
 
         // Verify discount was applied to cart
         $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = $expectedSubtotal * 0.85; // 15% off
+        $expectedTotal = round($expectedSubtotal * 0.85, 2); // 15% off
 
         $this->assertEquals($expectedSubtotal, $cartResponse->json('data.cartDiscountCodesUpdate.subtotal'));
         $this->assertEquals($expectedTotal, $cartResponse->json('data.cartDiscountCodesUpdate.total'));

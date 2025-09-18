@@ -20,4 +20,6 @@ enum ConfigurationEnum: string
 
     case AGENT_HAND_OFF = 'agent_hand_off';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
+
+    case LEAD_CONTEXT_INFO = 'lead_ai_agent_context_info';
 }

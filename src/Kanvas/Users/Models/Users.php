@@ -11,6 +11,8 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
+use Bavix\Wallet\Interfaces\Confirmable;
+use Bavix\Wallet\Traits\CanConfirm;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -58,6 +60,7 @@ use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -118,7 +121,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int    $user_recover_code
  * @property int    $is_deleted
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable
 {
     use HashTableTrait;
     use Notifiable;
@@ -137,6 +140,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
     use HasRating;
     use CanUseWorkflow;
+    use HasWalletsTrait;
+    use CanConfirm;
 
     protected ?string $defaultCompanyName = null;
     protected ?string $currentDeviceId = null;
@@ -286,7 +291,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'companies_id'
         )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
-        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+            ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -338,8 +343,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         try {
             return self::where('id', $id)
-            ->notDeleted()
-            ->firstOrFail();
+                ->notDeleted()
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
@@ -830,7 +835,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
          * @todo user config per app
          */
         return ! ((bool) $this->get($twoFactorKey)
-                && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
+            && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities

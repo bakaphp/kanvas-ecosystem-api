@@ -115,6 +115,7 @@ class ProcessVideoRequestAction
                 'api_url' => $apiUrl,
                 'video_type' => $isImageToVideo ? 'image-to-video' : 'text-to-video',
                 'is_google_service' => $isGoogleService,
+                'videoKey' => $videoKey,
             ];
         } catch (Exception $e) {
             return [

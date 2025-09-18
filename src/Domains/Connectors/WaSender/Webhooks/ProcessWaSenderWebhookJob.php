@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -146,6 +147,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                  */
                 $people = $this->processContactFromMessage($chatJid, $messageData);
                 $lead = $this->createLeadFromPeople($people);
+                $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
             }
 
             // Create the message slug
@@ -1026,27 +1028,37 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 //$channel->uuid = Str::uuid()->toString();
 
                 if ($lead) {
-                    $channel->entity_namespace = get_class($lead->people);
-                    $channel->entity_id = $lead->people->getId();
+                    $channel->entity_namespace = get_class($lead);
+                    $channel->entity_id = $lead->getId();
+
+                    $channel->save();
+
+                    $channel->addTags(
+                        [
+                            'whatsapp',
+                            'ai-agent',
+                        ],
+                        $lead->app,
+                        $lead->user,
+                        $lead->company
+                    );
                 }
-
-                $channel->save();
-
-                $channel->addTags([
-                    'whatsapp',
-                    'ai-agent',
-                ]);
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
                 $channel->save();
             }
 
-            $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'WhatsApp');
-
             if ($lead && empty($channel->entity_namespace)) {
                 $channel->entity_namespace = get_class($lead->people);
                 $channel->entity_id = $lead->people->getId();
                 $channel->update();
+            }
+
+            if ($channel->id) {
+                $channel->set(
+                    ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                    'WhatsApp'
+                );
             }
 
             return $channel;
@@ -1148,6 +1160,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $existingCustomer = People::getByCustomField(
+            'whatsapp_jid',
+            $jid,
+            $this->receiver->company
+        );
+
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
 
@@ -1182,6 +1200,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             ],
             tags: ['whatsapp', 'wa-contact']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
 
         $createAction = new CreatePeopleAction($peopleDto);
 

@@ -198,7 +198,7 @@ class PullLeadAction
 
                 $activeTaskListId = $taskList && $canChangeStatus
                     ? $taskList->getId()
-                    : $lead->companies->get('default_checklist_id');
+                    : $lead->company->get('default_checklist_id');
 
                 $lead->set('check_list_status', [
                     'mode' => 'automatic',

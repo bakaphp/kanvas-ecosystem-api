@@ -9,6 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
 use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
+use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -74,9 +76,21 @@ final class OrderTest extends TestCase
         );
 
         $this->variant = $variant;
+
+        $data = new NetSuite(
+            app: $this->apps,
+            company: $this->company,
+            account: getenv('NET_SUITE_ACCOUNT'),
+            consumerKey: getenv('NET_SUITE_CONSUMER_KEY'),
+            consumerSecret: getenv('NET_SUITE_CONSUMER_SECRET'),
+            token: getenv('NET_SUITE_TOKEN'),
+            tokenSecret: getenv('NET_SUITE_TOKEN_SECRET')
+        );
+
+        NetSuiteServices::setup($data);
     }
 
-    public function createDraftOrder(): Order
+    public function createDraftOrder(int $price = 6, int $qty = 5): Order
     {
         $data = [
             'email' => fake()->email(),
@@ -95,8 +109,8 @@ final class OrderTest extends TestCase
             'items' => [
                 [
                     'variant_id' => $this->variant->getId(),
-                    'quantity' => 5,
-                    'price' => 6,
+                    'quantity' => $qty,
+                    'price' => $price,
                 ],
             ],
         ];
@@ -145,7 +159,7 @@ final class OrderTest extends TestCase
     public function testPushOrderWithoutCustomer(): void
     {
         // Get the order you want to push
-        $order = $this->createDraftOrder();
+        $order = $this->createDraftOrder(10, 5);
 
         // Create the action
         $pushAction = new PushOrderToNetSuiteQuoteAction($this->apps, $this->company);

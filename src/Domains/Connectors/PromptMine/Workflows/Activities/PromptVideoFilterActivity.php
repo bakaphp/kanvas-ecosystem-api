@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
 use Kanvas\Enums\AppSettingsEnums;
@@ -41,11 +42,14 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
+                    $orderCredit = new MessageOrderFulfillmentAction($entity)->execute('video');
+
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
                     $result = $processVideoAction->execute();
 
                     $params['video_url_key'] = isset($result['is_google_service']) && $result['is_google_service'] ? 'videoUri' : 'video_url';
+                    $params['videoKey'] = $result['videoKey'] ?? null;
 
                     if ($result['result'] && isset($result['request_id'])) {
                         // Schedule delayed processing using the service
@@ -58,6 +62,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                         );
                     }
 
+                    $result['orderCredit'] = $orderCredit;
                     return $result;
                 } catch (Exception $e) {
                     report($e);

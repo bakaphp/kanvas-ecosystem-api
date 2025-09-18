@@ -52,6 +52,8 @@ class CreateDraftOrderAction
 
             $order->addItems($this->orderData->items);
 
+            $order->calculateTotal();
+
             // Run after commit
             DB::afterCommit(function () use ($order) {
                 if ($this->runWorkflow) {

@@ -45,6 +45,7 @@ class LeadObserver
         if (! $lead->pipeline_id) {
             $pipeline = Pipeline::where('companies_id', $lead->companies_id)
                 ->where('is_deleted', 0)
+                ->orderBy('is_default', 'desc')
                 ->first();
 
             if ($pipeline) {
@@ -55,15 +56,9 @@ class LeadObserver
 
         if (! $lead->leads_receivers_id) {
             $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
-                ->where('is_default', 1)
                 ->where('is_deleted', 0)
+                ->orderBy('is_default', 'desc')
                 ->first();
-
-            if (! $receiver) {
-                $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
-                    ->where('is_deleted', 0)
-                    ->first();
-            }
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }

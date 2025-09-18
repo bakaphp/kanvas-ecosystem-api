@@ -16,6 +16,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -92,7 +93,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
         }
-
+        $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
         $channel->fireWorkflow(
             WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
             true,
