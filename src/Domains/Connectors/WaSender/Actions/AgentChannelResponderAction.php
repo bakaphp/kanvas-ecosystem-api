@@ -149,10 +149,10 @@ class AgentChannelResponderAction
 
     protected function hijackMessagePhone(string $channelId): string
     {
-        if ($this->agent->app->get('allow_session_hijack', false)
-          && $this->agent->app->get('overwrite_phone_number') !== null
+        if ($this->agent->company->get('allow_session_hijack', false)
+          && $this->agent->company->get('overwrite_phone_number') !== null
         ) {
-            $overwriteConfig = $this->agent->app->get('overwrite_phone_number');
+            $overwriteConfig = $this->agent->company->get('overwrite_phone_number');
             $originalRemoteJid = $channelId;
 
             if (isset($overwriteConfig[$originalRemoteJid])) {
