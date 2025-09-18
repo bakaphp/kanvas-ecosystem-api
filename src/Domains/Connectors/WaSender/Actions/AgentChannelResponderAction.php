@@ -35,7 +35,8 @@ class AgentChannelResponderAction
         //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
         $messageConversation = $this->message->message['raw_data']['message']['conversation'] ??
                        $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
-        $channelId = Str::replace('@s.whatsapp.net', '', $this->message->message['chat_jid']);
+
+        $channelId = Str::replace('@s.whatsapp.net', '', $this->hijackMessagePhone($this->message->message['chat_jid']));
 
         $isImageText = (bool) ($params['process_document'] ?? false); //MessageTypeEnum::isDocumentType($this->message->messageType->verb);
 
@@ -144,5 +145,21 @@ class AgentChannelResponderAction
             'responseText' => $responseContent,
             'response' => $responseText,
         ];
+    }
+
+    protected function hijackMessagePhone(string $channelId): string
+    {
+        if ($this->agent->app->get('allow_session_hijack', false)
+          && $this->agent->app->get('overwrite_phone_number') !== null
+        ) {
+            $overwriteConfig = $this->agent->app->get('overwrite_phone_number');
+            $originalRemoteJid = $channelId;
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                return $overwriteConfig[$originalRemoteJid];
+            }
+        }
+
+        return $channelId;
     }
 }

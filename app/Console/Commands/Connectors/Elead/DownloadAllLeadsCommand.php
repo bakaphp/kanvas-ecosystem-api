@@ -45,11 +45,10 @@ class DownloadAllLeadsCommand extends Command
     public function handle(): void
     {
         $appId = (int) $this->argument('app_id');
-        $appModel = Apps::getById($appId);
+        $app = Apps::getById($appId);
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
 
-        $app = app($appModel->key);
         $this->overwriteAppService($app);
 
         // Check if company has Elead configuration
