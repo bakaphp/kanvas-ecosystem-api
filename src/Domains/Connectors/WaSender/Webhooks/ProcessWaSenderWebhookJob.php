@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -62,6 +63,22 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         // Get event type from payload
         $eventType = $payload['event'] ?? 'unknown';
         $this->timeThresholdInSeconds = $this->receiver->configuration['time_threshold_in_seconds'] ?? $this->timeThresholdInSeconds;
+
+        //hijack session
+        if ($this->webhookRequest->app->get('allow_session_hijack', false)
+            && $this->webhookRequest->app->get('overwrite_phone_number') !== null
+            && isset($payload['data']['messages']['remoteJid'])) {
+            $overwriteConfig = $this->webhookRequest->app->get('overwrite_phone_number');
+            $originalRemoteJid = $payload['data']['messages']['remoteJid'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+
+                // Override phone number in both locations
+                $payload['data']['messages']['remoteJid'] = $newPhone;
+                $payload['data']['messages']['key']['remoteJid'] = $newPhone;
+            }
+        }
 
         // Process based on event type
         $result = match ($eventType) {
@@ -1168,6 +1185,16 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
+
+        // also find customer by phone number if not found by JID
+        if (! $existingCustomer) {
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneNumber) {
+                $query->where('value', $phoneNumber)
+                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+            })->fromCompany($this->receiver->company)
+                ->fromApp($this->receiver->app)
+            ->first();
+        }
 
         // Prepare name parts
         $displayName = $name ?? $this->extractContactName($jid);
