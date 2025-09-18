@@ -95,6 +95,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
+                    'is_public' => 0
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
@@ -120,6 +121,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $promptChannel->title = $channelName;
                     $promptChannel->update();
                 }
+
+                $message->is_public = 0;
+                $message->save();
 
                 return [
                     'result' => true,
