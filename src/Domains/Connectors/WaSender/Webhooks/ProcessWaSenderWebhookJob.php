@@ -1196,7 +1196,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 ->fromApp($this->receiver->app)
             ->first();
         }
-        
+
         if ($existingCustomer && $this->hijackSession) {
             return $existingCustomer;
         }
