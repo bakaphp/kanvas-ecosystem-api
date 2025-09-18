@@ -9,6 +9,7 @@ use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
 use Kanvas\Guild\Models\BaseModel;
+use Override;
 
 /**
  * Class Contacts.
@@ -50,6 +51,7 @@ class Contact extends BaseModel
         return preg_replace('/\D+/', '', $this->value);
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return new ContactFactory();

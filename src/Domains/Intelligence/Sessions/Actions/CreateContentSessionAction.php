@@ -49,6 +49,7 @@ class CreateContentSessionAction
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
                 'company_timezone' => $lead->company->timezone,
+                'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
             ],
             $this->mapPeople($lead->people, $lead)
