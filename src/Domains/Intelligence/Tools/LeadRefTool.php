@@ -5,6 +5,7 @@ namespace Kanvas\Intelligence\Tools;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
+use Override;
 
 class LeadRefTool implements ContextToolInterface
 {
@@ -12,6 +13,7 @@ class LeadRefTool implements ContextToolInterface
     {
     }
 
+    #[Override]
     public function execute(array $params = []): array
     {
         return [
