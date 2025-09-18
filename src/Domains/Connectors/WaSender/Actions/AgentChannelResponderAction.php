@@ -155,8 +155,10 @@ class AgentChannelResponderAction
             $overwriteConfig = $this->agent->company->get('overwrite_phone_number');
             $originalRemoteJid = $channelId;
 
-            if (isset($overwriteConfig[$originalRemoteJid])) {
-                return $overwriteConfig[$originalRemoteJid];
+            // Reverse lookup: hijacked -> original
+            $reverseMapping = array_flip($overwriteConfig);
+            if (isset($reverseMapping[$originalRemoteJid])) {
+                return $reverseMapping[$originalRemoteJid];
             }
         }
 
