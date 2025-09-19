@@ -43,7 +43,7 @@ class Lead extends DataTransferObjectLead
                 array_map(
                     fn ($phone) => [
                         'value' => $phone['number'],
-                        'contacts_types_id' => ContactTypeEnum::PHONE->value,
+                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                         'weight' => 0,
                     ],
                     $customer->phones
