@@ -15,6 +15,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
 
@@ -159,6 +160,40 @@ class PullLeadAction
                     ];
                 } catch (Throwable $th) {
                     //ignore the error
+
+                    if (Str::contains($th->getMessage(), 'No Opportunities found ')) {
+                        $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
+                        $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
+
+                        $searchForInternalCloseLead = $searchForInternalCloseLeadByPhone ?? $searchForInternalCloseLeadByAnything;
+
+                        if ($searchForInternalCloseLead !== null) {
+                            $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
+
+                            if (! $internalClosedLeads) {
+                                // we have an internal closed lead, skip this one
+                                continue;
+                            }
+
+                            $results[] = [
+                                'id' => $internalClosedLeads->id,
+                                'uuid' => $internalClosedLeads->uuid,
+                                'people_id' => $internalClosedLeads->people->id,
+                                'firstname' => $internalClosedLeads->people->firstname,
+                                'middlename' => $internalClosedLeads->people->middlename,
+                                'lastname' => $internalClosedLeads->people->lastname,
+                                'email' => $internalClosedLeads->people?->getEmails()->first()?->value,
+                                'phone' => $internalClosedLeads->people?->getPhones()->first()?->value,
+                                'status' => strtolower($internalClosedLeads->status()?->first()?->name ?? ''),
+                                'lead_type' => $internalClosedLeads->type?->name,
+                                'owner' => $internalClosedLeads->owner?->name ,
+                                'owner_id' => $internalClosedLeads->leads_owner_id,
+                                'custom_fields' => $internalClosedLeads->getAllCustomFields(),
+                                'rank' => 1,
+                            ];
+                        }
+                    }
+
                     continue;
                 }
             }
