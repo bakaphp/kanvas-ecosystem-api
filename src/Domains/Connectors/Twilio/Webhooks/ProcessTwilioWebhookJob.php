@@ -36,6 +36,8 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
+        protected bool $hijackSession = false;
+
     #[Override]
     public function execute(array $params = []): array
     {
@@ -45,6 +47,20 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $people = $this->processContactFromMessage();
             $lead = $this->createLeadFromPeople($people);
         }
+
+        if ($this->receiver->company->get('allow_session_hijack', false)
+            && $this->receiver->company->get('overwrite_phone_number') !== null
+            && isset($payload['data']['messages']['remoteJid'])) {
+            $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
+            $originalRemoteJid = $request['From'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+                $this->hijackSession = true;
+                $payload['From'] = $newPhone;
+            }
+        }
+
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
