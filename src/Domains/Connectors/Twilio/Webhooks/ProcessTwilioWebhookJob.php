@@ -44,11 +44,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     public function execute(array $params = []): array
     {
         $request = $this->webhookRequest->payload;
-        $isFromMe = $request['From'] === $request['To'];
-        if (! $isFromMe) {
-            $people = $this->processContactFromMessage();
-            $lead = $this->createLeadFromPeople($people);
-        }
 
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
@@ -62,15 +57,20 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 $request['From'] = $newPhone;
             }
         }
+        $isFromMe = $request['From'] === $request['To'];
+        if (! $isFromMe) {
+            $people = $this->processContactFromMessage();
+            $lead = $this->createLeadFromPeople($people);
+        }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
 
         $existingMessage = Message::where('uuid', $messageSlug)
-        ->where('companies_id', $this->receiver->company->getId())
-        ->where('apps_id', $this->receiver->app->getId())
-        ->first();
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
         $lastMessage = $channel->getLastMessage();
 
         if ($existingMessage) {
