@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "da07b6ef75ef96ed98f3e61734321de9",
+    "content-hash": "67c1efea6ca56dcd74d4e7f693302135",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4620,16 +4620,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.2.7",
+            "version": "2.2.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "4fe702fc197aa7d4308ae5fef66f512d32269da5"
+                "reference": "3ace2b3ebb116b85ed8cc89dec30347f799be2ec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/4fe702fc197aa7d4308ae5fef66f512d32269da5",
-                "reference": "4fe702fc197aa7d4308ae5fef66f512d32269da5",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/3ace2b3ebb116b85ed8cc89dec30347f799be2ec",
+                "reference": "3ace2b3ebb116b85ed8cc89dec30347f799be2ec",
                 "shasum": ""
             },
             "require": {
@@ -4680,9 +4680,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.2.7"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.2.9"
             },
-            "time": "2025-09-17T07:47:31+00:00"
+            "time": "2025-09-19T17:11:43+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
