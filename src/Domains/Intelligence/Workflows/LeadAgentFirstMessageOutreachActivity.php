@@ -95,7 +95,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     && $lead->company->get('overwrite_phone_number') !== null) {
                     $overwriteConfig = $lead->company->get('overwrite_phone_number');
                     $overwriteConfig = array_flip($overwriteConfig);
-                    $originalRemoteJid = $cellPhone . '@s.whatsapp.net';
+                    $originalRemoteJid = match ($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)) {
+                        'whatsapp' => $cellPhone = $cellPhone . '@s.whatsapp.net',
+                        'sms' => '+' . $cellPhone
+                    };
 
                     if (isset($overwriteConfig[$originalRemoteJid])) {
                         unset($params['disable_sending']);
@@ -106,7 +109,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     new SendMessageToLeadAction($lead)->execute(
                         $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                        $firstLeadMessage['message']
+                        $firstLeadMessage['message'],
+                        $params['from'] ?? null,
                     );
                 }
 

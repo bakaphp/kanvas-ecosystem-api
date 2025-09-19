@@ -142,6 +142,7 @@ class LeadIntentTool implements ContextToolInterface
                    ->withSchema($leadSchema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
+                    ->withMaxTokens(7000)
                    ->asStructured();
 
         return $response->structured;

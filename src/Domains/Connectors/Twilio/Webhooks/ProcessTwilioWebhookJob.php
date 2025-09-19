@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
@@ -36,6 +38,8 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
+    protected bool $hijackSession = false;
+
     #[Override]
     public function execute(array $params = []): array
     {
@@ -45,6 +49,20 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $people = $this->processContactFromMessage();
             $lead = $this->createLeadFromPeople($people);
         }
+
+        if ($this->receiver->company->get('allow_session_hijack', false)
+            && $this->receiver->company->get('overwrite_phone_number') !== null
+            && isset($payload['data']['messages']['remoteJid'])) {
+            $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
+            $originalRemoteJid = $request['From'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+                $this->hijackSession = true;
+                $payload['From'] = $newPhone;
+            }
+        }
+
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
@@ -163,7 +181,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             user: $people->user,
             title: $people->name . ' Twilio Opp',
             pipeline_stage_id: 0,
-            people: new People(
+            people: new PeopleDto(
                 $people->app,
                 $people->company->defaultBranch,
                 $people->user,
@@ -192,7 +210,28 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     public function processContactFromMessage(): PeopleModel
     {
         $request = $this->webhookRequest->payload;
-        $firstName = $request['From'];
+
+        $phoneNumber = $request['From'];
+
+        $existingCustomer = People::getByCustomField(
+            'twilio_jid',
+            $phoneNumber,
+            $this->receiver->company
+        );
+
+        // also find customer by phone number if not found by JID
+        if (! $existingCustomer) {
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber) {
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
+                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+            })->fromCompany($this->receiver->company)
+                ->fromApp($this->receiver->app)
+            ->first();
+        }
+
+        if ($existingCustomer && $this->hijackSession) {
+            return $existingCustomer;
+        }
 
         $contactData = [
                     [
@@ -202,16 +241,24 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     ],
                 ];
 
-        $peopleDto = new People(
+        $peopleDto = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->receiver->company->defaultBranch,
             user: $this->receiver->user,
-            firstname: $firstName,
+            firstname: $existingCustomer ? $existingCustomer->firstname : $phoneNumber,
             contacts: Contact::collect($contactData, DataCollection::class),
             address: Address::collect([], DataCollection::class),
-            lastname: '',
+            lastname: $existingCustomer ? $existingCustomer->lastname : '',
+            custom_fields: [
+                'twilio_jid' => $phoneNumber,
+            ],
             tags: ['sms', 'twilio']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
+
         $createAction = new CreatePeopleAction($peopleDto);
 
         return $createAction->execute();
