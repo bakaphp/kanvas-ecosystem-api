@@ -42,7 +42,7 @@ class SendMessageToLeadAction
         if (! $cellphone) {
             throw new InvalidArgumentException('Lead does not have a cellphone number');
         }
-        $cellphone = $this->hijackPhoneNumber($cellphone);
+        $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
 
         // Define the callback to send each chunk in real time
         return $whatsAppMessageService->sendTextMessage($cellphone, $message);
@@ -53,6 +53,12 @@ class SendMessageToLeadAction
         $client = Client::getInstanceByCompany($this->lead->company);
 
         $cellphone = $this->lead->people->getCellPhones()->first()?->value;
+
+        if (! $cellphone) {
+            throw new InvalidArgumentException('Lead does not have a cellphone number');
+        }
+
+        $cellphone = $this->hijackPhoneNumber($cellphone, 'twilio-');
 
         $message = $client->messages->create(
             $cellphone, // to
@@ -71,7 +77,7 @@ class SendMessageToLeadAction
         return [];
     }
 
-    protected function hijackPhoneNumber(string $cellphone): string
+    protected function hijackPhoneNumber(string $cellphone, string $replace): string
     {
         if ($this->lead->company->get('allow_session_hijack', false)
           && $this->lead->company->get('overwrite_phone_number') !== null
@@ -85,7 +91,7 @@ class SendMessageToLeadAction
                 throw new Exception('No hijack number found for this phone number');
             }
             $cellphone = array_keys($phone)[0];
-            $cellphone = str_replace('@s.whatsapp.net', '', $cellphone);
+            $cellphone = str_replace($replace, '', $cellphone);
         }
 
         return $cellphone;
