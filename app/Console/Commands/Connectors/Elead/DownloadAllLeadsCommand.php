@@ -117,7 +117,9 @@ class DownloadAllLeadsCommand extends Command
                                 // Create DTO and sync
                                 $leadDto = DataTransferObjectLead::fromLeadEntity($lead, $user);
                                 $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
-                                $syncAction->execute();
+                                $newLead = $syncAction->execute();
+
+                                new SyncLeadAction($newLead)->execute();
 
                                 $successCount++;
                             }
