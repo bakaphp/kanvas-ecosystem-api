@@ -59,7 +59,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             if (isset($overwriteConfig[$originalRemoteJid])) {
                 $newPhone = $overwriteConfig[$originalRemoteJid];
                 $this->hijackSession = true;
-                $payload['From'] = $newPhone;
+                $request['From'] = $newPhone;
             }
         }
 
