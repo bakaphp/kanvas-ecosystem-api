@@ -36,7 +36,7 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
-        protected bool $hijackSession = false;
+    protected bool $hijackSession = false;
 
     #[Override]
     public function execute(array $params = []): array
