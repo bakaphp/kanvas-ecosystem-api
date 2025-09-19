@@ -222,7 +222,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
             $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber) {
-                $query->where('value', $phoneNumber)
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
             })->fromCompany($this->receiver->company)
                 ->fromApp($this->receiver->app)
@@ -232,6 +232,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if ($existingCustomer && $this->hijackSession) {
             return $existingCustomer;
         }
+
         $contactData = [
                     [
                         'value' => $request['From'],
@@ -248,6 +249,9 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             contacts: Contact::collect($contactData, DataCollection::class),
             address: Address::collect([], DataCollection::class),
             lastname: $existingCustomer ? $existingCustomer->lastname : '',
+            custom_fields: [
+                'twilio_jid' => $phoneNumber,
+            ],
             tags: ['sms', 'twilio']
         );
 
