@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Exception;
 use InvalidArgumentException;
+use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -17,13 +18,13 @@ class SendMessageToLeadAction
     ) {
     }
 
-    public function execute(string $channel, string $message): array
+    public function execute(string $channel, string $message, ?string $from = ''): array
     {
         //TODO. we need to add this message to the lead channel
 
         return match ($channel) {
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
-            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($message),
+            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
@@ -47,10 +48,21 @@ class SendMessageToLeadAction
         return $whatsAppMessageService->sendTextMessage($cellphone, $message);
     }
 
-    protected function sendSmsMessage(string $message): array
+    protected function sendSmsMessage(string $from, string $message): array
     {
-        //TODO implement SMS sending
-        return [];
+        $client = Client::getInstanceByCompany($this->lead->company);
+
+        $cellphone = $this->lead->people->getCellPhones()->first()?->value;
+
+        $message = $client->messages->create(
+            $cellphone, // to
+            [
+                'from' => $from,
+                'body' => $message,
+            ]
+        );
+
+        return [$message->body];
     }
 
     protected function sendEmailMessage(string $message): array
