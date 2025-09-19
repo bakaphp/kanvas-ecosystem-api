@@ -46,11 +46,11 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             );
         }
 
-        $to = Str::replace('twilio-', '', $this->hijackMessagePhone($this->channel->slug));
+        $to = Str::replace('twilio-', '', $this->channel->slug);
+        $to = "+{$to}";
+        $to = $this->hijackMessagePhone($to);
 
         $client = Client::getInstanceByCompany($this->message->company);
-        $to = str_replace('twilio-', '', $this->channel->slug);
-        $to = "+{$to}";
         $onChunk = function ($text, $data) use ($client, $to, $params): void {
             // Use the Twilio client to send a message
             $client->messages->create(
