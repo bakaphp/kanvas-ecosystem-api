@@ -229,6 +229,7 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Order synced correctly');
         $this->assertEquals($order->fulfillment_status, OrderFulfillmentStatusEnum::COMPLETED->value);
+        $this->assertNotNull($order->metadata["data"]["payment_date"]);
     }
 
     public function testOrderReleaseWorkflow(): void
@@ -344,6 +345,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         ]);
 
         $order->refresh();
-        $this->assertNotNull($order->get('voucher_url'));
+        $this->assertNotNull($order->metadata["data"]["release_date"]);
     }
 }
