@@ -73,10 +73,25 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                     $toStatus = $params['to_status'] ?? null;
 
                     if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
+                        $order->metadata = [
+                            ...$order->metadata ?? [],
+                            'data' => [
+                                ...$order->metadata['data'] ?? [],
+                                'payment_date' => Carbon::now()->setTimezone('America/Santo_Domingo')->format('d/m/Y h:i A'),
+                            ],
+                        ];
                         $order->fulfill();
                     }
 
                     if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
+                        $order->metadata = [
+                            ...$order->metadata ?? [],
+                            'data' => [
+                                ...$order->metadata['data'] ?? [],
+                                'release_date' => Carbon::now()->setTimezone('America/Santo_Domingo')->format('d/m/Y h:i A'),
+                            ],
+                        ];
+                        $order->saveQuietly();
                         $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
                         $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
                         $serviceName = $order->orderType->name ?? '';
