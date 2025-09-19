@@ -52,7 +52,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
-            && isset($payload['data']['messages']['remoteJid'])) {
+        ) {
             $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
             $originalRemoteJid = $request['From'];
 
