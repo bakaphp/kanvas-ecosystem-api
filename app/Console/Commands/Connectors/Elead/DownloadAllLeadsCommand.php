@@ -15,6 +15,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class DownloadAllLeadsCommand extends Command
@@ -116,11 +117,18 @@ class DownloadAllLeadsCommand extends Command
 
                                 // Create DTO and sync
                                 $leadDto = DataTransferObjectLead::fromLeadEntity($lead, $user);
+                                $leadDto->runWorkflow = false; // Disable workflow on initial import
                                 $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
                                 $newLead = $syncAction->execute();
 
                                 new SyncLeadAction($newLead)->execute();
-
+                                $newLead->fireWorkflow(
+                                    WorkflowEnum::CREATED->value,
+                                    true,
+                                    [
+                                        'app' => $app,
+                                    ]
+                                );
                                 $successCount++;
                             }
                         } catch (Throwable $e) {
