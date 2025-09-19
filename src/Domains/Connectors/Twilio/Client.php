@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
-use KanvasExceptions\ValidationException;
+use Kanvas\Exceptions\ValidationException;
 use Twilio\Rest\Client as TwilioClient;
 
 /**
