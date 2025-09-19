@@ -47,7 +47,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
             $opensAt = Carbon::createFromFormat('H:i:s', $workingHours['opens_at_local'] ?? '00:00:00')->setTimezone($this->currentDay->timezone);
             $closesAt = Carbon::createFromFormat('H:i:s', $workingHours['closes_at_local'] ?? '23:59:59')->setTimezone($this->currentDay->timezone);
             if ($this->currentDay->between($opensAt, $closesAt)) {
-                return 'before_hours';
+                return 'work_hours';
             }
 
             return 'after_hours';
