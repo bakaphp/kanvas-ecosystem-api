@@ -86,6 +86,7 @@ class CompletionStatusTool implements ContextToolInterface
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode(' ', ['Clasifica el lead según el esquema proporcionado.']), $data))
+                    ->withMaxTokens(7000)
                    ->asStructured();
 
         return $response->structured;
