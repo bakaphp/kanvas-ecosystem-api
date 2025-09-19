@@ -106,7 +106,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     new SendMessageToLeadAction($lead)->execute(
                         $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                        $firstLeadMessage['message']
+                        $firstLeadMessage['message'],
+                        $params['from'] ?? null,
                     );
                 }
 

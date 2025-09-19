@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Actions;
 
+use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Connectors\Twilio\Client;
@@ -44,7 +45,10 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
                 new AgentMonitoring($inspector)
             );
         }
-        $client = Client::getInstance($this->message->app);
+
+        $to = Str::replace('twilio-', '', $this->hijackMessagePhone($this->channel->slug));
+
+        $client = Client::getInstanceByCompany($this->message->company);
         $to = str_replace('twilio-', '', $this->channel->slug);
         $to = "+{$to}";
         $onChunk = function ($text, $data) use ($client, $to, $params): void {
