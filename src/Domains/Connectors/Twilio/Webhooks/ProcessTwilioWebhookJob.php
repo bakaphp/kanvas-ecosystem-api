@@ -59,7 +59,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
         $isFromMe = $request['From'] === $request['To'];
         if (! $isFromMe) {
-            $people = $this->processContactFromMessage();
+            $people = $this->processContactFromMessage($request);
             $lead = $this->createLeadFromPeople($people);
         }
 
@@ -207,10 +207,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         return $lead;
     }
 
-    public function processContactFromMessage(): PeopleModel
+    public function processContactFromMessage(array $request): PeopleModel
     {
-        $request = $this->webhookRequest->payload;
-
         $phoneNumber = $request['From'];
 
         $existingCustomer = People::getByCustomField(
@@ -235,7 +233,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $contactData = [
                     [
-                        'value' => $request['From'],
+                        'value' => str_replace('+', '', $request['From']),
                         'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                         'weight' => 100,
                     ],
