@@ -32,6 +32,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
             'opens_at_local' => $workingHours['opens_at_local'] ?? '',
             'closes_at_local' => $workingHours['closes_at_local'] ?? '',
             'next_open_iso' => $this->getNextWorkingDay(),
+            'next_open_human' => Carbon::parse($this->getNextWorkingDay())->format('l jS \\at h:i A'),
         ];
         // return [
         //     'work_hours' => $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null,
