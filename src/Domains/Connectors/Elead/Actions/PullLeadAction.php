@@ -184,10 +184,8 @@ class PullLeadAction
                                     continue;
                                 }
 
+                                $internalClosedLeads = $activeLeadsQuery->first();
                                 $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('closed')->id]);
-
-                                // we have an internal closed lead, skip this one
-                                continue;
                             }
 
                             $results[] = [
