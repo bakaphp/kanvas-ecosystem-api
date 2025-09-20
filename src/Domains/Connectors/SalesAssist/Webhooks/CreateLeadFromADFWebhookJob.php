@@ -26,7 +26,9 @@ class CreateLeadFromADFWebhookJob extends ProcessWebhookJob
             $this->receiver->company,
             $this->receiver->app
         );
-        $people->leads->latest()->first()?->set(LeadCustomFieldEnum::ADF_LEAD_XML->value, $data);
+        if ($people) {
+            $people->leads->latest()->first()?->set(LeadCustomFieldEnum::ADF_LEAD_XML->value, $data);
+        }
 
         return [
             'body-plain' => $payload['body-plain'] ?? null,
