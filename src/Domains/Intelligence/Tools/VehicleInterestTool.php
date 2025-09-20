@@ -39,7 +39,7 @@ class VehicleInterestTool implements ContextToolInterface
             'trim' => $vehicleInterest['trim'] ?? '',
             'vin' => $vehicleInterest['vin'] ?? '',
             'stock_number' => $vehicleInterest['stockNumber'] ?? '',
-            'in-stock' => $vehicleInterest['stockNumber'] ?? false,
+            'in_stock' => $vehicleInterest['stockNumber'] ?? false,
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
             'price' => isset($variant) ? ($variant?->getPriceInfoFromDefaultChannel()->price ?? 0) : 0,
         ];
