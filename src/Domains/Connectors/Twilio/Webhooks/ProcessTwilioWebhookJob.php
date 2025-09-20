@@ -44,23 +44,23 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     public function execute(array $params = []): array
     {
         $request = $this->webhookRequest->payload;
-        $isFromMe = $request['From'] === $request['To'];
-        if (! $isFromMe) {
-            $people = $this->processContactFromMessage();
-            $lead = $this->createLeadFromPeople($people);
-        }
 
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
-            && isset($payload['data']['messages']['remoteJid'])) {
+        ) {
             $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
             $originalRemoteJid = $request['From'];
 
             if (isset($overwriteConfig[$originalRemoteJid])) {
                 $newPhone = $overwriteConfig[$originalRemoteJid];
                 $this->hijackSession = true;
-                $payload['From'] = $newPhone;
+                $request['From'] = $newPhone;
             }
+        }
+        $isFromMe = $request['From'] === $request['To'];
+        if (! $isFromMe) {
+            $people = $this->processContactFromMessage($request);
+            $lead = $this->createLeadFromPeople($people);
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
@@ -68,9 +68,9 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
 
         $existingMessage = Message::where('uuid', $messageSlug)
-        ->where('companies_id', $this->receiver->company->getId())
-        ->where('apps_id', $this->receiver->app->getId())
-        ->first();
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
         $lastMessage = $channel->getLastMessage();
 
         if ($existingMessage) {
@@ -207,10 +207,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         return $lead;
     }
 
-    public function processContactFromMessage(): PeopleModel
+    public function processContactFromMessage(array $request): PeopleModel
     {
-        $request = $this->webhookRequest->payload;
-
         $phoneNumber = $request['From'];
 
         $existingCustomer = People::getByCustomField(
@@ -235,7 +233,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $contactData = [
                     [
-                        'value' => $request['From'],
+                        'value' => str_replace('+', '', $request['From']),
                         'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                         'weight' => 100,
                     ],
