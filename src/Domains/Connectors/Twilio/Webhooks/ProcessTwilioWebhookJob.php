@@ -233,7 +233,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $contactData = [
                     [
-                        'value' => $request['From'],
+                        'value' => str_replace('+', '', $request['From']),
                         'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                         'weight' => 100,
                     ],
