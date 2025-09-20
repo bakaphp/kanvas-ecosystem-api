@@ -40,6 +40,10 @@ class HandOffActivity extends KanvasActivity
                     $leadOwner = $lead->owner;
                 }
 
+                if ($leadOwner === null) {
+                    $leadOwner = $lead->user;
+                }
+
                 $leadOwner->notify(
                     new HandOffNotification(
                         lead: $lead,
@@ -47,7 +51,7 @@ class HandOffActivity extends KanvasActivity
                         data: [
                                 'lead' => $lead,
                                 'agent' => $leadOwner,
-                                ...$params
+                                ...$params,
                             ]
                     )
                 );
