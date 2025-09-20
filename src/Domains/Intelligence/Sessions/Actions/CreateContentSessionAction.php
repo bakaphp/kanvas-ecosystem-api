@@ -15,6 +15,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 
 class CreateContentSessionAction
@@ -71,6 +73,7 @@ class CreateContentSessionAction
             $data['customerName'] = $people->name;
             $data['leadEmail'] = $people->getEmails()->first()?->value ?? '';
             $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
+            $data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
         try {
@@ -139,5 +142,32 @@ class CreateContentSessionAction
         }
 
         return $results;
+    }
+
+    public function generateValuesForRole(Lead $lead): array
+    {
+        $additionalContext = $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value);
+        $companyIsHoliday = (new CompanyIsHolidayTool($lead))->execute();
+        $companyWorkHours = (new CompanyWorkHoursTool($lead))->execute();
+        $vehicleInterest = $additionalContext['vehicle_interest'] ?? null;
+
+        return [
+            'company_name' => $lead->company->name,
+            'branch_city' => $lead->company->branch->city,
+            'branch_state' => $lead->company->branch->state,
+            'branch_address' => $lead->company->branch->address . ' ' . $lead->company->branch->address2,
+            'company_timezone' => $lead->company->get('timezone', 'UTC'),
+            'lead_intent' => $additionalContext['lead_intent']['lead_intent'],
+            'completion_status' => $additionalContext['completion_status']['intent_completion_status'],
+            'holiday_status' => $companyIsHoliday['is_holiday'],
+            'work_hours_status' => $companyWorkHours['status'],
+            'next_open_iso' => $companyWorkHours['next_open_iso'],
+            'next_open_human' => $companyWorkHours['next_open_human'],
+            'salesperson_title' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
+            'customer_first_name' => $lead->people->firstname,
+            'lead_email' => $lead->people->getEmails()->first()?->value ?? '',
+            'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
+            'vehicle_interest' => $vehicleInterest ? $vehicleInterest['year'] . ' ' . $vehicleInterest['make'] . ' ' . $vehicleInterest['model'] : null,
+        ];
     }
 }
