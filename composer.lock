@@ -11068,16 +11068,16 @@
         },
         {
             "name": "recombee/php-api-client",
-            "version": "v5.1.0",
+            "version": "v5.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/recombee/php-api-client.git",
-                "reference": "eebb0cfc97750110311e52504b5af5fbca5eef29"
+                "reference": "01ea55da5316fd780ddd7c2c39ea6bc707bacfb3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/eebb0cfc97750110311e52504b5af5fbca5eef29",
-                "reference": "eebb0cfc97750110311e52504b5af5fbca5eef29",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/01ea55da5316fd780ddd7c2c39ea6bc707bacfb3",
+                "reference": "01ea55da5316fd780ddd7c2c39ea6bc707bacfb3",
                 "shasum": ""
             },
             "require": {
@@ -11108,9 +11108,9 @@
             "homepage": "https://recombee.com",
             "support": {
                 "issues": "https://github.com/recombee/php-api-client/issues",
-                "source": "https://github.com/recombee/php-api-client/tree/v5.1.0"
+                "source": "https://github.com/recombee/php-api-client/tree/v5.1.1"
             },
-            "time": "2025-07-24T14:49:46+00:00"
+            "time": "2025-09-19T15:15:03+00:00"
         },
         {
             "name": "rennokki/laravel-eloquent-query-cache",
