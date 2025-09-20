@@ -20,7 +20,7 @@ class ArtifactsTool implements ContextToolInterface
     public function execute(array $params = []): array
     {
         $adf = $this->entity->get(LeadCustomFieldEnum::ADF_LEAD_XML->value);
-        $comment = $adf['adf']['prospect']['customer']['comments'] ?? [];
+        $comment = $adf ? ($adf['adf']['prospect']['customer']['comments'] ?? []) : [];
 
         return [
             'crm' => [
