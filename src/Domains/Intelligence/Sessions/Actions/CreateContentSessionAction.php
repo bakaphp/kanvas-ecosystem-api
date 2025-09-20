@@ -73,7 +73,7 @@ class CreateContentSessionAction
             $data['customerName'] = $people->name;
             $data['leadEmail'] = $people->getEmails()->first()?->value ?? '';
             $data['leadOwnerName'] = $lead->owner?->firstname . ' ' . $lead->owner?->lastname;
-            $data = array_merge($data, ...$this->generateValuesForRole($lead));
+            $data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
         try {
