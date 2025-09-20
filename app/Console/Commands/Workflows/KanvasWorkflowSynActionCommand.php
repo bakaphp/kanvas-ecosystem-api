@@ -72,6 +72,7 @@ use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleLeadFromSearchActivity;
+use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
@@ -251,6 +252,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PromptIAPOrderActivity::class,
             WorkflowPushLeadNotesActivity::class,
             LeadAgentFirstMessageOutreachActivity::class,
+            CreateLeadFromADFWebhookJob::class,
         ];
 
         $createdActions = [];
