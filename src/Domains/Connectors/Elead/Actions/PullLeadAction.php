@@ -15,6 +15,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
@@ -118,6 +119,12 @@ class PullLeadAction
                 }
 
                 try {
+                    $currentCustomer = People::getByCustomField(
+                        CustomFieldEnum::CUSTOMER_ID->value,
+                        $customer['id'],
+                        $this->company
+                    );
+
                     $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
                     $eLead->customerId = $customer['id'];
 
@@ -171,8 +178,14 @@ class PullLeadAction
                             $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
 
                             if (! $internalClosedLeads) {
-                                // we have an internal closed lead, skip this one
-                                continue;
+                                $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($currentCustomer);
+
+                                if ($activeLeadsQuery->count() === 0) {
+                                    continue;
+                                }
+
+                                $internalClosedLeads = $activeLeadsQuery->first();
+                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('closed')->id]);
                             }
 
                             $results[] = [
