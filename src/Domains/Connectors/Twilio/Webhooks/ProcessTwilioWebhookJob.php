@@ -232,12 +232,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
 
         $contactData = [
-                    [
-                        'value' => $phoneNumber,
-                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
-                        'weight' => 100,
-                    ],
-                ];
+            [
+                'value' => $phoneNumber,
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'weight' => 100,
+            ],
+        ];
 
         $peopleDto = new PeopleDto(
             app: $this->receiver->app,
