@@ -209,7 +209,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     public function processContactFromMessage(array $request): PeopleModel
     {
-        $phoneNumber = $request['From'];
+        $phoneNumber = str_replace('+', '', $request['From']);
 
         $existingCustomer = People::getByCustomField(
             'twilio_jid',
@@ -233,7 +233,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $contactData = [
                     [
-                        'value' => str_replace('+', '', $request['From']),
+                        'value' => $phoneNumber,
                         'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                         'weight' => 100,
                     ],
