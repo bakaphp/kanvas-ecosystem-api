@@ -54,7 +54,8 @@ class CreateContentSessionAction
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
             ],
-            $this->mapPeople($lead->people, $lead)
+            $this->mapPeople($lead->people, $lead),
+            $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
         );
     }
 
