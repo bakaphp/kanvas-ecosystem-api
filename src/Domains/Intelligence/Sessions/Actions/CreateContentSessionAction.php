@@ -149,6 +149,7 @@ class CreateContentSessionAction
         $additionalContext = $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value);
         $companyIsHoliday = (new CompanyIsHolidayTool($lead))->execute();
         $companyWorkHours = (new CompanyWorkHoursTool($lead))->execute();
+        $vehicleInterest = $additionalContext['vehicle_interest'] ?? null;
 
         return [
             'company_name' => $lead->company->name,
@@ -165,6 +166,8 @@ class CreateContentSessionAction
             'salesperson_title' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
             'customer_first_name' => $lead->people->firstname,
             'lead_email' => $lead->people->getEmails()->first()?->value ?? '',
+            'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
+            'vehicle_interest' => $vehicleInterest ? $vehicleInterest['year'] . ' ' . $vehicleInterest['make'] . ' ' . $vehicleInterest['model'] : null,
         ];
     }
 }
