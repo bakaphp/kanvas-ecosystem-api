@@ -45,8 +45,8 @@ class CompanyWorkHoursTool implements ContextToolInterface
         return [
             'status' => $status,
             'weekday' => $this->now->dayName,
-            'opens_at_local' => $opensAt?->format('H:i:s') ?? '',
-            'closes_at_local' => $closesAt?->format('H:i:s') ?? '',
+            'opens_at_local' => $opensAt?->format('H:i') ?? '',
+            'closes_at_local' => $closesAt?->format('H:i') ?? '',
             'next_open_iso' => $nextOpen->toIso8601String(),
             'next_open_human' => $nextOpen->format('l jS \\a\\t h:i A'),
             'current_time' => $this->now->format('Y-m-d H:i:s'),

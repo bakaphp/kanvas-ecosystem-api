@@ -33,6 +33,7 @@
         "inspector-apm/inspector-php": "^3.12",
         "inspector-apm/neuron-ai": "^2.0",
         "joelwmale/laravel-cart": "^1.2",
+        "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
         "laravel-workflow/laravel-workflow": "^1.0.24",
