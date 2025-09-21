@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\SalesAssist\Webhooks;
 use Kanvas\Connectors\SalesAssist\Actions\CreateLeadFromADFAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
+
 /**
  * @todo: change the name of this class to something more generic like LinkADFToLead
  */
