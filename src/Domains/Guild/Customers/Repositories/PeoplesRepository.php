@@ -100,7 +100,7 @@ class PeoplesRepository
             $q->whereExists(function ($sub) use ($phone) {
                 $sub->from('peoples_contacts as cp')
                     ->whereColumn('cp.peoples_id', 'p.id')
-                    ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value])
+                    ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value])
                     ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
             });
         }
