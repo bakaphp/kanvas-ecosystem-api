@@ -86,7 +86,6 @@ class PullPeopleAction
                     $customFields[CustomFieldEnum::PERSON_ID->value] = $personId;
                 }
 
-                print_r($customer['phones']);
                 $people = new SyncPeopleByThirdPartyCustomFieldAction(
                     DataTransferObjectPeople::from([
                         'app' => $this->app,
