@@ -63,6 +63,7 @@
         "quickbooks/v3-php-sdk": "^6.2",
         "recombee/php-api-client": "^5.0",
         "rennokki/laravel-eloquent-query-cache": "dev-master",
+        "rlanvin/php-rrule": "^2.6",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
         "shish/safe": "^2.6",

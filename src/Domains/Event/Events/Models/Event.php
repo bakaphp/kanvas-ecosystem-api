@@ -10,10 +10,13 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 #[ObservedBy([EventObserver::class])]
@@ -64,5 +67,20 @@ class Event extends BaseModel
     public function eventType(): BelongsTo
     {
         return $this->belongsTo(EventType::class);
+    }
+
+    public function resource(): MorphTo
+    {
+        return $this->morphTo('resources');
+    }
+
+    public function orders(): MorphMany
+    {
+        return $this->morphMany(Order::class, 'resources');
+    }
+
+    public function resources(): HasMany
+    {
+        return $this->hasMany(EventResource::class);
     }
 }

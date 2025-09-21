@@ -13,6 +13,14 @@ type Event {
     type: EventType @belongsTo(relation: "eventType")
     class: EventClass @belongsTo(relation: "eventClass")
     category: EventCategory @belongsTo(relation: "eventCategory")
+    resources_id: ID
+    resources_type: String
+    resource: EventResource @morphTo
+    orders: [Order!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventOrderBuilder@getEventOrders"
+        )
     versions: [EventVersion!]!
         @paginate(
             defaultCount: 25
@@ -132,13 +140,21 @@ input EventInput {
     type_id: ID!
     class_id: ID
     category_id: ID!
+    resources_id: ID
+    resources_type: String
+    participants: [String!]
     dates: [EventVersionDateInput!]!
 }
 
 input EventUpdateInput {
     name: String
     description: String
+    resources_id: ID
+    resources_type: String
 }
+
+union EventResource = Variant
+
 
 input EventVersionDateInput {
     date: Date!
@@ -146,6 +162,15 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
     end_time: String!
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input TimeSlotBookingInput {
+    time_slot_id: ID!
+    participants: [String!]!
+    event_name: String!
+    event_description: String
+    hold_id: String
+    metadata: Mixed
 }
 
 extend type Mutation @guard {
@@ -160,6 +185,11 @@ extend type Mutation @guard {
     deleteEvent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
+        )
+    
+    bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
 }
 
