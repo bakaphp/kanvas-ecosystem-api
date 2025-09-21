@@ -30,7 +30,7 @@ class CreateParticipantAction
     public function execute(): ?Participant
     {
         // @todo search by contact type
-        $peopleData = $this->peopleData[0];
+        $peopleData = $this->peopleData;
         if (! isset($peopleData['contacts'][0]['value'])) {
             return null;
         }

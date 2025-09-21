@@ -11,7 +11,21 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
+use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\SystemModules\Models\SystemModules;
+use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
 {
@@ -39,6 +53,8 @@ class CreateEventAction
                 'event_category_id' => $this->event->category->getId(),
                 'event_class_id' => $this->event->class->getId(),
                 'description' => $this->event->description,
+                'resources_id' => $this->event->resource?->id ?? null,
+                'resources_type' => $this->event->resource?->getMorphClass() ?? null,
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
@@ -67,15 +83,25 @@ class CreateEventAction
                     $this->event->app,
                     $this->event->company->defaultBranch,
                     $this->event->user,
-                    $this->event->participants,
+                    $participant,
                     $eventVersion,
                     $participant
                 );
                 $createParticipant->execute();
             }
 
+            if ($event->resources_id && ! $event->orders->count()) {
+                $this->createEventOrder($event, []);
+            }
+
+            // Store additional resources in pivot table
+            if (count($this->event->resources)) {
+                $this->storeEventResources($event, $this->event->resources);
+            }
+
             return $event;
         });
+
 
         return $event;
     }
@@ -103,5 +129,93 @@ class CreateEventAction
                 ],
             ]
         )->validate();
+    }
+
+    protected function createEventOrder(ModelsEvent $event, mixed $data = []): void
+    {
+        $variant = $event->resource;
+
+        if (! $variant) {
+            return;
+        }
+
+        $orderItem = new OrderItem(
+            app: $event->app,
+            variant: $variant,
+            name: $event->name,
+            sku: $variant->sku,
+            quantity: 1,
+            price: (float) (isset($data['price']) ? $data['price'] : 0),
+            tax: 0,
+            discount: 0.0,
+            currency: isset($data['currency_code']) ? $data['currency_code'] : Currencies::getByCode('USD'),
+            quantityShipped: 0
+        );
+
+        $people = PeoplesRepository::getByEmail($event->user->email, $event->company, $event->app);
+        if (! $people) {
+            $contact = [
+                [
+                    'value' => $event->user->email,
+                    'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+                    'weight' => 0,
+                ],
+            ];
+            $peopleDto = new People(
+                app: $event->app,
+                branch: $event->company->defaultBranch,
+                user: $event->user,
+                firstname: $event->user->firstname,
+                lastname: $event->user->lastname,
+                contacts: Contact::collect($contact, DataCollection::class),
+                address: Address::collect([], DataCollection::class)
+            );
+            $people = (new CreatePeopleAction(
+                $peopleDto
+            ))->execute();
+        }
+        $total = $orderItem->price;
+        $items = OrderItem::collect([$orderItem], DataCollection::class);
+
+        $dto = Order::from([
+            'app' => $event->app,
+            'region' => Regions::getDefault($event->company, $event->apps),
+            'token'  => Str::random(32),
+            'company' => $event->company,
+            'people' => $people,
+            'user' => $event->user,
+            'orderNumber' => '',
+            'total' => (float) $total,
+            'taxes' => 0.0,
+            'totalDiscount' => 0.0,
+            'totalShipping' => 0.0,
+            'status' => OrderStatusEnum::COMPLETED->value,
+            'checkoutToken' => '',
+            'currency' => Currencies::getByCode('USD'),
+            'items' => $items,
+        ]);
+        $action = new CreateOrderAction($dto);
+        $action->disableWorkflow();
+        $kanvasOrder = $action->execute();
+        $kanvasOrder->resources_id =  $event->id;
+        $kanvasOrder->resources_type =  $event->getMorphClass();
+        $kanvasOrder->saveQuietly();
+    }
+
+    protected function storeEventResources(ModelsEvent $event, array $resources): void
+    {
+        foreach ($resources as $resourceData) {
+            if (isset($resourceData['resources_id']) && isset($resourceData['resources_type'])) {
+                $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceData['resources_type']);
+                EventResource::create([
+                    'apps_id' => $event->apps_id,
+                    'companies_id' => $event->companies_id,
+                    'event_id' => $event->getId(),
+                    'resources_id' => $resourceData['resources_id'],
+                    'resources_type' => $resourceClass,
+                    'metadata' => $resourceData['metadata'] ?? null,
+                ]);
+            }
+        }
     }
 }
