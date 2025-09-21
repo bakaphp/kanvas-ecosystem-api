@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dddbff7ed2b55522761b8a74d640e561",
+    "content-hash": "a1faa472fca33d823740e0437eeefcee",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4620,16 +4620,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.2.9",
+            "version": "2.2.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/neuron-ai.git",
-                "reference": "3ace2b3ebb116b85ed8cc89dec30347f799be2ec"
+                "reference": "bd0c1ed68c36a0945f7503d56de414b960990ba4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/3ace2b3ebb116b85ed8cc89dec30347f799be2ec",
-                "reference": "3ace2b3ebb116b85ed8cc89dec30347f799be2ec",
+                "url": "https://api.github.com/repos/inspector-apm/neuron-ai/zipball/bd0c1ed68c36a0945f7503d56de414b960990ba4",
+                "reference": "bd0c1ed68c36a0945f7503d56de414b960990ba4",
                 "shasum": ""
             },
             "require": {
@@ -4680,9 +4680,9 @@
             "description": "The AI Agent Development Kit for PHP.",
             "support": {
                 "issues": "https://github.com/inspector-apm/neuron-ai/issues",
-                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.2.9"
+                "source": "https://github.com/inspector-apm/neuron-ai/tree/2.2.10"
             },
-            "time": "2025-09-19T17:11:43+00:00"
+            "time": "2025-09-20T23:09:53+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -8880,16 +8880,16 @@
         },
         {
             "name": "paragonie/sodium_compat",
-            "version": "v2.1.0",
+            "version": "v2.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/paragonie/sodium_compat.git",
-                "reference": "a673d5f310477027cead2e2f2b6db5d8368157cb"
+                "reference": "9c3535883f1b60b5d26aeae5914bbec61132ad7f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/a673d5f310477027cead2e2f2b6db5d8368157cb",
-                "reference": "a673d5f310477027cead2e2f2b6db5d8368157cb",
+                "url": "https://api.github.com/repos/paragonie/sodium_compat/zipball/9c3535883f1b60b5d26aeae5914bbec61132ad7f",
+                "reference": "9c3535883f1b60b5d26aeae5914bbec61132ad7f",
                 "shasum": ""
             },
             "require": {
@@ -8897,8 +8897,10 @@
                 "php-64bit": "*"
             },
             "require-dev": {
-                "phpunit/phpunit": "^7|^8|^9",
-                "vimeo/psalm": "^4|^5"
+                "infection/infection": "^0",
+                "nikic/php-fuzzer": "^0",
+                "phpunit/phpunit": "^7|^8|^9|^10|^11",
+                "vimeo/psalm": "^4|^5|^6"
             },
             "suggest": {
                 "ext-sodium": "Better performance, password hashing (Argon2i), secure memory management (memzero), and better security."
@@ -8912,7 +8914,10 @@
             "autoload": {
                 "files": [
                     "autoload.php"
-                ]
+                ],
+                "psr-4": {
+                    "ParagonIE\\Sodium\\": "namespaced/"
+                }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
@@ -8965,9 +8970,9 @@
             ],
             "support": {
                 "issues": "https://github.com/paragonie/sodium_compat/issues",
-                "source": "https://github.com/paragonie/sodium_compat/tree/v2.1.0"
+                "source": "https://github.com/paragonie/sodium_compat/tree/v2.2.0"
             },
-            "time": "2024-09-04T12:51:01+00:00"
+            "time": "2025-09-21T18:27:14+00:00"
         },
         {
             "name": "phiki/phiki",
