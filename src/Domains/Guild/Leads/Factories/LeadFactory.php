@@ -17,24 +17,41 @@ class LeadFactory extends Factory
     protected $model = Lead::class;
 
     #[Override]
-    public function definition()
+    public function definition(): array
     {
-        $app = app(Apps::class);
-        $appId = $this->states['apps_id'] ?? $app->getId(); // Use the provided app ID if set
-        $companyId = $this->states['companies_id'] ?? Companies::factory()->create()->getId(); // Use the provided company ID if set
-        $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->withContacts()->create()->getId();
-
         return [
-            'firstname' => fake()->firstName,
-            'lastname' => fake()->lastName,
-            'title' => fake()->name,
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'title' => fake()->name(),
             'companies_branches_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'users_id' => 1,
             'leads_receivers_id' => 0,
             'leads_owner_id' => 1,
-            'apps_id' => $appId,
-            'companies_id' => $companyId,
-            'people_id' => $peopleId,
+            'apps_id' => function (array $attributes) {
+                if (isset($attributes['apps_id']) && $attributes['apps_id']) {
+                    return (int) $attributes['apps_id'];
+                }
+
+                return app(Apps::class)->getId(); // tu default
+            },
+            'companies_id' => function (array $attributes) {
+                if (! empty($attributes['companies_id'])) {
+                    return (int) $attributes['companies_id'];
+                }
+
+                return Companies::factory()->create()->getKey();
+            },
+            'people_id' => function (array $attributes) {
+                $appId = (int) $attributes['apps_id'];
+                $companyId = (int) $attributes['companies_id'];
+
+                return People::factory()
+                    ->withAppId($appId)
+                    ->withCompanyId($companyId)
+                    ->withContacts()
+                    ->create()
+                    ->getId();
+            },
         ];
     }
 
