@@ -13,6 +13,6 @@ class CreateLeadFromADFWebhookJob extends ProcessWebhookJob
     #[Override]
     public function execute(): array
     {
-        return (new CreateLeadFromADFAction($this->webhookRequest))->execute();
+        return new CreateLeadFromADFAction($this->webhookRequest)->execute();
     }
 }

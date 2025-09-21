@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Tools;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Tools\ArtifactsTool;
 use Kiwilan\XmlReader\XmlReader;
 use Tests\TestCase;
 
@@ -37,14 +38,14 @@ class ArtifactsToolTest extends TestCase
             <?ADF version="1.0"?>
             <adf>
               <prospect>
-                <id sequence="1" source="Edmunds">1324464021</id>
+                <id sequence="1" source="KanvasShop">1324464021</id>
                 <type>Contact Us</type>
                 <requestdate>2025-09-19T17:00:01.045-07:00</requestdate>
                 <vehicle interest="buy" status="used">
                   <year>2021</year>
                   <make>Toyota</make>
                   <model>RAV4</model>
-                  <vin>2T3W1RFV0MC156380</vin>
+                  <vin>1111111111111</vin>
                   <stock>125057</stock>
                   <trim>XLE 4dr SUV (2.5L 4cyl 8A)</trim>
                   <colorcombination>
@@ -57,8 +58,8 @@ class ArtifactsToolTest extends TestCase
                   <contact>
                     <name part="first">vanessa</name>
                     <name part="last">garcia-moreno</name>
-                    <email>vanessag-m810@sbcglobal.net</email>
-                    <phone type="voice">951-295-7414</phone>
+                    <email>frederickpeal@mctekk.com</email>
+                    <phone type="voice">8098843010</phone>
                     <address>
                       <street line="1"></street>
                       <city>Fontana</city>
@@ -75,7 +76,7 @@ class ArtifactsToolTest extends TestCase
             your lot that was found using Edmunds.com's Used Car Inventory search.
                 
             Customer is requesting pricing for the vehicle below:
-            VIN: 2T3W1RFV0MC156380
+            VIN: 1111111111111
             2021 Toyota RAV4
             Dealer Price: $24,688
             
@@ -96,13 +97,13 @@ class ArtifactsToolTest extends TestCase
                   ]]></comments>
                 </customer>
                 <vendor>
-                  <id source="Magic GMC">1967865</id>
-                  <vendorname>Magic GMC</vendorname>
+                  <id source="Kanvas GMC">1967865</id>
+                  <vendorname>Kanvas GMC</vendorname>
                 </vendor>
                 <provider>
-                  <id source="Edmunds Direct"></id>
-                  <name part="full">Edmunds</name>
-                  <service>Edmunds Direct</service>
+                  <id source="KanvasShop Direct"></id>
+                  <name part="full">KanvasShop</name>
+                  <service>KanvasShop Direct</service>
                 </provider>
               </prospect>
             </adf>

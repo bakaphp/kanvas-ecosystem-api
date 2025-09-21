@@ -32,8 +32,8 @@ class CreateLeadFromADFActionTest extends TestCase
         $xml = $this->getXmlAsString();
         $email = $lead->people->getEmails()->first()->value;
         $phone = $lead->people->getCellPhones()->first()->value;
-        $xml = str_replace('vanessag-m810@sbcglobal.net', $email, $xml);
-        $xml = str_replace('951-295-7414', $phone, $xml);
+        $xml = str_replace('frederickpeal@mctekk.com', $email, $xml);
+        $xml = str_replace('8098843010', $phone, $xml);
         $xml = str_replace('2025-09-19T17:00:01.045-07:00', $lead->created_at->format('Y-m-d\TH:i:s.vP'), $xml);
         $webhookCall = ReceiverWebhookCall::create([
             'receiver_webhooks_id' => $ReceiverWebhook->id,
@@ -55,14 +55,14 @@ class CreateLeadFromADFActionTest extends TestCase
             <?ADF version="1.0"?>
             <adf>
               <prospect>
-                <id sequence="1" source="Edmunds">1324464021</id>
+                <id sequence="1" source="KanvasShop">1324464021</id>
                 <type>Contact Us</type>
                 <requestdate>2025-09-19T17:00:01.045-07:00</requestdate>
                 <vehicle interest="buy" status="used">
                   <year>2021</year>
                   <make>Toyota</make>
                   <model>RAV4</model>
-                  <vin>2T3W1RFV0MC156380</vin>
+                  <vin>1111111111111</vin>
                   <stock>125057</stock>
                   <trim>XLE 4dr SUV (2.5L 4cyl 8A)</trim>
                   <colorcombination>
@@ -75,8 +75,8 @@ class CreateLeadFromADFActionTest extends TestCase
                   <contact>
                     <name part="first">vanessa</name>
                     <name part="last">garcia-moreno</name>
-                    <email>vanessag-m810@sbcglobal.net</email>
-                    <phone type="voice">951-295-7414</phone>
+                    <email>frederickpeal@mctekk.com</email>
+                    <phone type="voice">8098843010</phone>
                     <address>
                       <street line="1"></street>
                       <city>Fontana</city>
@@ -93,7 +93,7 @@ class CreateLeadFromADFActionTest extends TestCase
             your lot that was found using Edmunds.com's Used Car Inventory search.
                 
             Customer is requesting pricing for the vehicle below:
-            VIN: 2T3W1RFV0MC156380
+            VIN: 1111111111111
             2021 Toyota RAV4
             Dealer Price: $24,688
             
@@ -109,18 +109,17 @@ class CreateLeadFromADFActionTest extends TestCase
             
             ADDITIONAL INFO:
             ******************************************************************
-            Edmunds VDP: https://www.edmunds.com/toyota/rav4/2021/vin/2T3W1RFV0MC156380/?forcePricing=true
             ******************************************************************
                   ]]></comments>
                 </customer>
                 <vendor>
-                  <id source="Magic GMC">1967865</id>
-                  <vendorname>Magic GMC</vendorname>
+                  <id source="Kanvas GMC">1967865</id>
+                  <vendorname>Kanvas GMC</vendorname>
                 </vendor>
                 <provider>
-                  <id source="Edmunds Direct"></id>
-                  <name part="full">Edmunds</name>
-                  <service>Edmunds Direct</service>
+                  <id source="KanvasShop Direct"></id>
+                  <name part="full">KanvasShop</name>
+                  <service>KanvasShop Direct</service>
                 </provider>
               </prospect>
             </adf>

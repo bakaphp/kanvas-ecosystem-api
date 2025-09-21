@@ -72,7 +72,7 @@ class PeoplesRepository
             ->first();
     }
 
-    public static function getMatchingEmailPhone(AppInterface $app, CompanyInterface $company, ?string $email, ?string $phone)
+    public static function getMatchingEmailPhone(AppInterface $app, CompanyInterface $company, ?string $email = null, ?string $phone = null)
     {
         if (! $email && ! $phone) {
             throw new Exception('Email or Phone is required');
@@ -100,7 +100,7 @@ class PeoplesRepository
                     ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
             });
         }
-        
+
         return $q->first();
     }
 
