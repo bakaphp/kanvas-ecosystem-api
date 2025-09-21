@@ -72,9 +72,13 @@ class PeoplesRepository
             ->first();
     }
 
-    public static function getMatchingEmailPhone(AppInterface $app, CompanyInterface $company, ?string $email = null, ?string $phone = null)
-    {
-        if (! $email && ! $phone) {
+    public static function getMatchingEmailPhone(
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $email = null,
+        ?string $phone = null
+    ): ?People {
+        if (! empty($email) && ! empty($phone)) {
             throw new Exception('Email or Phone is required');
         }
         $q = People::from('peoples as p')
@@ -96,7 +100,7 @@ class PeoplesRepository
             $q->whereExists(function ($sub) use ($phone) {
                 $sub->from('peoples_contacts as cp')
                     ->whereColumn('cp.peoples_id', 'p.id')
-                    ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value])
+                    ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value])
                     ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
             });
         }
