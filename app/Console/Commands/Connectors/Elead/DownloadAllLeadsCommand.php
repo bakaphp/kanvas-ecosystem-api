@@ -121,7 +121,7 @@ class DownloadAllLeadsCommand extends Command
                                 $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
                                 $newLead = $syncAction->execute();
 
-                                //new SyncLeadAction($newLead)->execute();
+                                new SyncLeadAction($newLead)->execute();
                                 $newLead->fireWorkflow(
                                     WorkflowEnum::CREATED->value,
                                     true,
