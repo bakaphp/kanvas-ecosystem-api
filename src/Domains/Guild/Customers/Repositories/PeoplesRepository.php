@@ -100,7 +100,7 @@ class PeoplesRepository
                     ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
             });
         }
-        
+
         return $q->first();
     }
 
