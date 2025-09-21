@@ -24,8 +24,6 @@ class CreateLeadFromADFAction
         $payload = $this->webhookRequest->payload;
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
-        $xml = simplexml_load_string($payload['body-plain']);
-
         $xml = XmlReader::make($payload['body-plain'], true, true);
         $data = $xml->toArray();
         $people = PeoplesRepository::getMatchingEmailPhone(
