@@ -196,6 +196,17 @@ class People extends BaseModel
                 ->get();
     }
 
+    public function getAllPhones(): Collection
+    {
+        $cellphoneTypeId = ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId();
+        $phoneTypeId = ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId();
+
+        return $this->contacts()
+                ->whereIn('contacts_types_id', [$phoneTypeId, $cellphoneTypeId])
+                ->orderByRaw("FIELD(contacts_types_id, {$cellphoneTypeId}, {$phoneTypeId})")
+                ->get();
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */

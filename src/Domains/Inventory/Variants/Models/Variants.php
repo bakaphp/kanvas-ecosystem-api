@@ -827,4 +827,87 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return $query->select('products_variants.*')
                      ->distinct();
     }
+
+    /**
+     * Search for variants based on multiple attribute name and value pairs.
+     * All attributes must match (AND condition).
+     *
+     * @example
+     * // Search for variants with brand='Honda' AND model='Acura'
+     * $variants = Variants::searchByMultipleAttributes(
+     *     app: $app,
+     *     attributes: [
+     *         ['name' => 'brand', 'value' => 'Honda'],
+     *         ['name' => 'model', 'value' => 'Acura']
+     *     ]
+     * )->get();
+     *
+     * @param array $attributes Array of ['name' => string, 'value' => mixed] pairs
+     */
+    public static function searchByMultipleAttributes(
+        AppInterface $app,
+        array $attributes,
+        string $locale = 'en',
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null,
+    ): Builder {
+        $query = self::query()
+            ->where('products_variants.is_deleted', 0)
+            ->where('products_variants.apps_id', $app->getId());
+
+        // Add joins and conditions for each attribute
+        foreach ($attributes as $index => $attribute) {
+            // Create unique aliases for each join to avoid conflicts
+            $pvaAlias = "pva_{$index}";
+            $attrAlias = "attr_{$index}";
+
+            // Join tables for this attribute
+            $query->join("products_variants_attributes as {$pvaAlias}", 'products_variants.id', '=', "{$pvaAlias}.products_variants_id")
+                  ->join("attributes as {$attrAlias}", "{$pvaAlias}.attributes_id", '=', "{$attrAlias}.id")
+                  ->where("{$attrAlias}.is_deleted", 0)
+                  ->where("{$pvaAlias}.is_deleted", 0);
+
+            // Handle attribute name - check both JSON and plain text formats
+            $query->where(function (Builder $nameQuery) use ($attrAlias, $attribute, $locale) {
+                $attributeName = $attribute['name'];
+
+                $nameQuery->where(function (Builder $jsonNameQuery) use ($attrAlias, $attributeName, $locale) {
+                    $jsonNameQuery->whereRaw("JSON_VALID({$attrAlias}.name) = 1")
+                                  ->whereRaw("JSON_EXTRACT({$attrAlias}.name, ?) = ?", ['$.' . $locale, $attributeName]);
+                })
+                ->orWhere("{$attrAlias}.name", $attributeName)
+                ->orWhere("{$attrAlias}.slug", Str::slug($attributeName));
+            });
+
+            // Handle attribute value - check both JSON and plain text formats
+            $query->where(function (Builder $valueQuery) use ($pvaAlias, $attribute, $locale) {
+                $attributeValue = $attribute['value'];
+
+                // For JSON values, check the locale-specific value
+                $valueQuery->where(function (Builder $jsonQuery) use ($pvaAlias, $attributeValue, $locale) {
+                    $jsonQuery->whereRaw("JSON_VALID({$pvaAlias}.value) = 1")
+                              ->whereRaw("JSON_EXTRACT({$pvaAlias}.value, ?) = ?", ['$.' . $locale, $attributeValue]);
+                })
+                // For plain text values
+                ->orWhere("{$pvaAlias}.value", $attributeValue);
+
+                // If it's a string, also check case-insensitive
+                if (is_string($attributeValue)) {
+                    $valueQuery->orWhereRaw("LOWER({$pvaAlias}.value) = ?", [strtolower($attributeValue)]);
+                }
+            });
+        }
+
+        // Apply company filter
+        if ($company) {
+            $query->where('products_variants.companies_id', $company->getId());
+        } else {
+            if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+            }
+        }
+
+        // Select only variant columns to avoid ambiguity
+        return $query->select('products_variants.*')->distinct();
+    }
 }

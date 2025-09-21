@@ -105,9 +105,13 @@ class PullPeopleAction
                             ),
                             array_map(
                                 fn ($phone) => [
-                                    'value' => $phone['number'],
-                                    'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
-                                    'weight' => 0,
+                                    'value' => $phone['number'] ?? '',
+                                    'contacts_types_id' => isset($phone['phoneType']) && strtolower($phone['phoneType']) === 'cellular'
+                                        ? ContactTypeEnum::CELLPHONE->value
+                                        : ContactTypeEnum::PHONE->value,
+                                    'weight' => isset($phone['phoneType']) && ((int)$phone['phoneType'] === 1 || strtolower($phone['phoneType']) === 'cellular')
+                                        ? 100
+                                        : 0,
                                 ],
                                 $customer['phones'] ?? []
                             )
