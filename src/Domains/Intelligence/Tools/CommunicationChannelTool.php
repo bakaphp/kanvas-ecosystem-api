@@ -27,7 +27,6 @@ class CommunicationChannelTool implements ContextToolInterface
                 "whatsapp",
             ],
             "selection_reason" => "",
-            "first_message" => $this->entity->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '',
             "contact" => [
                 "email" => $this->entity->people->getEmails()->first()?->value,
                 "phone_e164" => $this->entity->people->getPhones()->first()?->value,
