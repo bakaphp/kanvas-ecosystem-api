@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Tests\TestCase;
 
 class CompanyWorkHoursToolTest extends TestCase
