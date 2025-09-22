@@ -26,6 +26,7 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
         ->where('apps_id', 0)
         ->first();
+        $rule = $params['rule'] ?? null;
 
         foreach ($variant->warehouses as $warehouse) {
             $integrationCompany = IntegrationsCompany::getByIntegration(
@@ -68,7 +69,7 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
                     response: $historyResponse ?? null,
                     exception: $exception,
                     workflowId: $this->workflowId(),
-                    rule: null
+                    rule: $rule
                 );
 
                 (new AddEntityIntegrationHistoryAction(
