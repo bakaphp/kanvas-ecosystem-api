@@ -8,12 +8,14 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
+use NotificationChannels\Expo\ExpoChannel;
 
 class HandOffNotification extends Notification
 {
     public array $channels = [
         'mail',
         OneSignalNotificationChannel::class,
+        ExpoChannel::class,
     ];
 
     public function __construct(
@@ -25,6 +27,7 @@ class HandOffNotification extends Notification
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName($templateName);
         $this->setData($data);
+        $this->setSubject('Lead Handoff Notification');
         $this->setPushTemplateName('lead_handoff_push_notification');
     }
 }

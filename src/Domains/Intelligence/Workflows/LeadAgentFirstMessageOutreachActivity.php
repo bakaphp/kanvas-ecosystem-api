@@ -112,6 +112,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $firstLeadMessage['message'],
                         $params['from'] ?? null,
                     );
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                 }
 
                 //move to stage 2 of the pipeline
