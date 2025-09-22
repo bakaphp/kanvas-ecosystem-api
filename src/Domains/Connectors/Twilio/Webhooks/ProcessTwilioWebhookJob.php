@@ -278,14 +278,18 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                         ->lockForUpdate()  // This applies a database-level lock
                         ->first();
             if (! $channel) {
-                $channel = Channel::create([
-                      'users_id' => $this->receiver->users_id,
+                $channel = Channel::firstOrCreate(
+                    [
+                                          'users_id' => $this->receiver->users_id,
                       'apps_id' => $this->receiver->app->getId(),
                       'companies_id' => $this->receiver->company->getId(),
                       'slug' => $slug,
+                ],
+                    [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
-                ]);
+                ]
+                );
             }
             if ($lead) {
                 $channel->entity_namespace = get_class($lead->people);

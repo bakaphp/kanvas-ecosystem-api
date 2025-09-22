@@ -10,7 +10,7 @@ class SessionChannelService
     {
         return match ($channel) {
             'whatsapp' => "$id@s.whatsapp.net",
-            'sms' => "twilio-$id",
+            'sms' => "+$id",
         };
     }
 
