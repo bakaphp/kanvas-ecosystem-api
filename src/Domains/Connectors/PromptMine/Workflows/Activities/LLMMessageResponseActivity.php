@@ -270,6 +270,28 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+            $message->user->notify($errorProcessingImageNotification);
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
@@ -324,11 +346,11 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
                 (string) json_encode([
-                'error' => 'You have reached your daily image generation limit.',
-                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
-                'limit' => $message->app->get('message-post-limit') ?? 0,
-                'flag' => true,
-            ]);
+                    'error' => 'You have reached your daily image generation limit.',
+                    'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                    'limit' => $message->app->get('message-post-limit') ?? 0,
+                    'flag' => true,
+                ]);
         }
 
         return null;
