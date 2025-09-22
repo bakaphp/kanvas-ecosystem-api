@@ -67,7 +67,6 @@ class MessageBuilder
                 $query->cacheFor($messageCacheTime);
             }
         }
-        
         if (isset($args['random']) && $args['random'] === true) {
             $query->inRandomOrder();
         }
