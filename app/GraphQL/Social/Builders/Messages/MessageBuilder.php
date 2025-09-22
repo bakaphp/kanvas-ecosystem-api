@@ -67,6 +67,10 @@ class MessageBuilder
                 $query->cacheFor($messageCacheTime);
             }
         }
+        
+        if (isset($args['random']) && $args['random'] === true) {
+            $query->inRandomOrder();
+        }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
