@@ -24,8 +24,8 @@ class ArtifactsTool implements ContextToolInterface
 
         return [
             'crm' => [
-                'status' => $this->entity->status->name,
-                'stage' => $this->entity->stage->name,
+                'status' => $this->entity->status()->first()->name,
+                'stage' => $this->entity->stage->first()->name,
                 'tags' => $this->entity->tags->pluck('name')->toArray(),
                 'last_notes' => [
                 ],

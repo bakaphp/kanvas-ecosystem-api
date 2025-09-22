@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 
 class CompanyWorkHoursToolTest extends TestCase
 {
