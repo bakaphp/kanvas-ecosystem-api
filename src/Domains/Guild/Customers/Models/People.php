@@ -468,16 +468,7 @@ class People extends BaseModel
             'users_id' => $this->users_id,
             'created_at' => $this->created_at->getTimestamp(),
             'updated_at' => $this->updated_at->getTimestamp(),
-            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
-                return [
-                    'uuid' => $files->uuid,
-                    'name' => $files->name,
-                    'url' => $files->url,
-                    'size' => $files->size,
-                    'field_name' => $files->field_name,
-                    'attributes' => $files->attributes,
-                ];
-            }),
+            'files' => [],
             'organizations' => $this->organizations()->get()->map(function ($organization) {
                 return [
                     'id' => $organization->id,
