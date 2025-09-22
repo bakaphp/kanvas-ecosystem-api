@@ -71,9 +71,9 @@ class Lead
         $leadUpType = $hasLeadSource ? $lead->source->description : 'Internet';
 
         //hotfix source mismatch
-        if($hasLeadSource && $lead->type()->first()?->name !== $lead->source->description){
-          $leadUpType = $lead->type()->first()?->name ?? 'Internet';
-          $leadSourceName = LeadSource::fromCompany($lead->company)->where('is_active', 1)->where('description', $leadUpType)->first()?->name ?? 'Lead Link';
+        if ($hasLeadSource && $lead->type()->first()?->name !== $lead->source->description) {
+            $leadUpType = $lead->type()->first()?->name ?? 'Internet';
+            $leadSourceName = LeadSource::fromCompany($lead->company)->where('is_active', 1)->where('description', $leadUpType)->first()?->name ?? 'Lead Link';
         }
 
         $opportunityData = [
