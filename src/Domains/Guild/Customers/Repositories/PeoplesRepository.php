@@ -18,11 +18,13 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Override;
 
 class PeoplesRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Model
     {
         return new People();

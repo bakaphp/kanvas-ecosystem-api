@@ -7,13 +7,13 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Connectors\SalesAssist\Actions\ProcessPeopleDriverLicenseVerificationAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-class LeadProcessDriverLicenseImageActivity extends KanvasActivity
+class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
 {
     public $tries = 3;
 
@@ -21,30 +21,27 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
     protected Companies $company;
     protected Users $user;
 
-    public function execute(Lead $lead, AppInterface $app, array $params): array
+    public function execute(People $people, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
         $this->app = $app;
-        $this->company = $lead->company;
-        $this->user = $lead->user;
+        $this->company = $people->company;
+        $this->user = $people->user;
 
         return $this->executeIntegration(
-            entity: $lead,
+            entity: $people,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Use the new action class
-                $action = new ProcessLeadDriverLicenseVerificationAction(
-                    $lead,
-                    $this->app,
-                    $this->company,
-                    $this->user,
+                $action = new ProcessPeopleDriverLicenseVerificationAction(
+                    $people,
                     $params
                 );
 
                 return $action->execute();
             },
-            company: $lead->company,
+            company: $people->company,
         );
     }
 }
