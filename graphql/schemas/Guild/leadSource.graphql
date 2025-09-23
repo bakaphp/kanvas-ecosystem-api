@@ -44,6 +44,7 @@ extend type Query @guard {
                     "name"
                     "description"
                     "is_active"
+                    "leads_types_id"
                     "created_at"
                     "updated_at"
                 ]
