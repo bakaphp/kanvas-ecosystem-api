@@ -28,10 +28,10 @@ class Client
         protected CompanyInterface $company
     ) {
         // Get configuration from app settings with QA fallbacks
-        $this->baseUrl = (string)($app->get(ConfigurationEnum::BASE_URL->value) ?: 'https://wssimlimitedo.apiqa.universal-assistance.com:8443/siebel/app/eai_anon/esn?SWEExtSource=SecureWebService&SWEExtCmd=Execute');
-        $this->username = (string)($app->get(ConfigurationEnum::USERNAME->value) ?: 'WSSIMLIMITEDO');
-        $this->password = (string)($app->get(ConfigurationEnum::PASSWORD->value) ?: 'Wss1ml1m1t3d0*QA');
-        $this->organization = (string)($app->get(ConfigurationEnum::ORGANIZATION->value) ?: '1-ENYNUF7');
+        $this->baseUrl = (string)($app->get(ConfigurationEnum::BASE_URL->value));
+        $this->username = (string)($app->get(ConfigurationEnum::USERNAME->value));
+        $this->password = (string)($app->get(ConfigurationEnum::PASSWORD->value));
+        $this->organization = (string)($app->get(ConfigurationEnum::ORGANIZATION->value));
     }
 
     /**
