@@ -215,7 +215,6 @@ class UniversalAssistanceService
         ];
         $code = strtoupper($code);
         $name = $map[$code] ?? $code;
-                // Quitar acentos y pasar a mayúsculas
         $name = strtr($name, [
             'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
             'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U', 'ñ' => 'N', 'ü' => 'U'
