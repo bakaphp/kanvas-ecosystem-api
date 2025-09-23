@@ -219,7 +219,6 @@ class Client
 
             // Create Cross Selling quotation with specific organization
             $results['cross_selling'] = $this->createVoucher($crossSellingData, true);
-                     ", organization: " . $this->getOrganizationForQuotationType('cross_selling') . ", convenio: " . $this->getConvenioForQuotationType('cross_selling'));
 
             // Query Cross Selling voucher to get complete insurance information
             try {
