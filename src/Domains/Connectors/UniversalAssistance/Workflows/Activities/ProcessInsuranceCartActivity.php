@@ -152,8 +152,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $message->message = $messageData;
             $message->saveOrFail();
         }
-        
-        // Update order metadata as well (exact same pattern as AeroAmbulancia)
+
         $order->metadata = array_merge(($order->metadata ?? []), ['universalAssistanceData' => $universalAssistanceData]);
         $order->saveOrFail();
     }
