@@ -28,7 +28,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
                 $data = $this->getActivityData($order, $params);
 
-                // Create service 
+                // Create service
                 $service = new InsuranceWorkflowService($app, $order);
 
                 // Process insurance workflow with cart data from order metadata
@@ -50,11 +50,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         // Get Universal Assistance data from order items metadata (same way as AeroAmbulancia gets beneficiaries)
         $insuranceData = null;
-        
+
         // Look for insurance data in order items metadata
         foreach ($order->allItems()->get() as $orderItem) {
             $itemMetadata = $orderItem->metadata ?? [];
-            
+
             if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
                 foreach ($itemMetadata['eSimDetails'] as $detail) {
                     if (isset($detail['insurance'])) {
@@ -64,7 +64,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
             }
         }
-        
+
         if (empty($insuranceData)) {
             throw new \Kanvas\Exceptions\ValidationException('Universal Assistance insurance data not found in order items metadata');
         }
@@ -79,7 +79,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $cartData = [
             'items' => []
         ];
-        
+
         // Add titular to cart items
         if (isset($insuranceData['titular'])) {
             $cartData['items'][] = [
@@ -87,7 +87,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'data' => $insuranceData['titular']
             ];
         }
-        
+
         // Add dependents to cart items
         if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
             foreach ($insuranceData['dependents'] as $dependent) {
