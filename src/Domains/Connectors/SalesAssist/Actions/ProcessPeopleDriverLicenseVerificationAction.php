@@ -63,7 +63,7 @@ class ProcessPeopleDriverLicenseVerificationAction
             ->whereHas('lead', function (Builder $query) {
                 $query->where('is_deleted', 0)
                     ->whereHas('status', function (Builder $query) {
-                        $query->whereNotIn('name', ['active', 'created']);
+                        $query->whereIn('name', ['active', 'created']);
                     });
             })
             ->with('lead')
