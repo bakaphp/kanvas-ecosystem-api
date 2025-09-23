@@ -300,7 +300,7 @@ class InsuranceWorkflowService
         $countryToDestination = [
             // Territorio Nacional (República Dominicana)
             'DO' => 'Territorio Nacional',
-            
+
             // Centro america/Caribe
             'PA' => 'Centro america/Caribe',
             'CR' => 'Centro america/Caribe',
