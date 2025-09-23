@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use SoapClient;
@@ -32,6 +33,62 @@ class Client
         $this->username = (string)($app->get(ConfigurationEnum::USERNAME->value));
         $this->password = (string)($app->get(ConfigurationEnum::PASSWORD->value));
         $this->organization = (string)($app->get(ConfigurationEnum::ORGANIZATION->value));
+    }
+
+    /**
+     * Download WSDL from S3 to temporary file for SoapClient usage
+     * Auto-cleans old files and only downloads if needed
+     */
+    protected function downloadWsdlToTemp(string $s3Url, string $filename): string
+    {
+        $tempDir = 'temp/wsdl/';
+        $tempPath = $tempDir . 'ua_' . $filename;
+        $now = time();
+        
+        if (Storage::disk('local')->exists($tempDir)) {
+            $files = Storage::disk('local')->files($tempDir);
+            foreach ($files as $file) {
+                if (str_starts_with(basename($file), 'ua_') && str_ends_with($file, '.wsdl')) {
+                    $lastModified = Storage::disk('local')->lastModified($file);
+                    if (($now - $lastModified) > 7200) {
+                        Storage::disk('local')->delete($file);
+                    }
+                }
+            }
+        }
+
+        if (Storage::disk('local')->exists($tempPath)) {
+            $lastModified = Storage::disk('local')->lastModified($tempPath);
+            if (($now - $lastModified) < 3600) {
+                return Storage::disk('local')->path($tempPath);
+            }
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'user_agent' => 'PHP-UniversalAssistance-Client',
+                'method' => 'GET',
+                'follow_location' => true,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ]
+        ]);
+        
+        $wsdlContent = file_get_contents($s3Url, false, $context);
+        
+        if ($wsdlContent === false) {
+            throw new ValidationException("Failed to download WSDL from S3: {$s3Url}");
+        }
+        
+        // Save to Laravel storage temp directory
+        if (!Storage::disk('local')->put($tempPath, $wsdlContent)) {
+            throw new ValidationException("Failed to save WSDL to storage: {$tempPath}");
+        }
+
+        return Storage::disk('local')->path($tempPath);
     }
 
     /**
@@ -487,8 +544,9 @@ class Client
     {
         if ($this->quoteClient === null) {
             try {
-                // Use WSDL file from storage directory
-                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA Lead Cotizador WS.WSDL');
+                // Download WSDL from S3 to temp file and use locally
+                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA Lead Cotizador WS.WSDL';
+                $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'lead_cotizador.wsdl');
 
                 // Debug: Log the URL being used
 
@@ -538,8 +596,9 @@ class Client
     {
         if ($this->voucherClient === null) {
             try {
-                // Use the Voucher WSDL file from storage directory
-                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL');
+                // Download WSDL from S3 to temp file and use locally
+                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL';
+                $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'operaciones_voucher.wsdl');
 
 
                 $this->voucherClient = new SoapClient($wsdlUrl, [
@@ -582,8 +641,9 @@ class Client
     {
         if ($this->queryClient === null) {
             try {
-                // Use the QueryVoucherPortal WSDL file from storage directory
-                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL');
+                // Download WSDL from S3 to temp file and use locally
+                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL';
+                $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'query_voucher_portal.wsdl');
 
 
                 $this->queryClient = new SoapClient($wsdlUrl, [
@@ -1111,8 +1171,9 @@ class Client
     {
         if (! isset($this->sendReportClient)) {
             try {
-                // Use the SendReport WSDL file from storage directory
-                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA SendReport WS.WSDL');
+                // Download WSDL from S3 to temp file and use locally
+                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA SendReport WS.WSDL';
+                $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'send_report.wsdl');
 
                 // Debug: Log the URL being used
 
