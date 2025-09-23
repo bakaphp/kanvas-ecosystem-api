@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
 use Kanvas\Connectors\UniversalAssistance\Enums\ContractEnum;
-use Kanvas\Connectors\UniversalAssistance\Enums\ProductEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -184,10 +183,8 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1); // -1 because the activation day counts
 
-        // Get contract and product using enums
+        // Get contract using enum
         $contract = ContractEnum::getContract('inclusion', $destination);
-        $product = ProductEnum::getProduct('inclusion', $destination);
-
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -247,10 +244,8 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1);
 
-        // Get contract and product using enums for Cross Selling
+        // Get contract using enum for Cross Selling
         $contract = ContractEnum::getContract('cross_selling', $destination);
-        $product = ProductEnum::getProduct('cross_selling', $destination);
-
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
