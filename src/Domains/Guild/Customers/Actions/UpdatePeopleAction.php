@@ -158,6 +158,7 @@ class UpdatePeopleAction
                         'zip' => $address->zip,
                         'address_2' => $address->address_2,
                         'is_default' => $address->is_default,
+                        'countries_id' => $address->country_id ?? $existingAddress->countries_id,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                     ]);
                 }

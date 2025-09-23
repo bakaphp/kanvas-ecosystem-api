@@ -292,8 +292,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 );
             }
             if ($lead) {
-                $channel->entity_namespace = get_class($lead->people);
-                $channel->entity_id = $lead->people->getId();
+                $channel->entity_namespace = get_class($lead);
+                $channel->entity_id = $lead->getId();
             }
 
             $channel->save();
