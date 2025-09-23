@@ -96,7 +96,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         // Structure dependents data (similar to AeroAmbulancia dependents structure)
-        if (isset($results['dependents']) && !empty($results['dependents'])) {
+        if (isset($results['dependents']) && ! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
                 $universalAssistanceData['dependents'][] = [
                     'data' => $dependent,
