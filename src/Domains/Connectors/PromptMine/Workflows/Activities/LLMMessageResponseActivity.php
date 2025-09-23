@@ -24,6 +24,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
@@ -283,6 +284,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
+
+            $user = Users::getById($message->users_id);
+            $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
         } catch (Throwable $e) {
             if (! Str::contains($e->getMessage(), 'Your daily limit has been reached')) {
                 report($e);
