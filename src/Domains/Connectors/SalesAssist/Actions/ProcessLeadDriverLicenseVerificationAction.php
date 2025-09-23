@@ -377,7 +377,7 @@ class ProcessLeadDriverLicenseVerificationAction
         if (! $messageType) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
-                    $app,
+                    $app->getId(),
                     1,
                     'ID Verification',
                     ConfigurationEnum::ID_VERIFICATION->value,

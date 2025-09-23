@@ -261,7 +261,7 @@ class ProcessPeopleDriverLicenseVerificationAction
             $this->processDriverLicenseImages($message, $participant['driver_license_images'], $isIdValid, $isExpired);
 
             $results[] = [
-                'people_id' => $people->id,
+                'people_id' => $this->people->id,
                 'engagement_id' => $engagement->getId(),
                 'message_id' => $message->getId(),
                 'id_valid' => $isIdValid,
@@ -323,7 +323,7 @@ class ProcessPeopleDriverLicenseVerificationAction
         $peopleData = new PeopleDataInput(
             app: $this->people->app,
             branch: $people->company->defaultBranch,
-            user: $this->user,
+            user: $this->people->user,
             firstname: $driverLicenseData['firstname'] ?? $people->firstname,
             lastname: $driverLicenseData['lastname'] ?? $people->lastname,
             middlename: $driverLicenseData['middlename'] ?? $people->middlename,
@@ -362,7 +362,7 @@ class ProcessPeopleDriverLicenseVerificationAction
         if (! $messageType) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
-                    $app,
+                    $app->getId(),
                     1,
                     'ID Verification',
                     ConfigurationEnum::ID_VERIFICATION->value,
@@ -420,11 +420,11 @@ class ProcessPeopleDriverLicenseVerificationAction
             foreach ($companyTaskList->get() as $taskItem) {
                 new ChangeTaskEngagementItemStatusAction(
                     taskListItem: $taskItem,
-                    lead: $this->lead,
+                    lead: $lead,
                     status: TaskStatusEnum::COMPLETED->value,
-                    user: $this->user,
-                    app: $this->lead->app,
-                    company: $this->lead->company,
+                    user: $this->people->user,
+                    app: $this->people->app,
+                    company: $this->people->company,
                     message: $message
                 )->execute();
             }
@@ -468,12 +468,12 @@ class ProcessPeopleDriverLicenseVerificationAction
 
     protected function createFileFromBase64(string $base64Data, string $fileName = 'driver_license_image.jpg'): ModelsFilesystem
     {
-        $filesystemService = new FilesystemServices($this->people->app, $this->company);
+        $filesystemService = new FilesystemServices($this->people->app, $this->people->company);
 
         return $filesystemService->createFileSystemFromBase64(
             $base64Data,
             $fileName,
-            $this->user
+            $this->people->user,
         );
     }
 
