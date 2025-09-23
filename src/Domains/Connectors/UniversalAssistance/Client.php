@@ -487,8 +487,8 @@ class Client
     {
         if ($this->quoteClient === null) {
             try {
-                // Hardcoded WSDL URL for QA testing - Docker-compatible path
-                $wsdlUrl = base_path('http___siebel.com_CustomUI_UA Lead Cotizador WS.WSDL');
+                // Use WSDL file from storage directory
+                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA Lead Cotizador WS.WSDL');
 
                 // Debug: Log the URL being used
 
@@ -538,8 +538,8 @@ class Client
     {
         if ($this->voucherClient === null) {
             try {
-                // Use the Voucher WSDL file for QA testing
-                $wsdlUrl = base_path('http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL');
+                // Use the Voucher WSDL file from storage directory
+                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL');
 
 
                 $this->voucherClient = new SoapClient($wsdlUrl, [
@@ -582,8 +582,8 @@ class Client
     {
         if ($this->queryClient === null) {
             try {
-                // Use the QueryVoucherPortal WSDL file for QA testing
-                $wsdlUrl = base_path('http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL');
+                // Use the QueryVoucherPortal WSDL file from storage directory
+                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL');
 
 
                 $this->queryClient = new SoapClient($wsdlUrl, [
@@ -1111,8 +1111,8 @@ class Client
     {
         if (! isset($this->sendReportClient)) {
             try {
-                // Use the SendReport WSDL file for QA testing
-                $wsdlUrl = base_path('http___siebel.com_CustomUI_UA SendReport WS.WSDL');
+                // Use the SendReport WSDL file from storage directory
+                $wsdlUrl = storage_path('app/http___siebel.com_CustomUI_UA SendReport WS.WSDL');
 
                 // Debug: Log the URL being used
 
