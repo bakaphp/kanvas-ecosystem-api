@@ -295,27 +295,28 @@ class Client
                  try {
                      // Create a quote to get detailed product/plan information
                      $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
-                     $currentQuoteResult = $this->createOrUpdateLead($leadData, true);                    $triedOrigins[] = [
-                        'origin' => $origin,
-                        'destination' => $destination,
-                        'response' => $currentQuoteResult
-                    ];
+                     $currentQuoteResult = $this->createOrUpdateLead($leadData, true);
 
-                    // If this origin returns products (no ErrorCode 01), use it
-                    if (! $this->hasErrorCode01($currentQuoteResult)) {
-                        $quoteResult = $currentQuoteResult;
-                        $successfulOrigin = $origin;
-                        break;
-                    } else {
-                    }
-                } catch (Exception $originEx) {
-                    $triedOrigins[] = [
-                        'origin' => $origin,
-                        'destination' => $destination,
-                        'exception' => $originEx->getMessage()
-                    ];
-                    // Continue to next origin
-                }
+                     $triedOrigins[] = [
+                         'origin' => $origin,
+                         'destination' => $destination,
+                         'response' => $currentQuoteResult
+                     ];
+
+                     // If this origin returns products (no ErrorCode 01), use it
+                     if (! $this->hasErrorCode01($currentQuoteResult)) {
+                         $quoteResult = $currentQuoteResult;
+                         $successfulOrigin = $origin;
+                         break;
+                     }
+                 } catch (Exception $originEx) {
+                     $triedOrigins[] = [
+                         'origin' => $origin,
+                         'destination' => $destination,
+                         'exception' => $originEx->getMessage()
+                     ];
+                     // Continue to next origin
+                 }
             }
 
             // If no origin worked, use the last tried result and log all attempts
