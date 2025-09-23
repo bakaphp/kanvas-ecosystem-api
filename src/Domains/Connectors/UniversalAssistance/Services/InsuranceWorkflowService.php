@@ -640,6 +640,5 @@ class InsuranceWorkflowService
 
         $message->message = $messageData;
         $message->saveOrFail();
-
     }
 }
