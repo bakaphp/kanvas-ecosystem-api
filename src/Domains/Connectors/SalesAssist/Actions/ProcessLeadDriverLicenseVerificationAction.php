@@ -41,7 +41,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
 
-class ProcessDriverLicenseVerificationAction
+class ProcessLeadDriverLicenseVerificationAction
 {
     protected ?array $idVerificationReport = null;
     protected ?array $intellicheckResponse = null;

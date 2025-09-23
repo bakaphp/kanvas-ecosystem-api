@@ -68,6 +68,7 @@ use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
 use Kanvas\Connectors\SalesAssist\Activities\GenerateLeadLinkedFieldActivity;
 use Kanvas\Connectors\SalesAssist\Activities\LeadProcessDriverLicenseImageActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PeopleProcessDriverLicenseImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
@@ -247,6 +248,7 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateLeadLinkedFieldActivity::class,
             OfacScreeningActivity::class,
             LeadProcessDriverLicenseImageActivity::class,
+            PeopleProcessDriverLicenseImageActivity::class,
             PromptVideoFilterActivity::class,
             ConvertMessageImagesToPdfActivity::class,
             RemixCreationActivity::class,
