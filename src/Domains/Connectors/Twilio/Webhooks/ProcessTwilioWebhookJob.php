@@ -112,6 +112,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $message->addEntity($lead);
         }
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+        $channel->addMessage($message);
         $channel->fireWorkflow(
             WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
             true,
