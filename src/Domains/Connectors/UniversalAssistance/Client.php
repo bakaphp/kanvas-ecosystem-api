@@ -290,33 +290,33 @@ class Client
             $successfulOrigin = null;
             $triedOrigins = [];
 
-             // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
-             foreach ($validOrigins as $origin) {
-                 try {
-                     // Create a quote to get detailed product/plan information
-                     $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
-                     $currentQuoteResult = $this->createOrUpdateLead($leadData, true);
+            // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
+            foreach ($validOrigins as $origin) {
+                try {
+                    // Create a quote to get detailed product/plan information
+                    $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
+                    $currentQuoteResult = $this->createOrUpdateLead($leadData, true);
 
-                     $triedOrigins[] = [
-                         'origin' => $origin,
-                         'destination' => $destination,
-                         'response' => $currentQuoteResult
-                     ];
+                    $triedOrigins[] = [
+                        'origin' => $origin,
+                        'destination' => $destination,
+                        'response' => $currentQuoteResult
+                    ];
 
-                     // If this origin returns products (no ErrorCode 01), use it
-                     if (! $this->hasErrorCode01($currentQuoteResult)) {
-                         $quoteResult = $currentQuoteResult;
-                         $successfulOrigin = $origin;
-                         break;
-                     }
-                 } catch (Exception $originEx) {
-                     $triedOrigins[] = [
-                         'origin' => $origin,
-                         'destination' => $destination,
-                         'exception' => $originEx->getMessage()
-                     ];
-                     // Continue to next origin
-                 }
+                    // If this origin returns products (no ErrorCode 01), use it
+                    if (! $this->hasErrorCode01($currentQuoteResult)) {
+                        $quoteResult = $currentQuoteResult;
+                        $successfulOrigin = $origin;
+                        break;
+                    }
+                } catch (Exception $originEx) {
+                    $triedOrigins[] = [
+                        'origin' => $origin,
+                        'destination' => $destination,
+                        'exception' => $originEx->getMessage()
+                    ];
+                    // Continue to next origin
+                }
             }
 
             // If no origin worked, use the last tried result and log all attempts
