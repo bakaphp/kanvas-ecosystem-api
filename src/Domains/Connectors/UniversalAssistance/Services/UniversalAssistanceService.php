@@ -187,7 +187,7 @@ class UniversalAssistanceService
         }
     }
 
-        /**
+    /**
      * Convierte un código de país (ej: ARG) a nombre válido (ej: ARGENTINA), mayúsculas y sin acentos.
      */
     public static function countryCodeToName(string $code): string
@@ -215,10 +215,10 @@ class UniversalAssistanceService
         ];
         $code = strtoupper($code);
         $name = $map[$code] ?? $code;
-        // Quitar acentos y pasar a mayúsculas
+                // Quitar acentos y pasar a mayúsculas
         $name = strtr($name, [
-            'Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ñ'=>'N','Ü'=>'U',
-            'á'=>'A','é'=>'E','í'=>'I','ó'=>'O','ú'=>'U','ñ'=>'N','ü'=>'U'
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U', 'ñ' => 'N', 'ü' => 'U'
         ]);
         return strtoupper($name);
     }
@@ -319,7 +319,7 @@ class UniversalAssistanceService
         }
 
         // Step 2: Create voucher after successful quote
-        if (isset($uaData['voucher_data']) && !  empty($results['quote'])) {
+        if (isset($uaData['voucher_data']) && ! empty($results['quote'])) {
             $applicant = $this->order->people;
             if (! $applicant) {
                 throw new ValidationException('No applicant found for voucher creation');

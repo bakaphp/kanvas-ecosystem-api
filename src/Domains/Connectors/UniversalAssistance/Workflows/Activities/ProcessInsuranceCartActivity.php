@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
-use Kanvas\Social\Messages\Models\Message;
 
 class ProcessInsuranceCartActivity extends KanvasActivity
 {

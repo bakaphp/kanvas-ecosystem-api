@@ -254,7 +254,6 @@ class Client
                 'inclusion' => $this->getConvenioForQuotationType('inclusion'),
                 'cross_selling' => $this->getConvenioForQuotationType('cross_selling')
             ];
-
         } catch (Exception $e) {
             error_log("UniversalAssistance: Dual quotation creation failed: " . $e->getMessage());
             throw new ValidationException('Failed to create dual quotations: ' . $e->getMessage());
@@ -326,7 +325,6 @@ class Client
                     } else {
                         error_log("UniversalAssistance: Country of origin '{$origin}' with destination '{$destination}' returned ErrorCode 01 for {$quotationType}, trying next origin");
                     }
-
                 } catch (Exception $originEx) {
                     error_log("UniversalAssistance: Exception trying country of origin '{$origin}' with destination '{$destination}' for {$quotationType}: " . $originEx->getMessage());
                     $triedOrigins[] = [
@@ -419,7 +417,6 @@ class Client
             error_log("UniversalAssistance: Single quotation created ({$mode}) - Type: {$quotationType}, Control: {$controlNumber}, Org: " . $this->getOrganizationForQuotationType($quotationType) . ", Convenio: " . $this->getConvenioForQuotationType($quotationType));
 
             return $result;
-
         } catch (Exception $e) {
             error_log("UniversalAssistance: Single quotation creation failed for {$quotationType}: " . $e->getMessage());
             throw new ValidationException("Failed to create {$quotationType} quotation: " . $e->getMessage());

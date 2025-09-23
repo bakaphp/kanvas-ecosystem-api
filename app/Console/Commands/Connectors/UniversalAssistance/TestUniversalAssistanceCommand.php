@@ -572,7 +572,7 @@ class TestUniversalAssistanceCommand extends Command
             $filepath = storage_path("app/public/{$filename}");
 
             // Ensure the directory exists
-            if (!file_exists(dirname($filepath))) {
+            if (! file_exists(dirname($filepath))) {
                 mkdir(dirname($filepath), 0755, true);
             }
 
@@ -593,7 +593,6 @@ class TestUniversalAssistanceCommand extends Command
             $this->line("📂 Full path: {$filepath}");
             $this->line("📋 SOAP Response Type: {$testType}");
             $this->line("📊 Timestamp: {$timestamp}");
-
         } catch (\Exception $e) {
             $this->error('Failed to generate CSV: ' . $e->getMessage());
         }
@@ -937,7 +936,6 @@ class TestUniversalAssistanceCommand extends Command
                 $this->displaySOAPDataSummary($typeData['name'], $quoteData);
 
                 // Excel will be generated consolidated at the end
-
             } catch (\Exception $e) {
                 $this->error("   ❌ FAILED: " . $e->getMessage());
                 $results[$typeData['code']] = ['error' => $e->getMessage()];
@@ -986,7 +984,6 @@ class TestUniversalAssistanceCommand extends Command
             $this->generateConsolidatedExcel([$quotationType => $result]);
 
             return $result;
-
         } catch (\Exception $e) {
             $this->error("❌ FAILED: " . $e->getMessage());
             return ['error' => $e->getMessage()];
@@ -1114,7 +1111,6 @@ class TestUniversalAssistanceCommand extends Command
             fclose($file);
 
             $this->info("   📊 Excel generated: {$filename}");
-
         } catch (\Exception $e) {
             $this->error("Error generating Excel for {$typeData['name']}: " . $e->getMessage());
         }
@@ -1238,7 +1234,6 @@ class TestUniversalAssistanceCommand extends Command
             $this->info("📊 Consolidated Excel file generated successfully:");
             $this->info("   Location: storage/app/public/{$filename}");
             $this->info("   Success: {$successCount} quotations, Errors: {$errorCount}");
-
         } catch (\Exception $e) {
             $this->error('Failed to generate consolidated Excel: ' . $e->getMessage());
         }
@@ -1263,5 +1258,4 @@ class TestUniversalAssistanceCommand extends Command
             fputcsv($file, [$quotationType, $controlNumber, $organization, $convenio, $prefix ?: 'Root', $this->safeStringValue($data)], ';');
         }
     }
-
 }
