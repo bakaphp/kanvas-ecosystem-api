@@ -25,7 +25,7 @@
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
-        "google/cloud-recommendations-ai": "^0.8.0",
+        "google/cloud-recommendations-ai": "^0.9.0",
         "grantholle/laravel-username-generator": "dev-main",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
