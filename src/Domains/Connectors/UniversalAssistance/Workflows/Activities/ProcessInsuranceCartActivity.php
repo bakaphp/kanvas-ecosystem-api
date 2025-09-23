@@ -51,8 +51,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // Process insurance workflow
                     $results = $service->processInsuranceWorkflow($cartData);
 
-                    // Store results in eSim message metadata (same level as AeroAmbulancia)
-                    $this->storeResultsInESimMessage($messageId, $results);
+                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
+                    $this->storeUniversalAssistanceData($order, $messageId, $results);
 
                     // Log success
 
@@ -66,45 +66,58 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
-     * Store insurance processing results in eSim message metadata (same level as AeroAmbulancia)
+     * Store Universal Assistance data in both message and order (same pattern as AeroAmbulancia)
      */
-    protected function storeResultsInESimMessage(int $messageId, array $results): void
+    protected function storeUniversalAssistanceData(Order $order, int $messageId, array $results): void
     {
-        $message = Message::getById($messageId);
-        $messageData = $message->message;
-
-        // Store in message.message (same structure as AeroAmbulancia)
-        $messageData['universal_assistance'] = [
+        // Prepare universalAssistanceData structure (similar to aeroAmbulanciaData)
+        $universalAssistanceData = [
             'processed_at' => now()->toISOString(),
             'workflow_type' => 'single_voucher_per_titular',
-            'results' => $results,
+            'holder' => null,
+            'dependents' => [],
             'summary' => [
                 'titular_processed' => isset($results['titular']),
                 'dependents_stored' => isset($results['dependents']) ? count($results['dependents']) : 0,
-                'total_vouchers_created' => isset($results['titular']) ? 1 : 0, // Only titular gets voucher
+                'total_vouchers_created' => isset($results['titular']) ? 1 : 0,
                 'total_dependents_in_metadata' => isset($results['dependents']) ? count($results['dependents']) : 0,
             ],
         ];
 
-        // Add control number for easy reference
-        if (isset($results['titular']['control_number'])) {
-            $messageData['universal_assistance']['titular_control_number'] = $results['titular']['control_number'];
+        // Structure holder data (similar to AeroAmbulancia holder structure)
+        if (isset($results['titular'])) {
+            $universalAssistanceData['holder'] = [
+                'data' => $results['titular'],
+                'control_number' => $results['titular']['control_number'] ?? null,
+                'voucher_id' => $results['titular']['voucher_response']['IdVoucher'] ?? null,
+                'quotation_type' => $results['titular']['quotation_type'] ?? null,
+                'status' => 'active',
+            ];
         }
 
-        // Add plan type information
-        if (isset($results['titular']['quotation_type'])) {
-            $messageData['universal_assistance']['plan_type'] = $results['titular']['quotation_type'];
+        // Structure dependents data (similar to AeroAmbulancia dependents structure)
+        if (isset($results['dependents']) && ! empty($results['dependents'])) {
+            foreach ($results['dependents'] as $dependent) {
+                $universalAssistanceData['dependents'][] = [
+                    'data' => $dependent,
+                    'status' => 'registered', // Not active until separate processing
+                ];
+            }
         }
 
-        // Add voucher query information if available
-        if (isset($results['titular']['voucher_query'])) {
-            $messageData['universal_assistance']['titular_voucher_info'] = $results['titular']['voucher_query'];
+        // Update the message with universalAssistanceData (same pattern as aeroAmbulanciaData)
+        if ($messageId) {
+            $message = Message::getById($messageId);
+            $messageData = $message->message;
+            $messageData['universalAssistanceData'] = $universalAssistanceData;
+            $message->message = $messageData;
+            $message->saveOrFail();
         }
 
-        // Save the updated message data (same as AeroAmbulancia)
-        $message->message = $messageData;
-        $message->saveOrFail();
-
-        // Log metadata storage
+        // Update order metadata as well (same pattern as aeroAmbulanciaData)
+        $order->metadata = array_merge(($order->metadata ?? []), [
+            'universalAssistanceData' => $universalAssistanceData
+        ]);
+        $order->saveOrFail();
     }
 }
