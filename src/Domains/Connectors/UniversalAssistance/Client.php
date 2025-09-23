@@ -290,15 +290,12 @@ class Client
             $successfulOrigin = null;
             $triedOrigins = [];
 
-            // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
-            foreach ($validOrigins as $origin) {
-                try {
-
-                    // Create a quote to get detailed product/plan information
-                    $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
-                    $currentQuoteResult = $this->createOrUpdateLead($leadData, true);
-
-                    $triedOrigins[] = [
+             // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
+             foreach ($validOrigins as $origin) {
+                 try {
+                     // Create a quote to get detailed product/plan information
+                     $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
+                     $currentQuoteResult = $this->createOrUpdateLead($leadData, true);                    $triedOrigins[] = [
                         'origin' => $origin,
                         'destination' => $destination,
                         'response' => $currentQuoteResult
@@ -341,7 +338,6 @@ class Client
             // If the quote returned "no products" (ErrorCode '01'), retry once with an extended date range using the successful origin
             try {
                 if ($this->hasErrorCode01($quoteResult) && $successfulOrigin) {
-
                     $retryLeadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $successfulOrigin);
                     // Extend the date range to increase chance of finding products
                     $retryLeadData['FechaInicio'] = date('m/d/Y', strtotime('+1 day'));
