@@ -217,7 +217,9 @@ trait HasCustomFields
      */
     public function getCustomField(string $name): ?AppsCustomFields
     {
-        return AppsCustomFields::where('companies_id', $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue())
+        $companiesId = $this->companies_id ? [$this->companies_id, AppEnums::GLOBAL_COMPANY_ID->getValue()] : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
+
+        return AppsCustomFields::whereIn('companies_id', $companiesId)
                                 ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))]) //allow legacy
                                 ->where('entity_id', $this->getKey())
                                 ->where('name', $name)
