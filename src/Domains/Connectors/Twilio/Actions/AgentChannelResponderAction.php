@@ -13,6 +13,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
@@ -51,8 +53,28 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
         $to = $this->hijackMessagePhone($to);
 
         $client = Client::getInstanceByCompany($this->message->company);
-        $onChunk = function ($text, $data) use ($client, $to, $params): void {
+        $message = $this->message;
+        $channel = $this->channel;
+        $onChunk = function ($text, $data) use ($client, $to, $params, $message, $channel): void {
             // Use the Twilio client to send a message
+
+            $messageInput = new MessageInput(
+                app: $message->app,
+                company: $message->company,
+                user: $message->user,
+                type: $message->messageType,
+                message: [
+                        'content' => $text,
+                        ],
+                is_public: 1,
+                tags: [$to],
+                slug: Str::slug($text) . '-' . time()
+            );
+
+            $createMessageAction = new CreateMessageAction($messageInput);
+            $message = $createMessageAction->execute();
+            $channel->addMessage($message);
+
             $client->messages->create(
                 $to, // to
                 [
