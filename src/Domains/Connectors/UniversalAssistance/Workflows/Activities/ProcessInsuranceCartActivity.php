@@ -15,7 +15,7 @@ use Kanvas\Workflow\KanvasActivity;
 class ProcessInsuranceCartActivity extends KanvasActivity
 {
     /**
-     * Process insurance data from cart and create single quotation based on plan type
+     * Process insurance data from order metadata (same pattern as AeroAmbulancia)
      */
     public function execute(Order $order, AppInterface $app, array $params): array
     {
@@ -24,45 +24,84 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::UNIVERSAL_ASSISTANCE,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
-                // Get cart data from params
-                $cartData = $params['cart_data'] ?? [];
+                sleep(30);
+                $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
+                $data = $this->getActivityData($order, $params);
 
-                if (empty($cartData)) {
-                    throw new \Kanvas\Exceptions\ValidationException('Cart data is required for insurance processing');
-                }
+                // Create service 
+                $service = new InsuranceWorkflowService($app, $order);
 
-                // Validate cart data structure
-                if (! isset($cartData['items'])) {
-                    throw new \Kanvas\Exceptions\ValidationException('Cart data must contain items array');
-                }
+                // Process insurance workflow with cart data from order metadata
+                $results = $service->processInsuranceWorkflow($data['cart_data']);
 
-                // Get eSim message ID from order (same way as AeroAmbulancia)
-                $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
-                if (! $messageId) {
-                    throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
-                }
+                // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
+                $this->storeUniversalAssistanceData($order, $data['message_id'], $results);
 
-                // Log the processing start
+                return $results;
+            },
+            company: $order->company,
+        );
+    }
 
-                try {
-                    // Create service (message ID will be obtained from order automatically)
-                    $service = new InsuranceWorkflowService($app, $order);
-
-                    // Process insurance workflow
-                    $results = $service->processInsuranceWorkflow($cartData);
-
-                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                    $this->storeUniversalAssistanceData($order, $messageId, $results);
-
-                    // Log success
-
-                    return $results;
-                } catch (\Exception $e) {
-                    // Log error and re-throw
-                    throw $e;
+    /**
+     * Get all required data for the activity (same pattern as AeroAmbulancia)
+     */
+    protected function getActivityData(Order $order, array $params): array
+    {
+        // Get Universal Assistance data from order items metadata (same way as AeroAmbulancia gets beneficiaries)
+        $insuranceData = null;
+        
+        // Look for insurance data in order items metadata
+        foreach ($order->allItems()->get() as $orderItem) {
+            $itemMetadata = $orderItem->metadata ?? [];
+            
+            if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
+                foreach ($itemMetadata['eSimDetails'] as $detail) {
+                    if (isset($detail['insurance'])) {
+                        $insuranceData = $detail['insurance'];
+                        break 2; // Break out of both loops
+                    }
                 }
             }
-        );
+        }
+        
+        if (empty($insuranceData)) {
+            throw new \Kanvas\Exceptions\ValidationException('Universal Assistance insurance data not found in order items metadata');
+        }
+
+        // Get eSim message ID from order (same way as AeroAmbulancia)
+        $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+        if (! $messageId) {
+            throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+        }
+
+        // Convert insurance data to cart format that the service expects
+        $cartData = [
+            'items' => []
+        ];
+        
+        // Add titular to cart items
+        if (isset($insuranceData['titular'])) {
+            $cartData['items'][] = [
+                'type' => 'titular',
+                'data' => $insuranceData['titular']
+            ];
+        }
+        
+        // Add dependents to cart items
+        if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
+            foreach ($insuranceData['dependents'] as $dependent) {
+                $cartData['items'][] = [
+                    'type' => 'dependent',
+                    'data' => $dependent
+                ];
+            }
+        }
+
+        return [
+            'cart_data' => $cartData,
+            'message_id' => $messageId,
+        ];
     }
 
     /**
@@ -105,7 +144,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Update the message with universalAssistanceData (same pattern as aeroAmbulanciaData)
+        // Update the message with Universal Assistance data (exact same pattern as AeroAmbulancia)
         if ($messageId) {
             $message = Message::getById($messageId);
             $messageData = $message->message;
@@ -113,11 +152,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $message->message = $messageData;
             $message->saveOrFail();
         }
-
-        // Update order metadata as well (same pattern as aeroAmbulanciaData)
-        $order->metadata = array_merge(($order->metadata ?? []), [
-            'universalAssistanceData' => $universalAssistanceData
-        ]);
+        
+        // Update order metadata as well (exact same pattern as AeroAmbulancia)
+        $order->metadata = array_merge(($order->metadata ?? []), ['universalAssistanceData' => $universalAssistanceData]);
         $order->saveOrFail();
     }
 }
