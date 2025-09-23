@@ -44,7 +44,7 @@ class Client
         $tempDir = 'temp/wsdl/';
         $tempPath = $tempDir . 'ua_' . $filename;
         $now = time();
-        
+
         if (Storage::disk('local')->exists($tempDir)) {
             $files = Storage::disk('local')->files($tempDir);
             foreach ($files as $file) {
@@ -76,15 +76,15 @@ class Client
                 'verify_peer_name' => false,
             ]
         ]);
-        
+
         $wsdlContent = file_get_contents($s3Url, false, $context);
-        
+
         if ($wsdlContent === false) {
             throw new ValidationException("Failed to download WSDL from S3: {$s3Url}");
         }
-        
+
         // Save to Laravel storage temp directory
-        if (!Storage::disk('local')->put($tempPath, $wsdlContent)) {
+        if (! Storage::disk('local')->put($tempPath, $wsdlContent)) {
             throw new ValidationException("Failed to save WSDL to storage: {$tempPath}");
         }
 
