@@ -82,8 +82,6 @@ class Client
 
         $order->metadata = $metadata;
         $order->saveOrFail();
-
-        error_log("UniversalAssistance: Control numbers stored in order #{$order->id}: " . json_encode($controlNumbers));
     }
 
     /**
@@ -203,8 +201,6 @@ class Client
         try {
             // Create Inclusión quotation first with specific organization
             $results['inclusion'] = $this->createVoucher($inclusionData, true);
-            error_log("UniversalAssistance: Inclusión quotation created with control number: " . $controlNumbers['inclusion'] .
-                     ", organization: " . $this->getOrganizationForQuotationType('inclusion') . ", convenio: " . $this->getConvenioForQuotationType('inclusion'));
 
             // Query Inclusión voucher to get complete insurance information
             try {
@@ -216,16 +212,13 @@ class Client
 
                     // Filter and store essential query data
                     $results['inclusion_query'] = $this->filterVoucherQueryResponse($inclusionQueryResponse);
-                    error_log("UniversalAssistance: Inclusión voucher queried successfully: " . $results['inclusion']['IdVoucher']);
                 }
             } catch (Exception $queryException) {
-                error_log("UniversalAssistance: Failed to query Inclusión voucher: " . $queryException->getMessage());
                 $results['inclusion_query_error'] = $queryException->getMessage();
             }
 
             // Create Cross Selling quotation with specific organization
             $results['cross_selling'] = $this->createVoucher($crossSellingData, true);
-            error_log("UniversalAssistance: Cross Selling quotation created with control number: " . $controlNumbers['cross_selling'] .
                      ", organization: " . $this->getOrganizationForQuotationType('cross_selling') . ", convenio: " . $this->getConvenioForQuotationType('cross_selling'));
 
             // Query Cross Selling voucher to get complete insurance information
@@ -238,10 +231,8 @@ class Client
 
                     // Filter and store essential query data
                     $results['cross_selling_query'] = $this->filterVoucherQueryResponse($crossSellingQueryResponse);
-                    error_log("UniversalAssistance: Cross Selling voucher queried successfully: " . $results['cross_selling']['IdVoucher']);
                 }
             } catch (Exception $queryException) {
-                error_log("UniversalAssistance: Failed to query Cross Selling voucher: " . $queryException->getMessage());
                 $results['cross_selling_query_error'] = $queryException->getMessage();
             }
 
@@ -255,7 +246,6 @@ class Client
                 'cross_selling' => $this->getConvenioForQuotationType('cross_selling')
             ];
         } catch (Exception $e) {
-            error_log("UniversalAssistance: Dual quotation creation failed: " . $e->getMessage());
             throw new ValidationException('Failed to create dual quotations: ' . $e->getMessage());
         }
 
@@ -304,7 +294,6 @@ class Client
             // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
             foreach ($validOrigins as $origin) {
                 try {
-                    error_log("UniversalAssistance: Trying country of origin '{$origin}' with destination '{$destination}' for {$quotationType}");
 
                     // Create a quote to get detailed product/plan information
                     $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
@@ -320,13 +309,10 @@ class Client
                     if (! $this->hasErrorCode01($currentQuoteResult)) {
                         $quoteResult = $currentQuoteResult;
                         $successfulOrigin = $origin;
-                        error_log("UniversalAssistance: Country of origin '{$origin}' with destination '{$destination}' returned products for {$quotationType}");
                         break;
                     } else {
-                        error_log("UniversalAssistance: Country of origin '{$origin}' with destination '{$destination}' returned ErrorCode 01 for {$quotationType}, trying next origin");
                     }
                 } catch (Exception $originEx) {
-                    error_log("UniversalAssistance: Exception trying country of origin '{$origin}' with destination '{$destination}' for {$quotationType}: " . $originEx->getMessage());
                     $triedOrigins[] = [
                         'origin' => $origin,
                         'destination' => $destination,
@@ -339,7 +325,6 @@ class Client
             // If no origin worked, use the last tried result and log all attempts
             if ($quoteResult === null) {
                 $quoteResult = $currentQuoteResult ?? ['ErrorCode' => '01', 'ErrorDescription' => 'No origins returned products'];
-                error_log("UniversalAssistance: No country of origin with destination '{$destination}' returned products for {$quotationType}. Tried origins: " . json_encode($triedOrigins));
             }
 
             $result = [
@@ -357,7 +342,6 @@ class Client
             // If the quote returned "no products" (ErrorCode '01'), retry once with an extended date range using the successful origin
             try {
                 if ($this->hasErrorCode01($quoteResult) && $successfulOrigin) {
-                    error_log("UniversalAssistance: Quote returned ErrorCode 01 for {$quotationType}, attempting one retry with extended date range using country of origin '{$successfulOrigin}'");
 
                     $retryLeadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $successfulOrigin);
                     // Extend the date range to increase chance of finding products
@@ -373,14 +357,11 @@ class Client
                     if (! $this->hasErrorCode01($retryResult)) {
                         $result['quote_response'] = $retryResult;
                         $result['response'] = $retryResult;
-                        error_log("UniversalAssistance: Retry succeeded for {$quotationType}");
                     } else {
-                        error_log("UniversalAssistance: Retry also returned ErrorCode 01 for {$quotationType}");
                         $result['retry_failed'] = true;
                     }
                 }
             } catch (Exception $retryEx) {
-                error_log("UniversalAssistance: Retry for {$quotationType} failed: " . $retryEx->getMessage());
                 $result['retried'] = true;
                 $result['retry_exception'] = $retryEx->getMessage();
             }
@@ -400,10 +381,8 @@ class Client
 
                         // Filter and store essential query data
                         $result['voucher_query'] = $this->filterVoucherQueryResponse($voucherQueryResponse);
-                        error_log("UniversalAssistance: {$quotationType} voucher queried successfully: " . $voucherResult['IdVoucher']);
                     }
                 } catch (Exception $queryException) {
-                    error_log("UniversalAssistance: Failed to query {$quotationType} voucher: " . $queryException->getMessage());
                     $result['voucher_query_error'] = $queryException->getMessage();
                 }
             }
@@ -414,11 +393,9 @@ class Client
             }
 
             $mode = $quoteOnly ? 'quote-only' : 'quote+voucher';
-            error_log("UniversalAssistance: Single quotation created ({$mode}) - Type: {$quotationType}, Control: {$controlNumber}, Org: " . $this->getOrganizationForQuotationType($quotationType) . ", Convenio: " . $this->getConvenioForQuotationType($quotationType));
 
             return $result;
         } catch (Exception $e) {
-            error_log("UniversalAssistance: Single quotation creation failed for {$quotationType}: " . $e->getMessage());
             throw new ValidationException("Failed to create {$quotationType} quotation: " . $e->getMessage());
         }
     }
@@ -518,9 +495,6 @@ class Client
                 $wsdlUrl = base_path('http___siebel.com_CustomUI_UA Lead Cotizador WS.WSDL');
 
                 // Debug: Log the URL being used
-                error_log("UniversalAssistance: Attempting to connect to WSDL: " . $wsdlUrl);
-                error_log("UniversalAssistance: Base URL: " . $this->baseUrl);
-                error_log("UniversalAssistance: Username: " . $this->username);
 
                 // Use the local WSDL file for QA testing with correct QA endpoint
                 $this->quoteClient = new SoapClient($wsdlUrl, [
@@ -571,7 +545,6 @@ class Client
                 // Use the Voucher WSDL file for QA testing
                 $wsdlUrl = base_path('http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL');
 
-                error_log("UniversalAssistance: Voucher WSDL URL: " . $wsdlUrl);
 
                 $this->voucherClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
@@ -616,7 +589,6 @@ class Client
                 // Use the QueryVoucherPortal WSDL file for QA testing
                 $wsdlUrl = base_path('http___siebel.com_CustomUI_UA QueryVoucherPortal WS.WSDL');
 
-                error_log("UniversalAssistance: Query WSDL URL: " . $wsdlUrl);
 
                 $this->queryClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
@@ -726,11 +698,9 @@ class Client
 
             // Try to get available functions (will fail if service is not accessible)
             $functions = $client->__getFunctions();
-            error_log("UniversalAssistance: Available functions: " . implode(', ', $functions));
 
             return true;
         } catch (Exception $e) {
-            error_log("UniversalAssistance: Connection test failed: " . $e->getMessage());
             return false;
         }
     }
@@ -765,9 +735,7 @@ class Client
             // Debug: Get available functions
             try {
                 $functions = $client->__getFunctions();
-                error_log("UniversalAssistance: Available functions: " . implode(', ', array_slice($functions, 0, 3)));
             } catch (Exception $debugEx) {
-                error_log("UniversalAssistance: Could not get functions: " . $debugEx->getMessage());
             }
 
             // Create the exact structure from your working QA SOAP request
@@ -819,9 +787,6 @@ class Client
             }
 
             // Debug: Log the input data and organization
-            error_log("UniversalAssistance: Input leadData: " . json_encode($leadData));
-            error_log("UniversalAssistance: Organization: " . $this->organization);
-            error_log("UniversalAssistance: Parameters: " . json_encode($parameters));
 
             // Set SOAP headers for authentication - Exact format from working QA example
             $client->__setSoapHeaders(null); // Clear any existing headers
@@ -843,22 +808,15 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-            error_log("UniversalAssistance: Calling LeadCotizadorOper with authentication headers set");
 
             $response = $client->__soapCall('LeadCotizadorOper', [$parameters]);
 
-            error_log("UniversalAssistance: Response received: " . json_encode($response));
 
             // Return the raw SOAP response without any processing
             return (array) $response;
         } catch (SoapFault $e) {
-            error_log("UniversalAssistance: SoapFault - " . $e->getMessage());
-            error_log("UniversalAssistance: SoapFault Code - " . $e->getCode());
-            error_log("UniversalAssistance: Last Request - " . $client->__getLastRequest());
-            error_log("UniversalAssistance: Last Response - " . $client->__getLastResponse());
             throw new ValidationException('SOAP Fault in create/update lead: ' . $e->getMessage());
         } catch (Exception $e) {
-            error_log("UniversalAssistance: Exception - " . $e->getMessage());
             throw new ValidationException('Failed to create/update lead: ' . $e->getMessage());
         }
     }
@@ -880,8 +838,6 @@ class Client
                 ];
 
                 // Debug: Log the exact parameters being sent
-                error_log("UniversalAssistance Voucher: Raw parameters: " . json_encode($parameters));
-                error_log("UniversalAssistance Voucher: Raw voucherData: " . json_encode($voucherData));
             } else {
                 // Standard field mapping for voucher creation - Updated based on successful test structure
                 $parameters = [
@@ -999,7 +955,6 @@ class Client
             if ($useRawData) {
                 // Use raw data directly as provided (for testing) - mantener lógica original
                 $parameters = $queryParams;
-                error_log('UniversalAssistance QueryVoucher: Raw parameters = ' . json_encode($parameters));
             } else {
                 // Standard field mapping for voucher query - WSDL only requires VoucherNumber and Organization
                 $parameters = [
@@ -1008,7 +963,6 @@ class Client
                 ];
             }
 
-            error_log('UniversalAssistance QueryVoucher: Final parameters = ' . json_encode($parameters));
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -1028,21 +982,15 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-            error_log('UniversalAssistance QueryVoucher: Making SOAP call to QueryVoucherPortalOper');
 
             // Call the correct SOAP method according to WSDL - use single parameter object like other methods
             $response = $client->QueryVoucherPortalOper($parameters);
 
-            error_log('UniversalAssistance QueryVoucher: Response received');
 
             return (array) $response;
         } catch (\SoapFault $e) {
-            error_log("UniversalAssistance QueryVoucher SOAP Fault: " . $e->getMessage());
-            error_log("UniversalAssistance QueryVoucher SOAP Detail: " . $e->getTraceAsString());
             throw new ValidationException('SOAP Fault in query voucher: ' . $e->getMessage());
         } catch (Exception $e) {
-            error_log("UniversalAssistance QueryVoucher Exception: " . $e->getMessage());
-            error_log("UniversalAssistance QueryVoucher Stack: " . $e->getTraceAsString());
             throw new ValidationException('Failed to query voucher: ' . $e->getMessage());
         }
     }
@@ -1121,7 +1069,6 @@ class Client
             }
 
             // Debug logging
-            error_log("UniversalAssistance SendReport: Parameters = " . json_encode($parameters));
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -1142,7 +1089,6 @@ class Client
             $client->__setSoapHeaders([$securityHeader]);
 
             // Debug the SOAP call
-            error_log("UniversalAssistance SendReport: Making SOAP call to SendReportOper");
 
             // Based on WSDL structure, SendReport expects individual parameters, not wrapped in an array
             // The method signature is: SendReportOper(Language, VoucherNumber, Tarifa, Organization)
@@ -1153,16 +1099,11 @@ class Client
                 $parameters['Organization']
             );
 
-            error_log("UniversalAssistance SendReport: Response received");
 
             return (array) $response;
         } catch (\SoapFault $e) {
-            error_log("UniversalAssistance SendReport SOAP Fault: " . $e->getMessage());
-            error_log("UniversalAssistance SendReport SOAP Detail: " . $e->getTraceAsString());
             throw new ValidationException('SOAP Fault in send report: ' . $e->getMessage());
         } catch (Exception $e) {
-            error_log("UniversalAssistance SendReport Exception: " . $e->getMessage());
-            error_log("UniversalAssistance SendReport Stack: " . $e->getTraceAsString());
             throw new ValidationException('Failed to send report: ' . $e->getMessage());
         }
     }
@@ -1178,7 +1119,6 @@ class Client
                 $wsdlUrl = base_path('http___siebel.com_CustomUI_UA SendReport WS.WSDL');
 
                 // Debug: Log the URL being used
-                error_log("UniversalAssistance: SendReport WSDL URL: " . $wsdlUrl);
 
                 $this->sendReportClient = new SoapClient($wsdlUrl, [
                     'trace' => true,
@@ -1219,7 +1159,6 @@ class Client
             // Based on the WSDL, the method is Consulta_Voucher_Operation
             if ($useRawData) {
                 $parameters = $consultaData;
-                error_log('UniversalAssistance ConsultaVoucher: Raw parameters = ' . json_encode($parameters));
             } else {
                 // Standard field mapping for consulta voucher - using proper WSDL structure
                 $parameters = [
@@ -1232,7 +1171,6 @@ class Client
                 ];
             }
 
-            error_log('UniversalAssistance ConsultaVoucher: Final parameters = ' . json_encode($parameters));
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -1252,21 +1190,15 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-            error_log('UniversalAssistance ConsultaVoucher: Making SOAP call to Consulta_Voucher_Operation');
 
             // Call the correct SOAP method according to WSDL with proper structure
             $response = $client->Consulta_Voucher_Operation($parameters);
 
-            error_log('UniversalAssistance ConsultaVoucher: Response received');
 
             return (array) $response;
         } catch (\SoapFault $e) {
-            error_log("UniversalAssistance ConsultaVoucher SOAP Fault: " . $e->getMessage());
-            error_log("UniversalAssistance ConsultaVoucher SOAP Detail: " . $e->getTraceAsString());
             throw new ValidationException('SOAP Fault in consulta voucher: ' . $e->getMessage());
         } catch (Exception $e) {
-            error_log("UniversalAssistance ConsultaVoucher Exception: " . $e->getMessage());
-            error_log("UniversalAssistance ConsultaVoucher Stack: " . $e->getTraceAsString());
             throw new ValidationException('Failed to consulta voucher: ' . $e->getMessage());
         }
     }
@@ -1282,7 +1214,6 @@ class Client
             // Based on the WSDL, the method is Anula_Voucher_Operation
             if ($useRawData) {
                 $parameters = $anulaData;
-                error_log('UniversalAssistance AnulaVoucher: Raw parameters = ' . json_encode($parameters));
             } else {
                 // Standard field mapping for anula voucher
                 $parameters = [
@@ -1291,7 +1222,6 @@ class Client
                 ];
             }
 
-            error_log('UniversalAssistance AnulaVoucher: Final parameters = ' . json_encode($parameters));
 
             // Set SOAP headers for authentication
             $client->__setSoapHeaders(null);
@@ -1311,21 +1241,15 @@ class Client
 
             $client->__setSoapHeaders([$securityHeader]);
 
-            error_log('UniversalAssistance AnulaVoucher: Making SOAP call to Anula_Voucher_Operation');
 
             // Call the correct SOAP method according to WSDL with single parameter object like consulta
             $response = $client->Anula_Voucher_Operation($parameters);
 
-            error_log('UniversalAssistance AnulaVoucher: Response received');
 
             return (array) $response;
         } catch (\SoapFault $e) {
-            error_log("UniversalAssistance AnulaVoucher SOAP Fault: " . $e->getMessage());
-            error_log("UniversalAssistance AnulaVoucher SOAP Detail: " . $e->getTraceAsString());
             throw new ValidationException('SOAP Fault in anula voucher: ' . $e->getMessage());
         } catch (Exception $e) {
-            error_log("UniversalAssistance AnulaVoucher Exception: " . $e->getMessage());
-            error_log("UniversalAssistance AnulaVoucher Stack: " . $e->getTraceAsString());
             throw new ValidationException('Failed to anula voucher: ' . $e->getMessage());
         }
     }

@@ -43,7 +43,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
 
                 // Log the processing start
-                error_log("UniversalAssistance ProcessInsuranceCartActivity: Starting processing for order #{$order->id}, eSim message #{$messageId}");
 
                 try {
                     // Create service (message ID will be obtained from order automatically)
@@ -56,12 +55,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $this->storeResultsInESimMessage($messageId, $results);
 
                     // Log success
-                    error_log("UniversalAssistance ProcessInsuranceCartActivity: Successfully processed order #{$order->id}, stored in message #{$messageId}");
 
                     return $results;
                 } catch (\Exception $e) {
                     // Log error and re-throw
-                    error_log("UniversalAssistance ProcessInsuranceCartActivity: Error processing order #{$order->id}: " . $e->getMessage());
                     throw $e;
                 }
             }
@@ -109,6 +106,5 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $message->saveOrFail();
 
         // Log metadata storage
-        error_log("UniversalAssistance ProcessInsuranceCartActivity: Metadata stored in eSim message #{$messageId}");
     }
 }

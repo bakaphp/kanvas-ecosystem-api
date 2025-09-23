@@ -71,7 +71,6 @@ class InsuranceWorkflowService
         $insuranceData = [];
 
         if (! isset($cartData['items'])) {
-            error_log("UniversalAssistance InsuranceWorkflowService: No 'items' found in cart data");
             return $insuranceData;
         }
 
@@ -82,13 +81,11 @@ class InsuranceWorkflowService
                 foreach ($item['attributes']['eSimDetails'] as $detailIndex => $detail) {
                     if (isset($detail['insurance'])) {
                         $insuranceData[] = $detail['insurance'];
-                        error_log("UniversalAssistance InsuranceWorkflowService: Found insurance data in item {$itemCount}, detail {$detailIndex}");
                     }
                 }
             }
         }
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Extracted " . count($insuranceData) . " insurance items from " . count($cartData['items']) . " cart items");
 
         return $insuranceData;
     }
@@ -102,24 +99,20 @@ class InsuranceWorkflowService
 
         foreach ($requiredFields as $field) {
             if (! isset($personData[$field]) || empty($personData[$field])) {
-                error_log("UniversalAssistance InsuranceWorkflowService: Missing required field '{$field}' for {$personType}");
                 return false;
             }
         }
 
         // Validate plan structure
         if (! isset($personData['plan']) || ! is_array($personData['plan'])) {
-            error_log("UniversalAssistance InsuranceWorkflowService: Missing or invalid 'plan' data for {$personType}");
             return false;
         }
 
         // Plan should have at least name and price
         if (! isset($personData['plan']['name']) || ! isset($personData['plan']['price'])) {
-            error_log("UniversalAssistance InsuranceWorkflowService: Missing 'name' or 'price' in plan data for {$personType}");
             return false;
         }
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Person data validation passed for {$personType}: {$personData['firstname']} {$personData['lastname']}");
         return true;
     }
 
@@ -180,7 +173,6 @@ class InsuranceWorkflowService
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
-            error_log("UniversalAssistance InsuranceWorkflowService: Invalid destination '{$destination}' for {$personType}, using fallback");
             $destination = 'Centro america/Caribe'; // Safe fallback
         }
 
@@ -196,7 +188,6 @@ class InsuranceWorkflowService
         $contract = ContractEnum::getContract('inclusion', $destination);
         $product = ProductEnum::getProduct('inclusion', $destination);
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Using Inclusion contract '{$contract->value}' and product '{$product->value}' for destination '{$destination}'");
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -247,7 +238,6 @@ class InsuranceWorkflowService
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
-            error_log("UniversalAssistance InsuranceWorkflowService: Invalid destination '{$destination}' for {$personType} Cross Selling, using fallback");
             $destination = 'Centro america/Caribe'; // Safe fallback
         }
 
@@ -261,7 +251,6 @@ class InsuranceWorkflowService
         $contract = ContractEnum::getContract('cross_selling', $destination);
         $product = ProductEnum::getProduct('cross_selling', $destination);
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Using Cross Selling contract '{$contract->value}' and product '{$product->value}' for destination '{$destination}'");
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -309,8 +298,10 @@ class InsuranceWorkflowService
     {
         // Map country codes to Universal Assistance valid destinations
         $countryToDestination = [
+            // Territorio Nacional (República Dominicana)
+            'DO' => 'Territorio Nacional',
+            
             // Centro america/Caribe
-            'DO' => 'Centro america/Caribe',
             'PA' => 'Centro america/Caribe',
             'CR' => 'Centro america/Caribe',
             'GT' => 'Centro america/Caribe',
@@ -443,7 +434,6 @@ class InsuranceWorkflowService
 
         $destination = $countryToDestination[$countryCode] ?? 'Centro america/Caribe'; // Default fallback
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Converting country code '{$countryCode}' to Universal Assistance destination: '{$destination}'");
         return $destination;
     }
 
@@ -526,11 +516,9 @@ class InsuranceWorkflowService
         if ($planType) {
             $planTypeNormalized = strtolower($planType);
             if (in_array($planTypeNormalized, ['cross_selling', 'cross-selling', 'crossselling'])) {
-                error_log("UniversalAssistance InsuranceWorkflowService: Plan type determined as 'cross_selling' from explicit type: {$planType}");
                 return 'cross_selling';
             }
             if (in_array($planTypeNormalized, ['inclusion', 'inclusión', 'incluso'])) {
-                error_log("UniversalAssistance InsuranceWorkflowService: Plan type determined as 'inclusion' from explicit type: {$planType}");
                 return 'inclusion';
             }
         }
@@ -540,12 +528,10 @@ class InsuranceWorkflowService
             strpos($planName, 'venta cruzada') !== false ||
             strpos($planName, 'premium') !== false ||
             strpos($planName, 'plus') !== false) {
-            error_log("UniversalAssistance InsuranceWorkflowService: Plan type determined as 'cross_selling' from plan name: {$planName}");
             return 'cross_selling';
         }
 
         // Default to inclusion
-        error_log("UniversalAssistance InsuranceWorkflowService: Plan type defaulted to 'inclusion' for plan: {$planName}");
         return 'inclusion';
     }
 
@@ -562,20 +548,16 @@ class InsuranceWorkflowService
                    null;
 
         // Log what we found
-        error_log("UniversalAssistance InsuranceWorkflowService: Looking for duration in plan data for {$personData['firstname']} {$personData['lastname']}");
 
         // If duration is provided, use it directly without validation
         if ($duration !== null && $duration !== '') {
             $durationInt = (int) $duration;
 
-            error_log("UniversalAssistance InsuranceWorkflowService: Found duration '{$duration}' (parsed as {$durationInt})");
 
             if ($durationInt > 0) {
-                error_log("UniversalAssistance InsuranceWorkflowService: Using plan duration: {$durationInt} days");
                 return $durationInt;
             }
         } else {
-            error_log("UniversalAssistance InsuranceWorkflowService: No duration found in plan data, trying fallback methods");
         }
 
         // Fallback: calculate from activation and expiration dates if available
@@ -585,20 +567,16 @@ class InsuranceWorkflowService
                 $expirationDate = Carbon::parse($personData['expirationDate']);
                 $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1); // +1 to include both dates
 
-                error_log("UniversalAssistance InsuranceWorkflowService: Calculated duration from dates: {$calculatedDuration} days ({$personData['activationDate']} to {$personData['expirationDate']})");
 
                 // Use calculated duration directly without validation
                 if ($calculatedDuration > 0) {
-                    error_log("UniversalAssistance InsuranceWorkflowService: Using calculated duration: {$calculatedDuration} days");
                     return $calculatedDuration;
                 }
             } catch (\Exception $e) {
-                error_log("UniversalAssistance InsuranceWorkflowService: Error calculating duration from dates: " . $e->getMessage());
             }
         }
 
         // Default to 7 days if no valid duration found
-        error_log("UniversalAssistance InsuranceWorkflowService: No valid duration found, using default: 7 days");
         return 7;
     }
 
@@ -608,7 +586,6 @@ class InsuranceWorkflowService
     protected function storeDependentInESimMessageMetadata(array $dependentData): void
     {
         if (! $this->messageId) {
-            error_log("UniversalAssistance InsuranceWorkflowService: No message ID set, cannot store dependent metadata");
             return;
         }
 
@@ -664,6 +641,5 @@ class InsuranceWorkflowService
         $message->message = $messageData;
         $message->saveOrFail();
 
-        error_log("UniversalAssistance InsuranceWorkflowService: Dependent stored in eSim message #{$this->messageId}: {$dependentData['firstname']} {$dependentData['lastname']}");
     }
 }
