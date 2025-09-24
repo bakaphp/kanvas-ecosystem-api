@@ -80,14 +80,14 @@ class ProcessPeopleDriverLicenseVerificationAction
         }
 
         try {
-            if ($this->people->get('driver_license_processed')) {
+            if ($this->people->get('driver_license_processed_activity')) {
                 return [
                     'success' => false,
                     'message' => 'People Driver license already processed',
                 ];
             }
 
-            $this->people->set('driver_license_processed', true);
+            $this->people->set('driver_license_processed_activity', true);
 
             $results = [];
             $driverLicenseImage = $this->people->get('driver_license_images');
