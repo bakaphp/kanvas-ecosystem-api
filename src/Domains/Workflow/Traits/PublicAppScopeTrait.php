@@ -22,7 +22,6 @@ trait PublicAppScopeTrait
     {
         $app = $app instanceof Apps ? $app : app(Apps::class);
 
-        $query->whereIn('apps_id', [0, $app->getId()]);
         return $query->whereIn('apps_id', [0, $app->getId()]);
     }
 }
