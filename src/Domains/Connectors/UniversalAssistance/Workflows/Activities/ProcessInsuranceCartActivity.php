@@ -277,7 +277,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
 
-            if (!empty($titularQuoteData)) {
+            if (! empty($titularQuoteData)) {
                 $validation['total_validations']++;
                 $validation['validation_details']['titular'] = [
                     'nombre_producto_cotizado' => $titularQuoteData['NombreProducto'] ?? null,
@@ -289,13 +289,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         // Validate dependents
-        if (isset($results['dependents']) && !empty($results['dependents'])) {
+        if (isset($results['dependents']) && ! empty($results['dependents'])) {
             foreach ($results['dependents'] as $index => $dependent) {
                 $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
 
-                if (!empty($dependentQuoteData)) {
+                if (! empty($dependentQuoteData)) {
                     $validation['total_validations']++;
                     $validation['validation_details']["dependent_$index"] = [
                         'nombre_producto_cotizado' => $dependentQuoteData['NombreProducto'] ?? null,

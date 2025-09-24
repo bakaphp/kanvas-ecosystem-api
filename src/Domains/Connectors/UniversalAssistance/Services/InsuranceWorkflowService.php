@@ -688,7 +688,7 @@ class InsuranceWorkflowService
      */
     protected function validateProductMatch(?string $planRequested, ?string $productQuoted): array
     {
-        if (!$planRequested || !$productQuoted) {
+        if (! $planRequested || ! $productQuoted) {
             return [
                 'match' => false,
                 'reason' => 'Missing plan or product information',
@@ -905,7 +905,7 @@ class InsuranceWorkflowService
      */
     protected function findMatchingProductInQuote(?string $requestedPlanName, array $quoteData): array
     {
-        if (!$requestedPlanName || empty($quoteData)) {
+        if (! $requestedPlanName || empty($quoteData)) {
             return [
                 'found' => false,
                 'reason' => 'Missing plan name or quote data'
@@ -929,7 +929,7 @@ class InsuranceWorkflowService
 
         // Search in attributes/products array if available
         $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? $quoteData['productos'] ?? [];
-        if (!empty($attributes) && is_array($attributes)) {
+        if (! empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $index => $attribute) {
                 // Check different possible field names for product name
                 $productName = $attribute['NombreProducto'] ??
@@ -959,7 +959,7 @@ class InsuranceWorkflowService
         $bestMatch = null;
         $bestScore = 0;
 
-        if (!empty($attributes) && is_array($attributes)) {
+        if (! empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $index => $attribute) {
                 $productName = $attribute['NombreProducto'] ??
                               $attribute['NombreVisible'] ??
@@ -1016,7 +1016,7 @@ class InsuranceWorkflowService
 
         // Add products from attributes
         $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? $quoteData['productos'] ?? [];
-        if (!empty($attributes) && is_array($attributes)) {
+        if (! empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $attribute) {
                 $productName = $attribute['NombreProducto'] ??
                               $attribute['NombreVisible'] ??
@@ -1024,7 +1024,7 @@ class InsuranceWorkflowService
                               $attribute['product_name'] ??
                               $attribute['name'] ?? null;
 
-                if ($productName && !in_array($productName, $products)) {
+                if ($productName && ! in_array($productName, $products)) {
                     $products[] = $productName;
                 }
             }
