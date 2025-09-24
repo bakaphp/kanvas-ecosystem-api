@@ -44,6 +44,8 @@ class InsuranceWorkflowService
         // Process titular (main applicant)
         if (isset($insuranceData['titular'])) {
             $results['titular'] = $this->processTitular($insuranceData['titular']);
+        } else {
+            throw new ValidationException('Titular data not found in insurance data');
         }
 
         // Process dependents
