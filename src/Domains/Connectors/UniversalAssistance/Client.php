@@ -313,9 +313,17 @@ class Client
      */
     public function createSingleQuotation(array $voucherData, string $quotationType, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
     {
-        // Generate control number for single quotation
-        $sequentialNumber = $order ? $order->id : (int)(microtime(true) * 1000) % 10000;
-        $baseControlNumber = 'UA-' . date('Ymd') . '-' . str_pad((string)$sequentialNumber, 4, '0', STR_PAD_LEFT);
+        // Generate unique control number for each individual voucher
+        // Use combination of order ID, current timestamp and random component for maximum uniqueness
+        $baseSequential = $order ? $order->id : (int)(microtime(true) * 1000) % 10000;
+        $timestamp = (int)(microtime(true) * 10000) % 100000; // Get timestamp with more precision
+        $randomComponent = mt_rand(10, 99); // Add random component for extra uniqueness
+
+        // Create a unique 7-digit sequential number combining all components
+        $uniqueSequential = ($baseSequential * 100 + $randomComponent + $timestamp) % 9999999;
+        $paddedSequential = str_pad((string)$uniqueSequential, 7, '0', STR_PAD_LEFT);
+
+        $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
         // Set control number, organization and convenio

@@ -114,6 +114,8 @@ class InsuranceWorkflowService
             $voucherData = $this->buildVoucherData($titularData, 'titular');
         }
 
+        // Add small delay to ensure unique timestamps for control numbers
+        usleep(5000); // 5ms delay for titular
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
 
         // Convert result to arrays to prevent stdClass errors
@@ -165,6 +167,8 @@ class InsuranceWorkflowService
         }
 
         // Create individual voucher for this dependent
+        // Add small delay to ensure unique timestamps for control numbers
+        usleep(10000); // 10ms delay to ensure timestamp uniqueness
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
 
         // Convert result to arrays to prevent stdClass errors
@@ -700,12 +704,22 @@ class InsuranceWorkflowService
             ],
             'voucher_data' => [
                 'control_number' => $voucherResult['control_number'] ?? null,
+                'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ??
+                               $voucherResult['voucher_response']['NroVoucher'] ?? null,
+                'nro_control_ext' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt'] ??
+                                   $voucherResult['voucher_response']['NroControlExt'] ?? null,
+                'error_code' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode'] ??
+                              $voucherResult['voucher_response']['ErrorCode'] ?? null,
+                'error_msg' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg'] ??
+                             $voucherResult['voucher_response']['ErrorMsg'] ?? null,
                 'voucher_id' => $voucherResult['voucher_response']['IdVoucher'] ?? null,
                 'quotation_type' => $voucherResult['quotation_type'] ?? null,
                 'organization' => $voucherResult['organization'] ?? null,
                 'convenio' => $voucherResult['convenio'] ?? null,
                 'origin_used' => $voucherResult['origin_used'] ?? null,
                 'destination_used' => $voucherResult['destination_used'] ?? null,
+                'voucher_success' => ($voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode'] ??
+                                    $voucherResult['voucher_response']['ErrorCode'] ?? null) === '00',
                 'status' => 'active',
                 'created_at' => now()->toISOString(),
             ],
