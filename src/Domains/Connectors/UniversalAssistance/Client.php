@@ -371,137 +371,9 @@ class Client
             $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
         }
 
-        try {
-            // Define all valid countries of origin to try
-            $validOrigins = [
-                'TURQUIA',
-                'TUVALU',
-                'UCRANIA',
-                'UGANDA',
-                'URUGUAY',
-                'USA',
-                'UZBEKISTAN',
-                'VANUATU',
-                'VENEZUELA'
-            ];
-
-            // Use fixed destination: Centro america/Caribe (covers Dominican Republic)
-            $destination = 'Centro america/Caribe';
-
-            $quoteResult = null;
-            $successfulOrigin = null;
-            $triedOrigins = [];
-
-            // Try each country of origin with fixed destination until we find one that returns products (not ErrorCode 01)
-            foreach ($validOrigins as $origin) {
-                try {
-                    // Create a quote to get detailed product/plan information
-                    $leadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $origin);
-                    $currentQuoteResult = $this->createOrUpdateLead($leadData, true);
-
-                    $triedOrigins[] = [
-                        'origin' => $origin,
-                        'destination' => $destination,
-                        'response' => $currentQuoteResult
-                    ];
-
-                    // If this origin returns products (no ErrorCode 01), use it
-                    if (! $this->hasErrorCode01($currentQuoteResult)) {
-                        $quoteResult = $currentQuoteResult;
-                        $successfulOrigin = $origin;
-                        break;
-                    }
-                } catch (Exception $originEx) {
-                    $triedOrigins[] = [
-                        'origin' => $origin,
-                        'destination' => $destination,
-                        'exception' => $originEx->getMessage()
-                    ];
-                    // Continue to next origin
-                }
-            }
-
-            // If no origin worked, use the last tried result and log all attempts
-            if ($quoteResult === null) {
-                $quoteResult = $currentQuoteResult ?? ['ErrorCode' => '01', 'ErrorDescription' => 'No origins returned products'];
-            }
-
-            // Extract origin and destination country codes from voucher data for result reporting
-            $originCountryCode = $this->extractOriginCountryCode($voucherData);
-            $destinationCountryCode = $this->extractDestinationCountryCode($voucherData);
-
-            $result = [
-                'quotation_type' => $quotationType,
-                'control_number' => $controlNumber,
-                'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
-                'origin_country_code' => $originCountryCode,
-                'destination_country_code' => $destinationCountryCode,
-                'origin_used' => $successfulOrigin,
-                'destination_used' => $destination,
-                'tried_origins' => $triedOrigins,
-                'quote_response' => $quoteResult,      // Detailed quote information
-                'response' => $quoteResult             // Main response with all details for Excel
-            ];
-
-            // If the quote returned "no products" (ErrorCode '01'), retry once with an extended date range using the successful origin
-            try {
-                if ($this->hasErrorCode01($quoteResult) && $successfulOrigin) {
-                    $retryLeadData = $this->convertVoucherDataToLeadData($voucherData, $quotationType, $successfulOrigin);
-                    // Extend the date range to increase chance of finding products
-                    $retryLeadData['FechaInicio'] = date('m/d/Y', strtotime('+1 day'));
-                    $retryLeadData['FechaFin'] = date('m/d/Y', strtotime('+14 days')); // extended
-
-                    $retryResult = $this->createOrUpdateLead($retryLeadData, true);
-
-                    $result['retried'] = true;
-                    $result['retry_response'] = $retryResult;
-
-                    // If retry succeeded (no ErrorCode 01), prefer retry response as main response
-                    if (! $this->hasErrorCode01($retryResult)) {
-                        $result['quote_response'] = $retryResult;
-                        $result['response'] = $retryResult;
-                    } else {
-                        $result['retry_failed'] = true;
-                    }
-                }
-            } catch (Exception $retryEx) {
-                $result['retried'] = true;
-                $result['retry_exception'] = $retryEx->getMessage();
-            }
-
-            // Only create voucher if not quote-only mode
-            if (! $quoteOnly) {
-                $voucherResult = $this->createVoucher($voucherData, true);
-                $result['voucher_response'] = $voucherResult;  // Voucher confirmation
-
-                // Query voucher to get complete insurance information
-                try {
-                    if (isset($voucherResult['IdVoucher'])) {
-                        $voucherQueryResponse = $this->queryVoucher([
-                            'VoucherNumber' => $voucherResult['IdVoucher'],
-                            'Organization' => $this->getOrganizationForQuotationType($quotationType)
-                        ]);
-
-                        // Filter and store essential query data
-                        $result['voucher_query'] = $this->filterVoucherQueryResponse($voucherQueryResponse);
-                    }
-                } catch (Exception $queryException) {
-                    $result['voucher_query_error'] = $queryException->getMessage();
-                }
-            }
-
-            // Store in order metadata if provided
-            if ($order) {
-                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult);
-            }
-
-            $mode = $quoteOnly ? 'quote-only' : 'quote+voucher';
-
-            return $result;
-        } catch (Exception $e) {
-            throw new ValidationException("Failed to create {$quotationType} quotation: " . $e->getMessage());
-        }
+        // DEPRECATED: This method should not extract countries from voucherData
+        // Countries should come from workflow INPUT data via createSingleQuotationWithCountries()
+        throw new ValidationException("createSingleQuotation is deprecated. Use createSingleQuotationWithCountries() with origin/destination country codes from workflow input data instead of extracting from voucherData.");
     }
 
     /**
@@ -1628,8 +1500,12 @@ class Client
     protected function getDestinationNameFromCountryCode(string $countryCode): string
     {
         // Map country codes to Universal Assistance valid destinations
+        // Valid destinations: Africa, America del norte, América del Sur (salvo Vzla), Asia, Centro america/Caribe, Europa, Oceanía, Territorio Nacional
         $countryToDestination = [
-            'DO' => 'Centro america/Caribe',
+            // Territorio Nacional (Dominican Republic)
+            'DO' => 'Territorio Nacional',
+
+            // Centro america/Caribe
             'CR' => 'Centro america/Caribe',
             'PA' => 'Centro america/Caribe',
             'GT' => 'Centro america/Caribe',
@@ -1643,22 +1519,40 @@ class Client
             'PR' => 'Centro america/Caribe',
             'TT' => 'Centro america/Caribe',
             'BB' => 'Centro america/Caribe',
-            'US' => 'USA/Canada',
-            'CA' => 'USA/Canada',
-            'MX' => 'Mexico',
-            'AR' => 'Sudamerica',
-            'BR' => 'Sudamerica',
-            'CO' => 'Sudamerica',
-            'PE' => 'Sudamerica',
-            'CL' => 'Sudamerica',
-            'VE' => 'Sudamerica',
-            'EC' => 'Sudamerica',
-            'UY' => 'Sudamerica',
-            'PY' => 'Sudamerica',
-            'BO' => 'Sudamerica',
-            'GY' => 'Sudamerica',
-            'SR' => 'Sudamerica',
-            'GF' => 'Sudamerica',
+            'GD' => 'Centro america/Caribe',
+            'LC' => 'Centro america/Caribe',
+            'VC' => 'Centro america/Caribe',
+            'AG' => 'Centro america/Caribe',
+            'DM' => 'Centro america/Caribe',
+            'KN' => 'Centro america/Caribe',
+            'AW' => 'Centro america/Caribe',
+            'CW' => 'Centro america/Caribe',
+            'BQ' => 'Centro america/Caribe',
+            'SX' => 'Centro america/Caribe',
+            'MF' => 'Centro america/Caribe',
+            'GP' => 'Centro america/Caribe',
+            'MQ' => 'Centro america/Caribe',
+
+            // America del norte
+            'US' => 'America del norte',
+            'CA' => 'America del norte',
+            'MX' => 'America del norte',
+
+            // América del Sur (salvo Vzla)
+            'AR' => 'América del Sur (salvo Vzla)',
+            'BR' => 'América del Sur (salvo Vzla)',
+            'CO' => 'América del Sur (salvo Vzla)',
+            'PE' => 'América del Sur (salvo Vzla)',
+            'CL' => 'América del Sur (salvo Vzla)',
+            'EC' => 'América del Sur (salvo Vzla)',
+            'UY' => 'América del Sur (salvo Vzla)',
+            'PY' => 'América del Sur (salvo Vzla)',
+            'BO' => 'América del Sur (salvo Vzla)',
+            'GY' => 'América del Sur (salvo Vzla)',
+            'SR' => 'América del Sur (salvo Vzla)',
+            'GF' => 'América del Sur (salvo Vzla)',
+
+            // Europa
             'ES' => 'Europa',
             'FR' => 'Europa',
             'IT' => 'Europa',
@@ -1666,6 +1560,30 @@ class Client
             'GB' => 'Europa',
             'PT' => 'Europa',
             'TR' => 'Europa',
+            'NL' => 'Europa',
+            'BE' => 'Europa',
+            'CH' => 'Europa',
+            'AT' => 'Europa',
+            'GR' => 'Europa',
+            'NO' => 'Europa',
+            'SE' => 'Europa',
+            'DK' => 'Europa',
+            'FI' => 'Europa',
+            'IE' => 'Europa',
+            'PL' => 'Europa',
+            'CZ' => 'Europa',
+            'HU' => 'Europa',
+            'RO' => 'Europa',
+            'BG' => 'Europa',
+            'HR' => 'Europa',
+            'SI' => 'Europa',
+            'SK' => 'Europa',
+            'EE' => 'Europa',
+            'LV' => 'Europa',
+            'LT' => 'Europa',
+            'MT' => 'Europa',
+            'CY' => 'Europa',
+            'LU' => 'Europa',
         ];
 
         return $countryToDestination[strtoupper($countryCode)] ?? 'Centro america/Caribe'; // Default to Centro america/Caribe
