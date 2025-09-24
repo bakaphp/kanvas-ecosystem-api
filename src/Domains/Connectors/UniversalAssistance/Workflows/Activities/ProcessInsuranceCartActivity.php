@@ -48,25 +48,22 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function getActivityData(Order $order, array $params): array
     {
-        // Get Universal Assistance data from order items metadata (same way as AeroAmbulancia gets beneficiaries)
+        // Get Universal Assistance data from order metadata->esims (same structure as input shows)
         $insuranceData = null;
 
-        // Look for insurance data in order items metadata
-        foreach ($order->allItems()->get() as $orderItem) {
-            $itemMetadata = $orderItem->metadata ?? [];
-
-            if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
-                foreach ($itemMetadata['eSimDetails'] as $detail) {
-                    if (isset($detail['insurance'])) {
-                        $insuranceData = $detail['insurance'];
-                        break 2; // Break out of both loops
-                    }
+        // Look for insurance data in order metadata->esims
+        $orderMetadata = $order->metadata ?? [];
+        if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+            foreach ($orderMetadata['esims'] as $esim) {
+                if (isset($esim['eSimDetails']['insurance'])) {
+                    $insuranceData = $esim['eSimDetails']['insurance'];
+                    break;
                 }
             }
         }
 
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Universal Assistance insurance data not found in order items metadata');
+            throw new \Kanvas\Exceptions\ValidationException('Universal Assistance insurance data not found in order metadata');
         }
 
         // Get eSim message ID from order (same way as AeroAmbulancia)

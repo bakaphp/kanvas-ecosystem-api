@@ -19,6 +19,9 @@ class UniversalAssistanceHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::USERNAME->value, $this->data['username'] ?? '');
         $this->app->set(ConfigurationEnum::PASSWORD->value, $this->data['password'] ?? '');
         $this->app->set(ConfigurationEnum::ORGANIZATION->value, $this->data['organization'] ?? '');
+        $this->app->set(ConfigurationEnum::WSDL_QUOTE->value, $this->data['wsdl_quote'] ?? '');
+        $this->app->set(ConfigurationEnum::WSDL_VOUCHER->value, $this->data['wsdl_voucher'] ?? '');
+        $this->app->set(ConfigurationEnum::WSDL_QUERY->value, $this->data['wsdl_query'] ?? '');
 
         // Test the connection by attempting to create a client
         try {
