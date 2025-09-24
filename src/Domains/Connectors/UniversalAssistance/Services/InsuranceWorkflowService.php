@@ -1225,6 +1225,30 @@ class InsuranceWorkflowService
                 'Organization' => $voucherResult['organization'] ?? $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?? '1-ENYNUF7',
             ];
 
+            // Validate essential parameters before calling PDF service
+            if (empty($reportData['VoucherNumber'])) {
+                $pdfResult['error'] = 'VoucherNumber parameter is required for PDF generation';
+                return $pdfResult;
+            }
+
+            if (empty($reportData['Organization'])) {
+                $pdfResult['error'] = 'Organization parameter is required for PDF generation';
+                return $pdfResult;
+            }
+
+            // Try alternative approaches if Tarifa is empty - some reports might work without it
+            if (empty($reportData['Tarifa'])) {
+                // Try to get price from voucher response directly
+                $alternativePrice = $voucherResult['voucher_response']['Precio'] ??
+                                  $voucherResult['voucher_response']['PrecioTotal'] ??
+                                  $voucherResult['voucher_response']['Amount'] ??
+                                  '0.00';
+
+                if ($alternativePrice && is_numeric($alternativePrice)) {
+                    $reportData['Tarifa'] = number_format((float)$alternativePrice, 2, '.', '');
+                }
+            }
+
             // Add debug info to help with troubleshooting
             $pdfResult['request_data'] = $reportData;
 
@@ -1256,27 +1280,51 @@ class InsuranceWorkflowService
                     $pdfResult['pdf_data'] = $pdfExtracted['pdf_data'] ?? null;
                     $pdfResult['file_name'] = $pdfExtracted['file_name'] ?? null;
                 } else {
-                    // Legacy fallback - check for direct PDF fields (for backward compatibility)
-                    if (isset($pdfResponse['PDFUrl']) || isset($pdfResponse['Url']) || isset($pdfResponse['Link'])) {
-                        $pdfResult['success'] = true;
-                        $pdfResult['pdf_url'] = $pdfResponse['PDFUrl'] ?? $pdfResponse['Url'] ?? $pdfResponse['Link'];
-                    } elseif (isset($pdfResponse['PDFData']) || isset($pdfResponse['Data'])) {
-                        $pdfResult['success'] = true;
-                        $pdfResult['pdf_data'] = $pdfResponse['PDFData'] ?? $pdfResponse['Data'];
-                        $pdfResult['pdf_url'] = 'data:application/pdf;base64,' . ($pdfResponse['PDFData'] ?? $pdfResponse['Data']);
-                    } else {
-                        // Check for any URL-like field in the response
-                        foreach ($pdfResponse as $key => $value) {
-                            if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
-                                $pdfResult['success'] = true;
-                                $pdfResult['pdf_url'] = $value;
-                                break;
+                    // Enhanced fallback - check for direct PDF fields and any base64 data
+                    $foundPdf = false;
+
+                    // Check common PDF field names
+                    $pdfFields = ['PDFUrl', 'Url', 'Link', 'ReportUrl', 'DownloadUrl', 'FileUrl'];
+                    $dataFields = ['PDFData', 'Data', 'ReportData', 'FileBuffer', 'Buffer', 'Content'];
+
+                    foreach ($pdfFields as $field) {
+                        if (isset($pdfResponse[$field]) && ! empty($pdfResponse[$field])) {
+                            $pdfResult['success'] = true;
+                            $pdfResult['pdf_url'] = $pdfResponse[$field];
+                            $foundPdf = true;
+                            break;
+                        }
+                    }
+
+                    if (! $foundPdf) {
+                        foreach ($dataFields as $field) {
+                            if (isset($pdfResponse[$field]) && ! empty($pdfResponse[$field])) {
+                                $pdfData = $pdfResponse[$field];
+                                // Validate if it's likely PDF data
+                                if (is_string($pdfData) && strlen($pdfData) > 100) {
+                                    $pdfResult['success'] = true;
+                                    $pdfResult['pdf_data'] = $pdfData;
+                                    $pdfResult['pdf_url'] = 'data:application/pdf;base64,' . $pdfData;
+                                    $foundPdf = true;
+                                    break;
+                                }
                             }
+                        }
+                    }
+
+                    if (! $foundPdf) {
+                        // Deep search for any URL-like values in the response
+                        $this->findUrlsInResponse($pdfResponse, $pdfResult);
+
+                        if (! $pdfResult['success']) {
+                            // Last resort: look for any base64-like data that could be PDF
+                            $this->findBase64DataInResponse($pdfResponse, $pdfResult);
                         }
 
                         if (! $pdfResult['success']) {
-                            $pdfResult['error'] = 'PDF service responded but no PDF found in WSDL structure or legacy fields';
+                            $pdfResult['error'] = 'PDF generated but no URL found in response';
                             $pdfResult['raw_response'] = $pdfResponse;
+                            $pdfResult['response_keys'] = array_keys($pdfResponse);
                         }
                     }
                 }
@@ -1306,50 +1354,160 @@ class InsuranceWorkflowService
         ];
 
         try {
-            // Navigate through the WSDL structure
+            // First, try to navigate through the expected WSDL structure
             $sm = $response['SM'] ?? null;
-            if (! $sm) {
-                return $result;
+            if ($sm && isset($sm['ListOfUaSendReportIo'])) {
+                $listOfUaSendReportIo = $sm['ListOfUaSendReportIo'];
+
+                if (isset($listOfUaSendReportIo['UaVoucherBc']['ListOfUaImpresionSimplificadaBc']['UaImpresionSimplificadaBc'])) {
+                    $uaImpresionSimplificadaBc = $listOfUaSendReportIo['UaVoucherBc']['ListOfUaImpresionSimplificadaBc']['UaImpresionSimplificadaBc'];
+
+                    $pdfBuffer = $uaImpresionSimplificadaBc['ReportOutputFileBuffer'] ?? null;
+                    $fileName = $uaImpresionSimplificadaBc['ReportOutputFileName'] ?? null;
+                    $fileExt = $uaImpresionSimplificadaBc['ReportOutputFileExt'] ?? 'pdf';
+
+                    if ($pdfBuffer) {
+                        $result['success'] = true;
+                        $result['pdf_data'] = $pdfBuffer;
+                        $result['pdf_url'] = 'data:application/pdf;base64,' . $pdfBuffer;
+                        $result['file_name'] = $fileName;
+                        $result['file_ext'] = $fileExt;
+                        return $result;
+                    }
+                }
             }
 
-            $listOfUaSendReportIo = $sm['ListOfUaSendReportIo'] ?? null;
-            if (! $listOfUaSendReportIo) {
-                return $result;
-            }
+            // Alternative approach: Look for PDF data in different possible locations
+            $possiblePdfFields = [
+                'ReportOutputFileBuffer',
+                'FileBuffer',
+                'PDFData',
+                'Data',
+                'Buffer',
+                'Content',
+                'PDFContent',
+                'ReportData'
+            ];
 
-            $uaVoucherBc = $listOfUaSendReportIo['UaVoucherBc'] ?? null;
-            if (! $uaVoucherBc) {
-                return $result;
-            }
+            $possibleUrlFields = [
+                'ReportOutputFileUrl',
+                'FileUrl',
+                'PDFUrl',
+                'Url',
+                'Link',
+                'ReportUrl',
+                'DownloadUrl'
+            ];
 
-            $listOfUaImpresionSimplificadaBc = $uaVoucherBc['ListOfUaImpresionSimplificadaBc'] ?? null;
-            if (! $listOfUaImpresionSimplificadaBc) {
-                return $result;
-            }
+            $possibleFileNameFields = [
+                'ReportOutputFileName',
+                'FileName',
+                'Name',
+                'ReportName'
+            ];
 
-            $uaImpresionSimplificadaBc = $listOfUaImpresionSimplificadaBc['UaImpresionSimplificadaBc'] ?? null;
-            if (! $uaImpresionSimplificadaBc) {
-                return $result;
-            }
-
-            // Extract PDF data from the response
-            $pdfBuffer = $uaImpresionSimplificadaBc['ReportOutputFileBuffer'] ?? null;
-            $fileName = $uaImpresionSimplificadaBc['ReportOutputFileName'] ?? null;
-            $fileExt = $uaImpresionSimplificadaBc['ReportOutputFileExt'] ?? 'pdf';
-
-            if ($pdfBuffer) {
-                $result['success'] = true;
-                $result['pdf_data'] = $pdfBuffer; // This should be base64 encoded PDF
-                $result['pdf_url'] = 'data:application/pdf;base64,' . $pdfBuffer;
-                $result['file_name'] = $fileName;
-                $result['file_ext'] = $fileExt;
-            }
+            // Recursive search through the response for PDF data
+            $this->searchForPdfInResponse($response, $possiblePdfFields, $possibleUrlFields, $possibleFileNameFields, $result);
         } catch (\Exception $e) {
-            // If there's any error in navigation, just return unsuccessful result
             $result['extraction_error'] = $e->getMessage();
         }
 
         return $result;
+    }
+
+    /**
+     * Recursively search for PDF data in response
+     */
+    protected function searchForPdfInResponse(array $data, array $pdfFields, array $urlFields, array $fileNameFields, array &$result): void
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                // Recursively search nested arrays
+                $this->searchForPdfInResponse($value, $pdfFields, $urlFields, $fileNameFields, $result);
+            } elseif (is_string($value) && ! empty($value)) {
+                // Check if this could be PDF data (base64)
+                if (in_array($key, $pdfFields) && strlen($value) > 100 && $this->isPossibleBase64Pdf($value)) {
+                    $result['success'] = true;
+                    $result['pdf_data'] = $value;
+                    $result['pdf_url'] = 'data:application/pdf;base64,' . $value;
+                    return;
+                }
+
+                // Check if this could be a PDF URL
+                if (in_array($key, $urlFields) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
+                    $result['success'] = true;
+                    $result['pdf_url'] = $value;
+                    return;
+                }
+
+                // Store potential file name
+                if (in_array($key, $fileNameFields)) {
+                    $result['file_name'] = $value;
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a string could be base64 encoded PDF data
+     */
+    protected function isPossibleBase64Pdf(string $data): bool
+    {
+        // Basic validation for base64 and reasonable PDF size
+        if (strlen($data) < 100) {
+            return false;
+        }
+
+        // Check if it's valid base64
+        if (! preg_match('/^[a-zA-Z0-9\/\r\n+]*={0,2}$/', $data)) {
+            return false;
+        }
+
+        // Try to decode and check for PDF signature
+        $decoded = base64_decode($data, true);
+        if ($decoded === false) {
+            return false;
+        }
+
+        // PDF files start with %PDF
+        return strpos($decoded, '%PDF') === 0;
+    }
+
+    /**
+     * Find URLs in response recursively
+     */
+    protected function findUrlsInResponse(array $data, array &$result): void
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $this->findUrlsInResponse($value, $result);
+            } elseif (is_string($value) && ! empty($value)) {
+                if (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false) {
+                    $result['success'] = true;
+                    $result['pdf_url'] = $value;
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Find base64 data in response recursively
+     */
+    protected function findBase64DataInResponse(array $data, array &$result): void
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $this->findBase64DataInResponse($value, $result);
+            } elseif (is_string($value) && strlen($value) > 100) {
+                if ($this->isPossibleBase64Pdf($value)) {
+                    $result['success'] = true;
+                    $result['pdf_data'] = $value;
+                    $result['pdf_url'] = 'data:application/pdf;base64,' . $value;
+                    return;
+                }
+            }
+        }
     }
 
     /**
@@ -1401,7 +1559,7 @@ class InsuranceWorkflowService
         }
 
         // Allow alphanumeric characters, hyphens, and some special characters
-        return preg_match('/^[A-Z0-9\-_]+$/i', $voucherNumber);
+        return (bool) preg_match('/^[A-Z0-9\-_]+$/i', $voucherNumber);
     }
 
     /**
