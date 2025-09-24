@@ -225,8 +225,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'processed_at' => now()->toISOString(),
             'workflow_type' => 'individual_voucher_per_person',
             'holder' => null,
-            'dependent_summary' => [], // Renamed to avoid conflict with InsuranceWorkflowService dependents
-            'voucher_summary' => $allVouchers, // Consolidated list of all vouchers (renamed to avoid conflict)
+            'dependents' => [], // Keep original name as dependents
+            'vouchers' => $allVouchers, // Keep original name as vouchers
             'summary' => [
                 'titular_processed' => isset($results['titular']),
                 'dependents_processed' => isset($results['dependents']) ? count($results['dependents']) : 0,
@@ -291,7 +291,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherResponse = $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
                                            $dependent['voucher_response'] ?? [];
 
-                $universalAssistanceData['dependent_summary'][] = [
+                $universalAssistanceData['dependents'][] = [
                     'data' => $dependent,
                     'control_number' => $dependent['control_number'] ?? null,
                     'nro_voucher' => $dependentVoucherResponse['NroVoucher'] ?? null,
