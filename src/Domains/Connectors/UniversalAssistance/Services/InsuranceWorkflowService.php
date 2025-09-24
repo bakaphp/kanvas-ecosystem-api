@@ -129,7 +129,7 @@ class InsuranceWorkflowService
 
         // Add small delay to ensure unique timestamps for control numbers
         usleep(5000); // 5ms delay for titular
-        $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+        $result = $this->client->createSingleQuotationWithCountries($voucherData, $planType, $originCountryCode, $destinationCountryCode, $this->order, false);
 
         // Convert result to arrays to prevent stdClass errors
         $result = $this->convertObjectsToArrays($result);
@@ -189,7 +189,7 @@ class InsuranceWorkflowService
         // Create individual voucher for this dependent
         // Add small delay to ensure unique timestamps for control numbers
         usleep(10000); // 10ms delay to ensure timestamp uniqueness
-        $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+        $result = $this->client->createSingleQuotationWithCountries($voucherData, $planType, $titularOriginCountryCode, $titularDestinationCountryCode, $this->order, false);
 
         // Convert result to arrays to prevent stdClass errors
         $result = $this->convertObjectsToArrays($result);
