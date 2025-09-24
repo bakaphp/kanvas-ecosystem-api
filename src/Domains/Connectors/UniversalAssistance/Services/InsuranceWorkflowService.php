@@ -1408,7 +1408,6 @@ class InsuranceWorkflowService
 
             // Recursive search through the response for PDF data
             $this->searchForPdfInResponse($response, $possiblePdfFields, $possibleUrlFields, $possibleFileNameFields, $result);
-
         } catch (\Exception $e) {
             $result['extraction_error'] = $e->getMessage();
         }
