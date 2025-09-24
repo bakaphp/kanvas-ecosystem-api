@@ -1204,13 +1204,6 @@ class InsuranceWorkflowService
                 return $pdfResult;
             }
 
-            // Validate voucher number format - Universal Assistance vouchers typically follow pattern like T123456789
-            if (! $this->isValidVoucherNumberFormat($voucherNumber)) {
-                $pdfResult['error'] = "Invalid voucher number format for PDF generation: {$voucherNumber}";
-                $pdfResult['voucher_number'] = $voucherNumber;
-                return $pdfResult;
-            }
-
             // Extract quotation data to get additional information
             $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                         $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
@@ -1532,34 +1525,6 @@ class InsuranceWorkflowService
 
         // Some services might expect empty string instead of zero
         return (string)$tarifa;
-    }
-
-    /**
-     * Validate voucher number format for PDF generation
-     * Universal Assistance vouchers typically follow patterns like T123456789
-     */
-    protected function isValidVoucherNumberFormat(string $voucherNumber): bool
-    {
-        // Remove any whitespace
-        $voucherNumber = trim($voucherNumber);
-
-        // Check if empty
-        if (empty($voucherNumber)) {
-            return false;
-        }
-
-        // Universal Assistance voucher patterns:
-        // - T followed by numbers (e.g., T417502009)
-        // - Numbers only (e.g., 417502009)
-        // - Other patterns may exist
-
-        // Allow alphanumeric vouchers with minimum length
-        if (strlen($voucherNumber) < 5) {
-            return false;
-        }
-
-        // Allow alphanumeric characters, hyphens, and some special characters
-        return (bool) preg_match('/^[A-Z0-9\-_]+$/i', $voucherNumber);
     }
 
     /**
