@@ -6,7 +6,6 @@ namespace App\Console\Commands\Souk\Orders;
 
 use Baka\Support\Str;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
