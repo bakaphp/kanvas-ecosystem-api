@@ -44,28 +44,31 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
-     * Get all required data for the activity (same pattern as AeroAmbulancia)
+     * Get all required data for the activity (extracts insurance from eSim metadata)
      */
     protected function getActivityData(Order $order, array $params): array
     {
-        // Get Universal Assistance data from order metadata or params (same pattern as AeroAmbulancia)
-        $insuranceData = $order->getMetadata('insurance') ?? $params['insurance'] ?? [];
+        // First try params (for direct workflow calls)
+        $insuranceData = $params['insurance'] ?? [];
 
-        // If not found in metadata/params, look in order items metadata (same as AeroAmbulancia B2B)
+        // If not in params, extract from eSim metadata (workflow triggered by order creation)
         if (empty($insuranceData)) {
-            // Process each order item to find insurance plans (same pattern as AeroAmbulancia B2B)
-            foreach ($order->allItems()->get() as $orderItem) {
-                $itemMetadata = $orderItem->metadata ?? [];
+            $orderMetadata = $order->metadata ?? [];
 
-                if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
-                    foreach ($itemMetadata['eSimDetails'] as $detail) {
-                        if (isset($detail['insurance'])) {
-                            $insuranceData = $detail['insurance'];
-                            break 2; // Break out of both loops
-                        }
+            // Look in esims metadata (created by eSim workflow)
+            if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+                foreach ($orderMetadata['esims'] as $esim) {
+                    if (isset($esim['eSimDetails']['insurance'])) {
+                        $insuranceData = $esim['eSimDetails']['insurance'];
+                        break; // Use first insurance data found
                     }
                 }
             }
+        }
+
+        // Final fallback: direct metadata locations
+        if (empty($insuranceData)) {
+            $insuranceData = $order->metadata['universal_assistance']['insurance'] ?? $order->getMetadata('insurance') ?? [];
         }
 
         if (empty($insuranceData)) {
