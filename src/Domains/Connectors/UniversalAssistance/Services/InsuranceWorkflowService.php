@@ -90,7 +90,7 @@ class InsuranceWorkflowService
         // Structure data as expected by processInsuranceWorkflow
         if ($titularData) {
             $insuranceItem = ['titular' => $titularData];
-            if (!empty($dependents)) {
+            if (! empty($dependents)) {
                 $insuranceItem['dependents'] = $dependents;
             }
             $insuranceData[] = $insuranceItem;

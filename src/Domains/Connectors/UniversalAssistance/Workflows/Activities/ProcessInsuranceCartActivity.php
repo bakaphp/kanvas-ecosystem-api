@@ -54,7 +54,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // If not in params, extract from eSim metadata (workflow triggered by order creation)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
-            
+
             // Look in esims metadata (created by eSim workflow)
             if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
                 foreach ($orderMetadata['esims'] as $esim) {
