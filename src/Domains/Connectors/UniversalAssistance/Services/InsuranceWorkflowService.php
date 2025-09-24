@@ -1239,9 +1239,9 @@ class InsuranceWorkflowService
             // Try alternative approaches if Tarifa is empty - some reports might work without it
             if (empty($reportData['Tarifa'])) {
                 // Try to get price from voucher response directly
-                $alternativePrice = $voucherResult['voucher_response']['Precio'] ?? 
-                                  $voucherResult['voucher_response']['PrecioTotal'] ?? 
-                                  $voucherResult['voucher_response']['Amount'] ?? 
+                $alternativePrice = $voucherResult['voucher_response']['Precio'] ??
+                                  $voucherResult['voucher_response']['PrecioTotal'] ??
+                                  $voucherResult['voucher_response']['Amount'] ??
                                   '0.00';
 
                 if ($alternativePrice && is_numeric($alternativePrice)) {
@@ -1358,10 +1358,10 @@ class InsuranceWorkflowService
             $sm = $response['SM'] ?? null;
             if ($sm && isset($sm['ListOfUaSendReportIo'])) {
                 $listOfUaSendReportIo = $sm['ListOfUaSendReportIo'];
-                
+
                 if (isset($listOfUaSendReportIo['UaVoucherBc']['ListOfUaImpresionSimplificadaBc']['UaImpresionSimplificadaBc'])) {
                     $uaImpresionSimplificadaBc = $listOfUaSendReportIo['UaVoucherBc']['ListOfUaImpresionSimplificadaBc']['UaImpresionSimplificadaBc'];
-                    
+
                     $pdfBuffer = $uaImpresionSimplificadaBc['ReportOutputFileBuffer'] ?? null;
                     $fileName = $uaImpresionSimplificadaBc['ReportOutputFileName'] ?? null;
                     $fileExt = $uaImpresionSimplificadaBc['ReportOutputFileExt'] ?? 'pdf';
@@ -1433,7 +1433,7 @@ class InsuranceWorkflowService
                     $result['pdf_url'] = 'data:application/pdf;base64,' . $value;
                     return;
                 }
-                
+
                 // Check if this could be a PDF URL
                 if (in_array($key, $urlFields) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
                     $result['success'] = true;
