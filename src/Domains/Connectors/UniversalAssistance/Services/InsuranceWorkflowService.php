@@ -1248,7 +1248,6 @@ class InsuranceWorkflowService
                 $pdfResult['error'] = 'Invalid or empty PDF response';
                 $pdfResult['raw_response'] = $pdfResponse;
             }
-
         } catch (\Exception $e) {
             $pdfResult['error'] = 'PDF generation failed: ' . $e->getMessage();
         }
