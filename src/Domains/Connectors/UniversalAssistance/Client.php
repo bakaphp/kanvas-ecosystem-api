@@ -171,6 +171,40 @@ class Client
     }
 
     /**
+     * Get convenio (contract) code based on origin/destination countries and quotation type
+     * Based on the Universal Assistance coverage table logic
+     */
+    public function getConvenioForCountries(string $originCountryCode, string $destinationCountryCode, string $quotationType = 'inclusion'): string
+    {
+        // Normalize country codes
+        $originCode = strtoupper($originCountryCode);
+        $destinationCode = strtoupper($destinationCountryCode);
+
+        // Determine travel type based on Dominican Republic involvement
+        $isEmisivo = ($originCode === 'DO' && $destinationCode !== 'DO'); // FROM Dominican Republic TO elsewhere
+        $isReceptivo = ($originCode !== 'DO' && $destinationCode === 'DO'); // FROM elsewhere TO Dominican Republic
+
+        // Apply convenio logic based on travel direction and quotation type
+        if ($isReceptivo) {
+            // RECEPTIVO: Traveling TO Dominican Republic (Territorio Nacional)
+            return match ($quotationType) {
+                'inclusion', 'inclusion_ii' => '1-EO7PJQQ',  // Inclusión RECEPTIVO
+                'cross_selling', 'cross_selling_ii' => '1-EO7PJQL',  // Cross Selling RECEPTIVO
+                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
+                default => '1-EO7PJQQ'  // Default to Inclusión RECEPTIVO
+            };
+        } else {
+            // EMISIVO: Traveling FROM Dominican Republic OR international travel (default to EMISIVO)
+            return match ($quotationType) {
+                'inclusion', 'inclusion_ii' => '1-EO6M4QP',  // Inclusión EMISIVO
+                'cross_selling', 'cross_selling_ii' => '1-EO6M4QU',  // Cross Selling EMISIVO
+                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
+                default => '1-EO6M4QP'  // Default to Inclusión EMISIVO
+            };
+        }
+    }
+
+    /**
      * Get unique control number suffix for specific quotation type
      */
     public function getControlNumberSuffixForQuotationType(string $type): string
@@ -239,10 +273,13 @@ class Client
     {
         $controlNumbers = $this->generateSequentialControlNumbers($order);
 
-        // Update control numbers, organizations and convenios for both quotations
+        // Update control numbers, organizations and convenios for both quotations using country-based logic
         $inclusionData['NroControl'] = $controlNumbers['inclusion'];
-        $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
         $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
+
+        // Note: Country extraction will be handled in the calling workflow service
+        // Default to EMISIVO convenio logic for now
+        $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
         $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
 
         // Set specific organizations for each quotation type
@@ -326,7 +363,7 @@ class Client
         $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
-        // Set control number, organization and convenio
+        // Set control number, organization and convenio using basic quotation type logic
         $voucherData['NroControl'] = $controlNumber;
         $voucherData['contrato'] = $this->getConvenioForQuotationType($quotationType);
 
@@ -389,11 +426,17 @@ class Client
                 $quoteResult = $currentQuoteResult ?? ['ErrorCode' => '01', 'ErrorDescription' => 'No origins returned products'];
             }
 
+            // Extract origin and destination country codes from voucher data for result reporting
+            $originCountryCode = $this->extractOriginCountryCode($voucherData);
+            $destinationCountryCode = $this->extractDestinationCountryCode($voucherData);
+
             $result = [
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $this->getConvenioForQuotationType($quotationType),
+                'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+                'origin_country_code' => $originCountryCode,
+                'destination_country_code' => $destinationCountryCode,
                 'origin_used' => $successfulOrigin,
                 'destination_used' => $destination,
                 'tried_origins' => $triedOrigins,
@@ -462,6 +505,87 @@ class Client
     }
 
     /**
+     * Create a single quotation with specific country-based convenio logic
+     * This method uses the origin and destination country codes from input data to determine the proper convenio
+     */
+    public function createSingleQuotationWithCountries(array $voucherData, string $quotationType, string $originCountryCode, string $destinationCountryCode, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
+    {
+        // Generate unique control number for each individual voucher
+        // Use combination of order ID, current timestamp and random component for maximum uniqueness
+        $baseSequential = $order ? $order->id : (int)(microtime(true) * 1000) % 10000;
+        $timestamp = (int)(microtime(true) * 10000) % 100000; // Get timestamp with more precision
+        $randomComponent = mt_rand(10, 99); // Add random component for extra uniqueness
+
+        // Create a unique 7-digit sequential number combining all components
+        $uniqueSequential = ($baseSequential * 100 + $randomComponent + $timestamp) % 9999999;
+        $paddedSequential = str_pad((string)$uniqueSequential, 7, '0', STR_PAD_LEFT);
+
+        $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
+        $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
+
+        // Set control number, organization and convenio using COUNTRY-BASED logic
+        $voucherData['NroControl'] = $controlNumber;
+        $voucherData['contrato'] = $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType);
+
+        if (isset($voucherData['DatosAgencia'])) {
+            $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
+        }
+
+        try {
+            // Convert country codes to country names for the quote request
+            $originCountryName = $this->countryCodeToName($originCountryCode);
+            $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
+
+            // Create a quote to get detailed product/plan information using extracted countries
+            $leadData = $this->convertVoucherDataToLeadDataWithCountries($voucherData, $quotationType, $originCountryName, $destinationName);
+            $quoteResult = $this->createOrUpdateLead($leadData, true);
+
+            $result = [
+                'quotation_type' => $quotationType,
+                'control_number' => $controlNumber,
+                'organization' => $this->getOrganizationForQuotationType($quotationType),
+                'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+                'origin_country_code' => $originCountryCode,
+                'destination_country_code' => $destinationCountryCode,
+                'origin_country_name' => $originCountryName,
+                'destination_name' => $destinationName,
+                'quote_response' => $quoteResult,      // Detailed quote information
+                'response' => $quoteResult             // Main response with all details for Excel
+            ];
+
+            // Only create voucher if not quote-only mode
+            if (! $quoteOnly) {
+                $voucherResult = $this->createVoucher($voucherData, true);
+                $result['voucher_response'] = $voucherResult;  // Voucher confirmation
+
+                // Query voucher to get complete insurance information
+                try {
+                    if (isset($voucherResult['IdVoucher'])) {
+                        $voucherQueryResponse = $this->queryVoucher([
+                            'VoucherNumber' => $voucherResult['IdVoucher'],
+                            'Organization' => $this->getOrganizationForQuotationType($quotationType)
+                        ]);
+
+                        // Filter and store essential query data
+                        $result['voucher_query'] = $this->filterVoucherQueryResponse($voucherQueryResponse);
+                    }
+                } catch (Exception $queryException) {
+                    $result['voucher_query_error'] = $queryException->getMessage();
+                }
+            }
+
+            // Store in order metadata if provided
+            if ($order) {
+                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode);
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            throw new ValidationException("Failed to create {$quotationType} quotation with countries {$originCountryCode}->{$destinationCountryCode}: " . $e->getMessage());
+        }
+    }
+
+    /**
      * Convert voucher data to lead data format for quote generation
      */
     protected function convertVoucherDataToLeadData(array $voucherData, string $quotationType, string $countryOfOrigin = 'TURQUIA'): array
@@ -519,7 +643,7 @@ class Client
     /**
      * Store single quotation results in order metadata
      */
-    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result): void
+    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): void
     {
         $metadata = $order->metadata ?? [];
 
@@ -534,7 +658,9 @@ class Client
         $metadata['universalAssistanceData']['single_quotations'][$quotationType] = [
             'control_number' => $controlNumber,
             'organization' => $this->getOrganizationForQuotationType($quotationType),
-            'convenio' => $this->getConvenioForQuotationType($quotationType),
+            'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+            'origin_country_code' => $originCountryCode,
+            'destination_country_code' => $destinationCountryCode,
             'created_at' => now()->toISOString(),
             'response_summary' => [
                 'success' => isset($result['response']) || ! empty($result)
@@ -1370,5 +1496,201 @@ class Client
             ];
         }
         return $result;
+    }
+
+    /**
+     * Extract origin country code from voucher data
+     */
+    protected function extractOriginCountryCode(array $voucherData): string
+    {
+        // Try to get origin country from DatosSolicitante (person's residence country)
+        if (isset($voucherData['DatosSolicitante']['PaisResidenciaSolicitante'])) {
+            $countryName = $voucherData['DatosSolicitante']['PaisResidenciaSolicitante'];
+            return $this->countryNameToCode($countryName);
+        }
+
+        // Default to AR (Argentina) if not found
+        return 'AR';
+    }
+
+    /**
+     * Extract destination country code from voucher data
+     */
+    protected function extractDestinationCountryCode(array $voucherData): string
+    {
+        // Check the destination field in voucher data
+        if (isset($voucherData['Destino'])) {
+            $destination = $voucherData['Destino'];
+
+            // Map destinations to country codes based on the table logic
+            return match ($destination) {
+                'Territorio Nacional' => 'DO',
+                'Centro america/Caribe' => 'PA', // Representative country for region
+                'America del norte' => 'US',
+                'América del Sur (salvo Vzla)' => 'AR',
+                'Europa' => 'ES',
+                'Asia' => 'JP',
+                'Africa' => 'ZA',
+                'Oceania' => 'AU',
+                default => 'DO' // Default to DO
+            };
+        }
+
+        // Default to DO if not found
+        return 'DO';
+    }
+
+    /**
+     * Convert country name to country code (reverse mapping)
+     */
+    protected function countryNameToCode(string $countryName): string
+    {
+        $nameToCode = [
+            'ARGENTINA' => 'AR',
+            'REPUBLICA DOMINICANA' => 'DO',
+            'ESTADOS UNIDOS' => 'US',
+            'CANADA' => 'CA',
+            'MEXICO' => 'MX',
+            'ESPAÑA' => 'ES',
+            'FRANCIA' => 'FR',
+            'ITALIA' => 'IT',
+            'BRASIL' => 'BR',
+            'COLOMBIA' => 'CO',
+        ];
+
+        $normalizedName = strtoupper($countryName);
+        return $nameToCode[$normalizedName] ?? 'AR'; // Default to AR
+    }
+
+    /**
+     * Convert country code to country name for Universal Assistance
+     */
+    protected function countryCodeToName(string $countryCode): string
+    {
+        $codeToName = [
+            'AR' => 'ARGENTINA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'US' => 'USA',
+            'CO' => 'COLOMBIA',
+            'MX' => 'MEXICO',
+            'PE' => 'PERU',
+            'CL' => 'CHILE',
+            'VE' => 'VENEZUELA',
+            'EC' => 'ECUADOR',
+            'UY' => 'URUGUAY',
+            'PY' => 'PARAGUAY',
+            'BO' => 'BOLIVIA',
+            'BR' => 'BRASIL',
+            'CR' => 'COSTA RICA',
+            'PA' => 'PANAMA',
+            'GT' => 'GUATEMALA',
+            'HN' => 'HONDURAS',
+            'NI' => 'NICARAGUA',
+            'SV' => 'EL SALVADOR',
+            'BZ' => 'BELICE',
+            'JM' => 'JAMAICA',
+            'CU' => 'CUBA',
+            'HT' => 'HAITI',
+            'PR' => 'PUERTO RICO',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'BB' => 'BARBADOS',
+            'GD' => 'GRANADA',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'DM' => 'DOMINICA',
+            'KN' => 'SAN CRISTOBAL',
+            'AW' => 'ARUBA',
+            'CW' => 'CURACAO',
+            'BQ' => 'BONAIRE',
+            'SX' => 'SINT MAARTEN',
+            'MF' => 'SAN MARTIN',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'GF' => 'GUAYANA FRANCESA',
+            'SR' => 'SURINAM',
+            'GY' => 'GUYANA',
+            'ES' => 'ESPAÑA',
+            'FR' => 'FRANCIA',
+            'IT' => 'ITALIA',
+            'DE' => 'ALEMANIA',
+            'GB' => 'REINO UNIDO',
+            'PT' => 'PORTUGAL',
+            'TR' => 'TURQUIA',
+        ];
+
+        return $codeToName[strtoupper($countryCode)] ?? 'TURQUIA'; // Default to TURQUIA
+    }
+
+    /**
+     * Convert destination country code to destination name for Universal Assistance
+     */
+    protected function getDestinationNameFromCountryCode(string $countryCode): string
+    {
+        // Map country codes to Universal Assistance valid destinations
+        $countryToDestination = [
+            'DO' => 'Centro america/Caribe',
+            'CR' => 'Centro america/Caribe',
+            'PA' => 'Centro america/Caribe',
+            'GT' => 'Centro america/Caribe',
+            'HN' => 'Centro america/Caribe',
+            'NI' => 'Centro america/Caribe',
+            'SV' => 'Centro america/Caribe',
+            'BZ' => 'Centro america/Caribe',
+            'JM' => 'Centro america/Caribe',
+            'CU' => 'Centro america/Caribe',
+            'HT' => 'Centro america/Caribe',
+            'PR' => 'Centro america/Caribe',
+            'TT' => 'Centro america/Caribe',
+            'BB' => 'Centro america/Caribe',
+            'US' => 'USA/Canada',
+            'CA' => 'USA/Canada',
+            'MX' => 'Mexico',
+            'AR' => 'Sudamerica',
+            'BR' => 'Sudamerica',
+            'CO' => 'Sudamerica',
+            'PE' => 'Sudamerica',
+            'CL' => 'Sudamerica',
+            'VE' => 'Sudamerica',
+            'EC' => 'Sudamerica',
+            'UY' => 'Sudamerica',
+            'PY' => 'Sudamerica',
+            'BO' => 'Sudamerica',
+            'GY' => 'Sudamerica',
+            'SR' => 'Sudamerica',
+            'GF' => 'Sudamerica',
+            'ES' => 'Europa',
+            'FR' => 'Europa',
+            'IT' => 'Europa',
+            'DE' => 'Europa',
+            'GB' => 'Europa',
+            'PT' => 'Europa',
+            'TR' => 'Europa',
+        ];
+
+        return $countryToDestination[strtoupper($countryCode)] ?? 'Centro america/Caribe'; // Default to Centro america/Caribe
+    }
+
+    /**
+     * Convert voucher data to lead data format with specific countries
+     */
+    protected function convertVoucherDataToLeadDataWithCountries(array $voucherData, string $quotationType, string $originCountryName, string $destinationName): array
+    {
+        return [
+            'IdLead' => '',
+            'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
+            'Convenio' => $voucherData['contrato'], // Use the convenio already set based on countries
+            'Folleto' => '', // Empty like working request
+            'PaisOrigen' => $originCountryName, // Use provided origin country name
+            'Destino' => $destinationName, // Use provided destination name
+            'TipoViaje' => 'Un viaje', // Correct value from working example
+            'FechaInicio' => date('m/d/Y', strtotime($voucherData['FechaActivacionDesde'] ?? '2025-12-15')), // Use voucher activation date
+            'FechaFin' => date('m/d/Y', strtotime($voucherData['FechaActivacionHasta'] ?? '2025-12-22')), // Use voucher expiration date
+            'EdadMinima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Use actual age from voucher
+            'EdadMaxima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Same as minimum
+            'CantPersonas' => '1', // Single person quotation
+            'Modalidad' => 'Individual', // Individual quotation
+            'MonedaCotizacion' => 'USD' // USD as standard currency
+        ];
     }
 }
