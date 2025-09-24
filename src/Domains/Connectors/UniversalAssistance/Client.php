@@ -460,9 +460,9 @@ class Client
     /**
      * Convert voucher data to lead data format for quote generation
      */
-    protected function convertVoucherDataToLeadData(array $voucherData, string $quotationType, string $countryOfOrigin = 'TURQUIA'): array
+    protected function convertVoucherDataToLeadData(array $voucherData, string $quotationType, string $countryOfOrigin = 'ARGENTINA'): array
     {
-        // Use the provided country of origin (defaults to TURQUIA from working request)
+        // Use the provided country of origin (defaults to ARGENTINA from working request)
 
         // Convert voucher data structure to lead data structure using exact working request format
         return [
@@ -1491,7 +1491,7 @@ class Client
             'TR' => 'TURQUIA',
         ];
 
-        return $codeToName[strtoupper($countryCode)] ?? 'TURQUIA'; // Default to TURQUIA
+        return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
     }
 
     /**
