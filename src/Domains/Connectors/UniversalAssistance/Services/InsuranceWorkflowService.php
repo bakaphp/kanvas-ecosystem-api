@@ -1344,7 +1344,6 @@ class InsuranceWorkflowService
                 $result['file_name'] = $fileName;
                 $result['file_ext'] = $fileExt;
             }
-
         } catch (\Exception $e) {
             // If there's any error in navigation, just return unsuccessful result
             $result['extraction_error'] = $e->getMessage();
