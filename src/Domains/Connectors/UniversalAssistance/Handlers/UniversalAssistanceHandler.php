@@ -26,11 +26,11 @@ class UniversalAssistanceHandler extends BaseIntegration
         // Test the connection by attempting to create a client
         try {
             $client = new Client($this->app, $this->company);
-            
+
             // Validate that we can create the SOAP clients
             // This will throw an exception if configuration is invalid
             $client->testConnection();
-            
+
             return true;
         } catch (\Exception $e) {
             // Log the error if needed
