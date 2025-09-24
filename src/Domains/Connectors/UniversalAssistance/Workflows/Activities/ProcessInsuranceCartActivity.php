@@ -90,6 +90,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params or order metadata');
         }
 
+        // Convert any objects to arrays (in case data was JSON decoded as objects)
+        $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
         if (! isset($insuranceData['titular'])) {
             throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
         }
@@ -108,10 +111,31 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
+     * Convert objects (stdClass) to arrays recursively
+     */
+    protected function convertObjectsToArrays($data)
+    {
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->convertObjectsToArrays($value);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Store Universal Assistance data in both message and order (same pattern as AeroAmbulancia)
      */
     protected function storeUniversalAssistanceData(Order $order, int $messageId, array $results): void
     {
+        // Convert results to arrays to prevent stdClass errors
+        $results = $this->convertObjectsToArrays($results);
+
         // Calculate total vouchers created (titular + dependents)
         $totalVouchers = 0;
         if (isset($results['titular'])) {

@@ -41,6 +41,9 @@ class InsuranceWorkflowService
             throw new ValidationException('No insurance data found');
         }
 
+        // Convert any objects to arrays to prevent stdClass errors
+        $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
         // Process titular (main applicant)
         if (isset($insuranceData['titular'])) {
             $results['titular'] = $this->processTitular($insuranceData['titular']);
@@ -113,6 +116,9 @@ class InsuranceWorkflowService
 
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
 
+        // Convert result to arrays to prevent stdClass errors
+        $result = $this->convertObjectsToArrays($result);
+
         // Extract quotation data for validation
         $quoteData = $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                     $result['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
@@ -160,6 +166,9 @@ class InsuranceWorkflowService
 
         // Create individual voucher for this dependent
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+
+        // Convert result to arrays to prevent stdClass errors
+        $result = $this->convertObjectsToArrays($result);
 
         // Extract quotation data for validation
         $quoteData = $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
@@ -602,6 +611,9 @@ class InsuranceWorkflowService
         if (! $this->messageId) {
             return;
         }
+
+        // Convert voucher result to arrays to prevent stdClass errors
+        $voucherResult = $this->convertObjectsToArrays($voucherResult);
 
         $message = Message::getById($this->messageId);
         $messageData = $message->message;
@@ -1130,5 +1142,23 @@ class InsuranceWorkflowService
 
         $message->message = $messageData;
         $message->saveOrFail();
+    }
+
+    /**
+     * Convert objects (stdClass) to arrays recursively
+     */
+    protected function convertObjectsToArrays($data)
+    {
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->convertObjectsToArrays($value);
+            }
+        }
+
+        return $data;
     }
 }
