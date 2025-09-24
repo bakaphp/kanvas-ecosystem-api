@@ -31,73 +31,33 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Process insurance data from cart workflow
+     * Process insurance data directly (no cart wrapper needed)
      */
-    public function processInsuranceWorkflow(array $cartData): array
+    public function processInsuranceWorkflow(array $insuranceData): array
     {
         $results = [];
 
-        // Extract insurance data from cart items
-        $insuranceData = $this->extractInsuranceData($cartData);
-
         if (empty($insuranceData)) {
-            throw new ValidationException('No insurance data found in cart');
+            throw new ValidationException('No insurance data found');
         }
 
-        foreach ($insuranceData as $insuranceItem) {
-            // Process titular (main applicant)
-            if (isset($insuranceItem['titular'])) {
-                $results['titular'] = $this->processTitular($insuranceItem['titular']);
-            }
+        // Process titular (main applicant)
+        if (isset($insuranceData['titular'])) {
+            $results['titular'] = $this->processTitular($insuranceData['titular']);
+        }
 
-            // Process dependents
-            if (isset($insuranceItem['dependents']) && ! empty($insuranceItem['dependents'])) {
-                $results['dependents'] = [];
-                foreach ($insuranceItem['dependents'] as $dependent) {
-                    $results['dependents'][] = $this->processDependent($dependent);
-                }
+        // Process dependents
+        if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
+            $results['dependents'] = [];
+            foreach ($insuranceData['dependents'] as $dependent) {
+                $results['dependents'][] = $this->processDependent($dependent);
             }
         }
 
         return $results;
     }
 
-    /**
-     * Extract insurance data from cart items (updated to match workflow input structure)
-     */
-    protected function extractInsuranceData(array $cartData): array
-    {
-        $insuranceData = [];
 
-        if (! isset($cartData['items'])) {
-            return $insuranceData;
-        }
-
-        // Process cart items created by ProcessInsuranceCartActivity
-        $titularData = null;
-        $dependents = [];
-
-        foreach ($cartData['items'] as $item) {
-            if (isset($item['type']) && isset($item['data'])) {
-                if ($item['type'] === 'titular') {
-                    $titularData = $item['data'];
-                } elseif ($item['type'] === 'dependent') {
-                    $dependents[] = $item['data'];
-                }
-            }
-        }
-
-        // Structure data as expected by processInsuranceWorkflow
-        if ($titularData) {
-            $insuranceItem = ['titular' => $titularData];
-            if (! empty($dependents)) {
-                $insuranceItem['dependents'] = $dependents;
-            }
-            $insuranceData[] = $insuranceItem;
-        }
-
-        return $insuranceData;
-    }
 
     /**
      * Validate insurance person data structure (updated for real input structure)
@@ -556,17 +516,13 @@ class InsuranceWorkflowService
                    $personData['duration'] ??
                    null;
 
-        // Log what we found
-
         // If duration is provided, use it directly without validation
         if ($duration !== null && $duration !== '') {
             $durationInt = (int) $duration;
 
-
             if ($durationInt > 0) {
                 return $durationInt;
             }
-        } else {
         }
 
         // Fallback: calculate from activation and expiration dates if available
@@ -576,12 +532,12 @@ class InsuranceWorkflowService
                 $expirationDate = Carbon::parse($personData['expirationDate']);
                 $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1); // +1 to include both dates
 
-
                 // Use calculated duration directly without validation
                 if ($calculatedDuration > 0) {
                     return $calculatedDuration;
                 }
             } catch (\Exception $e) {
+                // Ignore date parsing errors
             }
         }
 
