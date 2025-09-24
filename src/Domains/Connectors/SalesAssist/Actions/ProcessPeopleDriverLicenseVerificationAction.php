@@ -83,7 +83,7 @@ class ProcessPeopleDriverLicenseVerificationAction
             if ($this->people->get('driver_license_processed')) {
                 return [
                     'success' => false,
-                    'message' => 'Driver license already processed',
+                    'message' => 'People Driver license already processed',
                 ];
             }
 
@@ -186,7 +186,7 @@ class ProcessPeopleDriverLicenseVerificationAction
         $message = $engagement->message;
 
         // Process and upload images
-        $isExpired = $this->validateExpirationDate($lead, $this->people, $driverLicenseData, $idVerificationData) ?? false;
+        $isExpired = $this->validateExpirationDate($this->people, $driverLicenseData, $idVerificationData) ?? false;
         $this->processDriverLicenseImages($message, $driverLicenseImage, $isIdValid, $isExpired);
 
         return [
@@ -251,7 +251,7 @@ class ProcessPeopleDriverLicenseVerificationAction
             }
 
             // Validate expiration date
-            $isExpired = $this->validateExpirationDate($lead, $people, $driverLicenseData, $idVerificationData, $people->name);
+            $isExpired = $this->validateExpirationDate($people, $driverLicenseData, $idVerificationData, $people->name);
 
             // Create engagement and message
             $engagement = $this->createEngagement($lead, $people, $app);
