@@ -63,7 +63,7 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Extract insurance data from cart items
+     * Extract insurance data from cart items (updated to match workflow input structure)
      */
     protected function extractInsuranceData(array $cartData): array
     {
@@ -73,28 +73,39 @@ class InsuranceWorkflowService
             return $insuranceData;
         }
 
-        $itemCount = 0;
+        // Process cart items created by ProcessInsuranceCartActivity
+        $titularData = null;
+        $dependents = [];
+
         foreach ($cartData['items'] as $item) {
-            $itemCount++;
-            if (isset($item['attributes']['eSimDetails'])) {
-                foreach ($item['attributes']['eSimDetails'] as $detailIndex => $detail) {
-                    if (isset($detail['insurance'])) {
-                        $insuranceData[] = $detail['insurance'];
-                    }
+            if (isset($item['type']) && isset($item['data'])) {
+                if ($item['type'] === 'titular') {
+                    $titularData = $item['data'];
+                } elseif ($item['type'] === 'dependent') {
+                    $dependents[] = $item['data'];
                 }
             }
         }
 
+        // Structure data as expected by processInsuranceWorkflow
+        if ($titularData) {
+            $insuranceItem = ['titular' => $titularData];
+            if (!empty($dependents)) {
+                $insuranceItem['dependents'] = $dependents;
+            }
+            $insuranceData[] = $insuranceItem;
+        }
 
         return $insuranceData;
     }
 
     /**
-     * Validate insurance person data structure
+     * Validate insurance person data structure (updated for real input structure)
      */
     protected function validatePersonData(array $personData, string $personType): bool
     {
-        $requiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'email', 'activationDate'];
+        // Core required fields that must exist based on actual input structure
+        $requiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'email'];
 
         foreach ($requiredFields as $field) {
             if (! isset($personData[$field]) || empty($personData[$field])) {
@@ -102,15 +113,18 @@ class InsuranceWorkflowService
             }
         }
 
-        // Validate plan structure
+        // Validate plan structure - based on real input structure
         if (! isset($personData['plan']) || ! is_array($personData['plan'])) {
             return false;
         }
 
-        // Plan should have at least name and price
-        if (! isset($personData['plan']['name']) || ! isset($personData['plan']['price'])) {
+        // Plan should have at least id and name (based on real input)
+        if (! isset($personData['plan']['id']) || ! isset($personData['plan']['name'])) {
             return false;
         }
+
+        // activationDate is optional but commonly present
+        // Other fields like productName, originCountryCode, etc. are also optional
 
         return true;
     }
@@ -167,8 +181,8 @@ class InsuranceWorkflowService
      */
     protected function buildVoucherData(array $personData, string $personType): array
     {
-        // Convert destinyCountryCode to destination name (fallback to destinationCountryCode for backward compatibility)
-        $destination = $this->getDestinationName($personData['destinyCountryCode'] ?? $personData['destinationCountryCode'] ?? 'DO');
+        // Convert destinationCountryCode to destination name (based on real input structure)
+        $destination = $this->getDestinationName($personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'DO');
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
@@ -230,8 +244,8 @@ class InsuranceWorkflowService
      */
     protected function buildCrossSellingVoucherData(array $personData, string $personType): array
     {
-        // Convert destinyCountryCode to destination name
-        $destination = $this->getDestinationName($personData['destinyCountryCode'] ?? $personData['destinationCountryCode'] ?? 'DO');
+        // Convert destinationCountryCode to destination name (based on real input structure)
+        $destination = $this->getDestinationName($personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'DO');
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
@@ -606,7 +620,7 @@ class InsuranceWorkflowService
             'email' => $dependentData['email'],
             'activation_date' => $dependentData['activationDate'],
             'origin_country_code' => $dependentData['originCountryCode'] ?? 'DO',
-            'destiny_country_code' => $dependentData['destinyCountryCode'] ?? $dependentData['destinationCountryCode'] ?? 'US',
+            'destiny_country_code' => $dependentData['destinationCountryCode'] ?? $dependentData['destinyCountryCode'] ?? 'US',
             'plan' => [
                 'name' => $dependentData['plan']['name'] ?? null,
                 'type' => $this->determinePlanType($dependentData),
