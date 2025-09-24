@@ -257,7 +257,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher
+            'Precio' => '0.00', // UA Precio Actual Fijo - always 0.00 for voucher creation
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
@@ -318,7 +318,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher
+            'Precio' => '0.00', // UA Precio Actual Fijo - always 0.00 for voucher creation
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
