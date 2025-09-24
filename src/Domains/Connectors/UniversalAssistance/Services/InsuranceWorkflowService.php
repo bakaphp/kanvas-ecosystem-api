@@ -281,7 +281,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($personData['originCountryCode'] ?? 'AR'),
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'CorreoElectronicoSolicitante' => $personData['email'],
             ],
@@ -342,7 +342,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($personData['originCountryCode'] ?? 'AR'),
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'CorreoElectronicoSolicitante' => $personData['email'],
             ],
@@ -553,7 +553,7 @@ class InsuranceWorkflowService
             'CO' => 'COLOMBIA',
         ];
 
-        return $countries[$countryCode] ?? 'INTERNACIONAL';
+        return $countries[$countryCode] ?? 'REPUBLICA DOMINICANA'; // Default to a valid country instead of INTERNACIONAL
     }
 
     /**
