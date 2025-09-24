@@ -31,8 +31,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Create service
                 $service = new InsuranceWorkflowService($app, $order);
 
-                // Process insurance workflow with cart data from order metadata
-                $results = $service->processInsuranceWorkflow($data['cart_data']);
+                // Process insurance workflow with insurance data directly
+                $results = $service->processInsuranceWorkflow($data['insurance_data']);
 
                 // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
                 $this->storeUniversalAssistanceData($order, $data['message_id'], $results);
@@ -85,31 +85,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
         }
 
-        // Convert insurance data to cart format that the service expects
-        $cartData = [
-            'items' => []
-        ];
-
-        // Add titular to cart items
-        if (isset($insuranceData['titular'])) {
-            $cartData['items'][] = [
-                'type' => 'titular',
-                'data' => $insuranceData['titular']
-            ];
-        }
-
-        // Add dependents to cart items
-        if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
-            foreach ($insuranceData['dependents'] as $dependent) {
-                $cartData['items'][] = [
-                    'type' => 'dependent',
-                    'data' => $dependent
-                ];
-            }
-        }
-
+        // Return insurance data directly (no cart wrapper needed)
         return [
-            'cart_data' => $cartData,
+            'insurance_data' => $insuranceData,
             'message_id' => $messageId,
         ];
     }
