@@ -1239,7 +1239,7 @@ class InsuranceWorkflowService
                         }
                     }
 
-                    if (!$pdfResult['success']) {
+                    if (! $pdfResult['success']) {
                         $pdfResult['error'] = 'PDF generated but no URL found in response';
                         $pdfResult['raw_response'] = $pdfResponse;
                     }
