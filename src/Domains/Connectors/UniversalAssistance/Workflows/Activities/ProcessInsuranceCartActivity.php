@@ -44,14 +44,25 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
-     * Get all required data for the activity (extracts insurance from eSim metadata)
+     * Get all required data for the activity (try both workflow params and order metadata)
      */
     protected function getActivityData(Order $order, array $params): array
     {
-        // First try params (for direct workflow calls)
-        $insuranceData = $params['insurance'] ?? [];
+        $insuranceData = [];
 
-        // If not in params, extract from eSim metadata (workflow triggered by order creation)
+        // Approach 1: Try workflow input params directly (for direct workflow calls)
+        if (isset($params['titular']) || isset($params['insurance'])) {
+            // If params has titular directly, use params as insurance data
+            if (isset($params['titular'])) {
+                $insuranceData = $params;
+            }
+            // If params has insurance key, extract from there
+            elseif (isset($params['insurance'])) {
+                $insuranceData = $params['insurance'];
+            }
+        }
+
+        // Approach 2: Extract from order metadata (eSim workflow pattern)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
 
@@ -66,17 +77,21 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Final fallback: direct metadata locations
+        // Approach 3: Direct metadata fallback locations
         if (empty($insuranceData)) {
-            $insuranceData = $order->metadata['universal_assistance']['insurance'] ?? $order->getMetadata('insurance') ?? [];
+            $orderMetadata = $order->metadata ?? [];
+            $insuranceData = $orderMetadata['universal_assistance']['insurance'] ??
+                           $order->getMetadata('insurance') ??
+                           [];
         }
 
+        // Validate that we have insurance data
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required in order metadata');
+            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params or order metadata');
         }
 
         if (! isset($insuranceData['titular'])) {
-            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance metadata');
+            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
         }
 
         // Get eSim message ID from order (same way as AeroAmbulancia)
