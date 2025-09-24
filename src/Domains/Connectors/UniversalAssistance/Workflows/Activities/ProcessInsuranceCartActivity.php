@@ -50,7 +50,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         // Get Universal Assistance data from order metadata or params (same pattern as AeroAmbulancia)
         $insuranceData = $order->getMetadata('insurance') ?? $params['insurance'] ?? [];
-        
+
         // If not found in metadata/params, look in order items metadata (same as AeroAmbulancia B2B)
         if (empty($insuranceData)) {
             // Process each order item to find insurance plans (same pattern as AeroAmbulancia B2B)
@@ -67,7 +67,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
             }
         }
-        
+
         if (empty($insuranceData)) {
             throw new \Kanvas\Exceptions\ValidationException('Insurance data is required in order metadata');
         }
