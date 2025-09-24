@@ -23,4 +23,12 @@ trait DefaultTrait
 
         return $query->first();
     }
+
+    public static function getAppDefault(AppInterface $app): ?BaseModel
+    {
+        $query = self::where('apps_id', $app->getId())
+                ->where('is_default', 1);
+
+        return $query->first();
+    }
 }
