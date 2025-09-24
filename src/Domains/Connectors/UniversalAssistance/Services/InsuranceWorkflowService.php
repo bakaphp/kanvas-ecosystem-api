@@ -579,8 +579,8 @@ class InsuranceWorkflowService
         }
 
         // Extract quotation information from the response
-        $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                    $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+        $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                    $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                     [];
 
         // Find the specific product that matches the requested plan
@@ -734,7 +734,7 @@ class InsuranceWorkflowService
         // Check for key words matching (for similar products)
         $planWords = array_filter(explode(' ', $planNormalized));
         $productWords = array_filter(explode(' ', $productNormalized));
-        
+
         $commonWords = array_intersect($planWords, $productWords);
         $matchPercentage = count($commonWords) / max(count($planWords), count($productWords), 1);
 
@@ -786,9 +786,9 @@ class InsuranceWorkflowService
                 $validation['match_type'] = 'exact';
             } else {
                 $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
-                $validation['price_difference_percentage'] = $planPriceFloat > 0 ? 
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ?
                     round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
-                
+
                 // Consider close matches (within 5% or $1)
                 $tolerance = max(0.05 * $planPriceFloat, 1.0);
                 if (abs($validation['price_difference']) <= $tolerance) {
@@ -815,11 +815,11 @@ class InsuranceWorkflowService
     protected function validatePricingWithMatchedProduct(array $personData, array $quoteData, array $matchedProduct): array
     {
         $planPrice = $personData['plan']['price'] ?? null;
-        
+
         // Determine which price to use based on matched product
         $quotedPrice = null;
         $priceSource = 'not_found';
-        
+
         if ($matchedProduct['found']) {
             if ($matchedProduct['source'] === 'main_product') {
                 // Use main product pricing
@@ -828,12 +828,12 @@ class InsuranceWorkflowService
             } elseif (isset($matchedProduct['attribute_data'])) {
                 // Try to find price in the matched attribute
                 $attributeData = $matchedProduct['attribute_data'];
-                $quotedPrice = $attributeData['PrecioEmision'] ?? 
-                              $attributeData['Precio'] ?? 
+                $quotedPrice = $attributeData['PrecioEmision'] ??
+                              $attributeData['Precio'] ??
                               $attributeData['Valor'] ??
-                              $attributeData['price'] ?? 
+                              $attributeData['price'] ??
                               $attributeData['amount'] ?? null;
-                
+
                 if ($quotedPrice !== null) {
                     $priceSource = 'matched_attribute';
                 } else {
@@ -870,9 +870,9 @@ class InsuranceWorkflowService
                 $validation['match_type'] = 'exact';
             } else {
                 $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
-                $validation['price_difference_percentage'] = $planPriceFloat > 0 ? 
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ?
                     round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
-                
+
                 // Consider close matches (within 5% or $1)
                 $tolerance = max(0.05 * $planPriceFloat, 1.0);
                 if (abs($validation['price_difference']) <= $tolerance) {
@@ -932,10 +932,10 @@ class InsuranceWorkflowService
         if (!empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $index => $attribute) {
                 // Check different possible field names for product name
-                $productName = $attribute['NombreProducto'] ?? 
-                              $attribute['NombreVisible'] ?? 
-                              $attribute['Nombre'] ?? 
-                              $attribute['product_name'] ?? 
+                $productName = $attribute['NombreProducto'] ??
+                              $attribute['NombreVisible'] ??
+                              $attribute['Nombre'] ??
+                              $attribute['product_name'] ??
                               $attribute['name'] ?? null;
 
                 if ($productName) {
@@ -961,10 +961,10 @@ class InsuranceWorkflowService
 
         if (!empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $index => $attribute) {
-                $productName = $attribute['NombreProducto'] ?? 
-                              $attribute['NombreVisible'] ?? 
-                              $attribute['Nombre'] ?? 
-                              $attribute['product_name'] ?? 
+                $productName = $attribute['NombreProducto'] ??
+                              $attribute['NombreVisible'] ??
+                              $attribute['Nombre'] ??
+                              $attribute['product_name'] ??
                               $attribute['name'] ?? null;
 
                 if ($productName) {
@@ -1008,7 +1008,7 @@ class InsuranceWorkflowService
     protected function extractAvailableProductNames(array $quoteData): array
     {
         $products = [];
-        
+
         // Add main product
         if (isset($quoteData['NombreProducto'])) {
             $products[] = $quoteData['NombreProducto'];
@@ -1018,12 +1018,12 @@ class InsuranceWorkflowService
         $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? $quoteData['productos'] ?? [];
         if (!empty($attributes) && is_array($attributes)) {
             foreach ($attributes as $attribute) {
-                $productName = $attribute['NombreProducto'] ?? 
-                              $attribute['NombreVisible'] ?? 
-                              $attribute['Nombre'] ?? 
-                              $attribute['product_name'] ?? 
+                $productName = $attribute['NombreProducto'] ??
+                              $attribute['NombreVisible'] ??
+                              $attribute['Nombre'] ??
+                              $attribute['product_name'] ??
                               $attribute['name'] ?? null;
-                
+
                 if ($productName && !in_array($productName, $products)) {
                     $products[] = $productName;
                 }

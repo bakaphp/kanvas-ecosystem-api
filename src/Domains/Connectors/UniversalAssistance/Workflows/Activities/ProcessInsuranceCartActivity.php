@@ -123,13 +123,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Collect all vouchers for consolidated tracking
         $allVouchers = [];
-        
+
         if (isset($results['titular'])) {
             // Extract quotation details from titular result
-            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
-            
+
             $allVouchers[] = [
                 'person_type' => 'titular',
                 'control_number' => $results['titular']['control_number'] ?? null,
@@ -145,14 +145,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'created_at' => now()->toISOString(),
             ];
         }
-        
+
         if (isset($results['dependents']) && ! empty($results['dependents'])) {
             foreach ($results['dependents'] as $index => $dependent) {
                 // Extract quotation details from dependent result
-                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
-                
+
                 $allVouchers[] = [
                     'person_type' => 'dependent',
                     'dependent_index' => $index,
@@ -193,10 +193,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Structure holder data (titular with individual voucher)
         if (isset($results['titular'])) {
-            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
-            
+
             $universalAssistanceData['holder'] = [
                 'data' => $results['titular'],
                 'control_number' => $results['titular']['control_number'] ?? null,
@@ -220,10 +220,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Structure dependents data (each with individual voucher)
         if (isset($results['dependents']) && ! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
-                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
-                
+
                 $universalAssistanceData['dependents'][] = [
                     'data' => $dependent,
                     'control_number' => $dependent['control_number'] ?? null,
@@ -273,8 +273,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate titular
         if (isset($results['titular'])) {
-            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
 
             if (!empty($titularQuoteData)) {
@@ -291,8 +291,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Validate dependents
         if (isset($results['dependents']) && !empty($results['dependents'])) {
             foreach ($results['dependents'] as $index => $dependent) {
-                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
 
                 if (!empty($dependentQuoteData)) {
