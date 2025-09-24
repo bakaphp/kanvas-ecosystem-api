@@ -244,7 +244,7 @@ class InsuranceWorkflowService
         // Get duration from product attributes (1, 3, 7, 15, or 30 days)
         $duration = $this->getProductDuration($personData);
         $expirationDate = clone $activationDate;
-        $expirationDate->addDays($duration - 1); // -1 because the activation day counts
+        $expirationDate->addDays($duration); // Duration days from activation date
 
         // Use the new country-based convenio logic instead of ContractEnum
         $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'inclusion');
@@ -257,7 +257,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '0.00', // UA Precio Actual Fijo - always 0.00 for voucher creation
+            'Precio' => '', // Empty price for voucher
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
@@ -305,7 +305,7 @@ class InsuranceWorkflowService
         $activationDate = Carbon::parse($personData['activationDate']);
         $duration = $this->getProductDuration($personData);
         $expirationDate = clone $activationDate;
-        $expirationDate->addDays($duration - 1);
+        $expirationDate->addDays($duration); // Duration days from activation date
 
         // Use the new country-based convenio logic for Cross Selling
         $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'cross_selling');
@@ -318,7 +318,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '0.00', // UA Precio Actual Fijo - always 0.00 for voucher creation
+            'Precio' => '', // Empty price for voucher
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
