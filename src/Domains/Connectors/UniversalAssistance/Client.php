@@ -125,11 +125,11 @@ class Client
     {
         $metadata = $order->metadata ?? [];
 
-        if (! isset($metadata['universal_assistance'])) {
-            $metadata['universal_assistance'] = [];
+        if (! isset($metadata['universalAssistanceData'])) {
+            $metadata['universalAssistanceData'] = [];
         }
 
-        $metadata['universal_assistance']['control_numbers'] = [
+        $metadata['universalAssistanceData']['control_numbers'] = [
             'base' => $controlNumbers['base'],
             'inclusion' => $controlNumbers['inclusion'],
             'cross_selling' => $controlNumbers['cross_selling'],
@@ -523,15 +523,15 @@ class Client
     {
         $metadata = $order->metadata ?? [];
 
-        if (! isset($metadata['universal_assistance'])) {
-            $metadata['universal_assistance'] = [];
+        if (! isset($metadata['universalAssistanceData'])) {
+            $metadata['universalAssistanceData'] = [];
         }
 
-        if (! isset($metadata['universal_assistance']['single_quotations'])) {
-            $metadata['universal_assistance']['single_quotations'] = [];
+        if (! isset($metadata['universalAssistanceData']['single_quotations'])) {
+            $metadata['universalAssistanceData']['single_quotations'] = [];
         }
 
-        $metadata['universal_assistance']['single_quotations'][$quotationType] = [
+        $metadata['universalAssistanceData']['single_quotations'][$quotationType] = [
             'control_number' => $controlNumber,
             'organization' => $this->getOrganizationForQuotationType($quotationType),
             'convenio' => $this->getConvenioForQuotationType($quotationType),

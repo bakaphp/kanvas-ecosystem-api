@@ -636,12 +636,12 @@ class InsuranceWorkflowService
         $message = Message::getById($this->messageId);
         $messageData = $message->message;
 
-        if (! isset($messageData['universal_assistance'])) {
-            $messageData['universal_assistance'] = [];
+        if (! isset($messageData['universalAssistanceData'])) {
+            $messageData['universalAssistanceData'] = [];
         }
 
-        if (! isset($messageData['universal_assistance']['vouchers'])) {
-            $messageData['universal_assistance']['vouchers'] = [];
+        if (! isset($messageData['universalAssistanceData']['vouchers'])) {
+            $messageData['universalAssistanceData']['vouchers'] = [];
         }
 
         // Extract quotation information from the response
@@ -760,7 +760,7 @@ class InsuranceWorkflowService
             }
         }
 
-        $messageData['universal_assistance']['vouchers'][] = $voucherInfo;
+        $messageData['universalAssistanceData']['vouchers'][] = $voucherInfo;
 
         $message->message = $messageData;
         $message->saveOrFail();
@@ -1129,12 +1129,12 @@ class InsuranceWorkflowService
         $message = Message::getById($this->messageId);
         $messageData = $message->message;
 
-        if (! isset($messageData['universal_assistance'])) {
-            $messageData['universal_assistance'] = [];
+        if (! isset($messageData['universalAssistanceData'])) {
+            $messageData['universalAssistanceData'] = [];
         }
 
-        if (! isset($messageData['universal_assistance']['dependents'])) {
-            $messageData['universal_assistance']['dependents'] = [];
+        if (! isset($messageData['universalAssistanceData']['dependents'])) {
+            $messageData['universalAssistanceData']['dependents'] = [];
         }
 
         // Store essential dependent information
@@ -1173,7 +1173,7 @@ class InsuranceWorkflowService
             }
         }
 
-        $messageData['universal_assistance']['dependents'][] = $dependentInfo;
+        $messageData['universalAssistanceData']['dependents'][] = $dependentInfo;
 
         $message->message = $messageData;
         $message->saveOrFail();
@@ -1199,53 +1199,89 @@ class InsuranceWorkflowService
                             null;
 
             if (! $voucherNumber) {
-                $pdfResult['error'] = 'No voucher number (NroVoucher) found to generate PDF';
+                $pdfResult['error'] = 'No voucher number (NroVoucher) found in voucher response to generate PDF';
+                $pdfResult['voucher_response_keys'] = array_keys($voucherResult['voucher_response'] ?? []);
                 return $pdfResult;
             }
 
-            // Extract quotation data to get the tarifa (pricing information)
+            // Validate voucher number format - Universal Assistance vouchers typically follow pattern like T123456789
+            if (! $this->isValidVoucherNumberFormat($voucherNumber)) {
+                $pdfResult['error'] = "Invalid voucher number format for PDF generation: {$voucherNumber}";
+                $pdfResult['voucher_number'] = $voucherNumber;
+                return $pdfResult;
+            }
+
+            // Extract quotation data to get additional information
             $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                         $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                         [];
 
             // Build report data for PDF generation using the NroVoucher
+            // Include more comprehensive data that might be needed by the PDF service
             $reportData = [
-                'Language' => 'Spanish',  // Default to Spanish
+                'Language' => 'Spanish',  // Default to Spanish, could be 'English' based on person data
                 'VoucherNumber' => $voucherNumber, // This should be the NroVoucher (e.g., T417502009)
-                'Tarifa' => '',
-                'Organization' => $voucherResult['organization'] ?? '1-ENYNUF7'
+                'Tarifa' => $this->buildTarifaParameter($quoteData, $personData), // Build proper tarifa parameter
+                'Organization' => $voucherResult['organization'] ?? $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?? '1-ENYNUF7',
             ];
+
+            // Add debug info to help with troubleshooting
+            $pdfResult['request_data'] = $reportData;
 
             // Generate PDF using the sendReport method
             $pdfResponse = $this->client->sendReport($reportData, false);
 
             if (is_array($pdfResponse) && ! empty($pdfResponse)) {
-                // Check if PDF was generated successfully
-                // The response typically contains a URL or base64 data
-                if (isset($pdfResponse['PDFUrl']) || isset($pdfResponse['Url']) || isset($pdfResponse['Link'])) {
-                    $pdfResult['success'] = true;
-                    $pdfResult['pdf_url'] = $pdfResponse['PDFUrl'] ?? $pdfResponse['Url'] ?? $pdfResponse['Link'];
-                } elseif (isset($pdfResponse['PDFData']) || isset($pdfResponse['Data'])) {
-                    $pdfResult['success'] = true;
-                    $pdfResult['pdf_data'] = $pdfResponse['PDFData'] ?? $pdfResponse['Data'];
-                    $pdfResult['pdf_url'] = 'data:application/pdf;base64,' . ($pdfResponse['PDFData'] ?? $pdfResponse['Data']);
-                } else {
-                    // Check for any URL-like field in the response
-                    foreach ($pdfResponse as $key => $value) {
-                        if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
-                            $pdfResult['success'] = true;
-                            $pdfResult['pdf_url'] = $value;
-                            break;
-                        }
-                    }
+                // Check for Universal Assistance service errors first
+                if (isset($pdfResponse['Error_spcCode']) || isset($pdfResponse['Error_spcMessage'])) {
+                    $errorCode = $pdfResponse['Error_spcCode'] ?? 'Unknown';
+                    $errorMessage = $pdfResponse['Error_spcMessage'] ?? 'Unknown error';
 
-                    if (! $pdfResult['success']) {
-                        $pdfResult['error'] = 'PDF generated but no URL found in response';
-                        $pdfResult['raw_response'] = $pdfResponse;
+                    $pdfResult['error'] = "Universal Assistance PDF service error [{$errorCode}]: {$errorMessage}";
+                    $pdfResult['service_error'] = true;
+                    $pdfResult['error_code'] = $errorCode;
+                    $pdfResult['error_message'] = $errorMessage;
+                    $pdfResult['raw_response'] = $pdfResponse;
+
+                    return $pdfResult;
+                }
+
+                // Check if PDF was generated successfully based on WSDL structure
+                // According to WSDL, the PDF comes in SM.ListOfUaSendReportIo.UaVoucherBc.ListOfUaImpresionSimplificadaBc.UaImpresionSimplificadaBc.ReportOutputFileBuffer
+                $pdfExtracted = $this->extractPdfFromSendReportResponse($pdfResponse);
+
+                if ($pdfExtracted['success']) {
+                    $pdfResult['success'] = true;
+                    $pdfResult['pdf_url'] = $pdfExtracted['pdf_url'];
+                    $pdfResult['pdf_data'] = $pdfExtracted['pdf_data'] ?? null;
+                    $pdfResult['file_name'] = $pdfExtracted['file_name'] ?? null;
+                } else {
+                    // Legacy fallback - check for direct PDF fields (for backward compatibility)
+                    if (isset($pdfResponse['PDFUrl']) || isset($pdfResponse['Url']) || isset($pdfResponse['Link'])) {
+                        $pdfResult['success'] = true;
+                        $pdfResult['pdf_url'] = $pdfResponse['PDFUrl'] ?? $pdfResponse['Url'] ?? $pdfResponse['Link'];
+                    } elseif (isset($pdfResponse['PDFData']) || isset($pdfResponse['Data'])) {
+                        $pdfResult['success'] = true;
+                        $pdfResult['pdf_data'] = $pdfResponse['PDFData'] ?? $pdfResponse['Data'];
+                        $pdfResult['pdf_url'] = 'data:application/pdf;base64,' . ($pdfResponse['PDFData'] ?? $pdfResponse['Data']);
+                    } else {
+                        // Check for any URL-like field in the response
+                        foreach ($pdfResponse as $key => $value) {
+                            if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
+                                $pdfResult['success'] = true;
+                                $pdfResult['pdf_url'] = $value;
+                                break;
+                            }
+                        }
+
+                        if (! $pdfResult['success']) {
+                            $pdfResult['error'] = 'PDF service responded but no PDF found in WSDL structure or legacy fields';
+                            $pdfResult['raw_response'] = $pdfResponse;
+                        }
                     }
                 }
             } else {
-                $pdfResult['error'] = 'Invalid or empty PDF response';
+                $pdfResult['error'] = 'Invalid or empty PDF response from Universal Assistance service';
                 $pdfResult['raw_response'] = $pdfResponse;
             }
         } catch (\Exception $e) {
@@ -1253,6 +1289,120 @@ class InsuranceWorkflowService
         }
 
         return $pdfResult;
+    }
+
+    /**
+     * Extract PDF data from SendReport response according to WSDL structure
+     * WSDL Path: SM.ListOfUaSendReportIo.UaVoucherBc.ListOfUaImpresionSimplificadaBc.UaImpresionSimplificadaBc.ReportOutputFileBuffer
+     */
+    protected function extractPdfFromSendReportResponse(array $response): array
+    {
+        $result = [
+            'success' => false,
+            'pdf_data' => null,
+            'pdf_url' => null,
+            'file_name' => null,
+            'file_ext' => null,
+        ];
+
+        try {
+            // Navigate through the WSDL structure
+            $sm = $response['SM'] ?? null;
+            if (! $sm) {
+                return $result;
+            }
+
+            $listOfUaSendReportIo = $sm['ListOfUaSendReportIo'] ?? null;
+            if (! $listOfUaSendReportIo) {
+                return $result;
+            }
+
+            $uaVoucherBc = $listOfUaSendReportIo['UaVoucherBc'] ?? null;
+            if (! $uaVoucherBc) {
+                return $result;
+            }
+
+            $listOfUaImpresionSimplificadaBc = $uaVoucherBc['ListOfUaImpresionSimplificadaBc'] ?? null;
+            if (! $listOfUaImpresionSimplificadaBc) {
+                return $result;
+            }
+
+            $uaImpresionSimplificadaBc = $listOfUaImpresionSimplificadaBc['UaImpresionSimplificadaBc'] ?? null;
+            if (! $uaImpresionSimplificadaBc) {
+                return $result;
+            }
+
+            // Extract PDF data from the response
+            $pdfBuffer = $uaImpresionSimplificadaBc['ReportOutputFileBuffer'] ?? null;
+            $fileName = $uaImpresionSimplificadaBc['ReportOutputFileName'] ?? null;
+            $fileExt = $uaImpresionSimplificadaBc['ReportOutputFileExt'] ?? 'pdf';
+
+            if ($pdfBuffer) {
+                $result['success'] = true;
+                $result['pdf_data'] = $pdfBuffer; // This should be base64 encoded PDF
+                $result['pdf_url'] = 'data:application/pdf;base64,' . $pdfBuffer;
+                $result['file_name'] = $fileName;
+                $result['file_ext'] = $fileExt;
+            }
+
+        } catch (\Exception $e) {
+            // If there's any error in navigation, just return unsuccessful result
+            $result['extraction_error'] = $e->getMessage();
+        }
+
+        return $result;
+    }
+
+    /**
+     * Build the Tarifa parameter for SendReport based on quotation data
+     * The Tarifa parameter might need specific formatting for the BI Publisher service
+     */
+    protected function buildTarifaParameter(array $quoteData, array $personData): string
+    {
+        // Try different price fields from quotation data
+        $tarifa = $quoteData['PrecioEmision'] ??
+                 $quoteData['PrecioNeto'] ??
+                 $quoteData['PrecioBruto'] ??
+                 $quoteData['PrecioUnitario'] ??
+                 $personData['plan']['price'] ??
+                 '';
+
+        // If we have a tarifa value, ensure it's properly formatted
+        if ($tarifa !== '' && $tarifa !== null) {
+            // Convert to string and ensure it has proper decimal formatting
+            $tarifa = number_format((float)$tarifa, 2, '.', '');
+        }
+
+        // Some services might expect empty string instead of zero
+        return (string)$tarifa;
+    }
+
+    /**
+     * Validate voucher number format for PDF generation
+     * Universal Assistance vouchers typically follow patterns like T123456789
+     */
+    protected function isValidVoucherNumberFormat(string $voucherNumber): bool
+    {
+        // Remove any whitespace
+        $voucherNumber = trim($voucherNumber);
+
+        // Check if empty
+        if (empty($voucherNumber)) {
+            return false;
+        }
+
+        // Universal Assistance voucher patterns:
+        // - T followed by numbers (e.g., T417502009)
+        // - Numbers only (e.g., 417502009)
+        // - Other patterns may exist
+
+        // Allow alphanumeric vouchers with minimum length
+        if (strlen($voucherNumber) < 5) {
+            return false;
+        }
+
+        // Allow alphanumeric characters, hyphens, and some special characters
+        return preg_match('/^[A-Z0-9\-_]+$/i', $voucherNumber);
     }
 
     /**

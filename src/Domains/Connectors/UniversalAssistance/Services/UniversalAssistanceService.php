@@ -304,11 +304,12 @@ class UniversalAssistanceService
         // Get order metadata
         $orderMetadata = $this->order->metadata ?? [];
 
-        if (! isset($orderMetadata['universal_assistance'])) {
+        if (! isset($orderMetadata['universalAssistanceData']) && ! isset($orderMetadata['universal_assistance'])) {
             throw new ValidationException('Universal Assistance data not found in order metadata');
         }
 
-        $uaData = $orderMetadata['universal_assistance'];
+        // Prefer new format, fallback to old for backward compatibility
+        $uaData = $orderMetadata['universalAssistanceData'] ?? $orderMetadata['universal_assistance'];
         $results = [];
 
         // Step 1: Create travel quote if needed
