@@ -111,13 +111,17 @@ class InsuranceWorkflowService
             $voucherData = $this->buildVoucherData($titularData, 'titular');
         }
 
-        return $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+        $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+
+        // Store titular voucher information in eSim message metadata
+        $this->storeVoucherInESimMessageMetadata($titularData, $result, 'titular');
+
+        return $result;
     }
 
     /**
      * Process dependent insurance
-     * Dependents don't need individual vouchers - they are covered under the titular's voucher
-     * Just validate and store their data in metadata
+     * Each dependent gets their own voucher since they have individual plans to pay
      */
     protected function processDependent(array $dependentData): array
     {
@@ -126,16 +130,23 @@ class InsuranceWorkflowService
             throw new ValidationException('Invalid dependent data structure');
         }
 
-        // Store dependent information in eSim message metadata (no voucher creation needed)
-        $this->storeDependentInESimMessageMetadata($dependentData);
+        // Determine plan type and create individual voucher for dependent
+        $planType = $this->determinePlanType($dependentData);
 
-        // Return success info without creating any voucher/quotation
-        return [
-            'success' => true,
-            'message' => 'Dependent information stored in metadata',
-            'dependent_name' => $dependentData['firstname'] . ' ' . $dependentData['lastname'],
-            'stored_in_metadata' => true
-        ];
+        if ($planType === 'cross_selling') {
+            $voucherData = $this->buildCrossSellingVoucherData($dependentData, 'dependent');
+        } else {
+            // Default to inclusion if not cross_selling
+            $voucherData = $this->buildVoucherData($dependentData, 'dependent');
+        }
+
+        // Create individual voucher for this dependent
+        $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+
+        // Store dependent voucher information in eSim message metadata
+        $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
+
+        return $result;
     }
 
     /**
@@ -548,7 +559,483 @@ class InsuranceWorkflowService
     }
 
     /**
+     * Store voucher information in eSim message metadata for both titular and dependents
+     */
+    protected function storeVoucherInESimMessageMetadata(array $personData, array $voucherResult, string $personType): void
+    {
+        if (! $this->messageId) {
+            return;
+        }
+
+        $message = Message::getById($this->messageId);
+        $messageData = $message->message;
+
+        if (! isset($messageData['universal_assistance'])) {
+            $messageData['universal_assistance'] = [];
+        }
+
+        if (! isset($messageData['universal_assistance']['vouchers'])) {
+            $messageData['universal_assistance']['vouchers'] = [];
+        }
+
+        // Extract quotation information from the response
+        $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                    $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                    [];
+
+        // Find the specific product that matches the requested plan
+        $matchedProduct = $this->findMatchingProductInQuote($personData['plan']['name'] ?? null, $quoteData);
+
+        // Store complete voucher information with quotation details
+        $voucherInfo = [
+            'person_type' => $personType, // 'titular' or 'dependent'
+            'person_info' => [
+                'name' => $personData['firstname'] . ' ' . $personData['lastname'],
+                'firstname' => $personData['firstname'],
+                'lastname' => $personData['lastname'],
+                'id_type' => $personData['idType'],
+                'id_number' => $personData['idNumber'],
+                'date_of_birth' => $personData['dob'],
+                'email' => $personData['email'],
+                'activation_date' => $personData['activationDate'],
+                'origin_country_code' => $personData['originCountryCode'] ?? 'DO',
+                'destination_country_code' => $personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'US',
+            ],
+            'plan' => [
+                'name' => $personData['plan']['name'] ?? null,
+                'type' => $this->determinePlanType($personData),
+                'price' => $personData['plan']['price'] ?? null,
+                'duration' => $personData['plan']['duration'] ?? $personData['duration'] ?? null,
+                'attributes' => $personData['plan']['attributes'] ?? null,
+            ],
+            'quotation_details' => [
+                // Main quote information (always from main response)
+                'precio_emision' => $quoteData['PrecioEmision'] ?? null,
+                'precio_emision_local' => $quoteData['PrecioEmisionLocal'] ?? null,
+                'precio_bruto' => $quoteData['PrecioBruto'] ?? null,
+                'precio_bruto_local' => $quoteData['PrecioBrutoLocal'] ?? null,
+                'precio_unitario' => $quoteData['PrecioUnitario'] ?? null,
+                'precio_neto' => $quoteData['PrecioNeto'] ?? null,
+                'precio_neto_local' => $quoteData['PrecioNetoLocal'] ?? null,
+                'moneda_lista' => $quoteData['MonedaLista'] ?? null,
+                'moneda_local' => $quoteData['MonedaLocal'] ?? null,
+                'tipo_cambio' => $quoteData['TipoCambio'] ?? null,
+                'nombre_producto' => $quoteData['NombreProducto'] ?? null,
+                'producto' => $quoteData['Producto'] ?? null,
+                'familia_producto' => $quoteData['FamiliaProducto'] ?? null,
+                'id_producto' => $quoteData['IdProducto'] ?? null,
+                'id_lead' => $quoteData['IdLeadOut'] ?? null,
+                'ambito_geografico' => $quoteData['AmbitoGeografico'] ?? null,
+                'categoria' => $quoteData['Categoria'] ?? null,
+                'gravabilidad' => $quoteData['Gravabilidad'] ?? null,
+                'porcentaje_gravabilidad' => $quoteData['PorcentajeGravabilidad'] ?? null,
+                'marca' => $quoteData['Marca'] ?? null,
+                'logo' => $quoteData['Logo'] ?? null,
+                'quoted_at' => now()->toISOString(),
+                // Matched product specific information
+                'matched_product' => [
+                    'found' => $matchedProduct['found'] ?? false,
+                    'source' => $matchedProduct['source'] ?? null,
+                    'product_name' => $matchedProduct['product_name'] ?? null,
+                    'attribute_index' => $matchedProduct['attribute_index'] ?? null,
+                    'match_score' => $matchedProduct['match_score'] ?? null,
+                    'specific_product_data' => $matchedProduct['attribute_data'] ?? null,
+                ],
+            ],
+            'product_validation' => [
+                'plan_requested' => $personData['plan']['name'] ?? null,
+                'product_search_result' => $matchedProduct,
+                'product_quoted' => $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null),
+                'product_match' => $matchedProduct['found'] ? $matchedProduct['match_details'] : ['match' => false, 'reason' => 'Product not found in quote'],
+                'price_validation' => $this->validatePricingWithMatchedProduct($personData, $quoteData, $matchedProduct),
+                'validation_timestamp' => now()->toISOString(),
+            ],
+            'voucher_data' => [
+                'control_number' => $voucherResult['control_number'] ?? null,
+                'voucher_id' => $voucherResult['voucher_response']['IdVoucher'] ?? null,
+                'quotation_type' => $voucherResult['quotation_type'] ?? null,
+                'organization' => $voucherResult['organization'] ?? null,
+                'convenio' => $voucherResult['convenio'] ?? null,
+                'origin_used' => $voucherResult['origin_used'] ?? null,
+                'destination_used' => $voucherResult['destination_used'] ?? null,
+                'status' => 'active',
+                'created_at' => now()->toISOString(),
+            ],
+            'has_individual_voucher' => true,
+        ];
+
+        // Add minor flag if applicable
+        if (isset($personData['dob'])) {
+            try {
+                $birthDate = Carbon::parse($personData['dob']);
+                $age = $birthDate->diffInYears(now());
+                if ($age < 18) {
+                    $voucherInfo['person_info']['minor'] = true;
+                }
+            } catch (\Exception $e) {
+                // Ignore age calculation errors
+            }
+        }
+
+        $messageData['universal_assistance']['vouchers'][] = $voucherInfo;
+
+        $message->message = $messageData;
+        $message->saveOrFail();
+    }
+
+    /**
+     * Validate if the product quoted matches the requested plan
+     */
+    protected function validateProductMatch(?string $planRequested, ?string $productQuoted): array
+    {
+        if (!$planRequested || !$productQuoted) {
+            return [
+                'match' => false,
+                'reason' => 'Missing plan or product information',
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // Normalize strings for comparison
+        $planNormalized = strtolower(trim($planRequested));
+        $productNormalized = strtolower(trim($productQuoted));
+
+        // Exact match
+        if ($planNormalized === $productNormalized) {
+            return [
+                'match' => true,
+                'match_type' => 'exact',
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // Check if plan name is contained in product name
+        if (strpos($productNormalized, $planNormalized) !== false) {
+            return [
+                'match' => true,
+                'match_type' => 'partial_plan_in_product',
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // Check if product name is contained in plan name
+        if (strpos($planNormalized, $productNormalized) !== false) {
+            return [
+                'match' => true,
+                'match_type' => 'partial_product_in_plan',
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // Check for key words matching (for similar products)
+        $planWords = array_filter(explode(' ', $planNormalized));
+        $productWords = array_filter(explode(' ', $productNormalized));
+        
+        $commonWords = array_intersect($planWords, $productWords);
+        $matchPercentage = count($commonWords) / max(count($planWords), count($productWords), 1);
+
+        if ($matchPercentage >= 0.5) { // 50% or more words match
+            return [
+                'match' => true,
+                'match_type' => 'keyword_similarity',
+                'match_percentage' => round($matchPercentage * 100, 2),
+                'common_words' => array_values($commonWords),
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // No match found
+        return [
+            'match' => false,
+            'reason' => 'No sufficient similarity found',
+            'match_percentage' => round($matchPercentage * 100, 2),
+            'plan_requested' => $planRequested,
+            'product_quoted' => $productQuoted
+        ];
+    }
+
+    /**
+     * Validate pricing information from quotation
+     */
+    protected function validatePricing(array $personData, array $quoteData): array
+    {
+        $planPrice = $personData['plan']['price'] ?? null;
+        $quotedPrice = $quoteData['PrecioEmision'] ?? null;
+        $quotedCurrency = $quoteData['MonedaLista'] ?? null;
+
+        $validation = [
+            'plan_price' => $planPrice,
+            'quoted_price' => $quotedPrice,
+            'quoted_currency' => $quotedCurrency,
+            'price_match' => false,
+            'price_difference' => null,
+            'validation_notes' => []
+        ];
+
+        if ($planPrice !== null && $quotedPrice !== null) {
+            $planPriceFloat = (float) $planPrice;
+            $quotedPriceFloat = (float) $quotedPrice;
+
+            if ($planPriceFloat === $quotedPriceFloat) {
+                $validation['price_match'] = true;
+                $validation['match_type'] = 'exact';
+            } else {
+                $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ? 
+                    round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
+                
+                // Consider close matches (within 5% or $1)
+                $tolerance = max(0.05 * $planPriceFloat, 1.0);
+                if (abs($validation['price_difference']) <= $tolerance) {
+                    $validation['price_match'] = true;
+                    $validation['match_type'] = 'within_tolerance';
+                    $validation['validation_notes'][] = 'Price within acceptable tolerance';
+                }
+            }
+        } else {
+            if ($planPrice === null) {
+                $validation['validation_notes'][] = 'No plan price available for comparison';
+            }
+            if ($quotedPrice === null) {
+                $validation['validation_notes'][] = 'No quoted price received';
+            }
+        }
+
+        return $validation;
+    }
+
+    /**
+     * Validate pricing using the matched product information
+     */
+    protected function validatePricingWithMatchedProduct(array $personData, array $quoteData, array $matchedProduct): array
+    {
+        $planPrice = $personData['plan']['price'] ?? null;
+        
+        // Determine which price to use based on matched product
+        $quotedPrice = null;
+        $priceSource = 'not_found';
+        
+        if ($matchedProduct['found']) {
+            if ($matchedProduct['source'] === 'main_product') {
+                // Use main product pricing
+                $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
+                $priceSource = 'main_product';
+            } elseif (isset($matchedProduct['attribute_data'])) {
+                // Try to find price in the matched attribute
+                $attributeData = $matchedProduct['attribute_data'];
+                $quotedPrice = $attributeData['PrecioEmision'] ?? 
+                              $attributeData['Precio'] ?? 
+                              $attributeData['Valor'] ??
+                              $attributeData['price'] ?? 
+                              $attributeData['amount'] ?? null;
+                
+                if ($quotedPrice !== null) {
+                    $priceSource = 'matched_attribute';
+                } else {
+                    // Fallback to main product price if attribute doesn't have price
+                    $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
+                    $priceSource = 'main_product_fallback';
+                }
+            }
+        } else {
+            // No product match, use main quote price
+            $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
+            $priceSource = 'main_product_no_match';
+        }
+
+        $quotedCurrency = $quoteData['MonedaLista'] ?? null;
+
+        $validation = [
+            'plan_price' => $planPrice,
+            'quoted_price' => $quotedPrice,
+            'quoted_currency' => $quotedCurrency,
+            'price_source' => $priceSource,
+            'price_match' => false,
+            'price_difference' => null,
+            'validation_notes' => []
+        ];
+
+        if ($planPrice !== null && $quotedPrice !== null) {
+            // Convert to numeric values for comparison
+            $planPriceFloat = (float) $planPrice;
+            $quotedPriceFloat = (float) $quotedPrice;
+
+            if ($planPriceFloat === $quotedPriceFloat) {
+                $validation['price_match'] = true;
+                $validation['match_type'] = 'exact';
+            } else {
+                $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ? 
+                    round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
+                
+                // Consider close matches (within 5% or $1)
+                $tolerance = max(0.05 * $planPriceFloat, 1.0);
+                if (abs($validation['price_difference']) <= $tolerance) {
+                    $validation['price_match'] = true;
+                    $validation['match_type'] = 'within_tolerance';
+                    $validation['validation_notes'][] = 'Price within acceptable tolerance';
+                }
+            }
+        } else {
+            if ($planPrice === null) {
+                $validation['validation_notes'][] = 'No plan price available for comparison';
+            }
+            if ($quotedPrice === null) {
+                $validation['validation_notes'][] = 'No quoted price found for matched product';
+            }
+        }
+
+        // Add notes about product matching
+        if ($matchedProduct['found']) {
+            $validation['validation_notes'][] = "Price extracted from {$priceSource} for matched product: {$matchedProduct['product_name']}";
+        } else {
+            $validation['validation_notes'][] = 'Product not matched, using fallback pricing';
+        }
+
+        return $validation;
+    }
+
+    /**
+     * Find the specific product in the quote response that matches the requested plan
+     */
+    protected function findMatchingProductInQuote(?string $requestedPlanName, array $quoteData): array
+    {
+        if (!$requestedPlanName || empty($quoteData)) {
+            return [
+                'found' => false,
+                'reason' => 'Missing plan name or quote data'
+            ];
+        }
+
+        // First check the main product in the quote
+        $mainProductName = $quoteData['NombreProducto'] ?? null;
+        if ($mainProductName) {
+            $mainProductMatch = $this->validateProductMatch($requestedPlanName, $mainProductName);
+            if ($mainProductMatch['match']) {
+                return [
+                    'found' => true,
+                    'source' => 'main_product',
+                    'product_name' => $mainProductName,
+                    'match_details' => $mainProductMatch,
+                    'quote_data' => $quoteData
+                ];
+            }
+        }
+
+        // Search in attributes/products array if available
+        $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? $quoteData['productos'] ?? [];
+        if (!empty($attributes) && is_array($attributes)) {
+            foreach ($attributes as $index => $attribute) {
+                // Check different possible field names for product name
+                $productName = $attribute['NombreProducto'] ?? 
+                              $attribute['NombreVisible'] ?? 
+                              $attribute['Nombre'] ?? 
+                              $attribute['product_name'] ?? 
+                              $attribute['name'] ?? null;
+
+                if ($productName) {
+                    $attributeMatch = $this->validateProductMatch($requestedPlanName, $productName);
+                    if ($attributeMatch['match']) {
+                        return [
+                            'found' => true,
+                            'source' => 'attribute',
+                            'attribute_index' => $index,
+                            'product_name' => $productName,
+                            'match_details' => $attributeMatch,
+                            'attribute_data' => $attribute,
+                            'quote_data' => $quoteData
+                        ];
+                    }
+                }
+            }
+        }
+
+        // If no exact match found in attributes, try to find partial matches
+        $bestMatch = null;
+        $bestScore = 0;
+
+        if (!empty($attributes) && is_array($attributes)) {
+            foreach ($attributes as $index => $attribute) {
+                $productName = $attribute['NombreProducto'] ?? 
+                              $attribute['NombreVisible'] ?? 
+                              $attribute['Nombre'] ?? 
+                              $attribute['product_name'] ?? 
+                              $attribute['name'] ?? null;
+
+                if ($productName) {
+                    $attributeMatch = $this->validateProductMatch($requestedPlanName, $productName);
+                    if (isset($attributeMatch['match_percentage']) && $attributeMatch['match_percentage'] > $bestScore) {
+                        $bestScore = $attributeMatch['match_percentage'];
+                        $bestMatch = [
+                            'found' => false, // Not a strong match, but best available
+                            'source' => 'best_partial_match',
+                            'attribute_index' => $index,
+                            'product_name' => $productName,
+                            'match_details' => $attributeMatch,
+                            'attribute_data' => $attribute,
+                            'quote_data' => $quoteData,
+                            'match_score' => $bestScore
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Return best partial match if found, otherwise return not found
+        if ($bestMatch && $bestScore >= 30) { // At least 30% similarity
+            $bestMatch['found'] = true;
+            $bestMatch['source'] = 'partial_match';
+            return $bestMatch;
+        }
+
+        return [
+            'found' => false,
+            'reason' => 'No matching product found in quote response',
+            'requested_plan' => $requestedPlanName,
+            'available_products' => $this->extractAvailableProductNames($quoteData),
+            'main_product' => $mainProductName
+        ];
+    }
+
+    /**
+     * Extract all available product names from quote data for debugging
+     */
+    protected function extractAvailableProductNames(array $quoteData): array
+    {
+        $products = [];
+        
+        // Add main product
+        if (isset($quoteData['NombreProducto'])) {
+            $products[] = $quoteData['NombreProducto'];
+        }
+
+        // Add products from attributes
+        $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? $quoteData['productos'] ?? [];
+        if (!empty($attributes) && is_array($attributes)) {
+            foreach ($attributes as $attribute) {
+                $productName = $attribute['NombreProducto'] ?? 
+                              $attribute['NombreVisible'] ?? 
+                              $attribute['Nombre'] ?? 
+                              $attribute['product_name'] ?? 
+                              $attribute['name'] ?? null;
+                
+                if ($productName && !in_array($productName, $products)) {
+                    $products[] = $productName;
+                }
+            }
+        }
+
+        return $products;
+    }
+
+    /**
      * Store dependent information in eSim message metadata (same level as AeroAmbulancia)
+     * @deprecated Use storeVoucherInESimMessageMetadata instead
      */
     protected function storeDependentInESimMessageMetadata(array $dependentData): void
     {
