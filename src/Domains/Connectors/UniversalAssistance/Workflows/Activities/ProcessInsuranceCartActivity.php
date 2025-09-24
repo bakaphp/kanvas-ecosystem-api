@@ -80,7 +80,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Approach 3: Direct metadata fallback locations
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
-            $insuranceData = $orderMetadata['universal_assistance']['insurance'] ??
+            $insuranceData = $orderMetadata['universalAssistanceData']['insurance'] ??
+                           $orderMetadata['universal_assistance']['insurance'] ?? // Fallback for old data
                            $order->getMetadata('insurance') ??
                            [];
         }
@@ -224,8 +225,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'processed_at' => now()->toISOString(),
             'workflow_type' => 'individual_voucher_per_person',
             'holder' => null,
-            'dependents' => [],
-            'vouchers' => $allVouchers, // Consolidated list of all vouchers
+            'dependent_summary' => [], // Renamed to avoid conflict with InsuranceWorkflowService dependents
+            'voucher_summary' => $allVouchers, // Consolidated list of all vouchers (renamed to avoid conflict)
             'summary' => [
                 'titular_processed' => isset($results['titular']),
                 'dependents_processed' => isset($results['dependents']) ? count($results['dependents']) : 0,
@@ -290,7 +291,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherResponse = $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
                                            $dependent['voucher_response'] ?? [];
 
-                $universalAssistanceData['dependents'][] = [
+                $universalAssistanceData['dependent_summary'][] = [
                     'data' => $dependent,
                     'control_number' => $dependent['control_number'] ?? null,
                     'nro_voucher' => $dependentVoucherResponse['NroVoucher'] ?? null,
@@ -319,16 +320,23 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Update the message with Universal Assistance data (exact same pattern as AeroAmbulancia)
+        // Update the message with Universal Assistance data (smart merge with existing data)
         if ($messageId) {
             $message = Message::getById($messageId);
             $messageData = $message->message;
-            $messageData['universalAssistanceData'] = $universalAssistanceData;
+
+            // Smart merge with existing universalAssistanceData
+            $existingData = $messageData['universalAssistanceData'] ?? [];
+            $messageData['universalAssistanceData'] = $this->mergeUniversalAssistanceData($existingData, $universalAssistanceData);
+
             $message->message = $messageData;
             $message->saveOrFail();
         }
 
-        $order->metadata = array_merge(($order->metadata ?? []), ['universalAssistanceData' => $universalAssistanceData]);
+        // Smart merge with existing order metadata
+        $existingOrderData = $order->metadata['universalAssistanceData'] ?? [];
+        $mergedData = $this->mergeUniversalAssistanceData($existingOrderData, $universalAssistanceData);
+        $order->metadata = array_merge(($order->metadata ?? []), ['universalAssistanceData' => $mergedData]);
         $order->saveOrFail();
     }
 
@@ -382,5 +390,47 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         return $validation;
+    }
+
+    /**
+     * Smart merge of Universal Assistance data to avoid overwriting existing information
+     * Arrays are merged, objects are recursively merged
+     */
+    protected function mergeUniversalAssistanceData(array $existing, array $new): array
+    {
+        $result = $existing;
+
+        foreach ($new as $key => $value) {
+            if (! isset($result[$key])) {
+                // If key doesn't exist in existing, just add it
+                $result[$key] = $value;
+            } elseif (is_array($value) && is_array($result[$key])) {
+                // Both are arrays
+                if ($this->isAssociativeArray($value) && $this->isAssociativeArray($result[$key])) {
+                    // Both are associative arrays (objects), merge recursively
+                    $result[$key] = $this->mergeUniversalAssistanceData($result[$key], $value);
+                } else {
+                    // At least one is indexed array, append new values
+                    $result[$key] = array_merge($result[$key], $value);
+                }
+            } else {
+                // Scalar value or type mismatch, overwrite with new value
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Check if array is associative (object-like) vs indexed (list-like)
+     */
+    protected function isAssociativeArray(array $array): bool
+    {
+        if (empty($array)) {
+            return false;
+        }
+
+        return array_keys($array) !== range(0, count($array) - 1);
     }
 }
