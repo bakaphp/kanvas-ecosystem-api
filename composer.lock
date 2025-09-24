@@ -17619,16 +17619,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v1.2.0",
+            "version": "v1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "85f7de54a6b60f684fc9f7f6df5ad94f4f7d0d24"
+                "reference": "84cd7630849df6f54d8cccb047fba5d83442ef93"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/85f7de54a6b60f684fc9f7f6df5ad94f4f7d0d24",
-                "reference": "85f7de54a6b60f684fc9f7f6df5ad94f4f7d0d24",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/84cd7630849df6f54d8cccb047fba5d83442ef93",
+                "reference": "84cd7630849df6f54d8cccb047fba5d83442ef93",
                 "shasum": ""
             },
             "require": {
@@ -17639,7 +17639,7 @@
                 "illuminate/support": "^10.49.0|^11.45.3|^12.28.1",
                 "laravel/mcp": "^0.2.0",
                 "laravel/prompts": "0.1.25|^0.3.6",
-                "laravel/roster": "^0.2.6",
+                "laravel/roster": "^0.2.8",
                 "php": "^8.1"
             },
             "require-dev": {
@@ -17647,7 +17647,8 @@
                 "mockery/mockery": "^1.6.12",
                 "orchestra/testbench": "^8.36.0|^9.15.0|^10.6",
                 "pestphp/pest": "^2.36.0|^3.8.4",
-                "phpstan/phpstan": "^2.1.27"
+                "phpstan/phpstan": "^2.1.27",
+                "rector/rector": "^2.1"
             },
             "type": "library",
             "extra": {
@@ -17680,7 +17681,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2025-09-18T13:05:07+00:00"
+            "time": "2025-09-23T07:31:42+00:00"
         },
         {
             "name": "laravel/mcp",
@@ -17757,16 +17758,16 @@
         },
         {
             "name": "laravel/roster",
-            "version": "v0.2.7",
+            "version": "v0.2.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/roster.git",
-                "reference": "9de07bfb52cfe4e5a1fec10b8a446d6add8376cd"
+                "reference": "832a6db43743bf08a58691da207f977ec8dc43aa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/roster/zipball/9de07bfb52cfe4e5a1fec10b8a446d6add8376cd",
-                "reference": "9de07bfb52cfe4e5a1fec10b8a446d6add8376cd",
+                "url": "https://api.github.com/repos/laravel/roster/zipball/832a6db43743bf08a58691da207f977ec8dc43aa",
+                "reference": "832a6db43743bf08a58691da207f977ec8dc43aa",
                 "shasum": ""
             },
             "require": {
@@ -17814,7 +17815,7 @@
                 "issues": "https://github.com/laravel/roster/issues",
                 "source": "https://github.com/laravel/roster"
             },
-            "time": "2025-09-18T13:53:41+00:00"
+            "time": "2025-09-22T13:28:47+00:00"
         },
         {
             "name": "mockery/mockery",
