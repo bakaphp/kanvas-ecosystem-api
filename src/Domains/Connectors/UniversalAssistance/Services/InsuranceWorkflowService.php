@@ -139,6 +139,13 @@ class InsuranceWorkflowService
         $result['product_validation'] = $productValidation;
         $result['price_validation'] = $priceValidation;
 
+        // Generate PDF for the voucher if voucher was created successfully
+        if (isset($result['voucher_response']) && 
+            isset($result['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
+            $pdfResult = $this->generateVoucherPDF($result, $titularData);
+            $result['pdf_data'] = $pdfResult;
+        }
+
         // Store titular voucher information in eSim message metadata
         $this->storeVoucherInESimMessageMetadata($titularData, $result, 'titular');
 
@@ -191,6 +198,13 @@ class InsuranceWorkflowService
         $result['matched_product'] = $matchedProduct;
         $result['product_validation'] = $productValidation;
         $result['price_validation'] = $priceValidation;
+
+        // Generate PDF for the voucher if voucher was created successfully
+        if (isset($result['voucher_response']) && 
+            isset($result['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
+            $pdfResult = $this->generateVoucherPDF($result, $dependentData);
+            $result['pdf_data'] = $pdfResult;
+        }
 
         // Store dependent voucher information in eSim message metadata
         $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
@@ -723,6 +737,13 @@ class InsuranceWorkflowService
                 'status' => 'active',
                 'created_at' => now()->toISOString(),
             ],
+            'pdf_data' => [
+                'success' => $voucherResult['pdf_data']['success'] ?? false,
+                'pdf_url' => $voucherResult['pdf_data']['pdf_url'] ?? null,
+                'error' => $voucherResult['pdf_data']['error'] ?? null,
+                'generated_at' => $voucherResult['pdf_data']['generated_at'] ?? null,
+                'raw_response' => $voucherResult['pdf_data']['raw_response'] ?? null,
+            ],
             'has_individual_voucher' => true,
         ];
 
@@ -1156,6 +1177,83 @@ class InsuranceWorkflowService
 
         $message->message = $messageData;
         $message->saveOrFail();
+    }
+
+    /**
+     * Generate PDF for a voucher using the sendReport method
+     */
+    protected function generateVoucherPDF(array $voucherResult, array $personData): array
+    {
+        $pdfResult = [
+            'success' => false,
+            'pdf_url' => null,
+            'error' => null,
+            'generated_at' => now()->toISOString(),
+            'person_name' => ($personData['firstname'] ?? '') . ' ' . ($personData['lastname'] ?? ''),
+        ];
+
+        try {
+            // Extract voucher number from the response - NroVoucher is the actual voucher ID
+            $voucherNumber = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ??
+                            $voucherResult['voucher_response']['NroVoucher'] ??
+                            null;
+
+            if (!$voucherNumber) {
+                $pdfResult['error'] = 'No voucher number (NroVoucher) found to generate PDF';
+                return $pdfResult;
+            }
+
+            // Extract quotation data to get the tarifa (pricing information)
+            $quoteData = $voucherResult['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                        $voucherResult['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                        [];
+
+            // Build report data for PDF generation using the NroVoucher
+            $reportData = [
+                'Language' => 'Spanish',  // Default to Spanish
+                'VoucherNumber' => $voucherNumber, // This should be the NroVoucher (e.g., T417502009)
+                'Tarifa' => '',
+                'Organization' => $voucherResult['organization'] ?? '1-ENYNUF7'
+            ];
+
+            // Generate PDF using the sendReport method
+            $pdfResponse = $this->client->sendReport($reportData, false);
+
+            if (is_array($pdfResponse) && !empty($pdfResponse)) {
+                // Check if PDF was generated successfully
+                // The response typically contains a URL or base64 data
+                if (isset($pdfResponse['PDFUrl']) || isset($pdfResponse['Url']) || isset($pdfResponse['Link'])) {
+                    $pdfResult['success'] = true;
+                    $pdfResult['pdf_url'] = $pdfResponse['PDFUrl'] ?? $pdfResponse['Url'] ?? $pdfResponse['Link'];
+                } elseif (isset($pdfResponse['PDFData']) || isset($pdfResponse['Data'])) {
+                    $pdfResult['success'] = true;
+                    $pdfResult['pdf_data'] = $pdfResponse['PDFData'] ?? $pdfResponse['Data'];
+                    $pdfResult['pdf_url'] = 'data:application/pdf;base64,' . ($pdfResponse['PDFData'] ?? $pdfResponse['Data']);
+                } else {
+                    // Check for any URL-like field in the response
+                    foreach ($pdfResponse as $key => $value) {
+                        if (is_string($value) && (strpos($value, 'http') === 0 || strpos($value, 'www.') !== false)) {
+                            $pdfResult['success'] = true;
+                            $pdfResult['pdf_url'] = $value;
+                            break;
+                        }
+                    }
+
+                    if (!$pdfResult['success']) {
+                        $pdfResult['error'] = 'PDF generated but no URL found in response';
+                        $pdfResult['raw_response'] = $pdfResponse;
+                    }
+                }
+            } else {
+                $pdfResult['error'] = 'Invalid or empty PDF response';
+                $pdfResult['raw_response'] = $pdfResponse;
+            }
+
+        } catch (\Exception $e) {
+            $pdfResult['error'] = 'PDF generation failed: ' . $e->getMessage();
+        }
+
+        return $pdfResult;
     }
 
     /**
