@@ -214,8 +214,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'productos_cotizados' => array_filter(array_column($allVouchers, 'nombre_producto')),
                 'precios_emision' => array_filter(array_column($allVouchers, 'precio_emision')),
                 'monedas_cotizacion' => array_unique(array_filter(array_column($allVouchers, 'moneda_lista'))),
-                'successful_vouchers' => count(array_filter($allVouchers, fn($v) => ($v['error_code'] ?? null) === '00')),
-                'failed_vouchers' => count(array_filter($allVouchers, fn($v) => ($v['error_code'] ?? null) !== '00')),
+                'successful_vouchers' => count(array_filter($allVouchers, fn ($v) => ($v['error_code'] ?? null) === '00')),
+                'failed_vouchers' => count(array_filter($allVouchers, fn ($v) => ($v['error_code'] ?? null) !== '00')),
             ],
         ];
 
