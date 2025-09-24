@@ -44,18 +44,27 @@ class InsuranceWorkflowService
         // Convert any objects to arrays to prevent stdClass errors
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
+        // Extract titular's country information to use for all family members
+        $titularOriginCountryCode = null;
+        $titularDestinationCountryCode = null;
+
         // Process titular (main applicant)
         if (isset($insuranceData['titular'])) {
+            // Extract country codes from titular data
+            $titularOriginCountryCode = $insuranceData['titular']['originCountryCode'] ?? 'AR';
+            $titularDestinationCountryCode = $insuranceData['titular']['destinationCountryCode'] ??
+                                           $insuranceData['titular']['destinyCountryCode'] ?? 'DO';
+
             $results['titular'] = $this->processTitular($insuranceData['titular']);
         } else {
             throw new ValidationException('Titular data not found in insurance data');
         }
 
-        // Process dependents
+        // Process dependents using titular's country information
         if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
             $results['dependents'] = [];
             foreach ($insuranceData['dependents'] as $dependent) {
-                $results['dependents'][] = $this->processDependent($dependent);
+                $results['dependents'][] = $this->processDependent($dependent, $titularOriginCountryCode, $titularDestinationCountryCode);
             }
         }
 
@@ -104,14 +113,18 @@ class InsuranceWorkflowService
             throw new ValidationException('Invalid titular data structure');
         }
 
+        // Extract origin and destination country codes from input data
+        $originCountryCode = $titularData['originCountryCode'] ?? 'AR'; // Default to Argentina
+        $destinationCountryCode = $titularData['destinationCountryCode'] ?? $titularData['destinyCountryCode'] ?? 'DO'; // Default to Dominican Republic
+
         // Determine plan type and create single voucher accordingly
         $planType = $this->determinePlanType($titularData);
 
         if ($planType === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingVoucherData($titularData, 'titular');
+            $voucherData = $this->buildCrossSellingVoucherData($titularData, 'titular', $originCountryCode, $destinationCountryCode);
         } else {
             // Default to inclusion if not cross_selling
-            $voucherData = $this->buildVoucherData($titularData, 'titular');
+            $voucherData = $this->buildVoucherData($titularData, 'titular', $originCountryCode, $destinationCountryCode);
         }
 
         // Add small delay to ensure unique timestamps for control numbers
@@ -156,7 +169,7 @@ class InsuranceWorkflowService
      * Process dependent insurance
      * Each dependent gets their own voucher since they have individual plans to pay
      */
-    protected function processDependent(array $dependentData): array
+    protected function processDependent(array $dependentData, string $titularOriginCountryCode, string $titularDestinationCountryCode): array
     {
         // Validate dependent data structure
         if (! $this->validatePersonData($dependentData, 'dependent')) {
@@ -167,10 +180,10 @@ class InsuranceWorkflowService
         $planType = $this->determinePlanType($dependentData);
 
         if ($planType === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingVoucherData($dependentData, 'dependent');
+            $voucherData = $this->buildCrossSellingVoucherData($dependentData, 'dependent', $titularOriginCountryCode, $titularDestinationCountryCode);
         } else {
             // Default to inclusion if not cross_selling
-            $voucherData = $this->buildVoucherData($dependentData, 'dependent');
+            $voucherData = $this->buildVoucherData($dependentData, 'dependent', $titularOriginCountryCode, $titularDestinationCountryCode);
         }
 
         // Create individual voucher for this dependent
@@ -215,10 +228,10 @@ class InsuranceWorkflowService
     /**
      * Build voucher data for Universal Assistance from cart data
      */
-    protected function buildVoucherData(array $personData, string $personType): array
+    protected function buildVoucherData(array $personData, string $personType, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): array
     {
         // Convert destinationCountryCode to destination name (based on real input structure)
-        $destination = $this->getDestinationName($personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'DO');
+        $destination = $this->getDestinationName($destinationCountryCode);
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
@@ -233,8 +246,8 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1); // -1 because the activation day counts
 
-        // Get contract using enum
-        $contract = ContractEnum::getContract('inclusion', $destination);
+        // Use the new country-based convenio logic instead of ContractEnum
+        $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'inclusion');
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -248,7 +261,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $contract->value, // Using enum for contract logic
+            'Contrato' => $contract, // Using country-based convenio logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
@@ -278,10 +291,10 @@ class InsuranceWorkflowService
     /**
      * Build Cross Selling voucher data with different pricing and enhanced features
      */
-    protected function buildCrossSellingVoucherData(array $personData, string $personType): array
+    protected function buildCrossSellingVoucherData(array $personData, string $personType, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): array
     {
         // Convert destinationCountryCode to destination name (based on real input structure)
-        $destination = $this->getDestinationName($personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'DO');
+        $destination = $this->getDestinationName($destinationCountryCode);
 
         // Validate destination
         if (! $this->isValidDestination($destination)) {
@@ -294,8 +307,8 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1);
 
-        // Get contract using enum for Cross Selling
-        $contract = ContractEnum::getContract('cross_selling', $destination);
+        // Use the new country-based convenio logic for Cross Selling
+        $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'cross_selling');
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -309,7 +322,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $contract->value, // Using enum for Cross Selling contract
+            'Contrato' => $contract, // Using country-based convenio logic for Cross Selling
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
