@@ -34,7 +34,7 @@ class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Use the new action class
-                sleep(10); // wait for 10 seconds to make sure the image is processed
+                sleep(30); // wait for 30 seconds to make sure the image is processed
                 $action = new ProcessPeopleDriverLicenseVerificationAction(
                     $people,
                     $params
