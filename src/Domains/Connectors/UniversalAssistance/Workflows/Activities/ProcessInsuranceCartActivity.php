@@ -48,22 +48,32 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function getActivityData(Order $order, array $params): array
     {
-        // Get Universal Assistance data from order metadata->esims (same structure as input shows)
-        $insuranceData = null;
+        // Get Universal Assistance data from order metadata or params (same pattern as AeroAmbulancia)
+        $insuranceData = $order->getMetadata('insurance') ?? $params['insurance'] ?? [];
+        
+        // If not found in metadata/params, look in order items metadata (same as AeroAmbulancia B2B)
+        if (empty($insuranceData)) {
+            // Process each order item to find insurance plans (same pattern as AeroAmbulancia B2B)
+            foreach ($order->allItems()->get() as $orderItem) {
+                $itemMetadata = $orderItem->metadata ?? [];
 
-        // Look for insurance data in order metadata->esims
-        $orderMetadata = $order->metadata ?? [];
-        if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
-            foreach ($orderMetadata['esims'] as $esim) {
-                if (isset($esim['eSimDetails']['insurance'])) {
-                    $insuranceData = $esim['eSimDetails']['insurance'];
-                    break;
+                if (isset($itemMetadata['eSimDetails']) && is_array($itemMetadata['eSimDetails'])) {
+                    foreach ($itemMetadata['eSimDetails'] as $detail) {
+                        if (isset($detail['insurance'])) {
+                            $insuranceData = $detail['insurance'];
+                            break 2; // Break out of both loops
+                        }
+                    }
                 }
             }
         }
-
+        
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Universal Assistance insurance data not found in order metadata');
+            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required in order metadata');
+        }
+
+        if (! isset($insuranceData['titular'])) {
+            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance metadata');
         }
 
         // Get eSim message ID from order (same way as AeroAmbulancia)
