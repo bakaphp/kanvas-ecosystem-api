@@ -190,7 +190,7 @@ class ProcessPeopleDriverLicenseVerificationAction
         $this->processDriverLicenseImages($message, $driverLicenseImage, $isIdValid, $isExpired);
 
         return [
-            'people_id' => $lead->people->id,
+            'people_id' => $this->people->id,
             'engagement_id' => $engagement->getId(),
             'message_id' => $message->getId(),
             'id_valid' => $isIdValid,
