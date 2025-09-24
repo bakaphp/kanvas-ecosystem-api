@@ -130,9 +130,17 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
 
+            // Extract voucher numbers from response
+            $voucherResponse = $results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
+                              $results['titular']['voucher_response'] ?? [];
+
             $allVouchers[] = [
                 'person_type' => 'titular',
                 'control_number' => $results['titular']['control_number'] ?? null,
+                'nro_voucher' => $voucherResponse['NroVoucher'] ?? null,
+                'nro_control_ext' => $voucherResponse['NroControlExt'] ?? null,
+                'error_code' => $voucherResponse['ErrorCode'] ?? null,
+                'error_msg' => $voucherResponse['ErrorMsg'] ?? null,
                 'voucher_id' => $results['titular']['voucher_response']['IdVoucher'] ?? null,
                 'quotation_type' => $results['titular']['quotation_type'] ?? null,
                 'organization' => $results['titular']['organization'] ?? null,
@@ -141,6 +149,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'moneda_lista' => $titularQuoteData['MonedaLista'] ?? null,
                 'nombre_producto' => $titularQuoteData['NombreProducto'] ?? null,
                 'producto' => $titularQuoteData['Producto'] ?? null,
+                'id_producto' => $titularQuoteData['IdProducto'] ?? null,
+                'precio_neto' => $titularQuoteData['PrecioNeto'] ?? null,
+                'product_validation' => $results['titular']['product_validation'] ?? null,
+                'price_validation' => $results['titular']['price_validation'] ?? null,
                 'status' => 'active',
                 'created_at' => now()->toISOString(),
             ];
@@ -153,10 +165,18 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                      $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
 
+                // Extract voucher numbers from dependent response
+                $dependentVoucherResponse = $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
+                                           $dependent['voucher_response'] ?? [];
+
                 $allVouchers[] = [
                     'person_type' => 'dependent',
                     'dependent_index' => $index,
                     'control_number' => $dependent['control_number'] ?? null,
+                    'nro_voucher' => $dependentVoucherResponse['NroVoucher'] ?? null,
+                    'nro_control_ext' => $dependentVoucherResponse['NroControlExt'] ?? null,
+                    'error_code' => $dependentVoucherResponse['ErrorCode'] ?? null,
+                    'error_msg' => $dependentVoucherResponse['ErrorMsg'] ?? null,
                     'voucher_id' => $dependent['voucher_response']['IdVoucher'] ?? null,
                     'quotation_type' => $dependent['quotation_type'] ?? null,
                     'organization' => $dependent['organization'] ?? null,
@@ -165,6 +185,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'moneda_lista' => $dependentQuoteData['MonedaLista'] ?? null,
                     'nombre_producto' => $dependentQuoteData['NombreProducto'] ?? null,
                     'producto' => $dependentQuoteData['Producto'] ?? null,
+                    'id_producto' => $dependentQuoteData['IdProducto'] ?? null,
+                    'precio_neto' => $dependentQuoteData['PrecioNeto'] ?? null,
+                    'product_validation' => $dependent['product_validation'] ?? null,
+                    'price_validation' => $dependent['price_validation'] ?? null,
                     'status' => 'active',
                     'created_at' => now()->toISOString(),
                 ];
@@ -184,10 +208,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'total_vouchers_created' => $totalVouchers,
                 'individual_vouchers' => true,
                 'voucher_ids' => array_filter(array_column($allVouchers, 'voucher_id')),
+                'nro_vouchers' => array_filter(array_column($allVouchers, 'nro_voucher')),
                 'control_numbers' => array_filter(array_column($allVouchers, 'control_number')),
+                'nro_control_ext' => array_filter(array_column($allVouchers, 'nro_control_ext')),
                 'productos_cotizados' => array_filter(array_column($allVouchers, 'nombre_producto')),
                 'precios_emision' => array_filter(array_column($allVouchers, 'precio_emision')),
                 'monedas_cotizacion' => array_unique(array_filter(array_column($allVouchers, 'moneda_lista'))),
+                'successful_vouchers' => count(array_filter($allVouchers, fn ($v) => ($v['error_code'] ?? null) === '00')),
+                'failed_vouchers' => count(array_filter($allVouchers, fn ($v) => ($v['error_code'] ?? null) !== '00')),
             ],
         ];
 
@@ -197,9 +225,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                [];
 
+            $titularVoucherResponse = $results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
+                                     $results['titular']['voucher_response'] ?? [];
+
             $universalAssistanceData['holder'] = [
                 'data' => $results['titular'],
                 'control_number' => $results['titular']['control_number'] ?? null,
+                'nro_voucher' => $titularVoucherResponse['NroVoucher'] ?? null,
+                'nro_control_ext' => $titularVoucherResponse['NroControlExt'] ?? null,
+                'error_code' => $titularVoucherResponse['ErrorCode'] ?? null,
+                'error_msg' => $titularVoucherResponse['ErrorMsg'] ?? null,
                 'voucher_id' => $results['titular']['voucher_response']['IdVoucher'] ?? null,
                 'quotation_type' => $results['titular']['quotation_type'] ?? null,
                 'organization' => $results['titular']['organization'] ?? null,
@@ -211,7 +246,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'producto' => $titularQuoteData['Producto'] ?? null,
                     'id_producto' => $titularQuoteData['IdProducto'] ?? null,
                     'precio_neto' => $titularQuoteData['PrecioNeto'] ?? null,
+                    'matched_product' => $results['titular']['matched_product'] ?? null,
                 ],
+                'product_validation' => $results['titular']['product_validation'] ?? null,
+                'price_validation' => $results['titular']['price_validation'] ?? null,
+                'voucher_success' => ($titularVoucherResponse['ErrorCode'] ?? null) === '00',
                 'status' => 'active',
                 'has_individual_voucher' => true,
             ];
@@ -224,9 +263,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                      $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                      [];
 
+                $dependentVoucherResponse = $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
+                                           $dependent['voucher_response'] ?? [];
+
                 $universalAssistanceData['dependents'][] = [
                     'data' => $dependent,
                     'control_number' => $dependent['control_number'] ?? null,
+                    'nro_voucher' => $dependentVoucherResponse['NroVoucher'] ?? null,
+                    'nro_control_ext' => $dependentVoucherResponse['NroControlExt'] ?? null,
+                    'error_code' => $dependentVoucherResponse['ErrorCode'] ?? null,
+                    'error_msg' => $dependentVoucherResponse['ErrorMsg'] ?? null,
                     'voucher_id' => $dependent['voucher_response']['IdVoucher'] ?? null,
                     'quotation_type' => $dependent['quotation_type'] ?? null,
                     'organization' => $dependent['organization'] ?? null,
@@ -238,7 +284,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         'producto' => $dependentQuoteData['Producto'] ?? null,
                         'id_producto' => $dependentQuoteData['IdProducto'] ?? null,
                         'precio_neto' => $dependentQuoteData['PrecioNeto'] ?? null,
+                        'matched_product' => $dependent['matched_product'] ?? null,
                     ],
+                    'product_validation' => $dependent['product_validation'] ?? null,
+                    'price_validation' => $dependent['price_validation'] ?? null,
+                    'voucher_success' => ($dependentVoucherResponse['ErrorCode'] ?? null) === '00',
                     'status' => 'active',
                     'has_individual_voucher' => true,
                 ];

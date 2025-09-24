@@ -113,6 +113,24 @@ class InsuranceWorkflowService
 
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
 
+        // Extract quotation data for validation
+        $quoteData = $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                    $result['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                    [];
+
+        // Perform product matching and price validation
+        $matchedProduct = $this->findMatchingProductInQuote($titularData['plan']['name'] ?? null, $quoteData);
+        $productValidation = $this->validateProductMatch(
+            $titularData['plan']['name'] ?? null,
+            $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null)
+        );
+        $priceValidation = $this->validatePricingWithMatchedProduct($titularData, $quoteData, $matchedProduct);
+
+        // Add validation results to the response
+        $result['matched_product'] = $matchedProduct;
+        $result['product_validation'] = $productValidation;
+        $result['price_validation'] = $priceValidation;
+
         // Store titular voucher information in eSim message metadata
         $this->storeVoucherInESimMessageMetadata($titularData, $result, 'titular');
 
@@ -142,6 +160,24 @@ class InsuranceWorkflowService
 
         // Create individual voucher for this dependent
         $result = $this->client->createSingleQuotation($voucherData, $planType, $this->order, false);
+
+        // Extract quotation data for validation
+        $quoteData = $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                    $result['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                    [];
+
+        // Perform product matching and price validation
+        $matchedProduct = $this->findMatchingProductInQuote($dependentData['plan']['name'] ?? null, $quoteData);
+        $productValidation = $this->validateProductMatch(
+            $dependentData['plan']['name'] ?? null,
+            $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null)
+        );
+        $priceValidation = $this->validatePricingWithMatchedProduct($dependentData, $quoteData, $matchedProduct);
+
+        // Add validation results to the response
+        $result['matched_product'] = $matchedProduct;
+        $result['product_validation'] = $productValidation;
+        $result['price_validation'] = $priceValidation;
 
         // Store dependent voucher information in eSim message metadata
         $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
