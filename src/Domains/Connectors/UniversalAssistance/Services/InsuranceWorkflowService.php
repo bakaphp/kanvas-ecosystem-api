@@ -140,7 +140,7 @@ class InsuranceWorkflowService
         $result['price_validation'] = $priceValidation;
 
         // Generate PDF for the voucher if voucher was created successfully
-        if (isset($result['voucher_response']) && 
+        if (isset($result['voucher_response']) &&
             isset($result['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
             $pdfResult = $this->generateVoucherPDF($result, $titularData);
             $result['pdf_data'] = $pdfResult;
@@ -200,7 +200,7 @@ class InsuranceWorkflowService
         $result['price_validation'] = $priceValidation;
 
         // Generate PDF for the voucher if voucher was created successfully
-        if (isset($result['voucher_response']) && 
+        if (isset($result['voucher_response']) &&
             isset($result['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
             $pdfResult = $this->generateVoucherPDF($result, $dependentData);
             $result['pdf_data'] = $pdfResult;
@@ -1198,7 +1198,7 @@ class InsuranceWorkflowService
                             $voucherResult['voucher_response']['NroVoucher'] ??
                             null;
 
-            if (!$voucherNumber) {
+            if (! $voucherNumber) {
                 $pdfResult['error'] = 'No voucher number (NroVoucher) found to generate PDF';
                 return $pdfResult;
             }
@@ -1219,7 +1219,7 @@ class InsuranceWorkflowService
             // Generate PDF using the sendReport method
             $pdfResponse = $this->client->sendReport($reportData, false);
 
-            if (is_array($pdfResponse) && !empty($pdfResponse)) {
+            if (is_array($pdfResponse) && ! empty($pdfResponse)) {
                 // Check if PDF was generated successfully
                 // The response typically contains a URL or base64 data
                 if (isset($pdfResponse['PDFUrl']) || isset($pdfResponse['Url']) || isset($pdfResponse['Link'])) {
