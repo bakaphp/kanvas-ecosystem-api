@@ -1238,19 +1238,6 @@ class InsuranceWorkflowService
                 return $pdfResult;
             }
 
-            // Try alternative approaches if Tarifa is empty - some reports might work without it
-            if (empty($reportData['Tarifa'])) {
-                // Try to get price from voucher response directly
-                $alternativePrice = $voucherResult['voucher_response']['Precio'] ??
-                                  $voucherResult['voucher_response']['PrecioTotal'] ??
-                                  $voucherResult['voucher_response']['Amount'] ??
-                                  '0.00';
-
-                if ($alternativePrice && is_numeric($alternativePrice)) {
-                    $reportData['Tarifa'] = number_format((float)$alternativePrice, 2, '.', '');
-                }
-            }
-
             // Add debug info to help with troubleshooting
             $pdfResult['request_data'] = $reportData;
 
@@ -1811,9 +1798,16 @@ class InsuranceWorkflowService
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
-        // Ensure Tarifa is 'N' and Precio is empty as requested
+        // Extract precio de emision from the quotation data
+        $precioEmision = '';
+        if (isset($selectedQuotation['quotation_data']['result']['quotation_data'])) {
+            $quoteData = $this->extractQuoteData($selectedQuotation['quotation_data']['result']['quotation_data']);
+            $precioEmision = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? $quoteData['PrecioBruto'] ?? '';
+        }
+
+        // Set Tarifa and use precio de emision from quotation
         $voucherData['Tarifa'] = 'N';
-        $voucherData['Precio'] = '';
+        $voucherData['Precio'] = $precioEmision;
 
         // Use the plan name directly as requested - no matching needed
         if (isset($personData['plan']['name']) && ! empty($personData['plan']['name'])) {
@@ -2152,7 +2146,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $convenio, // Use the specific convenio from variant logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
@@ -2211,7 +2205,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $convenio, // Use the specific convenio from variant logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
