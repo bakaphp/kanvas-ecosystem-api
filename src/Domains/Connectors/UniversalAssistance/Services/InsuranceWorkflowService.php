@@ -2288,7 +2288,7 @@ class InsuranceWorkflowService
     protected function extractConvenioWithFallback(array $selectedQuotation, array $personData): string
     {
         // Primary source: convenio from selected quotation
-        if (!empty($selectedQuotation['convenio'])) {
+        if (! empty($selectedQuotation['convenio'])) {
             return $selectedQuotation['convenio'];
         }
 
@@ -2306,7 +2306,7 @@ class InsuranceWorkflowService
         if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['organization'])) {
             $organization = $selectedQuotation['quotation_data']['result']['quotation_data']['organization'];
             // If organization field contains convenio-like pattern
-            if (!empty($organization)) {
+            if (! empty($organization)) {
                 return $organization;
             }
         }
@@ -2318,7 +2318,7 @@ class InsuranceWorkflowService
             // Map variants to known convenios (based on your workflow logic)
             $variantConvenioMap = [
                 'limited' => '1-EO7PJQQ',     // inclusion convenio
-                'unlimited' => '1-EO7PJQL',   // cross_selling convenio  
+                'unlimited' => '1-EO7PJQL',   // cross_selling convenio
                 'basic' => '1-EO7PJQQ',
                 'premium' => '1-EO7PJQL'
             ];
