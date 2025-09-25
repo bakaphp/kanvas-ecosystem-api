@@ -11,25 +11,23 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Users\Models\Users;
 
-class SetupLeadsCommand extends Command
+class SetupReceiversCommand extends Command
 {
-    protected $signature = 'kanvas:sa-setup-leads {app_id} {company_id} {userId} {rotationId} {--receivers= : Comma-separated list of receiver names (optional)}';
+    protected $signature = 'kanvas:sa-setup-receivers {app_id} {company_id} {userId} {rotationId} {--receivers= : Comma-separated list of receiver names (optional)}';
 
     /**
      * Execute the console command.
      */
-
-    
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('userId'));
         $rotationId = (int) $this->argument('rotationId');
-        
+
         // Get receivers from option or use defaults
         $receiversOption = $this->option('receivers');
-        $receivers = $receiversOption 
+        $receivers = $receiversOption
             ? array_map('trim', explode(',', $receiversOption))
             : null;
 
@@ -50,10 +48,10 @@ class SetupLeadsCommand extends Command
             'carPage',
             'offers',
         ];
-        
+
         // Use custom receivers if provided, otherwise use defaults
         $receivers = $customReceivers ?? $defaultReceivers;
-        
+
         $storedReceivers = [];
 
         foreach ($receivers as $receiverName) {
@@ -76,7 +74,5 @@ class SetupLeadsCommand extends Command
         foreach ($storedReceivers as $id) {
             $this->info($id);
         }
-        
     }
-    
 }
