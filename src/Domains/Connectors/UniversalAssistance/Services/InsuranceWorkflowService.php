@@ -44,6 +44,9 @@ class InsuranceWorkflowService
         // Convert any objects to arrays to prevent stdClass errors
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
+        // Extract variant type from eSIM data if available
+        $esimVariantType = $this->extractVariantTypeFromESimData($insuranceData);
+
         // Extract titular's country information to use for all family members
         $titularOriginCountryCode = null;
         $titularDestinationCountryCode = null;
@@ -55,7 +58,13 @@ class InsuranceWorkflowService
             $titularDestinationCountryCode = $insuranceData['titular']['destinationCountryCode'] ??
                                            $insuranceData['titular']['destinyCountryCode'] ?? 'DO';
 
-            $results['titular'] = $this->processTitular($insuranceData['titular']);
+            // Add variant information to titular data
+            $titularDataWithVariant = $insuranceData['titular'];
+            if ($esimVariantType) {
+                $titularDataWithVariant['variantType'] = $esimVariantType;
+            }
+
+            $results['titular'] = $this->processTitular($titularDataWithVariant);
         } else {
             throw new ValidationException('Titular data not found in insurance data');
         }
@@ -64,11 +73,45 @@ class InsuranceWorkflowService
         if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
             $results['dependents'] = [];
             foreach ($insuranceData['dependents'] as $dependent) {
-                $results['dependents'][] = $this->processDependent($dependent, $titularOriginCountryCode, $titularDestinationCountryCode);
+                // Add variant information to dependent data
+                $dependentDataWithVariant = $dependent;
+                if ($esimVariantType) {
+                    $dependentDataWithVariant['variantType'] = $esimVariantType;
+                }
+
+                $results['dependents'][] = $this->processDependent($dependentDataWithVariant, $titularOriginCountryCode, $titularDestinationCountryCode);
             }
         }
 
         return $results;
+    }
+
+    /**
+     * Extract variant type from the global eSIM data context
+     */
+    private function extractVariantTypeFromESimData(array $data): ?string
+    {
+        // Check if we're processing from a full order/eSIM context
+        if (isset($data['variant_info']['attributes']['Variant Type'])) {
+            $variantType = strtolower(trim($data['variant_info']['attributes']['Variant Type']));
+            if (in_array($variantType, ['basic', 'unlimited'])) {
+                return $variantType;
+            }
+        }
+
+        if (isset($data['eSimDetails']['variantType'])) {
+            $variantType = strtolower(trim($data['eSimDetails']['variantType']));
+            if (in_array($variantType, ['basic', 'unlimited'])) {
+                return $variantType;
+            }
+        }
+
+        // Try to get variant info from the order's eSIM data if available
+        if ($this->messageId) {
+            return $this->getVariantTypeFromOrderESim();
+        }
+
+        return null;
     }
 
 
@@ -1490,11 +1533,11 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Extract variant type from multiple possible sources in person data
+     * Extract variant type from person data (now includes variant injected from eSIM data)
      */
     protected function extractVariantType(array $personData): string
     {
-        // 1. Try direct variantType field (most common location)
+        // 1. Try direct variantType field (injected from eSIM data)
         if (isset($personData['variantType'])) {
             $variantType = strtolower(trim($personData['variantType']));
             if (in_array($variantType, ['basic', 'unlimited'])) {
@@ -1502,7 +1545,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // 2. Try variant_info attributes (from eSIM order metadata)
+        // 2. Try variant_info attributes (fallback if still present)
         if (isset($personData['variant_info']['attributes']['Variant Type'])) {
             $variantType = strtolower(trim($personData['variant_info']['attributes']['Variant Type']));
             if (in_array($variantType, ['basic', 'unlimited'])) {
@@ -1510,7 +1553,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // 3. Try eSimDetails variantType (alternative location)
+        // 3. Try eSimDetails variantType (fallback if still present)
         if (isset($personData['eSimDetails']['variantType'])) {
             $variantType = strtolower(trim($personData['eSimDetails']['variantType']));
             if (in_array($variantType, ['basic', 'unlimited'])) {
@@ -1518,25 +1561,13 @@ class InsuranceWorkflowService
             }
         }
 
-        // 4. Try variant object directly
-        if (isset($personData['variant']['attributes']) && is_array($personData['variant']['attributes'])) {
-            foreach ($personData['variant']['attributes'] as $attribute) {
-                if (isset($attribute['name']) && $attribute['name'] === 'Variant Type') {
-                    $variantType = strtolower(trim($attribute['value']));
-                    if (in_array($variantType, ['basic', 'unlimited'])) {
-                        return $variantType;
-                    }
-                }
-            }
-        }
-
-        // 5. Try plan variant/type fields
+        // 4. Try plan variant/type fields
         $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? '');
         if (in_array($planVariant, ['basic', 'unlimited'])) {
             return $planVariant;
         }
 
-        // 6. Try to infer from plan name
+        // 5. Try to infer from plan name
         $planName = strtolower($personData['plan']['name'] ?? '');
         if (strpos($planName, 'unlimited') !== false || strpos($planName, 'ilimitad') !== false) {
             return 'unlimited';
@@ -1545,7 +1576,7 @@ class InsuranceWorkflowService
             return 'basic';
         }
 
-        // 7. Try to get variant info from the order's eSIM data if available
+        // 6. Try to get variant info from the order's eSIM data if available (last resort)
         if ($this->messageId) {
             $variantType = $this->getVariantTypeFromOrderESim();
             if ($variantType) {
@@ -1553,7 +1584,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // 8. Default to basic if no variant type found
+        // 7. Default to basic if no variant type found
         return 'basic';
     }
 
