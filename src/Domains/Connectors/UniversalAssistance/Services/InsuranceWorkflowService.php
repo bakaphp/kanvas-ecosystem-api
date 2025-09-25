@@ -244,8 +244,9 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration); // Duration days from activation date
 
-        // Use the new country-based convenio logic instead of ContractEnum
-        $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'inclusion');
+        // DEPRECATED: This method should not be used - convenio must be determined by variant logic
+        // Use buildVoucherDataWithConvenio() instead with proper variant-based convenio selection
+        throw new ValidationException("buildVoucherData is deprecated. Use buildVoucherDataWithConvenio() with variant-based convenio selection instead of country-based logic.");
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -306,8 +307,9 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration); // Duration days from activation date
 
-        // Use the new country-based convenio logic for Cross Selling
-        $contract = $this->client->getConvenioForCountries($originCountryCode, $destinationCountryCode, 'cross_selling');
+        // DEPRECATED: This method should not be used - convenio must be determined by variant logic  
+        // Use buildCrossSellingVoucherDataWithConvenio() instead with proper variant-based convenio selection
+        throw new ValidationException("buildCrossSellingVoucherData is deprecated. Use buildCrossSellingVoucherDataWithConvenio() with variant-based convenio selection instead of country-based logic.");
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -1561,22 +1563,13 @@ class InsuranceWorkflowService
             }
         }
 
-        // 4. Try plan variant/type fields
+        // 4. Try plan variant/type fields (explicit only)
         $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? '');
         if (in_array($planVariant, ['basic', 'unlimited'])) {
             return $planVariant;
         }
 
-        // 5. Try to infer from plan name
-        $planName = strtolower($personData['plan']['name'] ?? '');
-        if (strpos($planName, 'unlimited') !== false || strpos($planName, 'ilimitad') !== false) {
-            return 'unlimited';
-        }
-        if (strpos($planName, 'basic') !== false || strpos($planName, 'basico') !== false) {
-            return 'basic';
-        }
-
-        // 6. Try to get variant info from the order's eSIM data if available (last resort)
+        // 5. Try to get variant info from the order's eSIM data if available (last resort)
         if ($this->messageId) {
             $variantType = $this->getVariantTypeFromOrderESim();
             if ($variantType) {
@@ -1584,7 +1577,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // 7. Default to basic if no variant type found
+        // 6. Default to basic if no variant type found
         return 'basic';
     }
 
@@ -1772,7 +1765,7 @@ class InsuranceWorkflowService
                     'quotation_data' => $dualQuotationResult['inclusion'],
                     'matched_plan' => $inclusionMatch,
                     'selection_reason' => "variant_based_inclusion_for_{$planVariant}_variant",
-                    'id_lead' => $this->extractIdLeadOut($inclusionMatch),
+                    'id_lead' => $inclusionMatch['quote_data']['IdLeadOut'] ?? null,
                     'convenio' => $dualQuotationResult['inclusion']['convenio'],
                     'target_plan' => $targetPlan
                 ];
@@ -1788,7 +1781,7 @@ class InsuranceWorkflowService
                     'quotation_data' => $dualQuotationResult['cross_selling'],
                     'matched_plan' => $crossSellingMatch,
                     'selection_reason' => "variant_based_cross_selling_for_{$planVariant}_variant",
-                    'id_lead' => $this->extractIdLeadOut($crossSellingMatch),
+                    'id_lead' => $crossSellingMatch['quote_data']['IdLeadOut'] ?? null,
                     'convenio' => $dualQuotationResult['cross_selling']['convenio'],
                     'target_plan' => $targetPlan
                 ];
@@ -2038,6 +2031,49 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
+
+            // 3. Try flexible matching for similar plans (e.g., "DOM MASTER 25K SIMLIMITES" matches "DOM MASTER 40K SIMLIMITES REC")
+            $searchWords = explode(' ', $searchPlanLower);
+            $productWords = explode(' ', $nombreProductoLower);
+            
+            // Check if key identifying words match (excluding numbers and common suffixes)
+            $keyWords = [];
+            $productKeyWords = [];
+            
+            foreach ($searchWords as $word) {
+                // Keep important words, skip numbers and common suffixes
+                // But keep 'simlimites' if it's in the original search plan
+                if (!preg_match('/^\d+k?$/', $word) && 
+                    !in_array($word, ['rec', 'dom']) && 
+                    !($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
+                    $keyWords[] = $word;
+                }
+            }
+            
+            foreach ($productWords as $word) {
+                // Keep important words, skip numbers and common suffixes
+                // But keep 'simlimites' if it's in the search plan  
+                if (!preg_match('/^\d+k?$/', $word) && 
+                    !in_array($word, ['rec', 'dom']) &&
+                    !($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
+                    $productKeyWords[] = $word;
+                }
+            }
+            
+            // If key identifying words match, consider it a match
+            if (!empty($keyWords) && !empty($productKeyWords)) {
+                $matchingWords = array_intersect($keyWords, $productKeyWords);
+                if (count($matchingWords) >= count($keyWords)) {
+                    return [
+                        'found' => true,
+                        'product_name' => $nombreProducto,
+                        'match_type' => 'flexible_match',
+                        'quote_data' => $singleQuote,
+                        'quote_index' => $index,
+                        'matched_words' => $matchingWords
+                    ];
+                }
+            }
         }
 
         // NO MATCH FOUND - If no exact or partial match found, return false
@@ -2131,16 +2167,62 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Build voucher data with specific convenio
+     * Build voucher data with specific convenio (inclusion)
      */
     protected function buildVoucherDataWithConvenio(array $personData, string $personType, string $originCountryCode, string $destinationCountryCode, string $convenio): array
     {
-        $voucherData = $this->buildVoucherData($personData, $personType, $originCountryCode, $destinationCountryCode);
+        // Get destination name using the proper mapping
+        $destination = $this->getDestinationName($destinationCountryCode);
+        if (! $this->isValidDestination($destination)) {
+            $destination = 'Centro america/Caribe'; // Safe fallback
+        }
 
-        // Override the convenio with the specific one
-        $voucherData['Contrato'] = $convenio;
+        // Calculate dates
+        $activationDate = Carbon::parse($personData['activationDate']);
+        $duration = $this->getProductDuration($personData);
+        $expirationDate = clone $activationDate;
+        $expirationDate->addDays($duration); // Duration days from activation date
 
-        return $voucherData;
+        return [
+            'NroControl' => '', // Will be set by dual quotation system
+            'Vendedor' => $this->app->get('UNIVERSAL_ASSISTANCE_USERNAME') ?: 'WSSIMLIMITEDO', // Using QA user as seller
+            'FechaEmision' => now()->format('m/d/Y'),
+            'Destino' => $destination,
+            'FechaVigencia' => $activationDate->format('m/d/Y'),
+            'FechaFinal' => $expirationDate->format('m/d/Y'),
+            'MonedaLista' => 'USD',
+            'Precio' => '', // Empty price for voucher creation as requested
+            'NombreContactoVoucher' => '',
+            'NroTelContactoVoucher' => '',
+            'Canal' => 'Turismo',
+            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'LeadId' => '',
+            'EnvioVoucherMail' => 'Y',
+            'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N', // Campo "imprime tarifa" en "N" como solicitado
+            'Tarifa' => 'N',
+
+            'DatosAgencia' => [
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+            ],
+
+            'DatosProducto' => [
+                'NombreProducto' => $personData['plan']['name'], // Use the actual plan name from cart data
+            ],
+
+            'DatosSolicitante' => [
+                'NroPolizaSeguro' => '',
+                'NombreSolicitante' => $personData['firstname'],
+                'ApellidoSolicitante' => $personData['lastname'],
+                'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
+                'NroDocumentoSolicitante' => $personData['idNumber'],
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'SexoSolicitante' => 'M', // Default gender
+                'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
+                'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
+                'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
+            ],
+        ];
     }
 
     /**
@@ -2148,12 +2230,58 @@ class InsuranceWorkflowService
      */
     protected function buildCrossSellingVoucherDataWithConvenio(array $personData, string $personType, string $originCountryCode, string $destinationCountryCode, string $convenio): array
     {
-        $voucherData = $this->buildCrossSellingVoucherData($personData, $personType, $originCountryCode, $destinationCountryCode);
+        // Get destination name using the proper mapping
+        $destination = $this->getDestinationName($destinationCountryCode);
+        if (! $this->isValidDestination($destination)) {
+            $destination = 'Centro america/Caribe'; // Safe fallback
+        }
 
-        // Override the convenio with the specific one
-        $voucherData['Contrato'] = $convenio;
+        // Calculate dates
+        $activationDate = Carbon::parse($personData['activationDate']);
+        $duration = $this->getProductDuration($personData);
+        $expirationDate = clone $activationDate;
+        $expirationDate->addDays($duration); // Duration days from activation date
 
-        return $voucherData;
+        return [
+            'NroControl' => '', // Will be set by dual quotation system
+            'Vendedor' => $this->app->get('UNIVERSAL_ASSISTANCE_USERNAME') ?: 'WSSIMLIMITEDO', // Using QA user as seller
+            'FechaEmision' => now()->format('m/d/Y'),
+            'Destino' => $destination, // Use proper destination instead of 'Mundial'
+            'FechaVigencia' => $activationDate->format('m/d/Y'),
+            'FechaFinal' => $expirationDate->format('m/d/Y'),
+            'MonedaLista' => 'USD',
+            'Precio' => '', // Empty price for voucher creation as requested
+            'NombreContactoVoucher' => '',
+            'NroTelContactoVoucher' => '',
+            'Canal' => 'Turismo',
+            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'LeadId' => '',
+            'EnvioVoucherMail' => 'Y',
+            'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N',
+            'Tarifa' => 'N',
+
+            'DatosAgencia' => [
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+            ],
+
+            'DatosProducto' => [
+                'NombreProducto' => $personData['plan']['name'], // Use the actual plan name from cart data
+            ],
+
+            'DatosSolicitante' => [
+                'NroPolizaSeguro' => '',
+                'NombreSolicitante' => $personData['firstname'],
+                'ApellidoSolicitante' => $personData['lastname'],
+                'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
+                'NroDocumentoSolicitante' => $personData['idNumber'],
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'SexoSolicitante' => 'M', // Default gender
+                'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
+                'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
+                'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
+            ],
+        ];
     }
 
     /**

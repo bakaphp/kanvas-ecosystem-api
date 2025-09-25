@@ -273,14 +273,17 @@ class Client
     {
         $controlNumbers = $this->generateSequentialControlNumbers($order);
 
-        // Update control numbers, organizations and convenios for both quotations using country-based logic
+        // Update control numbers and organizations for both quotations
         $inclusionData['NroControl'] = $controlNumbers['inclusion'];
         $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
 
-        // Note: Country extraction will be handled in the calling workflow service
-        // Default to EMISIVO convenio logic for now
-        $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
-        $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
+        // Respect convenios determined by workflow - only set if not already provided
+        if (!isset($inclusionData['contrato']) || empty($inclusionData['contrato'])) {
+            $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
+        }
+        if (!isset($crossSellingData['contrato']) || empty($crossSellingData['contrato'])) {
+            $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
+        }
 
         // Set specific organizations for each quotation type
         if (isset($inclusionData['DatosAgencia'])) {
@@ -395,9 +398,21 @@ class Client
         $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
-        // Set control number, organization and convenio using COUNTRY-BASED logic
+        // Set control number and organization
         $voucherData['NroControl'] = $controlNumber;
-        $voucherData['contrato'] = $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType);
+
+        // ALWAYS respect the convenio determined by the workflow
+        // Check both 'contrato' and 'Contrato' keys for consistency
+        $workflowConvenio = $voucherData['contrato'] ?? $voucherData['Contrato'] ?? null;
+
+        if ($workflowConvenio && !empty($workflowConvenio)) {
+            // Use the convenio determined by workflow (variant logic)
+            $voucherData['contrato'] = $workflowConvenio;
+            unset($voucherData['Contrato']); // Remove uppercase version if it exists for consistency
+        } else {
+            // If no convenio from workflow, use basic quotation type logic as fallback
+            $voucherData['contrato'] = $this->getConvenioForQuotationType($quotationType);
+        }
 
         if (isset($voucherData['DatosAgencia'])) {
             $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
@@ -416,7 +431,7 @@ class Client
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+                'convenio' => $voucherData['contrato'], // Use the convenio that was actually used
                 'origin_country_code' => $originCountryCode,
                 'destination_country_code' => $destinationCountryCode,
                 'origin_country_name' => $originCountryName,
