@@ -1,0 +1,56 @@
+type TimeSlots {
+    id: ID!
+    apps_id: ID!
+    companies_id: ID!
+    resources_id: ID!
+    resources_type: String!
+    start_at: DateTime!
+    end_at: DateTime!
+    capacity: Int!
+    status: String
+    price_snapshot: Float
+    currency: String
+    meta: Mixed
+    created_at: DateTime
+    updated_at: DateTime
+    # resource: TimeSlotResource @morphTo(related: "resource")
+}
+
+# TimeSlotResource union is defined in event.graphql
+# union TimeSlotResource = Variant | Product
+
+input TimeSlotsFilterInput {
+    resources_id: ID
+    resources_type: String
+    start_at: DateTime
+    end_at: DateTime
+    status: String
+    date_from: DateTime
+    date_to: DateTime
+}
+
+extend type Query @guard {
+    timeSlots(
+        search: String @search
+        where: _ 
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "resources_id"
+                    "resources_type"
+                    "start_at"
+                    "end_at"
+                    "capacity"
+                    "status"
+                    "currency"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "start_at", "end_at", "created_at", "updated_at"])
+    ): [TimeSlots!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany"]
+            model: "Kanvas\\Event\\Events\\Models\\TimeSlots"
+            defaultCount: 25
+        )
+}

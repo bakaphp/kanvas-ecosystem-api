@@ -25,7 +25,10 @@ class CreateUniversalAssistanceQuoteActivity extends KanvasActivity
                 $service = new UniversalAssistanceService($app, $order);
 
                 // Get travel data from params or order metadata
-                $travelData = $params['travel_data'] ?? $order->metadata['universal_assistance']['travel_data'] ?? [];
+                $travelData = $params['travel_data'] ??
+                             $order->metadata['universalAssistanceData']['travel_data'] ??
+                             $order->metadata['universal_assistance']['travel_data'] ?? // Fallback for old data
+                             [];
 
                 // Get contact person from order
                 $contactPerson = $order->peoples()->first();

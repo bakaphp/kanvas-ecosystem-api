@@ -269,8 +269,8 @@ class GetOrderStatsAction
                 "count" => $maxExit->count
             ],
             "maxEntryDate" => [
-                "date" => $maxEntry->date,
-                "count" => $maxEntry->count
+                "date" => $maxEntry?->date,
+                "count" => $maxEntry?->count
             ],
             "data" => $byDates
         ];

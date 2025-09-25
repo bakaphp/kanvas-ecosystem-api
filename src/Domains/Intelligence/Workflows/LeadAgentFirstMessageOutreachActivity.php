@@ -34,6 +34,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
 
