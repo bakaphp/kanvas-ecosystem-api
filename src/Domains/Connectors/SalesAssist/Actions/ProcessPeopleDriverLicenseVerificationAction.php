@@ -80,12 +80,12 @@ class ProcessPeopleDriverLicenseVerificationAction
         }
 
         try {
-            if ($this->people->get('driver_license_processed_activity')) {
+            /* if ($this->people->get('driver_license_processed_activity')) {
                 return [
                     'success' => false,
                     'message' => 'People Driver license already processed',
                 ];
-            }
+            } */
 
             $this->people->set('driver_license_processed_activity', true);
 
