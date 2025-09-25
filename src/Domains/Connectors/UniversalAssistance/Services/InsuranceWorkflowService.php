@@ -2087,7 +2087,7 @@ class InsuranceWorkflowService
 
             foreach ($productWords as $word) {
                 // Keep important words, skip numbers and common suffixes
-                // But keep 'simlimites' if it's in the search plan  
+                // But keep 'simlimites' if it's in the search plan
                 if (! preg_match('/^\d+k?$/', $word) &&
                     ! in_array($word, ['rec', 'dom']) &&
                     ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
