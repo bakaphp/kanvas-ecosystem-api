@@ -1594,9 +1594,12 @@ class Client
      */
     protected function convertVoucherDataToLeadDataWithCountries(array $voucherData, string $quotationType, string $originCountryName, string $destinationName): array
     {
+        $edad = $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30';
+
         return [
             'IdLead' => '',
             'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
+            'CantCotizaciones' => 1, // Important: Request quotation data
             'Convenio' => $voucherData['contrato'], // Use the convenio already set based on countries
             'Folleto' => '', // Empty like working request
             'PaisOrigen' => $originCountryName, // Use provided origin country name
@@ -1604,11 +1607,20 @@ class Client
             'TipoViaje' => 'Un viaje', // Correct value from working example
             'FechaInicio' => date('m/d/Y', strtotime($voucherData['FechaActivacionDesde'] ?? '2025-12-15')), // Use voucher activation date
             'FechaFin' => date('m/d/Y', strtotime($voucherData['FechaActivacionHasta'] ?? '2025-12-22')), // Use voucher expiration date
-            'EdadMinima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Use actual age from voucher
-            'EdadMaxima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Same as minimum
-            'CantPersonas' => '1', // Single person quotation
-            'Modalidad' => 'Individual', // Individual quotation
-            'MonedaCotizacion' => 'USD' // USD as standard currency
+            'CantidadPasajeros' => 1, // Single person quotation
+            'PackFamiliar' => '', // Empty for individual
+            'Edad1' => $edad, // Set primary age
+            'Edad2' => '', // Empty for additional passengers
+            'Edad3' => '',
+            'Edad4' => '',
+            'Edad5' => '',
+            'Edad6' => '',
+            'Edad7' => '',
+            'Edad8' => '',
+            'Edad9' => '',
+            'Edad10' => '',
+            'Categoria' => '', // Empty like working example
+            'Precompras' => '' // Empty like working example
         ];
     }
 }

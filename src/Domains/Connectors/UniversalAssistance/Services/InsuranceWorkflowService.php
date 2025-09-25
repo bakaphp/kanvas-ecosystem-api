@@ -869,7 +869,7 @@ class InsuranceWorkflowService
     {
         $planPrice = $personData['plan']['price'] ?? null;
 
-        // Determine which price to use based on matched product
+        // Only validate pricing if product was matched - NO FALLBACKS
         $quotedPrice = null;
         $priceSource = 'not_found';
 
@@ -889,16 +889,8 @@ class InsuranceWorkflowService
 
                 if ($quotedPrice !== null) {
                     $priceSource = 'matched_attribute';
-                } else {
-                    // Fallback to main product price if attribute doesn't have price
-                    $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
-                    $priceSource = 'main_product_fallback';
                 }
             }
-        } else {
-            // No product match, use main quote price
-            $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
-            $priceSource = 'main_product_no_match';
         }
 
         $quotedCurrency = $quoteData['MonedaLista'] ?? null;
@@ -943,11 +935,11 @@ class InsuranceWorkflowService
             }
         }
 
-        // Add notes about product matching
+        // Add notes about product matching - NO FALLBACK MESSAGING
         if ($matchedProduct['found']) {
             $validation['validation_notes'][] = "Price extracted from {$priceSource} for matched product: {$matchedProduct['product_name']}";
         } else {
-            $validation['validation_notes'][] = 'Product not matched, using fallback pricing';
+            $validation['validation_notes'][] = 'Product not matched - no pricing validation performed';
         }
 
         return $validation;
@@ -1690,72 +1682,12 @@ class InsuranceWorkflowService
             }
         }
 
-        // 3. Fallback: try with original plan name in inclusion
-        $originalPlanName = $personData['plan']['name'] ?? '';
-        if ($inclusionResult['success'] ?? false) {
-            $inclusionMatch = $this->findMatchingProductInQuoteData($originalPlanName, $inclusionQuoteData);
-            if ($inclusionMatch['found']) {
-                return [
-                    'quotation_type' => 'inclusion',
-                    'quotation_data' => $dualQuotationResult['inclusion'],
-                    'matched_plan' => $inclusionMatch,
-                    'selection_reason' => 'fallback_inclusion_original_plan',
-                    'id_lead' => $this->extractIdLeadOut($inclusionMatch),
-                    'convenio' => $dualQuotationResult['inclusion']['convenio'],
-                    'target_plan' => $originalPlanName
-                ];
-            }
-        }
-
-        // 4. Fallback: try with original plan name in cross selling
-        if ($crossSellingResult['success'] ?? false) {
-            $crossSellingMatch = $this->findMatchingProductInQuoteData($originalPlanName, $crossSellingQuoteData);
-            if ($crossSellingMatch['found']) {
-                return [
-                    'quotation_type' => 'cross_selling',
-                    'quotation_data' => $dualQuotationResult['cross_selling'],
-                    'matched_plan' => $crossSellingMatch,
-                    'selection_reason' => 'fallback_cross_selling_original_plan',
-                    'id_lead' => $this->extractIdLeadOut($crossSellingMatch),
-                    'convenio' => $dualQuotationResult['cross_selling']['convenio'],
-                    'target_plan' => $originalPlanName
-                ];
-            }
-        }
-
-        // 5. Ultimate fallback: use the first successful quotation with any available plan
-        if ($inclusionResult['success'] ?? false) {
-            $bestPlan = $this->getBestAvailablePlan([$inclusionQuoteData]);
-            return [
-                'quotation_type' => 'inclusion',
-                'quotation_data' => $dualQuotationResult['inclusion'],
-                'matched_plan' => $bestPlan,
-                'selection_reason' => 'fallback_inclusion_any_plan',
-                'id_lead' => $this->extractIdLeadOut($dualQuotationResult['inclusion']),
-                'convenio' => $dualQuotationResult['inclusion']['convenio'],
-                'target_plan' => 'fallback'
-            ];
-        }
-
-        if ($crossSellingResult['success'] ?? false) {
-            $bestPlan = $this->getBestAvailablePlan([$crossSellingQuoteData]);
-            return [
-                'quotation_type' => 'cross_selling',
-                'quotation_data' => $dualQuotationResult['cross_selling'],
-                'matched_plan' => $bestPlan,
-                'selection_reason' => 'fallback_cross_selling_any_plan',
-                'id_lead' => $this->extractIdLeadOut($dualQuotationResult['cross_selling']),
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'],
-                'target_plan' => 'fallback'
-            ];
-        }
-
-        // If both failed, return error state
+        // If no exact match found, return error state - NO FALLBACKS
         return [
             'quotation_type' => 'error',
             'quotation_data' => null,
-            'matched_plan' => ['found' => false],
-            'selection_reason' => 'both_quotations_failed',
+            'matched_plan' => ['found' => false, 'reason' => 'No exact plan match found'],
+            'selection_reason' => 'no_exact_match_found',
             'id_lead' => null,
             'convenio' => null,
             'errors' => [
@@ -1972,7 +1904,7 @@ class InsuranceWorkflowService
 
             $nombreProductoLower = strtolower(trim($nombreProducto));
 
-            // Exact match
+            // ONLY EXACT MATCH - No flexible matching allowed
             if ($nombreProductoLower === $searchPlanLower) {
                 return [
                     'found' => true,
@@ -1982,108 +1914,19 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-
-            // Contains match (search plan contained in product name)
-            if (strpos($nombreProductoLower, $searchPlanLower) !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'contains_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            // Specific matching logic based on real NombreProducto patterns
-
-            // For TELEASISTENCIA: match "DOM TELEASISTENCIA SIMLIMITES"
-            if ($searchPlanLower === 'teleasistencia' && strpos($nombreProductoLower, 'teleasistencia') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'teleasistencia_specific_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            // For ASISTENCIA 10K REC: match "DOM ASISTENCIA 10K SIMLIMITES REC"
-            if ($searchPlanLower === 'asistencia 10k rec' &&
-                strpos($nombreProductoLower, 'asistencia') !== false &&
-                strpos($nombreProductoLower, '10k') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'asistencia_10k_specific_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            // For MASTER 40K REC: match "DOM MASTER 40K SIMLIMITES REC"
-            if ($searchPlanLower === 'master 40k rec' &&
-                strpos($nombreProductoLower, 'master') !== false &&
-                strpos($nombreProductoLower, '40k') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'master_40k_specific_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            // Additional flexible matching for variations
-            if (strpos($searchPlanLower, 'asistencia') !== false &&
-                strpos($nombreProductoLower, 'asistencia') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'asistencia_flexible_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            if (strpos($searchPlanLower, 'teleasistencia') !== false &&
-                strpos($nombreProductoLower, 'teleasistencia') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'teleasistencia_flexible_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            if (strpos($searchPlanLower, 'master') !== false &&
-                strpos($nombreProductoLower, 'master') !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'master_flexible_match',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
         }
 
-        // No match found, return info about available products
-        $availableProducts = [];
-        foreach ($quotesToCheck as $singleQuote) {
-            if (is_object($singleQuote)) {
-                $singleQuote = (array) $singleQuote;
-            }
-            if (isset($singleQuote['NombreProducto'])) {
-                $availableProducts[] = $singleQuote['NombreProducto'];
-            }
-        }
-
+        // NO FALLBACK - If no exact match found, return false
         return [
             'found' => false,
-            'reason' => 'No matching product found in NombreProducto',
+            'reason' => 'No exact match found for plan: ' . $searchPlan,
             'searched_for' => $searchPlan,
-            'available_products' => $availableProducts,
+            'available_products' => array_filter(array_map(function ($quote) {
+                if (is_object($quote)) {
+                    $quote = (array) $quote;
+                }
+                return $quote['NombreProducto'] ?? null;
+            }, $quotesToCheck)),
             'quotes_checked' => count($quotesToCheck)
         ];
     }
