@@ -1607,7 +1607,6 @@ class InsuranceWorkflowService
                     return $variantType;
                 }
             }
-
         } catch (\Exception $e) {
             // Silently handle errors and fall back to default
         }
