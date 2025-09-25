@@ -483,13 +483,13 @@ class InsuranceWorkflowService
     protected function getDocumentType(string $idType): string
     {
         $types = [
-            'passport' => 'Passport',
+            'passport' => 'Pasaporte',
             'dni' => 'DNI',
             'cedula' => 'DNI', // Map cedula to DNI
             'license' => 'DNI', // Map license to DNI as fallback
         ];
 
-        return $types[$idType] ?? 'DNI'; // Default to DNI instead of PASAPORTE
+        return $types[$idType] ?? 'Pasaporte'; // Default to DNI instead of PASAPORTE
     }
 
     /**
@@ -1494,7 +1494,15 @@ class InsuranceWorkflowService
      */
     protected function extractVariantType(array $personData): string
     {
-        // 1. Try variant_info attributes (from order metadata)
+        // 1. Try direct variantType field (most common location)
+        if (isset($personData['variantType'])) {
+            $variantType = strtolower(trim($personData['variantType']));
+            if (in_array($variantType, ['basic', 'unlimited'])) {
+                return $variantType;
+            }
+        }
+
+        // 2. Try variant_info attributes (from eSIM order metadata)
         if (isset($personData['variant_info']['attributes']['Variant Type'])) {
             $variantType = strtolower(trim($personData['variant_info']['attributes']['Variant Type']));
             if (in_array($variantType, ['basic', 'unlimited'])) {
@@ -1502,7 +1510,15 @@ class InsuranceWorkflowService
             }
         }
 
-        // 2. Try variant object directly
+        // 3. Try eSimDetails variantType (alternative location)
+        if (isset($personData['eSimDetails']['variantType'])) {
+            $variantType = strtolower(trim($personData['eSimDetails']['variantType']));
+            if (in_array($variantType, ['basic', 'unlimited'])) {
+                return $variantType;
+            }
+        }
+
+        // 4. Try variant object directly
         if (isset($personData['variant']['attributes']) && is_array($personData['variant']['attributes'])) {
             foreach ($personData['variant']['attributes'] as $attribute) {
                 if (isset($attribute['name']) && $attribute['name'] === 'Variant Type') {
@@ -1514,13 +1530,13 @@ class InsuranceWorkflowService
             }
         }
 
-        // 3. Try plan variant/type fields
+        // 5. Try plan variant/type fields
         $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? '');
         if (in_array($planVariant, ['basic', 'unlimited'])) {
             return $planVariant;
         }
 
-        // 4. Try to infer from plan name
+        // 6. Try to infer from plan name
         $planName = strtolower($personData['plan']['name'] ?? '');
         if (strpos($planName, 'unlimited') !== false || strpos($planName, 'ilimitad') !== false) {
             return 'unlimited';
@@ -1529,8 +1545,74 @@ class InsuranceWorkflowService
             return 'basic';
         }
 
-        // 5. Default to basic if no variant type found
+        // 7. Try to get variant info from the order's eSIM data if available
+        if ($this->messageId) {
+            $variantType = $this->getVariantTypeFromOrderESim();
+            if ($variantType) {
+                return $variantType;
+            }
+        }
+
+        // 8. Default to basic if no variant type found
         return 'basic';
+    }
+
+    /**
+     * Extract variant type from order's eSIM data
+     */
+    private function getVariantTypeFromOrderESim(): ?string
+    {
+        try {
+            if (!$this->messageId) {
+                return null;
+            }
+
+            $message = Message::getById($this->messageId, $this->app);
+            $messageData = $message->message;
+
+            // Check if it's an array of eSIMs
+            if (isset($messageData['esims']) && is_array($messageData['esims'])) {
+                foreach ($messageData['esims'] as $esim) {
+                    if (is_array($esim)) {
+                        // Try variant_info.attributes["Variant Type"]
+                        if (isset($esim['variant_info']['attributes']['Variant Type'])) {
+                            $variantType = strtolower(trim($esim['variant_info']['attributes']['Variant Type']));
+                            if (in_array($variantType, ['basic', 'unlimited'])) {
+                                return $variantType;
+                            }
+                        }
+
+                        // Try eSimDetails.variantType
+                        if (isset($esim['eSimDetails']['variantType'])) {
+                            $variantType = strtolower(trim($esim['eSimDetails']['variantType']));
+                            if (in_array($variantType, ['basic', 'unlimited'])) {
+                                return $variantType;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check single eSIM structure
+            if (isset($messageData['variant_info']['attributes']['Variant Type'])) {
+                $variantType = strtolower(trim($messageData['variant_info']['attributes']['Variant Type']));
+                if (in_array($variantType, ['basic', 'unlimited'])) {
+                    return $variantType;
+                }
+            }
+
+            if (isset($messageData['eSimDetails']['variantType'])) {
+                $variantType = strtolower(trim($messageData['eSimDetails']['variantType']));
+                if (in_array($variantType, ['basic', 'unlimited'])) {
+                    return $variantType;
+                }
+            }
+
+        } catch (\Exception $e) {
+            // Silently handle errors and fall back to default
+        }
+
+        return null;
     }
 
     /**
@@ -1904,7 +1986,7 @@ class InsuranceWorkflowService
 
             $nombreProductoLower = strtolower(trim($nombreProducto));
 
-            // ONLY EXACT MATCH - No flexible matching allowed
+            // 1. Try exact match first
             if ($nombreProductoLower === $searchPlanLower) {
                 return [
                     'found' => true,
@@ -1914,12 +1996,23 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
+
+            // 2. Try search plan contained in product name (for cases like "TELEASISTENCIA" in "DOM TELEASISTENCIA SIMLIMITES")
+            if (strpos($nombreProductoLower, $searchPlanLower) !== false) {
+                return [
+                    'found' => true,
+                    'product_name' => $nombreProducto,
+                    'match_type' => 'partial_match_found',
+                    'quote_data' => $singleQuote,
+                    'quote_index' => $index
+                ];
+            }
         }
 
-        // NO FALLBACK - If no exact match found, return false
+        // NO MATCH FOUND - If no exact or partial match found, return false
         return [
             'found' => false,
-            'reason' => 'No exact match found for plan: ' . $searchPlan,
+            'reason' => 'No match found for plan: ' . $searchPlan,
             'searched_for' => $searchPlan,
             'available_products' => array_filter(array_map(function ($quote) {
                 if (is_object($quote)) {
