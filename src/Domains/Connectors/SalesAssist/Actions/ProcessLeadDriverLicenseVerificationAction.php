@@ -65,14 +65,14 @@ class ProcessLeadDriverLicenseVerificationAction
                 ->lockForUpdate()
                 ->first();
 
-            if ($lockedLead->get('driver_license_processed')) {
+            /* if ($lockedLead->get('driver_license_processed')) {
                 DB::commit();
 
                 return [
                     'success' => false,
                     'message' => 'Driver license already processed',
                 ];
-            }
+            } */
 
             $lockedLead->set('driver_license_processed', true);
 
