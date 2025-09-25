@@ -1238,19 +1238,6 @@ class InsuranceWorkflowService
                 return $pdfResult;
             }
 
-            // Try alternative approaches if Tarifa is empty - some reports might work without it
-            if (empty($reportData['Tarifa'])) {
-                // Try to get price from voucher response directly
-                $alternativePrice = $voucherResult['voucher_response']['Precio'] ??
-                                  $voucherResult['voucher_response']['PrecioTotal'] ??
-                                  $voucherResult['voucher_response']['Amount'] ??
-                                  '0.00';
-
-                if ($alternativePrice && is_numeric($alternativePrice)) {
-                    $reportData['Tarifa'] = number_format((float)$alternativePrice, 2, '.', '');
-                }
-            }
-
             // Add debug info to help with troubleshooting
             $pdfResult['request_data'] = $reportData;
 
@@ -1811,9 +1798,50 @@ class InsuranceWorkflowService
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
-        // Ensure Tarifa is 'N' and Precio is empty as requested
+        // Extract precio de emision from the quotation data based on the actual structure
+        $precioEmision = '';
+
+        // The structure is: quotation_data.result.quotation_data.quote_response.UALeadCotizadorResp.DatosLeadCotizadorOut[0].PrecioEmision
+        try {
+            // First try the structured path from the selected quotation
+            if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+
+                // Handle both array and single object cases
+                if (is_array($datosLeadOut)) {
+                    // If it's an array, take the first element (cross_selling case)
+                    $firstProduct = reset($datosLeadOut);
+                    $precioEmision = $firstProduct['PrecioEmision'] ?? $firstProduct['PrecioNeto'] ?? $firstProduct['PrecioBruto'] ?? '';
+                } else {
+                    // If it's a single object (inclusion case)
+                    $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
+                }
+            }
+
+            // Fallback: try the response structure
+            if (empty($precioEmision) && isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+                if (is_array($datosLeadOut)) {
+                    $firstProduct = reset($datosLeadOut);
+                    $precioEmision = $firstProduct['PrecioEmision'] ?? $firstProduct['PrecioNeto'] ?? $firstProduct['PrecioBruto'] ?? '';
+                } else {
+                    $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
+                }
+            }
+        } catch (\Exception $e) {
+        }
+
+        // Set Tarifa and use precio de emision from quotation - ensure it's not empty
         $voucherData['Tarifa'] = 'N';
-        $voucherData['Precio'] = '';
+
+        // Ensure we have a valid price - Universal Assistance requires this field
+        if (! empty($precioEmision) && is_numeric($precioEmision)) {
+            $voucherData['Precio'] = strval($precioEmision); // Ensure it's a string
+        } else {
+            // If no price found, log error but set a default to avoid field required error
+            error_log("Warning: No precio de emision found in quotation data. Using 0.00 as fallback.");
+            $voucherData['Precio'] = '0.00';
+        }
 
         // Use the plan name directly as requested - no matching needed
         if (isset($personData['plan']['name']) && ! empty($personData['plan']['name'])) {
@@ -2152,7 +2180,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $convenio, // Use the specific convenio from variant logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
@@ -2211,7 +2239,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $convenio, // Use the specific convenio from variant logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
