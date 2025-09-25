@@ -197,8 +197,29 @@ input ResourceBookingInput {
     event_name: String
     event_description: String
     hold_id: String
+    payment_intent_id: String
+    payment_method_id: String
     metadata: Mixed
     resources: Mixed
+}
+
+input ResourceHoldInput {
+    resources_id: ID!
+    resources_type: String!
+    start_at: String!
+    end_at: String!
+    participants: Mixed!
+    event_name: String
+    event_description: String
+    hold_duration_minutes: Int
+    metadata: Mixed
+    resources: Mixed
+}
+
+type ResourceHoldResult {
+    hold_id: String!
+    expires_at: String!
+    message: String!
 }
 
 extend type Mutation @guard {
