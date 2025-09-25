@@ -728,8 +728,8 @@ class InsuranceWorkflowService
                 'product_search_result' => $matchedProduct,
                 'product_quoted' => $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null),
                 'product_match' => $matchedProduct['found'] ? $matchedProduct['match_details'] : ['match' => false, 'reason' => 'Product not found in quote'],
-                'price_validation' => $this->validatePricingWithMatchedProduct($personData, $quoteData, $matchedProduct),
                 'validation_timestamp' => now()->toISOString(),
+                'note' => 'Price validation skipped - voucher has empty price by design'
             ],
             'voucher_data' => [
                 'control_number' => $voucherResult['control_number'] ?? null,
@@ -919,7 +919,10 @@ class InsuranceWorkflowService
         $priceSource = 'not_found';
 
         if ($matchedProduct['found']) {
-            if ($matchedProduct['source'] === 'main_product') {
+            // Safety check for source key
+            $source = $matchedProduct['source'] ?? 'unknown';
+            
+            if ($source === 'main_product') {
                 // Use main product pricing
                 $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
                 $priceSource = 'main_product';
@@ -1830,10 +1833,16 @@ class InsuranceWorkflowService
             $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $convenio);
         }
 
-        // Set the IdLead from the selected quotation
-        if (isset($selectedQuotation['id_lead']) && $selectedQuotation['id_lead']) {
-            $voucherData['LeadId'] = $selectedQuotation['id_lead'];
+        // Set the IdLead from the selected quotation - check both id_lead and IdLeadOut from response
+        $idLead = '';
+        if (isset($selectedQuotation['id_lead']) && ! empty($selectedQuotation['id_lead'])) {
+            $idLead = $selectedQuotation['id_lead'];
+        } elseif (isset($selectedQuotation['matched_plan']['quote_data']['IdLeadOut']) && !empty($selectedQuotation['matched_plan']['quote_data']['IdLeadOut'])) {
+            $idLead = $selectedQuotation['matched_plan']['quote_data']['IdLeadOut'];
         }
+        
+        // Always set LeadId, even if empty (as empty string '')
+        $voucherData['LeadId'] = $idLead;
 
         // Ensure Tarifa is 'N' and Precio is '' as requested
         $voucherData['ImprimeTarifa'] = 'N';
@@ -1869,18 +1878,16 @@ class InsuranceWorkflowService
             // Extract quotation data for validation using helper method
             $quoteData = $this->extractQuoteData($result);
 
-            // Perform product matching and price validation using new method
+            // Perform product matching - without price validation since voucher has empty price
             $matchedProduct = $this->findMatchingProductInQuoteData($personData['plan']['name'] ?? '', $quoteData);
             $productValidation = $this->validateProductMatch(
                 $personData['plan']['name'] ?? null,
                 $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null)
             );
-            $priceValidation = $this->validatePricingWithMatchedProduct($personData, $quoteData, $matchedProduct);
 
-            // Add validation results
+            // Add validation results (no price validation needed for voucher)
             $result['matched_product'] = $matchedProduct;
             $result['product_validation'] = $productValidation;
-            $result['price_validation'] = $priceValidation;
 
             // Generate PDF if voucher was created successfully
             if (isset($result['voucher_response']) &&
