@@ -1654,17 +1654,18 @@ class InsuranceWorkflowService
         // Extract variant type from multiple possible sources
         $planVariant = $this->extractVariantType($personData);
 
+        // Get target plan from the actual plan name in the data
+        $targetPlan = $personData['plan']['name'] ?? '';
+
         // Determine convenios based on variant type
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA
+            // Basic → TELEASISTENCIA convenios
             $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
             $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
-            $targetPlan = 'TELEASISTENCIA';
         } else {
-            // Unlimited → ASISTENCIA 10K REC
+            // Unlimited → ASISTENCIA 10K REC convenios
             $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
             $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
-            $targetPlan = 'ASISTENCIA 10K REC';
         }
 
         // Perform inclusion quotation
