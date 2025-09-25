@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalAssistance\Actions;
 
-use Kanvas\Connectors\UniversalAssistance\Client;
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Exception;
+use Kanvas\Connectors\UniversalAssistance\Client;
 
 class GetUniversalAssistanceQuotationAction
 {
@@ -15,10 +15,8 @@ class GetUniversalAssistanceQuotationAction
      * Get complete quotations with all available products for inclusion and cross selling
      * Handles EMISIVO vs RECEPTIVO logic with different conventions
      *
-     * @param AppInterface $app
      * @param array $cartData (must include 'order', 'titular', and optionally 'dependents')
      * @param array $planVariant (name, id, duration, etc) - used as base for quotation
-     * @return array
      */
     public static function run(AppInterface $app, array $cartData, array $planVariant): array
     {
@@ -72,7 +70,6 @@ class GetUniversalAssistanceQuotationAction
                 // EMISIVO: Use convention 1-EO6M4QP for TELEASISTENCIA
                 $results['inclusion'] = self::getEmisivoInclusionQuotes($app, $client, $cartData, $titularWithPlan, $originCountryCode, $destinationCountryCode);
             }
-
         } catch (Exception $e) {
             $results['inclusion']['error'] = $e->getMessage();
         }
@@ -86,7 +83,6 @@ class GetUniversalAssistanceQuotationAction
                 // EMISIVO: Use convention 1-EO6M4QU for ASISTENCIA 25K/40K/80K
                 $results['cross_selling'] = self::getEmisivoCrossSellingQuotes($app, $client, $cartData, $titularWithPlan, $originCountryCode, $destinationCountryCode);
             }
-
         } catch (Exception $e) {
             $results['cross_selling']['error'] = $e->getMessage();
         }
@@ -397,7 +393,12 @@ class GetUniversalAssistanceQuotationAction
 
         // Force specific convention for EMISIVO inclusion
         $voucherData = self::buildVoucherDataWithSpecificConvenio(
-            $app, $titularWithPlan, 'titular', $originCountryCode, $destinationCountryCode, '1-EO6M4QP'
+            $app,
+            $titularWithPlan,
+            'titular',
+            $originCountryCode,
+            $destinationCountryCode,
+            '1-EO6M4QP'
         );
 
         $quote = $client->createSingleQuotationWithCountries(
@@ -429,7 +430,7 @@ class GetUniversalAssistanceQuotationAction
     ): array {
         $result = [
             'type' => 'inclusion',
-            'convenio_type' => 'RECEPTIVO', 
+            'convenio_type' => 'RECEPTIVO',
             'convenio_id' => '1-EO7PJQQ',
             'products' => [],
             'raw_responses' => []
@@ -437,7 +438,12 @@ class GetUniversalAssistanceQuotationAction
 
         // Force specific convention for RECEPTIVO inclusion
         $voucherData = self::buildVoucherDataWithSpecificConvenio(
-            $app, $titularWithPlan, 'titular', $originCountryCode, $destinationCountryCode, '1-EO7PJQQ'
+            $app,
+            $titularWithPlan,
+            'titular',
+            $originCountryCode,
+            $destinationCountryCode,
+            '1-EO7PJQQ'
         );
 
         $quote = $client->createSingleQuotationWithCountries(
@@ -477,7 +483,12 @@ class GetUniversalAssistanceQuotationAction
 
         // Force specific convention for EMISIVO cross selling
         $voucherData = self::buildCrossSellingVoucherDataWithSpecificConvenio(
-            $app, $titularWithPlan, 'titular', $originCountryCode, $destinationCountryCode, '1-EO6M4QU'
+            $app,
+            $titularWithPlan,
+            'titular',
+            $originCountryCode,
+            $destinationCountryCode,
+            '1-EO6M4QU'
         );
 
         $quote = $client->createSingleQuotationWithCountries(
@@ -517,7 +528,12 @@ class GetUniversalAssistanceQuotationAction
 
         // Force specific convention for RECEPTIVO cross selling
         $voucherData = self::buildCrossSellingVoucherDataWithSpecificConvenio(
-            $app, $titularWithPlan, 'titular', $originCountryCode, $destinationCountryCode, '1-EO7PJQL'
+            $app,
+            $titularWithPlan,
+            'titular',
+            $originCountryCode,
+            $destinationCountryCode,
+            '1-EO7PJQL'
         );
 
         $quote = $client->createSingleQuotationWithCountries(

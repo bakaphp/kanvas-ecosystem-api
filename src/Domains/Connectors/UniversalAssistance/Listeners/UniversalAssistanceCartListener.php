@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalAssistance\Listeners;
 
+use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalAssistance\Actions\GetUniversalAssistanceQuotationAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Exception;
-use Illuminate\Support\Facades\Log;
 
 class UniversalAssistanceCartListener
 {
@@ -40,7 +40,6 @@ class UniversalAssistanceCartListener
             foreach ($insuranceItems as $insuranceItem) {
                 $this->processInsuranceItemQuotation($app, $insuranceItem, $item);
             }
-
         } catch (Exception $e) {
             Log::error('UniversalAssistanceCartListener error: ' . $e->getMessage(), [
                 'item' => $item,
@@ -133,7 +132,6 @@ class UniversalAssistanceCartListener
 
             // Store or process results
             $this->handleQuotationResult($insuranceItem, $quotationResult, $cartEventData);
-
         } catch (Exception $e) {
             Log::error('Error processing UA quotation for item: ' . ($insuranceItem->id ?? 'unknown'), [
                 'error' => $e->getMessage(),
@@ -205,7 +203,7 @@ class UniversalAssistanceCartListener
     {
         // Try to get order_id from event data
         $orderId = $cartEventData['order_id'] ?? null;
-        
+
         if ($orderId) {
             try {
                 return Order::findOrFail($orderId);
@@ -275,7 +273,6 @@ class UniversalAssistanceCartListener
             $cart->update($cartItem->id, [
                 'attributes' => $updatedAttributes
             ]);
-
         } catch (Exception $e) {
             Log::error('Error updating cart item with UA quotation: ' . $e->getMessage());
         }
