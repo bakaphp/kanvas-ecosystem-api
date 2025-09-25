@@ -1563,7 +1563,7 @@ class InsuranceWorkflowService
     private function getVariantTypeFromOrderESim(): ?string
     {
         try {
-            if (!$this->messageId) {
+            if (! $this->messageId) {
                 return null;
             }
 
