@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
-use Kanvas\Connectors\UniversalAssistance\Enums\ContractEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -307,7 +306,7 @@ class InsuranceWorkflowService
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration); // Duration days from activation date
 
-        // DEPRECATED: This method should not be used - convenio must be determined by variant logic  
+        // DEPRECATED: This method should not be used - convenio must be determined by variant logic
         // Use buildCrossSellingVoucherDataWithConvenio() instead with proper variant-based convenio selection
         throw new ValidationException("buildCrossSellingVoucherData is deprecated. Use buildCrossSellingVoucherDataWithConvenio() with variant-based convenio selection instead of country-based logic.");
 
@@ -921,7 +920,7 @@ class InsuranceWorkflowService
         if ($matchedProduct['found']) {
             // Safety check for source key
             $source = $matchedProduct['source'] ?? 'unknown';
-            
+
             if ($source === 'main_product') {
                 // Use main product pricing
                 $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
@@ -1866,7 +1865,7 @@ class InsuranceWorkflowService
         $idLead = '';
         if (isset($selectedQuotation['id_lead']) && ! empty($selectedQuotation['id_lead'])) {
             $idLead = $selectedQuotation['id_lead'];
-        } elseif (isset($selectedQuotation['matched_plan']['quote_data']['IdLeadOut']) && !empty($selectedQuotation['matched_plan']['quote_data']['IdLeadOut'])) {
+        } elseif (isset($selectedQuotation['matched_plan']['quote_data']['IdLeadOut']) && ! empty($selectedQuotation['matched_plan']['quote_data']['IdLeadOut'])) {
             $idLead = $selectedQuotation['matched_plan']['quote_data']['IdLeadOut'];
         }
         
@@ -2071,33 +2070,33 @@ class InsuranceWorkflowService
             // 3. Try flexible matching for similar plans (e.g., "DOM MASTER 25K SIMLIMITES" matches "DOM MASTER 40K SIMLIMITES REC")
             $searchWords = explode(' ', $searchPlanLower);
             $productWords = explode(' ', $nombreProductoLower);
-            
+
             // Check if key identifying words match (excluding numbers and common suffixes)
             $keyWords = [];
             $productKeyWords = [];
-            
+
             foreach ($searchWords as $word) {
                 // Keep important words, skip numbers and common suffixes
                 // But keep 'simlimites' if it's in the original search plan
-                if (!preg_match('/^\d+k?$/', $word) && 
-                    !in_array($word, ['rec', 'dom']) && 
-                    !($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
+                if (! preg_match('/^\d+k?$/', $word) && 
+                    ! in_array($word, ['rec', 'dom']) && 
+                    ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
                     $keyWords[] = $word;
                 }
             }
-            
+
             foreach ($productWords as $word) {
                 // Keep important words, skip numbers and common suffixes
                 // But keep 'simlimites' if it's in the search plan  
-                if (!preg_match('/^\d+k?$/', $word) && 
-                    !in_array($word, ['rec', 'dom']) &&
-                    !($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
+                if (! preg_match('/^\d+k?$/', $word) && 
+                    ! in_array($word, ['rec', 'dom']) &&
+                    ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
                     $productKeyWords[] = $word;
                 }
             }
-            
+
             // If key identifying words match, consider it a match
-            if (!empty($keyWords) && !empty($productKeyWords)) {
+            if (! empty($keyWords) && !empty($productKeyWords)) {
                 $matchingWords = array_intersect($keyWords, $productKeyWords);
                 if (count($matchingWords) >= count($keyWords)) {
                     return [
