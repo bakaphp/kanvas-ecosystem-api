@@ -1800,13 +1800,13 @@ class InsuranceWorkflowService
 
         // Extract precio de emision from the quotation data based on the actual structure
         $precioEmision = '';
-        
+
         // The structure is: quotation_data.result.quotation_data.quote_response.UALeadCotizadorResp.DatosLeadCotizadorOut[0].PrecioEmision
         try {
             // First try the structured path from the selected quotation
             if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
                 $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-                
+
                 // Handle both array and single object cases
                 if (is_array($datosLeadOut)) {
                     // If it's an array, take the first element (cross_selling case)
@@ -1817,11 +1817,10 @@ class InsuranceWorkflowService
                     $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
                 }
             }
-            
+
             // Fallback: try the response structure
             if (empty($precioEmision) && isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
                 $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-                
                 if (is_array($datosLeadOut)) {
                     $firstProduct = reset($datosLeadOut);
                     $precioEmision = $firstProduct['PrecioEmision'] ?? $firstProduct['PrecioNeto'] ?? $firstProduct['PrecioBruto'] ?? '';
@@ -1829,15 +1828,14 @@ class InsuranceWorkflowService
                     $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
                 }
             }
-            
         } catch (\Exception $e) {
         }
 
         // Set Tarifa and use precio de emision from quotation - ensure it's not empty
         $voucherData['Tarifa'] = 'N';
-        
+
         // Ensure we have a valid price - Universal Assistance requires this field
-        if (!empty($precioEmision) && is_numeric($precioEmision)) {
+        if (! empty($precioEmision) && is_numeric($precioEmision)) {
             $voucherData['Precio'] = strval($precioEmision); // Ensure it's a string
         } else {
             // If no price found, log error but set a default to avoid field required error
