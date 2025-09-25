@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
+use Kanvas\Connectors\UniversalAssistance\Listeners\UniversalAssistanceCartListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
@@ -67,12 +68,15 @@ class EventServiceProvider extends ServiceProvider
         ],
         'LaravelCart.Added' => [
             CartListener::class,
+            UniversalAssistanceCartListener::class,
         ],
         'LaravelCart.Updated' => [
             CartListener::class,
+            UniversalAssistanceCartListener::class,
         ],
         'LaravelCart.Removed' => [
             CartListener::class,
+            UniversalAssistanceCartListener::class,
         ],
     ];
 
