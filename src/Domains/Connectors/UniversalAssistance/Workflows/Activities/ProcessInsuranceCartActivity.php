@@ -155,11 +155,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             $universalAssistanceData['holder'] = [
                 'control_number' => $results['titular']['control_number'] ?? null,
-                'convenio' => $this->extractConvenioWithFallbacks(
-                    $results['titular'],
-                    $titularQuoteData,
-                    $titularVoucherResponse
-                ),
+                'convenio' => $this->extractConvenioFromVoucherResult($results['titular']),
                 'data' => [
                     'dual_quotation_results' => $results['titular']['dual_quotation_results'] ?? null,
                     'selected' => $results['titular']['selected_quotation'] ?? null,
@@ -196,11 +192,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                 $universalAssistanceData['dependents'][] = [
                     'control_number' => $dependent['control_number'] ?? null,
-                    'convenio' => $this->extractConvenioWithFallbacks(
-                        $dependent,
-                        $dependentQuoteData,
-                        $dependentVoucherResponse
-                    ),
+                    'convenio' => $this->extractConvenioFromVoucherResult($dependent),
                     'data' => [
                         'dual_quotation_results' => $dependent['dual_quotation_results'] ?? null,
                         'selected' => $dependent['selected_quotation'] ?? null,
@@ -320,92 +312,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
-     * Extract convenio with comprehensive fallbacks from multiple sources
+     * Extract convenio from voucher result (simplified - like precio_emision)
      */
-    protected function extractConvenioWithFallbacks(array $personData, array $quotationData = [], array $voucherData = []): ?string
+    protected function extractConvenioFromVoucherResult(array $personData): ?string
     {
-        // Level 1: From voucher result (convenio_used - PRIMORDIAL)
-        if (! empty($personData['voucher_result']['convenio_used'])) {
-            return $personData['voucher_result']['convenio_used'];
-        }
-
-        // Level 2: From voucher_data.convenio_used
-        if (! empty($personData['voucher_data']['convenio_used'])) {
-            return $personData['voucher_data']['convenio_used'];
-        }
-
-        // Level 3: Direct convenio field from person data
-        if (! empty($personData['convenio'])) {
-            return $personData['convenio'];
-        }
-
-        // Level 4: From convenio_used at root level
-        if (! empty($personData['convenio_used'])) {
-            return $personData['convenio_used'];
-        }
-
-        // Level 5: From selected quotation data
-        if (! empty($personData['selected_quotation']['convenio'])) {
-            return $personData['selected_quotation']['convenio'];
-        }
-
-        // Level 6: From dual quotation results
-        if (isset($personData['dual_quotation_results'])) {
-            $dualResults = $personData['dual_quotation_results'];
-
-            // Check inclusion quotation
-            if (! empty($dualResults['inclusion']['convenio'])) {
-                return $dualResults['inclusion']['convenio'];
-            }
-
-            // Check cross_selling quotation
-            if (! empty($dualResults['cross_selling']['convenio'])) {
-                return $dualResults['cross_selling']['convenio'];
-            }
-
-            // Check inclusion result convenio
-            if (! empty($dualResults['inclusion']['result']['convenio_used'])) {
-                return $dualResults['inclusion']['result']['convenio_used'];
-            }
-
-            // Check cross_selling result convenio
-            if (! empty($dualResults['cross_selling']['result']['convenio_used'])) {
-                return $dualResults['cross_selling']['result']['convenio_used'];
-            }
-        }
-
-        // Level 7: From quotation response data (multiple formats)
-        if (! empty($quotationData['Convenio'])) {
-            return $quotationData['Convenio'];
-        }
-        if (! empty($quotationData['convenio'])) {
-            return $quotationData['convenio'];
-        }
-        if (! empty($quotationData['Contrato'])) {
-            return $quotationData['Contrato'];
-        }
-
-        // Level 8: From voucher response data (multiple formats)
-        if (! empty($voucherData['Convenio'])) {
-            return $voucherData['Convenio'];
-        }
-        if (! empty($voucherData['convenio'])) {
-            return $voucherData['convenio'];
-        }
-        if (! empty($voucherData['Contrato'])) {
-            return $voucherData['Contrato'];
-        }
-
-        // Level 9: From organization/variant mapping (similar to InsuranceWorkflowService logic)
-        $quotationType = $personData['quotation_type'] ?? $personData['quotation_type_used'] ?? $personData['voucher_result']['quotation_type_used'] ?? 'inclusion';
-        if ($quotationType === 'inclusion') {
-            return '1-8JMLB4N'; // Default inclusion convenio
-        } elseif ($quotationType === 'cross_selling') {
-            return '1-DEY2E2H'; // Default cross_selling convenio
-        }
-
-        // Level 10: Ultimate fallback
-        return '1-8JMLB4N'; // Default fallback convenio
+        // The convenio is calculated and stored as 'convenio_used' in the workflow
+        // Just extract it from the voucher result (same pattern as precio_emision)
+        return $personData['convenio_used'] ?? null;
     }
 
     /**
