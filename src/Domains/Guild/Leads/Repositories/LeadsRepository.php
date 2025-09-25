@@ -60,6 +60,7 @@ class LeadsRepository
                         ->whereHas('status', function ($query) {
                             $query->whereNotIn('name', ['active', 'created']);
                         })
+                    ->where('is_deleted', StateEnums::NO->getValue())
                         ->orderBy('id', 'desc')
                         ->first();
     }
