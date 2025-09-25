@@ -255,7 +255,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher creation as requested
+            'Precio' => '0.00', // Empty price for voucher creation as requested
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
@@ -318,7 +318,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher creation as requested
+            'Precio' => '0.00', // Empty price for voucher creation as requested
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
@@ -2148,7 +2148,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher creation as requested
+            'Precio' => '0.00', // Empty price for voucher creation as requested
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
@@ -2207,7 +2207,7 @@ class InsuranceWorkflowService
             'FechaVigencia' => $activationDate->format('m/d/Y'),
             'FechaFinal' => $expirationDate->format('m/d/Y'),
             'MonedaLista' => 'USD',
-            'Precio' => '', // Empty price for voucher creation as requested
+            'Precio' => '0.00', // Empty price for voucher creation as requested
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
