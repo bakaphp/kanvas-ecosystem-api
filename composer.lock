@@ -3426,16 +3426,16 @@
         },
         {
             "name": "haydenpierce/class-finder",
-            "version": "0.5.3",
+            "version": "0.4.4",
             "source": {
                 "type": "git",
                 "url": "git@gitlab.com:hpierce1102/ClassFinder.git",
-                "reference": "40703445c18784edcc6411703e7c3869af11ec8c"
+                "reference": "94c602870ddf8d4fa2d67fb9bae637d88f9bd76e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/hpierce1102%2FClassFinder/repository/archive.zip?sha=40703445c18784edcc6411703e7c3869af11ec8c",
-                "reference": "40703445c18784edcc6411703e7c3869af11ec8c",
+                "url": "https://gitlab.com/api/v4/projects/hpierce1102%2FClassFinder/repository/archive.zip?sha=94c602870ddf8d4fa2d67fb9bae637d88f9bd76e",
+                "reference": "94c602870ddf8d4fa2d67fb9bae637d88f9bd76e",
                 "shasum": ""
             },
             "require": {
@@ -3464,7 +3464,7 @@
                 }
             ],
             "description": "A library that can provide of a list of classes in a given namespace",
-            "time": "2023-06-18T17:43:01+00:00"
+            "time": "2022-09-26T22:42:59+00:00"
         },
         {
             "name": "http-interop/http-factory-guzzle",
@@ -16944,19 +16944,20 @@
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
-            "version": "v2.1.2",
+            "version": "v2.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
-                "reference": "ae15d69ee0cc61bf6aed656913a046599d33e77b"
+                "reference": "dc499212d2a0cf51368a6b2b6b65dd1bbd16e5a8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/ae15d69ee0cc61bf6aed656913a046599d33e77b",
-                "reference": "ae15d69ee0cc61bf6aed656913a046599d33e77b",
+                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/dc499212d2a0cf51368a6b2b6b65dd1bbd16e5a8",
+                "reference": "dc499212d2a0cf51368a6b2b6b65dd1bbd16e5a8",
                 "shasum": ""
             },
             "require": {
+                "haydenpierce/class-finder": "^0.4",
                 "laravel/framework": "^9.0 || ^10.0 || ^11.0 || ^12.0",
                 "nuwave/lighthouse": "^6.0",
                 "php": "^8"
@@ -16995,9 +16996,9 @@
             ],
             "support": {
                 "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
-                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.1.2"
+                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.2.0"
             },
-            "time": "2025-07-27T06:22:36+00:00"
+            "time": "2025-09-25T21:22:11+00:00"
         }
     ],
     "packages-dev": [
