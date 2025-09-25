@@ -1740,81 +1740,31 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Select the best quotation for voucher creation based on variant type and plan matching
+     * Select the best quotation for voucher creation - simplified approach
      */
     protected function selectBestQuotationForVoucher(array $personData, array $dualQuotationResult): array
     {
-        $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? 'basic');
-
         // Get quotation results
         $inclusionResult = $dualQuotationResult['inclusion']['result'] ?? [];
         $crossSellingResult = $dualQuotationResult['cross_selling']['result'] ?? [];
 
-        // Extract quotation data from both responses - handle both object and array cases
-        $inclusionQuoteData = $this->extractQuoteData($inclusionResult['quotation_data'] ?? []);
-        $crossSellingQuoteData = $this->extractQuoteData($crossSellingResult['quotation_data'] ?? []);
-
-        // Get target plan from selection logic - use proper matching logic
-        $targetPlan = $dualQuotationResult['selection_logic']['target_plan'] ?? '';
-
-        // Priority logic based on variant and success
-        // 1. Try inclusion first if it was successful and has the target plan
-        if ($inclusionResult['success'] ?? false) {
-            $inclusionMatch = $this->findMatchingProductInQuoteData($targetPlan, $inclusionQuoteData);
-            if ($inclusionMatch['found']) {
-                return [
-                    'quotation_type' => 'inclusion',
-                    'quotation_data' => $dualQuotationResult['inclusion'],
-                    'matched_plan' => $inclusionMatch,
-                    'selection_reason' => "variant_based_inclusion_for_{$planVariant}_variant",
-                    'id_lead' => $inclusionMatch['quote_data']['IdLeadOut'] ?? null,
-                    'convenio' => $dualQuotationResult['inclusion']['convenio'],
-                    'target_plan' => $targetPlan
-                ];
-            }
-        }
-
-        // 2. Try cross selling if inclusion failed or didn't match
+        // Simple priority: cross_selling first, then inclusion
+        // Just use whatever quotation is successful without complex matching
         if ($crossSellingResult['success'] ?? false) {
-            $crossSellingMatch = $this->findMatchingProductInQuoteData($targetPlan, $crossSellingQuoteData);
-            if ($crossSellingMatch['found']) {
-                return [
-                    'quotation_type' => 'cross_selling',
-                    'quotation_data' => $dualQuotationResult['cross_selling'],
-                    'matched_plan' => $crossSellingMatch,
-                    'selection_reason' => "variant_based_cross_selling_for_{$planVariant}_variant",
-                    'id_lead' => $crossSellingMatch['quote_data']['IdLeadOut'] ?? null,
-                    'convenio' => $dualQuotationResult['cross_selling']['convenio'],
-                    'target_plan' => $targetPlan
-                ];
-            }
-        }
-
-        // FALLBACK: If no exact match found, use the first successful quotation anyway
-        // Priority: cross_selling > inclusion (for better coverage)
-        if ($crossSellingResult['success'] ?? false) {
-            $fallbackMatch = $this->findMatchingProductInQuoteData($targetPlan, $crossSellingQuoteData);
             return [
                 'quotation_type' => 'cross_selling',
                 'quotation_data' => $dualQuotationResult['cross_selling'],
-                'matched_plan' => $fallbackMatch, // This could be ['found' => false] but we continue anyway
-                'selection_reason' => "fallback_cross_selling_no_exact_match",
-                'id_lead' => $fallbackMatch['quote_data']['IdLeadOut'] ?? null,
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'],
-                'target_plan' => $targetPlan
+                'selection_reason' => 'cross_selling_available',
+                'convenio' => $dualQuotationResult['cross_selling']['convenio']
             ];
         }
 
         if ($inclusionResult['success'] ?? false) {
-            $fallbackMatch = $this->findMatchingProductInQuoteData($targetPlan, $inclusionQuoteData);
             return [
                 'quotation_type' => 'inclusion',
                 'quotation_data' => $dualQuotationResult['inclusion'],
-                'matched_plan' => $fallbackMatch, // This could be ['found' => false] but we continue anyway
-                'selection_reason' => "fallback_inclusion_no_exact_match",
-                'id_lead' => $fallbackMatch['quote_data']['IdLeadOut'] ?? null,
-                'convenio' => $dualQuotationResult['inclusion']['convenio'],
-                'target_plan' => $targetPlan
+                'selection_reason' => 'inclusion_available',
+                'convenio' => $dualQuotationResult['inclusion']['convenio']
             ];
         }
 
@@ -1822,9 +1772,7 @@ class InsuranceWorkflowService
         return [
             'quotation_type' => 'error',
             'quotation_data' => null,
-            'matched_plan' => ['found' => false, 'reason' => 'No successful quotations available'],
             'selection_reason' => 'no_successful_quotations',
-            'id_lead' => null,
             'convenio' => null,
             'errors' => [
                 'inclusion' => $inclusionResult['error'] ?? 'Unknown error',
@@ -1834,7 +1782,7 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Create voucher from selected quotation with proper IdLead and Tarifa settings
+     * Create voucher from selected quotation with simplified process
      */
     protected function createVoucherFromSelectedQuotation(
         array $personData,
@@ -1844,7 +1792,6 @@ class InsuranceWorkflowService
         string $personType
     ): array {
         // Only stop voucher creation if there are NO successful quotations available
-        // If quotation selection found fallback options, continue with voucher creation
         if ($selectedQuotation['quotation_type'] === 'error' && $selectedQuotation['selection_reason'] === 'no_successful_quotations') {
             return [
                 'success' => false,
@@ -1861,27 +1808,16 @@ class InsuranceWorkflowService
             $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $convenio);
         }
 
-        // Set the IdLead from the selected quotation - check both id_lead and IdLeadOut from response
-        $idLead = '';
-        if (isset($selectedQuotation['id_lead']) && ! empty($selectedQuotation['id_lead'])) {
-            $idLead = $selectedQuotation['id_lead'];
-        } elseif (isset($selectedQuotation['matched_plan']['quote_data']['IdLeadOut']) && ! empty($selectedQuotation['matched_plan']['quote_data']['IdLeadOut'])) {
-            $idLead = $selectedQuotation['matched_plan']['quote_data']['IdLeadOut'];
-        }
-
-        // Always set LeadId, even if empty (as empty string '')
-        $voucherData['LeadId'] = $idLead;
+        // Always set LeadId as empty string as requested
+        $voucherData['LeadId'] = '';
 
         // Ensure Tarifa is 'N' and Precio is '' as requested
         $voucherData['ImprimeTarifa'] = 'N';
         $voucherData['Precio'] = '';
 
-        // Use the matched plan name if available
-        if (isset($selectedQuotation['matched_plan']['found']) && $selectedQuotation['matched_plan']['found']) {
-            $matchedProductName = $selectedQuotation['matched_plan']['product_name'] ?? null;
-            if ($matchedProductName) {
-                $voucherData['DatosProducto']['NombreProducto'] = $matchedProductName;
-            }
+        // Use the plan name directly as requested - no matching needed
+        if (isset($personData['plan']['name']) && ! empty($personData['plan']['name'])) {
+            $voucherData['DatosProducto']['NombreProducto'] = $personData['plan']['name'];
         }
 
         // Add delay to ensure unique timestamps
@@ -1902,20 +1838,6 @@ class InsuranceWorkflowService
             // Convert result to arrays and add metadata
             $result = $this->convertObjectsToArrays($result);
             $result['selected_quotation_metadata'] = $selectedQuotation;
-
-            // Extract quotation data for validation using helper method
-            $quoteData = $this->extractQuoteData($result);
-
-            // Perform product matching - without price validation since voucher has empty price
-            $matchedProduct = $this->findMatchingProductInQuoteData($personData['plan']['name'] ?? '', $quoteData);
-            $productValidation = $this->validateProductMatch(
-                $personData['plan']['name'] ?? null,
-                $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null)
-            );
-
-            // Add validation results (no price validation needed for voucher)
-            $result['matched_product'] = $matchedProduct;
-            $result['product_validation'] = $productValidation;
 
             // Generate PDF if voucher was created successfully
             if (isset($result['voucher_response']) &&
