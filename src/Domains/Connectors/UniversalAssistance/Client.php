@@ -278,10 +278,10 @@ class Client
         $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
 
         // Respect convenios determined by workflow - only set if not already provided
-        if (!isset($inclusionData['contrato']) || empty($inclusionData['contrato'])) {
+        if (! isset($inclusionData['contrato']) || empty($inclusionData['contrato'])) {
             $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
         }
-        if (!isset($crossSellingData['contrato']) || empty($crossSellingData['contrato'])) {
+        if (! isset($crossSellingData['contrato']) || empty($crossSellingData['contrato'])) {
             $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
         }
 
@@ -405,7 +405,7 @@ class Client
         // Check both 'contrato' and 'Contrato' keys for consistency
         $workflowConvenio = $voucherData['contrato'] ?? $voucherData['Contrato'] ?? null;
 
-        if ($workflowConvenio && !empty($workflowConvenio)) {
+        if ($workflowConvenio && ! empty($workflowConvenio)) {
             // Use the convenio determined by workflow (variant logic)
             $voucherData['contrato'] = $workflowConvenio;
             unset($voucherData['Contrato']); // Remove uppercase version if it exists for consistency
