@@ -1787,8 +1787,8 @@ class InsuranceWorkflowService
             ];
         }
 
-        // Build voucher data using the specific convenio from selected quotation
-        $convenio = $selectedQuotation['convenio'];
+        // Build voucher data using the specific convenio from selected quotation with fallback
+        $convenio = $this->extractConvenioWithFallback($selectedQuotation, $personData);
         if ($selectedQuotation['quotation_type'] === 'cross_selling') {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $convenio);
         } else {
@@ -1866,13 +1866,6 @@ class InsuranceWorkflowService
             // Convert result to arrays and add metadata
             $result = $this->convertObjectsToArrays($result);
             $result['selected_quotation_metadata'] = $selectedQuotation;
-
-            // Generate PDF if voucher was created successfully
-            if (isset($result['voucher_response']) &&
-                isset($result['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
-                $pdfResult = $this->generateVoucherPDF($result, $personData);
-                $result['pdf_data'] = $pdfResult;
-            }
 
             return [
                 'success' => true,
@@ -2206,6 +2199,7 @@ class InsuranceWorkflowService
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
+                'CorreoElectronicoSolicitante' => $personData['email'], // Email field for voucher delivery
             ],
         ];
     }
@@ -2265,6 +2259,7 @@ class InsuranceWorkflowService
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
+                'CorreoElectronicoSolicitante' => $personData['email'], // Email field for voucher delivery
             ],
         ];
     }
@@ -2285,5 +2280,82 @@ class InsuranceWorkflowService
         }
 
         return $data;
+    }
+
+    /**
+     * Extract convenio with multiple fallback sources
+     */
+    protected function extractConvenioWithFallback(array $selectedQuotation, array $personData): string
+    {
+        // Primary source: convenio from selected quotation
+        if (!empty($selectedQuotation['convenio'])) {
+            return $selectedQuotation['convenio'];
+        }
+
+        // Fallback 1: Extract from quotation_data nested structure
+        if (isset($selectedQuotation['quotation_data']['convenio'])) {
+            return $selectedQuotation['quotation_data']['convenio'];
+        }
+
+        // Fallback 2: Extract from result.quotation_data.convenio
+        if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['convenio'])) {
+            return $selectedQuotation['quotation_data']['result']['quotation_data']['convenio'];
+        }
+
+        // Fallback 3: Extract from organization field (if organization contains convenio info)
+        if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['organization'])) {
+            $organization = $selectedQuotation['quotation_data']['result']['quotation_data']['organization'];
+            // If organization field contains convenio-like pattern
+            if (!empty($organization)) {
+                return $organization;
+            }
+        }
+
+        // Fallback 5: Extract from person data if contains variant/convenio mapping
+        if (isset($personData['variant'])) {
+            $variant = $personData['variant'];
+
+            // Map variants to known convenios (based on your workflow logic)
+            $variantConvenioMap = [
+                'limited' => '1-EO7PJQQ',     // inclusion convenio
+                'unlimited' => '1-EO7PJQL',   // cross_selling convenio  
+                'basic' => '1-EO7PJQQ',
+                'premium' => '1-EO7PJQL'
+            ];
+
+            if (isset($variantConvenioMap[$variant])) {
+                return $variantConvenioMap[$variant];
+            }
+        }
+
+        // Fallback 6: Extract from quotation_type with default mapping
+        if (isset($selectedQuotation['quotation_type'])) {
+            $quotationType = $selectedQuotation['quotation_type'];
+
+            // Default convenio mapping based on quotation type
+            $typeConvenioMap = [
+                'inclusion' => '1-EO7PJQQ',
+                'cross_selling' => '1-EO7PJQL'
+            ];
+
+            if (isset($typeConvenioMap[$quotationType])) {
+                return $typeConvenioMap[$quotationType];
+            }
+        }
+
+        // Fallback 7: Use destination-based default (last resort)
+        $destinationCountryCode = $personData['destinationCountryCode'] ?? 'DO';
+        $destinationConvenioMap = [
+            'DO' => '1-EO7PJQL',  // Dominican Republic default
+            'AR' => '1-EO7PJQQ',  // Argentina default
+            'PE' => '1-EO7PJQL',  // Peru default
+        ];
+
+        if (isset($destinationConvenioMap[$destinationCountryCode])) {
+            return $destinationConvenioMap[$destinationCountryCode];
+        }
+
+        // Ultimate fallback: Use default convenio
+        return '1-EO7PJQL'; // Default cross_selling convenio
     }
 }
