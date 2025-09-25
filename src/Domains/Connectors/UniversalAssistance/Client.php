@@ -941,7 +941,8 @@ class Client
                             'Contrato' => $voucherData['contrato'] ?? '1-DEY2E2H',
                             'LeadId' => $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
                             'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
-                            'ImprimeTarifa' => $voucherData['imprimeTarifa'] ?? 'N', // Campo "imprime tarifa" en "N"
+                            'ImprimeTarifa' => 'N', // Always N - no fallback needed
+                            'Tarifa' => 'N', // Always N - no fallback needed
 
                             // Sub-structures in successful order
                             'DatosAgencia' => $voucherData['datosAgencia'] ?? [
