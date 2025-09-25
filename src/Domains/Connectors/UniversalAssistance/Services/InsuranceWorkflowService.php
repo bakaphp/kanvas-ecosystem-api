@@ -1811,8 +1811,8 @@ class InsuranceWorkflowService
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
-        // Ensure Tarifa is 'N' and Precio is '' as requested
-        $voucherData['ImprimeTarifa'] = 'N';
+        // Ensure Tarifa is 'N' and Precio is empty as requested
+        $voucherData['Tarifa'] = 'N';
         $voucherData['Precio'] = '';
 
         // Use the plan name directly as requested - no matching needed
