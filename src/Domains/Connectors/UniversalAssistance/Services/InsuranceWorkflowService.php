@@ -1868,7 +1868,7 @@ class InsuranceWorkflowService
         } elseif (isset($selectedQuotation['matched_plan']['quote_data']['IdLeadOut']) && ! empty($selectedQuotation['matched_plan']['quote_data']['IdLeadOut'])) {
             $idLead = $selectedQuotation['matched_plan']['quote_data']['IdLeadOut'];
         }
-        
+
         // Always set LeadId, even if empty (as empty string '')
         $voucherData['LeadId'] = $idLead;
 
@@ -2078,8 +2078,8 @@ class InsuranceWorkflowService
             foreach ($searchWords as $word) {
                 // Keep important words, skip numbers and common suffixes
                 // But keep 'simlimites' if it's in the original search plan
-                if (! preg_match('/^\d+k?$/', $word) && 
-                    ! in_array($word, ['rec', 'dom']) && 
+                if (! preg_match('/^\d+k?$/', $word) &&
+                    ! in_array($word, ['rec', 'dom']) &&
                     ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
                     $keyWords[] = $word;
                 }
@@ -2088,7 +2088,7 @@ class InsuranceWorkflowService
             foreach ($productWords as $word) {
                 // Keep important words, skip numbers and common suffixes
                 // But keep 'simlimites' if it's in the search plan  
-                if (! preg_match('/^\d+k?$/', $word) && 
+                if (! preg_match('/^\d+k?$/', $word) &&
                     ! in_array($word, ['rec', 'dom']) &&
                     ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
                     $productKeyWords[] = $word;
@@ -2096,7 +2096,7 @@ class InsuranceWorkflowService
             }
 
             // If key identifying words match, consider it a match
-            if (! empty($keyWords) && !empty($productKeyWords)) {
+            if (! empty($keyWords) && ! empty($productKeyWords)) {
                 $matchingWords = array_intersect($keyWords, $productKeyWords);
                 if (count($matchingWords) >= count($keyWords)) {
                     return [
