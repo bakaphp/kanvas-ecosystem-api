@@ -1791,12 +1791,40 @@ class InsuranceWorkflowService
             }
         }
 
-        // If no exact match found, return error state - NO FALLBACKS
+        // FALLBACK: If no exact match found, use the first successful quotation anyway
+        // Priority: cross_selling > inclusion (for better coverage)
+        if ($crossSellingResult['success'] ?? false) {
+            $fallbackMatch = $this->findMatchingProductInQuoteData($targetPlan, $crossSellingQuoteData);
+            return [
+                'quotation_type' => 'cross_selling',
+                'quotation_data' => $dualQuotationResult['cross_selling'],
+                'matched_plan' => $fallbackMatch, // This could be ['found' => false] but we continue anyway
+                'selection_reason' => "fallback_cross_selling_no_exact_match",
+                'id_lead' => $fallbackMatch['quote_data']['IdLeadOut'] ?? null,
+                'convenio' => $dualQuotationResult['cross_selling']['convenio'],
+                'target_plan' => $targetPlan
+            ];
+        }
+
+        if ($inclusionResult['success'] ?? false) {
+            $fallbackMatch = $this->findMatchingProductInQuoteData($targetPlan, $inclusionQuoteData);
+            return [
+                'quotation_type' => 'inclusion',
+                'quotation_data' => $dualQuotationResult['inclusion'],
+                'matched_plan' => $fallbackMatch, // This could be ['found' => false] but we continue anyway
+                'selection_reason' => "fallback_inclusion_no_exact_match",
+                'id_lead' => $fallbackMatch['quote_data']['IdLeadOut'] ?? null,
+                'convenio' => $dualQuotationResult['inclusion']['convenio'],
+                'target_plan' => $targetPlan
+            ];
+        }
+
+        // Only return error if BOTH quotations failed completely
         return [
             'quotation_type' => 'error',
             'quotation_data' => null,
-            'matched_plan' => ['found' => false, 'reason' => 'No exact plan match found'],
-            'selection_reason' => 'no_exact_match_found',
+            'matched_plan' => ['found' => false, 'reason' => 'No successful quotations available'],
+            'selection_reason' => 'no_successful_quotations',
             'id_lead' => null,
             'convenio' => null,
             'errors' => [
@@ -1816,11 +1844,12 @@ class InsuranceWorkflowService
         string $destinationCountryCode,
         string $personType
     ): array {
-        // If quotation selection failed, return error
-        if ($selectedQuotation['quotation_type'] === 'error') {
+        // Only stop voucher creation if there are NO successful quotations available
+        // If quotation selection found fallback options, continue with voucher creation
+        if ($selectedQuotation['quotation_type'] === 'error' && $selectedQuotation['selection_reason'] === 'no_successful_quotations') {
             return [
                 'success' => false,
-                'error' => 'No valid quotation available for voucher creation',
+                'error' => 'No valid quotation available for voucher creation - both inclusion and cross_selling failed',
                 'quotation_errors' => $selectedQuotation['errors'] ?? []
             ];
         }
