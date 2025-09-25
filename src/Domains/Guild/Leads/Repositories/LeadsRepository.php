@@ -38,6 +38,7 @@ class LeadsRepository
     {
         return Lead::fromApp($people->app)
                     ->fromCompany($people->company)
+                    ->notDeleted()
                     ->where('people_id', $people->id)
                         ->whereHas('status', function ($query) {
                             $query->whereIn('name', ['active', 'created']);
