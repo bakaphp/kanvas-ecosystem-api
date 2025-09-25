@@ -1498,13 +1498,58 @@ class InsuranceWorkflowService
     }
 
     /**
+     * Extract variant type from multiple possible sources in person data
+     */
+    protected function extractVariantType(array $personData): string
+    {
+        // 1. Try variant_info attributes (from order metadata)
+        if (isset($personData['variant_info']['attributes']['Variant Type'])) {
+            $variantType = strtolower(trim($personData['variant_info']['attributes']['Variant Type']));
+            if (in_array($variantType, ['basic', 'unlimited'])) {
+                return $variantType;
+            }
+        }
+
+        // 2. Try variant object directly
+        if (isset($personData['variant']['attributes']) && is_array($personData['variant']['attributes'])) {
+            foreach ($personData['variant']['attributes'] as $attribute) {
+                if (isset($attribute['name']) && $attribute['name'] === 'Variant Type') {
+                    $variantType = strtolower(trim($attribute['value']));
+                    if (in_array($variantType, ['basic', 'unlimited'])) {
+                        return $variantType;
+                    }
+                }
+            }
+        }
+
+        // 3. Try plan variant/type fields
+        $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? '');
+        if (in_array($planVariant, ['basic', 'unlimited'])) {
+            return $planVariant;
+        }
+
+        // 4. Try to infer from plan name
+        $planName = strtolower($personData['plan']['name'] ?? '');
+        if (strpos($planName, 'unlimited') !== false || strpos($planName, 'ilimitad') !== false) {
+            return 'unlimited';
+        }
+        if (strpos($planName, 'basic') !== false || strpos($planName, 'basico') !== false) {
+            return 'basic';
+        }
+
+        // 5. Default to basic if no variant type found
+        return 'basic';
+    }
+
+    /**
      * Perform dual quotation workflow - always get both inclusion and cross selling quotations
      * with variant-based convenio selection
      */
     protected function performDualQuotationWorkflow(array $personData, string $originCountryCode, string $destinationCountryCode): array
     {
-        $planVariant = strtolower($personData['plan']['variant'] ?? $personData['plan']['type'] ?? 'basic');
-        
+        // Extract variant type from multiple possible sources
+        $planVariant = $this->extractVariantType($personData);
+
         // Determine convenios based on variant type
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA
@@ -1520,10 +1565,10 @@ class InsuranceWorkflowService
 
         // Perform inclusion quotation
         $inclusionResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'inclusion', $inclusionConvenio);
-        
+
         // Add delay between quotations
         usleep(5000);
-        
+
         // Perform cross selling quotation
         $crossSellingResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'cross_selling', $crossSellingConvenio);
 
@@ -1574,17 +1619,16 @@ class InsuranceWorkflowService
                 $this->order,
                 true // Only quotation, no voucher creation yet
             );
-            
+
             // Convert to arrays
             $result = $this->convertObjectsToArrays($result);
-            
+
             return [
                 'success' => true,
                 'quotation_data' => $result,
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType
             ];
-            
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -1813,7 +1857,6 @@ class InsuranceWorkflowService
                 'convenio_used' => $convenio,
                 'quotation_type_used' => $selectedQuotation['quotation_type']
             ];
-
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -1834,7 +1877,7 @@ class InsuranceWorkflowService
         }
 
         $quoteData = $quoteDataArray[0] ?? [];
-        
+
         // Check if there's a main product in the quote
         if (isset($quoteData['NombreProducto']) && $quoteData['NombreProducto']) {
             return [
@@ -1850,7 +1893,7 @@ class InsuranceWorkflowService
         if (! empty($attributes) && is_array($attributes)) {
             $firstAttribute = $attributes[0] ?? [];
             $productName = $firstAttribute['NombreProducto'] ?? $firstAttribute['NombreVisible'] ?? null;
-            
+
             if ($productName) {
                 return [
                     'found' => true,
@@ -1867,12 +1910,12 @@ class InsuranceWorkflowService
 
     /**
      * Find matching product in the quotation data structure (DatosLeadCotizadorOut)
-     * 
+     *
      * This method works with the real Universal Assistance quotation response structure:
      * - Main product info: NombreProducto (e.g., "DOM TELEASISTENCIA SIMLIMITES", "DOM ASISTENCIA 10K SIMLIMITES REC")
-     * - Category info: Categoria (e.g., "Receptivos"), FamiliaProducto (e.g., "Teleasistencia", "Value 80")  
+     * - Category info: Categoria (e.g., "Receptivos"), FamiliaProducto (e.g., "Teleasistencia", "Value 80")
      * - DatosLeadCotizadorOut can be either an object or an array of objects
-     * 
+     *
      * Matching logic focuses on NombreProducto:
      * - TELEASISTENCIA: looks for "teleasistencia" in NombreProducto
      * - ASISTENCIA 10K REC: looks for "asistencia" and "10k" in NombreProducto
@@ -1887,22 +1930,24 @@ class InsuranceWorkflowService
         }
 
         $searchPlanLower = strtolower(trim($searchPlan));
-        
+
         // Handle the case where DatosLeadCotizadorOut can be array or object
         $quotesToCheck = [];
-        
+
         // Check if it's an array with numeric indices (multiple quotes)
         if (isset($quoteData[0])) {
             // DatosLeadCotizadorOut is an array of quote objects/arrays
             $quotesToCheck = $quoteData;
-        } elseif (!empty($quoteData) && (isset($quoteData['NombreProducto']) || isset($quoteData['IdLeadOut']))) {
+        } elseif (! empty($quoteData) && (isset($quoteData['NombreProducto']) || isset($quoteData['IdLeadOut']))) {
             // DatosLeadCotizadorOut is a single quote object/array
             $quotesToCheck = [$quoteData];
         } else {
             // Try to find quotes in nested structure
             foreach ($quoteData as $key => $value) {
                 if (is_array($value) || is_object($value)) {
-                    if (is_object($value)) $value = (array) $value;
+                    if (is_object($value)) {
+                        $value = (array) $value;
+                    }
                     if (isset($value['NombreProducto']) || isset($value['IdLeadOut'])) {
                         $quotesToCheck[] = $value;
                     }
@@ -1911,18 +1956,22 @@ class InsuranceWorkflowService
         }
 
         foreach ($quotesToCheck as $index => $singleQuote) {
-            if (empty($singleQuote)) continue;
-            
+            if (empty($singleQuote)) {
+                continue;
+            }
+
             // Convert object to array for consistent handling
             if (is_object($singleQuote)) {
                 $singleQuote = (array) $singleQuote;
             }
-            
+
             $nombreProducto = $singleQuote['NombreProducto'] ?? '';
-            if (! $nombreProducto) continue;
-            
+            if (! $nombreProducto) {
+                continue;
+            }
+
             $nombreProductoLower = strtolower(trim($nombreProducto));
-            
+
             // Exact match
             if ($nombreProductoLower === $searchPlanLower) {
                 return [
@@ -1933,7 +1982,7 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
+
             // Contains match (search plan contained in product name)
             if (strpos($nombreProductoLower, $searchPlanLower) !== false) {
                 return [
@@ -1944,9 +1993,9 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
+
             // Specific matching logic based on real NombreProducto patterns
-            
+
             // For TELEASISTENCIA: match "DOM TELEASISTENCIA SIMLIMITES"
             if ($searchPlanLower === 'teleasistencia' && strpos($nombreProductoLower, 'teleasistencia') !== false) {
                 return [
@@ -1957,10 +2006,10 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
+
             // For ASISTENCIA 10K REC: match "DOM ASISTENCIA 10K SIMLIMITES REC"
-            if ($searchPlanLower === 'asistencia 10k rec' && 
-                strpos($nombreProductoLower, 'asistencia') !== false && 
+            if ($searchPlanLower === 'asistencia 10k rec' &&
+                strpos($nombreProductoLower, 'asistencia') !== false &&
                 strpos($nombreProductoLower, '10k') !== false) {
                 return [
                     'found' => true,
@@ -1970,10 +2019,10 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
+
             // For MASTER 40K REC: match "DOM MASTER 40K SIMLIMITES REC"
-            if ($searchPlanLower === 'master 40k rec' && 
-                strpos($nombreProductoLower, 'master') !== false && 
+            if ($searchPlanLower === 'master 40k rec' &&
+                strpos($nombreProductoLower, 'master') !== false &&
                 strpos($nombreProductoLower, '40k') !== false) {
                 return [
                     'found' => true,
@@ -1983,9 +2032,9 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
+
             // Additional flexible matching for variations
-            if (strpos($searchPlanLower, 'asistencia') !== false && 
+            if (strpos($searchPlanLower, 'asistencia') !== false &&
                 strpos($nombreProductoLower, 'asistencia') !== false) {
                 return [
                     'found' => true,
@@ -1995,8 +2044,8 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
-            if (strpos($searchPlanLower, 'teleasistencia') !== false && 
+
+            if (strpos($searchPlanLower, 'teleasistencia') !== false &&
                 strpos($nombreProductoLower, 'teleasistencia') !== false) {
                 return [
                     'found' => true,
@@ -2006,8 +2055,8 @@ class InsuranceWorkflowService
                     'quote_index' => $index
                 ];
             }
-            
-            if (strpos($searchPlanLower, 'master') !== false && 
+
+            if (strpos($searchPlanLower, 'master') !== false &&
                 strpos($nombreProductoLower, 'master') !== false) {
                 return [
                     'found' => true,
@@ -2066,13 +2115,13 @@ class InsuranceWorkflowService
         // Check if it's in DatosLeadCotizadorOut
         if (isset($quotationResponse['DatosLeadCotizadorOut'])) {
             $quoteData = $quotationResponse['DatosLeadCotizadorOut'];
-            
+
             // Handle array case - take first element
-            if (is_array($quoteData) && !empty($quoteData)) {
+            if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
                 return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
-            
+
             // Handle object case
             if (is_object($quoteData)) {
                 return $quoteData->IdLeadOut ?? null;
@@ -2082,13 +2131,13 @@ class InsuranceWorkflowService
         // Check in nested quotation_data structure (for full responses)
         if (isset($quotationResponse['quotation_data']['DatosLeadCotizadorOut'])) {
             $quoteData = $quotationResponse['quotation_data']['DatosLeadCotizadorOut'];
-            
+
             // Handle array case - take first element
-            if (is_array($quoteData) && !empty($quoteData)) {
+            if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
                 return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
-            
+
             // Handle object case
             if (is_object($quoteData)) {
                 return $quoteData->IdLeadOut ?? null;
@@ -2098,13 +2147,13 @@ class InsuranceWorkflowService
         // Check in quote_response structure
         if (isset($quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
             $quoteData = $quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-            
+
             // Handle array case - take first element
-            if (is_array($quoteData) && !empty($quoteData)) {
+            if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
                 return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
-            
+
             // Handle object case
             if (is_object($quoteData)) {
                 return $quoteData->IdLeadOut ?? null;
@@ -2120,10 +2169,10 @@ class InsuranceWorkflowService
     protected function buildVoucherDataWithConvenio(array $personData, string $personType, string $originCountryCode, string $destinationCountryCode, string $convenio): array
     {
         $voucherData = $this->buildVoucherData($personData, $personType, $originCountryCode, $destinationCountryCode);
-        
+
         // Override the convenio with the specific one
         $voucherData['Contrato'] = $convenio;
-        
+
         return $voucherData;
     }
 
@@ -2133,10 +2182,10 @@ class InsuranceWorkflowService
     protected function buildCrossSellingVoucherDataWithConvenio(array $personData, string $personType, string $originCountryCode, string $destinationCountryCode, string $convenio): array
     {
         $voucherData = $this->buildCrossSellingVoucherData($personData, $personType, $originCountryCode, $destinationCountryCode);
-        
+
         // Override the convenio with the specific one
         $voucherData['Contrato'] = $convenio;
-        
+
         return $voucherData;
     }
 
