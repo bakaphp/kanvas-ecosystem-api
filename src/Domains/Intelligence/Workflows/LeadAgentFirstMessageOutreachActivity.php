@@ -54,6 +54,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     throw new RuntimeException('Lead does not have a phone number , wont be able to send message until we add email support');
                 }
 
+                $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
                 if (empty($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value))) {
                     return [
                         'error' => 'No communication channel selected , please set one to be able to send messages',
