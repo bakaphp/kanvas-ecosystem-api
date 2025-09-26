@@ -943,6 +943,7 @@ class Client
                             'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
                             'ImprimeTarifa' => 'N', // Always N - no fallback needed
                             'Tarifa' => 'N', // Always N - no fallback needed
+                            'PostProcesoFlag' => 'N', // Always N - no fallback needed
 
                             // Sub-structures in successful order
                             'DatosAgencia' => $voucherData['datosAgencia'] ?? [
