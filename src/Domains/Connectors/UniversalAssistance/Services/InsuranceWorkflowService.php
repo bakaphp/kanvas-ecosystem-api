@@ -1482,7 +1482,7 @@ class InsuranceWorkflowService
             }
 
             // If not found in inclusion, search in cross_selling quotation
-            if ((! $matchedProduct || !($matchedProduct['found'] ?? false)) && $crossSellingQuotationData && ($crossSellingQuotationData['success'] ?? false)) {
+            if ((! $matchedProduct || ! ($matchedProduct['found'] ?? false)) && $crossSellingQuotationData && ($crossSellingQuotationData['success'] ?? false)) {
                 $crossSellingPaths = [
                     $crossSellingQuotationData['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
                     $crossSellingQuotationData['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
