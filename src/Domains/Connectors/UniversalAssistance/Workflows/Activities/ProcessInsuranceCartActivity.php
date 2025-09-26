@@ -173,25 +173,25 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $convenio = $this->extractConvenioFromVoucherResult($voucherResult);
         $precioEmision = $voucherResult['precio_emision'] ?? null;
 
-                // Build the universalAssistanceData structure for frontend consumption
+        // Build the universalAssistanceData structure for frontend consumption
         $universalAssistanceData = [
             // Keep the original processed data structure with additional fields inside holder
             'holder' => array_merge($holder, [
                 // Add the additional structure from the image inside holder
-                'error_code' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode'] 
-                    ?? $voucherResult['error_code'] 
+                'error_code' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+                    ?? $voucherResult['error_code']
                     ?? null,
-                'error_msg' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg'] 
-                    ?? $voucherResult['error_msg'] 
+                'error_msg' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+                    ?? $voucherResult['error_msg']
                     ?? null,
                 'has_individual_voucher' => true,
-                'nro_control_ext' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt'] 
-                    ?? $voucherResult['nro_control_ext'] 
-                    ?? $voucherResult['control_number'] 
-                    ?? $holder['control_number'] 
+                'nro_control_ext' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
+                    ?? $voucherResult['nro_control_ext']
+                    ?? $voucherResult['control_number']
+                    ?? $holder['control_number']
                     ?? null,
-                'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
-                    ?? $voucherResult['voucher_id'] 
+                'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $voucherResult['voucher_id']
                     ?? null,
                 'organization' => $voucherResult['organization'] ?? null,
                 'price_validation' => null,
@@ -201,20 +201,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherResult = $dependent['voucher_result'] ?? [];
                 return array_merge($dependent, [
                     // Add the additional structure from the image inside each dependent
-                    'error_code' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode'] 
-                        ?? $dependentVoucherResult['error_code'] 
+                    'error_code' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+                        ?? $dependentVoucherResult['error_code']
                         ?? null,
-                    'error_msg' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg'] 
-                        ?? $dependentVoucherResult['error_msg'] 
+                    'error_msg' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+                        ?? $dependentVoucherResult['error_msg']
                         ?? null,
                     'has_individual_voucher' => true,
-                    'nro_control_ext' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt'] 
-                        ?? $dependentVoucherResult['nro_control_ext'] 
-                        ?? $dependentVoucherResult['control_number'] 
-                        ?? $dependent['control_number'] 
+                    'nro_control_ext' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
+                        ?? $dependentVoucherResult['nro_control_ext']
+                        ?? $dependentVoucherResult['control_number']
+                        ?? $dependent['control_number']
                         ?? null,
-                    'nro_voucher' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
-                        ?? $dependentVoucherResult['voucher_id'] 
+                    'nro_voucher' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependentVoucherResult['voucher_id']
                         ?? null,
                     'organization' => $dependentVoucherResult['organization'] ?? null,
                     'price_validation' => null,
