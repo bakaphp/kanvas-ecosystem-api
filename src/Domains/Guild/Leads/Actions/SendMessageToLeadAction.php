@@ -85,7 +85,7 @@ class SendMessageToLeadAction
             $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
 
             $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                return str_contains($value, str_replace('+', '', $cellphone));
+                return preg_replace('/^\+?1/', '', $cellphone);
             });
             if (! $phone) {
                 throw new Exception('No hijack number found for this phone number');

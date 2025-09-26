@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Workflows;
 
+use DateTime;
+use DateTimeZone;
 use Exception;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
+use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -48,12 +52,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $leadContext['first_message'] = $firstLeadMessage;
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
-                $cellPhone = str_replace('+', '', $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '');
+                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
 
+                $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
                 if (empty($cellPhone)) {
                     throw new RuntimeException('Lead does not have a phone number , wont be able to send message until we add email support');
                 }
 
+                //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
                 if (empty($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value))) {
                     return [
                         'error' => 'No communication channel selected , please set one to be able to send messages',
@@ -110,19 +116,31 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 //send the first message
                 if (! isset($params['disable_sending'])) {
-                    new SendMessageToLeadAction($lead)->execute(
-                        $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                        $firstLeadMessage['message'],
-                        $params['from'] ?? null,
-                    );
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                    $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                    $leadCurrentDateIn = $eLeadOpportunity->currentDateIn();
 
-                    try {
-                        //todo this is not the right place to do this but for now its ok
-                        //we need to make sure we have the phone call activity
-                        $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
-                    } catch (Exception $e) {
-                        report($e);
+                    if ($leadCurrentDateIn && $this->isToday($leadCurrentDateIn)) {
+                        new SendMessageToLeadAction($lead)->execute(
+                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                            $firstLeadMessage['message'],
+                            $params['from'] ?? null,
+                        );
+                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+
+                        try {
+                            //todo this is not the right place to do this but for now its ok
+                            //we need to make sure we have the phone call activity
+                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
+
+                            $note = $firstLeadMessage['message'] ?? '';
+                            if (! empty($note)) {
+                                $fromAgent = true;
+                                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+                                $eLeadOpportunity->addComment($note);
+                            }
+                        } catch (Exception $e) {
+                            report($e);
+                        }
                     }
                 }
 
@@ -136,5 +154,16 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    public function isToday(string $dateString): bool
+    {
+        // Get today's date in NY timezone
+        $todayNY = (new DateTime('now', new DateTimeZone('America/New_York')))->format('Y-m-d');
+
+        // Extract just the date part (YYYY-MM-DD) from the dateString
+        $dateOnly = substr($dateString, 0, 10);
+
+        return $todayNY === $dateOnly;
     }
 }
