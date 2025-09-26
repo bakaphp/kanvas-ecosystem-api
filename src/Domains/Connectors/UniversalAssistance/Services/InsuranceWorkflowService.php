@@ -1475,7 +1475,7 @@ class InsuranceWorkflowService
                             $matchedProduct = $inclusionMatch;
                             $matchedProduct['source_quotation'] = 'inclusion';
                             $matchedProduct['source_convenio'] = $dualQuotationResult['inclusion']['convenio'] ?? '';
-                            break 2; // Exit both loops - found in inclusion
+                            break; // Exit foreach loop - found in inclusion
                         }
                     }
                 }
