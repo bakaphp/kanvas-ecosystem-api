@@ -118,6 +118,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
                     try {
+                        //todo this is not the right place to do this but for now its ok
+                        //we need to make sure we have the phone call activity
                         $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
                     } catch (Exception $e) {
                         report($e);
