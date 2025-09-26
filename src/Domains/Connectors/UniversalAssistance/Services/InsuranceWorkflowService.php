@@ -1833,7 +1833,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $this->determineConvenioWithFallbacks($personData, $convenio), // Use comprehensive fallback logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
@@ -1893,7 +1893,7 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $convenio, // Use the specific convenio from variant logic
+            'Contrato' => $this->determineConvenioWithFallbacks($personData, $convenio), // Use comprehensive fallback logic
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
@@ -2017,5 +2017,67 @@ class InsuranceWorkflowService
 
         // Ultimate fallback: Use default convenio
         return '1-EO7PJQL'; // Default cross_selling convenio
+    }
+
+    /**
+     * Determine convenio with comprehensive fallbacks for all possible data sources
+     */
+    protected function determineConvenioWithFallbacks(array $personData, string $convenio): string
+    {
+        // Check all possible field variations and data sources
+        $resolvedConvenio = $personData['contrato']
+            ?? $personData['Contrato']
+            ?? $personData['convenio']
+            ?? $personData['Convenio']
+            ?? $personData['convenio_used']
+            ?? $personData['convenioUsed']
+            ?? $personData['contract']
+            ?? $personData['Contract']
+            ?? $personData['convenio_id']
+            ?? $personData['convenioId']
+            ?? $personData['contract_id']
+            ?? $personData['contractId']
+            // Workflow-specific fallbacks from activity data
+            ?? ($personData['workflow_data']['contrato'] ?? null)
+            ?? ($personData['workflow_data']['Contrato'] ?? null)
+            ?? ($personData['workflow_data']['convenio'] ?? null)
+            ?? ($personData['workflow_data']['Convenio'] ?? null)
+            ?? ($personData['workflow_data']['convenio_used'] ?? null)
+            // Insurance data fallbacks
+            ?? ($personData['insurance_data']['contrato'] ?? null)
+            ?? ($personData['insurance_data']['convenio'] ?? null)
+            ?? ($personData['insurance_data']['contract'] ?? null)
+            // Quotation result fallbacks
+            ?? ($personData['quotation_data']['contrato'] ?? null)
+            ?? ($personData['quotation_data']['convenio'] ?? null)
+            ?? ($personData['quotation_data']['convenio_used'] ?? null)
+            // Selected quotation fallbacks
+            ?? ($personData['selected_quotation']['contrato'] ?? null)
+            ?? ($personData['selected_quotation']['convenio'] ?? null)
+            ?? ($personData['selected_quotation']['convenio_used'] ?? null)
+            // Dual quotation results fallbacks
+            ?? ($personData['dual_quotation_results']['cross_selling']['result']['convenio'] ?? null)
+            ?? ($personData['dual_quotation_results']['cross_selling']['result']['contrato'] ?? null)
+            ?? ($personData['dual_quotation_results']['inclusion']['result']['convenio'] ?? null)
+            ?? ($personData['dual_quotation_results']['inclusion']['result']['contrato'] ?? null)
+            // Quotation type based fallbacks (like workflow logic)
+            ?? ($personData['quotation_type'] === 'inclusion' ? '1-8JMLB4N' : null)
+            ?? ($personData['quotation_type'] === 'cross_selling' ? '1-DEY2E2H' : null)
+            ?? ($personData['quotation_type_used'] === 'inclusion' ? '1-8JMLB4N' : null)
+            ?? ($personData['quotation_type_used'] === 'cross_selling' ? '1-DEY2E2H' : null)
+            // Plan data fallbacks
+            ?? ($personData['plan']['convenio'] ?? null)
+            ?? ($personData['plan']['contrato'] ?? null)
+            // Order data fallbacks
+            ?? ($personData['order_data']['convenio'] ?? null)
+            ?? ($personData['order_data']['contrato'] ?? null)
+            // Environment-based fallbacks
+            ?? ($this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') === '1-ENYNUF7' ? '1-8JMLB4N' : '1-DEY2E2H') // QA environment gets inclusion by default
+            // Parameter-based fallback (the convenio passed to the method)
+            ?? $convenio
+            // Ultimate fallback
+            ?? '1-DEY2E2H'; // Default cross_selling convenio
+
+        return $resolvedConvenio;
     }
 }
