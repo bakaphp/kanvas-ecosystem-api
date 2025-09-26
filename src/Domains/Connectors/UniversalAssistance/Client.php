@@ -487,10 +487,10 @@ class Client
             'Convenio' => $this->getConvenioForQuotationType($quotationType),
             'Folleto' => '', // Empty like working request
             'PaisOrigen' => $countryOfOrigin, // Use provided country of origin
-            'Destino' => 'Centro america/Caribe', // Fixed destination from working request
+            'Destino' => $voucherData['Destino'] ?? 'Centro america/Caribe', // Use voucher destination
             'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => date('m/d/Y', strtotime('2025-12-15')), // December 15, 2025
-            'FechaFin' => date('m/d/Y', strtotime('2025-12-22')), // December 22, 2025 (7 days)
+            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
+            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
             'CantidadPasajeros' => 4, // Match working request
             'Edad1' => 27, // Match working request ages
             'Edad2' => 38,
@@ -1631,8 +1631,8 @@ class Client
             'PaisOrigen' => $originCountryName, // Use provided origin country name
             'Destino' => $destinationName, // Use provided destination name
             'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => date('m/d/Y', strtotime($voucherData['FechaActivacionDesde'] ?? '2025-12-15')), // Use voucher activation date
-            'FechaFin' => date('m/d/Y', strtotime($voucherData['FechaActivacionHasta'] ?? '2025-12-22')), // Use voucher expiration date
+            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
+            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
             'CantidadPasajeros' => 1, // Single person quotation
             'PackFamiliar' => '', // Empty for individual
             'Edad1' => $edad, // Set primary age
