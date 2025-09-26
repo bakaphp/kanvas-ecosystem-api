@@ -265,7 +265,6 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
-            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -328,7 +327,6 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
-            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -1374,7 +1372,8 @@ class InsuranceWorkflowService
                 'success' => true,
                 'quotation_data' => $result,
                 'convenio' => $convenio,
-                'quotation_type' => $quotationType
+                'quotation_type' => $quotationType,
+                'quotation_request_input' => $voucherData  // Include the original quotation request data
             ];
         } catch (\Exception $e) {
             return [
@@ -1439,7 +1438,7 @@ class InsuranceWorkflowService
         string $personType
     ): array {
         // Only stop voucher creation if there are NO successful quotations available
-        if ($selectedQuotation['quotation_type'] === 'error' && $selectedQuotation['selection_reason'] === 'no_successful_quotations') {
+        if (($selectedQuotation['quotation_type'] ?? '') === 'error' && ($selectedQuotation['selection_reason'] ?? '') === 'no_successful_quotations') {
             return [
                 'success' => false,
                 'error' => 'No valid quotation available for voucher creation - both inclusion and cross_selling failed',
@@ -1461,14 +1460,14 @@ class InsuranceWorkflowService
             }
 
             // Fallback: try response structure
-            if (! $matchedProduct || ! $matchedProduct['found']) {
+            if (! $matchedProduct || ! ($matchedProduct['found'] ?? false)) {
                 if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
                     $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
                     $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
                 }
             }
 
-            if ($matchedProduct && $matchedProduct['found']) {
+            if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
                 $productData = $matchedProduct['quote_data'] ?? [];
 
                 // Extract EXACT price from the matched product
@@ -1488,7 +1487,7 @@ class InsuranceWorkflowService
         }
 
         // Build voucher data using the EXACT convenio from the selected plan
-        if ($selectedQuotation['quotation_type'] === 'cross_selling') {
+        if (($selectedQuotation['quotation_type'] ?? '') === 'cross_selling') {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
         } else {
             $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
@@ -1517,7 +1516,7 @@ class InsuranceWorkflowService
             // Create the actual voucher (not just quotation)
             $result = $this->client->createSingleQuotationWithCountries(
                 $voucherData,
-                $selectedQuotation['quotation_type'],
+                $selectedQuotation['quotation_type'] ?? 'inclusion',
                 $originCountryCode,
                 $destinationCountryCode,
                 $this->order,
@@ -1532,7 +1531,7 @@ class InsuranceWorkflowService
                 'success' => true,
                 'voucher_data' => $result,
                 'convenio_used' => $exactConvenio,
-                'quotation_type_used' => $selectedQuotation['quotation_type'],
+                'quotation_type_used' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the original voucher request data
                 'matched_product' => $matchedProduct      // Include product matching details
             ];
@@ -1541,7 +1540,7 @@ class InsuranceWorkflowService
                 'success' => false,
                 'error' => 'Voucher creation failed: ' . $e->getMessage(),
                 'convenio_attempted' => $exactConvenio,
-                'quotation_type_attempted' => $selectedQuotation['quotation_type'],
+                'quotation_type_attempted' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the request data even on error
                 'matched_product' => $matchedProduct      // Include product matching details even on error
             ];
@@ -1821,7 +1820,7 @@ class InsuranceWorkflowService
         }
 
         // Calculate dates
-        $activationDate = Carbon::parse($personData['activationDate']);
+        $activationDate = Carbon::parse($personData['activationDate'] ?? now());
         $duration = $this->getProductDuration($personData);
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration); // Duration days from activation date
@@ -1838,11 +1837,10 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $this->determineConvenioWithFallbacks($personData, $convenio), // Use comprehensive fallback logic
+            'Contrato' => $convenio, // Use uppercase 'Contrato' to match WSDL specification
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
-            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -1860,7 +1858,7 @@ class InsuranceWorkflowService
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
                 'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
-                'SexoSolicitante' => 'M', // Default gender
+                'SexoSolicitante' => $personData['sex'] ?? 'M', // Use actual sex or default to M
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
@@ -1898,11 +1896,10 @@ class InsuranceWorkflowService
             'NombreContactoVoucher' => '',
             'NroTelContactoVoucher' => '',
             'Canal' => 'Turismo',
-            'Contrato' => $this->determineConvenioWithFallbacks($personData, $convenio), // Use comprehensive fallback logic
+            'Contrato' => $convenio, // Use uppercase 'Contrato' to match WSDL specification
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
-            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -1920,7 +1917,7 @@ class InsuranceWorkflowService
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
                 'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
-                'SexoSolicitante' => 'M', // Default gender
+                'SexoSolicitante' => $personData['sex'] ?? 'M', // Use actual sex or default to M
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
@@ -1952,76 +1949,37 @@ class InsuranceWorkflowService
      */
     protected function extractConvenioWithFallback(array $selectedQuotation, array $personData): string
     {
-        // Primary source: convenio from selected quotation
-        if (! empty($selectedQuotation['convenio'])) {
-            return $selectedQuotation['convenio'];
+        // PRIORITY 1: convenio_used from selectedQuotation is ALWAYS the first priority
+        if (! empty($selectedQuotation['convenio_used'] ?? null)) {
+            return $selectedQuotation['convenio_used'];
         }
 
-        // Fallback 1: Extract from quotation_data nested structure
-        if (isset($selectedQuotation['quotation_data']['convenio'])) {
-            return $selectedQuotation['quotation_data']['convenio'];
+        // PRIORITY 2: convenio_used from personData is second priority  
+        if (! empty($personData['convenio_used'] ?? null)) {
+            return $personData['convenio_used'];
         }
 
-        // Fallback 2: Extract from result.quotation_data.convenio
-        if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['convenio'])) {
-            return $selectedQuotation['quotation_data']['result']['quotation_data']['convenio'];
+        // PRIORITY 3: Use variant-based convenio logic (MAIN LOGIC)
+        $planVariant = $this->extractVariantType($personData);
+        $quotationType = $selectedQuotation['quotation_type'] ?? 'inclusion';
+
+        // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
+        if ($planVariant === 'basic') {
+            // Basic → TELEASISTENCIA convenios
+            $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
+        } else {
+            // Unlimited → ASISTENCIA 10K REC convenios
+            $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
         }
 
-        // Fallback 3: Extract from organization field (if organization contains convenio info)
-        if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['organization'])) {
-            $organization = $selectedQuotation['quotation_data']['result']['quotation_data']['organization'];
-            // If organization field contains convenio-like pattern
-            if (! empty($organization)) {
-                return $organization;
-            }
+        // Return appropriate convenio based on quotation type
+        if ($quotationType === 'cross_selling') {
+            return $crossSellingConvenio;
+        } else {
+            return $inclusionConvenio;
         }
-
-        // Fallback 5: Extract from person data if contains variant/convenio mapping
-        if (isset($personData['variant'])) {
-            $variant = $personData['variant'];
-
-            // Map variants to known convenios (based on your workflow logic)
-            $variantConvenioMap = [
-                'limited' => '1-EO7PJQQ',     // inclusion convenio
-                'unlimited' => '1-EO7PJQL',   // cross_selling convenio
-                'basic' => '1-EO7PJQQ',
-                'premium' => '1-EO7PJQL'
-            ];
-
-            if (isset($variantConvenioMap[$variant])) {
-                return $variantConvenioMap[$variant];
-            }
-        }
-
-        // Fallback 6: Extract from quotation_type with default mapping
-        if (isset($selectedQuotation['quotation_type'])) {
-            $quotationType = $selectedQuotation['quotation_type'];
-
-            // Default convenio mapping based on quotation type
-            $typeConvenioMap = [
-                'inclusion' => '1-EO7PJQQ',
-                'cross_selling' => '1-EO7PJQL'
-            ];
-
-            if (isset($typeConvenioMap[$quotationType])) {
-                return $typeConvenioMap[$quotationType];
-            }
-        }
-
-        // Fallback 7: Use destination-based default (last resort)
-        $destinationCountryCode = $personData['destinationCountryCode'] ?? 'DO';
-        $destinationConvenioMap = [
-            'DO' => '1-EO7PJQL',  // Dominican Republic default
-            'AR' => '1-EO7PJQQ',  // Argentina default
-            'PE' => '1-EO7PJQL',  // Peru default
-        ];
-
-        if (isset($destinationConvenioMap[$destinationCountryCode])) {
-            return $destinationConvenioMap[$destinationCountryCode];
-        }
-
-        // Ultimate fallback: Use default convenio
-        return '1-EO7PJQL'; // Default cross_selling convenio
     }
 
     /**
@@ -2029,60 +1987,41 @@ class InsuranceWorkflowService
      */
     protected function determineConvenioWithFallbacks(array $personData, string $convenio): string
     {
-        // Check all possible field variations and data sources
-        $resolvedConvenio = $personData['contrato']
-            ?? $personData['Contrato']
-            ?? $personData['convenio']
-            ?? $personData['Convenio']
-            ?? $personData['convenio_used']
-            ?? $personData['convenioUsed']
-            ?? $personData['contract']
-            ?? $personData['Contract']
-            ?? $personData['convenio_id']
-            ?? $personData['convenioId']
-            ?? $personData['contract_id']
-            ?? $personData['contractId']
-            // Workflow-specific fallbacks from activity data
-            ?? ($personData['workflow_data']['contrato'] ?? null)
-            ?? ($personData['workflow_data']['Contrato'] ?? null)
-            ?? ($personData['workflow_data']['convenio'] ?? null)
-            ?? ($personData['workflow_data']['Convenio'] ?? null)
-            ?? ($personData['workflow_data']['convenio_used'] ?? null)
-            // Insurance data fallbacks
-            ?? ($personData['insurance_data']['contrato'] ?? null)
-            ?? ($personData['insurance_data']['convenio'] ?? null)
-            ?? ($personData['insurance_data']['contract'] ?? null)
-            // Quotation result fallbacks
-            ?? ($personData['quotation_data']['contrato'] ?? null)
-            ?? ($personData['quotation_data']['convenio'] ?? null)
-            ?? ($personData['quotation_data']['convenio_used'] ?? null)
-            // Selected quotation fallbacks
-            ?? ($personData['selected_quotation']['contrato'] ?? null)
-            ?? ($personData['selected_quotation']['convenio'] ?? null)
-            ?? ($personData['selected_quotation']['convenio_used'] ?? null)
-            // Dual quotation results fallbacks
-            ?? ($personData['dual_quotation_results']['cross_selling']['result']['convenio'] ?? null)
-            ?? ($personData['dual_quotation_results']['cross_selling']['result']['contrato'] ?? null)
-            ?? ($personData['dual_quotation_results']['inclusion']['result']['convenio'] ?? null)
-            ?? ($personData['dual_quotation_results']['inclusion']['result']['contrato'] ?? null)
-            // Quotation type based fallbacks (like workflow logic)
-            ?? ($personData['quotation_type'] === 'inclusion' ? '1-8JMLB4N' : null)
-            ?? ($personData['quotation_type'] === 'cross_selling' ? '1-DEY2E2H' : null)
-            ?? ($personData['quotation_type_used'] === 'inclusion' ? '1-8JMLB4N' : null)
-            ?? ($personData['quotation_type_used'] === 'cross_selling' ? '1-DEY2E2H' : null)
-            // Plan data fallbacks
-            ?? ($personData['plan']['convenio'] ?? null)
-            ?? ($personData['plan']['contrato'] ?? null)
-            // Order data fallbacks
-            ?? ($personData['order_data']['convenio'] ?? null)
-            ?? ($personData['order_data']['contrato'] ?? null)
-            // Environment-based fallbacks
-            ?? ($this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') === '1-ENYNUF7' ? '1-8JMLB4N' : '1-DEY2E2H') // QA environment gets inclusion by default
-            // Parameter-based fallback (the convenio passed to the method)
-            ?? $convenio
-            // Ultimate fallback
-            ?? '1-DEY2E2H'; // Default cross_selling convenio
+        // PRIORITY 1: convenio_used is ALWAYS the first priority
+        if (!empty($personData['convenio_used'] ?? null)) {
+            return $personData['convenio_used'];
+        }
+        
+        if (!empty($personData['convenioUsed'] ?? null)) {
+            return $personData['convenioUsed'];
+        }
 
-        return $resolvedConvenio;
+        // PRIORITY 2: Use variant-based convenio logic (MAIN LOGIC)
+        $planVariant = $this->extractVariantType($personData);
+        
+        // Get quotation type from various possible sources
+        $quotationType = $personData['quotation_type'] 
+            ?? $personData['quotation_type_used']
+            ?? $personData['plan']['type']
+            ?? $this->determinePlanType($personData)
+            ?? 'inclusion';
+
+        // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
+        if ($planVariant === 'basic') {
+            // Basic → TELEASISTENCIA convenios
+            $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
+        } else {
+            // Unlimited → ASISTENCIA 10K REC convenios
+            $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
+        }
+
+        // Return appropriate convenio based on quotation type
+        if ($quotationType === 'cross_selling') {
+            return $crossSellingConvenio;
+        } else {
+            return $inclusionConvenio;
+        }
     }
 }
