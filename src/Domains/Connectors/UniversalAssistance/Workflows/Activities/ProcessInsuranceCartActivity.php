@@ -42,13 +42,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'workflow_results' => $results,
                     'voucher_data' => [
                         'holder' => [
-                            'voucher_id' => $results['holder']['voucher_result']['voucher_id'] ?? null,
-                            'voucher_request_input' => $results['holder']['voucher_result']['voucher_request_input'] ?? null,
-                            'soap_response' => $results['holder']['voucher_result']['voucher_response'] ?? null,
+                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+                            'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
+                            'soap_response' => $results['titular']['voucher_result']['voucher_response'] ?? null,
                         ],
                         'dependents' => array_map(function ($dependent) {
                             return [
-                                'voucher_id' => $dependent['voucher_result']['voucher_id'] ?? null,
+                                'voucher_id' => $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
                                 'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
                                 'soap_response' => $dependent['voucher_result']['voucher_response'] ?? null,
                             ];
@@ -58,7 +58,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'message_id' => $data['message_id'],
                     'order_id' => $order->getId(),
                     'processing_summary' => [
-                        'holder_processed' => ! empty($results['holder']),
+                        'holder_processed' => ! empty($results['titular']),
                         'dependents_processed' => count($results['dependents'] ?? []),
                         'vouchers_created' => $this->countVouchersCreated($results),
                         'total_cost' => $this->calculateTotalCost($results),
@@ -177,57 +177,64 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $universalAssistanceData = [
             // Keep the original processed data structure with additional fields inside holder
             'holder' => array_merge($holder, [
-                // Add the additional structure from the image inside holder
+                // Add voucher data directly inside holder (no extra nesting)
                 'error_code' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
                     ?? $voucherResult['error_code']
-                    ?? null,
+                    ?? '00',
                 'error_msg' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
                     ?? $voucherResult['error_msg']
-                    ?? null,
+                    ?? 'OK',
                 'has_individual_voucher' => true,
                 'nro_control_ext' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
-                    ?? $voucherResult['nro_control_ext']
-                    ?? $voucherResult['control_number']
-                    ?? $holder['control_number']
+                    ?? $voucherResult['voucher_data']['control_number']
+                    ?? $holder['voucher_result']['voucher_data']['control_number']
+                    ?? $holder['selected_quotation']['quotation_data']['control_number']
+                    ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
+                    ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
                     ?? null,
                 'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                     ?? $voucherResult['voucher_id']
+                    ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $holder['voucher_result']['voucher_id']
                     ?? null,
-                'organization' => $voucherResult['organization'] ?? null,
-                'price_validation' => null,
-                'product_validation' => null
+                'organization' => $voucherResult['voucher_data']['organization']
+                    ?? $holder['voucher_result']['voucher_data']['organization']
+                    ?? $holder['selected_quotation']['quotation_data']['organization']
+                    ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
+                    ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
+                    ?? null,
             ]),
             'dependents' => array_map(function ($dependent) {
                 $dependentVoucherResult = $dependent['voucher_result'] ?? [];
                 return array_merge($dependent, [
-                    // Add the additional structure from the image inside each dependent
+                    // Add voucher data directly inside each dependent (no extra nesting)
                     'error_code' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
                         ?? $dependentVoucherResult['error_code']
-                        ?? null,
+                        ?? '00',
                     'error_msg' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
                         ?? $dependentVoucherResult['error_msg']
-                        ?? null,
+                        ?? 'OK',
                     'has_individual_voucher' => true,
                     'nro_control_ext' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
-                        ?? $dependentVoucherResult['nro_control_ext']
-                        ?? $dependentVoucherResult['control_number']
-                        ?? $dependent['control_number']
+                        ?? $dependentVoucherResult['voucher_data']['control_number']
+                        ?? $dependent['voucher_result']['voucher_data']['control_number']
+                        ?? $dependent['selected_quotation']['quotation_data']['control_number']
+                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
+                        ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
                         ?? null,
                     'nro_voucher' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                         ?? $dependentVoucherResult['voucher_id']
+                        ?? $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_result']['voucher_id']
                         ?? null,
-                    'organization' => $dependentVoucherResult['organization'] ?? null,
-                    'price_validation' => null,
-                    'product_validation' => null
+                    'organization' => $dependentVoucherResult['voucher_data']['organization']
+                        ?? $dependent['voucher_result']['voucher_data']['organization']
+                        ?? $dependent['selected_quotation']['quotation_data']['organization']
+                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
+                        ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
+                        ?? null,
                 ]);
             }, $dependents),
-            'quotation_details' => [
-                'precio_emision' => $precioEmision,
-                'quotation_type' => $holder['quotation_type'] ?? null,
-                'status' => 'active',
-                'voucher_id' => $voucherResult['voucher_id'] ?? null,
-                'voucher_success' => ! empty($voucherResult['voucher_id'])
-            ]
         ];
 
         // Get the message and update its message content with proper merge
@@ -372,15 +379,15 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         $count = 0;
 
-        // Count holder voucher
-        if (! empty($results['holder']['voucher_result']['voucher_id'])) {
+        // Count titular voucher
+        if (! empty($results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
             $count++;
         }
 
         // Count dependent vouchers
         if (! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
-                if (! empty($dependent['voucher_result']['voucher_id'])) {
+                if (! empty($dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
                     $count++;
                 }
             }
@@ -396,10 +403,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         $totalCost = 0.0;
 
-        // Add holder cost
-        if (! empty($results['holder']['voucher_result']['voucher_data']['quote_response'])) {
-            $holderPrice = $this->extractPriceFromQuoteResponse($results['holder']['voucher_result']['voucher_data']['quote_response']);
-            $totalCost += $holderPrice;
+        // Add titular cost
+        if (! empty($results['titular']['voucher_result']['voucher_data']['quote_response'])) {
+            $titularPrice = $this->extractPriceFromQuoteResponse($results['titular']['voucher_result']['voucher_data']['quote_response']);
+            $totalCost += $titularPrice;
         }
 
         // Add dependent costs
