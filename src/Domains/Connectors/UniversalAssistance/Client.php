@@ -23,6 +23,7 @@ class Client
     protected string $username;
     protected string $password;
     protected string $organization;
+    public bool $isQaEnvironment = false;
 
     public function __construct(
         protected AppInterface $app,
@@ -618,7 +619,7 @@ class Client
         if ($this->voucherClient === null) {
             try {
                 // Download WSDL from S3 to temp file and use locally
-                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL';
+                $s3WsdlUrl = 'http://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA%20Operaciones%20Voucher%20WS_26SEP2025.WSDL';
                 $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'operaciones_voucher.wsdl');
 
 
@@ -922,7 +923,6 @@ class Client
                         'DatosVoucher' => [
                             // Main voucher fields - following successful QA example order
                             'NroControl' => $voucherData['NroControl'] ?? $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
-                            'PostProcesoFlag' => $voucherData['postProcesoFlag'] ?? $voucherData['PostProcesoFlag'] ?? '',
                             'Vendedor' => $voucherData['vendedor'] ?? $voucherData['Vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
                             'FechaEmision' => $voucherData['fechaEmision'] ?? date('m/d/Y'),
                             'Destino' => $voucherData['destino'] ?? 'Centro america/Caribe', // Use valid destination
@@ -1013,7 +1013,7 @@ class Client
                 'ReasonCode' => $reasonCode
             ];
 
-            $response = $client->__soapCall('BajaLead', [$parameters]);
+            $response = $client->__soapCall('LeadServiceRetireLead', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
@@ -1088,7 +1088,7 @@ class Client
                 ...$pdfParams
             ];
 
-            $response = $client->__soapCall('GeneracionPDF', [$parameters]);
+            $response = $client->__soapCall('SendReportOper', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
