@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Inspector\Configuration;
 use Inspector\Inspector;
@@ -144,6 +145,9 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
 
         $createMessageAction = new CreateMessageAction($messageInput);
         $message = $createMessageAction->execute();
+        if ($message->entity() instanceof Model) {
+            $message->addEntity($message->entity());
+        }
         $channel->addMessage($message);
 
         return $message;
