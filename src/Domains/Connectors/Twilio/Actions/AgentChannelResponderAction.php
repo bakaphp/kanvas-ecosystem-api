@@ -143,13 +143,13 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             //slug: Str::slug($text) . '-' . microtime()
         );
 
-        $createMessageAction = new CreateMessageAction($messageInput);
-        $message = $createMessageAction->execute();
+        $newMessage = new CreateMessageAction($messageInput)->execute();
+        //$newMessage = $createMessageAction->execute();
         if ($message->entity() instanceof Model) {
-            $message->addEntity($message->entity());
+            $newMessage->addEntity($message->entity());
         }
-        $channel->addMessage($message);
+        $channel->addMessage($newMessage);
 
-        return $message;
+        return $newMessage;
     }
 }
