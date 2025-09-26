@@ -265,6 +265,7 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -327,6 +328,7 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -1835,6 +1837,7 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
@@ -1894,6 +1897,7 @@ class InsuranceWorkflowService
             'LeadId' => '',
             'EnvioVoucherMail' => 'Y',
             'PostProcesoFlag' => 'N',
+            'ImprimeTarifa' => 'N',
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
