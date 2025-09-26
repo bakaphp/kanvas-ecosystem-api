@@ -42,7 +42,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'workflow_results' => $results,
                     'voucher_data' => [
                         'holder' => [
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
+                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                                 ?? $results['titular']['voucher_result']['voucher_id']
                                 ?? $results['titular']['voucher_result']['voucher_data']['voucher_id']
                                 ?? $results['titular']['voucher_result']['voucher_data']['nro_voucher']
@@ -188,94 +188,130 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $precioEmision = $voucherResult['precio_emision'] ?? null;
 
         // Build the universalAssistanceData structure for frontend consumption
+        // Create a flat holder structure with only necessary fields
+        $holderData = [
+            // Extract key data we want to preserve from holder
+            'id' => $holder['id'] ?? null,
+            'firstName' => $holder['firstName'] ?? null,
+            'lastName' => $holder['lastName'] ?? null,
+            'birthDate' => $holder['birthDate'] ?? null,
+            'documentNumber' => $holder['documentNumber'] ?? null,
+            'documentType' => $holder['documentType'] ?? null,
+            'email' => $holder['email'] ?? null,
+            'telephone' => $holder['telephone'] ?? null,
+            'gender' => $holder['gender'] ?? null,
+        ];
+
+        // Add the voucher fields directly at the top level of holder
+        $holderData['error_code'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $voucherResult['error_code']
+            ?? '00';
+
+        $holderData['error_msg'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? $voucherResult['error_msg']
+            ?? 'OK';
+
+        $holderData['has_individual_voucher'] = true;
+        $holderData['nro_control_ext'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
+            ?? $voucherResult['voucher_data']['control_number']
+            ?? $holder['voucher_result']['voucher_data']['control_number']
+            ?? $holder['selected_quotation']['quotation_data']['control_number']
+            ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
+            ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
+            ?? null;
+
+        $holderData['nro_voucher'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $voucherResult['voucher_id']
+            ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['voucher_result']['voucher_id']
+            ?? $voucherResult['voucher_data']['voucher_id']
+            ?? $holder['voucher_result']['voucher_data']['voucher_id']
+            ?? $voucherResult['voucher_data']['nro_voucher']
+            ?? $holder['voucher_result']['voucher_data']['nro_voucher']
+            ?? $holder['selected_quotation']['quotation_data']['nro_voucher']
+            ?? $holder['voucher_data']['nro_voucher']
+            ?? $holder['voucher_data']['voucher_id']
+            ?? $holder['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['voucher_response']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
+            ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+            ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
+            ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+            ?? $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $results['titular']['voucher_id']
+            ?? null;
+
+        $holderData['organization'] = $voucherResult['voucher_data']['organization']
+            ?? $holder['voucher_result']['voucher_data']['organization']
+            ?? $holder['selected_quotation']['quotation_data']['organization']
+            ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
+            ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
+            ?? null;
+        // Now build the complete universalAssistanceData structure
         $universalAssistanceData = [
-            // Keep the original processed data structure with additional fields inside holder
-            'holder' => array_merge($holder, [
-                // Add voucher data directly inside holder (no extra nesting)
-                'error_code' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
-                    ?? $voucherResult['error_code']
-                    ?? '00',
-                'error_msg' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
-                    ?? $voucherResult['error_msg']
-                    ?? 'OK',
-                'has_individual_voucher' => true,
-                'nro_control_ext' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
-                    ?? $voucherResult['voucher_data']['control_number']
-                    ?? $holder['voucher_result']['voucher_data']['control_number']
-                    ?? $holder['selected_quotation']['quotation_data']['control_number']
-                    ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
-                    ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
-                    ?? null,
-                'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                    ?? $voucherResult['voucher_id']
-                    ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
-                    ?? $holder['voucher_result']['voucher_id']
-                    ?? $voucherResult['voucher_data']['voucher_id']
-                    ?? $holder['voucher_result']['voucher_data']['voucher_id']
-                    ?? $voucherResult['voucher_data']['nro_voucher']
-                    ?? $holder['voucher_result']['voucher_data']['nro_voucher']
-                    ?? $holder['selected_quotation']['quotation_data']['nro_voucher']
-                    ?? $holder['voucher_data']['nro_voucher']
-                    ?? $holder['voucher_data']['voucher_id']
-                    ?? $holder['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                    ?? $holder['voucher_response']['DatosVoucherResp']['NroVoucher']
-                    ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
-                    ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
-                    ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
-                    ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
-                    ?? $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                    ?? $results['titular']['voucher_id']
-                    ?? null,
-                'organization' => $voucherResult['voucher_data']['organization']
-                    ?? $holder['voucher_result']['voucher_data']['organization']
-                    ?? $holder['selected_quotation']['quotation_data']['organization']
-                    ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
-                    ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
-                    ?? null,
-            ]),
+            'holder' => $holderData,
             'dependents' => array_map(function ($dependent) {
+                // Create a new flat dependent structure with only necessary fields
                 $dependentVoucherResult = $dependent['voucher_result'] ?? [];
-                return array_merge($dependent, [
-                    // Add voucher data directly inside each dependent (no extra nesting)
-                    'error_code' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
-                        ?? $dependentVoucherResult['error_code']
-                        ?? '00',
-                    'error_msg' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
-                        ?? $dependentVoucherResult['error_msg']
-                        ?? 'OK',
-                    'has_individual_voucher' => true,
-                    'nro_control_ext' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
-                        ?? $dependentVoucherResult['voucher_data']['control_number']
-                        ?? $dependent['voucher_result']['voucher_data']['control_number']
-                        ?? $dependent['selected_quotation']['quotation_data']['control_number']
-                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
-                        ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
-                        ?? null,
-                    'nro_voucher' => $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                        ?? $dependentVoucherResult['voucher_id']
-                        ?? $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                        ?? $dependent['voucher_result']['voucher_id']
-                        ?? $dependentVoucherResult['voucher_data']['voucher_id']
-                        ?? $dependent['voucher_result']['voucher_data']['voucher_id']
-                        ?? $dependentVoucherResult['voucher_data']['nro_voucher']
-                        ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
-                        ?? $dependent['selected_quotation']['quotation_data']['nro_voucher']
-                        ?? $dependent['voucher_data']['nro_voucher']
-                        ?? $dependent['voucher_data']['voucher_id']
-                        ?? $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                        ?? $dependent['voucher_response']['DatosVoucherResp']['NroVoucher']
-                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
-                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
-                        ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
-                        ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
-                        ?? null,
-                    'organization' => $dependentVoucherResult['voucher_data']['organization']
-                        ?? $dependent['voucher_result']['voucher_data']['organization']
-                        ?? $dependent['selected_quotation']['quotation_data']['organization']
-                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
-                        ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
-                        ?? null,
-                ]);
+                $dependentData = [
+                    // Extract key data we want to preserve from dependent
+                    'id' => $dependent['id'] ?? null,
+                    'firstName' => $dependent['firstName'] ?? null,
+                    'lastName' => $dependent['lastName'] ?? null,
+                    'birthDate' => $dependent['birthDate'] ?? null,
+                    'documentNumber' => $dependent['documentNumber'] ?? null,
+                    'documentType' => $dependent['documentType'] ?? null,
+                    'email' => $dependent['email'] ?? null,
+                    'telephone' => $dependent['telephone'] ?? null,
+                    'gender' => $dependent['gender'] ?? null,
+                    'relationship' => $dependent['relationship'] ?? null,
+                ];
+
+                // Add the voucher fields directly at the top level of the dependent
+                $dependentData['error_code'] = $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+                    ?? $dependentVoucherResult['error_code']
+                    ?? '00';
+
+                $dependentData['error_msg'] = $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+                    ?? $dependentVoucherResult['error_msg']
+                    ?? 'OK';
+
+                $dependentData['has_individual_voucher'] = true;
+                $dependentData['nro_control_ext'] = $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroControlExt']
+                    ?? $dependentVoucherResult['voucher_data']['control_number']
+                    ?? $dependent['voucher_result']['voucher_data']['control_number']
+                    ?? $dependent['selected_quotation']['quotation_data']['control_number']
+                    ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['control_number']
+                    ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
+                    ?? null;
+
+                $dependentData['nro_voucher'] = $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependentVoucherResult['voucher_id']
+                    ?? $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['voucher_result']['voucher_id']
+                    ?? $dependentVoucherResult['voucher_data']['voucher_id']
+                    ?? $dependent['voucher_result']['voucher_data']['voucher_id']
+                    ?? $dependentVoucherResult['voucher_data']['nro_voucher']
+                    ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
+                    ?? $dependent['selected_quotation']['quotation_data']['nro_voucher']
+                    ?? $dependent['voucher_data']['nro_voucher']
+                    ?? $dependent['voucher_data']['voucher_id']
+                    ?? $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['voucher_response']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
+                    ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+                    ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
+                    ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+                    ?? null;
+
+                $dependentData['organization'] = $dependentVoucherResult['voucher_data']['organization']
+                    ?? $dependent['voucher_result']['voucher_data']['organization']
+                    ?? $dependent['selected_quotation']['quotation_data']['organization']
+                    ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['organization']
+                    ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['organization']
+                    ?? null;
+
+                return $dependentData;
             }, $dependents),
         ];
 
@@ -288,10 +324,26 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $currentMessage = [];
         }
 
-        // Merge the universalAssistanceData without overwriting existing data
-        $currentMessage = array_merge($currentMessage, [
-            'universalAssistanceData' => $universalAssistanceData
-        ]);
+        // Asegurar que universalAssistanceData esté en el nivel superior, sin anidaciones adicionales
+        // Si ya existe universalAssistanceData, actualiza sus campos directamente
+        if (isset($currentMessage['universalAssistanceData'])) {
+            // Actualizar holder
+            if (isset($universalAssistanceData['holder'])) {
+                // Mantener los datos existentes que no están en el nuevo
+                $currentMessage['universalAssistanceData']['holder'] = array_merge(
+                    $currentMessage['universalAssistanceData']['holder'] ?? [],
+                    $universalAssistanceData['holder']
+                );
+            }
+
+            // Actualizar dependents
+            if (isset($universalAssistanceData['dependents'])) {
+                $currentMessage['universalAssistanceData']['dependents'] = $universalAssistanceData['dependents'];
+            }
+        } else {
+            // Si no existe, agregar todo el objeto universalAssistanceData
+            $currentMessage['universalAssistanceData'] = $universalAssistanceData;
+        }
 
         $message->message = $currentMessage;
         $message->saveOrFail();
@@ -421,15 +473,33 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         $count = 0;
 
-        // Count titular voucher
-        if (! empty($results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
-            $count++;
+        // Count titular voucher with multiple fallback paths
+        if (! empty($results['titular'])) {
+            $hasVoucher = ! empty($results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_id']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['voucher_id']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['nro_voucher']) ||
+                         ! empty($results['titular']['voucher_id']) ||
+                         ! empty($results['titular']['voucher_data']['nro_voucher']) ||
+                         ! empty($results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']);
+
+            if ($hasVoucher) {
+                $count++;
+            }
         }
 
-        // Count dependent vouchers
+        // Count dependent vouchers with multiple fallback paths
         if (! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
-                if (! empty($dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'])) {
+                $hasVoucher = ! empty($dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                             ! empty($dependent['voucher_result']['voucher_id']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['voucher_id']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['nro_voucher']) ||
+                             ! empty($dependent['voucher_id']) ||
+                             ! empty($dependent['voucher_data']['nro_voucher']) ||
+                             ! empty($dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']);
+
+                if ($hasVoucher) {
                     $count++;
                 }
             }
@@ -494,5 +564,34 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         return array_keys($array) !== range(0, count($array) - 1);
+    }
+
+    /**
+     * Extract voucher ID from data with multiple fallbacks
+     * This helper ensures we get the voucher ID from any possible location
+     */
+    protected function extractVoucherId(array $data): ?string
+    {
+        $voucherResult = $data['voucher_result'] ?? [];
+
+        return $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $voucherResult['voucher_id']
+            ?? $data['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['voucher_result']['voucher_id']
+            ?? $voucherResult['voucher_data']['voucher_id']
+            ?? $data['voucher_result']['voucher_data']['voucher_id']
+            ?? $voucherResult['voucher_data']['nro_voucher']
+            ?? $data['voucher_result']['voucher_data']['nro_voucher']
+            ?? $data['selected_quotation']['quotation_data']['nro_voucher']
+            ?? $data['voucher_data']['nro_voucher']
+            ?? $data['voucher_data']['voucher_id']
+            ?? $data['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['voucher_response']['DatosVoucherResp']['NroVoucher']
+            ?? $data['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
+            ?? $data['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+            ?? $data['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
+            ?? $data['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+            ?? $data['voucher_id']
+            ?? null;
     }
 }
