@@ -270,7 +270,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     public function processContactFromMessage(array $request): PeopleModel
     {
-
         $phoneNumber = preg_replace('/^\+\d{1,3}/', '', $request['From']);
 
         $existingCustomer = People::getByCustomField(
