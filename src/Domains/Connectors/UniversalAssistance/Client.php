@@ -23,6 +23,7 @@ class Client
     protected string $username;
     protected string $password;
     protected string $organization;
+    public bool $isQaEnvironment = false;
 
     public function __construct(
         protected AppInterface $app,
@@ -618,7 +619,7 @@ class Client
         if ($this->voucherClient === null) {
             try {
                 // Download WSDL from S3 to temp file and use locally
-                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL';
+                $s3WsdlUrl = 'http://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA%20Operaciones%20Voucher%20WS_26SEP2025.WSDL';
                 $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'operaciones_voucher.wsdl');
 
 
@@ -899,6 +900,74 @@ class Client
     }
 
     /**
+     * Create or update a lead in QA environment with WS-Security
+     */
+    public function createOrUpdateLeadQA(array $leadData): array
+    {
+        try {
+            if (!$this->isQaEnvironment) {
+                throw new ValidationException('QA mode must be enabled first');
+            }
+
+            $client = $this->getQuoteClient();
+
+            // Create WS-Security header with the exact structure expected by Siebel
+            $securityHeader = new \stdClass();
+            $securityHeader->UsernameToken = new \stdClass();
+            $securityHeader->UsernameToken->Username = $this->username;
+            $securityHeader->UsernameToken->Password = new \stdClass();
+            $securityHeader->UsernameToken->Password->_ = $this->password;
+            $securityHeader->UsernameToken->Password->Type = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText';
+
+            $wsSecurityHeader = new \SoapHeader(
+                'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd', 
+                'Security', 
+                $securityHeader,
+                true
+            );
+
+            // Set the security header
+            $client->__setSoapHeaders([$wsSecurityHeader]);
+
+            // Create the SOAP body parameters
+            $parameters = [
+                'UALeadCotizadorReq' => [
+                    'DatosLeadCotizadorIn' => $leadData
+                ]
+            ];
+
+            // Debug: Log the SOAP request structure
+            error_log('QA SOAP Request Parameters: ' . print_r($parameters, true));
+            error_log('QA SOAP Security Header: Username=' . $this->username);
+
+            $response = $client->__soapCall('LeadCotizadorOper', [$parameters]);
+
+            // Debug: Log the actual SOAP request that was sent
+            error_log('QA SOAP Request XML: ' . $client->__getLastRequest());
+            error_log('QA SOAP Response XML: ' . $client->__getLastResponse());
+
+            return $this->parseSoapResponse($response);
+        } catch (SoapFault $soapFault) {
+            // Log the actual SOAP request for debugging
+            if ($client ?? null) {
+                error_log('Failed QA SOAP Request XML: ' . $client->__getLastRequest());
+                error_log('Failed QA SOAP Response XML: ' . $client->__getLastResponse());
+            }
+            
+            // Handle SOAP-specific errors with more detail
+            if (str_contains($soapFault->getMessage(), 'Could not connect to host')) {
+                throw new ValidationException('QA Connection failed - SOAP service is unreachable. Request structure was correctly built: ' . print_r($parameters ?? [], true));
+            }
+            if (str_contains($soapFault->getMessage(), 'SBL-EAI-05162')) {
+                throw new ValidationException('QA Authentication failed - Username token not recognized by Siebel server. Check WS-Security format. Username: ' . $this->username);
+            }
+            throw new ValidationException('QA SOAP error in create/update lead: ' . $soapFault->getMessage());
+        } catch (Exception $e) {
+            throw new ValidationException('Failed to create/update lead in QA: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Create a voucher
      */
     public function createVoucher(array $voucherData, bool $useRawData = false): array
@@ -922,7 +991,6 @@ class Client
                         'DatosVoucher' => [
                             // Main voucher fields - following successful QA example order
                             'NroControl' => $voucherData['NroControl'] ?? $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
-                            'PostProcesoFlag' => $voucherData['postProcesoFlag'] ?? $voucherData['PostProcesoFlag'] ?? '',
                             'Vendedor' => $voucherData['vendedor'] ?? $voucherData['Vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
                             'FechaEmision' => $voucherData['fechaEmision'] ?? date('m/d/Y'),
                             'Destino' => $voucherData['destino'] ?? 'Centro america/Caribe', // Use valid destination
@@ -1013,7 +1081,7 @@ class Client
                 'ReasonCode' => $reasonCode
             ];
 
-            $response = $client->__soapCall('BajaLead', [$parameters]);
+            $response = $client->__soapCall('LeadServiceRetireLead', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
@@ -1088,7 +1156,7 @@ class Client
                 ...$pdfParams
             ];
 
-            $response = $client->__soapCall('GeneracionPDF', [$parameters]);
+            $response = $client->__soapCall('SendReportOper', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
