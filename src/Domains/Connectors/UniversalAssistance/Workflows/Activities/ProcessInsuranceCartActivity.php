@@ -303,17 +303,40 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'dependents' => array_map(function ($dependent) {
                 // Create a new flat dependent structure with only necessary fields
                 $dependentVoucherResult = $dependent['voucher_result'] ?? [];
+                $dependentVoucherRequestInput = $dependentVoucherResult['voucher_request_input'] ?? [];
+                $dependentSolicitante = $dependentVoucherRequestInput['DatosSolicitante'] ?? [];
+
                 $dependentData = [
-                    // Extract key data we want to preserve from dependent
+                    // Extract key data we want to preserve from dependent with multiple fallbacks (same pattern as holder)
                     'id' => $dependent['id'] ?? null,
-                    'firstName' => $dependent['firstName'] ?? null,
-                    'lastName' => $dependent['lastName'] ?? null,
-                    'birthDate' => $dependent['birthDate'] ?? null,
-                    'documentNumber' => $dependent['documentNumber'] ?? null,
-                    'documentType' => $dependent['documentType'] ?? null,
-                    'email' => $dependent['email'] ?? null,
-                    'telephone' => $dependent['telephone'] ?? null,
-                    'gender' => $dependent['gender'] ?? null,
+                    'firstName' => $dependent['firstName']
+                        ?? $dependentSolicitante['NombreSolicitante']
+                        ?? $dependent['firstname']
+                        ?? null,
+                    'lastName' => $dependent['lastName']
+                        ?? $dependentSolicitante['ApellidoSolicitante']
+                        ?? $dependent['lastname']
+                        ?? null,
+                    'birthDate' => $dependent['birthDate']
+                        ?? $dependentSolicitante['FechaNacimientoSolicitante']
+                        ?? null,
+                    'documentNumber' => $dependent['documentNumber']
+                        ?? $dependentSolicitante['NroDocumentoSolicitante']
+                        ?? $dependent['idNumber']
+                        ?? null,
+                    'documentType' => $dependent['documentType']
+                        ?? $dependentSolicitante['TipoDocumentoSolicitante']
+                        ?? $dependent['idType']
+                        ?? null,
+                    'email' => $dependent['email']
+                        ?? $dependentSolicitante['CorreoElectronicoSolicitante']
+                        ?? null,
+                    'telephone' => $dependent['telephone']
+                        ?? $dependentSolicitante['TelefonoSolicitante']
+                        ?? null,
+                    'gender' => $dependent['gender']
+                        ?? $dependentSolicitante['SexoSolicitante']
+                        ?? null,
                     'relationship' => $dependent['relationship'] ?? null,
                 ];
 
@@ -335,11 +358,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
                     ?? null;
 
-                $dependentData['nro_voucher'] = $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                    ?? $dependentVoucherResult['voucher_id']
+                $dependentData['nro_voucher'] = $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                    // Fallbacks for other structures
+                    ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    // Fallbacks for legacy structure
                     ?? $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                    ?? $dependent['voucher_result']['voucher_id']
+                    ?? $dependentVoucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $dependent['voucher_id']
+                    ?? $dependentVoucherResult['voucher_id']
                     ?? $dependentVoucherResult['voucher_data']['voucher_id']
+                    ?? $dependent['voucher_result']['voucher_id']
                     ?? $dependent['voucher_result']['voucher_data']['voucher_id']
                     ?? $dependentVoucherResult['voucher_data']['nro_voucher']
                     ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
@@ -350,8 +382,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     ?? $dependent['voucher_response']['DatosVoucherResp']['NroVoucher']
                     ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
                     ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+                    ?? $dependent['dual_quotation_results']['cross_selling']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                     ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
                     ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+                    ?? $dependent['dual_quotation_results']['inclusion']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                     ?? null;
 
                 $dependentData['organization'] = $dependentVoucherResult['voucher_data']['organization']
