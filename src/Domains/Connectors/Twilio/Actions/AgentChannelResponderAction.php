@@ -14,7 +14,11 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 use Override;
@@ -68,6 +72,7 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
 
         $client = Client::getInstanceByCompany($this->message->company);
         $onChunk = function ($text, $data) use ($client, $to, $params): void {
+            $this->createMessage($text, $to, $this->message, $this->channel);
             // Use the Twilio client to send a message
             $client->messages->create(
                 $to, // to
@@ -110,5 +115,37 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             'responseText' => $responseContent,
             'response' => $responseText,
         ];
+    }
+
+    private function createMessage(string $text, string $to, Message $message, Channel $channel): Message
+    {
+        $user = $message->user;
+        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
+        if ($agentUser !== null) {
+            $user = Users::getById((int) $agentUser);
+        }
+
+        $messageInput = new MessageInput(
+            app: $message->app,
+            company: $message->company,
+            user: $user,
+            type: $message->messageType,
+            message: [
+                    'content' => $text,
+                    'raw_data' => $text,
+                    'message_id' => '--',
+                    'chat_jid' => $to,
+                    'from_me' => true,
+            ],
+            is_public: 1,
+            tags: [$to],
+            slug: Str::slug($text) . '-' . microtime()
+        );
+
+        $createMessageAction = new CreateMessageAction($messageInput);
+        $message = $createMessageAction->execute();
+        $channel->addMessage($message);
+
+        return $message;
     }
 }
