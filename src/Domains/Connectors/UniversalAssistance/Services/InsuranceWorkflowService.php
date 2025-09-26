@@ -1461,7 +1461,7 @@ class InsuranceWorkflowService
             }
 
             // Fallback: try response structure
-            if (!$matchedProduct || !$matchedProduct['found']) {
+            if (! $matchedProduct || ! $matchedProduct['found']) {
                 if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
                     $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
                     $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
@@ -1498,7 +1498,7 @@ class InsuranceWorkflowService
         $voucherData['LeadId'] = '';
 
         // Set the EXACT price from the matched product
-        if (!empty($exactPrecioEmision) && is_numeric($exactPrecioEmision)) {
+        if (! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision)) {
             $voucherData['Precio'] = strval($exactPrecioEmision);
         } else {
             $voucherData['Precio'] = '0.00';
