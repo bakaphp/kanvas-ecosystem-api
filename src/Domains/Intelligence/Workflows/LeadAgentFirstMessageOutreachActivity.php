@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Workflows;
 
+use Exception;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -114,6 +116,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $params['from'] ?? null,
                     );
                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+
+                    try {
+                        //todo this is not the right place to do this but for now its ok
+                        //we need to make sure we have the phone call activity
+                        $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
+                    } catch (Exception $e) {
+                        report($e);
+                    }
                 }
 
                 //move to stage 2 of the pipeline
@@ -122,6 +132,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 return [
                     'context' => $createContext,
                     'first_message' => $firstLeadMessage,
+                    'outbound_call_activity' => $outBoundPhoneCallActivity ?? null,
                 ];
             }
         );

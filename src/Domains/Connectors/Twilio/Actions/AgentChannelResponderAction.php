@@ -139,7 +139,7 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             ],
             is_public: 1,
             tags: [$to],
-            slug: Str::slug($text) . '-' . microtime()
+            //slug: Str::slug($text) . '-' . microtime()
         );
 
         $createMessageAction = new CreateMessageAction($messageInput);
