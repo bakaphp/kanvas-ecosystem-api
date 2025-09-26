@@ -1447,57 +1447,60 @@ class InsuranceWorkflowService
             ];
         }
 
-        // Build voucher data using the specific convenio from selected quotation with fallback
-        $convenio = $this->extractConvenioWithFallback($selectedQuotation, $personData);
+        // FIRST: Find the exact plan/product that matches what was requested
+        $targetPlanName = $personData['plan']['name'] ?? '';
+        $matchedProduct = null;
+        $exactPrecioEmision = '';
+        $exactConvenio = '';
+
+        try {
+            // Try to find the exact product in the quotation data
+            if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+                $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
+            }
+
+            // Fallback: try response structure
+            if (!$matchedProduct || !$matchedProduct['found']) {
+                if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+                    $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+                    $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
+                }
+            }
+
+            if ($matchedProduct && $matchedProduct['found']) {
+                $productData = $matchedProduct['quote_data'] ?? [];
+
+                // Extract EXACT price from the matched product
+                $exactPrecioEmision = $productData['PrecioEmision'] ?? $productData['PrecioNeto'] ?? $productData['PrecioBruto'] ?? '';
+
+                // Extract EXACT convenio from the matched product (if available)
+                // The convenio might be in the product data or we use the one from the selected quotation
+                $exactConvenio = $productData['Convenio'] ?? $productData['convenio'] ?? $productData['Contrato'] ?? $productData['contrato'] ?? '';
+            }
+        } catch (\Exception $e) {
+            // Handle errors silently
+        }
+
+        // If no exact convenio found in product data, fall back to quotation convenio
+        if (empty($exactConvenio)) {
+            $exactConvenio = $this->extractConvenioWithFallback($selectedQuotation, $personData);
+        }
+
+        // Build voucher data using the EXACT convenio from the selected plan
         if ($selectedQuotation['quotation_type'] === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $convenio);
+            $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
         } else {
-            $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $convenio);
+            $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
         }
 
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
-        // Extract precio de emision from the quotation data based on the actual structure
-        $precioEmision = '';
-
-        // The structure is: quotation_data.result.quotation_data.quote_response.UALeadCotizadorResp.DatosLeadCotizadorOut[0].PrecioEmision
-        try {
-            // First try the structured path from the selected quotation
-            if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-
-                // Handle both array and single object cases
-                if (is_array($datosLeadOut)) {
-                    // If it's an array, take the first element (cross_selling case)
-                    $firstProduct = reset($datosLeadOut);
-                    $precioEmision = $firstProduct['PrecioEmision'] ?? $firstProduct['PrecioNeto'] ?? $firstProduct['PrecioBruto'] ?? '';
-                } else {
-                    // If it's a single object (inclusion case)
-                    $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
-                }
-            }
-
-            // Fallback: try the response structure
-            if (empty($precioEmision) && isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-                if (is_array($datosLeadOut)) {
-                    $firstProduct = reset($datosLeadOut);
-                    $precioEmision = $firstProduct['PrecioEmision'] ?? $firstProduct['PrecioNeto'] ?? $firstProduct['PrecioBruto'] ?? '';
-                } else {
-                    $precioEmision = $datosLeadOut['PrecioEmision'] ?? $datosLeadOut['PrecioNeto'] ?? $datosLeadOut['PrecioBruto'] ?? '';
-                }
-            }
-        } catch (\Exception $e) {
-        }
-
-        // Use precio de emision from quotation - ensure it's not empty
-        // Ensure we have a valid price - Universal Assistance requires this field
-        if (! empty($precioEmision) && is_numeric($precioEmision)) {
-            $voucherData['Precio'] = strval($precioEmision); // Ensure it's a string
+        // Set the EXACT price from the matched product
+        if (!empty($exactPrecioEmision) && is_numeric($exactPrecioEmision)) {
+            $voucherData['Precio'] = strval($exactPrecioEmision);
         } else {
-            // If no price found, log error but set a default to avoid field required error
-            error_log("Warning: No precio de emision found in quotation data. Using 0.00 as fallback.");
             $voucherData['Precio'] = '0.00';
         }
 
@@ -1528,17 +1531,19 @@ class InsuranceWorkflowService
             return [
                 'success' => true,
                 'voucher_data' => $result,
-                'convenio_used' => $convenio,
+                'convenio_used' => $exactConvenio,
                 'quotation_type_used' => $selectedQuotation['quotation_type'],
-                'voucher_request_input' => $voucherData  // Include the original voucher request data
+                'voucher_request_input' => $voucherData,  // Include the original voucher request data
+                'matched_product' => $matchedProduct      // Include product matching details
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'error' => 'Voucher creation failed: ' . $e->getMessage(),
-                'convenio_attempted' => $convenio,
+                'convenio_attempted' => $exactConvenio,
                 'quotation_type_attempted' => $selectedQuotation['quotation_type'],
-                'voucher_request_input' => $voucherData  // Include the request data even on error
+                'voucher_request_input' => $voucherData,  // Include the request data even on error
+                'matched_product' => $matchedProduct      // Include product matching details even on error
             ];
         }
     }
