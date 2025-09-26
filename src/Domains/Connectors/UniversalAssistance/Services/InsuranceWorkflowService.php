@@ -1458,7 +1458,7 @@ class InsuranceWorkflowService
             // Get both quotation results from dual quotation
             $inclusionQuotationData = $dualQuotationResult['inclusion']['result'] ?? null;
             $crossSellingQuotationData = $dualQuotationResult['cross_selling']['result'] ?? null;
-            
+
             // Search in inclusion quotation first
             if ($inclusionQuotationData && ($inclusionQuotationData['success'] ?? false)) {
                 $inclusionPaths = [
@@ -1470,7 +1470,7 @@ class InsuranceWorkflowService
                 foreach ($inclusionPaths as $datosLeadOut) {
                     if ($datosLeadOut !== null) {
                         $inclusionMatch = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
-                        
+
                         if ($inclusionMatch && ($inclusionMatch['found'] ?? false)) {
                             $matchedProduct = $inclusionMatch;
                             $matchedProduct['source_quotation'] = 'inclusion';
@@ -1480,9 +1480,9 @@ class InsuranceWorkflowService
                     }
                 }
             }
-            
+
             // If not found in inclusion, search in cross_selling quotation
-            if ((!$matchedProduct || !($matchedProduct['found'] ?? false)) && $crossSellingQuotationData && ($crossSellingQuotationData['success'] ?? false)) {
+            if ((! $matchedProduct || !($matchedProduct['found'] ?? false)) && $crossSellingQuotationData && ($crossSellingQuotationData['success'] ?? false)) {
                 $crossSellingPaths = [
                     $crossSellingQuotationData['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
                     $crossSellingQuotationData['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
@@ -1492,7 +1492,7 @@ class InsuranceWorkflowService
                 foreach ($crossSellingPaths as $datosLeadOut) {
                     if ($datosLeadOut !== null) {
                         $crossSellingMatch = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
-                        
+
                         if ($crossSellingMatch && ($crossSellingMatch['found'] ?? false)) {
                             $matchedProduct = $crossSellingMatch;
                             $matchedProduct['source_quotation'] = 'cross_selling';
@@ -1533,7 +1533,7 @@ class InsuranceWorkflowService
 
         // Build voucher data using the EXACT convenio from the matched product location
         $actualQuotationType = $matchedProduct['source_quotation'] ?? ($selectedQuotation['quotation_type'] ?? 'inclusion');
-        
+
         if ($actualQuotationType === 'cross_selling') {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
         } else {
