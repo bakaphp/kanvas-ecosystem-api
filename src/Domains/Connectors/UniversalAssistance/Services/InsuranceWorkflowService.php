@@ -166,7 +166,7 @@ class InsuranceWorkflowService
         $selectedQuotation = $this->selectBestQuotationForVoucher($titularData, $dualQuotationResult);
 
         // Create voucher using the selected quotation's IdLead and plan information
-        $voucherResult = $this->createVoucherFromSelectedQuotation($titularData, $selectedQuotation, $originCountryCode, $destinationCountryCode, 'titular');
+        $voucherResult = $this->createVoucherFromSelectedQuotation($titularData, $selectedQuotation, $originCountryCode, $destinationCountryCode, 'titular', $dualQuotationResult);
 
         // Combine all results
         $result = [
@@ -204,7 +204,7 @@ class InsuranceWorkflowService
         $selectedQuotation = $this->selectBestQuotationForVoucher($dependentData, $dualQuotationResult);
 
         // Create voucher using the selected quotation's IdLead and plan information
-        $voucherResult = $this->createVoucherFromSelectedQuotation($dependentData, $selectedQuotation, $titularOriginCountryCode, $titularDestinationCountryCode, 'dependent');
+        $voucherResult = $this->createVoucherFromSelectedQuotation($dependentData, $selectedQuotation, $titularOriginCountryCode, $titularDestinationCountryCode, 'dependent', $dualQuotationResult);
 
         // Combine all results
         $result = [
@@ -1435,7 +1435,8 @@ class InsuranceWorkflowService
         array $selectedQuotation,
         string $originCountryCode,
         string $destinationCountryCode,
-        string $personType
+        string $personType,
+        array $dualQuotationResult = []
     ): array {
         // Only stop voucher creation if there are NO successful quotations available
         if (($selectedQuotation['quotation_type'] ?? '') === 'error' && ($selectedQuotation['selection_reason'] ?? '') === 'no_successful_quotations') {
@@ -1447,49 +1448,67 @@ class InsuranceWorkflowService
         }
 
         // FIRST: Find the exact plan/product that matches what was requested
+        // Search in BOTH inclusion and cross_selling quotations to find the product
         $targetPlanName = $personData['plan']['name'] ?? '';
         $matchedProduct = null;
         $exactPrecioEmision = '';
         $exactConvenio = '';
 
         try {
-            // Try to find the exact product in the quotation data - check multiple possible paths
-            $quotationDataPaths = [
-                // Main quotation path
-                $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            // Get both quotation results from dual quotation
+            $inclusionQuotationData = $dualQuotationResult['inclusion']['result'] ?? null;
+            $crossSellingQuotationData = $dualQuotationResult['cross_selling']['result'] ?? null;
 
-                // Direct quotation_data paths
-                $selectedQuotation['quotation_data']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                $selectedQuotation['quotation_data']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            // Search in inclusion quotation first
+            if ($inclusionQuotationData && ($inclusionQuotationData['success'] ?? false)) {
+                $inclusionPaths = [
+                    $inclusionQuotationData['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                    $inclusionQuotationData['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                    $inclusionQuotationData['quotation_data']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                ];
 
-                // Shorter paths
-                $selectedQuotation['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                $selectedQuotation['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                foreach ($inclusionPaths as $datosLeadOut) {
+                    if ($datosLeadOut !== null) {
+                        $inclusionMatch = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
 
-                // If quotation_data is directly the response
-                $selectedQuotation['quotation_data']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-            ];
-
-            foreach ($quotationDataPaths as $datosLeadOut) {
-                if ($datosLeadOut !== null) {
-                    $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
-
-                    if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
-                        break; // Found a match, stop searching
+                        if ($inclusionMatch && ($inclusionMatch['found'] ?? false)) {
+                            $matchedProduct = $inclusionMatch;
+                            $matchedProduct['source_quotation'] = 'inclusion';
+                            $matchedProduct['source_convenio'] = $dualQuotationResult['inclusion']['convenio'] ?? '';
+                            break 2; // Exit both loops - found in inclusion
+                        }
                     }
                 }
             }
 
-            if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
+            // If not found in inclusion, search in cross_selling quotation
+            if ((! $matchedProduct || ! ($matchedProduct['found'] ?? false)) && $crossSellingQuotationData && ($crossSellingQuotationData['success'] ?? false)) {
+                $crossSellingPaths = [
+                    $crossSellingQuotationData['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                    $crossSellingQuotationData['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                    $crossSellingQuotationData['quotation_data']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                ];
+
+                foreach ($crossSellingPaths as $datosLeadOut) {
+                    if ($datosLeadOut !== null) {
+                        $crossSellingMatch = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
+
+                        if ($crossSellingMatch && ($crossSellingMatch['found'] ?? false)) {
+                            $matchedProduct = $crossSellingMatch;
+                            $matchedProduct['source_quotation'] = 'cross_selling';
+                            $matchedProduct['source_convenio'] = $dualQuotationResult['cross_selling']['convenio'] ?? '';
+                            break; // Found in cross_selling
+                        }
+                    }
+                }
+            }            if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
                 $productData = $matchedProduct['quote_data'] ?? [];
 
                 // Extract EXACT price from the matched product
                 $exactPrecioEmision = $productData['PrecioEmision'] ?? $productData['PrecioNeto'] ?? $productData['PrecioBruto'] ?? '';
 
-                // Extract EXACT convenio from the matched product (if available)
-                // The convenio might be in the product data or we use the one from the selected quotation
-                $exactConvenio = $productData['Convenio'] ?? $productData['convenio'] ?? $productData['Contrato'] ?? $productData['contrato'] ?? '';
+                // Use the convenio from the quotation where the product was found
+                $exactConvenio = $matchedProduct['source_convenio'] ?? '';
 
                 // Add debug info for price extraction
                 $matchedProduct['price_extraction_debug'] = [
@@ -1498,7 +1517,9 @@ class InsuranceWorkflowService
                     'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
                     'extracted_price' => $exactPrecioEmision,
                     'is_numeric' => is_numeric($exactPrecioEmision),
-                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00'
+                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00',
+                    'source_quotation' => $matchedProduct['source_quotation'] ?? 'unknown',
+                    'source_convenio' => $exactConvenio
                 ];
             }
         } catch (\Exception $e) {
@@ -1510,8 +1531,10 @@ class InsuranceWorkflowService
             $exactConvenio = $this->extractConvenioWithFallback($selectedQuotation, $personData);
         }
 
-        // Build voucher data using the EXACT convenio from the selected plan
-        if (($selectedQuotation['quotation_type'] ?? '') === 'cross_selling') {
+        // Build voucher data using the EXACT convenio from the matched product location
+        $actualQuotationType = $matchedProduct['source_quotation'] ?? ($selectedQuotation['quotation_type'] ?? 'inclusion');
+
+        if ($actualQuotationType === 'cross_selling') {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
         } else {
             $voucherData = $this->buildVoucherDataWithConvenio($personData, $personType, $originCountryCode, $destinationCountryCode, $exactConvenio);
@@ -1537,10 +1560,10 @@ class InsuranceWorkflowService
         usleep($delayMs);
 
         try {
-            // Create the actual voucher (not just quotation)
+            // Create the actual voucher (not just quotation) using the correct quotation type
             $result = $this->client->createSingleQuotationWithCountries(
                 $voucherData,
-                $selectedQuotation['quotation_type'] ?? 'inclusion',
+                $actualQuotationType, // Use the quotation type where the product was found
                 $originCountryCode,
                 $destinationCountryCode,
                 $this->order,
@@ -1676,14 +1699,24 @@ class InsuranceWorkflowService
 
             $nombreProductoLower = strtolower(trim($nombreProducto));
 
+            // Clean both strings for comparison - remove extra spaces and normalize
+            $cleanedSearchPlan = preg_replace('/\s+/', ' ', $searchPlanLower);
+            $cleanedProductName = preg_replace('/\s+/', ' ', $nombreProductoLower);
+
             // Only exact match - no partial matching
-            if ($nombreProductoLower === $searchPlanLower) {
+            if ($cleanedProductName === $cleanedSearchPlan) {
                 return [
                     'found' => true,
                     'product_name' => $nombreProducto,
                     'match_type' => 'exact_match',
                     'quote_data' => $singleQuote,
-                    'quote_index' => $index
+                    'quote_index' => $index,
+                    'comparison_debug' => [
+                        'original_search' => $searchPlan,
+                        'cleaned_search' => $cleanedSearchPlan,
+                        'original_product' => $nombreProducto,
+                        'cleaned_product' => $cleanedProductName
+                    ]
                 ];
             }
         }
