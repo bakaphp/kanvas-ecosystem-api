@@ -1458,15 +1458,15 @@ class InsuranceWorkflowService
                 // Main quotation path
                 $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
                 $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                
+
                 // Direct quotation_data paths
                 $selectedQuotation['quotation_data']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
                 $selectedQuotation['quotation_data']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                
+
                 // Shorter paths
                 $selectedQuotation['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
                 $selectedQuotation['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-                
+
                 // If quotation_data is directly the response
                 $selectedQuotation['quotation_data']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
             ];
@@ -1474,7 +1474,7 @@ class InsuranceWorkflowService
             foreach ($quotationDataPaths as $datosLeadOut) {
                 if ($datosLeadOut !== null) {
                     $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
-                    
+
                     if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
                         break; // Found a match, stop searching
                     }
@@ -1490,7 +1490,7 @@ class InsuranceWorkflowService
                 // Extract EXACT convenio from the matched product (if available)
                 // The convenio might be in the product data or we use the one from the selected quotation
                 $exactConvenio = $productData['Convenio'] ?? $productData['convenio'] ?? $productData['Contrato'] ?? $productData['contrato'] ?? '';
-                
+
                 // Add debug info for price extraction
                 $matchedProduct['price_extraction_debug'] = [
                     'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
