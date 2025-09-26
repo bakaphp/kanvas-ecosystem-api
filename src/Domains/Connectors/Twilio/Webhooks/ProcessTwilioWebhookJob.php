@@ -141,6 +141,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
         }
+
+        $channel->addMessage($message);
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
 
         $workflowJobKey = "workflow_job:{$batchKey}";
