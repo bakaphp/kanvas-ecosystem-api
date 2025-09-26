@@ -7,7 +7,11 @@ namespace Kanvas\Event\Events\Actions;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
+use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\DataTransferObject\EventDate;
+use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
+use Spatie\LaravelData\DataCollection;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -22,6 +26,11 @@ class UpdateEventAction
 
     public function execute(): ModelsEventVersion
     {
+        // Validate time slot availability if dates are being updated
+        if (isset($this->updateData['dates'])) {
+            $this->validateTimeSlotAvailability();
+        }
+
         $eventVersion = DB::connection('event')->transaction(function () {
             $event = $this->eventVersion->event;
 
@@ -52,7 +61,10 @@ class UpdateEventAction
                     $slug = Str::slug($eventUpdateData['name']) . '-' . $event->event_type_id;
                     $eventUpdateData['slug'] = $slug;
                 }
-                $event->update($eventUpdateData);
+
+                $event->name = $eventUpdateData['name'];
+                $event->description = $eventUpdateData['description'] ?? null;
+                $event->saveOrFail();
             }
 
             // Update the EventVersion model
@@ -75,17 +87,14 @@ class UpdateEventAction
                 $versionUpdateData['metadata'] = array_merge($existingMetadata, $this->updateData['metadata']);
             }
 
-            if (!empty($versionUpdateData)) {
-                $this->eventVersion->update($versionUpdateData);
-            }
-
             // Update dates if provided
             if (isset($this->updateData['dates'])) {
                 // Delete existing dates
                 $this->eventVersion->dates()->delete();
 
-                // Add new dates
-                $this->eventVersion->addDates(collect($this->updateData['dates']));
+                // Add new dates - convert to EventDate DTOs and create DataCollection
+                $eventDates = EventDate::collect($this->updateData['dates'], DataCollection::class);
+                $this->eventVersion->addDates($eventDates);
             }
 
             // Handle participants update
@@ -120,6 +129,37 @@ class UpdateEventAction
         });
 
         return $eventVersion;
+    }
+
+    protected function validateTimeSlotAvailability(): void
+    {
+        $event = $this->eventVersion->event;
+        $dateData = $this->updateData['dates'][0]; // Assuming single date for now
+
+        // Get resource information
+        $resourcesId = $this->updateData['resources_id'] ?? $event->resources_id;
+        $resourcesType = $this->updateData['resources_type'] ?? $event->resources_type;
+
+        if (!$resourcesId || !$resourcesType) {
+            return; // No resource to validate against
+        }
+
+        // Parse the new time slot
+        $newDate = $dateData['date'];
+        $newStartTime = $dateData['start_time'];
+        $newEndTime = $dateData['end_time'];
+
+        // Use shared validator
+        EventTimeSlotValidator::validateForUpdate(
+            $resourcesId,
+            $resourcesType,
+            $event->companies_id,
+            $event->apps_id,
+            $newDate,
+            $newStartTime,
+            $newEndTime,
+            $event->id
+        );
     }
 
     protected function storeEventResources(ModelsEvent $event, array $resources): void

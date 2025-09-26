@@ -216,9 +216,9 @@ class ResourceBookingMutation
                     'end_time' => $endAt->format('H:i'),
                 ]
             ],
-            'theme_id' => $theme?->id,
-            'theme_area_id' => $themeArea?->id,
-            'status_id' => $eventStatus?->id,
+            'theme_id' => (string) $theme?->id,
+            'theme_area_id' => (string) $themeArea?->id,
+            'status_id' => (string) $eventStatus?->id,
             'type_id' => $eventType?->id,
             'class_id' => (string) $eventClass?->id,
             'category_id' => $eventCategory?->id,

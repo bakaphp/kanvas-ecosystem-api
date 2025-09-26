@@ -285,7 +285,7 @@ extend type Query @guard {
     events(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id"])
+            @whereConditions(columns: ["id", "name", "slug", "companies_id", "resources_id", "resources_type"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Event!]!
         @paginate(

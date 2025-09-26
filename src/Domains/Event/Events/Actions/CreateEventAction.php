@@ -25,6 +25,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
@@ -36,6 +37,9 @@ class CreateEventAction
 
     public function execute(): ModelsEvent
     {
+        // Validate time slot availability
+        $this->validateTimeSlotAvailability();
+
         $event = DB::connection('event')->transaction(function () {
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
@@ -217,5 +221,36 @@ class CreateEventAction
                 ]);
             }
         }
+    }
+
+    protected function validateTimeSlotAvailability(): void
+    {
+        if (!$this->event->dates->count()) {
+            return; // No dates to validate
+        }
+
+        $dateData = $this->event->dates[0]; // Assuming single date for now
+        $resourcesId = $this->event->resource?->id;
+        $resourcesType = $this->event->resource?->getMorphClass();
+
+        if (!$resourcesId || !$resourcesType) {
+            return; // No resource to validate against
+        }
+
+        // Parse the new time slot
+        $newDate = $dateData->date->format('Y-m-d');
+        $newStartTime = $dateData->start_time;
+        $newEndTime = $dateData->end_time;
+
+        // Use shared validator
+        EventTimeSlotValidator::validateForCreate(
+            $resourcesId,
+            $resourcesType,
+            $this->event->company->getId(),
+            $this->event->app->getId(),
+            $newDate,
+            $newStartTime,
+            $newEndTime
+        );
     }
 }
