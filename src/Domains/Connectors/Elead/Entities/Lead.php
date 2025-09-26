@@ -22,6 +22,7 @@ class Lead
     public ?string $customerId = null;
     public ?string $dateIn = null;
     public ?string $source = null;
+    public ?string $subSource = null;
     public ?string $status = null;
     public ?string $subStatus = null;
     public ?string $upType = null;

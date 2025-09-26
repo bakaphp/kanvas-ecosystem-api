@@ -143,6 +143,11 @@ class LeadIntentTool implements ContextToolInterface
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
                     ->withMaxTokens(7000)
+                    ->withClientOptions([
+                        'timeout' => 220,          // Total timeout in seconds (2 minutes)
+                        'connect_timeout' => 220,   // Connection timeout in seconds
+                        'read_timeout' => 220,      // Read timeout in seconds
+                    ])
                    ->asStructured();
 
         return $response->structured;
