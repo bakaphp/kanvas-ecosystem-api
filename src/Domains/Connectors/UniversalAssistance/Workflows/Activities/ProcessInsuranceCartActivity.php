@@ -42,13 +42,27 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'workflow_results' => $results,
                     'voucher_data' => [
                         'holder' => [
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
+                                ?? $results['titular']['voucher_result']['voucher_id']
+                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_id']
+                                ?? $results['titular']['voucher_result']['voucher_data']['nro_voucher']
+                                ?? $results['titular']['voucher_id']
+                                ?? $results['titular']['voucher_data']['nro_voucher']
+                                ?? $results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                ?? null,
                             'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
                             'soap_response' => $results['titular']['voucher_result']['voucher_response'] ?? null,
                         ],
                         'dependents' => array_map(function ($dependent) {
                             return [
-                                'voucher_id' => $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+                                'voucher_id' => $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $dependent['voucher_result']['voucher_id']
+                                    ?? $dependent['voucher_result']['voucher_data']['voucher_id']
+                                    ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
+                                    ?? $dependent['voucher_id']
+                                    ?? $dependent['voucher_data']['nro_voucher']
+                                    ?? $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? null,
                                 'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
                                 'soap_response' => $dependent['voucher_result']['voucher_response'] ?? null,
                             ];
@@ -194,8 +208,23 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     ?? null,
                 'nro_voucher' => $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                     ?? $voucherResult['voucher_id']
-                    ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] 
                     ?? $holder['voucher_result']['voucher_id']
+                    ?? $voucherResult['voucher_data']['voucher_id']
+                    ?? $holder['voucher_result']['voucher_data']['voucher_id']
+                    ?? $voucherResult['voucher_data']['nro_voucher']
+                    ?? $holder['voucher_result']['voucher_data']['nro_voucher']
+                    ?? $holder['selected_quotation']['quotation_data']['nro_voucher']
+                    ?? $holder['voucher_data']['nro_voucher']
+                    ?? $holder['voucher_data']['voucher_id']
+                    ?? $holder['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $holder['voucher_response']['DatosVoucherResp']['NroVoucher']
+                    ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
+                    ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+                    ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
+                    ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+                    ?? $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $results['titular']['voucher_id']
                     ?? null,
                 'organization' => $voucherResult['voucher_data']['organization']
                     ?? $holder['voucher_result']['voucher_data']['organization']
@@ -226,6 +255,19 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         ?? $dependentVoucherResult['voucher_id']
                         ?? $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
                         ?? $dependent['voucher_result']['voucher_id']
+                        ?? $dependentVoucherResult['voucher_data']['voucher_id']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_id']
+                        ?? $dependentVoucherResult['voucher_data']['nro_voucher']
+                        ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
+                        ?? $dependent['selected_quotation']['quotation_data']['nro_voucher']
+                        ?? $dependent['voucher_data']['nro_voucher']
+                        ?? $dependent['voucher_data']['voucher_id']
+                        ?? $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_response']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
+                        ?? $dependent['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+                        ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
+                        ?? $dependent['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
                         ?? null,
                     'organization' => $dependentVoucherResult['voucher_data']['organization']
                         ?? $dependent['voucher_result']['voucher_data']['organization']
