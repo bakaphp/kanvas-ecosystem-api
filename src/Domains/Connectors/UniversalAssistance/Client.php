@@ -921,9 +921,9 @@ class Client
                     'UAAltaVoucheMinRequest' => [
                         'DatosVoucher' => [
                             // Main voucher fields - following successful QA example order
-                            'NroControl' => $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
-                            'PostProcesoFlag' => $voucherData['postProcesoFlag'] ?? '',
-                            'Vendedor' => $voucherData['vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
+                            'NroControl' => $voucherData['NroControl'] ?? $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
+                            'PostProcesoFlag' => $voucherData['postProcesoFlag'] ?? $voucherData['PostProcesoFlag'] ?? '',
+                            'Vendedor' => $voucherData['vendedor'] ?? $voucherData['Vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
                             'FechaEmision' => $voucherData['fechaEmision'] ?? date('m/d/Y'),
                             'Destino' => $voucherData['destino'] ?? 'Centro america/Caribe', // Use valid destination
                             'FechaVigencia' => $voucherData['fechaVigencia'] ?? date('m/d/Y', strtotime('+120 days')),
@@ -941,7 +941,6 @@ class Client
                             'Contrato' => $voucherData['contrato'] ?? '1-DEY2E2H',
                             'LeadId' => $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
                             'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
-                            'ImprimeTarifa' => 'N', // Always N - no fallback needed
                             'Tarifa' => 'N', // Always N - no fallback needed
 
                             // Sub-structures in successful order
