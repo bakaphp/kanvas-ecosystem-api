@@ -1453,17 +1453,31 @@ class InsuranceWorkflowService
         $exactConvenio = '';
 
         try {
-            // Try to find the exact product in the quotation data
-            if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-                $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-                $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
-            }
+            // Try to find the exact product in the quotation data - check multiple possible paths
+            $quotationDataPaths = [
+                // Main quotation path
+                $selectedQuotation['quotation_data']['result']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
 
-            // Fallback: try response structure
-            if (! $matchedProduct || ! ($matchedProduct['found'] ?? false)) {
-                if (isset($selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-                    $datosLeadOut = $selectedQuotation['quotation_data']['result']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+                // Direct quotation_data paths
+                $selectedQuotation['quotation_data']['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                $selectedQuotation['quotation_data']['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+
+                // Shorter paths
+                $selectedQuotation['quotation_data']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+                $selectedQuotation['quotation_data']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+
+                // If quotation_data is directly the response
+                $selectedQuotation['quotation_data']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            ];
+
+            foreach ($quotationDataPaths as $datosLeadOut) {
+                if ($datosLeadOut !== null) {
                     $matchedProduct = $this->findMatchingProductInQuoteData($targetPlanName, is_array($datosLeadOut) ? $datosLeadOut : [$datosLeadOut]);
+
+                    if ($matchedProduct && ($matchedProduct['found'] ?? false)) {
+                        break; // Found a match, stop searching
+                    }
                 }
             }
 
@@ -1476,6 +1490,16 @@ class InsuranceWorkflowService
                 // Extract EXACT convenio from the matched product (if available)
                 // The convenio might be in the product data or we use the one from the selected quotation
                 $exactConvenio = $productData['Convenio'] ?? $productData['convenio'] ?? $productData['Contrato'] ?? $productData['contrato'] ?? '';
+
+                // Add debug info for price extraction
+                $matchedProduct['price_extraction_debug'] = [
+                    'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
+                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',
+                    'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
+                    'extracted_price' => $exactPrecioEmision,
+                    'is_numeric' => is_numeric($exactPrecioEmision),
+                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00'
+                ];
             }
         } catch (\Exception $e) {
             // Handle errors silently
@@ -1652,7 +1676,7 @@ class InsuranceWorkflowService
 
             $nombreProductoLower = strtolower(trim($nombreProducto));
 
-            // 1. Try exact match first
+            // Only exact match - no partial matching
             if ($nombreProductoLower === $searchPlanLower) {
                 return [
                     'found' => true,
@@ -1661,60 +1685,6 @@ class InsuranceWorkflowService
                     'quote_data' => $singleQuote,
                     'quote_index' => $index
                 ];
-            }
-
-            // 2. Try search plan contained in product name (for cases like "TELEASISTENCIA" in "DOM TELEASISTENCIA SIMLIMITES")
-            if (strpos($nombreProductoLower, $searchPlanLower) !== false) {
-                return [
-                    'found' => true,
-                    'product_name' => $nombreProducto,
-                    'match_type' => 'partial_match_found',
-                    'quote_data' => $singleQuote,
-                    'quote_index' => $index
-                ];
-            }
-
-            // 3. Try flexible matching for similar plans (e.g., "DOM MASTER 25K SIMLIMITES" matches "DOM MASTER 40K SIMLIMITES REC")
-            $searchWords = explode(' ', $searchPlanLower);
-            $productWords = explode(' ', $nombreProductoLower);
-
-            // Check if key identifying words match (excluding numbers and common suffixes)
-            $keyWords = [];
-            $productKeyWords = [];
-
-            foreach ($searchWords as $word) {
-                // Keep important words, skip numbers and common suffixes
-                // But keep 'simlimites' if it's in the original search plan
-                if (! preg_match('/^\d+k?$/', $word) &&
-                    ! in_array($word, ['rec', 'dom']) &&
-                    ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
-                    $keyWords[] = $word;
-                }
-            }
-
-            foreach ($productWords as $word) {
-                // Keep important words, skip numbers and common suffixes
-                // But keep 'simlimites' if it's in the search plan
-                if (! preg_match('/^\d+k?$/', $word) &&
-                    ! in_array($word, ['rec', 'dom']) &&
-                    ! ($word === 'simlimites' && strpos($searchPlanLower, 'simlimites') === false)) {
-                    $productKeyWords[] = $word;
-                }
-            }
-
-            // If key identifying words match, consider it a match
-            if (! empty($keyWords) && ! empty($productKeyWords)) {
-                $matchingWords = array_intersect($keyWords, $productKeyWords);
-                if (count($matchingWords) >= count($keyWords)) {
-                    return [
-                        'found' => true,
-                        'product_name' => $nombreProducto,
-                        'match_type' => 'flexible_match',
-                        'quote_data' => $singleQuote,
-                        'quote_index' => $index,
-                        'matched_words' => $matchingWords
-                    ];
-                }
             }
         }
 
