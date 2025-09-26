@@ -18,6 +18,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 use Override;
 
 #[ObservedBy(AgentObserver::class)]
@@ -101,5 +102,14 @@ class Agent extends BaseModel
     protected static function newFactory()
     {
         return new AgentFactory();
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'users_id',
+            'id'
+        );
     }
 }
