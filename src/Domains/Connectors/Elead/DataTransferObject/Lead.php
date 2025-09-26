@@ -92,6 +92,14 @@ class Lead extends DataTransferObjectLead
         $status = LeadStatus::where('name', $lead->status)
             ->first();
 
+        $customFields = [
+            CustomFieldEnum::OPPORTUNITY_ID->value => $lead->id,
+        ];
+
+        if (! empty($lead->subSource)) {
+            $customFields['sub_source'] = $lead->subSource;
+        }
+
         return self::from([
             'app' => $lead->app,
             'branch' => $lead->company->defaultBranch,
@@ -103,9 +111,7 @@ class Lead extends DataTransferObjectLead
             'source_id' => $source?->id ?? 0,
             'status_id' => $status?->id ?? 0,
             'leads_owner_id' => $eLeadOwnerId?->user_id ?? 0,
-            'custom_fields' => [
-                CustomFieldEnum::OPPORTUNITY_ID->value => $lead->id,
-            ],
+            'custom_fields' => $customFields,
         ]);
     }
 }
