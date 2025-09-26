@@ -279,11 +279,11 @@ class Client
         $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
 
         // Respect convenios determined by workflow - only set if not already provided
-        if (! isset($inclusionData['contrato']) || empty($inclusionData['contrato'])) {
-            $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
+        if (! isset($inclusionData['Contrato']) || empty($inclusionData['Contrato'])) {
+            $inclusionData['Contrato'] = $this->getConvenioForQuotationType('inclusion');
         }
-        if (! isset($crossSellingData['contrato']) || empty($crossSellingData['contrato'])) {
-            $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
+        if (! isset($crossSellingData['Contrato']) || empty($crossSellingData['Contrato'])) {
+            $crossSellingData['Contrato'] = $this->getConvenioForQuotationType('cross_selling');
         }
 
         // Set specific organizations for each quotation type
@@ -369,7 +369,7 @@ class Client
 
         // Set control number, organization and convenio using basic quotation type logic
         $voucherData['NroControl'] = $controlNumber;
-        $voucherData['contrato'] = $this->getConvenioForQuotationType($quotationType);
+        $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
 
         if (isset($voucherData['DatosAgencia'])) {
             $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
@@ -403,16 +403,16 @@ class Client
         $voucherData['NroControl'] = $controlNumber;
 
         // ALWAYS respect the convenio determined by the workflow
-        // Check both 'contrato' and 'Contrato' keys for consistency
-        $workflowConvenio = $voucherData['contrato'] ?? $voucherData['Contrato'] ?? null;
+        // Check both 'Contrato' and 'contrato' keys for consistency
+        $workflowConvenio = $voucherData['Contrato'] ?? $voucherData['contrato'] ?? null;
 
         if ($workflowConvenio && ! empty($workflowConvenio)) {
             // Use the convenio determined by workflow (variant logic)
-            $voucherData['contrato'] = $workflowConvenio;
-            unset($voucherData['Contrato']); // Remove uppercase version if it exists for consistency
+            $voucherData['Contrato'] = $workflowConvenio;
+            unset($voucherData['contrato']); // Remove lowercase version if it exists for consistency
         } else {
             // If no convenio from workflow, use basic quotation type logic as fallback
-            $voucherData['contrato'] = $this->getConvenioForQuotationType($quotationType);
+            $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
         }
 
         if (isset($voucherData['DatosAgencia'])) {
@@ -432,7 +432,7 @@ class Client
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $voucherData['contrato'], // Use the convenio that was actually used
+                'convenio' => $voucherData['Contrato'], // Use the convenio that was actually used
                 'origin_country_code' => $originCountryCode,
                 'destination_country_code' => $destinationCountryCode,
                 'origin_country_name' => $originCountryName,
@@ -464,7 +464,7 @@ class Client
 
             // Store in order metadata if provided
             if ($order) {
-                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode);
+                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $voucherData['Contrato']);
             }
 
             return $result;
@@ -531,7 +531,7 @@ class Client
     /**
      * Store single quotation results in order metadata
      */
-    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): void
+    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO', string $convenio = null): void
     {
         $metadata = $order->metadata ?? [];
 
@@ -543,10 +543,13 @@ class Client
             $metadata['universalAssistanceData']['single_quotations'] = [];
         }
 
+        // Use the provided convenio if available, otherwise fall back to the old method
+        $convenioToUse = $convenio ?? $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType);
+
         $metadata['universalAssistanceData']['single_quotations'][$quotationType] = [
             'control_number' => $controlNumber,
             'organization' => $this->getOrganizationForQuotationType($quotationType),
-            'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+            'convenio' => $convenioToUse,
             'origin_country_code' => $originCountryCode,
             'destination_country_code' => $destinationCountryCode,
             'created_at' => now()->toISOString(),
@@ -889,9 +892,12 @@ class Client
 
             $response = $client->__soapCall('LeadCotizadorOper', [$parameters]);
 
+            // Include the actual input data that was sent to the SOAP service
+            $result = (array) $response;
+            $result['quotation_input_data'] = $parameters; // Add the exact input data sent to SOAP
 
-            // Return the raw SOAP response without any processing
-            return (array) $response;
+            // Return the response with input data included
+            return $result;
         } catch (SoapFault $e) {
             throw new ValidationException('SOAP Fault in create/update lead: ' . $e->getMessage());
         } catch (Exception $e) {
@@ -938,10 +944,9 @@ class Client
                             'EstadoVoucher' => $voucherData['estadoVoucher'] ?? 'Activo', // Active status
                             'MotivoVoucher' => $voucherData['motivoVoucher'] ?? 'Individual', // Individual voucher
                             'Facturacion' => $voucherData['facturacion'] ?? 'Pendiente Facturación', // Pending billing
-                            'Contrato' => $voucherData['contrato'] ?? '1-DEY2E2H',
+                            'Contrato' => $voucherData['Contrato'] ?? '1-DEY2E2H',
                             'LeadId' => $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
                             'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
-                            'ImprimeTarifa' => 'N', // Always N - no fallback needed
                             'Tarifa' => 'N', // Always N - no fallback needed
                             'PostProcesoFlag' => 'N', // Always N - no fallback needed
 
@@ -992,7 +997,11 @@ class Client
 
             $response = $client->__soapCall('Alta_Voucher_Operation', [$parameters]);
 
-            return (array) $response;
+            // Include the actual input data that was sent to the SOAP service
+            $result = (array) $response;
+            $result['voucher_input_data'] = $parameters; // Add the exact input data sent to SOAP
+
+            return $result;
         } catch (Exception $e) {
             throw new ValidationException('Failed to create voucher: ' . $e->getMessage());
         }
@@ -1617,7 +1626,7 @@ class Client
             'IdLead' => '',
             'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
             'CantCotizaciones' => 1, // Important: Request quotation data
-            'Convenio' => $voucherData['contrato'], // Use the convenio already set based on countries
+            'Convenio' => $voucherData['Contrato'], // Use the convenio already set based on countries
             'Folleto' => '', // Empty like working request
             'PaisOrigen' => $originCountryName, // Use provided origin country name
             'Destino' => $destinationName, // Use provided destination name
