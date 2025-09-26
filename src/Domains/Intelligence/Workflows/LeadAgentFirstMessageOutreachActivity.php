@@ -8,6 +8,8 @@ use Exception;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
+use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -54,7 +56,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     throw new RuntimeException('Lead does not have a phone number , wont be able to send message until we add email support');
                 }
 
-                $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+                //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
                 if (empty($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value))) {
                     return [
                         'error' => 'No communication channel selected , please set one to be able to send messages',
@@ -122,6 +124,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         //todo this is not the right place to do this but for now its ok
                         //we need to make sure we have the phone call activity
                         $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
+
+                        $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                        $note = $firstLeadMessage['message'] ?? '';
+                        if (! empty($note)) {
+                            $fromAgent = true;
+                            $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+                            $eLeadOpportunity->addComment($note);
+                        }
                     } catch (Exception $e) {
                         report($e);
                     }
