@@ -35,7 +35,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $results = $service->processInsuranceWorkflow($data['insurance_data']);
 
                 // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                $this->storeUniversalAssistanceData($order, $data['message_id'], $results);
+                $this->storeUniversalAssistanceData($results, $data['message_id']);
 
                 return $results;
             },
@@ -132,101 +132,56 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     /**
      * Store Universal Assistance data in both message and order (same pattern as AeroAmbulancia)
      */
-    protected function storeUniversalAssistanceData(Order $order, int $messageId, array $results): void
+    protected function storeUniversalAssistanceData(array $results, int $messageId): void
     {
-        // Convert results to arrays to prevent stdClass errors
-        $results = $this->convertObjectsToArrays($results);
+        // Extract individual insurance quote results for titular and dependents
+        $holder = $results['titular'] ?? null;
+        $dependents = $results['dependents'] ?? [];
 
-        // Prepare universalAssistanceData structure (frontend-compatible format)
+        if (!$holder) {
+            return;
+        }
+
+        // Get voucher result from holder to extract convenio and pricing data
+        $voucherResult = $holder['voucher_result'] ?? [];
+        $convenio = $this->extractConvenioFromVoucherResult($voucherResult);
+        $precioEmision = $voucherResult['precio_emision'] ?? null;
+
+        // Build the universalAssistanceData structure for frontend consumption
         $universalAssistanceData = [
-            'holder' => null,
-            'dependents' => [],
-            'quotation_details' => null,
+            'holder' => [
+                'control_number' => $holder['control_number'] ?? null,
+                'convenio' => $convenio,
+                'data' => $holder, // Include full holder data
+                'voucher_request_input' => $holder['voucher_result']['voucher_request_input'] ?? null // Include original request data
+            ],
+            'dependents' => array_map(function ($dependent) {
+                $dependentVoucherResult = $dependent['voucher_result'] ?? [];
+                $dependentConvenio = $this->extractConvenioFromVoucherResult($dependentVoucherResult);
+                
+                return [
+                    'control_number' => $dependent['control_number'] ?? null,
+                    'convenio' => $dependentConvenio,
+                    'data' => $dependent, // Include full dependent data
+                    'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null // Include original request data
+                ];
+            }, $dependents),
+            'quotation_details' => [
+                'precio_emision' => $precioEmision,
+                'quotation_type' => $holder['quotation_type'] ?? null,
+                'status' => 'active',
+                'voucher_id' => $voucherResult['voucher_id'] ?? null,
+                'voucher_success' => !empty($voucherResult['voucher_id'])
+            ]
         ];
 
-        // Structure holder data (frontend-compatible format)
-        if (isset($results['titular'])) {
-            $titularQuoteData = $results['titular']['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                               $results['titular']['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                               [];
-
-            $titularVoucherResponse = $results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
-                                     $results['titular']['voucher_response'] ?? [];
-
-            $universalAssistanceData['holder'] = [
-                'control_number' => $results['titular']['control_number'] ?? null,
-                'convenio' => $this->extractConvenioFromVoucherResult($results['titular']),
-                'data' => [
-                    'dual_quotation_results' => $results['titular']['dual_quotation_results'] ?? null,
-                    'selected' => $results['titular']['selected_quotation'] ?? null,
-                ],
-                'error_code' => $titularVoucherResponse['ErrorCode'] ?? null,
-                'error_msg' => $titularVoucherResponse['ErrorMsg'] ?? null,
-                'has_individual_voucher' => true,
-                'nro_control_ext' => $titularVoucherResponse['NroControlExt'] ?? null,
-                'nro_voucher' => $titularVoucherResponse['NroVoucher'] ?? null,
-                'organization' => $results['titular']['organization'] ?? null,
-                'price_validation' => $results['titular']['price_validation'] ?? null,
-                'product_validation' => $results['titular']['product_validation'] ?? null,
-            ];
-
-            // Set quotation details at root level
-            $universalAssistanceData['quotation_details'] = [
-                'precio_emision' => $titularQuoteData['PrecioEmision'] ?? null,
-                'quotation_type' => $results['titular']['quotation_type'] ?? null,
-                'status' => 'active',
-                'voucher_id' => $results['titular']['voucher_response']['IdVoucher'] ?? null,
-                'voucher_success' => ($titularVoucherResponse['ErrorCode'] ?? null) === '00',
-            ];
-        }
-
-        // Structure dependents data (frontend-compatible format)
-        if (isset($results['dependents']) && ! empty($results['dependents'])) {
-            foreach ($results['dependents'] as $dependent) {
-                $dependentQuoteData = $dependent['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                     $dependent['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                     [];
-
-                $dependentVoucherResponse = $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp'] ??
-                                           $dependent['voucher_response'] ?? [];
-
-                $universalAssistanceData['dependents'][] = [
-                    'control_number' => $dependent['control_number'] ?? null,
-                    'convenio' => $this->extractConvenioFromVoucherResult($dependent),
-                    'data' => [
-                        'dual_quotation_results' => $dependent['dual_quotation_results'] ?? null,
-                        'selected' => $dependent['selected_quotation'] ?? null,
-                    ],
-                    'error_code' => $dependentVoucherResponse['ErrorCode'] ?? null,
-                    'error_msg' => $dependentVoucherResponse['ErrorMsg'] ?? null,
-                    'has_individual_voucher' => true,
-                    'nro_control_ext' => $dependentVoucherResponse['NroControlExt'] ?? null,
-                    'nro_voucher' => $dependentVoucherResponse['NroVoucher'] ?? null,
-                    'organization' => $dependent['organization'] ?? null,
-                    'price_validation' => $dependent['price_validation'] ?? null,
-                    'product_validation' => $dependent['product_validation'] ?? null,
-                ];
-            }
-        }
-
-        // Update the message with Universal Assistance data (smart merge with existing data)
-        if ($messageId) {
-            $message = Message::getById($messageId);
-            $messageData = $message->message;
-
-            // Smart merge with existing universalAssistanceData
-            $existingData = $messageData['universalAssistanceData'] ?? [];
-            $messageData['universalAssistanceData'] = $this->mergeUniversalAssistanceData($existingData, $universalAssistanceData);
-
-            $message->message = $messageData;
-            $message->saveOrFail();
-        }
-
-        // Smart merge with existing order metadata
-        $existingOrderData = $order->metadata['universalAssistanceData'] ?? [];
-        $mergedData = $this->mergeUniversalAssistanceData($existingOrderData, $universalAssistanceData);
-        $order->metadata = array_merge(($order->metadata ?? []), ['universalAssistanceData' => $mergedData]);
-        $order->saveOrFail();
+        // Get the message and update its metadata
+        $message = Message::getById($messageId);
+        $metadata = $message->metadata ?? [];
+        $metadata['universalAssistanceData'] = $universalAssistanceData;
+        
+        $message->metadata = $metadata;
+        $message->saveOrFail();
     }
 
     /**
@@ -316,9 +271,34 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function extractConvenioFromVoucherResult(array $personData): ?string
     {
-        // The convenio is calculated and stored as 'convenio_used' in the workflow
-        // Just extract it from the voucher result (same pattern as precio_emision)
-        return $personData['convenio_used'] ?? null;
+        // The convenio is calculated and stored as 'convenio_used' in the workflow result
+        // Check multiple possible locations in the result structure
+
+        // Level 1: Direct convenio_used from workflow result
+        if (! empty($personData['convenio_used'])) {
+            return $personData['convenio_used'];
+        }
+
+        // Level 2: From voucher_result.convenio_used (voucher creation result)
+        if (! empty($personData['voucher_result']['convenio_used'])) {
+            return $personData['voucher_result']['convenio_used'];
+        }
+
+        // Level 3: From selected quotation convenio
+        if (! empty($personData['selected_quotation']['convenio'])) {
+            return $personData['selected_quotation']['convenio'];
+        }
+
+        // Level 4: From quotation_type fallback (like workflow does)
+        $quotationType = $personData['quotation_type'] ?? $personData['quotation_type_used'] ?? 'inclusion';
+        if ($quotationType === 'inclusion') {
+            return '1-8JMLB4N'; // Default inclusion convenio
+        } elseif ($quotationType === 'cross_selling') {
+            return '1-DEY2E2H'; // Default cross_selling convenio
+        }
+
+        // Ultimate fallback
+        return '1-8JMLB4N';
     }
 
     /**

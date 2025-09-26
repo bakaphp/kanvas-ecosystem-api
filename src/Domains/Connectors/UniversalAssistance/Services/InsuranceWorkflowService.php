@@ -180,7 +180,8 @@ class InsuranceWorkflowService
         $result = $this->convertObjectsToArrays($result);
 
         // Store titular voucher information in eSim message metadata
-        $this->storeVoucherInESimMessageMetadata($titularData, $result, 'titular');
+        // NOTE: Disabled - ProcessInsuranceCartActivity handles message storage in correct format
+        // $this->storeVoucherInESimMessageMetadata($titularData, $result, 'titular');
 
         return $result;
     }
@@ -217,7 +218,8 @@ class InsuranceWorkflowService
         $result = $this->convertObjectsToArrays($result);
 
         // Store dependent voucher information in eSim message metadata
-        $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
+        // NOTE: Disabled - ProcessInsuranceCartActivity handles message storage in correct format
+        // $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
 
         return $result;
     }
@@ -1527,14 +1529,16 @@ class InsuranceWorkflowService
                 'success' => true,
                 'voucher_data' => $result,
                 'convenio_used' => $convenio,
-                'quotation_type_used' => $selectedQuotation['quotation_type']
+                'quotation_type_used' => $selectedQuotation['quotation_type'],
+                'voucher_request_input' => $voucherData  // Include the original voucher request data
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'error' => 'Voucher creation failed: ' . $e->getMessage(),
                 'convenio_attempted' => $convenio,
-                'quotation_type_attempted' => $selectedQuotation['quotation_type']
+                'quotation_type_attempted' => $selectedQuotation['quotation_type'],
+                'voucher_request_input' => $voucherData  // Include the request data even on error
             ];
         }
     }

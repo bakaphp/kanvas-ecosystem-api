@@ -1141,7 +1141,7 @@ class Client
                 $parameters = [
                     'Language' => $reportData['Language'] ?? $reportData['language'] ?? 'Spanish',
                     'VoucherNumber' => $reportData['VoucherNumber'] ?? $reportData['voucherNumber'] ?? '',
-                    'Tarifa' => $reportData['Tarifa'] ?? $reportData['tarifa'] ?? '',
+                    'Tarifa' => 'N', // Always N - no PDF generation
                     'Organization' => $reportData['Organization'] ?? $this->organization
                 ];
             }
