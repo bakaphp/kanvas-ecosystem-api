@@ -531,7 +531,7 @@ class Client
     /**
      * Store single quotation results in order metadata
      */
-    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO', string $convenio = null): void
+    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO', ?string $convenio = null): void
     {
         $metadata = $order->metadata ?? [];
 

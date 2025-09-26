@@ -63,6 +63,11 @@ class InsuranceWorkflowService
                 $titularDataWithVariant['variantType'] = $esimVariantType;
             }
 
+            // Pass variant data if available (for duration calculation)
+            if (isset($insuranceData['titular']['variant'])) {
+                $titularDataWithVariant['variant'] = $insuranceData['titular']['variant'];
+            }
+
             $results['titular'] = $this->processTitular($titularDataWithVariant);
         } else {
             throw new ValidationException('Titular data not found in insurance data');
@@ -76,6 +81,11 @@ class InsuranceWorkflowService
                 $dependentDataWithVariant = $dependent;
                 if ($esimVariantType) {
                     $dependentDataWithVariant['variantType'] = $esimVariantType;
+                }
+
+                // Pass variant data if available (for duration calculation)
+                if (isset($dependent['variant'])) {
+                    $dependentDataWithVariant['variant'] = $dependent['variant'];
                 }
 
                 $results['dependents'][] = $this->processDependent($dependentDataWithVariant, $titularOriginCountryCode, $titularDestinationCountryCode);
@@ -596,33 +606,56 @@ class InsuranceWorkflowService
 
     /**
      * Get product duration from plan attributes
-     * Use whatever duration the plan specifies without validation
+     * Prioritize the original eSIM plan duration over calculated dates from voucher
      */
     protected function getProductDuration(array $personData): int
     {
-        // Try to get duration from different possible locations
-        $duration = $personData['plan']['duration'] ??
-                   $personData['plan']['attributes']['duration'] ??
-                   $personData['duration'] ??
-                   null;
+        // First priority: Try to get duration from variant attributes (most reliable for eSIM plans)
+        if (isset($personData['variant']['attributes'])) {
+            foreach ($personData['variant']['attributes'] as $attribute) {
+                if (isset($attribute['name']) && $attribute['name'] === 'Variant Duration' && isset($attribute['value'])) {
+                    $variantDuration = (int) $attribute['value'];
+                    if ($variantDuration > 0) {
+                        return $variantDuration;
+                    }
+                }
+            }
+        }
 
-        // If duration is provided, use it directly without validation
-        if ($duration !== null && $duration !== '') {
-            $durationInt = (int) $duration;
+        // Second priority: Extract from product variant name if it contains duration info
+        if (isset($personData['variant']['name'])) {
+            $variantName = $personData['variant']['name'];
+            if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
+                $extractedDuration = (int) $matches[1];
+                if ($extractedDuration > 0) {
+                    return $extractedDuration;
+                }
+            }
+        }
+
+        // Third priority: Try to get duration from plan configuration
+        $planDuration = $personData['plan']['duration'] ??
+                       $personData['plan']['attributes']['duration'] ??
+                       $personData['duration'] ??
+                       null;
+
+        // If plan duration is provided, use it directly as it represents the original selection
+        if ($planDuration !== null && $planDuration !== '') {
+            $durationInt = (int) $planDuration;
 
             if ($durationInt > 0) {
                 return $durationInt;
             }
         }
 
-        // Fallback: calculate from activation and expiration dates if available
+        // Last resort: calculate from activation and expiration dates if available
+        // Note: This may not reflect the original plan duration due to voucher validity dates
         if (isset($personData['activationDate']) && isset($personData['expirationDate'])) {
             try {
                 $activationDate = Carbon::parse($personData['activationDate']);
                 $expirationDate = Carbon::parse($personData['expirationDate']);
-                $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1); // +1 to include both dates
+                $calculatedDuration = (int)($activationDate->diffInDays($expirationDate)); // Remove +1 as diffInDays already calculates inclusive days correctly
 
-                // Use calculated duration directly without validation
                 if ($calculatedDuration > 0) {
                     return $calculatedDuration;
                 }
@@ -1822,11 +1855,13 @@ class InsuranceWorkflowService
             $destination = 'Centro america/Caribe'; // Safe fallback
         }
 
-        // Calculate dates
+        // Calculate dates based on eSIM plan duration, not voucher validity dates
         $activationDate = Carbon::parse($personData['activationDate'] ?? now());
-        $duration = $this->getProductDuration($personData);
+        $duration = $this->getProductDuration($personData); // This now correctly gets eSIM plan duration
+        
+        // Calculate expiration date based on actual eSIM plan duration
         $expirationDate = clone $activationDate;
-        $expirationDate->addDays($duration); // Duration days from activation date
+        $expirationDate->addDays($duration - 1); // Subtract 1 because if plan is 5 days, it should end 4 days after start (inclusive)
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
@@ -1881,11 +1916,13 @@ class InsuranceWorkflowService
             $destination = 'Centro america/Caribe'; // Safe fallback
         }
 
-        // Calculate dates
+        // Calculate dates based on eSIM plan duration, not voucher validity dates
         $activationDate = Carbon::parse($personData['activationDate']);
-        $duration = $this->getProductDuration($personData);
+        $duration = $this->getProductDuration($personData); // This now correctly gets eSIM plan duration
+        
+        // Calculate expiration date based on actual eSIM plan duration
         $expirationDate = clone $activationDate;
-        $expirationDate->addDays($duration); // Duration days from activation date
+        $expirationDate->addDays($duration - 1); // Subtract 1 because if plan is 5 days, it should end 4 days after start (inclusive)
 
         return [
             'NroControl' => '', // Will be set by dual quotation system
