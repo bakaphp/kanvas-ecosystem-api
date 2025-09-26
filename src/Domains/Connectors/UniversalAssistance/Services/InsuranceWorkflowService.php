@@ -1991,14 +1991,14 @@ class InsuranceWorkflowService
         if (! empty($personData['convenio_used'] ?? null)) {
             return $personData['convenio_used'];
         }
-        
+
         if (! empty($personData['convenioUsed'] ?? null)) {
             return $personData['convenioUsed'];
         }
 
         // PRIORITY 2: Use variant-based convenio logic (MAIN LOGIC)
         $planVariant = $this->extractVariantType($personData);
-        
+
         // Get quotation type from various possible sources
         $quotationType = $personData['quotation_type']
             ?? $personData['quotation_type_used']
