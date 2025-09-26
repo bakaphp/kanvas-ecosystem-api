@@ -6,14 +6,15 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+
 class AgentChannelResponderActivity extends KanvasActivity
 {
     public $tries = 3;
