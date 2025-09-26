@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Connectors\Twilio\Client;
@@ -25,6 +26,21 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
     {
         if ($this->message->entity() === null) {
             throw new ValidationException('No entity found');
+        }
+
+        $batchKey = $params['batchKey'] ?? null;
+        $batch = null;
+        if ($batchKey !== null && Cache::has($batchKey)) {
+            $batch = Cache::get($batchKey);
+
+            if (isset($batch['last_message_id']) && $batch['last_message_id'] !== $this->message->getId()) {
+                return [
+                    'message' => 'this is not the last message in the batch, skipping , we only respond to the last message',
+                    'batch' => $batch,
+                ];
+            }
+
+            Cache::forget($batchKey);
         }
 
         $useInspector = $this->message->app->get('inspector-key') !== null;
@@ -61,7 +77,15 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
                 ]
             );
         };
+
         $messageConversation = $this->message->message['content'];
+        if ($batchKey !== null && $batch !== null) {
+            $messageConversation = '';
+            foreach ($batch['messages'] as $batchMessage) {
+                $messageConversation .= $batchMessage['body'] . "\n";
+            }
+        }
+
         $question = $currentAgent instanceof ADKAgent ?
                 $currentAgent->chat(
                     $this->channel,
