@@ -18,6 +18,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 use Override;
@@ -118,10 +119,16 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
 
     private function createMessage(string $text, string $to, Message $message, Channel $channel): Message
     {
+        $user = $message->user;
+        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
+        if ($agentUser !== null) {
+            $user = Users::getById((int) $agentUser);
+        }
+
         $messageInput = new MessageInput(
             app: $message->app,
             company: $message->company,
-            user: $message->user,
+            user: $user,
             type: $message->messageType,
             message: [
                     'content' => $text,
