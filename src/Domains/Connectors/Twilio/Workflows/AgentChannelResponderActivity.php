@@ -12,7 +12,8 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 class AgentChannelResponderActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -49,11 +50,18 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'entity' => null,
                     ];
                 }
-
+                $lead = $message->entity();
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
                     return [
                         'message' => 'Message is from the owner of the phone tied to the agent',
+                        'entity' => null,
+                    ];
+                }
+
+                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                    return [
+                        'message' => 'Lead is being handed off to human agent',
                         'entity' => null,
                     ];
                 }
@@ -91,6 +99,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                         ])
                     )->execute();
                 }
+
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,

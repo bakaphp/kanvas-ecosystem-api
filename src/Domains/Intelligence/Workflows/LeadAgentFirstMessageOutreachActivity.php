@@ -50,8 +50,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $leadContext['first_message'] = $firstLeadMessage;
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
-                $cellPhone = str_replace('+', '', $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '');
+                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
 
+                return preg_replace('/^\+\d{1,3}/', '', $cellPhone);
                 if (empty($cellPhone)) {
                     throw new RuntimeException('Lead does not have a phone number , wont be able to send message until we add email support');
                 }
