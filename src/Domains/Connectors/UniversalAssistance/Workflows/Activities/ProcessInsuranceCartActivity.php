@@ -37,7 +37,33 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
                 $this->storeUniversalAssistanceData($results, $data['message_id']);
 
-                return $results;
+                // Return comprehensive results focusing on voucher data and SOAP inputs
+                return [
+                    'workflow_results' => $results,
+                    'voucher_data' => [
+                        'holder' => [
+                            'voucher_id' => $results['holder']['voucher_result']['voucher_id'] ?? null,
+                            'voucher_request_input' => $results['holder']['voucher_result']['voucher_request_input'] ?? null,
+                            'soap_response' => $results['holder']['voucher_result']['voucher_response'] ?? null,
+                        ],
+                        'dependents' => array_map(function($dependent) {
+                            return [
+                                'voucher_id' => $dependent['voucher_result']['voucher_id'] ?? null,
+                                'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
+                                'soap_response' => $dependent['voucher_result']['voucher_response'] ?? null,
+                            ];
+                        }, $results['dependents'] ?? [])
+                    ],
+                    'original_insurance_data' => $data['insurance_data'],
+                    'message_id' => $data['message_id'],
+                    'order_id' => $order->getId(),
+                    'processing_summary' => [
+                        'holder_processed' => ! empty($results['holder']),
+                        'dependents_processed' => count($results['dependents'] ?? []),
+                        'vouchers_created' => $this->countVouchersCreated($results),
+                        'total_cost' => $this->calculateTotalCost($results),
+                    ]
+                ];
             },
             company: $order->company,
         );
@@ -175,12 +201,21 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             ]
         ];
 
-        // Get the message and update its metadata
+        // Get the message and update its message content with proper merge
         $message = Message::getById($messageId);
-        $metadata = $message->metadata ?? [];
-        $metadata['universalAssistanceData'] = $universalAssistanceData;
+        $currentMessage = $message->message ?? [];
 
-        $message->metadata = $metadata;
+        // Ensure we have an array to work with
+        if (! is_array($currentMessage)) {
+            $currentMessage = [];
+        }
+
+        // Merge the universalAssistanceData without overwriting existing data
+        $currentMessage = array_merge($currentMessage, [
+            'universalAssistanceData' => $universalAssistanceData
+        ]);
+        
+        $message->message = $currentMessage;
         $message->saveOrFail();
     }
 
@@ -299,6 +334,76 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Ultimate fallback
         return '1-8JMLB4N';
+    }
+
+    /**
+     * Count total vouchers created in the results
+     */
+    protected function countVouchersCreated(array $results): int
+    {
+        $count = 0;
+
+        // Count holder voucher
+        if (! empty($results['holder']['voucher_result']['voucher_id'])) {
+            $count++;
+        }
+
+        // Count dependent vouchers
+        if (! empty($results['dependents'])) {
+            foreach ($results['dependents'] as $dependent) {
+                if (! empty($dependent['voucher_result']['voucher_id'])) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Calculate total cost from all vouchers
+     */
+    protected function calculateTotalCost(array $results): float
+    {
+        $totalCost = 0.0;
+
+        // Add holder cost
+        if (! empty($results['holder']['voucher_result']['voucher_data']['quote_response'])) {
+            $holderPrice = $this->extractPriceFromQuoteResponse($results['holder']['voucher_result']['voucher_data']['quote_response']);
+            $totalCost += $holderPrice;
+        }
+
+        // Add dependent costs
+        if (!empty($results['dependents'])) {
+            foreach ($results['dependents'] as $dependent) {
+                if (!empty($dependent['voucher_result']['voucher_data']['quote_response'])) {
+                    $dependentPrice = $this->extractPriceFromQuoteResponse($dependent['voucher_result']['voucher_data']['quote_response']);
+                    $totalCost += $dependentPrice;
+                }
+            }
+        }
+
+        return $totalCost;
+    }
+
+    /**
+     * Extract price from Universal Assistance quote response
+     */
+    protected function extractPriceFromQuoteResponse(array $quoteResponse): float
+    {
+        // Universal Assistance structure
+        if (isset($quoteResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+            $cotizadorData = $quoteResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+            
+            // Handle both single object and array of objects
+            if (is_array($cotizadorData) && isset($cotizadorData[0])) {
+                $cotizadorData = $cotizadorData[0]; // Take first item if array
+            }
+
+            return (float) ($cotizadorData['PrecioEmision'] ?? $cotizadorData['PrecioBruto'] ?? 0);
+        }
+
+        return 0.0;
     }
 
     /**
