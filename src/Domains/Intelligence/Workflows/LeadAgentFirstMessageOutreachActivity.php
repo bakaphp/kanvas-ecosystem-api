@@ -156,10 +156,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
     }
 
-    public function isToday(string $dateString): bool
+    public function isToday(Lead $lead, string $dateString): bool
     {
         // Get today's date in NY timezone
-        $todayNY = (new DateTime('now', new DateTimeZone('America/New_York')))->format('Y-m-d');
+        $todayNY = (new DateTime('now', new DateTimeZone($lead->company->get('timezone', 'America/New_York') ?? 'America/New_York')))->format('Y-m-d');
 
         // Extract just the date part (YYYY-MM-DD) from the dateString
         $dateOnly = substr($dateString, 0, 10);
