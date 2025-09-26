@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 
@@ -28,10 +29,11 @@ class CreateMessageAction
             'languages_id' => 1,
             'name' => 'AI Generated Message',
         ]);
+        $user = Users::getById($this->session->agent->user_id);
         $messageInput = MessageInput::from([
             'app' => $this->session->app,
             'company' => $this->session->company,
-            'user' => $this->session->agent->user,
+            'user' => $user,
             'type' => $messageType,
             'message' => $response->text,
         ]);
