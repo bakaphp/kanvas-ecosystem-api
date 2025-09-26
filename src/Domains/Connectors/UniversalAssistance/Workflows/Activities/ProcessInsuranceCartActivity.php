@@ -374,7 +374,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $currentMessage = [];
         }
 
-        if (!isset($currentMessage['universalAssistanceData'])) {
+        if (! isset($currentMessage['universalAssistanceData'])) {
             $currentMessage['universalAssistanceData'] = [
                 'holder' => [],
                 'dependents' => []
@@ -382,7 +382,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         if (isset($universalAssistanceData['holder'])) {
-            if (!empty($universalAssistanceData['holder']['nro_voucher'])) {
+            if (! empty($universalAssistanceData['holder']['nro_voucher'])) {
                 $currentMessage['universalAssistanceData']['holder'] = $universalAssistanceData['holder'];
             } else {
                 $existingVoucherId = $currentMessage['universalAssistanceData']['holder']['nro_voucher'] ?? null;
