@@ -46,7 +46,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             'voucher_request_input' => $results['holder']['voucher_result']['voucher_request_input'] ?? null,
                             'soap_response' => $results['holder']['voucher_result']['voucher_response'] ?? null,
                         ],
-                        'dependents' => array_map(function($dependent) {
+                        'dependents' => array_map(function ($dependent) {
                             return [
                                 'voucher_id' => $dependent['voucher_result']['voucher_id'] ?? null,
                                 'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
@@ -214,7 +214,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $currentMessage = array_merge($currentMessage, [
             'universalAssistanceData' => $universalAssistanceData
         ]);
-        
+
         $message->message = $currentMessage;
         $message->saveOrFail();
     }
@@ -374,9 +374,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         // Add dependent costs
-        if (!empty($results['dependents'])) {
+        if (! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
-                if (!empty($dependent['voucher_result']['voucher_data']['quote_response'])) {
+                if (! empty($dependent['voucher_result']['voucher_data']['quote_response'])) {
                     $dependentPrice = $this->extractPriceFromQuoteResponse($dependent['voucher_result']['voucher_data']['quote_response']);
                     $totalCost += $dependentPrice;
                 }
@@ -394,7 +394,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Universal Assistance structure
         if (isset($quoteResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
             $cotizadorData = $quoteResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
-            
+
             // Handle both single object and array of objects
             if (is_array($cotizadorData) && isset($cotizadorData[0])) {
                 $cotizadorData = $cotizadorData[0]; // Take first item if array
