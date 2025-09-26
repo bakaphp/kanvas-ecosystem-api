@@ -271,7 +271,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     public function processContactFromMessage(array $request): PeopleModel
     {
         $phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
-
+        $phoneNumberWitCountryCode = str_replace('+', '', $request['From']);
         $existingCustomer = People::getByCustomField(
             'twilio_jid',
             $phoneNumber,
@@ -280,8 +280,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
-            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber) {
-                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWitCountryCode) {
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWitCountryCode])
                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
             })->fromCompany($this->receiver->company)
                 ->fromApp($this->receiver->app)
