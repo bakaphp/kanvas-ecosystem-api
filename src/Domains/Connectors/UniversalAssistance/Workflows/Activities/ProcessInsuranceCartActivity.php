@@ -138,7 +138,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $holder = $results['titular'] ?? null;
         $dependents = $results['dependents'] ?? [];
 
-        if (!$holder) {
+        if (! $holder) {
             return;
         }
 
@@ -158,7 +158,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'dependents' => array_map(function ($dependent) {
                 $dependentVoucherResult = $dependent['voucher_result'] ?? [];
                 $dependentConvenio = $this->extractConvenioFromVoucherResult($dependentVoucherResult);
-                
+
                 return [
                     'control_number' => $dependent['control_number'] ?? null,
                     'convenio' => $dependentConvenio,
@@ -171,7 +171,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'quotation_type' => $holder['quotation_type'] ?? null,
                 'status' => 'active',
                 'voucher_id' => $voucherResult['voucher_id'] ?? null,
-                'voucher_success' => !empty($voucherResult['voucher_id'])
+                'voucher_success' => ! empty($voucherResult['voucher_id'])
             ]
         ];
 
@@ -179,7 +179,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $message = Message::getById($messageId);
         $metadata = $message->metadata ?? [];
         $metadata['universalAssistanceData'] = $universalAssistanceData;
-        
+
         $message->metadata = $metadata;
         $message->saveOrFail();
     }
