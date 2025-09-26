@@ -1954,7 +1954,7 @@ class InsuranceWorkflowService
             return $selectedQuotation['convenio_used'];
         }
 
-        // PRIORITY 2: convenio_used from personData is second priority  
+        // PRIORITY 2: convenio_used from personData is second priority
         if (! empty($personData['convenio_used'] ?? null)) {
             return $personData['convenio_used'];
         }
@@ -1988,11 +1988,11 @@ class InsuranceWorkflowService
     protected function determineConvenioWithFallbacks(array $personData, string $convenio): string
     {
         // PRIORITY 1: convenio_used is ALWAYS the first priority
-        if (!empty($personData['convenio_used'] ?? null)) {
+        if (! empty($personData['convenio_used'] ?? null)) {
             return $personData['convenio_used'];
         }
         
-        if (!empty($personData['convenioUsed'] ?? null)) {
+        if (! empty($personData['convenioUsed'] ?? null)) {
             return $personData['convenioUsed'];
         }
 
@@ -2000,7 +2000,7 @@ class InsuranceWorkflowService
         $planVariant = $this->extractVariantType($personData);
         
         // Get quotation type from various possible sources
-        $quotationType = $personData['quotation_type'] 
+        $quotationType = $personData['quotation_type']
             ?? $personData['quotation_type_used']
             ?? $personData['plan']['type']
             ?? $this->determinePlanType($personData)
