@@ -119,7 +119,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = $eLeadOpportunity->currentDateIn();
 
-                    if ($leadCurrentDateIn && $this->isToday($leadCurrentDateIn)) {
+                    if ($leadCurrentDateIn && $this->isToday($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $firstLeadMessage['message'],
