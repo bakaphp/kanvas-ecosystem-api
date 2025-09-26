@@ -203,6 +203,25 @@ input ResourceBookingInput {
     resources: Mixed
 }
 
+input ResourceBookingUpdateInput {
+    event_version_id: ID!
+    resources_id: ID
+    resources_type: String
+    start_at: String
+    end_at: String
+    participants: Mixed
+    event_name: String
+    event_description: String
+    metadata: Mixed
+    resources: Mixed
+}
+
+type ResourceBookingDeleteResult {
+    success: Boolean!
+    message: String!
+    deleted_event: Mixed
+}
+
 input ResourceHoldInput {
     resources_id: ID!
     resources_type: String!
@@ -241,9 +260,24 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
     
+    holdResource(input: ResourceHoldInput!): ResourceHoldResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@hold"
+        )
+
     bookResource(input: ResourceBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@book"
+        )
+
+    updateResourceBooking(input: ResourceBookingUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@update"
+        )
+
+    deleteResourceBooking(event_version_id: ID!): ResourceBookingDeleteResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@delete"
         )
 }
 
