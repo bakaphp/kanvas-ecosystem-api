@@ -42,29 +42,33 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'workflow_results' => $results,
                     'voucher_data' => [
                         'holder' => [
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_id']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_id']
-                                ?? $results['titular']['voucher_result']['voucher_data']['nro_voucher']
-                                ?? $results['titular']['voucher_id']
-                                ?? $results['titular']['voucher_data']['nro_voucher']
-                                ?? $results['titular']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                            // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                            'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                                // Fallback paths for other possible structures
+                                ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
                                 ?? null,
                             'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
-                            'soap_response' => $results['titular']['voucher_result']['voucher_response'] ?? null,
+                            'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
                         ],
                         'dependents' => array_map(function ($dependent) {
                             return [
-                                'voucher_id' => $dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_id']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_id']
-                                    ?? $dependent['voucher_result']['voucher_data']['nro_voucher']
-                                    ?? $dependent['voucher_id']
-                                    ?? $dependent['voucher_data']['nro_voucher']
-                                    ?? $dependent['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                // Same structure for dependents
+                                'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                                    // Fallback paths for other possible structures
+                                    ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
                                     ?? null,
                                 'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
-                                'soap_response' => $dependent['voucher_result']['voucher_response'] ?? null,
+                                'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
                             ];
                         }, $results['dependents'] ?? [])
                     ],
@@ -189,25 +193,60 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Build the universalAssistanceData structure for frontend consumption
         // Create a flat holder structure with only necessary fields
+        $voucherRequestInput = $holder['voucher_result']['voucher_request_input'] ?? [];
+        $solicitante = $voucherRequestInput['DatosSolicitante'] ?? [];
+
         $holderData = [
-            // Extract key data we want to preserve from holder
+            // Extract key data we want to preserve from holder with múltiples fallbacks
             'id' => $holder['id'] ?? null,
-            'firstName' => $holder['firstName'] ?? null,
-            'lastName' => $holder['lastName'] ?? null,
-            'birthDate' => $holder['birthDate'] ?? null,
-            'documentNumber' => $holder['documentNumber'] ?? null,
-            'documentType' => $holder['documentType'] ?? null,
-            'email' => $holder['email'] ?? null,
-            'telephone' => $holder['telephone'] ?? null,
-            'gender' => $holder['gender'] ?? null,
+            'firstName' => $holder['firstName']
+                ?? $solicitante['NombreSolicitante']
+                ?? $holder['firstname']
+                ?? null,
+            'lastName' => $holder['lastName']
+                ?? $solicitante['ApellidoSolicitante']
+                ?? $holder['lastname']
+                ?? null,
+            'birthDate' => $holder['birthDate']
+                ?? $solicitante['FechaNacimientoSolicitante']
+                ?? null,
+            'documentNumber' => $holder['documentNumber']
+                ?? $solicitante['NroDocumentoSolicitante']
+                ?? $holder['idNumber']
+                ?? null,
+            'documentType' => $holder['documentType']
+                ?? $solicitante['TipoDocumentoSolicitante']
+                ?? $holder['idType']
+                ?? null,
+            'email' => $holder['email']
+                ?? $solicitante['CorreoElectronicoSolicitante']
+                ?? null,
+            'telephone' => $holder['telephone']
+                ?? $solicitante['TelefonoSolicitante']
+                ?? null,
+            'gender' => $holder['gender']
+                ?? $solicitante['SexoSolicitante']
+                ?? null,
         ];
 
         // Add the voucher fields directly at the top level of holder
-        $holderData['error_code'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+        $holderData['error_code'] = $voucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $voucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $voucherResult['voucher_data']['voucher_response']['ErrorCode']
+            ?? $voucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $voucherResult['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            // Fallbacks for legacy structure
+            ?? $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
             ?? $voucherResult['error_code']
             ?? '00';
 
-        $holderData['error_msg'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+        $holderData['error_msg'] = $voucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? $voucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? $voucherResult['voucher_data']['voucher_response']['ErrorMsg']
+            ?? $voucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? $voucherResult['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            // Fallbacks for legacy structure
+            ?? $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
             ?? $voucherResult['error_msg']
             ?? 'OK';
 
@@ -220,11 +259,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['control_number']
             ?? null;
 
-        $holderData['nro_voucher'] = $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $voucherResult['voucher_id']
+        $holderData['nro_voucher'] = $holder['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+            ?? $holder['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+            ?? $holder['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+            // Fallbacks for other structures
+            ?? $holder['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            // Fallbacks for legacy structure
             ?? $holder['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $holder['voucher_result']['voucher_id']
+            ?? $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $holder['voucher_id']
+            ?? $voucherResult['voucher_id']
             ?? $voucherResult['voucher_data']['voucher_id']
+            ?? $holder['voucher_result']['voucher_id']
             ?? $holder['voucher_result']['voucher_data']['voucher_id']
             ?? $voucherResult['voucher_data']['nro_voucher']
             ?? $holder['voucher_result']['voucher_data']['nro_voucher']
@@ -235,8 +283,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             ?? $holder['voucher_response']['DatosVoucherResp']['NroVoucher']
             ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
             ?? $holder['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+            ?? $holder['dual_quotation_results']['cross_selling']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
             ?? $holder['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
+            ?? $holder['dual_quotation_results']['inclusion']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? $results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? $results['titular']['voucher_id']
             ?? null;
@@ -324,25 +374,27 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $currentMessage = [];
         }
 
-        // Asegurar que universalAssistanceData esté en el nivel superior, sin anidaciones adicionales
-        // Si ya existe universalAssistanceData, actualiza sus campos directamente
-        if (isset($currentMessage['universalAssistanceData'])) {
-            // Actualizar holder
-            if (isset($universalAssistanceData['holder'])) {
-                // Mantener los datos existentes que no están en el nuevo
-                $currentMessage['universalAssistanceData']['holder'] = array_merge(
-                    $currentMessage['universalAssistanceData']['holder'] ?? [],
-                    $universalAssistanceData['holder']
-                );
-            }
+        if (! isset($currentMessage['universalAssistanceData'])) {
+            $currentMessage['universalAssistanceData'] = [
+                'holder' => [],
+                'dependents' => []
+            ];
+        }
 
-            // Actualizar dependents
-            if (isset($universalAssistanceData['dependents'])) {
-                $currentMessage['universalAssistanceData']['dependents'] = $universalAssistanceData['dependents'];
+        if (isset($universalAssistanceData['holder'])) {
+            if (! empty($universalAssistanceData['holder']['nro_voucher'])) {
+                $currentMessage['universalAssistanceData']['holder'] = $universalAssistanceData['holder'];
+            } else {
+                $existingVoucherId = $currentMessage['universalAssistanceData']['holder']['nro_voucher'] ?? null;
+                $currentMessage['universalAssistanceData']['holder'] = $universalAssistanceData['holder'];
+                if ($existingVoucherId && empty($currentMessage['universalAssistanceData']['holder']['nro_voucher'])) {
+                    $currentMessage['universalAssistanceData']['holder']['nro_voucher'] = $existingVoucherId;
+                }
             }
-        } else {
-            // Si no existe, agregar todo el objeto universalAssistanceData
-            $currentMessage['universalAssistanceData'] = $universalAssistanceData;
+        }
+
+        if (isset($universalAssistanceData['dependents'])) {
+            $currentMessage['universalAssistanceData']['dependents'] = $universalAssistanceData['dependents'];
         }
 
         $message->message = $currentMessage;
@@ -473,9 +525,18 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         $count = 0;
 
-        // Count titular voucher with multiple fallback paths
+        // Count titular voucher with updated structure awareness
         if (! empty($results['titular'])) {
-            $hasVoucher = ! empty($results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+            // First check the correct structure: voucher_result.voucher_data.voucher_response.UAAltaVoucheMinResponse.DatosVoucherResp.NroVoucher
+            $hasVoucher = ! empty($results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']) ||
+                         // Fallbacks for other structures
+                         ! empty($results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                         ! empty($results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                         // Legacy structure fallbacks
+                         ! empty($results['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
                          ! empty($results['titular']['voucher_result']['voucher_id']) ||
                          ! empty($results['titular']['voucher_result']['voucher_data']['voucher_id']) ||
                          ! empty($results['titular']['voucher_result']['voucher_data']['nro_voucher']) ||
@@ -488,10 +549,19 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Count dependent vouchers with multiple fallback paths
+        // Count dependent vouchers with updated structure awareness
         if (! empty($results['dependents'])) {
             foreach ($results['dependents'] as $dependent) {
-                $hasVoucher = ! empty($dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                // First check the correct structure: voucher_result.voucher_data.voucher_response.UAAltaVoucheMinResponse.DatosVoucherResp.NroVoucher
+                $hasVoucher = ! empty($dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']) ||
+                             // Fallbacks for other structures
+                             ! empty($dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                             ! empty($dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
+                             // Legacy structure fallbacks
+                             ! empty($dependent['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']) ||
                              ! empty($dependent['voucher_result']['voucher_id']) ||
                              ! empty($dependent['voucher_result']['voucher_data']['voucher_id']) ||
                              ! empty($dependent['voucher_result']['voucher_data']['nro_voucher']) ||
@@ -572,13 +642,30 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function extractVoucherId(array $data): ?string
     {
+        // First try direct access to the voucher_response structure (actual voucher creation)
+        $directVoucherId = $data['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+            ?? $data['voucher_response']['IdVoucher']
+            ?? $data['voucher_response']['NroVoucher']
+            // Then try quotation response structure
+            ?? $data['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['result']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? null;
+
+        if ($directVoucherId) {
+            return $directVoucherId;
+        }
+
+        // Fallback to nested structure searches
         $voucherResult = $data['voucher_result'] ?? [];
 
-        return $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+        return $data['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $voucherResult['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $data['voucher_id']
             ?? $voucherResult['voucher_id']
-            ?? $data['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $data['voucher_result']['voucher_id']
             ?? $voucherResult['voucher_data']['voucher_id']
+            ?? $data['voucher_result']['voucher_id']
             ?? $data['voucher_result']['voucher_data']['voucher_id']
             ?? $voucherResult['voucher_data']['nro_voucher']
             ?? $data['voucher_result']['voucher_data']['nro_voucher']
@@ -589,9 +676,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             ?? $data['voucher_response']['DatosVoucherResp']['NroVoucher']
             ?? $data['dual_quotation_results']['cross_selling']['result']['voucher_data']['nro_voucher']
             ?? $data['dual_quotation_results']['cross_selling']['result']['voucher_data']['voucher_id']
+            ?? $data['dual_quotation_results']['cross_selling']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? $data['dual_quotation_results']['inclusion']['result']['voucher_data']['nro_voucher']
             ?? $data['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
-            ?? $data['voucher_id']
+            ?? $data['dual_quotation_results']['inclusion']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? null;
     }
 }
