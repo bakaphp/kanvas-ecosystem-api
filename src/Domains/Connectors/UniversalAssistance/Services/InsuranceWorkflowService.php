@@ -1494,7 +1494,7 @@ class InsuranceWorkflowService
                 // Add debug info for price extraction
                 $matchedProduct['price_extraction_debug'] = [
                     'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
-                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',  
+                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',
                     'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
                     'extracted_price' => $exactPrecioEmision,
                     'is_numeric' => is_numeric($exactPrecioEmision),
