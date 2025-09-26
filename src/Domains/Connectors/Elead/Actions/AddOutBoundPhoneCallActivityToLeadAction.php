@@ -19,7 +19,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
     ) {
     }
 
-    public function execute(array $message): array
+    public function execute(): array
     {
         if (empty($this->lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
             throw new InvalidArgumentException('Lead does not have an opportunity id set');
@@ -38,7 +38,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
         $activityId = null;
         foreach ($leadActivities['items'] as $activity) {
             if (Str::contains($activity['activityType'], 'Phone Call')) {
-                $activityId = $activity['activityId'];
+                $activityId = $activity['id'];
 
                 break;
             }
@@ -48,7 +48,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
             throw new InvalidArgumentException('No open phone call activities found for this lead');
         }
 
-        $activity = SalesActivities::getById($app, $company, $activityId);
+        $activity = SalesActivities::getById($this->lead->app, $this->lead->company, $activityId);
 
         $currentDateTime = new DateTime('now', new DateTimeZone('UTC'));
         $currentFormattedDate = $currentDateTime->format('Y-m-d\TH:i:s.v\Z');
@@ -61,6 +61,6 @@ class AddOutBoundPhoneCallActivityToLeadAction
             'messageUrl' => 'https://salesassist.io/sally-engagement',
         ];
 
-        return SalesActivities::addOutboundCallById($app, $company, $activityId, $outboundCallData);
+        return SalesActivities::addOutboundCallById($this->lead->app, $this->lead->company, $activityId, $outboundCallData);
     }
 }
