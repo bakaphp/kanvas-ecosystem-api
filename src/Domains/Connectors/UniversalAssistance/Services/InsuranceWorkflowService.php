@@ -1858,7 +1858,7 @@ class InsuranceWorkflowService
         // Calculate dates based on eSIM plan duration, not voucher validity dates
         $activationDate = Carbon::parse($personData['activationDate'] ?? now());
         $duration = $this->getProductDuration($personData); // This now correctly gets eSIM plan duration
-        
+
         // Calculate expiration date based on actual eSIM plan duration
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1); // Subtract 1 because if plan is 5 days, it should end 4 days after start (inclusive)
@@ -1919,7 +1919,7 @@ class InsuranceWorkflowService
         // Calculate dates based on eSIM plan duration, not voucher validity dates
         $activationDate = Carbon::parse($personData['activationDate']);
         $duration = $this->getProductDuration($personData); // This now correctly gets eSIM plan duration
-        
+
         // Calculate expiration date based on actual eSIM plan duration
         $expirationDate = clone $activationDate;
         $expirationDate->addDays($duration - 1); // Subtract 1 because if plan is 5 days, it should end 4 days after start (inclusive)
