@@ -24,6 +24,13 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
@@ -127,17 +134,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
                         $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
+                        $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
+
                         try {
                             //todo this is not the right place to do this but for now its ok
                             //we need to make sure we have the phone call activity
                             $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
-
-                            $note = $firstLeadMessage['message'] ?? '';
-                            if (! empty($note)) {
-                                $fromAgent = true;
-                                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
-                                $eLeadOpportunity->addComment($note);
-                            }
                         } catch (Exception $e) {
                             report($e);
                         }
@@ -165,5 +167,53 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         $dateOnly = substr($dateString, 0, 10);
 
         return $todayNY === $dateOnly;
+    }
+
+    private function createMessage(
+        Lead $lead,
+        string $text,
+        string $to,
+        ?Channel $channel = null
+    ): Message {
+        $user = $lead->user;
+        $agentUser = $lead->app->get('kanvas_agent_user_id');
+        if ($agentUser !== null) {
+            $user = Users::getById((int) $agentUser);
+        }
+
+        $messageTypeModel = (new CreateMessageTypeAction(
+            new MessageTypeInput(
+                $lead->app->getId(),
+                0,
+                'twilio-sms',
+                'twilio-sms',
+            )
+        ))->execute();
+
+        $messageInput = new MessageInput(
+            app: $lead->app,
+            company: $lead->company,
+            user: $user,
+            type: $messageTypeModel,
+            message: [
+                    'content' => $text,
+                    'raw_data' => $text,
+                    'message_id' => '--',
+                    'chat_jid' => $to,
+                    'from_me' => true,
+            ],
+            is_public: 1,
+            tags: [$to],
+            //slug: Str::slug($text) . '-' . microtime()
+        );
+
+        $newMessage = new CreateMessageAction($messageInput)->execute();
+        //$newMessage = $createMessageAction->execute();
+        $newMessage->addEntity($lead);
+        if ($channel) {
+            $channel->addMessage($newMessage);
+        }
+
+        return $newMessage;
     }
 }
