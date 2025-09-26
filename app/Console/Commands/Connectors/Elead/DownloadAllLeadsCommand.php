@@ -13,6 +13,7 @@ use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -122,6 +123,7 @@ class DownloadAllLeadsCommand extends Command
                                 $newLead = $syncAction->execute();
 
                                 new SyncLeadAction($newLead)->execute();
+                                $newLead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
                                 $newLead->fireWorkflow(
                                     WorkflowEnum::CREATED->value,
                                     true,
