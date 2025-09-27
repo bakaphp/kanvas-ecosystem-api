@@ -139,7 +139,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         try {
                             //todo this is not the right place to do this but for now its ok
                             //we need to make sure we have the phone call activity
-                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
+                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute('Sally Take Over', 'Sally stop the clock');
                         } catch (Exception $e) {
                             report($e);
                         }
