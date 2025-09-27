@@ -154,6 +154,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'context' => $createContext,
                     'first_message' => $firstLeadMessage,
                     'outbound_call_activity' => $outBoundPhoneCallActivity ?? null,
+                    'lead_current_date_in' => $leadCurrentDateIn ?? null,
+                    'lead_opportunity' => $eLeadOpportunity ?? null,
                 ];
             }
         );

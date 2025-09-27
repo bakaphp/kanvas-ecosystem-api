@@ -63,7 +63,7 @@ class DownloadAllLeadsCommand extends Command
 
         // Date settings
         $fromDateOption = $this->option('from');
-        $fromDate = is_string($fromDateOption) ? $fromDateOption : Carbon::now('America/New_York')
+        $fromDate = is_string($fromDateOption) ? $fromDateOption : Carbon::now('America/Los_Angeles')
             ->subMinutes(10)
             ->format('Y-m-d');
 
