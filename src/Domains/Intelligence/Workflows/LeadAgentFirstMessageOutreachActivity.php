@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Workflows;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Carbon;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
@@ -125,8 +126,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+                    $doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true);
 
-                    if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
+                    if ($doubleCheckIsInternet && $leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $firstLeadMessage['message'],
@@ -157,6 +159,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
+                    'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
         );
