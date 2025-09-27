@@ -299,7 +299,7 @@ class SalesActivities
 
         if (isset($activities['items'])) {
             foreach ($activities['items'] as $activity) {
-                if (isset($activity['outcome']) && $activity['outcome'] === 'Open') {
+                if (isset($activity['outcome']) && $activity['outcome'] !== 'Completed') {
                     $openActivities[] = $activity;
                 }
             }
