@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Workflows;
 
-use DateTime;
-use DateTimeZone;
+use Baka\Support\Str;
 use Exception;
+use Illuminate\Support\Carbon;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
@@ -125,9 +125,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 //send the first message
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
-                    $leadCurrentDateIn = $eLeadOpportunity->currentDateIn();
+                    $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+                    $doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true);
 
-                    if ($leadCurrentDateIn && $this->isToday($lead, $leadCurrentDateIn)) {
+                    if ($doubleCheckIsInternet && $leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $firstLeadMessage['message'],
@@ -135,12 +136,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
                         $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
-                        $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
+                        $createMessage = $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
 
                         try {
                             //todo this is not the right place to do this but for now its ok
                             //we need to make sure we have the phone call activity
-                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute();
+                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute('Sally Take Over', 'Sally stop the clock');
                         } catch (Exception $e) {
                             report($e);
                         }
@@ -154,20 +155,24 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'context' => $createContext,
                     'first_message' => $firstLeadMessage,
                     'outbound_call_activity' => $outBoundPhoneCallActivity ?? null,
+                    'lead_current_date_in' => $leadCurrentDateIn ?? null,
+                    'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
+                    'lead_opportunity' => $eLeadOpportunity ?? null,
+                    'message_id' => isset($createMessage) ? $createMessage->getId() : null,
+                    'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
         );
     }
 
-    public function isToday(Lead $lead, string $dateString): bool
+    public function isWithinOneDay(Lead $lead, string $dateString): bool
     {
-        // Get today's date in NY timezone
-        $todayNY = (new DateTime('now', new DateTimeZone($lead->company->get('timezone', 'America/New_York') ?? 'America/New_York')))->format('Y-m-d');
+        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
 
-        // Extract just the date part (YYYY-MM-DD) from the dateString
-        $dateOnly = substr($dateString, 0, 10);
+        $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
+        $now = Carbon::now($leadTimezone);
 
-        return $todayNY === $dateOnly;
+        return $leadDate->diffInHours($now) <= 24 && $leadDate->isPast();
     }
 
     private function createMessage(
