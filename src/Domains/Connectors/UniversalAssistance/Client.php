@@ -23,6 +23,7 @@ class Client
     protected string $username;
     protected string $password;
     protected string $organization;
+    public bool $isQaEnvironment = false;
 
     public function __construct(
         protected AppInterface $app,
@@ -273,14 +274,17 @@ class Client
     {
         $controlNumbers = $this->generateSequentialControlNumbers($order);
 
-        // Update control numbers, organizations and convenios for both quotations using country-based logic
+        // Update control numbers and organizations for both quotations
         $inclusionData['NroControl'] = $controlNumbers['inclusion'];
         $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
 
-        // Note: Country extraction will be handled in the calling workflow service
-        // Default to EMISIVO convenio logic for now
-        $inclusionData['contrato'] = $this->getConvenioForQuotationType('inclusion');
-        $crossSellingData['contrato'] = $this->getConvenioForQuotationType('cross_selling');
+        // Respect convenios determined by workflow - only set if not already provided
+        if (! isset($inclusionData['Contrato']) || empty($inclusionData['Contrato'])) {
+            $inclusionData['Contrato'] = $this->getConvenioForQuotationType('inclusion');
+        }
+        if (! isset($crossSellingData['Contrato']) || empty($crossSellingData['Contrato'])) {
+            $crossSellingData['Contrato'] = $this->getConvenioForQuotationType('cross_selling');
+        }
 
         // Set specific organizations for each quotation type
         if (isset($inclusionData['DatosAgencia'])) {
@@ -365,7 +369,7 @@ class Client
 
         // Set control number, organization and convenio using basic quotation type logic
         $voucherData['NroControl'] = $controlNumber;
-        $voucherData['contrato'] = $this->getConvenioForQuotationType($quotationType);
+        $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
 
         if (isset($voucherData['DatosAgencia'])) {
             $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
@@ -395,9 +399,21 @@ class Client
         $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
-        // Set control number, organization and convenio using COUNTRY-BASED logic
+        // Set control number and organization
         $voucherData['NroControl'] = $controlNumber;
-        $voucherData['contrato'] = $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType);
+
+        // ALWAYS respect the convenio determined by the workflow
+        // Check both 'Contrato' and 'contrato' keys for consistency
+        $workflowConvenio = $voucherData['Contrato'] ?? $voucherData['contrato'] ?? null;
+
+        if ($workflowConvenio && ! empty($workflowConvenio)) {
+            // Use the convenio determined by workflow (variant logic)
+            $voucherData['Contrato'] = $workflowConvenio;
+            unset($voucherData['contrato']); // Remove lowercase version if it exists for consistency
+        } else {
+            // If no convenio from workflow, use basic quotation type logic as fallback
+            $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
+        }
 
         if (isset($voucherData['DatosAgencia'])) {
             $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
@@ -416,7 +432,7 @@ class Client
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+                'convenio' => $voucherData['Contrato'], // Use the convenio that was actually used
                 'origin_country_code' => $originCountryCode,
                 'destination_country_code' => $destinationCountryCode,
                 'origin_country_name' => $originCountryName,
@@ -448,7 +464,7 @@ class Client
 
             // Store in order metadata if provided
             if ($order) {
-                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode);
+                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $voucherData['Contrato']);
             }
 
             return $result;
@@ -471,10 +487,10 @@ class Client
             'Convenio' => $this->getConvenioForQuotationType($quotationType),
             'Folleto' => '', // Empty like working request
             'PaisOrigen' => $countryOfOrigin, // Use provided country of origin
-            'Destino' => 'Centro america/Caribe', // Fixed destination from working request
+            'Destino' => $voucherData['Destino'] ?? 'Centro america/Caribe', // Use voucher destination
             'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => date('m/d/Y', strtotime('2025-12-15')), // December 15, 2025
-            'FechaFin' => date('m/d/Y', strtotime('2025-12-22')), // December 22, 2025 (7 days)
+            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
+            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
             'CantidadPasajeros' => 4, // Match working request
             'Edad1' => 27, // Match working request ages
             'Edad2' => 38,
@@ -515,7 +531,7 @@ class Client
     /**
      * Store single quotation results in order metadata
      */
-    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): void
+    protected function storeSingleQuotationInOrder(\Kanvas\Souk\Orders\Models\Order $order, string $quotationType, string $controlNumber, array $result, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO', ?string $convenio = null): void
     {
         $metadata = $order->metadata ?? [];
 
@@ -527,10 +543,13 @@ class Client
             $metadata['universalAssistanceData']['single_quotations'] = [];
         }
 
+        // Use the provided convenio if available, otherwise fall back to the old method
+        $convenioToUse = $convenio ?? $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType);
+
         $metadata['universalAssistanceData']['single_quotations'][$quotationType] = [
             'control_number' => $controlNumber,
             'organization' => $this->getOrganizationForQuotationType($quotationType),
-            'convenio' => $this->getConvenioForCountries($originCountryCode, $destinationCountryCode, $quotationType),
+            'convenio' => $convenioToUse,
             'origin_country_code' => $originCountryCode,
             'destination_country_code' => $destinationCountryCode,
             'created_at' => now()->toISOString(),
@@ -603,7 +622,7 @@ class Client
         if ($this->voucherClient === null) {
             try {
                 // Download WSDL from S3 to temp file and use locally
-                $s3WsdlUrl = 'https://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA Operaciones Voucher WS.WSDL';
+                $s3WsdlUrl = 'http://cdn2.kanvas.dev/http___siebel.com_CustomUI_UA%20Operaciones%20Voucher%20WS_26SEP2025.WSDL';
                 $wsdlUrl = $this->downloadWsdlToTemp($s3WsdlUrl, 'operaciones_voucher.wsdl');
 
 
@@ -873,9 +892,12 @@ class Client
 
             $response = $client->__soapCall('LeadCotizadorOper', [$parameters]);
 
+            // Include the actual input data that was sent to the SOAP service
+            $result = (array) $response;
+            $result['quotation_input_data'] = $parameters; // Add the exact input data sent to SOAP
 
-            // Return the raw SOAP response without any processing
-            return (array) $response;
+            // Return the response with input data included
+            return $result;
         } catch (SoapFault $e) {
             throw new ValidationException('SOAP Fault in create/update lead: ' . $e->getMessage());
         } catch (Exception $e) {
@@ -906,9 +928,8 @@ class Client
                     'UAAltaVoucheMinRequest' => [
                         'DatosVoucher' => [
                             // Main voucher fields - following successful QA example order
-                            'NroControl' => $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
-                            'PostProcesoFlag' => $voucherData['postProcesoFlag'] ?? '',
-                            'Vendedor' => $voucherData['vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
+                            'NroControl' => $voucherData['NroControl'] ?? $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
+                            'Vendedor' => $voucherData['vendedor'] ?? $voucherData['Vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
                             'FechaEmision' => $voucherData['fechaEmision'] ?? date('m/d/Y'),
                             'Destino' => $voucherData['destino'] ?? 'Centro america/Caribe', // Use valid destination
                             'FechaVigencia' => $voucherData['fechaVigencia'] ?? date('m/d/Y', strtotime('+120 days')),
@@ -923,10 +944,11 @@ class Client
                             'EstadoVoucher' => $voucherData['estadoVoucher'] ?? 'Activo', // Active status
                             'MotivoVoucher' => $voucherData['motivoVoucher'] ?? 'Individual', // Individual voucher
                             'Facturacion' => $voucherData['facturacion'] ?? 'Pendiente Facturación', // Pending billing
-                            'Contrato' => $voucherData['contrato'] ?? '1-DEY2E2H',
+                            'Contrato' => $voucherData['Contrato'] ?? '1-DEY2E2H',
                             'LeadId' => $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
                             'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
-                            'ImprimeTarifa' => $voucherData['imprimeTarifa'] ?? 'N', // Campo "imprime tarifa" en "N"
+                            'Tarifa' => 'N', // Always N - no fallback needed
+                            'PostProcesoFlag' => 'N', // Always N - no fallback needed
 
                             // Sub-structures in successful order
                             'DatosAgencia' => $voucherData['datosAgencia'] ?? [
@@ -975,7 +997,11 @@ class Client
 
             $response = $client->__soapCall('Alta_Voucher_Operation', [$parameters]);
 
-            return (array) $response;
+            // Include the actual input data that was sent to the SOAP service
+            $result = (array) $response;
+            $result['voucher_input_data'] = $parameters; // Add the exact input data sent to SOAP
+
+            return $result;
         } catch (Exception $e) {
             throw new ValidationException('Failed to create voucher: ' . $e->getMessage());
         }
@@ -997,7 +1023,7 @@ class Client
                 'ReasonCode' => $reasonCode
             ];
 
-            $response = $client->__soapCall('BajaLead', [$parameters]);
+            $response = $client->__soapCall('LeadServiceRetireLead', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
@@ -1072,7 +1098,7 @@ class Client
                 ...$pdfParams
             ];
 
-            $response = $client->__soapCall('GeneracionPDF', [$parameters]);
+            $response = $client->__soapCall('SendReportOper', [$parameters]);
 
             return $this->parseSoapResponse($response);
         } catch (Exception $e) {
@@ -1125,7 +1151,7 @@ class Client
                 $parameters = [
                     'Language' => $reportData['Language'] ?? $reportData['language'] ?? 'Spanish',
                     'VoucherNumber' => $reportData['VoucherNumber'] ?? $reportData['voucherNumber'] ?? '',
-                    'Tarifa' => $reportData['Tarifa'] ?? $reportData['tarifa'] ?? '',
+                    'Tarifa' => 'N', // Always N - no PDF generation
                     'Organization' => $reportData['Organization'] ?? $this->organization
                 ];
             }
@@ -1594,21 +1620,33 @@ class Client
      */
     protected function convertVoucherDataToLeadDataWithCountries(array $voucherData, string $quotationType, string $originCountryName, string $destinationName): array
     {
+        $edad = $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30';
+
         return [
             'IdLead' => '',
             'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
-            'Convenio' => $voucherData['contrato'], // Use the convenio already set based on countries
+            'CantCotizaciones' => 1, // Important: Request quotation data
+            'Convenio' => $voucherData['Contrato'], // Use the convenio already set based on countries
             'Folleto' => '', // Empty like working request
             'PaisOrigen' => $originCountryName, // Use provided origin country name
             'Destino' => $destinationName, // Use provided destination name
             'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => date('m/d/Y', strtotime($voucherData['FechaActivacionDesde'] ?? '2025-12-15')), // Use voucher activation date
-            'FechaFin' => date('m/d/Y', strtotime($voucherData['FechaActivacionHasta'] ?? '2025-12-22')), // Use voucher expiration date
-            'EdadMinima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Use actual age from voucher
-            'EdadMaxima' => $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30', // Same as minimum
-            'CantPersonas' => '1', // Single person quotation
-            'Modalidad' => 'Individual', // Individual quotation
-            'MonedaCotizacion' => 'USD' // USD as standard currency
+            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
+            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
+            'CantidadPasajeros' => 1, // Single person quotation
+            'PackFamiliar' => '', // Empty for individual
+            'Edad1' => $edad, // Set primary age
+            'Edad2' => '', // Empty for additional passengers
+            'Edad3' => '',
+            'Edad4' => '',
+            'Edad5' => '',
+            'Edad6' => '',
+            'Edad7' => '',
+            'Edad8' => '',
+            'Edad9' => '',
+            'Edad10' => '',
+            'Categoria' => '', // Empty like working example
+            'Precompras' => '' // Empty like working example
         ];
     }
 }
