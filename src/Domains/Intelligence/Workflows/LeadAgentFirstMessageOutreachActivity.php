@@ -126,7 +126,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
-                    $doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet');
+                    $doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true);
 
                     if ($doubleCheckIsInternet && $leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
