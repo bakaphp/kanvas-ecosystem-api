@@ -543,13 +543,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Level 4: From quotation_type fallback (like workflow does)
         $quotationType = $personData['quotation_type'] ?? $personData['quotation_type_used'] ?? 'inclusion';
         if ($quotationType === 'inclusion') {
-            return '1-8JMLB4N'; // Default inclusion convenio
+            return '1-FOVL9FB'; // Default inclusion convenio
         } elseif ($quotationType === 'cross_selling') {
-            return '1-DEY2E2H'; // Default cross_selling convenio
+            return '1-FOVL9FG'; // Default cross_selling convenio
         }
 
         // Ultimate fallback
-        return '1-8JMLB4N';
+        return '1-FOVL9FB';
     }
 
     /**
