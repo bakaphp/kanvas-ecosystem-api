@@ -144,12 +144,12 @@ class Client
 
     /**
      * Get organization code for specific quotation type
-     * According to QA table, OrganizationRegistradora is always 1-ENYNUF7
+     * According to PROD table, OrganizationRegistradora is always 1-FOT6XKT
      */
     public function getOrganizationForQuotationType(string $type): string
     {
-        // OrganizationRegistradora QA is always the same for all quotation types
-        return '1-ENYNUF7';
+        // OrganizationRegistradora PROD is always the same for all quotation types
+        return '1-FOT6XKT';
     }
 
     /**
@@ -221,50 +221,6 @@ class Client
         ];
 
         return $suffixes[$type] ?? $suffixes['default'];
-    }
-
-    /**
-     * Get all available quotation types with their organizations and convenios
-     */
-    public function getAllQuotationTypes(): array
-    {
-        return [
-            'inclusion' => [
-                'code' => 'inclusion',
-                'name' => 'Inclusión',
-                'organization' => '1-ENYNUF7',  // OrganizationRegistradora QA
-                'convenio' => '1-EO6M4QP',     // Convenio QA
-                'description' => 'Base quotation - Inclusión standard'
-            ],
-            'inclusion_ii' => [
-                'code' => 'inclusion_ii',
-                'name' => 'Inclusión II',
-                'organization' => '1-ENYNUF7',  // OrganizationRegistradora QA
-                'convenio' => '1-EO7PIQQ',     // Convenio QA
-                'description' => 'Enhanced base quotation - Inclusión II'
-            ],
-            'cross_selling' => [
-                'code' => 'cross_selling',
-                'name' => 'Cross Selling',
-                'organization' => '1-ENYNUF7',  // OrganizationRegistradora QA
-                'convenio' => '1-EO6M4QU',     // Convenio QA
-                'description' => 'Additional offer - Cross Selling standard'
-            ],
-            'cross_selling_ii' => [
-                'code' => 'cross_selling_ii',
-                'name' => 'Cross Selling II',
-                'organization' => '1-ENYNUF7',  // OrganizationRegistradora QA
-                'convenio' => '1-EO7PIQL',     // Convenio QA
-                'description' => 'Enhanced additional offer - Cross Selling II'
-            ],
-            'stand_alone' => [
-                'code' => 'stand_alone',
-                'name' => 'Stand Alone',
-                'organization' => '1-ENYNUF7',  // OrganizationRegistradora QA
-                'convenio' => '1-EO6M4QZ',     // Convenio QA
-                'description' => 'Independent quotation - Stand Alone'
-            ],
-        ];
     }
 
     /**
