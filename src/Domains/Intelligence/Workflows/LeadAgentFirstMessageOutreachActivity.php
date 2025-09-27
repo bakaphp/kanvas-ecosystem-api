@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Workflows;
 
-use DateTime;
-use DateTimeZone;
 use Exception;
+use Illuminate\Support\Carbon;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
@@ -127,7 +126,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
 
-                    if ($leadCurrentDateIn && $this->isToday($lead, $leadCurrentDateIn)) {
+                    if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $firstLeadMessage['message'],
@@ -155,7 +154,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'first_message' => $firstLeadMessage,
                     'outbound_call_activity' => $outBoundPhoneCallActivity ?? null,
                     'lead_current_date_in' => $leadCurrentDateIn ?? null,
-                    'is_today' => (int) $this->isToday($lead, $leadCurrentDateIn ?? ''),
+                    'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
                 ];
@@ -163,18 +162,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
     }
 
-    public function isToday(Lead $lead, string $dateString): bool
+    public function isWithinOneDay(Lead $lead, string $dateString): bool
     {
-        // Get the lead's company timezone (fallback to NY if not set)
         $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
 
-        // Get today's date in the lead's timezone
-        $todayInLeadTz = (new DateTime('now', new DateTimeZone($leadTimezone)))->format('Y-m-d');
+        $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
+        $now = Carbon::now($leadTimezone);
 
-        // Convert the UTC dateString to the lead's timezone and extract date
-        $dateInLeadTz = (new DateTime($dateString))->setTimezone(new DateTimeZone($leadTimezone))->format('Y-m-d');
-
-        return $todayInLeadTz === $dateInLeadTz;
+        return $leadDate->diffInHours($now) <= 24 && $leadDate->isPast();
     }
 
     private function createMessage(
