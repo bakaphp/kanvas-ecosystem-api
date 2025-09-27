@@ -30,6 +30,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -207,9 +208,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             //slug: Str::slug($text) . '-' . microtime()
         );
 
-        $newMessage = new CreateMessageAction($messageInput)->execute();
+        $leadSystemModule = SystemModulesRepository::getByModelName(get_class($lead), $lead->app);
+        $newMessage = new CreateMessageAction(
+            $messageInput,
+            $leadSystemModule,
+            $lead->getId()
+        )->execute();
         //$newMessage = $createMessageAction->execute();
-        $newMessage->addEntity($lead);
+        //$newMessage->addEntity($lead);
         if ($channel) {
             $channel->addMessage($newMessage);
         }
