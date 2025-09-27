@@ -125,7 +125,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 //send the first message
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
-                    $leadCurrentDateIn = $eLeadOpportunity->currentDateIn();
+                    $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
 
                     if ($leadCurrentDateIn && $this->isToday($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
@@ -165,13 +165,16 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     public function isToday(Lead $lead, string $dateString): bool
     {
-        // Get today's date in NY timezone
-        $todayNY = (new DateTime('now', new DateTimeZone($lead->company->get('timezone', 'America/New_York') ?? 'America/New_York')))->format('Y-m-d');
+        // Get the lead's company timezone (fallback to NY if not set)
+        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
 
-        // Extract just the date part (YYYY-MM-DD) from the dateString
-        $dateOnly = substr($dateString, 0, 10);
+        // Get today's date in the lead's timezone
+        $todayInLeadTz = (new DateTime('now', new DateTimeZone($leadTimezone)))->format('Y-m-d');
 
-        return $todayNY === $dateOnly;
+        // Convert the UTC dateString to the lead's timezone and extract date
+        $dateInLeadTz = (new DateTime($dateString))->setTimezone(new DateTimeZone($leadTimezone))->format('Y-m-d');
+
+        return $todayInLeadTz === $dateInLeadTz;
     }
 
     private function createMessage(
