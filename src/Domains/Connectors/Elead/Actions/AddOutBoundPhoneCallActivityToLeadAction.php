@@ -19,13 +19,41 @@ class AddOutBoundPhoneCallActivityToLeadAction
     ) {
     }
 
-    public function execute(): array
+    public function execute(string $name, string $comment): ?string
     {
         if (empty($this->lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
             throw new InvalidArgumentException('Lead does not have an opportunity id set');
         }
 
-        $leadActivities = SalesActivities::getOpenActivitiesByOpportunityId(
+        $activityType = SalesActivities::getActivityTypes(
+            $this->lead->app,
+            $this->lead->company
+        );
+
+        $phoneCallActivityTypeId = null;
+        foreach ($activityType['items'] as $type) {
+            if (Str::contains($type['name'], 'Phone Call')) {
+                //we have phone call activity type
+                $phoneCallActivityTypeId = $type['id'];
+            }
+        }
+        //create activity
+
+        $activity = SalesActivities::createComplete(
+            $this->lead->app,
+            $this->lead->company,
+            [
+                'opportunityId' => $this->lead->get(CustomFieldEnum::OPPORTUNITY_ID->value),
+                'activityName' => $name,
+                'activityType' => $phoneCallActivityTypeId,
+                'comments' => $comment,
+                'completedDate' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d\TH:i:s.v\Z'),
+                'message' => [],
+            ]
+        );
+
+        return $activity->activityId;
+        /* $leadActivities = SalesActivities::getOpenActivitiesByOpportunityId(
             $this->lead->app,
             $this->lead->company,
             $this->lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
@@ -62,5 +90,6 @@ class AddOutBoundPhoneCallActivityToLeadAction
         ];
 
         return SalesActivities::addOutboundCallById($this->lead->app, $this->lead->company, $activityId, $outboundCallData);
+ */
     }
 }
