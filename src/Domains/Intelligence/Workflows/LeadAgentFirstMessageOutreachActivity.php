@@ -135,7 +135,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
                         $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
-                        $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
+                        $createMessage = $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
 
                         try {
                             //todo this is not the right place to do this but for now its ok
@@ -155,7 +155,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'first_message' => $firstLeadMessage,
                     'outbound_call_activity' => $outBoundPhoneCallActivity ?? null,
                     'lead_current_date_in' => $leadCurrentDateIn ?? null,
+                    'is_today' => (int) $this->isToday($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
+                    'message_id' => isset($createMessage) ? $createMessage->getId() : null,
                 ];
             }
         );
