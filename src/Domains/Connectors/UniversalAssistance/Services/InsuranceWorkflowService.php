@@ -278,7 +278,7 @@ class InsuranceWorkflowService
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
-                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
             ],
 
             'DatosProducto' => [
@@ -340,7 +340,7 @@ class InsuranceWorkflowService
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
-                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
             ],
 
             'DatosProducto' => [
@@ -1437,12 +1437,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
         // Perform inclusion quotation
@@ -1986,7 +1986,7 @@ class InsuranceWorkflowService
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
-                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
             ],
 
             'DatosProducto' => [
@@ -2047,7 +2047,7 @@ class InsuranceWorkflowService
             'Tarifa' => 'N',
 
             'DatosAgencia' => [
-                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-ENYNUF7', // QA fallback
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
             ],
 
             'DatosProducto' => [
@@ -2110,12 +2110,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
         // Return appropriate convenio based on quotation type
@@ -2153,12 +2153,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-EO6M4QP';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-EO6M4QU'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-EO7PJQQ';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-EO7PJQL'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
         // Return appropriate convenio based on quotation type
