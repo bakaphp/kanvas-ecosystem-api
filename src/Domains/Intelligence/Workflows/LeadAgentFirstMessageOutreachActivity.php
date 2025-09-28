@@ -126,9 +126,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
-                    $doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true);
+                    //$doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true); //@this is not needed but just in case
 
-                    if ($doubleCheckIsInternet && $leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
+                    if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
                             $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                             $firstLeadMessage['message'],
@@ -159,7 +159,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
-                    'double_check_is_internet' => $doubleCheckIsInternet ?? null,
+                    //'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
         );
