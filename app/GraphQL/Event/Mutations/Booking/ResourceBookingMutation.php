@@ -10,15 +10,16 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CreateEventAction;
+use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Themes\Models\Theme;
@@ -139,6 +140,9 @@ class ResourceBookingMutation
         }
         
         $eventVersion->update(['metadata' => $metadata]);
+
+        // Send notification to participants
+        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value)->execute();
 
         return $eventVersion;
     }
@@ -331,9 +335,14 @@ class ResourceBookingMutation
             }
         }
 
+        // Send notification to original participants BEFORE update (since update deletes/recreates participants)
+        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_UPDATED->value)->execute();
+
         // Use UpdateEventAction to handle the update
         $updateAction = new UpdateEventAction($eventVersion, $updateData);
-        return $updateAction->execute();
+        $updatedEventVersion = $updateAction->execute();
+
+        return $updatedEventVersion;
     }
 
     /**
@@ -352,6 +361,9 @@ class ResourceBookingMutation
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
+
+        // Send notification to participants before deletion
+        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
 
         // Store event info for response
         $eventInfo = [
@@ -378,11 +390,12 @@ class ResourceBookingMutation
         // Add your payment validation logic here
         // For example, check with Stripe, PayPal, etc.
         // Throw exception if payment intent is invalid
-        
+
         // Example validation (adjust based on your payment system):
         // $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
         // if ($paymentIntent->status !== 'succeeded') {
         //     throw new \Exception('Payment intent not successful');
         // }
     }
+
 }

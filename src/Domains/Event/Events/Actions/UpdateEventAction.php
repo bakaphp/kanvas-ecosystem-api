@@ -62,7 +62,7 @@ class UpdateEventAction
                     $eventUpdateData['slug'] = $slug;
                 }
 
-                $event->name = $eventUpdateData['name'];
+                $event->name = $eventUpdateData['name'] ?? $event->name;
                 $event->description = $eventUpdateData['description'] ?? null;
                 $event->saveOrFail();
             }
