@@ -74,6 +74,7 @@ class NotificationEngagementActionTest extends TestCase
             ],
         ];
         $session->saveOrFail();
-        new NotificationEngagementAction($pipelineStage)->execute();
+        $message = new NotificationEngagementAction($lead)->execute();
+        $this->assertIsArray($message);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Illuminate\Console\Command;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\PipelinesStages\Actions\NotificationEngagementAction;
 
@@ -29,7 +30,12 @@ class NotificationEngagementCommand extends Command
 
         foreach ($stages as $stage) {
             $config = $stage->config;
-            (new NotificationEngagementAction($stage))->execute();
+            if (isset($config['notification_engagement_rules']) && $config['notification_engagement_rules']) {
+                $leads = Lead::where('pipeline_stage_id', '=', $stage->id)->cursor();
+                foreach ($leads as $lead) {
+                    (new NotificationEngagementAction($lead))->execute();
+                }
+            }
         }
     }
 }
