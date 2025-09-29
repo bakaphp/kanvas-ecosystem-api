@@ -18,7 +18,7 @@ class NotificationEngagementAction
     ) {
     }
 
-    public function execute(): array
+    public function execute(): ?array
     {
         $config = $this->lead->stage->config;
         $session = Session::where('entity_namespace', '=', get_class($this->lead))
@@ -58,5 +58,7 @@ class NotificationEngagementAction
                 'last_message_time' => Carbon::now($timezone)->toDateTimeString(),
             ];
         }
+
+        return null;
     }
 }
