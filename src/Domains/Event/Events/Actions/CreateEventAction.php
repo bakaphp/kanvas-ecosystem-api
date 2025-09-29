@@ -16,10 +16,10 @@ use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\Address;
-use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
@@ -164,12 +164,12 @@ class CreateEventAction
 
         $people = PeoplesRepository::getByEmail($event->user->email, $event->company, $event->app);
         if (! $people) {
-            $contact = [
-                [
-                    'value' => $event->user->email,
-                    'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    'weight' => 0,
-                ],
+            $contacts = [
+                new Contact(
+                    value: $event->user->email,
+                    contacts_types_id: ContactTypeEnum::EMAIL->value,
+                    weight: 0
+                ),
             ];
             $peopleDto = new People(
                 app: $event->app,
@@ -177,7 +177,7 @@ class CreateEventAction
                 user: $event->user,
                 firstname: $event->user->firstname,
                 lastname: $event->user->lastname,
-                contacts: Contact::collect($contact, DataCollection::class),
+                contacts: Contact::collect($contacts, DataCollection::class),
                 address: Address::collect([], DataCollection::class)
             );
             $people = (new CreatePeopleAction(

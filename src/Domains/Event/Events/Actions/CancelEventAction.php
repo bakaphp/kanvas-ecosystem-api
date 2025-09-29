@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Exceptions\ValidationException;
@@ -24,7 +25,7 @@ class CancelEventAction
         $cancelledStatus = EventStatus::firstOrCreate([
             'companies_id' => $this->eventVersion->companies_id,
             'apps_id' => $this->eventVersion->apps_id,
-            'name' => 'Cancelled',
+            'name' => EventStatusEnum::CANCELLED->value,
         ], [
             'users_id' => $this->eventVersion->users_id,
         ]);
@@ -36,7 +37,7 @@ class CancelEventAction
         $this->eventVersion->update(['metadata' => [
             ...$currentMetadata,
             "cancelled_at" => $cancelledAt,
-            "status" => "Cancelled"
+            "status" => EventStatusEnum::CANCELLED->value
         ]]);
 
         $this->eventVersion->refresh();
@@ -48,13 +49,13 @@ class CancelEventAction
     private function validateEventNotAlreadyCancelled(): void
     {
         // Check if event status is already "Cancelled"
-        if ($this->eventVersion->event->eventStatus?->name === 'Cancelled') {
+        if ($this->eventVersion->event->eventStatus?->name === EventStatusEnum::CANCELLED->value) {
             throw new ValidationException('Event is already cancelled and cannot be cancelled again.');
         }
 
         // Also check event version metadata for cancelled status
         $metadata = $this->eventVersion->metadata ?? [];
-        if (isset($metadata['status']) && $metadata['status'] === 'Cancelled') {
+        if (isset($metadata['status']) && $metadata['status'] === EventStatusEnum::CANCELLED->value) {
             throw new ValidationException('Event is already cancelled and cannot be cancelled again.');
         }
 

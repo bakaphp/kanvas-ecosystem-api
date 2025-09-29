@@ -7,12 +7,14 @@ namespace App\GraphQL\Event\Mutations\Booking;
 use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str as LaravelStr;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
@@ -36,10 +38,10 @@ class ResourceBookingMutation
         $app = app(Apps::class);
 
         $input = $args['input'];
-        $holdDuration = $input['hold_duration_minutes'] ?? 15; // Default 15 minutes hold
+        $holdDuration = $input['hold_duration_minutes'] ?? $app->get('hold_duration_minutes');
 
-        // Generate unique hold ID
-        $holdId = 'HOLD-' . uniqid() . '-' . time();
+        // Generate unique hold ID using Laravel's native UUID
+        $holdId = 'HOLD-' . LaravelStr::uuid();
 
         // Store hold information (you might want to use Redis/Cache for better performance)
         $holdData = [
@@ -154,7 +156,7 @@ class ResourceBookingMutation
         $eventType = EventType::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);
@@ -162,7 +164,7 @@ class ResourceBookingMutation
         $eventClass = EventClass::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);
@@ -172,7 +174,7 @@ class ResourceBookingMutation
             'apps_id' => $app->getId(),
             'event_type_id' => $eventType?->id,
             'event_class_id' => $eventClass?->id,
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);
@@ -180,7 +182,7 @@ class ResourceBookingMutation
         $theme = Theme::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);
@@ -188,7 +190,7 @@ class ResourceBookingMutation
         $themeArea = ThemeArea::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);
@@ -196,7 +198,7 @@ class ResourceBookingMutation
         $eventStatus = EventStatus::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
-            'name' => 'Default',
+            'name' => EventStatusEnum::DEFAULT->value,
         ], [
             'users_id' => $user->getId(),
         ]);

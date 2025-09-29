@@ -445,9 +445,6 @@ class ResourceBookingCrudTest extends TestCase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
-        if ($response->json('errors')) {
-            print_r($response->json('errors'));
-        }
         return $response->json('data.bookResource');
     }
 }
