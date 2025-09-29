@@ -219,7 +219,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                            $order->getMetadata('insurance') ??
                            [];
 
-            if (!empty($insuranceData) && isset($insuranceData['titular'])) {
+            if (! empty($insuranceData) && isset($insuranceData['titular'])) {
                 // Convert to array
                 $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
@@ -243,7 +243,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                     // Create a suffix for the esim_sequence if quantity > 1
                     $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
-                    
+
                     $allInsuranceData[] = [
                         'insurance_data' => $insuranceData,
                         'message_id' => $unitMessageId,
