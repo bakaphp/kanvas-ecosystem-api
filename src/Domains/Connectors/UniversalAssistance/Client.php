@@ -144,12 +144,10 @@ class Client
 
     /**
      * Get organization code for specific quotation type
-     * According to PROD table, OrganizationRegistradora is always 1-FOT6XKT
      */
     public function getOrganizationForQuotationType(string $type): string
     {
-        // OrganizationRegistradora PROD is always the same for all quotation types
-        return '1-FOT6XKT';
+        return $this->app->get(ConfigurationEnum::ORGANIZATION->value);
     }
 
     /**
@@ -158,17 +156,21 @@ class Client
      */
     public function getConvenioForQuotationType(string $type): string
     {
-        // QA Environment credentials - specific convenios for each quotation type
-        $convenios = [
-            'inclusion' => '1-EO6M4QP',        // Inclusión quotations
-            'inclusion_ii' => '1-EO7PIQQ',     // Inclusión II quotations
-            'cross_selling' => '1-EO6M4QU',    // Cross Selling quotations
-            'cross_selling_ii' => '1-EO7PIQL', // Cross Selling II quotations
-            'stand_alone' => '1-EO6M4QZ',      // Stand Alone quotations
-            'default' => '1-EO6M4QP'           // Fallback to Inclusión convenio
-        ];
-
-        return $convenios[$type] ?? $convenios['default'];
+        // Obtener los convenios desde la configuración de la aplicación
+        switch ($type) {
+            case 'inclusion':
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            case 'inclusion_ii':
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            case 'cross_selling':
+                return $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+            case 'cross_selling_ii':
+                return $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+            case 'stand_alone':
+                return $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value);
+            default:
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+        }
     }
 
     /**
@@ -189,18 +191,18 @@ class Client
         if ($isReceptivo) {
             // RECEPTIVO: Traveling TO Dominican Republic (Territorio Nacional)
             return match ($quotationType) {
-                'inclusion', 'inclusion_ii' => '1-EO7PJQQ',  // Inclusión RECEPTIVO
-                'cross_selling', 'cross_selling_ii' => '1-EO7PJQL',  // Cross Selling RECEPTIVO
-                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
-                default => '1-EO7PJQQ'  // Default to Inclusión RECEPTIVO
+                'inclusion', 'inclusion_ii' => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value) ?: '1-EO7PJQQ',
+                'cross_selling', 'cross_selling_ii' => $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value) ?: '1-EO7PJQL',
+                'stand_alone' => $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value) ?: '1-EO6M4QZ',
+                default => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value) ?: '1-EO7PJQQ'
             };
         } else {
             // EMISIVO: Traveling FROM Dominican Republic OR international travel (default to EMISIVO)
             return match ($quotationType) {
-                'inclusion', 'inclusion_ii' => '1-EO6M4QP',  // Inclusión EMISIVO
-                'cross_selling', 'cross_selling_ii' => '1-EO6M4QU',  // Cross Selling EMISIVO
-                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
-                default => '1-EO6M4QP'  // Default to Inclusión EMISIVO
+                'inclusion', 'inclusion_ii' => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value) ?: '1-EO6M4QP',
+                'cross_selling', 'cross_selling_ii' => $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value) ?: '1-EO6M4QU',
+                'stand_alone' => $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value) ?: '1-EO6M4QZ',
+                default => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value) ?: '1-EO6M4QP'
             };
         }
     }
@@ -221,119 +223,6 @@ class Client
         ];
 
         return $suffixes[$type] ?? $suffixes['default'];
-    }
-
-    /**
-     * Create dual quotations (Inclusión + Cross Selling) with sequential control numbers
-     */
-    public function createDualQuotations(array $inclusionData, array $crossSellingData, ?\Kanvas\Souk\Orders\Models\Order $order = null): array
-    {
-        $controlNumbers = $this->generateSequentialControlNumbers($order);
-
-        // Update control numbers and organizations for both quotations
-        $inclusionData['NroControl'] = $controlNumbers['inclusion'];
-        $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
-
-        // Respect convenios determined by workflow - only set if not already provided
-        if (! isset($inclusionData['Contrato']) || empty($inclusionData['Contrato'])) {
-            $inclusionData['Contrato'] = $this->getConvenioForQuotationType('inclusion');
-        }
-        if (! isset($crossSellingData['Contrato']) || empty($crossSellingData['Contrato'])) {
-            $crossSellingData['Contrato'] = $this->getConvenioForQuotationType('cross_selling');
-        }
-
-        // Set specific organizations for each quotation type
-        if (isset($inclusionData['DatosAgencia'])) {
-            $inclusionData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType('inclusion');
-        }
-        if (isset($crossSellingData['DatosAgencia'])) {
-            $crossSellingData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType('cross_selling');
-        }
-
-        $results = [];
-
-        try {
-            // Create Inclusión quotation first with specific organization
-            $results['inclusion'] = $this->createVoucher($inclusionData, true);
-
-            // Query Inclusión voucher to get complete insurance information
-            try {
-                if (isset($results['inclusion']['IdVoucher'])) {
-                    $inclusionQueryResponse = $this->queryVoucher([
-                        'VoucherNumber' => $results['inclusion']['IdVoucher'],
-                        'Organization' => $this->getOrganizationForQuotationType('inclusion')
-                    ]);
-
-                    // Filter and store essential query data
-                    $results['inclusion_query'] = $this->filterVoucherQueryResponse($inclusionQueryResponse);
-                }
-            } catch (Exception $queryException) {
-                $results['inclusion_query_error'] = $queryException->getMessage();
-            }
-
-            // Create Cross Selling quotation with specific organization
-            $results['cross_selling'] = $this->createVoucher($crossSellingData, true);
-
-            // Query Cross Selling voucher to get complete insurance information
-            try {
-                if (isset($results['cross_selling']['IdVoucher'])) {
-                    $crossSellingQueryResponse = $this->queryVoucher([
-                        'VoucherNumber' => $results['cross_selling']['IdVoucher'],
-                        'Organization' => $this->getOrganizationForQuotationType('cross_selling')
-                    ]);
-
-                    // Filter and store essential query data
-                    $results['cross_selling_query'] = $this->filterVoucherQueryResponse($crossSellingQueryResponse);
-                }
-            } catch (Exception $queryException) {
-                $results['cross_selling_query_error'] = $queryException->getMessage();
-            }
-
-            $results['control_numbers'] = $controlNumbers;
-            $results['organizations'] = [
-                'inclusion' => $this->getOrganizationForQuotationType('inclusion'),
-                'cross_selling' => $this->getOrganizationForQuotationType('cross_selling')
-            ];
-            $results['convenios'] = [
-                'inclusion' => $this->getConvenioForQuotationType('inclusion'),
-                'cross_selling' => $this->getConvenioForQuotationType('cross_selling')
-            ];
-        } catch (Exception $e) {
-            throw new ValidationException('Failed to create dual quotations: ' . $e->getMessage());
-        }
-
-        return $results;
-    }
-
-    /**
-     * Create a single quotation with specific organization type
-     */
-    public function createSingleQuotation(array $voucherData, string $quotationType, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
-    {
-        // Generate unique control number for each individual voucher
-        // Use combination of order ID, current timestamp and random component for maximum uniqueness
-        $baseSequential = $order ? $order->id : (int)(microtime(true) * 1000) % 10000;
-        $timestamp = (int)(microtime(true) * 10000) % 100000; // Get timestamp with more precision
-        $randomComponent = mt_rand(10, 99); // Add random component for extra uniqueness
-
-        // Create a unique 7-digit sequential number combining all components
-        $uniqueSequential = ($baseSequential * 100 + $randomComponent + $timestamp) % 9999999;
-        $paddedSequential = str_pad((string)$uniqueSequential, 7, '0', STR_PAD_LEFT);
-
-        $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
-        $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
-
-        // Set control number, organization and convenio using basic quotation type logic
-        $voucherData['NroControl'] = $controlNumber;
-        $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
-
-        if (isset($voucherData['DatosAgencia'])) {
-            $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
-        }
-
-        // DEPRECATED: This method should not extract countries from voucherData
-        // Countries should come from workflow INPUT data via createSingleQuotationWithCountries()
-        throw new ValidationException("createSingleQuotation is deprecated. Use createSingleQuotationWithCountries() with origin/destination country codes from workflow input data instead of extracting from voucherData.");
     }
 
     /**
@@ -427,40 +316,6 @@ class Client
         } catch (Exception $e) {
             throw new ValidationException("Failed to create {$quotationType} quotation with countries {$originCountryCode}->{$destinationCountryCode}: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Convert voucher data to lead data format for quote generation
-     */
-    protected function convertVoucherDataToLeadData(array $voucherData, string $quotationType, string $countryOfOrigin = 'ARGENTINA'): array
-    {
-        // Use the provided country of origin (defaults to ARGENTINA from working request)
-
-        // Convert voucher data structure to lead data structure using exact working request format
-        return [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
-            'Convenio' => $this->getConvenioForQuotationType($quotationType),
-            'Folleto' => '', // Empty like working request
-            'PaisOrigen' => $countryOfOrigin, // Use provided country of origin
-            'Destino' => $voucherData['Destino'] ?? 'Centro america/Caribe', // Use voucher destination
-            'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
-            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
-            'CantidadPasajeros' => 4, // Match working request
-            'Edad1' => 27, // Match working request ages
-            'Edad2' => 38,
-            'Edad3' => 28,
-            'Edad4' => 65,
-            'Edad5' => '', 'Edad6' => '', 'Edad7' => '', 'Edad8' => '', 'Edad9' => '', 'Edad10' => '',
-            'ApellidoContacto' => '', // Empty like working request
-            'NombreContacto' => '', // Empty like working request
-            'TelefonoContacto' => '', // Empty like working request
-            'EmailContacto' => '', // Empty like working request
-            'Categoria' => '', // Empty like working request
-            'Precompras' => '', // Empty like working request
-            // Removed CantCotizaciones, PackFamiliar, NroDocumento, TipoDocumento - not in working request
-        ];
     }
 
     /**

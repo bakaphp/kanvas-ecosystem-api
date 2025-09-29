@@ -15,7 +15,7 @@ use Kanvas\Workflow\KanvasActivity;
 class ProcessInsuranceCartActivity extends KanvasActivity
 {
     /**
-     * Process insurance data from order metadata (same pattern as AeroAmbulancia)
+     * Process insurance data from order metadata - handles multiple insurances from eSIMs
      */
     public function execute(Order $order, AppInterface $app, array $params): array
     {
@@ -26,61 +26,83 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 sleep(30);
                 $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
-                $data = $this->getActivityData($order, $params);
+
+                // Get all insurance data from eSIMs
+                $allInsuranceData = $this->getAllInsuranceDataFromOrder($order, $params);
+
+                if (empty($allInsuranceData)) {
+                    throw new \Kanvas\Exceptions\ValidationException('No insurance data found in order eSIMs');
+                }
 
                 // Create service
                 $service = new InsuranceWorkflowService($app, $order);
 
-                // Process insurance workflow with insurance data directly
-                $results = $service->processInsuranceWorkflow($data['insurance_data']);
+                // Process each insurance separately
+                $allResults = [];
+                foreach ($allInsuranceData as $index => $insuranceData) {
+                    // Process insurance workflow with insurance data directly
+                    $results = $service->processInsuranceWorkflow($insuranceData['insurance_data']);
 
-                // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                $this->storeUniversalAssistanceData($results, $data['message_id']);
+                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
+                    $this->storeUniversalAssistanceData($results, $insuranceData['message_id']);
 
-                // Return comprehensive results focusing on voucher data and SOAP inputs
-                return [
-                    'workflow_results' => $results,
-                    'voucher_data' => [
-                        'holder' => [
-                            // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
-                                // Fallback paths for other possible structures
-                                ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
-                                ?? null,
-                            'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
-                            'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
-                        ],
-                        'dependents' => array_map(function ($dependent) {
-                            return [
-                                // Same structure for dependents
-                                'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                    // Build results for this insurance
+                    $insuranceResults = [
+                        'insurance_index' => $index,
+                        'esim_sequence' => $insuranceData['esim_sequence'] ?? ($index + 1),
+                        'message_id' => $insuranceData['message_id'],
+                        'workflow_results' => $results,
+                        'voucher_data' => [
+                            'holder' => [
+                                // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
                                     // Fallback paths for other possible structures
-                                    ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
+                                    ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                    ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
                                     ?? null,
-                                'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
-                                'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
-                            ];
-                        }, $results['dependents'] ?? [])
-                    ],
-                    'original_insurance_data' => $data['insurance_data'],
-                    'message_id' => $data['message_id'],
+                                'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
+                                'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
+                            ],
+                            'dependents' => array_map(function ($dependent) {
+                                return [
+                                    // Same structure for dependents
+                                    'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                                        // Fallback paths for other possible structures
+                                        ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                        ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                                        ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
+                                        ?? null,
+                                    'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
+                                    'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
+                                ];
+                            }, $results['dependents'] ?? [])
+                        ],
+                        'original_insurance_data' => $insuranceData['insurance_data'],
+                        'processing_summary' => [
+                            'holder_processed' => ! empty($results['titular']),
+                            'dependents_processed' => count($results['dependents'] ?? []),
+                            'vouchers_created' => $this->countVouchersCreated($results),
+                            'total_cost' => $this->calculateTotalCost($results),
+                        ]
+                    ];
+
+                    $allResults[] = $insuranceResults;
+                }
+
+                // Return comprehensive results for all insurances
+                return [
                     'order_id' => $order->getId(),
-                    'processing_summary' => [
-                        'holder_processed' => ! empty($results['titular']),
-                        'dependents_processed' => count($results['dependents'] ?? []),
-                        'vouchers_created' => $this->countVouchersCreated($results),
-                        'total_cost' => $this->calculateTotalCost($results),
-                    ]
+                    'total_insurances_processed' => count($allResults),
+                    'total_vouchers_created' => array_sum(array_column(array_column($allResults, 'processing_summary'), 'vouchers_created')),
+                    'total_cost' => array_sum(array_column(array_column($allResults, 'processing_summary'), 'total_cost')),
+                    'insurances' => $allResults,
                 ];
             },
             company: $order->company,
@@ -88,7 +110,158 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
+     * Get all insurance data from eSIMs in the order
+     */
+    protected function getAllInsuranceDataFromOrder(Order $order, array $params): array
+    {
+        $allInsuranceData = [];
+
+        // Check if params contains multiple insurances (esims array) or single insurance
+        if (isset($params['esims']) && is_array($params['esims'])) {
+            foreach ($params['esims'] as $index => $esim) {
+                // Each eSIM must have both insurance data AND its own message_id
+                if (isset($esim['eSimDetails']['insurance']) && isset($esim['message_id'])) {
+                    $insuranceData = $this->convertObjectsToArrays($esim['eSimDetails']['insurance']);
+
+                    // Get quantity - if quantity > 1, we need multiple insurance entries
+                    $quantity = $esim['data']['quantity'] ?? ($esim['quantity'] ?? 1);
+
+                    // Validate that we have titular data (required for insurance processing)
+                    if (isset($insuranceData['titular'])) {
+                        // Check if we have multiple message_ids for this eSIM (one per unit)
+                        $messageIds = $esim['message_ids'] ?? null;
+
+                        // For each quantity, create a separate insurance entry
+                        for ($i = 0; $i < $quantity; $i++) {
+                            // Use specific message_id for this unit if available, otherwise fallback to the main message_id
+                            $unitMessageId = (isset($messageIds) && isset($messageIds[$i])) 
+                                ? (int) $messageIds[$i] 
+                                : (int) $esim['message_id'];
+
+                            // Create a suffix for the esim_sequence if quantity > 1
+                            $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
+
+                            $allInsuranceData[] = [
+                                'insurance_data' => $insuranceData,
+                                'message_id' => $unitMessageId, // Use specific message_id for this unit
+                                'esim_sequence' => ($esim['esim_sequence'] ?? ($index + 1)) . $suffix,
+                                'esim_index' => $index, // For debugging purposes
+                                'quantity_index' => $i, // Track position within the quantity
+                                'total_quantity' => $quantity // Store total quantity for reference
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (!empty($allInsuranceData)) {
+                return $allInsuranceData;
+            }
+        }
+
+        // Single insurance from workflow params
+        if (isset($params['titular']) || isset($params['insurance'])) {
+            // If params has titular directly, use params as insurance data
+            if (isset($params['titular'])) {
+                $insuranceData = $params;
+            }
+            // If params has insurance key, extract from there
+            elseif (isset($params['insurance'])) {
+                $insuranceData = $params['insurance'];
+            }
+
+            // Convert to array
+            $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
+            // For direct workflow calls, we need to get message ID from params or order
+            $messageIds = $params['message_ids'] ?? null; // Check for multiple message_ids first
+            $messageId = $params['message_id'] ?? null;   // Fallback to single message_id
+
+            // Get quantity - if quantity > 1, we need multiple insurance entries
+            $quantity = $params['data']['quantity'] ?? ($params['quantity'] ?? 1);
+
+            // Fallback to order's general message ID only if not found in params
+            if (! $messageId && ! $messageIds) {
+                $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+            }
+
+            if (! $messageId && ! $messageIds) {
+                throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in params or order - required for Universal Assistance processing');
+            }
+
+            // For each quantity, create a separate insurance entry
+            for ($i = 0; $i < $quantity; $i++) {
+                // Use specific message_id for this unit if available
+                $unitMessageId = (is_array($messageIds) && isset($messageIds[$i])) 
+                    ? (int) $messageIds[$i] 
+                    : (int) $messageId;
+
+                // Create a suffix for the esim_sequence if quantity > 1
+                $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
+
+                $allInsuranceData[] = [
+                    'insurance_data' => $insuranceData,
+                    'message_id' => $unitMessageId,
+                    'esim_sequence' => ($params['esim_sequence'] ?? 1) . $suffix,
+                    'quantity_index' => $i,          // Track position within the quantity
+                    'total_quantity' => $quantity    // Store total quantity for reference
+                ];
+            }
+
+            return $allInsuranceData;
+        }
+
+        // Approach 2: Direct metadata fallback locations (for backward compatibility with single insurance)
+        if (empty($allInsuranceData)) {
+            $orderMetadata = $order->metadata ?? [];
+            $insuranceData = $orderMetadata['universalAssistanceData']['insurance'] ??
+                           $orderMetadata['universal_assistance']['insurance'] ?? // Fallback for old data
+                           $order->getMetadata('insurance') ??
+                           [];
+
+            if (!empty($insuranceData) && isset($insuranceData['titular'])) {
+                // Convert to array
+                $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
+                // For legacy single insurance, get the general order message ID or message IDs
+                $messageIds = $order->getMetadata('message_ids');
+                $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+
+                if (! $messageId && ! $messageIds) {
+                    throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+                }
+
+                // Get quantity - if quantity > 1, we need multiple insurance entries
+                $quantity = $orderMetadata['quantity'] ?? 1;
+
+                // For each quantity, create a separate insurance entry
+                for ($i = 0; $i < $quantity; $i++) {
+                    // Use specific message_id for this unit if available
+                    $unitMessageId = (is_array($messageIds) && isset($messageIds[$i])) 
+                        ? (int) $messageIds[$i] 
+                        : (int) $messageId;
+
+                    // Create a suffix for the esim_sequence if quantity > 1
+                    $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
+                    
+                    $allInsuranceData[] = [
+                        'insurance_data' => $insuranceData,
+                        'message_id' => $unitMessageId,
+                        'esim_sequence' => "1" . $suffix,
+                        'esim_index' => 0, // Legacy single insurance
+                        'quantity_index' => $i, // Track position within the quantity
+                        'total_quantity' => $quantity // Store total quantity for reference
+                    ];
+                }
+            }
+        }
+
+        return $allInsuranceData;
+    }
+
+    /**
      * Get all required data for the activity (try both workflow params and order metadata)
+     * @deprecated Use getAllInsuranceDataFromOrder instead
      */
     protected function getActivityData(Order $order, array $params): array
     {
