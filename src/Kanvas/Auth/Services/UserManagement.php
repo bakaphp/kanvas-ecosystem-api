@@ -9,6 +9,7 @@ use Illuminate\Support\Arr;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
@@ -22,14 +23,14 @@ class UserManagement
         protected Users $user,
         protected AppInterface $app,
         protected ?Users $userEditing = null
-    ) {
-    }
+    ) {}
 
     /**
      * Update current user data with $data
      */
     public function update(array $data): Users
     {
+        $app = app(Apps::class);
         try {
             $customFields = null;
             $files = null;
@@ -91,6 +92,11 @@ class UserManagement
 
             if ($files) {
                 $this->user->addMultipleFilesFromUrl($files);
+            }
+
+
+            if (! isset($data['lastname']) &&  $app->get('dont_force_lastname_default', false)) {
+                $data['lastname'] = ''; //Save it empty to avoid having a fullName with unwanted lastname
             }
 
             //update roles if
