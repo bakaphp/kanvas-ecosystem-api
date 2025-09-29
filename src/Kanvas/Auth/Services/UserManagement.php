@@ -31,7 +31,6 @@ class UserManagement
      */
     public function update(array $data): Users
     {
-        $app = app(Apps::class);
         try {
             $customFields = null;
             $files = null;
@@ -96,8 +95,9 @@ class UserManagement
             }
 
 
-            if (! isset($data['lastname']) && $app->get('dont_force_lastname_default')) {
-                $data['lastname'] = ''; //Save it empty to avoid having a fullName with unwanted lastname
+            //Save it empty to avoid having a fullName with unwanted lastname, ex: "Max Max". We are having issues with some frontends sending only the firstname as a fullname.
+            if (! isset($data['lastname']) && $this->app->get('dont_force_lastname_default')) {
+                $data['lastname'] = '';
             }
 
             //update roles if
