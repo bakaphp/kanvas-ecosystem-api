@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Repositories;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
@@ -33,13 +34,35 @@ class LeadsRepository
                     ->firstOrFail();
     }
 
-    public static function getPeopleActiveLead(People $people): ?Lead
+    public static function getPeopleActiveLeads(People $people): Builder
     {
         return Lead::fromApp($people->app)
                     ->fromCompany($people->company)
+                    ->notDeleted()
                     ->where('people_id', $people->id)
                         ->whereHas('status', function ($query) {
                             $query->whereIn('name', ['active', 'created']);
-                        })->first();
+                        });
+    }
+
+    public static function getPeopleActiveLead(People $people): ?Lead
+    {
+        /** @psalm-suppress LessSpecificReturnStatement */
+        return self::getPeopleActiveLeads($people)
+                        ->orderBy('id', 'desc')
+                        ->first();
+    }
+
+    public static function getPeopleClosedLead(People $people): ?Lead
+    {
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->notDeleted()
+                    ->where('people_id', $people->id)
+                        ->whereHas('status', function ($query) {
+                            $query->whereNotIn('name', ['active', 'created']);
+                        })
+                        ->orderBy('id', 'desc')
+                        ->first();
     }
 }

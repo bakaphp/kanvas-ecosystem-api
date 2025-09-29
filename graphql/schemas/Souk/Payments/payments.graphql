@@ -19,7 +19,7 @@ type Payment {
     payable_type: String!
     uuid: String!
     user: User! @belongsTo(relation: "user")
-    payment_method: PaymentMethod! @belongsTo(relation: "paymentMethod")
+    payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
     payment_date: String!
     concept: String!
     notes: String

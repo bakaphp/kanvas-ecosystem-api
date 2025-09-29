@@ -26,7 +26,10 @@ class CreateUniversalAssistanceVoucherActivity extends KanvasActivity
                 $service = new UniversalAssistanceService($app, $order);
 
                 // Get voucher data from params or order metadata
-                $voucherData = $params['voucher_data'] ?? $order->metadata['universal_assistance']['voucher_data'] ?? [];
+                $voucherData = $params['voucher_data'] ??
+                             $order->metadata['universalAssistanceData']['voucher_data'] ??
+                             $order->metadata['universal_assistance']['voucher_data'] ?? // Fallback for old data
+                             [];
 
                 // Get the applicant from order user or params
                 $applicant = $params['applicant'] ?? $order->user;

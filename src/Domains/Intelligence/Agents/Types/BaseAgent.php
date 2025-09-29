@@ -20,6 +20,7 @@ use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Embeddings\OpenAIEmbeddingsProvider;
 use NeuronAI\RAG\RAG;
+use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\SystemPrompt;
@@ -90,11 +91,12 @@ class BaseAgent extends RAG
     #[Override]
     protected function vectorStore(): VectorStoreInterface
     {
-        return new PineconeVectorStore(
-            key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
-            indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
-            topK: 4
-        );
+        /*  return new PineconeVectorStore(
+             key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
+             indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
+             topK: 4
+         ); */
+        return new MemoryVectorStore();
     }
 
     public function getVectorStore(): VectorStoreInterface
@@ -132,7 +134,6 @@ class BaseAgent extends RAG
 
         // Get existing messages from chat history
         $existingMessages = $chatHistory->getAll();
-
         if (! empty($existingMessages)) {
             // Add the new message to existing conversation
             $existingMessages[] = $message instanceof UserMessage ? $message : new UserMessage($message);

@@ -22,6 +22,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -66,8 +67,8 @@ class CreateEngagementAction
         $this->people = $engagementData->people ?? $this->lead->people;
         $this->prepareData();
         $this->resolveAction();
-        if ($engagementData->status === ActionStatusEnum::SENT && $this->allowDuplicate) {
-            $this->generateUrls();
+        if ($engagementData->status === ActionStatusEnum::SENT) {
+            $this->handleLinkGeneration();
         }
     }
 
@@ -107,6 +108,28 @@ class CreateEngagementAction
         });
     }
 
+    private function handleLinkGeneration(): void
+    {
+        if ($this->allowDuplicate) {
+            $this->generateUrls();
+
+            return;
+        }
+
+        $previousLinkKey = 'engagement_previous_link';
+        $verifyPreviousLink = $this->lead->get($previousLinkKey) ?? [];
+        $hasPreviousLinkData = ! empty($verifyPreviousLink) && is_array($verifyPreviousLink);
+        $actionExists = $hasPreviousLinkData && array_key_exists($this->engagementData->action, $verifyPreviousLink);
+
+        if (! $actionExists) {
+            $this->generateUrls();
+            $verifyPreviousLink[$this->engagementData->action] = $this->messageData;
+            $this->lead->set($previousLinkKey, $verifyPreviousLink);
+        } else {
+            $this->messageData = $verifyPreviousLink[$this->engagementData->action];
+        }
+    }
+
     protected function prepareData(): void
     {
         // Load receiver
@@ -116,9 +139,12 @@ class CreateEngagementAction
 
         // Handle checklist task
         if ($this->engagementData->taskId !== null) {
-            $checkListTaskItem = TaskListItem::getById($this->engagementData->taskId);
-            if ($checkListTaskItem->task->company->getId() === $this->lead->company->getId()) {
-                $this->checkListId = $checkListTaskItem->task->getId();
+            try {
+                $checkListTaskItem = TaskListItem::getById($this->engagementData->taskId);
+                if ($checkListTaskItem->task->company->getId() === $this->lead->company->getId()) {
+                    $this->checkListId = $checkListTaskItem->task->getId();
+                }
+            } catch (ExceptionsModelNotFoundException|ModelNotFoundException $e) {
             }
         }
     }
@@ -294,6 +320,7 @@ class CreateEngagementAction
             userUuid: $this->user->uuid,
             contactUuid: $this->people->uuid,
             checkListId: $this->checkListId,
+            taskItemId: $this->engagementData->taskId,
             preFill: [],
             via: $this->engagementData->via,
             product_id: $this->engagementData->data['product_id'] ?? null,
@@ -382,6 +409,7 @@ class CreateEngagementAction
             ->where('companies_actions_id', $this->companyActionParent->getId())
             ->where('pipelines_stages_id', $sentStage->getId())
             ->where('slug', $this->actionSlug)
+            ->where('is_deleted', 0)
             ->orderBy('created_at', 'desc')
             ->first();
 

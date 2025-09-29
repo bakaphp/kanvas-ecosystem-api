@@ -38,6 +38,13 @@ class OneSignalNotificationChannel
             $additionalData['company'],
             $additionalData['user']);
 
+        //remove any object from the additional data as one signal does not support it
+        foreach ($additionalData as $key => $value) {
+            if (is_object($value)) {
+                unset($additionalData[$key]);
+            }
+        }
+
         $oneSignalService->sendNotificationToUser(
             $oneSignalMessage['message'],
             Users::getById($oneSignalMessage['user_id']),

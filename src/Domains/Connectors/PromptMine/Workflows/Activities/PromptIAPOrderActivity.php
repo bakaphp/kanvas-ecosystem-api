@@ -34,6 +34,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                     }
 
                     $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
+                    $aiModelRelated = $variant->getAttributeBySlug('ai-model-related')?->value;
                     $purchaseType = match (strtolower($variant->product->categories->first()->name)) {
                         'texttotext' => 'text',
                         'imagetovideo' => 'video',
@@ -51,8 +52,14 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                     if (isset($orderCredit[$purchaseType][$aiModelKey])) {
                         $orderCredit[$purchaseType][$aiModelKey]++;
+                        if ($aiModelRelated !== null && $aiModelRelated !== $aiModelKey) {
+                            $orderCredit[$purchaseType][$aiModelRelated]++;
+                        }
                     } else {
                         $orderCredit[$purchaseType][$aiModelKey] = 1;
+                        if ($aiModelRelated != null && $aiModelRelated !== $aiModelKey) {
+                            $orderCredit[$purchaseType][$aiModelRelated] = 1;
+                        }
                     }
                 }
 
@@ -67,6 +74,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                     'message' => 'User credits updated',
                     'total_delivery' => 1,
                     'key' => $aiModelKey ?? null,
+                    'related_key' => $aiModelRelated ?? null,
                 ];
             },
             company: $order->company,

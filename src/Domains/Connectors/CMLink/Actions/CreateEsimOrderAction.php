@@ -123,6 +123,8 @@ class CreateEsimOrderAction
             throw new ValidationException($this->cmLinkOrder['description']);
         }
 
+        $this->order->addTag('reFuel');
+
         $this->orderMetaData = $parentOrder->metadata ?? [];
     }
 

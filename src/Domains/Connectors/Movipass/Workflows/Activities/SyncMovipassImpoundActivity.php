@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -71,7 +73,33 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                     $toStatus = $params['to_status'] ?? null;
 
                     if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
+                        $order->metadata = [
+                            ...$order->metadata ?? [],
+                            'data' => [
+                                ...$order->metadata['data'] ?? [],
+                                'payment_date' => Carbon::now()->setTimezone('America/Santo_Domingo')->format('d/m/Y h:i A'),
+                            ],
+                        ];
                         $order->fulfill();
+                    }
+
+                    if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
+                        $order->metadata = [
+                            ...$order->metadata ?? [],
+                            'data' => [
+                                ...$order->metadata['data'] ?? [],
+                                'release_date' => Carbon::now()->setTimezone('America/Santo_Domingo')->format('d/m/Y h:i A'),
+                            ],
+                        ];
+                        $order->saveQuietly();
+                        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
+                        $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
+                        $serviceName = $order->orderType->name ?? '';
+                        $paymentDate = $order->metadata["data"]["payment_date"] ?? "";
+
+                        $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
+
+                        return $this->generatePdfVoucher($order, $filename);
                     }
                 }
 
@@ -99,5 +127,24 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
             $start = $start->next('Monday')->startOfDay();
         }
         return $start;
+    }
+
+    private function generatePdfVoucher(Order $order, string $filename, array $metaData = []): array
+    {
+        GeneratePdfVoucherJob::dispatch(
+            $order,
+            $order->user,
+            'order-release-voucher',
+            $filename,
+            []
+        );
+
+        return [
+            'status' => 'processing',
+            'download_url' => null,
+            'file_name' => "{$filename}.pdf",
+            'file_path' => null,
+            'message' => 'PDF generation started. You will receive an email with the download link when ready.',
+        ];
     }
 }

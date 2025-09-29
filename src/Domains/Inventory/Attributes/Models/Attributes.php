@@ -128,6 +128,6 @@ class Attributes extends BaseModel
 
     public function addDefaultValue(mixed $value): void
     {
-        $this->addValues([$value]);
+        $this->addDefaultValues([$value]);
     }
 }

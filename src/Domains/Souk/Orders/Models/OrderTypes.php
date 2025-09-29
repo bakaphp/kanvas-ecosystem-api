@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Models;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Traits\DefaultTrait;
 
 /**
  * Class Order
@@ -18,6 +19,7 @@ use Kanvas\Souk\Models\BaseModel;
  * */
 class OrderTypes extends BaseModel
 {
+    use DefaultTrait;
     protected $table = 'order_types';
     protected $guarded = [];
 

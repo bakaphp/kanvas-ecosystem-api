@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
 use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -17,11 +18,13 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Override;
 
 class PeoplesRepository
 {
     use SearchableTrait;
 
+    #[Override]
     public static function getModel(): Model
     {
         return new People();
@@ -69,6 +72,42 @@ class PeoplesRepository
             ->where('p.is_deleted', 0)
             ->select('p.*')
             ->first();
+    }
+
+    public static function getMatchingEmailPhone(
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $email = null,
+        ?string $phone = null
+    ): ?People {
+        if (! empty($email) && ! empty($phone)) {
+            throw new Exception('Email or Phone is required');
+        }
+        $q = People::from('peoples as p')
+            ->where('p.companies_id', $company->getId())
+            ->where('p.apps_id', $app->getId())
+            ->where('p.is_deleted', 0)
+            ->select('p.*');
+
+        if ($email) {
+            $q->whereExists(function ($sub) use ($email) {
+                $sub->from('peoples_contacts as ce')
+                    ->whereColumn('ce.peoples_id', 'p.id')
+                    ->where('ce.contacts_types_id', ContactTypeEnum::EMAIL->value)
+                    ->whereRaw('LOWER(ce.value) = ?', [$email]);
+            });
+        }
+
+        if ($phone) {
+            $q->whereExists(function ($sub) use ($phone) {
+                $sub->from('peoples_contacts as cp')
+                    ->whereColumn('cp.peoples_id', 'p.id')
+                    ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value])
+                    ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
+            });
+        }
+
+        return $q->first();
     }
 
     public static function getByDaysCreated(int $days, Apps $app): Collection

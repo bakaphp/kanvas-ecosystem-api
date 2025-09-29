@@ -6,9 +6,12 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
+use Kanvas\Guild\Customers\Observers\ContactObserver;
 use Kanvas\Guild\Models\BaseModel;
+use Override;
 
 /**
  * Class Contacts.
@@ -19,6 +22,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $value
  * @property int $weight
  */
+#[ObservedBy(ContactObserver::class)]
 class Contact extends BaseModel
 {
     use NoAppRelationshipTrait;
@@ -50,6 +54,7 @@ class Contact extends BaseModel
         return preg_replace('/\D+/', '', $this->value);
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return new ContactFactory();

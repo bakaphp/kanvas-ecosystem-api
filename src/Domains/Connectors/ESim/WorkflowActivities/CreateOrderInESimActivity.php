@@ -47,6 +47,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::ESIM_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $orderHasMetaData = $order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
                 if (! empty($orderHasMetaData)) {
@@ -96,6 +97,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
                     $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
+
+                    $order->addTag(strtolower($order->metadata['source'] ?? 'website'));
+                    if (! empty($order->metadata['platformOS'])) {
+                        $order->addTag(strtolower($order->metadata['platformOS']));
+                    }
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {

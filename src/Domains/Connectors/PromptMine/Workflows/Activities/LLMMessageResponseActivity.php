@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
@@ -23,6 +24,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
@@ -234,6 +236,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function generateImageResponse(Message $message): string
     {
+        new MessageOrderFulfillmentAction($message)->execute('image');
+
         $promptClient = new PromptClient($message->app);
         $prompt = $message->message['prompt'] ?? null;
         $params = [];
@@ -297,7 +301,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageTypeId: MessageType::fromApp($message->app)->where('verb', 'prompt')->firstOrFail()->getId(),
                 messageJsonFilters: ['type' => 'image-format']
             ))->execute();
+
+            $user = Users::getById($message->users_id);
+            $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
         } catch (Throwable $e) {
+            if (! Str::contains($e->getMessage(), 'Your daily limit has been reached')) {
+                report($e);
+            }
+
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],

@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\SalesAssist\Actions\ProcessDriverLicenseVerificationAction;
+use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -34,7 +34,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Use the new action class
-                $action = new ProcessDriverLicenseVerificationAction(
+                $action = new ProcessLeadDriverLicenseVerificationAction(
                     $lead,
                     $this->app,
                     $this->company,

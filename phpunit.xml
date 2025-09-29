@@ -23,6 +23,9 @@
             <directory suffix="Test.php">./tests/Workflow</directory>
         </testsuite>
         <testsuite name="Connectors">
+            <directory suffix="Test.php">./tests/Intelligence</directory>
+        </testsuite>
+        <testsuite name="Connectors">
             <directory suffix="Test.php">./tests/Baka</directory>
         </testsuite>
     </testsuites>

@@ -163,6 +163,7 @@ class CreateEsimOrderAction
 
             // Get balance information
             $this->balanceInfo = $this->eSimService->getServiceBalance($this->serviceId);
+            $this->order->addTag('reFuel');
         } catch (Exception $e) {
             throw new ValidationException('Failed to process refuel order: ' . $e->getMessage());
         }

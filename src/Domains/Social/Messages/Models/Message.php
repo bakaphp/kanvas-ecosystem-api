@@ -360,14 +360,14 @@ class Message extends BaseModel
         return (string) $this->verb . '-' . (string) $this->visitor_id;
     }
 
-    public static function getUserMessageCountInTimeFrame(
+    public static function getUserMessageCountInTimeFrameBuilder(
         int $userId,
         Apps $app,
         int $hours,
         ?int $messageTypesId = null,
         bool $getChildrenCount = false,
         ?array $messageJsonFilters = null
-    ): int {
+    ): Builder {
         return self::fromApp($app)
             ->where('users_id', $userId)
             ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
@@ -384,8 +384,7 @@ class Message extends BaseModel
                     }
                 }
             })
-            ->withTrashed()
-            ->count();
+            ->withTrashed();
     }
 
     public function toSearchableArray(): array
@@ -405,6 +404,8 @@ class Message extends BaseModel
                 'name' => $this->messageType->name,
                 'verb' => $this->messageType->verb,
             ] : null,
+            'is_public' => $this->is_public,
+            'is_deleted' => $this->is_deleted,
         ];
 
         // Add parent reference for child messages
