@@ -6,7 +6,6 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -25,7 +24,8 @@ class SendEventEmailsAction
     ) {
     }
 
-    public function execute(): void {
+    public function execute(): void
+    {
         // Load necessary relations to ensure they're available in email templates
         $this->eventVersion->load([
             'event.eventStatus',
@@ -41,10 +41,7 @@ class SendEventEmailsAction
         ]);
 
         $event = $this->eventVersion->event;
-        // Include soft-deleted participants for cancellation emails
-        $participants = $this->emailTemplate === EmailTemplateEnum::BOOKING_CANCELLED->value
-            ? $this->eventVersion->participants()->withTrashed()->get()
-            : $this->eventVersion->participants;
+        $participants = $this->eventVersion->participants;
 
         foreach ($participants as $participant) {
             $participantEmail = $participant->people->getEmails()->first()?->value;

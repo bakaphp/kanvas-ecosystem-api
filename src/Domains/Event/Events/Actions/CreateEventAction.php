@@ -10,8 +10,10 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -25,8 +27,6 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
-use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
@@ -231,7 +231,7 @@ class CreateEventAction
 
     protected function validateTimeSlotAvailability(): void
     {
-        if (!$this->event->dates->count()) {
+        if (! $this->event->dates->count()) {
             return; // No dates to validate
         }
 
@@ -239,7 +239,7 @@ class CreateEventAction
         $resourcesId = $this->event->resource?->id;
         $resourcesType = $this->event->resource?->getMorphClass();
 
-        if (!$resourcesId || !$resourcesType) {
+        if (! $resourcesId || ! $resourcesType) {
             return; // No resource to validate against
         }
 

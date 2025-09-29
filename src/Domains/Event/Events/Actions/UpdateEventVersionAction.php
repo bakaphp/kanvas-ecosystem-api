@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
-use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 
 class UpdateEventVersionAction
@@ -47,7 +46,7 @@ class UpdateEventVersionAction
         }
 
         // Update the event version
-        if (!empty($updateFields)) {
+        if (! empty($updateFields)) {
             $this->existingEventVersion->update($updateFields);
         }
 

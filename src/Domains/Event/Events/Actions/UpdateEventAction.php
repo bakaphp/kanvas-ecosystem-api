@@ -6,15 +6,15 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Event\Events\DataTransferObject\EventDate;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
-use Kanvas\Event\Events\DataTransferObject\EventDate;
-use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
-use Kanvas\Event\Events\Enums\EmailTemplateEnum;
-use Spatie\LaravelData\DataCollection;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
+use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\SystemModules\Models\SystemModules;
+use Spatie\LaravelData\DataCollection;
 
 class UpdateEventAction
 {
@@ -56,7 +56,7 @@ class UpdateEventAction
                 $eventUpdateData['event_status_id'] = $this->updateData['status_id'];
             }
 
-            if (!empty($eventUpdateData)) {
+            if (! empty($eventUpdateData)) {
                 if (isset($eventUpdateData['name'])) {
                     $slug = Str::slug($eventUpdateData['name']) . '-' . $event->event_type_id;
                     $eventUpdateData['slug'] = $slug;
@@ -143,7 +143,7 @@ class UpdateEventAction
         $resourcesId = $this->updateData['resources_id'] ?? $event->resources_id;
         $resourcesType = $this->updateData['resources_type'] ?? $event->resources_type;
 
-        if (!$resourcesId || !$resourcesType) {
+        if (! $resourcesId || ! $resourcesType) {
             return; // No resource to validate against
         }
 

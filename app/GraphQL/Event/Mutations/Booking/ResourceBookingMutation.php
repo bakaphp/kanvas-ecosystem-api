@@ -9,22 +9,20 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Event\Events\Actions\CreateEventAction;
-use Kanvas\Event\Events\Actions\SendEventEmailsAction;
-use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\Actions\CancelEventAction;
+use Kanvas\Event\Events\Actions\CreateEventAction;
+use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
-use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventClass;
+use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Themes\Models\Theme;
+use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Kanvas\Event\Events\Models\EventClass;
-use Kanvas\Event\Events\Models\EventStatus;
-use Kanvas\Event\Themes\Models\Theme;
-use Kanvas\Event\Themes\Models\ThemeArea;
 
 class ResourceBookingMutation
 {
@@ -90,13 +88,13 @@ class ResourceBookingMutation
         if (isset($input['hold_id'])) {
             $holdKey = "resource_hold_{$input['hold_id']}";
             $holdDataJson = $app->get($holdKey);
-            
-            if (!$holdDataJson) {
+
+            if (! $holdDataJson) {
                 throw new \Exception('Hold not found or expired: ' . $input['hold_id']);
             }
 
             $holdData = json_decode($holdDataJson, true);
-            
+
             // Check if hold is expired
             if (now()->isAfter($holdData['expires_at'])) {
                 $app->forget($holdKey); // Clean up expired hold
@@ -127,7 +125,7 @@ class ResourceBookingMutation
         $event = $createEventAction->execute();
 
         $eventVersion = $event->versions->first();
-        
+
         // Update metadata with payment and hold information
         $metadata = $bookingData['metadata'] ?? [];
         if (isset($bookingData['hold_id'])) {
@@ -139,7 +137,7 @@ class ResourceBookingMutation
         if (isset($bookingData['payment_method_id'])) {
             $metadata['payment_method_id'] = $bookingData['payment_method_id'];
         }
-        
+
         $eventVersion->update(['metadata' => $metadata]);
 
         return $eventVersion;
@@ -390,5 +388,4 @@ class ResourceBookingMutation
         //     throw new \Exception('Payment intent not successful');
         // }
     }
-
 }

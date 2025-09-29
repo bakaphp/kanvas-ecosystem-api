@@ -21,7 +21,7 @@ class EventTimeSlotValidator
         string $endTime,
         ?int $excludeEventId = null
     ): void {
-        if (!$resourcesId || !$resourcesType) {
+        if (! $resourcesId || ! $resourcesType) {
             return; // No resource to validate against
         }
 
