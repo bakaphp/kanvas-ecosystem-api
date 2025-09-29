@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Support\Setup;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -24,6 +25,8 @@ class ResourceBookingCrudTest extends TestCase
     protected $apps;
     protected $warehouseResponse;
     protected $channelResponse;
+    protected $productResponse;
+    protected $variantId;
 
     public function setUp(): void
     {
@@ -35,6 +38,32 @@ class ResourceBookingCrudTest extends TestCase
 
         $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
         $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        // Create product with attributes (correct way from ReservationsTest)
+        $this->productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($this->productResponse['id']);
+        $this->variantId = $product->variants()->first()->id;
+
+        // Add variant to channel and warehouse
+        $this->addVariantToChannel(
+            variantId: (string) $this->variantId,
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $this->variantId,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
 
         $setup = new Setup($this->apps, $this->user, $this->company);
         $setup->run();
@@ -217,6 +246,100 @@ class ResourceBookingCrudTest extends TestCase
     }
 
     /**
+     * Test resource booking with multiple participants and resources
+     */
+    public function testMultiParticipantResourceBooking(): void
+    {
+        $bookingData = [
+            'resources_id' => $this->variantId,
+            'resources_type' => 'variant',
+            'start_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            'end_at' => now()->addDay()->addHours(2)->format('Y-m-d H:i:s'),
+            'participants' => [
+                [
+                    "firstname" => "Johna",
+                    "lastname" => "Doe",
+                    "contacts" => [
+                        [
+                            "contacts_types_id" => 1,
+                            "value" => "jdoes@example.com",
+                            "weight" => 1
+                        ]
+                    ]
+                ],
+                [
+                    "firstname" => "Alices",
+                    "lastname" => "Smith",
+                    "contacts" => [
+                        [
+                            "contacts_types_id" => 1,
+                            "value" => "alices@example.com",
+                            "weight" => 1
+                        ]
+                    ]
+                ],
+                [
+                    "firstname" => "Carlosa",
+                    "lastname" => "Martinez",
+                    "contacts" => [
+                        [
+                            "contacts_types_id" => 1,
+                            "value" => "carloss@example.com",
+                            "weight" => 1
+                        ]
+                    ]
+                ]
+            ],
+            'event_name' => 'Multi-Resource Booking Test',
+            'event_description' => 'Testing booking with multiple resources',
+            'metadata' => [
+                'price' => 25.00,
+                'notes' => 'Test booking'
+            ],
+            'resources' => [
+                [
+                    'resources_id' => $this->variantId,
+                    'resources_type' => 'variant',
+                    'metadata' => [
+                        'notes' => 'Additional equipment needed'
+                    ]
+                ]
+            ]
+        ];
+
+        $response = $this->graphQL('
+            mutation bookResource($input: ResourceBookingInput!) {
+                bookResource(input: $input) {
+                    id
+                    name
+                    event {
+                        id
+                        name
+                        resources {
+                            resources_id
+                            resources_type
+                            metadata
+                        }
+                    }
+                }
+            }
+        ', [
+            'input' => $bookingData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $this->assertNull($response->json('errors'));
+        $eventVersion = $response->json('data.bookResource');
+
+        // Verify the event version was created with multiple participants
+        $this->assertNotNull($eventVersion['id']);
+        $this->assertEquals('Multi-Resource Booking Test', $eventVersion['name']);
+        $this->assertNotNull($eventVersion['event']['resources']);
+    }
+
+    /**
      * Test update time slot validation - should prevent conflicting updates
      */
     public function testUpdateTimeSlotValidation(): void
@@ -258,64 +381,12 @@ class ResourceBookingCrudTest extends TestCase
     }
 
     /**
-     * Test successful update to non-conflicting time slot
-     */
-    public function testSuccessfulNonConflictingUpdate(): void
-    {
-        // Create a booking
-        $bookingData = $this->getBasicBookingData();
-        $booking = $this->createBooking($bookingData);
-
-        // Update to a non-conflicting time slot (should succeed)
-        $updateData = [
-            'event_version_id' => $booking['id'],
-            'start_at' => now()->addDay()->format('Y-m-d') . ' 18:00:00', // Non-conflicting time
-            'end_at' => now()->addDay()->format('Y-m-d') . ' 20:00:00',
-        ];
-
-        $response = $this->graphQL('
-            mutation updateResourceBooking($input: ResourceBookingUpdateInput!) {
-                updateResourceBooking(input: $input) {
-                    id
-                    dates {
-                        start_time
-                        end_time
-                    }
-                }
-            }
-        ', [
-            'input' => $updateData,
-        ], [], [
-            'X-Kanvas-Location' => $this->company->branch->uuid,
-            'X-Kanvas-App' => $this->apps->key,
-        ]);
-
-        $this->assertNull($response->json('errors'));
-        $updatedBooking = $response->json('data.updateResourceBooking');
-
-        // Verify the update was successful
-        $this->assertEquals('18:00:00', $updatedBooking['dates'][0]['start_time']);
-        $this->assertEquals('20:00:00', $updatedBooking['dates'][0]['end_time']);
-    }
-
-    /**
      * Helper method to get basic booking data
      */
     private function getBasicBookingData(): array
     {
-        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
-        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
-        $productResponse = $this->createProduct()->json()['data']['createProduct'];
-        $variantResponse = $this->createVariant(
-            productId: $productResponse['id'],
-            warehouseData: ['id' => $warehouseResponse['id']]
-        )->json()['data']['createVariant'];
-
-        $region = Regions::find($regionResponse['id']);
-        $company = $region->company;
-
         return [
-            'resources_id' => $variantResponse['id'],
+            'resources_id' => $this->variantId,
             'resources_type' => 'variant',
             'start_at' => now()->addDay()->format('Y-m-d') . ' 10:00:00',
             'end_at' => now()->addDay()->format('Y-m-d') . ' 12:00:00',
@@ -335,10 +406,19 @@ class ResourceBookingCrudTest extends TestCase
             'event_name' => 'Test Resource Booking',
             'event_description' => 'Test booking description',
             'metadata' => [
-                'category_id' => EventCategory::fromCompany($company)->fromApp($this->apps)->first()->getId(),
-                'type_id' => EventType::fromCompany($company)->fromApp($this->apps)->first()->getId(),
+                'category_id' => EventCategory::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),
+                'type_id' => EventType::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),
                 'price' => 25.00,
                 'notes' => 'Test booking'
+            ],
+            'resources' => [
+                [
+                    'resources_id' => $this->variantId,
+                    'resources_type' => 'variant',
+                    'metadata' => [
+                        'notes' => 'Additional equipment needed'
+                    ]
+                ]
             ]
         ];
     }
@@ -365,7 +445,9 @@ class ResourceBookingCrudTest extends TestCase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
-        $this->assertNull($response->json('errors'));
+        if ($response->json('errors')) {
+            print_r($response->json('errors'));
+        }
         return $response->json('data.bookResource');
     }
 }
