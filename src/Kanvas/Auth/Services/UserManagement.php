@@ -95,7 +95,7 @@ class UserManagement
             }
 
 
-            if (! isset($data['lastname']) &&  $app->get('dont_force_lastname_default', false)) {
+            if (! isset($data['lastname']) && $app->get('dont_force_lastname_default')) {
                 $data['lastname'] = ''; //Save it empty to avoid having a fullName with unwanted lastname
             }
 
