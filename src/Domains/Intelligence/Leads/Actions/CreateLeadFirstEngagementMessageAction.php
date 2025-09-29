@@ -75,6 +75,11 @@ class CreateLeadFirstEngagementMessageAction
                    ->withMaxTokens(7000) // Increase from default
                    ->withSchema($schema)
                    ->withPrompt($prompt)
+                   ->withClientOptions([
+                       'timeout' => 220,          // Total timeout in seconds (2 minutes)
+                        'connect_timeout' => 220,   // Connection timeout in seconds
+                        'read_timeout' => 220,      // Read timeout in seconds
+                    ])
                    ->asStructured();
 
         // Return the structured data containing title and message

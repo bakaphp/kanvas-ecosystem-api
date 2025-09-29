@@ -14,6 +14,7 @@ use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
@@ -259,6 +260,7 @@ class KanvasWorkflowSynActionCommand extends Command
             LeadAgentFirstMessageOutreachActivity::class,
             CreateLeadFromADFWebhookJob::class,
             UpdateZohoLeadInfoWebhookJob::class,
+            AddLeadCommentFromAgentMessageActivity::class,
         ];
 
         $createdActions = [];
