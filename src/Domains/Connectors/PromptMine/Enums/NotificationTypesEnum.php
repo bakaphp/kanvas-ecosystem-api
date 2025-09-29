@@ -11,4 +11,5 @@ enum NotificationTypesEnum: string
     case VIDEO_PROCESSING = 'video-processing';
     case MESSAGE_OF_THE_WEEK = 'message-of-the-week';
     case MONTHLY_MESSAGE_CREATION = 'monthly-message-creation';
+    case NEW_MESSAGE = 'new-message';
 }
