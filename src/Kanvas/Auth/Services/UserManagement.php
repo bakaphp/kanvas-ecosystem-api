@@ -9,7 +9,6 @@ use Illuminate\Support\Arr;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
