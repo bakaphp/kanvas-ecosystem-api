@@ -245,7 +245,6 @@ class LLMMessageResponseActivity extends KanvasActivity
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
 
-
         if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value) {
             if (isset($message->message['platform']) && $message->message['platform'] === 'android') {
                 $params['safety_tolerance'] = 1;
@@ -260,10 +259,10 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ->where('messages_types_id', $message->messages_types_id)
                     ->orderBy('id', 'desc')
                     ->first();
-                $previousChatResponseMessage = is_array($previousChatResponse->message) ? $previousChatResponse->message : json_decode($previousChatResponse->message, true);
-                $previousParentMessage = is_array($previousChatResponse->parent->message) ? $previousChatResponse->parent->message : json_decode($previousChatResponse->parent->message, true);
+                $previousChatResponseMessage = $previousChatResponse->message;
+                $previousParentMessage = $previousChatResponse?->parent?->message;
                 $params['previousImageUrl'] = isset($previousChatResponseMessage['image']) ? $previousChatResponseMessage['image'] : null;
-                $params['previousPrompts'] = [$previousParentMessage['prompt']];
+                $params['previousPrompts'] = ! empty($previousParentMessage['prompt']) ? [$previousParentMessage['prompt']] : [];
                 $params['subscribe'] = true;
             }
         }
