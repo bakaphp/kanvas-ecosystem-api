@@ -23,7 +23,8 @@ class UserManagement
         protected Users $user,
         protected AppInterface $app,
         protected ?Users $userEditing = null
-    ) {}
+    ) {
+    }
 
     /**
      * Update current user data with $data
