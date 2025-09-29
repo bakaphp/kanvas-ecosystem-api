@@ -64,7 +64,12 @@ class UpdateEventAction
 
                 $event->name = $eventUpdateData['name'] ?? $event->name;
                 $event->description = $eventUpdateData['description'] ?? null;
+
                 $event->saveOrFail();
+                $this->eventVersion->name = $event->name;
+                $this->eventVersion->description = $event->description;
+                $this->eventVersion->name = $event->name;
+                $this->eventVersion->saveOrFail();
             }
 
             // Update the EventVersion model

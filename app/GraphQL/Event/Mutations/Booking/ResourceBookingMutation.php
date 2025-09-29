@@ -150,8 +150,6 @@ class ResourceBookingMutation
         $startAt = Carbon::parse($input['start_at']);
         $endAt = Carbon::parse($input['end_at']);
         $eventName = $input['event_name'] ?? $resource->name . $startAt->format('Y-m-d H:i');
-        $typeId = $input['metadata']['type_id'] ?? null;
-        $categoryId = $input['metadata']['category_id'] ?? null;
 
         $eventType = EventType::firstOrCreate([
             'companies_id' => $company->getId(),

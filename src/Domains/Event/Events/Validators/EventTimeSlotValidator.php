@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Validators;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ValidationException;
 
 class EventTimeSlotValidator
 {
@@ -56,7 +57,7 @@ class EventTimeSlotValidator
             ->first();
 
         if ($conflictingEvents) {
-            throw new \Exception(
+            throw new ValidationException(
                 "Time slot is not available. Resource is already booked from {$conflictingEvents->start_time} to {$conflictingEvents->end_time} on {$conflictingEvents->event_date} for event: {$conflictingEvents->name}"
             );
         }

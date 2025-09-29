@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Events\notifications\EventParticipantNotification;
+use Kanvas\Event\Events\Notifications\EventParticipantNotification;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
