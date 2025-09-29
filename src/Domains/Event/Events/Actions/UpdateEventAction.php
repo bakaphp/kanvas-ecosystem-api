@@ -7,10 +7,10 @@ namespace Kanvas\Event\Events\Actions;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
-use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Events\DataTransferObject\EventDate;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Spatie\LaravelData\DataCollection;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
@@ -127,6 +127,9 @@ class UpdateEventAction
 
             return $this->eventVersion->fresh();
         });
+
+        // Send notification to participants after successful update
+        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_UPDATED->value)->execute();
 
         return $eventVersion;
     }

@@ -26,6 +26,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
@@ -106,6 +107,11 @@ class CreateEventAction
             return $event;
         });
 
+        // Send notification to participants after successful creation
+        $eventVersion = $event->versions->first();
+        if ($eventVersion) {
+            new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value)->execute();
+        }
 
         return $event;
     }

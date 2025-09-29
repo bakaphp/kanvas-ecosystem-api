@@ -26,10 +26,25 @@ class SendEventEmailsAction
     }
 
     public function execute(): void {
-        $event = $this->eventVersion->event;
+        // Load necessary relations to ensure they're available in email templates
+        $this->eventVersion->load([
+            'event.eventStatus',
+            'event.eventCategory',
+            'event.eventType',
+            'event.eventClass',
+            'event.theme',
+            'event.themeArea',
+            'event.resource',
+            'event.resources',
+            'dates',
+            'participants.people'
+        ]);
 
-        // Ensure participants are loaded with their people relationships
-        $participants = $this->eventVersion->participants;
+        $event = $this->eventVersion->event;
+        // Include soft-deleted participants for cancellation emails
+        $participants = $this->emailTemplate === EmailTemplateEnum::BOOKING_CANCELLED->value
+            ? $this->eventVersion->participants()->withTrashed()->get()
+            : $this->eventVersion->participants;
 
         foreach ($participants as $participant) {
             $participantEmail = $participant->people->getEmails()->first()?->value;
@@ -42,6 +57,12 @@ class SendEventEmailsAction
                     'participant' => $participant,
                     'event_name' => $this->eventVersion->name,
                     'participant_name' => $participant->people->name ?? 'Participant',
+                    'resource' => $event->resource,
+                    'resources' => $event->resources,
+                    'event_dates' => $this->eventVersion->dates,
+                    'start_date' => $this->eventVersion->dates->first()?->event_date?->format('Y-m-d'),
+                    'start_time' => $this->eventVersion->dates->first()?->start_time,
+                    'end_time' => $this->eventVersion->dates->first()?->end_time,
                 ];
 
                 $this->sendEmail(

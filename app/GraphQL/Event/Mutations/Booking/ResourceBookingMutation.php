@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
+use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -140,9 +141,6 @@ class ResourceBookingMutation
         }
         
         $eventVersion->update(['metadata' => $metadata]);
-
-        // Send notification to participants
-        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value)->execute();
 
         return $eventVersion;
     }
@@ -335,10 +333,6 @@ class ResourceBookingMutation
             }
         }
 
-        // Send notification to original participants BEFORE update (since update deletes/recreates participants)
-        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_UPDATED->value)->execute();
-
-        // Use UpdateEventAction to handle the update
         $updateAction = new UpdateEventAction($eventVersion, $updateData);
         $updatedEventVersion = $updateAction->execute();
 
@@ -362,18 +356,17 @@ class ResourceBookingMutation
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        // Send notification to participants before deletion
-        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
+        // Cancel the event using the action
+        $cancelEventAction = new CancelEventAction($eventVersion);
+        $cancelledEventVersion = $cancelEventAction->execute();
 
         // Store event info for response
         $eventInfo = [
-            'id' => $eventVersion->id,
-            'name' => $eventVersion->name,
-            'deleted_at' => now()->toDateTimeString(),
+            'id' => $cancelledEventVersion->id,
+            'name' => $cancelledEventVersion->name,
+            'cancelled_at' => $cancelledEventVersion->metadata['cancelled_at'],
+            'status' => $cancelledEventVersion->metadata['status'],
         ];
-
-        // Soft delete the event version
-        $eventVersion->delete();
 
         return [
             'success' => true,
