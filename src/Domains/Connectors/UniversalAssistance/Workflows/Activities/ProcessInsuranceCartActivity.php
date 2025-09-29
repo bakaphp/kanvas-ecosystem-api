@@ -134,8 +134,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // For each quantity, create a separate insurance entry
                         for ($i = 0; $i < $quantity; $i++) {
                             // Use specific message_id for this unit if available, otherwise fallback to the main message_id
-                            $unitMessageId = (isset($messageIds) && isset($messageIds[$i])) 
-                                ? (int) $messageIds[$i] 
+                            $unitMessageId = (isset($messageIds) && isset($messageIds[$i]))
+                                ? (int) $messageIds[$i]
                                 : (int) $esim['message_id'];
 
                             // Create a suffix for the esim_sequence if quantity > 1
@@ -154,7 +154,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
             }
 
-            if (!empty($allInsuranceData)) {
+            if (! empty($allInsuranceData)) {
                 return $allInsuranceData;
             }
         }
@@ -192,8 +192,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // For each quantity, create a separate insurance entry
             for ($i = 0; $i < $quantity; $i++) {
                 // Use specific message_id for this unit if available
-                $unitMessageId = (is_array($messageIds) && isset($messageIds[$i])) 
-                    ? (int) $messageIds[$i] 
+                $unitMessageId = (is_array($messageIds) && isset($messageIds[$i]))
+                    ? (int) $messageIds[$i]
                     : (int) $messageId;
 
                 // Create a suffix for the esim_sequence if quantity > 1
@@ -237,8 +237,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // For each quantity, create a separate insurance entry
                 for ($i = 0; $i < $quantity; $i++) {
                     // Use specific message_id for this unit if available
-                    $unitMessageId = (is_array($messageIds) && isset($messageIds[$i])) 
-                        ? (int) $messageIds[$i] 
+                    $unitMessageId = (is_array($messageIds) && isset($messageIds[$i]))
+                        ? (int) $messageIds[$i]
                         : (int) $messageId;
 
                     // Create a suffix for the esim_sequence if quantity > 1
