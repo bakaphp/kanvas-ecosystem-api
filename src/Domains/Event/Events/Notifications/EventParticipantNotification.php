@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Event\Events\notifications;
+namespace Kanvas\Event\Events\Notifications;
 
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
