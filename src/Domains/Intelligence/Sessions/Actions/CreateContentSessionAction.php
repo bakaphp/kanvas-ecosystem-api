@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -112,6 +113,7 @@ class CreateContentSessionAction
             'contacts' => $people->contacts->toArray(),
             'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
+            'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
         ];
@@ -223,5 +225,29 @@ class CreateContentSessionAction
         )->select('products_variants.uuid', 'products_variants.name')->limit(10)->get();
 
         return $relatedVariant->toArray();
+    }
+
+    /**
+     * @todo we need to combine both link and status
+     * @throws InvalidArgumentException
+     */
+    protected function getCheckListStatus(Lead $lead): array
+    {
+        $checklistTaskCompleted = TaskEngagementItemRepository::getLeadCompletedTaskItems($lead)->get();
+
+        if ($checklistTaskCompleted->isEmpty()) {
+            return [];
+        }
+
+        $checklist = [];
+        foreach ($checklistTaskCompleted as $task) {
+            if (empty($task->companyAction) || empty($task->companyAction->description)) {
+                continue;
+            }
+
+            $checklist[Str::camel((string) $task->companyAction->description)] = 'COMPLETE';
+        }
+
+        return $checklist;
     }
 }
