@@ -20,6 +20,7 @@ use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Rules\Models\Rule;
 use Throwable;
 
 trait ActivityIntegrationTrait
@@ -52,7 +53,8 @@ trait ActivityIntegrationTrait
         Status $status,
         Model $entity,
         mixed $historyResponse = null,
-        ?Throwable $exception = null
+        ?Throwable $exception = null,
+        ?Rule $rule = null
     ): void {
         $dto = new EntityIntegrationHistory(
             app: $app,
@@ -61,7 +63,8 @@ trait ActivityIntegrationTrait
             entity: $entity,
             response: $historyResponse ?? null,
             exception: $exception,
-            workflowId: $this->workflowId()
+            workflowId: $this->workflowId(),
+            rule: $rule
         );
 
         (new AddEntityIntegrationHistoryAction(
@@ -131,7 +134,8 @@ trait ActivityIntegrationTrait
             $status,
             $entity,
             $response ?? null,
-            $exception
+            $exception,
+            rule: $additionalParams['rule'] ?? null
         );
 
         if ($exception) {

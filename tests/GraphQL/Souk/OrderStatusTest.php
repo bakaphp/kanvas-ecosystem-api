@@ -416,7 +416,6 @@ class OrderStatusTest extends OrderBase
 
         // Refresh order to get updated relationships
         $order->refresh();
-        print_r($order->orderTransitionHistory()->get());
 
         // Now test with multiple transitions
         $newLastTransition = $order->getLastTransition();

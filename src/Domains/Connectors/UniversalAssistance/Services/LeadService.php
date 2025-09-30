@@ -31,8 +31,8 @@ class LeadService
     {
         // Use DTO for better structure
         $travelQuote = TravelQuoteData::from([
-            'originCountry' => $travelData['origin_country'] ?? 'ARG',
-            'destination' => $travelData['destination'] ?? 'Europa',
+            'originCountry' => $travelData['originCountryCode'] ?? $travelData['origin_country'] ?? 'ARGENTINA',
+            'destination' => $travelData['destinyCountryCode'] ?? $travelData['destination'] ?? 'Europa',
             'startDate' => isset($travelData['start_date']) ? Carbon::parse($travelData['start_date']) : Carbon::now()->addDays(30),
             'endDate' => isset($travelData['end_date']) ? Carbon::parse($travelData['end_date']) : Carbon::now()->addDays(37),
             'passengerCount' => $travelData['passenger_count'] ?? 1,

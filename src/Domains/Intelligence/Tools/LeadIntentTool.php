@@ -42,7 +42,7 @@ class LeadIntentTool implements ContextToolInterface
             'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
         $vehicleOfInterest = new ObjectSchema(
-            name: 'vehicle_of_interest',
+            name: 'vehicle_interest',
             description: 'Vehicle the customer is interested in',
             properties: [
                 new StringSchema('year', 'Model year', nullable: true),
@@ -129,7 +129,7 @@ class LeadIntentTool implements ContextToolInterface
                 'intent_triggers_detected',
                 'intent_completion_status',
                 'completion_evidence',
-                'vehicle_of_interest',
+                'vehicle_interest',
                 'engagement_context',
                 'customer_questions',
                 'next_step',
@@ -138,11 +138,18 @@ class LeadIntentTool implements ContextToolInterface
             ]
         );
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.0-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-flash')
                    ->withSchema($leadSchema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
+                    ->withMaxTokens(7000)
+                    ->withClientOptions([
+                        'timeout' => 220,          // Total timeout in seconds (2 minutes)
+                        'connect_timeout' => 220,   // Connection timeout in seconds
+                        'read_timeout' => 220,      // Read timeout in seconds
+                    ])
                    ->asStructured();
+
         return $response->structured;
     }
 }

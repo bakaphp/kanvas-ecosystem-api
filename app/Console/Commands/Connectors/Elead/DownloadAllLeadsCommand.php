@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\Elead;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
@@ -13,8 +14,10 @@ use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class DownloadAllLeadsCommand extends Command
@@ -45,11 +48,10 @@ class DownloadAllLeadsCommand extends Command
     public function handle(): void
     {
         $appId = (int) $this->argument('app_id');
-        $appModel = Apps::getById($appId);
+        $app = Apps::getById($appId);
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
 
-        $app = app($appModel->key);
         $this->overwriteAppService($app);
 
         // Check if company has Elead configuration
@@ -61,7 +63,9 @@ class DownloadAllLeadsCommand extends Command
 
         // Date settings
         $fromDateOption = $this->option('from');
-        $fromDate = is_string($fromDateOption) ? $fromDateOption : date('Y-m-d', time() - 86400);
+        $fromDate = is_string($fromDateOption) ? $fromDateOption : Carbon::now('America/Los_Angeles')
+            ->subMinutes(10)
+            ->format('Y-m-d');
 
         $this->info('Starting Elead leads download');
         $this->info("Company: {$company->name} (ID: {$company->getId()})");
@@ -117,9 +121,20 @@ class DownloadAllLeadsCommand extends Command
 
                                 // Create DTO and sync
                                 $leadDto = DataTransferObjectLead::fromLeadEntity($lead, $user);
+                                $leadDto->runWorkflow = false; // Disable workflow on initial import
                                 $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
-                                $syncAction->execute();
+                                $newLead = $syncAction->execute();
 
+                                new SyncLeadAction($newLead)->execute();
+                                $newLead->set('downloaded_from_eleads', true);
+                                $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+                                $newLead->fireWorkflow(
+                                    WorkflowEnum::CREATED->value,
+                                    true,
+                                    [
+                                        'app' => $app,
+                                    ]
+                                );
                                 $successCount++;
                             }
                         } catch (Throwable $e) {

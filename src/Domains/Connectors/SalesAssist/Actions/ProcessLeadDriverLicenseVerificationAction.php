@@ -41,7 +41,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
 
-class ProcessDriverLicenseVerificationAction
+class ProcessLeadDriverLicenseVerificationAction
 {
     protected ?array $idVerificationReport = null;
     protected ?array $intellicheckResponse = null;
@@ -65,14 +65,14 @@ class ProcessDriverLicenseVerificationAction
                 ->lockForUpdate()
                 ->first();
 
-            if ($lockedLead->get('driver_license_processed')) {
+            /* if ($lockedLead->get('driver_license_processed')) {
                 DB::commit();
 
                 return [
                     'success' => false,
                     'message' => 'Driver license already processed',
                 ];
-            }
+            } */
 
             $lockedLead->set('driver_license_processed', true);
 
@@ -377,7 +377,7 @@ class ProcessDriverLicenseVerificationAction
         if (! $messageType) {
             $messageType = (new CreateMessageTypeAction(
                 new MessageTypeInput(
-                    $app,
+                    $app->getId(),
                     1,
                     'ID Verification',
                     ConfigurationEnum::ID_VERIFICATION->value,

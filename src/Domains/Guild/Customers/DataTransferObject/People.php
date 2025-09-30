@@ -16,34 +16,32 @@ use Spatie\LaravelData\DataCollection;
 
 class People extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompaniesBranches $branch,
-        public readonly UserInterface $user,
-        public readonly string $firstname,
+        public AppInterface $app,
+        public CompaniesBranches $branch,
+        public UserInterface $user,
+        public string $firstname,
         #[DataCollectionOf(Contact::class)]
-        public readonly DataCollection $contacts,
+        public DataCollection $contacts,
         #[DataCollectionOf(Address::class)]
-        public readonly DataCollection $address,
-        public readonly ?string $lastname = null,
+        public DataCollection $address,
+        public ?string $lastname = null,
         public int $id = 0,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
-        public readonly ?DateTime $dob = null,
-        public readonly ?string $license_number = null,
-        public readonly ?string $facebook_contact_id = null,
-        public readonly ?string $google_contact_id = null,
-        public readonly ?string $apple_contact_id = null,
-        public readonly ?string $linkedin_contact_id = null,
-        public readonly ?string $middlename = null,
-        public readonly array $custom_fields = [],
-        public readonly array $tags = [],
-        public readonly array $peopleEmploymentHistory = [],
-        public readonly ?string $organization = null,
-        public readonly ?string $created_at = null
+        public ?DateTime $dob = null,
+        public ?string $license_number = null,
+        public ?string $facebook_contact_id = null,
+        public ?string $google_contact_id = null,
+        public ?string $apple_contact_id = null,
+        public ?string $linkedin_contact_id = null,
+        public ?string $middlename = null,
+        public array $custom_fields = [],
+        public array $tags = [],
+        public array $peopleEmploymentHistory = [],
+        public ?string $organization = null,
+        public ?string $created_at = null
     ) {
+        $this->cleanFirstNameFromMiddleName();
     }
 
     public function getEmails(): array
@@ -69,5 +67,26 @@ class People extends Data
     public function getName(): string
     {
         return $this->firstname . ' ' . $this->lastname;
+    }
+
+    public function cleanFirstNameFromMiddleName(): void
+    {
+        if (empty($this->middlename)) {
+            return;
+        }
+
+        $nameParts = array_filter(explode(' ', trim($this->firstname)));
+
+        if (count($nameParts) <= 1) {
+            return;
+        }
+
+        $lastPart = end($nameParts);
+
+        // Case-insensitive comparison with trimming
+        if (strcasecmp(trim($lastPart), trim($this->middlename)) === 0) {
+            array_pop($nameParts);
+            $this->firstname = implode(' ', $nameParts);
+        }
     }
 }

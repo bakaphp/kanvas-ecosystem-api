@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Contracts\EventResourceInterface;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -61,7 +63,7 @@ use Override;
  * @property string $is_duplicate
  * @property string $third_party_sync_status @deprecated version 0.3
  */
-class Lead extends BaseModel
+class Lead extends BaseModel implements EventResourceInterface
 {
     use UuidTrait;
     use DynamicSearchableTrait {
@@ -71,6 +73,7 @@ class Lead extends BaseModel
     use FollowersTrait;
     use CanUseWorkflow;
     use HasLightHouseCache;
+    use EventResourceTrait;
 
     protected $table = 'leads';
     protected $guarded = [];

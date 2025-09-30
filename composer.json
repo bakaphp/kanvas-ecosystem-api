@@ -25,7 +25,7 @@
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
-        "google/cloud-recommendations-ai": "^0.8.0",
+        "google/cloud-recommendations-ai": "^0.9.0",
         "grantholle/laravel-username-generator": "dev-main",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
@@ -33,6 +33,7 @@
         "inspector-apm/inspector-php": "^3.12",
         "inspector-apm/neuron-ai": "^2.0",
         "joelwmale/laravel-cart": "^1.2",
+        "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
         "laravel-workflow/laravel-workflow": "^1.0.24",
@@ -83,7 +84,7 @@
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
-        "twilio/sdk": "^8.0",
+        "twilio/sdk": "<8.8.2",
         "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
@@ -100,7 +101,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.3.11"
+        "phpunit/phpunit": "12.3.15"
     },
     "autoload": {
         "psr-4": {

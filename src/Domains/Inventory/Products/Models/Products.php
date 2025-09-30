@@ -557,11 +557,20 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
-    public static function search($query = '', $callback = null)
+    public static function search($query = '', $callback = null, $limit = 100)
     {
         $app = app(Apps::class);
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $query = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback, $limit) {
+            $options['hitsPerPage'] = $limit;
+
+            if ($callback) {
+                return $callback($algolia, $searchTerm, $options);
+            }
+
+            return $algolia->search($searchTerm, $options);
+        })->where('apps_id', $app->getId());
+
         $user = auth()->user();
 
         if (
@@ -580,6 +589,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+                'per_page' => $limit
             ]);
         }
 

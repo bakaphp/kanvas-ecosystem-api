@@ -9,14 +9,16 @@ class SessionChannelService
     public static function createCanalId(string $channel, string $id): string
     {
         return match ($channel) {
-            'whatsapp' => "$id@s.whatsapp.net"
+            'whatsapp' => "$id@s.whatsapp.net",
+            'sms' => "+$id",
         };
     }
 
     public static function createChannelSlug(string $channel, string $id): string
     {
         return match ($channel) {
-            'whatsapp' => "wa-chat-$id-at-swhatsappnet"
+            'whatsapp' => "wa-chat-$id-at-swhatsappnet",
+            'sms' => "twilio-$id",
         };
     }
 }

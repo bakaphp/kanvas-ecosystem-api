@@ -47,6 +47,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::ESIM_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $orderHasMetaData = $order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
                 if (! empty($orderHasMetaData)) {
