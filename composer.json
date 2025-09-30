@@ -101,7 +101,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.3.14"
+        "phpunit/phpunit": "12.3.15"
     },
     "autoload": {
         "psr-4": {
