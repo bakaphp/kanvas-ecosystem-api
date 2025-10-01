@@ -11,7 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 
-class NotificationEngagementAction
+class FollowUpEngagementAction
 {
     public function __construct(
         public Lead $lead
@@ -47,9 +47,14 @@ class NotificationEngagementAction
                 );
             }
             $this->lead->set(ConfigurationEnum::LAST_MESSAGE_TIME->value, Carbon::now($timezone)->toDateTimeString());
+            $this->lead->set(ConfigurationEnum::LAST_MESSAGE->value, $message);
+            $intentNumber = $this->lead->get('intent_number') ?? 0;
+            $intentNumber++;
+            $this->lead->set('intent_number', $intentNumber);
             $content['first_message']['message'] = $message;
             $content['last_message_time'] = Carbon::now($timezone)->toDateTimeString();
             $content['last_message'] = ['message' => $message];
+            $content['intent_number'] = $intentNumber;
             $session->update(['content' => $content]);
             $this->lead->moveToNextPipelineStage();
 

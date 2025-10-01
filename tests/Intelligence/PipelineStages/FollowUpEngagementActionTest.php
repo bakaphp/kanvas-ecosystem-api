@@ -9,14 +9,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\PipelinesStages\Actions\NotificationEngagementAction;
+use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Tests\TestCase;
 
-class NotificationEngagementActionTest extends TestCase
+class FollowUpEngagementActionTest extends TestCase
 {
     public function testNotificationEngagementAction(): void
     {
@@ -74,7 +74,7 @@ class NotificationEngagementActionTest extends TestCase
             ],
         ];
         $session->saveOrFail();
-        $message = new NotificationEngagementAction($lead)->execute();
+        $message = new FollowUpEngagementAction($lead)->execute();
         $this->assertIsArray($message);
     }
 }

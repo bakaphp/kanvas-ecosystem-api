@@ -7,9 +7,9 @@ namespace App\Console\Commands\Intelligence;
 use Illuminate\Console\Command;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\PipelinesStages\Actions\NotificationEngagementAction;
+use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 
-class NotificationEngagementCommand extends Command
+class FollowUpEngagementCommand extends Command
 {
     /**
      * The name and signature of the console command.
@@ -33,7 +33,7 @@ class NotificationEngagementCommand extends Command
             if (isset($config['notification_engagement_rules']) && $config['notification_engagement_rules']) {
                 $leads = Lead::where('pipeline_stage_id', '=', $stage->id)->cursor();
                 foreach ($leads as $lead) {
-                    (new NotificationEngagementAction($lead))->execute();
+                    (new FollowUpEngagementAction($lead))->execute();
                 }
             }
         }
