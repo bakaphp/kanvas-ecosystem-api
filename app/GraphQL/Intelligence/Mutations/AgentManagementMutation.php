@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Inspector\Configuration;
+use Inspector\Inspector;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use NeuronAI\Observability\AgentMonitoring;
 
 class AgentManagementMutation
 {
@@ -75,5 +79,45 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    public function chat(mixed $root, array $req): string
+    {
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $useInspector = $app->get('inspector-key') !== null;
+
+        $currentAgent = new $agent->type->handler();
+        //$currentAgent = $this->agent;
+
+        $currentAgent->setConfiguration(
+            $agent,
+        );
+
+        if ($useInspector) {
+            $inspector = new Inspector(
+                new Configuration($app->get('inspector-key'))
+            );
+            $currentAgent->observe(
+                new AgentMonitoring($inspector)
+            );
+        }
+
+        $responseContent = $currentAgent->chatSimple(
+            $app,
+            $agent->company,
+            auth()->user()->getId(),
+            $req['session_id'],
+            $req['message']
+        );
+
+        $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
+
+        return $responseText;
     }
 }
