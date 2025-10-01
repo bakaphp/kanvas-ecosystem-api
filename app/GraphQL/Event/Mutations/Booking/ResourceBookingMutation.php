@@ -7,7 +7,6 @@ namespace App\GraphQL\Event\Mutations\Booking;
 use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str as LaravelStr;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CancelEventAction;
@@ -29,51 +28,6 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class ResourceBookingMutation
 {
     /**
-     * Hold a resource for checkout (temporary reservation)
-     */
-    public function hold(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
-    {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
-
-        $input = $args['input'];
-        $holdDuration = $input['hold_duration_minutes'] ?? $app->get('hold_duration_minutes');
-
-        // Generate unique hold ID using Laravel's native UUID
-        $holdId = 'HOLD-' . LaravelStr::uuid();
-
-        // Store hold information (you might want to use Redis/Cache for better performance)
-        $holdData = [
-            'hold_id' => $holdId,
-            'resources_id' => $input['resources_id'],
-            'resources_type' => $input['resources_type'],
-            'start_at' => $input['start_at'],
-            'end_at' => $input['end_at'],
-            'participants' => $input['participants'],
-            'event_name' => $input['event_name'] ?? null,
-            'event_description' => $input['event_description'] ?? null,
-            'metadata' => $input['metadata'] ?? [],
-            'resources' => $input['resources'] ?? [],
-            'user_id' => $user->getId(),
-            'company_id' => $company->getId(),
-            'app_id' => $app->getId(),
-            'expires_at' => now()->addMinutes($holdDuration)->toDateTimeString(),
-            'created_at' => now()->toDateTimeString(),
-        ];
-
-        // Store in app settings as JSON (you might want to use a dedicated table/cache)
-        $holdKey = "resource_hold_{$holdId}";
-        $app->set($holdKey, json_encode($holdData));
-
-        return [
-            'hold_id' => $holdId,
-            'expires_at' => $holdData['expires_at'],
-            'message' => "Resource held successfully for {$holdDuration} minutes",
-        ];
-    }
-
-    /**
      * Book a resource directly and create event with participants using existing CreateEventAction.
      * Can accept either direct booking data or a hold_id from previous hold operation.
      */
@@ -85,33 +39,6 @@ class ResourceBookingMutation
 
         $input = $args['input'];
         $bookingData = $input;
-
-        // If hold_id is provided, retrieve held data
-        if (isset($input['hold_id'])) {
-            $holdKey = "resource_hold_{$input['hold_id']}";
-            $holdDataJson = $app->get($holdKey);
-
-            if (! $holdDataJson) {
-                throw new \Exception('Hold not found or expired: ' . $input['hold_id']);
-            }
-
-            $holdData = json_decode($holdDataJson, true);
-
-            // Check if hold is expired
-            if (now()->isAfter($holdData['expires_at'])) {
-                $app->forget($holdKey); // Clean up expired hold
-                throw new \Exception('Hold has expired: ' . $input['hold_id']);
-            }
-
-            // Use held data as booking data, but allow payment intent to override
-            $bookingData = array_merge($holdData, [
-                'payment_intent_id' => $input['payment_intent_id'] ?? null,
-                'payment_method_id' => $input['payment_method_id'] ?? null,
-            ]);
-
-            // Clean up hold after successful retrieval
-            $app->forget($holdKey);
-        }
 
         // Validate payment intent if provided
         if (isset($bookingData['payment_intent_id'])) {

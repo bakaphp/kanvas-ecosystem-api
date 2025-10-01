@@ -221,19 +221,6 @@ type ResourceBookingDeleteResult {
     deleted_event: Mixed
 }
 
-input ResourceHoldInput {
-    resources_id: ID!
-    resources_type: String!
-    start_at: String!
-    end_at: String!
-    participants: Mixed!
-    event_name: String
-    event_description: String
-    hold_duration_minutes: Int
-    metadata: Mixed
-    resources: Mixed
-}
-
 type ResourceHoldResult {
     hold_id: String!
     expires_at: String!
@@ -257,11 +244,6 @@ extend type Mutation @guard {
     bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
-        )
-    
-    holdResource(input: ResourceHoldInput!): ResourceHoldResult!
-        @field(
-            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@hold"
         )
 
     bookResource(input: ResourceBookingInput!): EventVersion!
