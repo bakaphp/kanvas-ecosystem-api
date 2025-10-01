@@ -621,7 +621,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         // Get the universal_assistance_data message type
         $messageType = MessagesTypesRepository::getByVerb(
-            'universal_assistance_data', 
+            'universal_assistance_data',
             $originalMessage->app
         );
 
