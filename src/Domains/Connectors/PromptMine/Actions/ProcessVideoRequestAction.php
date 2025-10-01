@@ -80,8 +80,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrl = $messageFiles->first()->url;
-                $results = $this->submitImageToVideo($imageUrl, $videoModel, $apiUrl);
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -184,7 +184,7 @@ class ProcessVideoRequestAction
     /**
      * Submit image-to-video request and return request ID
      */
-    protected function submitImageToVideo(string $imageUrl, string $videoModel, string $apiUrl): array
+    protected function submitImageToVideo(array $imageUrlsArray, string $videoModel, string $apiUrl): array
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('image-to-video');
@@ -193,7 +193,7 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrl,
+            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
