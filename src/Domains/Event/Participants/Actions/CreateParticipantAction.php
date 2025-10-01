@@ -41,7 +41,7 @@ class CreateParticipantAction
                 'app' => $this->app,
                 'branch' => $this->branch,
                 'user' => $this->user,
-                'firstname' => $peopleData['firstname'],
+                'firstname' => $peopleData['firstname'] ?? $peopleData['contacts'][0]['value'] ?? null,
                 'lastname' => $peopleData['lastname'] ?? null,
                 'contacts' => Contact::collect($peopleData['contacts'] ?? [], DataCollection::class),
                 'address' => Address::collect($peopleData['address'] ?? [], DataCollection::class),

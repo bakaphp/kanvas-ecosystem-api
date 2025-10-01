@@ -36,6 +36,6 @@ enum IntegrationsEnum: string
     case MOVIPASS = 'movipass';
     case QUICKBOOKS = 'quickbooks';
     case OFAC = 'ofac';
-
+    case TEE_TIME = 'teetime';
     case TWILIO = 'twilio';
 }
