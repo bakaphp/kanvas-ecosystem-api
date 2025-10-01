@@ -93,7 +93,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         ],
                         'original_insurance_data' => $insuranceDataItem['insurance_data'],
                         'processing_summary' => [
-                            'holder_processed' => !empty($results['titular']),
+                            'holder_processed' => ! empty($results['titular']),
                             'dependents_processed' => count($results['dependents'] ?? []),
                             'vouchers_created' => $vouchersCreated,
                             'total_cost' => $cost,
