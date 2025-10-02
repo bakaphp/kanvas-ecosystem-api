@@ -163,6 +163,40 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
+        $orderKey = Order::class;
+        if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
+            foreach ($params[$orderKey]['metadata']['esims'] as $index => $esim) {
+                if (isset($esim['eSimDetails']['insurance']) && isset($esim['message_id'])) {
+                    $insuranceData = $this->convertObjectsToArrays($esim['eSimDetails']['insurance']);
+
+                    // Validate titular data exists
+                    if (isset($insuranceData['titular'])) {
+                        $quantity = $esim['data']['quantity'] ?? ($esim['total_quantity'] ?? 1);
+                        $messageIds = $esim['message_ids'] ?? null;
+
+                        // Create entry for each quantity unit
+                        for ($i = 0; $i < $quantity; $i++) {
+                            $unitMessageId = (isset($messageIds) && isset($messageIds[$i]))
+                                ? (int) $messageIds[$i]
+                                : (int) $esim['message_id'];
+
+                            $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
+
+                            $allInsuranceData[] = [
+                                'insurance_data' => $insuranceData,
+                                'message_id' => $unitMessageId,
+                                'esim_sequence' => ($esim['esim_sequence'] ?? ($index + 1)) . $suffix
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (! empty($allInsuranceData)) {
+                return $allInsuranceData;
+            }
+        }
+
         // Approach 2: Single insurance from workflow params (original functionality)
         $insuranceData = [];
         if (isset($params['titular'])) {
