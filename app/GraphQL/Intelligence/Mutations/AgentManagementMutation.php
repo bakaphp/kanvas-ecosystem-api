@@ -16,6 +16,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use NeuronAI\Observability\AgentMonitoring;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentManagementMutation
 {
@@ -109,13 +111,14 @@ class AgentManagementMutation
             );
         }
 
-        $responseContent = $currentAgent->chatSimple(
+        $responseContent = $currentAgent instanceof ADKAgent ? 
+        $currentAgent->chatSimple(
             $app,
             $agent->company,
             (string) auth()->user()->getId(),
             $req['session_id'],
             $req['message']
-        );
+        )  : $currentAgent->chat(new UserMessage($req['message']));
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
 
