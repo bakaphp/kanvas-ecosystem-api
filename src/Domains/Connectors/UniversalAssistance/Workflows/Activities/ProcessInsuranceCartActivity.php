@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -175,7 +176,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
             if (! isset($insuranceData['titular'])) {
-                throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+                throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
             }
 
             // Get message IDs from params only (each eSIM has its own message_id)
@@ -183,7 +184,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $messageId = $params['message_id'] ?? null;
 
             if (! $messageId && ! $messageIds) {
-                throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in params - each eSIM must have its specific message_id for Universal Assistance processing');
+                throw new ValidationException('eSim Message ID not found in params - each eSIM must have its specific message_id for Universal Assistance processing');
             }
 
             $quantity = $params['data']['quantity'] ?? ($params['quantity'] ?? 1);
@@ -207,7 +208,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         // If no insurance data found, throw exception
-        throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params');
+        throw new ValidationException('Insurance data is required - not found in workflow params');
     }
 
     /**
@@ -256,20 +257,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params or order metadata');
+            throw new ValidationException('Insurance data is required - not found in workflow params or order metadata');
         }
 
         // Convert any objects to arrays (in case data was JSON decoded as objects)
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
-            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
         }
 
         // Get eSim message ID from order (same way as AeroAmbulancia)
         $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
         if (! $messageId) {
-            throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+            throw new ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
         }
 
         // Return insurance data directly (no cart wrapper needed)
