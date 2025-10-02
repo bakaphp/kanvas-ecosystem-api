@@ -166,7 +166,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $orderKey = Order::class;
         if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
             foreach ($params[$orderKey]['metadata']['esims'] as $index => $esim) {
-                if (isset($esim['eSimDetails']['insurance']) && isset($esim['message_id'])) {
+                if (isset($esim['eSimDetails']['insurance'])) {
                     $insuranceData = $this->convertObjectsToArrays($esim['eSimDetails']['insurance']);
 
                     // Validate titular data exists
@@ -174,11 +174,22 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $quantity = $esim['data']['quantity'] ?? ($esim['total_quantity'] ?? 1);
                         $messageIds = $esim['message_ids'] ?? null;
 
+                        // Get message_id from multiple possible locations
+                        $messageId = $esim['message_id']                    // First try: individual eSIM message_id
+                            ?? $params[$orderKey]['message_id']             // Second try: Order level message_id
+                            ?? $params[$orderKey]['metadata']['message_id'] // Third try: Order metadata message_id
+                            ?? null;
+
+                        if (! $messageId) {
+                            // Skip this eSIM if no message_id found
+                            continue;
+                        }
+
                         // Create entry for each quantity unit
                         for ($i = 0; $i < $quantity; $i++) {
                             $unitMessageId = (isset($messageIds) && isset($messageIds[$i]))
                                 ? (int) $messageIds[$i]
-                                : (int) $esim['message_id'];
+                                : (int) $messageId;
 
                             $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
 
@@ -199,10 +210,26 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Approach 2: Single insurance from workflow params (original functionality)
         $insuranceData = [];
+        $messageId = null;
+
+        // Try direct params first
         if (isset($params['titular'])) {
             $insuranceData = $params;
+            $messageId = $params['message_id'] ?? null;
         } elseif (isset($params['insurance'])) {
             $insuranceData = $params['insurance'];
+            $messageId = $params['message_id'] ?? null;
+        }
+        // Try to extract from Order in params as fallback
+        elseif (isset($params[$orderKey]['metadata']['esims'][0]['eSimDetails']['insurance'])) {
+            $firstEsim = $params[$orderKey]['metadata']['esims'][0];
+            $insuranceData = $firstEsim['eSimDetails']['insurance'];
+
+            // Get message_id from multiple possible locations
+            $messageId = $firstEsim['message_id']                    // First try: individual eSIM message_id
+                ?? $params[$orderKey]['message_id']             // Second try: Order level message_id
+                ?? $params[$orderKey]['metadata']['message_id'] // Third try: Order metadata message_id
+                ?? null;
         }
 
         // Convert objects to arrays
@@ -213,10 +240,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
             }
 
-            // Get message IDs from params only (each eSIM has its own message_id)
+            // Get message IDs from params or extracted data
             $messageIds = $params['message_ids'] ?? null;
-            $messageId = $params['message_id'] ?? null;
-
             if (! $messageId && ! $messageIds) {
                 throw new ValidationException('eSim Message ID not found in params - each eSIM must have its specific message_id for Universal Assistance processing');
             }
