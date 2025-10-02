@@ -80,8 +80,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
+                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
