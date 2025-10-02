@@ -65,11 +65,10 @@ class ADKAgent
     public function chatSimple(
         Apps $app,
         Companies $company,
-        string $userId, 
-        string $sessionId, 
+        string $userId,
+        string $sessionId,
         string $message
-    ): self
-    {
+    ): self {
         $googleADKService = new GoogleADKService(
             $app,
             $company
