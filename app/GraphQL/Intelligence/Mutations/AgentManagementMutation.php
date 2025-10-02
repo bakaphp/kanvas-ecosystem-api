@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -87,19 +88,22 @@ class AgentManagementMutation
     {
         $req = $req['input'] ?? [];
         $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
         $agent = Agent::getByIdFromCompanyApp(
             id: $req['agent_id'],
             app: $app,
-            company: auth()->user()->getCurrentCompany()
+            company: $company
         );
 
         $useInspector = $app->get('inspector-key') !== null;
 
         $currentAgent = new $agent->type->handler();
         //$currentAgent = $this->agent;
+        $sessionEntity = Session::fromApp($app)->fromCompany($company)->where('uuid', (string) $req['session_id'])->first()?->entity();
 
         $currentAgent->setConfiguration(
             $agent,
+            $sessionEntity
         );
 
         if ($useInspector) {
