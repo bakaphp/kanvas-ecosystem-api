@@ -83,9 +83,10 @@ class AgentManagementMutation
 
     public function chat(mixed $root, array $req): string
     {
+        $req = $req['input'] ?? [];
         $app = app(Apps::class);
         $agent = Agent::getByIdFromCompanyApp(
-            id: $req['id'],
+            id: $req['agent_id'],
             app: $app,
             company: auth()->user()->getCurrentCompany()
         );
@@ -111,7 +112,7 @@ class AgentManagementMutation
         $responseContent = $currentAgent->chatSimple(
             $app,
             $agent->company,
-            auth()->user()->getId(),
+            (string) auth()->user()->getId(),
             $req['session_id'],
             $req['message']
         );
