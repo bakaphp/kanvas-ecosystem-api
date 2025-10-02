@@ -233,21 +233,27 @@ class CreateContentSessionAction
      */
     protected function getCheckListStatus(Lead $lead): array
     {
-        $checklistTaskCompleted = TaskEngagementItemRepository::getLeadCompletedTaskItems($lead)->get();
+        try {
+            $checklistTaskCompleted = TaskEngagementItemRepository::getLeadCompletedTaskItems($lead)->get();
 
-        if ($checklistTaskCompleted->isEmpty()) {
-            return [];
-        }
-
-        $checklist = [];
-        foreach ($checklistTaskCompleted as $task) {
-            if (empty($task->companyAction) || empty($task->companyAction->description)) {
-                continue;
+            if ($checklistTaskCompleted->isEmpty()) {
+                return [];
             }
 
-            $checklist[Str::camel((string) $task->companyAction->description)] = 'COMPLETE';
-        }
+            $checklist = [];
+            foreach ($checklistTaskCompleted as $task) {
+                if (empty($task->companyAction) || empty($task->companyAction->description)) {
+                    continue;
+                }
 
-        return $checklist;
+                $checklist[Str::camel((string) $task->companyAction->description)] = 'COMPLETE';
+            }
+
+            return $checklist;
+        } catch (Exception $e) {
+            report($e);
+
+            return [];
+        }
     }
 }
