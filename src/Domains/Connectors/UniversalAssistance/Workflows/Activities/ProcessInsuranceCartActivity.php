@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -18,7 +19,7 @@ use Kanvas\Workflow\KanvasActivity;
 class ProcessInsuranceCartActivity extends KanvasActivity
 {
     /**
-     * Process insurance data from order metadata - handles multiple insurances from eSIMs
+     * Process insurance data from order (enhanced original pattern for multiple eSIMs)
      */
     public function execute(Order $order, AppInterface $app, array $params): array
     {
@@ -30,30 +31,34 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 sleep(30);
                 $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
 
-                // Get all insurance data from eSIMs
+                // Get all insurance data
                 $allInsuranceData = $this->getAllInsuranceDataFromOrder($order, $params);
-
-                if (empty($allInsuranceData)) {
-                    throw new \Kanvas\Exceptions\ValidationException('No insurance data found in order eSIMs');
-                }
 
                 // Create service
                 $service = new InsuranceWorkflowService($app, $order);
 
-                // Process each insurance separately
+                // Process all insurances and collect results
                 $allResults = [];
-                foreach ($allInsuranceData as $index => $insuranceData) {
+                $totalVouchersCreated = 0;
+                $totalCost = 0.0;
+
+                foreach ($allInsuranceData as $index => $insuranceDataItem) {
                     // Process insurance workflow with insurance data directly
-                    $results = $service->processInsuranceWorkflow($insuranceData['insurance_data']);
+                    $results = $service->processInsuranceWorkflow($insuranceDataItem['insurance_data']);
 
-                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                    $this->storeUniversalAssistanceData($results, $insuranceData['message_id']);
+                    // Store results in eSim message (same pattern as original)
+                    $this->storeUniversalAssistanceData($results, $insuranceDataItem['message_id']);
 
-                    // Build results for this insurance
-                    $insuranceResults = [
-                        'insurance_index' => $index,
-                        'esim_sequence' => $insuranceData['esim_sequence'] ?? ($index + 1),
-                        'message_id' => $insuranceData['message_id'],
+                    // Build individual insurance results (like original voucher_data structure)
+                    $vouchersCreated = $this->countVouchersCreated($results);
+                    $cost = $this->calculateTotalCost($results);
+
+                    $totalVouchersCreated += $vouchersCreated;
+                    $totalCost += $cost;
+
+                    $allResults[] = [
+                        'esim_sequence' => $insuranceDataItem['esim_sequence'],
+                        'message_id' => $insuranceDataItem['message_id'],
                         'workflow_results' => $results,
                         'voucher_data' => [
                             'holder' => [
@@ -87,25 +92,30 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 ];
                             }, $results['dependents'] ?? [])
                         ],
-                        'original_insurance_data' => $insuranceData['insurance_data'],
+                        'original_insurance_data' => $insuranceDataItem['insurance_data'],
                         'processing_summary' => [
                             'holder_processed' => ! empty($results['titular']),
                             'dependents_processed' => count($results['dependents'] ?? []),
-                            'vouchers_created' => $this->countVouchersCreated($results),
-                            'total_cost' => $this->calculateTotalCost($results),
+                            'vouchers_created' => $vouchersCreated,
+                            'total_cost' => $cost,
                         ]
                     ];
-
-                    $allResults[] = $insuranceResults;
                 }
 
-                // Return comprehensive results for all insurances
+                // Return comprehensive results (enhanced original format)
                 return [
                     'order_id' => $order->getId(),
                     'total_insurances_processed' => count($allResults),
-                    'total_vouchers_created' => array_sum(array_column(array_column($allResults, 'processing_summary'), 'vouchers_created')),
-                    'total_cost' => array_sum(array_column(array_column($allResults, 'processing_summary'), 'total_cost')),
-                    'insurances' => $allResults,
+                    'workflow_results' => count($allResults) === 1 ? $allResults[0]['workflow_results'] : $allResults, // Single result for backward compatibility
+                    'voucher_data' => count($allResults) === 1 ? $allResults[0]['voucher_data'] : array_column($allResults, 'voucher_data'), // Single voucher_data for backward compatibility
+                    'original_insurance_data' => count($allResults) === 1 ? $allResults[0]['original_insurance_data'] : array_column($allResults, 'original_insurance_data'),
+                    'processing_summary' => [
+                        'holder_processed' => $totalVouchersCreated > 0,
+                        'dependents_processed' => array_sum(array_column(array_column($allResults, 'processing_summary'), 'dependents_processed')),
+                        'vouchers_created' => $totalVouchersCreated,
+                        'total_cost' => $totalCost,
+                    ],
+                    'insurances' => $allResults, // Full details for multiple eSIMs
                 ];
             },
             company: $order->company,
@@ -113,44 +123,35 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     }
 
     /**
-     * Get all insurance data from eSIMs in the order
+     * Get all insurance data from order (enhanced version of original getActivityData for multiple eSIMs)
      */
     protected function getAllInsuranceDataFromOrder(Order $order, array $params): array
     {
         $allInsuranceData = [];
 
-        // Check if params contains multiple insurances (esims array) or single insurance
+        // Approach 1: Try multiple eSIMs from workflow params (new functionality)
         if (isset($params['esims']) && is_array($params['esims'])) {
             foreach ($params['esims'] as $index => $esim) {
-                // Each eSIM must have both insurance data AND its own message_id
                 if (isset($esim['eSimDetails']['insurance']) && isset($esim['message_id'])) {
                     $insuranceData = $this->convertObjectsToArrays($esim['eSimDetails']['insurance']);
 
-                    // Get quantity - if quantity > 1, we need multiple insurance entries
-                    $quantity = $esim['data']['quantity'] ?? ($esim['quantity'] ?? 1);
-
-                    // Validate that we have titular data (required for insurance processing)
+                    // Validate titular data exists
                     if (isset($insuranceData['titular'])) {
-                        // Check if we have multiple message_ids for this eSIM (one per unit)
+                        $quantity = $esim['data']['quantity'] ?? ($esim['quantity'] ?? 1);
                         $messageIds = $esim['message_ids'] ?? null;
 
-                        // For each quantity, create a separate insurance entry
+                        // Create entry for each quantity unit
                         for ($i = 0; $i < $quantity; $i++) {
-                            // Use specific message_id for this unit if available, otherwise fallback to the main message_id
                             $unitMessageId = (isset($messageIds) && isset($messageIds[$i]))
                                 ? (int) $messageIds[$i]
                                 : (int) $esim['message_id'];
 
-                            // Create a suffix for the esim_sequence if quantity > 1
                             $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
 
                             $allInsuranceData[] = [
                                 'insurance_data' => $insuranceData,
-                                'message_id' => $unitMessageId, // Use specific message_id for this unit
-                                'esim_sequence' => ($esim['esim_sequence'] ?? ($index + 1)) . $suffix,
-                                'esim_index' => $index, // For debugging purposes
-                                'quantity_index' => $i, // Track position within the quantity
-                                'total_quantity' => $quantity // Store total quantity for reference
+                                'message_id' => $unitMessageId,
+                                'esim_sequence' => ($esim['esim_sequence'] ?? ($index + 1)) . $suffix
                             ];
                         }
                     }
@@ -162,104 +163,52 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Single insurance from workflow params
-        if (isset($params['titular']) || isset($params['insurance'])) {
-            // If params has titular directly, use params as insurance data
-            if (isset($params['titular'])) {
-                $insuranceData = $params;
-            }
-            // If params has insurance key, extract from there
-            elseif (isset($params['insurance'])) {
-                $insuranceData = $params['insurance'];
-            }
+        // Approach 2: Single insurance from workflow params (original functionality)
+        $insuranceData = [];
+        if (isset($params['titular'])) {
+            $insuranceData = $params;
+        } elseif (isset($params['insurance'])) {
+            $insuranceData = $params['insurance'];
+        }
 
-            // Convert to array
+        // Convert objects to arrays
+        if (! empty($insuranceData)) {
             $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
-            // For direct workflow calls, we need to get message ID from params or order
-            $messageIds = $params['message_ids'] ?? null; // Check for multiple message_ids first
-            $messageId = $params['message_id'] ?? null;   // Fallback to single message_id
+            if (! isset($insuranceData['titular'])) {
+                throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            }
 
-            // Get quantity - if quantity > 1, we need multiple insurance entries
+            // Get message IDs from params only (each eSIM has its own message_id)
+            $messageIds = $params['message_ids'] ?? null;
+            $messageId = $params['message_id'] ?? null;
+
+            if (! $messageId && ! $messageIds) {
+                throw new ValidationException('eSim Message ID not found in params - each eSIM must have its specific message_id for Universal Assistance processing');
+            }
+
             $quantity = $params['data']['quantity'] ?? ($params['quantity'] ?? 1);
 
-            // Fallback to order's general message ID only if not found in params
-            if (! $messageId && ! $messageIds) {
-                $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
-            }
-
-            if (! $messageId && ! $messageIds) {
-                throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in params or order - required for Universal Assistance processing');
-            }
-
-            // For each quantity, create a separate insurance entry
+            // Create entry for each quantity unit
             for ($i = 0; $i < $quantity; $i++) {
-                // Use specific message_id for this unit if available
                 $unitMessageId = (is_array($messageIds) && isset($messageIds[$i]))
                     ? (int) $messageIds[$i]
                     : (int) $messageId;
 
-                // Create a suffix for the esim_sequence if quantity > 1
                 $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
 
                 $allInsuranceData[] = [
                     'insurance_data' => $insuranceData,
                     'message_id' => $unitMessageId,
-                    'esim_sequence' => ($params['esim_sequence'] ?? 1) . $suffix,
-                    'quantity_index' => $i,          // Track position within the quantity
-                    'total_quantity' => $quantity    // Store total quantity for reference
+                    'esim_sequence' => ($params['esim_sequence'] ?? 1) . $suffix
                 ];
             }
 
             return $allInsuranceData;
         }
 
-        // Approach 2: Direct metadata fallback locations (for backward compatibility with single insurance)
-        if (empty($allInsuranceData)) {
-            $orderMetadata = $order->metadata ?? [];
-            $insuranceData = $orderMetadata['universalAssistanceData']['insurance'] ??
-                           $orderMetadata['universal_assistance']['insurance'] ?? // Fallback for old data
-                           $order->getMetadata('insurance') ??
-                           [];
-
-            if (! empty($insuranceData) && isset($insuranceData['titular'])) {
-                // Convert to array
-                $insuranceData = $this->convertObjectsToArrays($insuranceData);
-
-                // For legacy single insurance, get the general order message ID or message IDs
-                $messageIds = $order->getMetadata('message_ids');
-                $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
-
-                if (! $messageId && ! $messageIds) {
-                    throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
-                }
-
-                // Get quantity - if quantity > 1, we need multiple insurance entries
-                $quantity = $orderMetadata['quantity'] ?? 1;
-
-                // For each quantity, create a separate insurance entry
-                for ($i = 0; $i < $quantity; $i++) {
-                    // Use specific message_id for this unit if available
-                    $unitMessageId = (is_array($messageIds) && isset($messageIds[$i]))
-                        ? (int) $messageIds[$i]
-                        : (int) $messageId;
-
-                    // Create a suffix for the esim_sequence if quantity > 1
-                    $suffix = $quantity > 1 ? "-" . ($i + 1) : "";
-
-                    $allInsuranceData[] = [
-                        'insurance_data' => $insuranceData,
-                        'message_id' => $unitMessageId,
-                        'esim_sequence' => "1" . $suffix,
-                        'esim_index' => 0, // Legacy single insurance
-                        'quantity_index' => $i, // Track position within the quantity
-                        'total_quantity' => $quantity // Store total quantity for reference
-                    ];
-                }
-            }
-        }
-
-        return $allInsuranceData;
+        // If no insurance data found, throw exception
+        throw new ValidationException('Insurance data is required - not found in workflow params');
     }
 
     /**
@@ -308,20 +257,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params or order metadata');
+            throw new ValidationException('Insurance data is required - not found in workflow params or order metadata');
         }
 
         // Convert any objects to arrays (in case data was JSON decoded as objects)
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
-            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
         }
 
         // Get eSim message ID from order (same way as AeroAmbulancia)
         $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
         if (! $messageId) {
-            throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+            throw new ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
         }
 
         // Return insurance data directly (no cart wrapper needed)
