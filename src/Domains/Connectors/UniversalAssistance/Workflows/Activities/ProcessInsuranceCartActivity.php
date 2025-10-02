@@ -163,7 +163,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        $orderKey = Order::class;
+        $orderKey = "Kanvas\\Souk\\Orders\\Models\\Order";
         if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
             foreach ($params[$orderKey]['metadata']['esims'] as $index => $esim) {
                 if (isset($esim['eSimDetails']['insurance'])) {
@@ -175,9 +175,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $messageIds = $esim['message_ids'] ?? null;
 
                         // Get message_id from multiple possible locations
-                        $messageId = $esim['message_id']                    // First try: individual eSIM message_id
-                            ?? $params[$orderKey]['message_id']             // Second try: Order level message_id
-                            ?? $params[$orderKey]['metadata']['message_id'] // Third try: Order metadata message_id
+                        $messageId = $esim['message_id']
+                            ?? $params[$orderKey]['message_id']
+                            ?? $params[$orderKey]['metadata']['message_id']
+                            ?? $params['message_id']
                             ?? null;
 
                         if (! $messageId) {
