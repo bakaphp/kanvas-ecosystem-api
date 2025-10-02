@@ -180,7 +180,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             ?? $params[$orderKey]['metadata']['message_id'] // Third try: Order metadata message_id
                             ?? null;
 
-                        if (!$messageId) {
+                        if (! $messageId) {
                             // Skip this eSIM if no message_id found
                             continue;
                         }
