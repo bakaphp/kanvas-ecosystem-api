@@ -271,7 +271,7 @@ class RealStateAgent extends BaseAgent
 
         // Get agent's phone number (the person using the agent)
         $agentPhones = $agent instanceof Lead ? $agent->people->getPhones()->pluck('value')->toArray() : $agent->getPhones()->pluck('value')->toArray();
-        $agentCellPhones = $agent->getCellPhones()->pluck('value')->toArray();
+        $agentCellPhones = $agent instanceof Lead ? $agent->people->getCellPhones()->pluck('value')->toArray() : $agent->getCellPhones()->pluck('value')->toArray();
         $allAgentPhones = array_unique(array_merge($agentPhones, $agentCellPhones));
 
         if (empty($allAgentPhones)) {
