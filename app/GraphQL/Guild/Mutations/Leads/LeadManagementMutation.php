@@ -105,6 +105,7 @@ class LeadManagementMutation
             app(Apps::class)
         );
 
+        $lead->deleteAllCustomFields();
         return $lead->softDelete();
     }
 

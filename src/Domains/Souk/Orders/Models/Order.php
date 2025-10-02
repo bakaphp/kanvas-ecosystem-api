@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -152,6 +153,11 @@ class Order extends BaseModel
     public function orderDiscounts(): HasMany
     {
         return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
+    }
+
+    public function resource(): MorphTo
+    {
+        return $this->morphTo('resources');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -652,6 +658,50 @@ class Order extends BaseModel
     public function orderTransitionHistory(): HasMany
     {
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    /**
+     * Get the most recent transition history entry
+     */
+    public function getLastTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Get the first transition history entry
+     */
+    public function getFirstTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+    }
+
+    /**
+     * Get transition history by the to_status slug
+     */
+    public function getTransitionByStatus(string $statusSlug): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->whereHas('toStatus', function ($query) use ($statusSlug) {
+                $query->where('slug', $statusSlug);
+            })
+            ->first();
+    }
+
+    /**
+     * Get the current active transition (where is_current = true)
+     */
+    public function getCurrentTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->where('is_current', true)
+            ->first();
     }
 
     public function calculateTotal(bool $autoSave = true): void

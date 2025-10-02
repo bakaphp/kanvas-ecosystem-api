@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
+use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
@@ -36,23 +39,51 @@ use Spatie\LaravelData\DataCollection;
 
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
+    protected bool $hijackSession = false;
+    protected int $batchDelaySeconds = 3; // Configurable delay
+
     #[Override]
     public function execute(array $params = []): array
     {
         $request = $this->webhookRequest->payload;
+
+        $this->batchDelaySeconds = $this->receiver->company->get('twilio_batch_delay_seconds', 3) ?? 3;
+
+        if ($this->receiver->company->get('allow_session_hijack', false)
+            && $this->receiver->company->get('overwrite_phone_number') !== null
+        ) {
+            $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
+            $originalRemoteJid = $request['From'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+                $this->hijackSession = true;
+                $request['From'] = $newPhone;
+            }
+        }
+        $phoneNumber = $request['From'];
+        $batchKey = "message_batch:{$this->receiver->getId()}:{$phoneNumber}";
+
         $isFromMe = $request['From'] === $request['To'];
+        $batch = Cache::get($batchKey, [
+                        'messages' => [],
+                        'first_message_time' => now(),
+                        'phone_number' => $phoneNumber,
+                    ]);
+
         if (! $isFromMe) {
-            $people = $this->processContactFromMessage();
+            $people = $this->processContactFromMessage($request);
             $lead = $this->createLeadFromPeople($people);
         }
+
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
 
         $existingMessage = Message::where('uuid', $messageSlug)
-        ->where('companies_id', $this->receiver->company->getId())
-        ->where('apps_id', $this->receiver->app->getId())
-        ->first();
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
         $lastMessage = $channel->getLastMessage();
 
         if ($existingMessage) {
@@ -88,23 +119,62 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
             $createMessageAction = new CreateMessageAction($messageInput);
             $message = $createMessageAction->execute();
+
+            if (! $isFromMe) {
+                $this->cancelPendingWorkflow($batchKey);
+                // Add current message to batch
+                $batch['messages'][] = [
+                    'body' => $request['Body'],
+                    'message_sid' => $request['SmsMessageSid'],
+                    'timestamp' => now(),
+                    'raw_data' => $request,
+                    'message_id' => $message->getId(),
+                ];
+
+                $batch['last_message_time'] = now();
+                $batch['last_message_id'] = $message->getId();
+
+                Cache::put($batchKey, $batch, now()->addMinutes(10));
+            }
         }
 
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
         }
+
+        $channel->addMessage($message);
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-        $channel->fireWorkflow(
-            WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-            true,
-            [
-                'message' => $message,
-                'user' => $message->user,
-                'app' => $message->app,
-                'company' => $message->company,
-                'text' => $request['Body'],
-            ]
-        );
+
+        $workflowJobKey = "workflow_job:{$batchKey}";
+
+        // Clear any cancellation flag
+        Cache::forget($workflowJobKey . ':cancelled');
+
+        dispatch(function () use ($message, $channel, $request, $batchKey, $workflowJobKey) {
+            // Check if this job was cancelled
+            if (Cache::has($workflowJobKey . ':cancelled')) {
+                return; // Job was cancelled by newer message
+            }
+
+            // Verify this is still the last message in the batch
+            $currentBatch = Cache::get($batchKey);
+            if (! $currentBatch || $currentBatch['last_message_id'] !== $message->getId()) {
+                return; // Not the last message anymore
+            }
+
+            $channel->fireWorkflow(
+                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                true,
+                [
+                    'message' => $message,
+                    'user' => $message->user,
+                    'app' => $message->app,
+                    'company' => $message->company,
+                    'text' => $request['Body'],
+                    'batchKey' => $batchKey,
+                ]
+            );
+        })->delay(now()->addSeconds($this->batchDelaySeconds));
 
         return [
             [
@@ -117,6 +187,15 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'type' => $messageTypeModel->name,
             ],
         ];
+    }
+
+    protected function cancelPendingWorkflow(string $batchKey): void
+    {
+        $workflowJobKey = "workflow_job:{$batchKey}";
+
+        // If you're using a queue that supports job cancellation, cancel here
+        // For now, we'll use a flag approach
+        Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
     }
 
     public function createLeadFromPeople(PeopleModel $people): Lead
@@ -163,7 +242,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             user: $people->user,
             title: $people->name . ' Twilio Opp',
             pipeline_stage_id: 0,
-            people: new People(
+            people: new PeopleDto(
                 $people->app,
                 $people->company->defaultBranch,
                 $people->user,
@@ -189,29 +268,56 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         return $lead;
     }
 
-    public function processContactFromMessage(): PeopleModel
+    public function processContactFromMessage(array $request): PeopleModel
     {
-        $request = $this->webhookRequest->payload;
-        $firstName = $request['From'];
+        $phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
+        $phoneNumberWitCountryCode = str_replace('+', '', $request['From']);
+        $existingCustomer = People::getByCustomField(
+            'twilio_jid',
+            $phoneNumber,
+            $this->receiver->company
+        );
+
+        // also find customer by phone number if not found by JID
+        if (! $existingCustomer) {
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWitCountryCode) {
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWitCountryCode])
+                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+            })->fromCompany($this->receiver->company)
+                ->fromApp($this->receiver->app)
+            ->first();
+        }
+
+        if ($existingCustomer && $this->hijackSession) {
+            return $existingCustomer;
+        }
 
         $contactData = [
-                    [
-                        'value' => $request['From'],
-                        'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
-                        'weight' => 100,
-                    ],
-                ];
+            [
+                'value' => $phoneNumber,
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'weight' => 100,
+            ],
+        ];
 
-        $peopleDto = new People(
+        $peopleDto = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->receiver->company->defaultBranch,
             user: $this->receiver->user,
-            firstname: $firstName,
+            firstname: $existingCustomer ? $existingCustomer->firstname : $phoneNumber,
             contacts: Contact::collect($contactData, DataCollection::class),
             address: Address::collect([], DataCollection::class),
-            lastname: '',
+            lastname: $existingCustomer ? $existingCustomer->lastname : '',
+            custom_fields: [
+                'twilio_jid' => $phoneNumber,
+            ],
             tags: ['sms', 'twilio']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
+
         $createAction = new CreatePeopleAction($peopleDto);
 
         return $createAction->execute();
@@ -233,18 +339,22 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                         ->lockForUpdate()  // This applies a database-level lock
                         ->first();
             if (! $channel) {
-                $channel = Channel::create([
-                      'users_id' => $this->receiver->users_id,
+                $channel = Channel::firstOrCreate(
+                    [
+                                          'users_id' => $this->receiver->users_id,
                       'apps_id' => $this->receiver->app->getId(),
                       'companies_id' => $this->receiver->company->getId(),
                       'slug' => $slug,
+                ],
+                    [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
-                ]);
+                ]
+                );
             }
             if ($lead) {
-                $channel->entity_namespace = get_class($lead->people);
-                $channel->entity_id = $lead->people->getId();
+                $channel->entity_namespace = get_class($lead);
+                $channel->entity_id = $lead->getId();
             }
 
             $channel->save();

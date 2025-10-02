@@ -33,6 +33,7 @@ class PushOrderToCommerceAction
         $sku = $variant->getAttributeBySlug(CMLinkEnumsConfigurationEnum::PRODUCT_FATHER_SKU->value)?->value ?? $variant->sku;
         $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
         $aeroAmbulanciaData = $this->order->metadata['aeroAmbulanciaData'] ?? null;
+        $universalAssistanceData = $this->order->metadata['universalAssistanceData'] ?? null;
 
         $response = Http::withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
@@ -78,6 +79,7 @@ class PushOrderToCommerceAction
             'is_unlimited' => (int) ($this->esim->esimStatus->unlimited ?? false),
             'total' => $this->order->total_net_amount,
             'aero_ambulancia_data' => $aeroAmbulanciaData,
+            'universal_assistance_data' => $universalAssistanceData,
         ]);
 
         return $response->json();

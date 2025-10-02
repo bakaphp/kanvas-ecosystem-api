@@ -24,10 +24,12 @@ class VehicleInterestTool implements ContextToolInterface
         if (! $vehicleInterest) {
             return [];
         }
-        $variant = Variants::where('sku', $vehicleInterest['vin'])
-                    ->where('companies_id', $this->entity->companies_id)
-                    ->where('apps_id', $this->entity->apps_id)
-                    ->first();
+        if (isset($vehicleInterest['vin'])) {
+            $variant = Variants::where('sku', $vehicleInterest['vin'])
+                ->where('companies_id', $this->entity->companies_id)
+                ->where('apps_id', $this->entity->apps_id)
+                ->first();
+        }
 
         return [
             'condition' => $vehicleInterest['isNew'] ?? '',
@@ -37,8 +39,9 @@ class VehicleInterestTool implements ContextToolInterface
             'trim' => $vehicleInterest['trim'] ?? '',
             'vin' => $vehicleInterest['vin'] ?? '',
             'stock_number' => $vehicleInterest['stockNumber'] ?? '',
+            'in_stock' => isset($vehicleInterest['stockNumber']) && ! empty($vehicleInterest['stockNumber']) ? true : false,
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
-            'price' => $variant?->getPriceInfoFromDefaultChannel()->price ?? 0,
+            'price' => isset($variant) ? ($variant?->getPriceInfoFromDefaultChannel()->price ?? 0) : 0,
         ];
     }
 }

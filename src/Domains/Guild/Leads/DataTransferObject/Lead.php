@@ -39,7 +39,7 @@ class Lead extends Data
         public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
         public readonly array $files = [],
-        public readonly bool $runWorkflow = true,
+        public bool $runWorkflow = true,
         public readonly array $followers = [],
     ) {
     }

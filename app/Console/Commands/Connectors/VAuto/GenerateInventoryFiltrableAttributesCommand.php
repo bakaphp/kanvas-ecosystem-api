@@ -61,8 +61,9 @@ class GenerateInventoryFiltrableAttributesCommand extends Command
             $this->overwriteAppService($app);
             $company = Companies::getById((int) $this->argument('company_id'));
 
-            $attributeType = AttributesTypes::fromApp($app)
-                ->fromCompany($company)
+            $attributeType = AttributesTypes::query()
+                ->where('apps_id', 0)
+                ->where('companies_id', 0)
                 ->where('name', self::ATTRIBUTE_TYPE_INPUT)
                 ->firstOrFail();
 
@@ -75,7 +76,7 @@ class GenerateInventoryFiltrableAttributesCommand extends Command
             $this->attributeConfigs['price_range']['values'] = [0, (int) $maxPrice];
 
             foreach ($this->attributeConfigs as $config) {
-                //$this->processAttribute($config, $company, $app, $attributeType);
+                $this->processAttribute($config, $company, $app, $attributeType);
             }
 
             $this->generateBodyAttributeValues($app, $company);

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Prism\Prism\Schema\ArraySchema;
@@ -30,6 +31,7 @@ class CompletionStatusTool implements ContextToolInterface
             ->firstOrFail();
     }
 
+    #[Override]
     public function execute(array $params = []): array
     {
         $data = [
@@ -80,10 +82,11 @@ class CompletionStatusTool implements ContextToolInterface
         );
 
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.0-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-flash')
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-                   ->withPrompt(Blade::render(implode(' ', ['Clasifica el lead según el esquema proporcionado.']), $data))
+                   ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
+                    ->withMaxTokens(7000)
                    ->asStructured();
 
         return $response->structured;

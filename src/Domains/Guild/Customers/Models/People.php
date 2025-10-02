@@ -196,6 +196,17 @@ class People extends BaseModel
                 ->get();
     }
 
+    public function getAllPhones(): Collection
+    {
+        $cellphoneTypeId = ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId();
+        $phoneTypeId = ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId();
+
+        return $this->contacts()
+                ->whereIn('contacts_types_id', [$phoneTypeId, $cellphoneTypeId])
+                ->orderByRaw("FIELD(contacts_types_id, {$cellphoneTypeId}, {$phoneTypeId})")
+                ->get();
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */
@@ -401,10 +412,8 @@ class People extends BaseModel
     /**
      * Get person by phone matching (strips non-numeric characters for comparison).
      */
-    public static function getByPhoneMatchingValue(string $phone, ?Apps $app = null): ?self
+    public static function getByPhoneMatchingValue(string $phone, Companies $company, Apps $app): ?self
     {
-        $app = $app ?? app(Apps::class);
-
         return self::whereHas('contacts', function ($query) use ($phone) {
             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
                   ->whereIn('contacts_types_id', [
@@ -412,8 +421,20 @@ class People extends BaseModel
                       ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
                   ]);
         })->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
           ->where('is_deleted', 0)
           ->first();
+    }
+
+    public static function getByMatchingValue(string $value, Companies $company, Apps $app): ?self
+    {
+        return self::whereHas('contacts', function ($query) use ($value) {
+            $query->where('value', $value);
+        })
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->first();
     }
 
     #[Override]
@@ -475,11 +496,11 @@ class People extends BaseModel
             'tags' => $this->tags->map(function ($tag) {
                 return $tag->name;
             }),
-            'custom_fields' => $this->customFields()->get()->map(function ($customField) {
+            'custom_fields' => []/* $this->customFields()->get()->map(function ($customField) {
                 return [
                     $customField->name => $customField->value,
                 ];
-            }),
+            }) */,
             'contacts' => $this->contacts()->get()->map(function ($contact) {
                 return [
                     'type' => $contact->type->name,

@@ -28,6 +28,7 @@ use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -497,6 +498,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         $totalDelivery = 0;
+        $isRemix = $entity->message['remix_parent_id'] ?? false;
+        $user = Users::getById($entity->users_id);
+        $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
+
         // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
         $createNuggetMessage = (new CreateNuggetMessageAction(
@@ -510,7 +515,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ))->execute();
 
         $messageCopy = $entity->message;
-        $messageCopy['ai_image'] = $cdnImageUrl;
+        if ($isRemix) {
+            $messageCopy['ai_image'] = array_merge(
+                ['ai_model' => $messageCopy['ai_model']],
+                [
+                    'nugget' => $cdnImageUrl,
+                    'title' => trim($title),
+                    'type' => 'image-format',
+                ]
+            );
+        } else {
+            $messageCopy['ai_image'] = $cdnImageUrl;
+        }
         $entity->message = $messageCopy;
         $entity->is_public = 1;
         $entity->save();

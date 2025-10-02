@@ -32,6 +32,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @method(name: "visibleAttributes")
         @cacheRedis
     variants(includeUnpublished: Boolean = false, limit: Int): [Variant!]!
+        @cacheRedis
         @HasMany
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"

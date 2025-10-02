@@ -46,7 +46,12 @@ class CreateLeadFirstEngagementMessageAction
             'lead' => $this->lead->toArray(),
             'people' => $this->lead->people->toArray(),
             'company' => $this->lead->company->toArray(),
-            'additional_context_information' => $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+            'additional_context_information' => array_merge(
+                $this->lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                ['people' => $this->lead->people->toArray()],
+                ['company' => $this->lead->company->toArray()],
+                ['lead' => $this->lead->toArray()]
+            ),
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
@@ -64,15 +69,20 @@ class CreateLeadFirstEngagementMessageAction
             ],
             requiredFields: ['title', 'message']
         );
-
+        $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.0-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-flash')
+                   ->withMaxTokens(7000) // Increase from default
                    ->withSchema($schema)
-                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-                   ->withPrompt(Blade::render(implode(' ', $this->agent->role['steps']), $data))
+                   ->withPrompt($prompt)
+                   ->withClientOptions([
+                       'timeout' => 220,          // Total timeout in seconds (2 minutes)
+                        'connect_timeout' => 220,   // Connection timeout in seconds
+                        'read_timeout' => 220,      // Read timeout in seconds
+                    ])
                    ->asStructured();
 
         // Return the structured data containing title and message
-        return $response->structured ?? [];
+        return [...$response->structured ?? [], ['background' => $prompt]];
     }
 }

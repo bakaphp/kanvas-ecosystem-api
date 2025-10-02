@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Connectors\Ofac\Client;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
@@ -24,11 +25,9 @@ class OfacClientScreeningAction
     public function __construct(
         protected Lead $lead,
         protected Message $message,
-        protected AppInterface $app
+        protected AppInterface $app,
+        protected People $people
     ) {
-        $this->lead = $lead;
-        $this->app = $app;
-        $this->message = $message;
     }
 
     public function execute(): string
@@ -36,7 +35,7 @@ class OfacClientScreeningAction
         $ofacClient = new Client($this->app);
 
         // Get the person associated with the lead
-        $person = $this->lead->people;
+        $person = $this->people;
 
         if (! $person || empty($person->firstname . ' ' . $person->lastname)) {
             throw new Exception('Lead must have an associated person with a name');
@@ -85,7 +84,7 @@ class OfacClientScreeningAction
             [
                 'ofac' => $ofacResponse,
                 'lead' => $this->lead,
-                'person' => $this->lead->people,
+                'person' => $this->people,
             ]
         );
 
@@ -172,7 +171,7 @@ class OfacClientScreeningAction
             'apps_id' => $this->app->getId(),
             'users_id' => $this->lead->user->getId(),
             'leads_id' => $this->lead->getId(),
-            'people_id' => $this->lead->people->getId(),
+            'people_id' => $this->people->getId(),
             'companies_actions_id' => $companyAction->getId(),
             'message_id' => $this->message->getId(),
             'slug' => 'ofac',

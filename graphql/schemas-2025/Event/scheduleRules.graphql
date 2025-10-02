@@ -1,0 +1,89 @@
+type ScheduleRules {
+    id: ID!
+    uuid: String!
+    apps_id: ID!
+    companies_id: ID!
+    resources_id: ID!
+    resources_type: String!
+    start_at: DateTime!
+    end_at: DateTime
+    rrule: String!
+    day_rrule: String
+    slot_duration_min: Int!
+    lead_time_min: Int!
+    cutoff_time_min: Int!
+    capacity_override: Int
+    is_deleted: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+    resource: ScheduleResource @morphTo
+}
+
+union ScheduleResource = Variant
+
+input ScheduleRulesInput {
+    resources_id: ID!
+    resources_type: String!
+    start_at: DateTime!
+    end_at: DateTime
+    rrule: String!
+    day_rrule: String
+    slot_duration_min: Int!
+    lead_time_min: Int
+    cutoff_time_min: Int
+    capacity_override: Int
+}
+
+input ScheduleRulesUpdateInput {
+    resources_id: ID
+    resources_type: String
+    start_at: DateTime
+    end_at: DateTime
+    rrule: String
+    day_rrule: String
+    slot_duration_min: Int
+    lead_time_min: Int
+    cutoff_time_min: Int
+    capacity_override: Int
+}
+
+extend type Mutation @guard {
+    createScheduleRules(input: ScheduleRulesInput!): ScheduleRules!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleRules\\ScheduleRulesManagementMutation@create"
+        )
+    updateScheduleRules(id: ID!, input: ScheduleRulesUpdateInput!): ScheduleRules!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleRules\\ScheduleRulesManagementMutation@update"
+        )
+    deleteScheduleRules(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleRules\\ScheduleRulesManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    scheduleRules(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "resources_id"
+                    "resources_type"
+                    "start_at"
+                    "end_at"
+                    "slot_duration_min"
+                    "lead_time_min"
+                    "cutoff_time_min"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "start_at"])
+    ): [ScheduleRules!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\ScheduleRules"
+            defaultCount: 25
+        )
+}

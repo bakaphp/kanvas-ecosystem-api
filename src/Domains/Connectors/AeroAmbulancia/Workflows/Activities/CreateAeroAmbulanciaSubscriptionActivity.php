@@ -30,6 +30,7 @@ class CreateAeroAmbulanciaSubscriptionActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::AERO_AMBULANCIA,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 sleep(30);
                 $order->refresh(); // Ensure the order is up-to-date

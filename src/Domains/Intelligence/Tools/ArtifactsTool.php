@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
+use Override;
 
 class ArtifactsTool implements ContextToolInterface
 {
@@ -14,11 +16,15 @@ class ArtifactsTool implements ContextToolInterface
     ) {
     }
 
+    #[Override]
     public function execute(array $params = []): array
     {
+        $adf = $this->entity->get(LeadCustomFieldEnum::ADF_LEAD_XML->value);
+        $comment = $adf ? ($adf['adf']['prospect']['customer']['comments'] ?? []) : [];
+
         return [
             'crm' => [
-                'status' => 'New',
+                'status' => $this->entity->status()->first()?->name,
                 'stage' => $this->entity->stage->name,
                 'tags' => $this->entity->tags->pluck('name')->toArray(),
                 'last_notes' => [
@@ -37,6 +43,7 @@ class ArtifactsTool implements ContextToolInterface
                 ],
                 ],
                 'transcript_snippet' => null,
+                'comments' => $comment,
         ];
     }
 }
