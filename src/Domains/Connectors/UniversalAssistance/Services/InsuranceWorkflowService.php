@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
+use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -1640,12 +1641,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Perform inclusion quotation
@@ -1676,6 +1677,8 @@ class InsuranceWorkflowService
             'selection_logic' => [
                 'variant' => $planVariant,
                 'target_plan' => $targetPlan,
+                'origin_country_code' => $originCountryCode,
+                'convenio_logic' => strtoupper($originCountryCode) === 'DO' ? 'DO_origin_forced_basic' : 'variant_based',
                 'inclusion_convenio' => $inclusionConvenio,
                 'cross_selling_convenio' => $crossSellingConvenio
             ]
@@ -2313,12 +2316,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Return appropriate convenio based on quotation type
@@ -2356,12 +2359,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Return appropriate convenio based on quotation type

@@ -660,6 +660,50 @@ class Order extends BaseModel
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
+    /**
+     * Get the most recent transition history entry
+     */
+    public function getLastTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Get the first transition history entry
+     */
+    public function getFirstTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+    }
+
+    /**
+     * Get transition history by the to_status slug
+     */
+    public function getTransitionByStatus(string $statusSlug): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->whereHas('toStatus', function ($query) use ($statusSlug) {
+                $query->where('slug', $statusSlug);
+            })
+            ->first();
+    }
+
+    /**
+     * Get the current active transition (where is_current = true)
+     */
+    public function getCurrentTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->where('is_current', true)
+            ->first();
+    }
+
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])

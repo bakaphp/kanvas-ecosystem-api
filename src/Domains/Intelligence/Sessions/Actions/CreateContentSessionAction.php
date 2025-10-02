@@ -113,7 +113,7 @@ class CreateContentSessionAction
             'contacts' => $people->contacts->toArray(),
             'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
-            'check_list_status' => $lead instanceof Lead ? $this->getCheckListStatus($lead) : [],
+            'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
         ];

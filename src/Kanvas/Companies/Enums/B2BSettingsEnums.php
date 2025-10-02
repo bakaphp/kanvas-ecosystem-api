@@ -16,6 +16,7 @@ enum B2BSettingsEnums implements EnumsInterface
     case B2B_COMPANY_STATUS;
     case B2B_APP_WISE_ORDER_NUMBERING;
     case B2B_COMPANY_ADMIN_EMAILS;
+    case B2B_SYNC_INVENTORY_EMAIL_TEMPLATE;
 
     #[Override]
     public function getValue(): mixed
@@ -27,7 +28,8 @@ enum B2BSettingsEnums implements EnumsInterface
             self::B2B_COMPANY_DISCOUNT => 'b2b_company_discount',
             self::B2B_COMPANY_STATUS => 'b2b_company_status',
             self::B2B_APP_WISE_ORDER_NUMBERING => 'b2b_app_wise_order_numbering',
-            self::B2B_COMPANY_ADMIN_EMAILS => "b2b_company_admin_emails"
+            self::B2B_COMPANY_ADMIN_EMAILS => "b2b_company_admin_emails",
+            self::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE => "b2b_sync_inventory_email_template",
         };
     }
 }

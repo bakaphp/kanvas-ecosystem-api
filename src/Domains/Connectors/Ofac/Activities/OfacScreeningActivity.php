@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use Kanvas\ActionEngine\Tasks\Actions\UpdateTaskStatusFromEngagementAction;
 use Kanvas\Connectors\Ofac\Actions\OfacClientScreeningAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -32,11 +33,19 @@ class OfacScreeningActivity extends KanvasActivity
                     throw new Exception('Message must be associated with a lead for OFAC screening');
                 }
 
+                $coBuyer = $message->message['people_id'] ?? null;
+                if ($coBuyer !== null) {
+                    $people = People::fromApp($message->app)->fromCompany($message->company)->where('id', $coBuyer)->first();
+                }
+
+                $people = $people ?? $lead->people;
+
                 // Execute OFAC screening action
                 $ofacAction = new OfacClientScreeningAction(
                     lead: $lead,
                     message: $message,
-                    app: $app
+                    app: $app,
+                    people: $people
                 );
 
                 $fileLink = $ofacAction->execute();
@@ -53,6 +62,7 @@ class OfacScreeningActivity extends KanvasActivity
                     'file_link' => $fileLink,
                     'lead_id' => $lead->getId(),
                     'message_id' => $message->getId(),
+                    'people_id' => $people->getId(),
                     'task_engagement_item_id' => count($changeStatusAction) > 0 ? current($changeStatusAction)->getId() : null,
                 ];
             },

@@ -7,6 +7,7 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
@@ -107,7 +108,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                         $config['via']
                     );
                     $newMessageNotification->setFromUser($message->user);
-
+                    $newMessageNotification->setType(NotificationTypesEnum::NEW_MESSAGE->value);
                     $message->parent->user->notify($newMessageNotification);
                 } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
                     return [

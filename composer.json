@@ -21,7 +21,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.89.0",
+        "echolabsdev/prism": "^0.90.0",
         "genealabs/laravel-model-caching": "^12.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
@@ -84,7 +84,7 @@
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
-        "twilio/sdk": "^8.0",
+        "twilio/sdk": "<8.8.4",
         "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
@@ -101,7 +101,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.3.14"
+        "phpunit/phpunit": "12.3.15"
     },
     "autoload": {
         "psr-4": {
