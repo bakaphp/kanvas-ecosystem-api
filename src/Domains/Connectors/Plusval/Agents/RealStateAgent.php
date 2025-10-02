@@ -266,6 +266,7 @@ class RealStateAgent extends BaseAgent
 
     public function getAgentPhone(): string
     {
+        /** @var People|Lead $agent */
         $agent = $this->entity;
 
         // Get agent's phone number (the person using the agent)
