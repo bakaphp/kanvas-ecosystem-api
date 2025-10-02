@@ -609,13 +609,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
-            $image_url = $params['additional_images'];
+            $imageUrl = $params['additional_images'];
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, [
             'operation' => 'submit',
-            'image_url' => $image_url,
+            'image_url' => $imageUrl,
             'model' => 'fal-ai/' . $imageFilter,
             'prompt' => $prompt,
         ]);
