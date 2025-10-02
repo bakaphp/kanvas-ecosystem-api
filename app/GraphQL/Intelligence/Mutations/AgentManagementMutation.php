@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Inspector\Configuration;
+use Inspector\Inspector;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Observability\AgentMonitoring;
 
 class AgentManagementMutation
 {
@@ -75,5 +81,47 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    public function chat(mixed $root, array $req): string
+    {
+        $req = $req['input'] ?? [];
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $useInspector = $app->get('inspector-key') !== null;
+
+        $currentAgent = new $agent->type->handler();
+        //$currentAgent = $this->agent;
+
+        $currentAgent->setConfiguration(
+            $agent,
+        );
+
+        if ($useInspector) {
+            $inspector = new Inspector(
+                new Configuration($app->get('inspector-key'))
+            );
+            $currentAgent->observe(
+                new AgentMonitoring($inspector)
+            );
+        }
+
+        $responseContent = $currentAgent instanceof ADKAgent ?
+        $currentAgent->chatSimple(
+            $app,
+            $agent->company,
+            (string) auth()->user()->getId(),
+            $req['session_id'],
+            $req['message']
+        ) : $currentAgent->chat(new UserMessage($req['message']));
+
+        $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
+
+        return $responseText;
     }
 }
