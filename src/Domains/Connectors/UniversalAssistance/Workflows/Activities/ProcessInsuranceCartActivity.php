@@ -211,7 +211,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Approach 2: Single insurance from workflow params (original functionality)
         $insuranceData = [];
         $messageId = null;
-        
+
         // Try direct params first
         if (isset($params['titular'])) {
             $insuranceData = $params;
@@ -224,7 +224,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         elseif (isset($params[$orderKey]['metadata']['esims'][0]['eSimDetails']['insurance'])) {
             $firstEsim = $params[$orderKey]['metadata']['esims'][0];
             $insuranceData = $firstEsim['eSimDetails']['insurance'];
-            
+
             // Get message_id from multiple possible locations
             $messageId = $firstEsim['message_id']                    // First try: individual eSIM message_id
                 ?? $params[$orderKey]['message_id']             // Second try: Order level message_id
