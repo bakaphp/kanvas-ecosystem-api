@@ -16,17 +16,55 @@ use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
+use Kanvas\Event\Events\Models\EventHold;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class ResourceBookingMutation
 {
+    /**
+     * Hold a resource for checkout (temporary reservation)
+     */
+    public function hold(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $input = $args['input'];
+        $holdDuration = $input['hold_duration_minutes'] ?? $app->get('hold_duration_minutes');
+
+        // Create event hold record
+        $eventHold = EventHold::create([
+            'resources_id' => $input['resources_id'],
+            'resources_type' => $input['resources_type'],
+            'start_at' => $input['start_at'],
+            'end_at' => $input['end_at'],
+            'participants' => $input['participants'],
+            'event_name' => $input['event_name'] ?? null,
+            'event_description' => $input['event_description'] ?? null,
+            'metadata' => $input['metadata'] ?? [],
+            'resources' => $input['resources'] ?? [],
+            'users_id' => $user->getId(),
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'expires_at' => now()->addMinutes($holdDuration),
+        ]);
+
+        return [
+            'hold_id' => (string) $eventHold->id,
+            'expires_at' => $eventHold->expires_at->toDateTimeString(),
+            'message' => "Resource held successfully for {$holdDuration} minutes",
+        ];
+    }
+
     /**
      * Book a resource directly and create event with participants using existing CreateEventAction.
      * Can accept either direct booking data or a hold_id from previous hold operation.
@@ -40,9 +78,16 @@ class ResourceBookingMutation
         $input = $args['input'];
         $bookingData = $input;
 
-        // Validate payment intent if provided
-        if (isset($bookingData['payment_intent_id'])) {
-            $this->validatePaymentIntent($bookingData['payment_intent_id']);
+        // If hold_id is provided, retrieve held data
+        if (isset($input['hold_id'])) {
+            $eventHold = EventHold::notExpired()->find($input['hold_id']);
+
+            if (! $eventHold) {
+                throw new ValidationException('Hold not found or expired: ' . $input['hold_id']);
+            }
+
+            // Clean up hold after successful retrieval
+            $eventHold->delete();
         }
 
         // Get the resource entity
@@ -298,21 +343,5 @@ class ResourceBookingMutation
             'message' => 'Resource booking deleted successfully',
             'deleted_event' => $eventInfo,
         ];
-    }
-
-    /**
-     * Validate payment intent (placeholder - implement based on your payment system)
-     */
-    private function validatePaymentIntent(string $paymentIntentId): void
-    {
-        // Add your payment validation logic here
-        // For example, check with Stripe, PayPal, etc.
-        // Throw exception if payment intent is invalid
-
-        // Example validation (adjust based on your payment system):
-        // $paymentIntent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
-        // if ($paymentIntent->status !== 'succeeded') {
-        //     throw new \Exception('Payment intent not successful');
-        // }
     }
 }
