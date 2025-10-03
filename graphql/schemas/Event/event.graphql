@@ -145,8 +145,7 @@ input EventInput {
     type_id: ID!
     class_id: ID
     category_id: ID!
-    resources_id: ID
-    resources_type: String
+    resources: Mixed
     participants: [String!]
     dates: [EventVersionDateInput!]!
 }
@@ -197,8 +196,35 @@ input ResourceBookingInput {
     event_name: String
     event_description: String
     hold_id: String
+    payment_intent_id: String
+    payment_method_id: String
     metadata: Mixed
     resources: Mixed
+}
+
+input ResourceBookingUpdateInput {
+    event_version_id: ID!
+    resources_id: ID
+    resources_type: String
+    start_at: String
+    end_at: String
+    participants: Mixed
+    event_name: String
+    event_description: String
+    metadata: Mixed
+    resources: Mixed
+}
+
+type ResourceBookingDeleteResult {
+    success: Boolean!
+    message: String!
+    deleted_event: Mixed
+}
+
+type ResourceHoldResult {
+    hold_id: String!
+    expires_at: String!
+    message: String!
 }
 
 extend type Mutation @guard {
@@ -219,10 +245,20 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
-    
+
     bookResource(input: ResourceBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@book"
+        )
+
+    updateResourceBooking(input: ResourceBookingUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@update"
+        )
+
+    deleteResourceBooking(event_version_id: ID!): ResourceBookingDeleteResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@delete"
         )
 }
 
@@ -230,7 +266,7 @@ extend type Query @guard {
     events(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id"])
+            @whereConditions(columns: ["id", "name", "slug", "companies_id", "resources_id", "resources_type"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Event!]!
         @paginate(

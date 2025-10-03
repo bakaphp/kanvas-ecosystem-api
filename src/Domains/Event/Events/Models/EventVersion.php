@@ -9,8 +9,8 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
@@ -40,16 +40,16 @@ class EventVersion extends BaseModel
         return $this->hasMany(EventVersionDate::class);
     }
 
-    public function participants(): HasManyThrough
+    public function participants(): BelongsToMany
     {
-        return $this->hasManyThrough(
-            Participant::class,
-            EventVersionParticipant::class,
-            'event_version_id',
-            'id',
-            'id',
-            'participant_id'
-        );
+        return $this->belongsToMany(Participant::class, 'event_version_participants')
+        ->withPivot(['ticket_price', 'discount', 'invoice_date', 'metadata', 'participant_type_id'])
+        ->withTimestamps();
+    }
+
+    public function eventVersionParticipants(): HasMany
+    {
+        return $this->hasMany(EventVersionParticipant::class, 'event_version_id');
     }
 
     protected function casts(): array

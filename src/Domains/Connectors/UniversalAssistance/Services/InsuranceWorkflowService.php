@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
+use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -552,19 +553,222 @@ class InsuranceWorkflowService
     protected function getCountryName(string $countryCode): string
     {
         $countries = [
+            // Americas
             'AR' => 'ARGENTINA',
-            'DO' => 'REPUBLICA DOMINICANA',
-            'US' => 'ESTADOS UNIDOS',
-            'CA' => 'CANADA',
-            'MX' => 'MEXICO',
-            'ES' => 'ESPAÑA',
-            'FR' => 'FRANCIA',
-            'IT' => 'ITALIA',
+            'BO' => 'BOLIVIA',
             'BR' => 'BRASIL',
+            'CA' => 'CANADA',
+            'CL' => 'CHILE',
             'CO' => 'COLOMBIA',
+            'CR' => 'COSTA RICA',
+            'CU' => 'CUBA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'EC' => 'ECUADOR',
+            'SV' => 'EL SALVADOR',
+            'GT' => 'GUATEMALA',
+            'GY' => 'GUYANA',
+            'HT' => 'HAITI',
+            'HN' => 'HONDURAS',
+            'JM' => 'JAMAICA',
+            'MX' => 'MEXICO',
+            'NI' => 'NICARAGUA',
+            'PA' => 'PANAMA',
+            'PY' => 'PARAGUAY',
+            'PE' => 'PERU',
+            'PR' => 'PUERTO RICO',
+            'SR' => 'SURINAM',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'US' => 'USA',
+            'UY' => 'URUGUAY',
+            'VE' => 'VENEZUELA',
+
+            // Europe
+            'AD' => 'ANDORRA',
+            'AT' => 'AUSTRIA',
+            'BE' => 'BELGICA',
+            'BG' => 'BULGARIA',
+            'HR' => 'CROACIA',
+            'CY' => 'CHIPRE',
+            'CZ' => 'REPUBLICA CHECA',
+            'DK' => 'DINAMARCA',
+            'EE' => 'ESTONIA',
+            'FI' => 'FINLANDIA',
+            'FR' => 'FRANCIA',
+            'DE' => 'ALEMANIA',
+            'GR' => 'GRECIA',
+            'HU' => 'HUNGRIA',
+            'IS' => 'ISLANDIA',
+            'IE' => 'IRLANDA',
+            'IT' => 'ITALIA',
+            'LV' => 'LETONIA',
+            'LI' => 'LIECHTENSTEIN',
+            'LT' => 'LITUANIA',
+            'LU' => 'LUXEMBURGO',
+            'MT' => 'MALTA',
+            'MC' => 'MONACO',
+            'ME' => 'MONTENEGRO',
+            'NL' => 'HOLANDA',
+            'NO' => 'NORUEGA',
+            'PL' => 'POLONIA',
+            'PT' => 'PORTUGAL',
+            'RO' => 'RUMANIA',
+            'RU' => 'RUSIA',
+            'SM' => 'SAN MARINO',
+            'RS' => 'SERBIA',
+            'SK' => 'ESLOVAQUIA',
+            'SI' => 'ESLOVENIA',
+            'ES' => 'ESPAÑA',
+            'SE' => 'SUECIA',
+            'CH' => 'SUIZA',
+            'UA' => 'UCRANIA',
+            'GB' => 'INGLATERRA',
+            'VA' => 'CIUDAD VATICANO',
+
+            // Asia
+            'AF' => 'AFGHANISTAN',
+            'AM' => 'ARMENIA',
+            'AZ' => 'AZERBAIJAN',
+            'BH' => 'BAHREIN',
+            'BD' => 'BANGLADESH',
+            'BT' => 'BHUTAN',
+            'BN' => 'BRUNEI',
+            'KH' => 'CAMBOYA',
+            'CN' => 'CHINA',
+            'GE' => 'GEORGIA',
+            'IN' => 'INDIA',
+            'ID' => 'INDONESIA',
+            'IR' => 'IRAN',
+            'IQ' => 'IRAK',
+            'IL' => 'ISRAEL',
+            'JP' => 'JAPON',
+            'JO' => 'JORDANIA',
+            'KZ' => 'KAZAJISTAN',
+            'KP' => 'COREA DEL NORTE',
+            'KR' => 'COREA DEL SUR',
+            'KW' => 'KUWAIT',
+            'KG' => 'KIRGUISTAN',
+            'LA' => 'LAOS',
+            'LB' => 'LIBANO',
+            'MY' => 'MALASIA',
+            'MV' => 'MALDIVAS',
+            'MN' => 'MONGOLIA',
+            'MM' => 'MYANMAR',
+            'NP' => 'NEPAL',
+            'OM' => 'OMAN',
+            'PK' => 'PAKISTAN',
+            'PS' => 'PALESTINA',
+            'PH' => 'FILIPINAS',
+            'QA' => 'QATAR',
+            'SA' => 'ARABIA SAUDITA',
+            'SG' => 'SINGAPUR',
+            'LK' => 'SRI LANKA',
+            'SY' => 'SIRIA',
+            'TW' => 'TAIWAN',
+            'TJ' => 'TAYIKISTAN',
+            'TH' => 'TAILANDIA',
+            'TL' => 'TIMOR ORIENTAL',
+            'TR' => 'TURQUIA',
+            'TM' => 'TURKMENISTAN',
+            'AE' => 'EMIRATOS ARABES UNIDOS',
+            'UZ' => 'UZBEKISTAN',
+            'VN' => 'VIETNAM',
+            'YE' => 'YEMEN',
+
+            // Africa
+            'DZ' => 'ARGELIA',
+            'AO' => 'ANGOLA',
+            'BJ' => 'BENIN',
+            'BW' => 'BOTSWANA',
+            'BF' => 'BURKINA FASO',
+            'BI' => 'BURUNDI',
+            'CV' => 'CABO VERDE',
+            'CM' => 'CAMERUN',
+            'CF' => 'REPUBLICA CENTROAFRICANA',
+            'TD' => 'CHAD',
+            'KM' => 'COMORAS',
+            'CG' => 'CONGO',
+            'CI' => 'COSTA DE MARFIL',
+            'DJ' => 'YIBUTI',
+            'EG' => 'EGIPTO',
+            'GQ' => 'GUINEA ECUATORIAL',
+            'ER' => 'ERITREA',
+            'ET' => 'ETIOPIA',
+            'GA' => 'GABON',
+            'GM' => 'GAMBIA',
+            'GH' => 'GHANA',
+            'GN' => 'GUINEA',
+            'GW' => 'GUINEA BISSAU',
+            'KE' => 'KENIA',
+            'LS' => 'LESOTO',
+            'LR' => 'LIBERIA',
+            'LY' => 'LIBIA',
+            'MG' => 'MADAGASCAR',
+            'MW' => 'MALAWI',
+            'ML' => 'MALI',
+            'MR' => 'MAURITANIA',
+            'MU' => 'MAURICIO',
+            'MA' => 'MARRUECOS',
+            'MZ' => 'MOZAMBIQUE',
+            'NA' => 'NAMIBIA',
+            'NE' => 'NIGER',
+            'NG' => 'NIGERIA',
+            'RW' => 'RUANDA',
+            'ST' => 'SANTO TOME Y PRINCIPE',
+            'SN' => 'SENEGAL',
+            'SC' => 'SEYCHELLES',
+            'SL' => 'SIERRA LEONA',
+            'SO' => 'SOMALIA',
+            'ZA' => 'SUDAFRICA',
+            'SS' => 'SUDAN DEL SUR',
+            'SD' => 'SUDAN',
+            'SZ' => 'SUAZILANDIA',
+            'TZ' => 'TANZANIA',
+            'TG' => 'TOGO',
+            'TN' => 'TUNEZ',
+            'UG' => 'UGANDA',
+            'ZM' => 'ZAMBIA',
+            'ZW' => 'ZIMBABWE',
+
+            // Oceania
+            'AU' => 'AUSTRALIA',
+            'FJ' => 'FIYI',
+            'KI' => 'KIRIBATI',
+            'MH' => 'ISLAS MARSHALL',
+            'FM' => 'MICRONESIA',
+            'NR' => 'NAURU',
+            'NZ' => 'NUEVA ZELANDA',
+            'PW' => 'PALAOS',
+            'PG' => 'PAPUA NUEVA GUINEA',
+            'WS' => 'SAMOA',
+            'SB' => 'ISLAS SALOMON',
+            'TO' => 'TONGA',
+            'TV' => 'TUVALU',
+            'VU' => 'VANUATU',
+
+            // Caribbean/Other
+            'AI' => 'ANGUILA',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'AW' => 'ARUBA',
+            'BS' => 'BAHAMAS',
+            'BB' => 'BARBADOS',
+            'BZ' => 'BELICE',
+            'BM' => 'BERMUDAS',
+            'VG' => 'ISLAS VIRGENES BRITANICAS',
+            'KY' => 'ISLAS CAIMAN',
+            'CW' => 'CURAZAO',
+            'DM' => 'DOMINICA',
+            'GD' => 'GRANADA',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'MS' => 'ISLA DE MONTSERRAT',
+            'AN' => 'ANTILLAS HOLANDESAS',
+            'KN' => 'SAN CRISTOBAL Y NIEVES',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE Y GRANADINAS',
+            'TC' => 'ISLAS TURCAS Y CAICOS',
         ];
 
-        return $countries[$countryCode] ?? 'REPUBLICA DOMINICANA'; // Default to a valid country instead of INTERNACIONAL
+        return $countries[$countryCode] ?? 'ARGENTINA'; // Default to a valid country
     }
 
     /**
@@ -1437,12 +1641,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Perform inclusion quotation
@@ -1473,6 +1677,8 @@ class InsuranceWorkflowService
             'selection_logic' => [
                 'variant' => $planVariant,
                 'target_plan' => $targetPlan,
+                'origin_country_code' => $originCountryCode,
+                'convenio_logic' => strtoupper($originCountryCode) === 'DO' ? 'DO_origin_forced_basic' : 'variant_based',
                 'inclusion_convenio' => $inclusionConvenio,
                 'cross_selling_convenio' => $crossSellingConvenio
             ]
@@ -2110,12 +2316,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Return appropriate convenio based on quotation type
@@ -2153,12 +2359,12 @@ class InsuranceWorkflowService
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
             // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
-            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
             // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
-            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
         // Return appropriate convenio based on quotation type

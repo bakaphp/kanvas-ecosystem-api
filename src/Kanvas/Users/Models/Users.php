@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -673,16 +674,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->password = $user->password;
         $this->user_activation_forgot = '';
 
-        $this->fireWorkflow(
-            WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
-            true,
-            [
-                'app' => $app,
-                'profile' => $user,
-            ]
-        );
+        return DB::transaction(function () use ($user, $app) {
+            $user->saveOrFail();
+            $this->saveOrFail();
 
-        return $user->saveOrFail() && $this->saveOrFail();
+            $this->fireWorkflow(
+                WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
+                true,
+                [
+                    'app' => $app,
+                    'profile' => $user,
+                ]
+            );
+
+            return true;
+        });
     }
 
     public function updateDisplayName(string $displayName, AppInterface $app): bool

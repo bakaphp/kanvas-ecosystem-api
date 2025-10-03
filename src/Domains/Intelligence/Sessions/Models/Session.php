@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\SystemModules\Models\SystemModules;
 use Override;
 
 /**
@@ -47,5 +49,16 @@ class Session extends BaseModel
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channel::class, 'channel_id');
+    }
+
+    public function entity(): ?Model
+    {
+        if (! $this->entity_id || ! $this->entity_namespace) {
+            return null;
+        }
+
+        $legacyClassMap = SystemModules::convertLegacySystemModules($this->entity_namespace);
+
+        return $legacyClassMap::getById($this->entity_id);
     }
 }

@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Actions\ProcessPeopleDriverLicenseVerificationAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -23,34 +24,65 @@ class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
     protected Companies $company;
     protected Users $user;
 
-    public function execute(People $people, AppInterface $app, array $params): array
+    public function execute(People|Lead $people, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
         $this->app = $app;
         $this->company = $people->company;
         $this->user = $people->user;
 
+        $sentParticipants = $params['participant'] ?? [];
+
+        if (empty($sentParticipants) || ! isset($sentParticipants['peopleId'])) {
+            return [
+                'success' => false,
+                'message' => 'No participants sent',
+            ];
+        }
+
         /**
         * @todo for now it will only work with lead participants
         * combine with processlead cause we have a lot of repeated code
         */
-        $leadParticipant = LeadParticipant::where('peoples_id', $people->getId())
-            ->whereHas('lead', function (Builder $query) {
-                $query->where('is_deleted', 0)
-                    ->whereHas('status', function (Builder $query) {
-                        $query->whereIn('name', ['active', 'created']);
-                    });
-            })
-            ->with('lead')
-            ->orderBy('created_at', 'desc')
-            ->first();
 
+        /*      $leadParticipant = LeadParticipant::where('peoples_id', $people->getId())
+                 ->whereHas('lead', function (Builder $query) {
+                     $query->where('is_deleted', 0)
+                         ->whereHas('status', function (Builder $query) {
+                             $query->whereIn('name', ['active', 'created']);
+                         });
+                 })
+                 ->with('lead')
+                 ->orderBy('created_at', 'desc')
+                 ->first(); */
+
+        $leadParticipant = LeadParticipant::where('peoples_id', $sentParticipants['peopleId'])
+           ->whereHas('lead', function (Builder $query) {
+               $query->where('is_deleted', 0)
+                   ->whereHas('status', function (Builder $query) {
+                       $query->whereIn('name', ['active', 'created']);
+                   });
+           })
+           ->with('lead')
+           ->orderBy('created_at', 'desc')
+           ->first();
+
+        //$people = People::fromApp($app)->fromCompany($people->company)->where('id', $sentParticipants[0]['peopleId'])->firstOrFail();
         $lead = $leadParticipant ? $leadParticipant->lead : null;
+        $people = $leadParticipant ? $leadParticipant->people : null;
 
         if ($lead === null) {
             return [
                 'success' => false,
                 'message' => 'No active lead found for this person',
+            ];
+        }
+
+        if ($people === null) {
+            return [
+                'success' => false,
+                'person_id' => $sentParticipants['peopleId'],
+                'message' => 'No people found for this person',
             ];
         }
 

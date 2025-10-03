@@ -41,4 +41,11 @@ class TaskEngagementItemRepository
             END AS config
         ');
     }
+
+    public static function getLeadCompletedTaskItems(Lead $lead, ?int $taskListId = null): Builder
+    {
+        return self::getLeadsTaskItems($lead, $taskListId)
+            ->whereNotNull('company_task_engagement_items.lead_id')
+            ->where('company_task_engagement_items.status', '=', 'completed');
+    }
 }

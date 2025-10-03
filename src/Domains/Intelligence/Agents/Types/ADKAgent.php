@@ -62,6 +62,32 @@ class ADKAgent
         return $this;
     }
 
+    public function chatSimple(
+        Apps $app,
+        Companies $company,
+        string $userId,
+        string $sessionId,
+        string $message
+    ): self {
+        $googleADKService = new GoogleADKService(
+            $app,
+            $company
+        );
+
+        $googleADKService->startSession(
+            $userId,
+            $sessionId
+        );
+
+        $this->content = $googleADKService->chat(
+            $userId,
+            $sessionId,
+            $message
+        );
+
+        return $this;
+    }
+
     public function getContent(): string
     {
         return $this->content;

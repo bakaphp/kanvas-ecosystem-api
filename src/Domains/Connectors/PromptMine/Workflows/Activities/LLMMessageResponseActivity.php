@@ -34,12 +34,14 @@ use Throwable;
 class LLMMessageResponseActivity extends KanvasActivity
 {
     public $tries = 2;
+    protected ?AppInterface $app = null;
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         $company = $this->getCompany($app, $message->company);
+        $this->app = $app;
 
         return $this->executeIntegration(
             entity: $message,
@@ -245,11 +247,23 @@ class LLMMessageResponseActivity extends KanvasActivity
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
 
-        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value && isset($message->message['platform']) && $message->message['platform'] === 'android') {
-            $params['safety_tolerance'] = 1;
-            $params['enable_safety_checker'] = true;
-        }
+        if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value) {
+            if (isset($message->message['platform']) && $message->message['platform'] === 'android') {
+                $params['safety_tolerance'] = 1;
+                $params['enable_safety_checker'] = true;
+            }
 
+            $channel = $message->channels?->first();
+            $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
+
+            if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
+                $previousChatResponseMessage = $previousChatResponse->message['prompt'];
+                $previousChatMessageChildren = $previousChatResponse->children()?->first();
+                $params['previousImageUrl'] = $previousChatMessageChildren !== null ? $previousChatMessageChildren->message['image'] : null;
+                $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];
+                $params['subscribe'] = true;
+            }
+        }
         $imageLimitValidation = $this->validateImageLimit($message);
 
         if ($imageLimitValidation !== null) {
@@ -257,11 +271,22 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         try {
-            $generateImage = $promptClient->generateImage(
+            $generateImage = $previousChatResponse === null ? $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
                 params: $params
+            ) : $promptClient->continueImageChat(
+                //provider: $provider,
+                previousImageUrl: $params['previousImageUrl'] ?? null,
+                previousPrompts: $params['previousPrompts'] ?? [],
+                //model: $model,
+                model: $this->app->get('default-image-edit-model') ?? 'fal-ai/flux-kontext/dev',
+                newPrompt: $prompt,
+                subscribe: $params['subscribe'] ?? true,
+                //conversationId: $previousChatResponse->message['conversation_id'],
+                //messageId: $previousChatResponse->message['message_id'],
+                //params: $params
             );
         } catch (ClientException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
@@ -270,8 +295,9 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
-        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
-        return (string) $promptClient->extractImageUrl(
+        $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
+
+        return (string) $promptClient->{$parseResponse}(
             $generateImage
         );
     }
@@ -324,11 +350,11 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
                 (string) json_encode([
-                'error' => 'You have reached your daily image generation limit.',
-                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
-                'limit' => $message->app->get('message-post-limit') ?? 0,
-                'flag' => true,
-            ]);
+                    'error' => 'You have reached your daily image generation limit.',
+                    'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                    'limit' => $message->app->get('message-post-limit') ?? 0,
+                    'flag' => true,
+                ]);
         }
 
         return null;
