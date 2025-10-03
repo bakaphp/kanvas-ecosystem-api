@@ -443,6 +443,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
+            'categories_flat' => $this->categories->pluck('slug')->toArray(),
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -589,7 +590,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         if ($query->model->isTypesense()) {
             $query->options([
                 'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
-                'per_page' => $limit
+                'per_page' => $limit,
             ]);
         }
 
@@ -779,6 +780,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'status',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'categories_flat',
+                    'type' => 'string[]',
                     'optional' => true,
                 ],
                 [
