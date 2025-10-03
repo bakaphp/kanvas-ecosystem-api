@@ -46,7 +46,6 @@ class Customer
     public static function convertPeopleToCustomerStructure(People $people): array
     {
         $name = $people->getFirstAndLastName();
-        $generateTempEmail = $people->company->get('eleads_generate_temp_email') ?? false;
 
         $words = explode(' ', $name['lastName']);
         $middleName = null;

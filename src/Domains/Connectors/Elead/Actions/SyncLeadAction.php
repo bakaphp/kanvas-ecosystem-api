@@ -54,11 +54,6 @@ class SyncLeadAction
 
         if (! empty($eLeadOpportunity->soughtVehicles)) {
             $vehicleOfInterest = current($eLeadOpportunity->soughtVehicles);
-
-            if (! empty($vehicleOfInterest) && ! empty($vehicleOfInterest['yearTo'])) {
-                $vehicleOfInterest['year'] = $vehicleOfInterest['yearTo'];
-            }
-
             $lead->set(
                 LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value,
                 $vehicleOfInterest

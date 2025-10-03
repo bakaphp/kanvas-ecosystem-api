@@ -69,7 +69,6 @@ class VoucherService
             'MotivoVoucher' => $voucher->voucherReason,
             'Facturacion' => $voucher->billingStatus,
             'MonedaLista' => $voucher->currency,
-            'Precio' => '0.00', // UA Precio Actual Fijo - siempre 0.00
 
             // Applicant data
             'PaisResidenciaSolicitante' => $voucher->applicantResidenceCountry,
@@ -179,9 +178,7 @@ class VoucherService
             $errors[] = 'Applicant document number is required';
         }
 
-        // Usar email hardcodeado para pruebas
-        $applicantEmail = 'pelleranomanuel@gmail.com';
-        if (empty($applicantEmail)) {
+        if (empty($applicant->email)) {
             $errors[] = 'Applicant email is required';
         }
 
