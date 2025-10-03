@@ -24,7 +24,7 @@ class CreateOrganizationAction
     public function execute(): Organization
     {
         return Organization::firstOrCreate([
-            'name' => Str::limit($this->organizationData->name, 200, ''),
+            'name' => Str::limit($this->organizationData->name, 128, ''),
             'companies_id' => $this->organizationData->company->getId(),
             'apps_id' => $this->organizationData->app->getId(),
         ], [
