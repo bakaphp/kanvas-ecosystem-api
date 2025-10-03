@@ -76,7 +76,7 @@ class IssueCodeAction
      */
     public static function forAllParticipants(
         EventVersion $eventVersion,
-        ParticipantPassMotive $motive,
+        ?ParticipantPassMotive $motive = null,
         ?Carbon $expirationDate = null,
         string $format = self::FORMAT_NUMERIC_PIN
     ): array {

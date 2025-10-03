@@ -35,7 +35,7 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
                     if ($toStatus === EventStatusEnum::ACTIVE->value) {
                         $eventVersion = $event->versions->first();
                         if ($eventVersion) {
-                            $codes = IssueCodeAction::forAllParticipants($eventVersion, $motive);
+                            $codes = IssueCodeAction::forAllParticipants($eventVersion);
 
                             new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
                                 'codes' => $codes,
