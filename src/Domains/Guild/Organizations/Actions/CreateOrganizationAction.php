@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Organizations\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
 
@@ -23,7 +24,7 @@ class CreateOrganizationAction
     public function execute(): Organization
     {
         return Organization::firstOrCreate([
-            'name' => $this->organizationData->name,
+            'name' => Str::limit($this->organizationData->name, 200, ''),
             'companies_id' => $this->organizationData->company->getId(),
             'apps_id' => $this->organizationData->app->getId(),
         ], [
