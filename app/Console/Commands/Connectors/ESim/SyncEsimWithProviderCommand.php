@@ -55,27 +55,34 @@ class SyncEsimWithProviderCommand extends Command
 
         Order::disableSearchSyncing();
 
-        $messages = Message::fromApp($app)
+        // Process messages in chunks to avoid memory exhaustion
+        $chunkSize = 100; // Adjust based on your server's memory capacity
+
+        Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
             ->whereIsPublic()
             ->orderBy('id', 'desc')
-            ->get();
+            ->whereHas('messageType', function ($q) {
+                $q->where('verb', 'esim');
+            })
+            ->chunk($chunkSize, function ($messages) use ($app, $company) {
+                // Initialize services once per chunk
+                $eSimService = new ESimService($app);
+                $easyActivationOrderService = new OrderService($app);
+                $cmLinkCustomerService = new CustomerService($app, $company);
+                $ventaMobileService = new VentaMobileESimService($app, $company);
 
-        $eSimService = new ESimService($app);
-        $easyActivationOrderService = new OrderService($app);
-        $cmLinkCustomerService = new CustomerService($app, $company);
-        $ventaMobileService = new VentaMobileESimService($app, $company);
-
-        foreach ($messages as $message) {
-            $this->processMessage(
-                $message,
-                $eSimService,
-                $easyActivationOrderService,
-                $cmLinkCustomerService,
-                $ventaMobileService
-            );
-        }
+                foreach ($messages as $message) {
+                    $this->processMessage(
+                        $message,
+                        $eSimService,
+                        $easyActivationOrderService,
+                        $cmLinkCustomerService,
+                        $ventaMobileService
+                    );
+                }
+            });
     }
 
     private function processMessage(
@@ -190,6 +197,7 @@ class SyncEsimWithProviderCommand extends Command
                 $balance = $ventaMobileService->getServiceBalance($serviceId);
 
                 $extensionDetails = null;
+
                 try {
                     $extensionDetails = $ventaMobileService->getServiceExtensions($serviceId);
                 } catch (Exception $e) {
@@ -197,7 +205,6 @@ class SyncEsimWithProviderCommand extends Command
                 }
 
                 return $this->formatVentaMobileResponse($message, $serviceInfo, $balance, $extensionDetails);
-
             default:
                 return null;
         }
@@ -220,6 +227,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for EsimGo
         $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+
         return $esimStatus;
     }
 
@@ -237,6 +245,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for EasyActivation
         $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+
         return $esimStatus;
     }
 
@@ -489,6 +498,7 @@ class SyncEsimWithProviderCommand extends Command
         if (! $expirationDate) {
             return;
         }
+
         try {
             $expirationDate = Carbon::parse($expirationDate);
         } catch (\Exception $e) {
@@ -618,6 +628,7 @@ class SyncEsimWithProviderCommand extends Command
                         if (isset($income['dt_issue'])) {
                             $activationTimestamp = $income['dt_issue'];
                             $activationDate = Carbon::createFromTimestamp($activationTimestamp)->format('Y-m-d H:i:s');
+
                             break 2;
                         }
                     }
@@ -629,9 +640,11 @@ class SyncEsimWithProviderCommand extends Command
             foreach ($extensionDetails as $extension) {
                 if (isset($extension['dt_start']) && is_numeric($extension['dt_start'])) {
                     $activationDate = Carbon::createFromTimestamp($extension['dt_start'])->format('Y-m-d H:i:s');
+
                     break;
                 } elseif (isset($extension['dt_create']) && is_numeric($extension['dt_create'])) {
                     $activationDate = Carbon::createFromTimestamp($extension['dt_create'])->format('Y-m-d H:i:s');
+
                     break;
                 }
             }
@@ -647,6 +660,7 @@ class SyncEsimWithProviderCommand extends Command
             foreach ($balance as $balanceEntry) {
                 if (isset($balanceEntry['dt_to']) && is_numeric($balanceEntry['dt_to'])) {
                     $expirationDate = Carbon::createFromTimestamp($balanceEntry['dt_to'])->format('Y-m-d H:i:s');
+
                     break;
                 }
             }
@@ -656,9 +670,11 @@ class SyncEsimWithProviderCommand extends Command
             foreach ($extensionDetails as $extension) {
                 if (isset($extension['dt_end']) && is_numeric($extension['dt_end'])) {
                     $expirationDate = Carbon::createFromTimestamp($extension['dt_end'])->format('Y-m-d H:i:s');
+
                     break;
                 } elseif (isset($extension['dt_stop']) && is_numeric($extension['dt_stop'])) {
                     $expirationDate = Carbon::createFromTimestamp($extension['dt_stop'])->format('Y-m-d H:i:s');
+
                     break;
                 }
             }
@@ -691,6 +707,7 @@ class SyncEsimWithProviderCommand extends Command
                 // The 'value' field contains the remaining data in bytes
                 if (isset($bal['value']) && is_numeric($bal['value'])) {
                     $remainingData = (float)$bal['value'];
+
                     break;
                 }
             }
@@ -719,6 +736,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for VentaMobile
         $isValidState = in_array(strtolower($esimStatusArray['esim_status']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 }
