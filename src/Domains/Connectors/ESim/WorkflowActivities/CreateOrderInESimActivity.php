@@ -98,7 +98,12 @@ class CreateOrderInESimActivity extends KanvasActivity
                     $quantity = $item->quantity ?? 1;
                     $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
 
-                    $order->addTag(strtolower($order->metadata['source'] ?? 'website'));
+                    if (isset($order->metadata['is_stand']) && (bool) $order->metadata['is_stand']) {
+                        $order->addTag('stand');
+                    } else {
+                        $order->addTag(strtolower($order->metadata['source'] ?? 'website'));
+                    }
+
                     if (! empty($order->metadata['platformOS'])) {
                         $order->addTag(strtolower($order->metadata['platformOS']));
                     }
