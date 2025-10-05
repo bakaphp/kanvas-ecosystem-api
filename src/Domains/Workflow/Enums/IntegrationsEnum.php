@@ -38,4 +38,5 @@ enum IntegrationsEnum: string
     case OFAC = 'ofac';
 
     case TWILIO = 'twilio';
+    case MAILGUN = 'mailgun';
 }

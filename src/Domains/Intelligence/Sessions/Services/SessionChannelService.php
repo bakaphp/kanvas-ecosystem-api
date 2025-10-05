@@ -11,6 +11,7 @@ class SessionChannelService
         return match ($channel) {
             'whatsapp' => "$id@s.whatsapp.net",
             'sms' => "+$id",
+            'email' => $id,
         };
     }
 
@@ -19,6 +20,7 @@ class SessionChannelService
         return match ($channel) {
             'whatsapp' => "wa-chat-$id-at-swhatsappnet",
             'sms' => "twilio-$id",
+            'email' => "email-$id",
         };
     }
 }
