@@ -75,7 +75,13 @@ class AgentChannelResponderAction
         // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        $this->sendEmail($emailRequest, ['content' => $responseText, 'lead' => $this->message->entity()], $this->message);
+        $emailData = [
+            'content' => $responseText, 
+            'lead' => $this->message->entity(),
+            'company' => $this->message->company,
+        ];
+        
+        $this->sendEmail($emailRequest, $emailData, $this->message);
 
         return [
             'message' => $messageConversation,
