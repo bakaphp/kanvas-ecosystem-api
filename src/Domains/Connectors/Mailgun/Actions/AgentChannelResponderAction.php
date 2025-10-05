@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentChannelResponderAction
@@ -76,7 +75,7 @@ class AgentChannelResponderAction
         // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        $this->sendEmail($emailRequest, ['content' => $responseText], $this->message->user);
+        $this->sendEmail($emailRequest, ['content' => $responseText, 'lead' => $this->message->entity()], $this->message);
 
         return [
             'message' => $messageConversation,
@@ -103,15 +102,15 @@ class AgentChannelResponderAction
         return $channelId;
     }
 
-    protected function sendEmail(array $request, array $data, Users $user): void
+    protected function sendEmail(array $request, array $data, Message $message): void
     {
         $notification = new Blank(
             $request['template_name'],
             $data,
             ['mail'],
-            $user
+            $message
         );
-        $notification->setFromUser($user);
+        $notification->setFromUser($message->user);
         $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
     }
