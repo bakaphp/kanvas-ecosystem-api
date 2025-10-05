@@ -55,7 +55,7 @@ class CreateMessageFromEmailAction
                     'content' => $text,
                     'raw_data' => $text,
                     'message_id' => '--',
-                    'chat_jid' => Str::simpleSlug($from),
+                    'chat_jid' => SessionChannelService::createChannelSlug('email', $from),
                     'from_email' => $from,
                     'subject' => $this->webhookRequest->payload['subject'] ?? null,
                     'from_me' => false,

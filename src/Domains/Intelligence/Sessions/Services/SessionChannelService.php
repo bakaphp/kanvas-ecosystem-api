@@ -20,7 +20,7 @@ class SessionChannelService
         return match ($channel) {
             'whatsapp' => "wa-chat-$id-at-swhatsappnet",
             'sms' => "twilio-$id",
-            'email' => "email-$id",
+            'email' => 'email-' . str_replace(['@', '.'], ['-at-', '-dot-'], $id),
         };
     }
 }

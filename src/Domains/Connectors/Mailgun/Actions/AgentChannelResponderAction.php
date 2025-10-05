@@ -58,11 +58,11 @@ class AgentChannelResponderAction
         ];
 
         // Define the callback to send each chunk in real time
-        $onChunk = function ($text, $data) use ($emailRequest): void {
-            //$whatsAppMessageService->sendTextMessage($channelId, $text);
-            $this->sendEmail($emailRequest, ['content' => $text], $this->message->user);
-        };
-
+        /*    $onChunk = function ($text, $data) use ($emailRequest): void {
+               //$whatsAppMessageService->sendTextMessage($channelId, $text);
+               $this->sendEmail($emailRequest, ['content' => $text], $this->message->user);
+           }; */
+        $onChunk = null;
         $question = $currentAgent instanceof ADKAgent ?
         $currentAgent->chat(
             $this->channel,
@@ -77,10 +77,7 @@ class AgentChannelResponderAction
         // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        //if its not an ADKAgent, send the response as a text message
-        if (! ($currentAgent instanceof ADKAgent)) {
-            $this->sendEmail($emailRequest, ['content' => $responseText], $this->message->user);
-        }
+        $this->sendEmail($emailRequest, ['content' => $responseText], $this->message->user);
 
         return [
             'message' => $messageConversation,
