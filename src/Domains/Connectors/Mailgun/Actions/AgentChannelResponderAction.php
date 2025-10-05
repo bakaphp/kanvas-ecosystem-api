@@ -76,11 +76,11 @@ class AgentChannelResponderAction
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
         $emailData = [
-            'content' => $responseText, 
+            'content' => $responseText,
             'lead' => $this->message->entity(),
             'company' => $this->message->company,
         ];
-        
+
         $this->sendEmail($emailRequest, $emailData, $this->message);
 
         return [
