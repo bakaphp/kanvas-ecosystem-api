@@ -5,9 +5,9 @@ namespace Kanvas\Connectors\TeeTime\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
-use Kanvas\Event\Events\Actions\IssueCodeAction;
 use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
+use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -35,7 +35,11 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
                     if ($toStatus === EventStatusEnum::ACTIVE->value) {
                         $eventVersion = $event->versions->first();
                         if ($eventVersion) {
-                            $codes = IssueCodeAction::forAllParticipants($eventVersion);
+                            $codes = (new CreatePassAction(
+                                $eventVersion->event,
+                                $eventVersion,
+                                null
+                            ))->forAllParticipants();
 
                             new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
                                 'codes' => $codes,

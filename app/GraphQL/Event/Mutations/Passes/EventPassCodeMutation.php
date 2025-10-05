@@ -6,11 +6,13 @@ namespace App\GraphQL\Event\Mutations\Passes;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Event\Events\Actions\IssueCodeAction;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantPassMotive;
+use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Event\Passes\Actions\ScanPassAction;
+use Kanvas\Event\Passes\Enums\PassFormatEnum;
 
 class EventPassCodeMutation
 {
@@ -28,19 +30,19 @@ class EventPassCodeMutation
 
         $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
 
-        $format = $args['format'] ?? IssueCodeAction::FORMAT_NUMERIC_PIN;
+        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($args['expiration_date'])
             ? $args['expiration_date']
             : null;
 
-        [$pass, $plainCode] = IssueCodeAction::createPass(
+        [$pass, $plainCode] = (new CreatePassAction(
             $event,
             $eventVersion,
             $motive,
             null,
             $expirationDate,
             $format
-        );
+        ))->execute();
 
         return [
             'success' => true,
@@ -71,19 +73,19 @@ class EventPassCodeMutation
 
         $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
 
-        $format = $args['format'] ?? IssueCodeAction::FORMAT_NUMERIC_PIN;
+        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($args['expiration_date'])
             ? $args['expiration_date']
             : null;
 
-        [$pass, $plainCode] = IssueCodeAction::createPass(
+        [$pass, $plainCode] = (new CreatePassAction(
             $eventVersion->event,
             $eventVersion,
             $motive,
             $participant->getId(),
             $expirationDate,
             $format
-        );
+        ))->execute();
 
         return [
             'success' => true,
@@ -110,17 +112,19 @@ class EventPassCodeMutation
 
         $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
 
-        $format = $args['format'] ?? IssueCodeAction::FORMAT_NUMERIC_PIN;
+        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($args['expiration_date'])
             ? $args['expiration_date']
             : null;
 
-        $codes = IssueCodeAction::forAllParticipants(
+        $codes = (new CreatePassAction(
+            $eventVersion->event,
             $eventVersion,
             $motive,
+            null,
             $expirationDate,
             $format
-        );
+        ))->forAllParticipants();
 
         return [
             'success' => true,
@@ -141,13 +145,14 @@ class EventPassCodeMutation
         $company = $user->getCurrentCompany();
 
         $code = $args['code'];
-        $format = $args['format'] ?? IssueCodeAction::FORMAT_NUMERIC_PIN;
+        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
 
         // Validate and retrieve the pass (works for both PIN and QR formats)
-        $pass = IssueCodeAction::scanPIN($code, $app->getId(), $company->getId(), $format);
+        $pass = new ScanPassAction($app, $company, $code, $format)->execute();
 
         // Mark the pass as used
-        IssueCodeAction::markAsUsed($pass);
+        $pass->used_date = now();
+        $pass->save();
 
         // Load relationships
         $pass->load(['event', 'eventVersion', 'participant', 'motive']);
