@@ -29,7 +29,8 @@ class PromptVideoFilterActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
+        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 10);
+        $entity->refresh();
         $this->app = $app;
 
         $company = $this->getCompany($app, $entity);
