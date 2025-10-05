@@ -66,6 +66,7 @@ class PullNetSuiteProductPriceAction
 
         $mapPrice = (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
         $colorCode = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
+        $minimumOrderQuantity = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value);
 
         $config = [
             'map_price' => $mapPrice,
@@ -84,6 +85,10 @@ class PullNetSuiteProductPriceAction
             [
                 'name' => 'color_code',
                 'value' => $colorCode,
+            ],
+            [
+                'name' => 'minimum_order_quantity',
+                'value' => $minimumOrderQuantity,
             ],
         ]);
 
