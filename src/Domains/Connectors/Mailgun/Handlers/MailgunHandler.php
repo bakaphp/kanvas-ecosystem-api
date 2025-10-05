@@ -9,7 +9,7 @@ use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 
-class MindeeHandler extends BaseIntegration
+class MailgunHandler extends BaseIntegration
 {
     #[Override]
     public function setup(): bool
