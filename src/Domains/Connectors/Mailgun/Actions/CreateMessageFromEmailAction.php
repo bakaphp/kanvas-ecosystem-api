@@ -106,7 +106,7 @@ class CreateMessageFromEmailAction
                        'user' => $newMessage->user,
                        'app' => $newMessage->app,
                        'company' => $newMessage->company,
-                       'channel' => 'email',
+                       'communication_channel' => 'email',
                        'text' => $text,
                 ]
             );

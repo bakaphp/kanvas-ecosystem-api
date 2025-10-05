@@ -171,7 +171,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     'app' => $message->app,
                     'company' => $message->company,
                     'text' => $request['Body'],
-                    'channel' => 'sms',
+                    'communication_channel' => 'sms',
                     'batchKey' => $batchKey,
                 ]
             );
