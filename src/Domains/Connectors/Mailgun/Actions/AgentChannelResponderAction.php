@@ -30,7 +30,6 @@ class AgentChannelResponderAction
     {
         //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
         $messageConversation = $this->message->message['content'];
-        $emailTo = $this->message->message['raw_data']['message']['to'] ?? null;
 
         $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
