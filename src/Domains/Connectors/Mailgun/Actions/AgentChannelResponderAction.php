@@ -51,7 +51,7 @@ class AgentChannelResponderAction
         );
 
         $emailRequest = [
-            'template_name' => 'blank',
+            'template_name' => 'agent-email-response',
             'email' => $channelId, //$this->message->message['from_email'],
             'subject' => 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
         ];
