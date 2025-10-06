@@ -129,6 +129,7 @@ class StripePaymentLinkService
                     'currency' => 'usd',
                     'product_data' => [
                         'name' => $options['product_name'] ?? 'Payment',
+                        'description' => $options['product_description'] ?? '',
                     ],
                     'unit_amount' => $this->convertToStripeAmount($amount), // Amount in cents
                 ],
@@ -142,6 +143,10 @@ class StripePaymentLinkService
                //$paymentLinkData['customer_creation'] = $email;
                //$paymentLinkData['prefill_customer_email'] = $email;
            } */
+
+        if (isset($options['custom_fields'])) {
+            $paymentLinkData['custom_fields'] = $options['custom_fields'];
+        }
 
         // Add metadata if provided
         if (isset($options['metadata'])) {
