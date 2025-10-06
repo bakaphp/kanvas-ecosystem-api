@@ -209,7 +209,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Get primary message ID (fallback logic if no expanded data found)
         $primaryMessageId = null;
 
-        if (!empty($messageIds)) {
+        if (! empty($messageIds)) {
             $primaryMessageId = $messageIds[0]; // Use first message ID
         } else {
             // Fallback to order custom field
