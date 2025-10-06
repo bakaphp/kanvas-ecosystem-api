@@ -80,7 +80,7 @@ class ResourceBookingMutation
 
         // If hold_id is provided, retrieve held data
         if (isset($input['hold_id'])) {
-            $eventHold = EventHold::notExpired()->find($input['hold_id']);
+            $eventHold = EventHold::fromApp($app)->notExpired()->find($input['hold_id']);
 
             if (! $eventHold) {
                 throw new ValidationException('Hold not found or expired: ' . $input['hold_id']);
