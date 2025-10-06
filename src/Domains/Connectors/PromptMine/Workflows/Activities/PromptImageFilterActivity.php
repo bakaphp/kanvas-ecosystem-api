@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -53,7 +54,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
         $entity->refresh();
-        $messageFiles = $entity->getFiles();
+        $messageFiles = $this->getFilesWithRetry($entity);
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
@@ -165,6 +166,27 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             },
             company: $company,
         );
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 
     public function validateImageLimit(Message $message, array $params): array
