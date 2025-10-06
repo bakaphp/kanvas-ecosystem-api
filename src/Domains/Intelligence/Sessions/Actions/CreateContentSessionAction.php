@@ -222,7 +222,10 @@ class CreateContentSessionAction
             locale: 'en',
             user: null,
             company: $this->session->company,
-        )->select('products_variants.uuid', 'products_variants.name')->limit(10)->get();
+        )->select('products_variants.uuid', 'products_variants.name')
+            ->limit(10)
+            ->orderBy('products_variants.name', 'desc')
+            ->get();
 
         return $relatedVariant->toArray();
     }
