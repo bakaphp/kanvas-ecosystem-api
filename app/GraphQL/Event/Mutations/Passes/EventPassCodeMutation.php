@@ -25,14 +25,16 @@ class EventPassCodeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $event = Event::getByIdFromCompanyApp($args['event_id'], $company, $app);
+        $input = $args['input'];
+
+        $event = Event::getByIdFromCompanyApp($input['event_id'], $company, $app);
         $eventVersion = $event->versions()->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
+        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
-        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
-        $expirationDate = isset($args['expiration_date'])
-            ? $args['expiration_date']
+        $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
+        $expirationDate = isset($input['expiration_date'])
+            ? $input['expiration_date']
             : null;
 
         [$pass, $plainCode] = (new CreatePassAction(
@@ -61,21 +63,23 @@ class EventPassCodeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $participant = Participant::where('id', $args['participant_id'])
+        $input = $args['input'];
+
+        $participant = Participant::where('id', $input['participant_id'])
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $eventVersion = EventVersion::where('id', $args['event_version_id'])
+        $eventVersion = EventVersion::where('id', $input['event_version_id'])
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
+        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
-        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
-        $expirationDate = isset($args['expiration_date'])
-            ? $args['expiration_date']
+        $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
+        $expirationDate = isset($input['expiration_date'])
+            ? $input['expiration_date']
             : null;
 
         [$pass, $plainCode] = (new CreatePassAction(
@@ -105,16 +109,18 @@ class EventPassCodeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $eventVersion = EventVersion::where('id', $args['event_version_id'])
+        $input = $args['input'];
+
+        $eventVersion = EventVersion::where('id', $input['event_version_id'])
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $args['motive_id'] ?? null, $user->getId());
+        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
-        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
-        $expirationDate = isset($args['expiration_date'])
-            ? $args['expiration_date']
+        $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
+        $expirationDate = isset($input['expiration_date'])
+            ? $input['expiration_date']
             : null;
 
         $codes = (new CreatePassAction(
@@ -144,8 +150,10 @@ class EventPassCodeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $code = $args['code'];
-        $format = isset($args['format']) ? PassFormatEnum::from($args['format']) : PassFormatEnum::NUMERIC_PIN;
+        $input = $args['input'];
+
+        $code = $input['code'];
+        $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
 
         // Validate and retrieve the pass (works for both PIN and QR formats)
         $pass = new ScanPassAction($app, $company, $code, $format)->execute();

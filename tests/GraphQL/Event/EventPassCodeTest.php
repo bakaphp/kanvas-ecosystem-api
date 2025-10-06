@@ -12,8 +12,8 @@ class EventPassCodeTest extends ResourceBookingBase
         $booking = $this->createBooking($bookingData);
 
         $response = $this->graphQL('
-            mutation issueEventCode($event_id: ID!) {
-                issueEventCode(event_id: $event_id) {
+            mutation issueEventCode($input: IssueEventCodeInput!) {
+                issueEventCode(input: $input) {
                     success
                     code
                     message
@@ -25,7 +25,9 @@ class EventPassCodeTest extends ResourceBookingBase
                 }
             }
         ', [
-            'event_id' => $booking['event']['id'],
+            'input' => [
+                'event_id' => $booking['event']['id'],
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -82,11 +84,8 @@ class EventPassCodeTest extends ResourceBookingBase
         $participantId = $eventVersion['participants']['data'][0]['participant']['id'];
 
         $response = $this->graphQL('
-            mutation issueParticipantCode($participant_id: ID!, $event_version_id: ID!) {
-                issueParticipantCode(
-                    participant_id: $participant_id,
-                    event_version_id: $event_version_id,
-                ) {
+            mutation issueParticipantCode($input: IssueParticipantCodeInput!) {
+                issueParticipantCode(input: $input) {
                     success
                     code
                     message
@@ -100,8 +99,10 @@ class EventPassCodeTest extends ResourceBookingBase
                 }
             }
         ', [
-            'participant_id' => $participantId,
-            'event_version_id' => $booking['id'],
+            'input' => [
+                'participant_id' => $participantId,
+                'event_version_id' => $booking['id'],
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -122,13 +123,15 @@ class EventPassCodeTest extends ResourceBookingBase
 
         // Issue an event code
         $issueResponse = $this->graphQL('
-            mutation issueEventCode($event_id: ID!) {
-                issueEventCode(event_id: $event_id) {
+            mutation issueEventCode($input: IssueEventCodeInput!) {
+                issueEventCode(input: $input) {
                     code
                 }
             }
         ', [
-            'event_id' => $booking['event']['id'],
+            'input' => [
+                'event_id' => $booking['event']['id'],
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -137,8 +140,8 @@ class EventPassCodeTest extends ResourceBookingBase
         $code = $issueResponse->json('data.issueEventCode.code');
         // Check in with the code
         $response = $this->graphQL('
-            mutation checkInWithPin($code: String!) {
-                checkInWithPin(code: $code) {
+            mutation checkInWithPin($input: CheckInWithPinInput!) {
+                checkInWithPin(input: $input) {
                     success
                     message
                     is_event_level
@@ -149,7 +152,9 @@ class EventPassCodeTest extends ResourceBookingBase
                 }
             }
         ', [
-            'code' => $code,
+            'input' => [
+                'code' => $code,
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -170,17 +175,16 @@ class EventPassCodeTest extends ResourceBookingBase
 
         // Issue an expired code
         $issueResponse = $this->graphQL('
-            mutation issueEventCode($event_id: ID!, $expiration_date: DateTime!) {
-                issueEventCode(
-                    event_id: $event_id,
-                    expiration_date: $expiration_date
-                ) {
+            mutation issueEventCode($input: IssueEventCodeInput!) {
+                issueEventCode(input: $input) {
                     code
                 }
             }
         ', [
-            'event_id' => $booking['event']['id'],
-            'expiration_date' => now()->subDay()->toDateTimeString(),
+            'input' => [
+                'event_id' => $booking['event']['id'],
+                'expiration_date' => now()->subDay()->toDateTimeString(),
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,
@@ -190,13 +194,15 @@ class EventPassCodeTest extends ResourceBookingBase
 
         // Try to check in with expired code
         $response = $this->graphQL('
-            mutation checkInWithPin($code: String!) {
-                checkInWithPin(code: $code) {
+            mutation checkInWithPin($input: CheckInWithPinInput!) {
+                checkInWithPin(input: $input) {
                     success
                 }
             }
         ', [
-            'code' => $code,
+            'input' => [
+                'code' => $code,
+            ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-App' => $this->apps->key,

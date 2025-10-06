@@ -1,27 +1,43 @@
+input IssueEventCodeInput {
+    event_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input IssueParticipantCodeInput {
+    participant_id: ID!
+    event_version_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input IssueAllParticipantCodesInput {
+    event_version_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input CheckInWithPinInput {
+    code: String!
+    format: String = "numeric"
+}
+
 extend type Mutation @guard {
     issueEventCode(
-        event_id: ID!
-        motive_id: ID
-        format: String = "numeric"
-        expiration_date: DateTime
+        input: IssueEventCodeInput!
     ): IssueCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueEventCode")
     issueParticipantCode(
-        participant_id: ID!
-        event_version_id: ID!
-        motive_id: ID
-        format: String = "numeric"
-        expiration_date: DateTime
+        input: IssueParticipantCodeInput!
     ): IssueParticipantCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueParticipantCode")
     issueAllParticipantCodes(
-        event_version_id: ID!
-        motive_id: ID
-        format: String = "numeric"
-        expiration_date: DateTime
+        input: IssueAllParticipantCodesInput!
     ): IssueAllCodesResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueAllParticipantCodes")
 
     checkInWithPin(
-        code: String!
-        format: String = "numeric"
+        input: CheckInWithPinInput!
     ): CheckInResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@checkInWithPin")
 }
 
