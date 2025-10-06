@@ -32,14 +32,51 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
                 $data = $this->getActivityData($order, $params);
 
-                // Create service
-                $service = new InsuranceWorkflowService($app, $order);
+                // Process each eSIM separately to create individual vouchers
+                $allResults = [];
+                $allVoucherData = [];
 
-                // Process insurance workflow with insurance data directly
-                $results = $service->processInsuranceWorkflow($data['insurance_data']);
+                // Check if we have multiple eSIMs to process
+                if (! empty($data['all_insurance_data'])) {
+                    // Process each eSIM separately
+                    foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
+                        // Create separate service instance for each eSIM with its specific message_id
+                        $service = new InsuranceWorkflowService($app, $order, $esimInsuranceData['message_id'] ?? null);
 
-                // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                $this->storeUniversalAssistanceData($results, $data['message_id']);
+                        // Process this specific eSIM's insurance workflow
+                        $esimResults = $service->processInsuranceWorkflow($esimInsuranceData['insurance']);
+
+                        // Store results with eSIM index for tracking
+                        $allResults["esim_{$index}"] = $esimResults;
+
+                        // Store results in eSim message and order metadata for this specific eSIM
+                        $this->storeUniversalAssistanceData($esimResults, $esimInsuranceData['message_id'] ?? $data['message_id']);
+
+                        // Collect voucher data for this eSIM
+                        $allVoucherData["esim_{$index}"] = [
+                            'esim_index' => $index,
+                            'message_id' => $esimInsuranceData['message_id'] ?? null,
+                            'voucher_data' => $this->extractVoucherDataFromResults($esimResults)
+                        ];
+                    }
+
+                    // Use combined results
+                    $results = $allResults;
+                } else {
+                    // Fallback to single eSIM processing (legacy support)
+                    $service = new InsuranceWorkflowService($app, $order);
+                    $results = $service->processInsuranceWorkflow($data['insurance_data']);
+
+                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
+                    $this->storeUniversalAssistanceData($results, $data['message_id']);
+
+                    // For single eSIM, wrap in same structure for consistency
+                    $allVoucherData["esim_0"] = [
+                        'esim_index' => 0,
+                        'message_id' => $data['message_id'],
+                        'voucher_data' => $this->extractVoucherDataFromResults($results)
+                    ];
+                }
 
                 // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
                 $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
@@ -47,46 +84,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Return comprehensive results focusing on voucher data and SOAP inputs
                 return [
                     'workflow_results' => $results,
-                    'voucher_data' => [
-                        'holder' => [
-                            // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
-                                // Fallback paths for other possible structures
-                                ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
-                                ?? null,
-                            'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
-                            'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
-                        ],
-                        'dependents' => array_map(function ($dependent) {
-                            return [
-                                // Same structure for dependents
-                                'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
-                                    // Fallback paths for other possible structures
-                                    ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
-                                    ?? null,
-                                'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
-                                'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
-                            ];
-                        }, $results['dependents'] ?? [])
-                    ],
+                    'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
                     'original_insurance_data' => $data['insurance_data'],
+                    'all_insurance_data' => $data['all_insurance_data'] ?? [], // Include all processed data
                     'message_id' => $data['message_id'],
                     'order_id' => $order->getId(),
                     'processing_summary' => [
-                        'holder_processed' => ! empty($results['titular']),
-                        'dependents_processed' => count($results['dependents'] ?? []),
-                        'vouchers_created' => $this->countVouchersCreated($results),
-                        'total_cost' => $this->calculateTotalCost($results),
+                        'esims_processed' => count($allVoucherData),
+                        'is_multi_esim' => count($allVoucherData) > 1,
+                        'vouchers_created' => $this->countVouchersCreatedFromMultiResults($results),
+                        'total_cost' => $this->calculateTotalCostFromMultiResults($results),
                     ]
                 ];
             },
@@ -881,5 +888,84 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $createMessageAction = new CreateMessageAction($messageInput);
         $createMessageAction->runWorkflow = false; // Prevent triggering workflows for this internal message
         $newMessage = $createMessageAction->execute();
+    }
+
+    /**
+     * Extract voucher data from insurance workflow results for a single eSIM
+     */
+    protected function extractVoucherDataFromResults(array $results): array
+    {
+        return [
+            'holder' => [
+                // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                    // Fallback paths for other possible structures
+                    ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
+                    ?? null,
+                'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
+                'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
+            ],
+            'dependents' => array_map(function ($dependent) {
+                return [
+                    // Same structure for dependents
+                    'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                        // Fallback paths for other possible structures
+                        ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
+                        ?? null,
+                    'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
+                    'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
+                ];
+            }, $results['dependents'] ?? [])
+        ];
+    }
+
+    /**
+     * Count vouchers created from multi-eSIM results
+     */
+    protected function countVouchersCreatedFromMultiResults(array $multiResults): int
+    {
+        $count = 0;
+
+        foreach ($multiResults as $esimKey => $results) {
+            if (str_starts_with($esimKey, 'esim_')) {
+                $count += $this->countVouchersCreated($results);
+            } else {
+                // Single eSIM fallback
+                $count += $this->countVouchersCreated($multiResults);
+                break;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Calculate total cost from multi-eSIM results
+     */
+    protected function calculateTotalCostFromMultiResults(array $multiResults): float
+    {
+        $totalCost = 0.0;
+
+        foreach ($multiResults as $esimKey => $results) {
+            if (str_starts_with($esimKey, 'esim_')) {
+                $totalCost += $this->calculateTotalCost($results);
+            } else {
+                // Single eSIM fallback
+                $totalCost += $this->calculateTotalCost($multiResults);
+                break;
+            }
+        }
+
+        return $totalCost;
     }
 }
