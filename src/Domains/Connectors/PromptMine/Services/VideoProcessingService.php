@@ -167,7 +167,7 @@ class VideoProcessingService
 
     protected function pollForVideoResult(string $requestId, string $videoModel): array
     {
-        $maxAttempts = 3;
+        $maxAttempts = 5;
         $attempt = 0;
 
         $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
