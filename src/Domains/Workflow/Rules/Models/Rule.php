@@ -90,24 +90,23 @@ class Rule extends BaseModel
             }
 
             if (is_array($value)) {
-                // Handle array operators
                 $condition = sprintf('%s %s [%s]', $attribute, $operator, implode(', ', array_map(fn ($v) => "'$v'", $value)));
             } else {
-                // Check if value should be quoted (strings) or not (numbers, booleans)
                 $formattedValue = $this->formatValue($value);
                 $condition = sprintf('%s %s %s', $attribute, $operator, $formattedValue);
             }
 
-            // Replace the pattern placeholder
-            $pattern = str_replace((string) ($key + 1), $condition, $pattern);
+            // Use word boundary regex to replace only complete tokens
+            $placeholder = (string) ($key + 1);
+            $pattern = preg_replace('/\b' . preg_quote($placeholder, '/') . '\b/', $condition, $pattern);
+            // This becomes: preg_replace('/\b1\b/', "message_types_id == '572'", "1 or 2")
         }
 
-        // Normalize AND/OR keywords
         $pattern = str_ireplace(['AND', 'OR'], ['and', 'or'], $pattern);
 
         return [
             'expression' => $pattern,
-            'values' => $values, // Values are resolved dynamically in DynamicRuleWorkflow
+            'values' => $values,
         ];
     }
 
