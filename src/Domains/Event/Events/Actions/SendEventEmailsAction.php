@@ -20,7 +20,8 @@ class SendEventEmailsAction
 
     public function __construct(
         private EventVersion $eventVersion,
-        private string $emailTemplate = EmailTemplateEnum::PARTICIPANT_NOTIFICATION
+        private string $emailTemplate = EmailTemplateEnum::PARTICIPANT_NOTIFICATION,
+        private array $data = []
     ) {
     }
 
@@ -54,12 +55,14 @@ class SendEventEmailsAction
                     'participant' => $participant,
                     'event_name' => $this->eventVersion->name,
                     'participant_name' => $participant->people->name ?? 'Participant',
+                    'participant_id' => $participant->id,
                     'resource' => $event->resource,
                     'resources' => $event->resources,
                     'event_dates' => $this->eventVersion->dates,
                     'start_date' => $this->eventVersion->dates->first()?->event_date?->format('Y-m-d'),
                     'start_time' => $this->eventVersion->dates->first()?->start_time,
                     'end_time' => $this->eventVersion->dates->first()?->end_time,
+                    ...$this->data,
                 ];
 
                 $this->sendEmail(
