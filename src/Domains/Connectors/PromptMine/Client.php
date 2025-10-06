@@ -204,6 +204,163 @@ class Client
     }
 
     /**
+     * Start a new image chat conversation.
+     * This method initiates a new conversation and generates the first image using the text-to-image endpoint.
+     *
+     * @param string $prompt The initial text prompt for image generation
+     * @param string $model The model to use (default: 'fal-ai/flux-1/dev')
+     * @param array $additionalParams Additional parameters for image generation
+     * @return array The API response containing image data and metadata
+     */
+    public function startImageChat(
+        string $prompt,
+        string $model = 'fal-ai/flux-1/dev',
+        array $additionalParams = []
+    ): array {
+        $endpoint = "/{$this->apiEnv}/image/fal-ai/text-to-image";
+
+        $data = [
+            'model' => $model,
+            'prompt' => $prompt,
+        ];
+
+        // Merge any additional parameters
+        if (! empty($additionalParams)) {
+            $data = array_merge($data, $additionalParams);
+        }
+
+        $response = $this->post($endpoint, $data);
+
+        // Extract the image URL from the response
+        $imageUrl = $this->extractImageUrl($response);
+
+        return [
+            'image_response' => $response,
+            'prompt_history' => [$prompt],
+            'image_url' => $imageUrl,
+        ];
+    }
+
+    /**
+     * Continue an existing image chat conversation with context.
+     * This method edits the previous image based on conversation history.
+     *
+     * @param string $previousImageUrl The URL of the last generated image
+     * @param array $previousPrompts Array of all previous prompts in chronological order
+     * @param string $newPrompt The new prompt/instruction from the user
+     * @param string $model The model to use (default: 'fal-ai/flux-kontext/dev')
+     * @param bool $subscribe Whether to subscribe for real-time updates
+     * @param array $additionalParams Additional parameters for the API
+     * @return array The API response containing the new image and updated context
+     */
+    public function continueImageChat(
+        string $previousImageUrl,
+        array $previousPrompts,
+        string $newPrompt,
+        string $model = 'fal-ai/flux-kontext/dev',
+        bool $subscribe = true,
+        array $additionalParams = []
+    ): array {
+        $endpoint = "/{$this->apiEnv}/image/fal-ai/image-chat";
+
+        $data = [
+            'operation' => 'submit',
+            'previousImageUrl' => $previousImageUrl,
+            'previousPrompts' => $previousPrompts,
+            'model' => $model,
+            'prompt' => $newPrompt,
+            'subscribe' => $subscribe,
+        ];
+
+        // Merge any additional parameters
+        if (! empty($additionalParams)) {
+            $data = array_merge($data, $additionalParams);
+        }
+
+        $response = $this->post($endpoint, $data);
+
+        // Extract the new image URL from the nested structure
+        $newImageUrl = null;
+        if (isset($response['fal']['data']['images'][0]['url'])) {
+            $newImageUrl = $response['fal']['data']['images'][0]['url'];
+        }
+
+        // Build updated prompt history
+        $updatedPromptHistory = array_merge($previousPrompts, [$newPrompt]);
+
+        return [
+            'image_response' => $response,
+            'prompt_history' => $updatedPromptHistory,
+            'image_url' => $newImageUrl,
+            'context_summary' => $response['context_summary'] ?? null,
+        ];
+    }
+
+    /**
+     * Extract the image URL from an image-chat API response.
+     * This handles the nested structure of the image-chat endpoint response.
+     *
+     * @param array $response The API response from image-chat methods
+     * @return string|null The image URL or null if not found
+     */
+    public function extractImageChatUrl(array $response): ?string
+    {
+        // Handle the nested structure: fal.data.images[0].url
+        if (isset($response['images'][0]['url'])) {
+            return $response['images'][0]['url'];
+        }
+
+        // Fallback to direct image_url if already extracted
+        if (isset($response['image_url'])) {
+            return $response['image_url'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract full image metadata from an image-chat API response.
+     *
+     * @param array $response The API response from image-chat methods
+     * @return array|null The image metadata or null if not found
+     */
+    public function extractImageChatMetadata(array $response): ?array
+    {
+        if (isset($response['fal']['data']['images'][0])) {
+            return $response['fal']['data']['images'][0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the complete prompt history from an image-chat response.
+     *
+     * @param array $response The API response
+     * @return array Array of prompts in chronological order
+     */
+    public function getImageChatPromptHistory(array $response): array
+    {
+        if (isset($response['prompt_history'])) {
+            return $response['prompt_history'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Convenience method to start an image chat with Flux 1 Dev model.
+     *
+     * @param string $prompt The initial prompt
+     * @param array $params Additional parameters
+     * @return array Response with image data and prompt history
+     */
+    public function startImageChatWithFlux(string $prompt, array $params = []): array
+    {
+        return $this->startImageChat($prompt, 'fal-ai/flux-1/dev', $params);
+    }
+
+    /**
      * Perform a GET request to the API.
      */
     public function get(string $endpoint): array
