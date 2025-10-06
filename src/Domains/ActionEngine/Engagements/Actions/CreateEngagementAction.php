@@ -525,7 +525,20 @@ class CreateEngagementAction
     ): void {
         if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
             $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
-            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, []);
+
+            $vehicleOfInterest = $lead->get('vehicle_of_interest');
+            $stockNumber = $vehicleOfInterest['stockNumber'] ?? 'N/A';
+            $stripePayment = [
+                'product_name' => 'Vehicle Purchase',
+                'product_description' => "Customer: {$lead->people->name} | Stock No: {$stockNumber} | Sales Person: {$lead->owner?->firstname} {$lead->owner?->lastname}",
+                'metadata' => [
+                    'leads_id' => $lead->getId(),
+                    'apps_id' => $lead->app->getId(),
+                    'message_id' => $message->getId(),
+                ],
+            ];
+
+            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, $stripePayment);
 
             $messageData = $message->message ?? [];
             $paymentLinkFullLink = $paymentLink->url;
