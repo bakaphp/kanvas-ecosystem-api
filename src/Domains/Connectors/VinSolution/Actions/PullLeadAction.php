@@ -39,8 +39,11 @@ class PullLeadAction
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinLeadUserId = $lead !== null ? $lead->user->get(ConfigurationEnum::getUserKey($this->company, $lead->user)) : null;
+            $vinLeadOwnerUserId = $lead !== null ? $lead->owner?->get(ConfigurationEnum::getUserKey($this->company, $lead->owner)) : null;
 
-            if (! $vinUserId) {
+            if (empty($vinUserId) && empty($vinLeadUserId) && empty($vinLeadOwnerUserId)) {
                 throw new VinSolutionException(
                     'User not found in VinSolution',
                 );
@@ -48,7 +51,7 @@ class PullLeadAction
 
             $user = Dealer::getUser(
                 $vinCompany,
-                $vinUserId,
+                $vinUserId ?? $vinLeadUserId ?? $vinLeadOwnerUserId,
                 $this->app,
             );
 

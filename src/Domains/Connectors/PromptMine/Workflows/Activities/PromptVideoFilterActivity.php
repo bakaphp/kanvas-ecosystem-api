@@ -29,15 +29,8 @@ class PromptVideoFilterActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        if ($entity->message['type'] && $entity->message['type'] !== 'video-format') {
-            return [
-                'result' => false,
-                'message_id' => $entity->getId(),
-                'message' => 'Message type is not video-format',
-            ];
-        }
-
-        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
+        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 10);
+        $entity->refresh();
         $this->app = $app;
 
         $company = $this->getCompany($app, $entity);

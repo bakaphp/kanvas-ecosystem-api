@@ -98,7 +98,7 @@ class VideoProcessingService
         $errorProcessingImageNotification = new ImageProcessingPushNotification(
             user: $this->entity->user,
             entity: $this->entity,
-            message: $result['error'] ?? 'Video processing failed',
+            message: htmlspecialchars($result['error'] ?? 'Video processing failed', ENT_QUOTES, 'UTF-8'),
             title: 'Video processing failed',
             via: $endViaList,
             templates: [
@@ -167,7 +167,7 @@ class VideoProcessingService
 
     protected function pollForVideoResult(string $requestId, string $videoModel): array
     {
-        $maxAttempts = 3;
+        $maxAttempts = 5;
         $attempt = 0;
 
         $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
@@ -360,7 +360,7 @@ class VideoProcessingService
                 user: $this->entity->user,
                 entity: $this->entity,
                 message: 'Tap to view your AI-generated video on prompt mine.',
-                title: 'Video is ready ' . $title,
+                title: htmlspecialchars('Video is ready ' . $title, ENT_QUOTES, 'UTF-8'),
                 via: $endViaList,
                 templates: [
                     'email_template' => $params['email_template'] ?? null,

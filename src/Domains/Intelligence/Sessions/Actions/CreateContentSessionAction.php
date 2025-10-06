@@ -222,7 +222,10 @@ class CreateContentSessionAction
             locale: 'en',
             user: null,
             company: $this->session->company,
-        )->select('products_variants.uuid', 'products_variants.name')->limit(10)->get();
+        )->select('products_variants.uuid', 'products_variants.name')
+            ->limit(10)
+            ->orderBy('products_variants.name', 'desc')
+            ->get();
 
         return $relatedVariant->toArray();
     }
@@ -233,21 +236,32 @@ class CreateContentSessionAction
      */
     protected function getCheckListStatus(Lead $lead): array
     {
-        $checklistTaskCompleted = TaskEngagementItemRepository::getLeadCompletedTaskItems($lead)->get();
+        try {
+            $checkList = $lead->get('check_list_status');
+            $checkListId = $lead->company->get('default_checklist_id');
+            if (isset($checkList['activeTaskListId'])) {
+                $checkListId = $checkList['activeTaskListId'];
+            }
+            $checklistTaskCompleted = TaskEngagementItemRepository::getLeadsTaskItems($lead, $checkListId)->get();
 
-        if ($checklistTaskCompleted->isEmpty()) {
-            return [];
-        }
-
-        $checklist = [];
-        foreach ($checklistTaskCompleted as $task) {
-            if (empty($task->companyAction) || empty($task->companyAction->description)) {
-                continue;
+            if ($checklistTaskCompleted->isEmpty()) {
+                return [];
             }
 
-            $checklist[Str::camel((string) $task->companyAction->description)] = 'COMPLETE';
-        }
+            $checklist = [];
+            foreach ($checklistTaskCompleted as $task) {
+                if (empty($task->companyAction) || empty($task->companyAction->description)) {
+                    continue;
+                }
 
-        return $checklist;
+                $checklist[Str::camel((string) $task->companyAction->description)] = $task->status === 'completed' ? 'COMPLETED' : 'INCOMPLETE';
+            }
+
+            return $checklist;
+        } catch (Exception $e) {
+            report($e);
+
+            return [];
+        }
     }
 }

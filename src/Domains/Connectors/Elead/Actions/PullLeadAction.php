@@ -168,7 +168,7 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found ')) {
+                    if (Str::contains($th->getMessage(), 'No Opportunities found')) {
                         $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
                         $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
 
@@ -185,7 +185,7 @@ class PullLeadAction
                                 }
 
                                 $internalClosedLeads = $activeLeadsQuery->first();
-                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('closed')->id]);
+                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
                             }
 
                             $results[] = [
