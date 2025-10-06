@@ -810,42 +810,20 @@ class InsuranceWorkflowService
 
     /**
      * Get product duration from plan attributes
-     * Prioritize the original eSIM plan duration over calculated dates from voucher
+     * Search for the SPECIFIC duration that corresponds to the current plan/eSIM,
+     * not just the first one found
      */
     protected function getProductDuration(array $personData): int
     {
-        // PRIORITY 1: Try to get duration from variant attributes (most reliable for eSIM plans)
-        if (isset($personData['variant']['attributes'])) {
-            // Handle both array of objects and associative array formats
-            if (is_array($personData['variant']['attributes'])) {
-                foreach ($personData['variant']['attributes'] as $attribute) {
-                    // Handle object-style attributes
-                    if (isset($attribute['name']) && $attribute['name'] === 'Variant Duration' && isset($attribute['value'])) {
-                        $variantDuration = (int) $attribute['value'];
-                        if ($variantDuration > 0) {
-                            return $variantDuration;
-                        }
-                    }
-                    // Handle direct key-value attributes
-                    if (isset($attribute['Variant Duration'])) {
-                        $variantDuration = (int) $attribute['Variant Duration'];
-                        if ($variantDuration > 0) {
-                            return $variantDuration;
-                        }
-                    }
-                }
-            }
-
-            // Handle direct associative array access
-            if (isset($personData['variant']['attributes']['Variant Duration'])) {
-                $variantDuration = (int) $personData['variant']['attributes']['Variant Duration'];
-                if ($variantDuration > 0) {
-                    return $variantDuration;
-                }
+        // PRIORITY 1: Try Universal Assistance plan duration (most reliable for UA insurance)
+        if (isset($personData['plan']['duration'])) {
+            $planDuration = (int) $personData['plan']['duration'];
+            if ($planDuration > 0) {
+                return $planDuration;
             }
         }
 
-        // PRIORITY 2: Try variant_info attributes from eSIM data
+        // PRIORITY 2: Try variant_info attributes from eSIM data (passed from ProcessInsuranceCartActivity)
         if (isset($personData['variant_info']['attributes']['Variant Duration'])) {
             $variantDuration = (int) $personData['variant_info']['attributes']['Variant Duration'];
             if ($variantDuration > 0) {
@@ -853,128 +831,21 @@ class InsuranceWorkflowService
             }
         }
 
-        // PRIORITY 3: Extract from product variant name if it contains duration info
-        if (isset($personData['variant']['name'])) {
-            $variantName = $personData['variant']['name'];
-            if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-        }
-
-        // PRIORITY 4: Try to get duration from plan configuration (multiple possible locations)
-        $planDurationSources = [
-            $personData['plan']['duration'] ?? null,
-            $personData['plan']['attributes']['duration'] ?? null,
-            $personData['duration'] ?? null,
-            $personData['variantDuration'] ?? null,
-            $personData['plan']['variantDuration'] ?? null
-        ];
-
-        foreach ($planDurationSources as $planDuration) {
-            if ($planDuration !== null && $planDuration !== '') {
-                $durationInt = (int) $planDuration;
-                if ($durationInt > 0) {
-                    return $durationInt;
-                }
-            }
-        }
-
-        // PRIORITY 5: Try eSIM details duration
-        if (isset($personData['eSimDetails']['variantDuration'])) {
-            $esimDuration = (int) $personData['eSimDetails']['variantDuration'];
-            if ($esimDuration > 0) {
-                return $esimDuration;
-            }
-        }
-
-        // PRIORITY 6: Extract from plan name if it contains duration info
-        if (isset($personData['plan']['name'])) {
-            $planName = $personData['plan']['name'];
-            if (preg_match('/(\d+)\s*dias?/i', $planName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-            // Also try other formats like "5 days", "5-days", etc.
-            if (preg_match('/(\d+)[\s\-]?days?/i', $planName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-        }
-
-        // PRIORITY 7: Try variant name from different locations
-        $variantNameSources = [
-            $personData['variantPlan'] ?? null,
-            $personData['variant']['variantPlan'] ?? null,
-            $personData['eSimDetails']['variantPlan'] ?? null
-        ];
-
-        foreach ($variantNameSources as $variantName) {
-            if ($variantName && is_string($variantName)) {
-                if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
-                    $extractedDuration = (int) $matches[1];
-                    if ($extractedDuration > 0) {
-                        return $extractedDuration;
-                    }
-                }
-                if (preg_match('/(\d+)[\s\-]?days?/i', $variantName, $matches)) {
-                    $extractedDuration = (int) $matches[1];
-                    if ($extractedDuration > 0) {
-                        return $extractedDuration;
-                    }
-                }
-            }
-        }
-
-        // PRIORITY 8: Calculate from activation and expiration dates if available
-        if (isset($personData['activationDate']) && isset($personData['expirationDate'])) {
-            try {
-                $activationDate = Carbon::parse($personData['activationDate']);
-                $expirationDate = Carbon::parse($personData['expirationDate']);
-
-                // Use diffInDays + 1 for inclusive calculation
-                $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1);
-
-                if ($calculatedDuration > 0 && $calculatedDuration <= 365) { // Sanity check
-                    return $calculatedDuration;
-                }
-            } catch (\Exception $e) {
-                // Ignore date parsing errors
-            }
-        }
-
-        // PRIORITY 9: Try other date combinations
-        $dateCombinations = [
-            ['startDate', 'endDate'],
-            ['fechaInicio', 'fechaFin'],
-            ['start_date', 'end_date']
-        ];
-
-        foreach ($dateCombinations as [$startKey, $endKey]) {
-            if (isset($personData[$startKey]) && isset($personData[$endKey])) {
-                try {
-                    $startDate = Carbon::parse($personData[$startKey]);
-                    $endDate = Carbon::parse($personData[$endKey]);
-                    $calculatedDuration = (int)($startDate->diffInDays($endDate) + 1);
-
-                    if ($calculatedDuration > 0 && $calculatedDuration <= 365) {
-                        return $calculatedDuration;
-                    }
-                } catch (\Exception $e) {
-                    // Ignore date parsing errors
-                }
-            }
-        }
-
         // DEFAULT: Return 7 days as fallback
         return 7;
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Store voucher information in eSim message metadata for both titular and dependents
@@ -1852,18 +1723,6 @@ class InsuranceWorkflowService
 
                 // Use the convenio from the quotation where the product was found
                 $exactConvenio = $matchedProduct['source_convenio'] ?? '';
-
-                // Add debug info for price extraction
-                $matchedProduct['price_extraction_debug'] = [
-                    'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
-                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',
-                    'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
-                    'extracted_price' => $exactPrecioEmision,
-                    'is_numeric' => is_numeric($exactPrecioEmision),
-                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00',
-                    'source_quotation' => $matchedProduct['source_quotation'] ?? 'unknown',
-                    'source_convenio' => $exactConvenio
-                ];
             }
         } catch (\Exception $e) {
             // Handle errors silently
