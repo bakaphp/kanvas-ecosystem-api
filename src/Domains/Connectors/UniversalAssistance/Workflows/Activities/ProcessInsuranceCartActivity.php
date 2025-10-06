@@ -821,20 +821,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Get the original message for reference
         $originalMessage = Message::getById($data['message_id']);
-        if (!$originalMessage) {
+        if (! $originalMessage) {
             return;
         }
 
         // Create a separate message for each expanded eSIM insurance
         foreach ($data['all_insurance_data'] as $index => $esimData) {
             $messageId = $esimData['message_id'] ?? null;
-            if (!$messageId) {
+            if (! $messageId) {
                 continue;
             }
 
             // Get the specific message for this eSIM
             $esimMessage = Message::getById($messageId);
-            if (!$esimMessage) {
+            if (! $esimMessage) {
                 continue;
             }
 
