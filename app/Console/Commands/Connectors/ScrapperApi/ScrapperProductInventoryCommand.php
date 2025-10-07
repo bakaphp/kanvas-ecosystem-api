@@ -166,7 +166,8 @@ class ScrapperProductInventoryCommand extends Command
 
             // Try to get cached product details first
             $productDetails = Cache::remember($detailCacheKey, $cacheMinutes, function () use ($detailLink, $apiKey, $baseUrl) {
-                $detailResponse = Http::get('https://api.scrapingdog.com/scrape', [
+                $detailResponse = Http::timeout(120)
+                    ->get('https://api.scrapingdog.com/scrape', [
                     'api_key' => $apiKey,
                     'url' => $baseUrl . '/' . $detailLink,
                     'dynamic' => 'false',
