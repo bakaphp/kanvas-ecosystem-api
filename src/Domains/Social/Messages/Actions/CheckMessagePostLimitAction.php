@@ -20,7 +20,7 @@ class CheckMessagePostLimitAction
         public Message $message,
         public int $timeFrame = 24,
         public ?int $messageTypeId = null,
-        public bool $getChildrenCount = false,
+        public bool $getChildrenCount = true,
         public ?array $messageJsonFilters = null
     ) {
         //why? dont know but the model cache causes issues
