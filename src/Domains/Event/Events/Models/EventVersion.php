@@ -57,6 +57,8 @@ class EventVersion extends BaseModel
         return [
             'metadata' => Json::class,
             'agenda' => Json::class,
+            'start_at' => 'datetime',
+            'end_at' => 'datetime',
         ];
     }
 
