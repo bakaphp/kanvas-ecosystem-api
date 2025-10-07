@@ -95,6 +95,7 @@ use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
+use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
@@ -265,6 +266,7 @@ class KanvasWorkflowSynActionCommand extends Command
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
             AgentProcessEmailWebhookJob::class,
+            StripePaymentLinkWebhookJob::class,
         ];
 
         $createdActions = [];

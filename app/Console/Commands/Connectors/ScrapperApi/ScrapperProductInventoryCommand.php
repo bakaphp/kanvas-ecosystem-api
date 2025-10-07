@@ -105,6 +105,7 @@ class ScrapperProductInventoryCommand extends Command
                     'api_key' => $apiKey,
                     'url' => $baseUrl . '/' . $dealerPath . '/?PagingPageSkip=' . $pageSkip,
                     'dynamic' => 'false',
+                    //'premium' => 'true',
                     'ai_query' => 'Extract all the vehicle information you can + the detail link',
                 ]);
 
