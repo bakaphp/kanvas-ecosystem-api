@@ -2431,16 +2431,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.9.0",
+            "version": "v1.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "c17e29a3b28734cb5232de73f8058f3eb4065413"
+                "reference": "2a3f9350fd4a2d4dc80dd6db0b287885479e295c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/c17e29a3b28734cb5232de73f8058f3eb4065413",
-                "reference": "c17e29a3b28734cb5232de73f8058f3eb4065413",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/2a3f9350fd4a2d4dc80dd6db0b287885479e295c",
+                "reference": "2a3f9350fd4a2d4dc80dd6db0b287885479e295c",
                 "shasum": ""
             },
             "require": {
@@ -2474,9 +2474,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.9.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.9.1"
             },
-            "time": "2025-09-20T01:29:44+00:00"
+            "time": "2025-10-07T18:41:09+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
