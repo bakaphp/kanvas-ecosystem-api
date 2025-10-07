@@ -6,8 +6,8 @@ namespace Tests\Intelligence\Tools;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Models\LeadSource;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Tests\TestCase;
 
