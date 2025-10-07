@@ -81,11 +81,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $nuggetTitle = $this->generateTitleByPrompt($prompt);
+                // $nuggetTitle = $this->generateTitleByPrompt($prompt);
 
                 $messageInput = [
                     'message' => [
-                        'title' => $nuggetTitle,
+                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
