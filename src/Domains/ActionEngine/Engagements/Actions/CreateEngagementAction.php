@@ -530,11 +530,43 @@ class CreateEngagementAction
             $stockNumber = $vehicleOfInterest['stockNumber'] ?? 'N/A';
             $stripePayment = [
                 'product_name' => 'Vehicle Purchase',
-                'product_description' => "Customer: {$lead->people->name} | Stock No: {$stockNumber} | Sales Person: {$lead->owner?->firstname} {$lead->owner?->lastname}",
+                'product_description' => 'Stock No: ' . $stockNumber,
                 'metadata' => [
                     'leads_id' => $lead->getId(),
                     'apps_id' => $lead->app->getId(),
                     'message_id' => $message->getId(),
+                ],
+                'custom_fields' => [
+                    [
+                        'key' => 'customer_name',
+                        'label' => ['type' => 'custom', 'custom' => 'Customer Name'],
+                        'type' => 'text',
+                        'optional' => false, // Makes it required
+                        'text' => [
+                            'default_value' => $lead->people->name,
+                            'maximum_length' => 200,
+                        ],
+                    ],
+                    [
+                        'key' => 'stock_no',
+                        'label' => ['type' => 'custom', 'custom' => 'Stock No'],
+                        'type' => 'text',
+                        'optional' => true,
+                        'text' => [
+                            'default_value' => $stockNumber,
+                            'maximum_length' => 50,
+                        ],
+                    ],
+                     [
+                        'key' => 'sales_person',
+                        'label' => ['type' => 'custom', 'custom' => 'Sales Person'],
+                        'type' => 'text',
+                        'optional' => true,
+                         'text' => [
+                            'default_value' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
+                            'maximum_length' => 50,
+                        ],
+                    ],
                 ],
             ];
 
