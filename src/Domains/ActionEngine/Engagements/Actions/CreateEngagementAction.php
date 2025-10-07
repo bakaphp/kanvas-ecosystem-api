@@ -528,9 +528,12 @@ class CreateEngagementAction
 
             $vehicleOfInterest = $lead->get('vehicle_of_interest');
             $stockNumber = $vehicleOfInterest['stockNumber'] ?? 'N/A';
+            $messageData = $message->message ?? [];
+
             $stripePayment = [
                 'product_name' => 'Vehicle Purchase',
                 'product_description' => 'Stock No: ' . $stockNumber,
+                'success_url' => $messageData['action_link'],
                 'metadata' => [
                     'leads_id' => $lead->getId(),
                     'apps_id' => $lead->app->getId(),
@@ -572,13 +575,13 @@ class CreateEngagementAction
 
             $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, $stripePayment);
 
-            $messageData = $message->message ?? [];
             $paymentLinkFullLink = $paymentLink->url;
             if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
                 $paymentLinkFullLink .= '?prefilled_email=' . urlencode($email);
             }
             $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
 
+            $messageData['normal_action_link'] = $messageData['action_link'] ?? '';
             $messageData['action_link'] = $paymentShortLink;
             $messageData['preview_link'] = $paymentShortLink;
             $message->message = $messageData;
