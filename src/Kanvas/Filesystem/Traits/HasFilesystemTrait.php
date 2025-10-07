@@ -46,7 +46,7 @@ trait HasFilesystemTrait
      *
      * @throws Exception
      */
-    public function addFileFromUrl(string $url, string $fieldName, ?Apps $app = null): bool
+    public function addFileFromUrl(string $url, string $fieldName, ?Apps $app = null, bool $ignorePathInfo = false): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
@@ -61,7 +61,17 @@ trait HasFilesystemTrait
             ->firstOrNew();
 
         if (! $fileSystem->exists) {
-            $fileInfo = pathinfo($url);
+            if (! $ignorePathInfo) {
+                $fileInfo = pathinfo($url);
+            } else {
+                $regex = '~^(?:https?://)?([^/]+)?(.*?)([^/]+)$~';
+                preg_match($regex, $url, $matches);
+                $fileInfo = [
+                    'dirname' => $matches[2],
+                    'basename' => $matches[3],
+                    'extension' => pathinfo($matches[3], PATHINFO_EXTENSION),
+                ];
+            }
 
             $extension = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->companies_id = $companyId;
