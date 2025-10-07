@@ -132,17 +132,12 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
 
                 $files = $mappedProduct['files'];
 
-                foreach (array_slice($mappedProduct['files'], 0, 2) as $file) {
+                foreach (array_slice($mappedProduct['files'], 0, 1) as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
 
                 $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
-
-                dispatch(function () use ($variant, $files) {
-                    foreach ($files as $file) {
-                        $variant->addFileFromUrl($file['url'], $file['name']);
-                    }
-                })->delay(now()->addSeconds(5));
+                UpdateFileSystemJob::dispatch($variant, $files);
             }
 
             $variantData = $variant->toArray();
