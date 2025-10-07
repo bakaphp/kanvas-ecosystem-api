@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Jobs\LightHouseCacheCleanUpJob;
+use Exception;
 use Illuminate\Support\Facades\Redis;
 use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
@@ -16,21 +17,68 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
-        $redis = Redis::connection('graph-cache');
-        $keys = $redis->keys($key);
-        if (empty($keys) && $withKanvasConfiguration) {
-            //$this->generateCustomFieldsLighthouseCache();
+        $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
+
+        try {
+            $redis = Redis::connection('graph-cache');
+
+            $cursor = 0;
+            $keysFound = false;
+            $prefix = config('database.redis.options.prefix', '');
+            $iterations = 0;
+            $maxIterations = 10000;
+
+            do {
+                $result = $redis->scan($cursor, [
+                    'match' => $pattern,
+                    'count' => 1000,
+                ]);
+
+                // Check type first, before any array operations
+                if (! is_array($result)) {
+                    break;
+                }
+
+                // Now safe to check array structure
+                if (count($result) < 2) {
+                    break;
+                }
+
+                $cursor = (int) $result[0];
+                $keys = is_array($result[1]) ? $result[1] : [];
+
+                if (! empty($keys)) {
+                    $keysFound = true;
+
+                    $keysToDelete = array_map(function ($key) use ($prefix) {
+                        return str_replace($prefix, '', $key);
+                    }, $keys);
+
+                    $chunks = array_chunk($keysToDelete, 100);
+                    foreach ($chunks as $chunk) {
+                        if (! empty($chunk)) {
+                            $redis->del(...$chunk);
+                        }
+                    }
+                }
+
+                $iterations++;
+
+                if ($iterations >= $maxIterations) {
+                    break;
+                }
+            } while ($cursor != 0);
+        } catch (Exception $e) {
+            report($e);
+            // Silently continue on error
+        }
+
+        if (! $keysFound && $withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
 
             return;
         }
 
-        foreach ($keys as $key) {
-            $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
-        }
-
-        //$this->generateCustomFieldsLighthouseCache();
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
@@ -57,9 +105,6 @@ trait HasLightHouseCache
     public function generateCustomFieldsLighthouseCache(int $items = 25): void
     {
         if (method_exists($this, 'reCacheCustomFields')) {
-            /**
-             * @todo maybe not needed
-             */
             $this->reCacheCustomFields($items);
         }
 
