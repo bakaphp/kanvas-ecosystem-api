@@ -16,7 +16,7 @@ type ScheduleRules {
     is_deleted: Boolean!
     created_at: DateTime
     updated_at: DateTime
-   resource: TimeSlotResource @morphTo(related: "resource")
+    resource: TimeSlotResource @morphTo(related: "resource")
 }
 
 union ScheduleResource = Variant

@@ -267,6 +267,11 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(columns: ["id", "name", "slug", "companies_id", "resources_id", "resources_type"])
+        status: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Event\\Handlers\\EventStatusHandler"
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Event!]!
         @paginate(
@@ -285,6 +290,8 @@ extend type Query @guard {
                     "event_id"
                     "companies_id"
                     "version_number"
+                    "start_at"
+                    "end_at"
                 ]
             )
         orderBy: _
@@ -296,6 +303,8 @@ extend type Query @guard {
                     "name"
                     "event_id"
                     "version_number"
+                    "start_at"
+                    "end_at"
                 ]
             )
     ): [EventVersion!]!
