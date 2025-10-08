@@ -19,6 +19,8 @@ trait HasLightHouseCache
     ): void {
         $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
 
+        return;
+
         try {
             $redis = Redis::connection('graph-cache');
 
@@ -56,9 +58,11 @@ trait HasLightHouseCache
 
                     $chunks = array_chunk($keysToDelete, 100);
                     foreach ($chunks as $chunk) {
-                        if (! empty($chunk)) {
-                            $redis->del(...$chunk);
-                        }
+                        $redis->pipeline(function ($pipe) use ($chunk) {
+                            foreach ($chunk as $key) {
+                                $pipe->del($key);
+                            }
+                        });
                     }
                 }
 
