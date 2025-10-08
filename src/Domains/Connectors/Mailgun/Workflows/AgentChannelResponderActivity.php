@@ -53,12 +53,12 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                /*        if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                           return [
-                               'message' => 'Lead is being handed off to human agent',
-                               'entity' => null,
-                           ];
-                       } */
+                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                    return [
+                        'message' => 'Lead is being handed off to human agent',
+                        'entity' => null,
+                    ];
+                }
 
                 // Get agent ID from mapping or use default
                 $agentId = $defaultAgentId;
