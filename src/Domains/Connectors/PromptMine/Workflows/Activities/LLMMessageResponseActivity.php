@@ -118,7 +118,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 if ($promptChannel && empty($promptChannel->title)) {
-                    $channelName = $this->cleanChannelTitle($message->message['title'] ?? $nuggetTitle);
+                    $channelName = $this->cleanChannelTitle($message->message['title']);
                     $promptChannel->name = $channelName;
                     $promptChannel->title = $channelName;
                     $promptChannel->update();
