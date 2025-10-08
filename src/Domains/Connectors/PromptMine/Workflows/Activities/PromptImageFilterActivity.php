@@ -103,6 +103,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $processedImageUrl = null;
                 $requestId = null;
 
+                if ($messageFiles->count() > 1) {
+                    //lets add them to params since this is optional
+                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+                }
+
                 try {
                     // Process image based on the model type
                     if ($isOpenAi) {
@@ -116,7 +121,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     } elseif ($isGeminiBanana) {
                         // Process with Gemini-Nano-Banana
-                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter);
+                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter, $params);
                         if ($fileSystemRecord === null) {
                             return $this->failWorkflow([
                                 'result' => false,
@@ -131,7 +136,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
                             $fileUrl,
                             $imageFilter,
-                            $entity
+                            $entity,
+                            $params
                         );
 
                         if ($fileSystemRecord === null) {
@@ -262,10 +268,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
      *
      * @return array [fileSystemRecord, processedImageUrl, requestId]
      */
-    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity): array
+    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '');
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $params);
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -437,7 +443,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Process image with Gemini-Nano-Banana
      */
-    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter): ?Filesystem
+    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter, array $params): ?Filesystem
     {
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
@@ -454,8 +460,16 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $response = Http::asMultipart()
             ->attach('image', $imageContent, $filename)
             ->attach('model', 'gemini-2.5-flash-image-preview')
-            ->attach('prompt', $prompt)
-            ->post($apiUrl);
+            ->attach('prompt', $prompt);
+
+        if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
+            $index = 1;
+            foreach ($params['additional_images'] as $additionalImage) {
+                $response->attach('image_' . $index++, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
+            }
+        }
+
+        $response = $response->post($apiUrl);
 
         if (! $response->successful()) {
             throw new Exception('Gemini Banana API request failed: ' . $response->body());
@@ -618,8 +632,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt): array
+    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, array $params): array
     {
+        if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
+            $params['additional_images'][] = $imageUrl;
+            $imageUrl = $params['additional_images'];
+        }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($this->apiUrl, [
