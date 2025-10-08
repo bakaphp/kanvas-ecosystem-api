@@ -19,8 +19,6 @@ trait HasLightHouseCache
     ): void {
         $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
 
-        return;
-
         try {
             $redis = Redis::connection('graph-cache');
 
