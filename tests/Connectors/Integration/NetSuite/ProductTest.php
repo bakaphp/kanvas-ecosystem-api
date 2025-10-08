@@ -23,11 +23,11 @@ final class ProductTest extends TestCase
         $data = new NetSuite(
             app: $app,
             company: $company,
-            account: getenv('NET_SUITE_ACCOUNT'),
-            consumerKey: getenv('NET_SUITE_CONSUMER_KEY'),
-            consumerSecret: getenv('NET_SUITE_CONSUMER_SECRET'),
-            token: getenv('NET_SUITE_TOKEN'),
-            tokenSecret: getenv('NET_SUITE_TOKEN_SECRET')
+            account: env('NET_SUITE_ACCOUNT'),
+            consumerKey: env('NET_SUITE_CONSUMER_KEY'),
+            consumerSecret: env('NET_SUITE_CONSUMER_SECRET'),
+            token: env('NET_SUITE_TOKEN'),
+            tokenSecret: env('NET_SUITE_TOKEN_SECRET')
         );
 
         $result = NetSuiteServices::setup($data);
@@ -105,6 +105,19 @@ final class ProductTest extends TestCase
         $this->assertGreaterThan(0, $price);
     }
 
+    public function testGetProductMoq()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $productService = new NetSuiteProductService($app, $company);
+        $product = $productService->searchProductByItemNumber(env('NET_SUITE_ITEM_NUMBER'));
+
+        $product = $productService->getProductById($product[0]->internalId);
+        $price = (int) $productService->getCustomField($product, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value);
+
+        $this->assertGreaterThan(0, $price);
+    }
 
     public function testSyncNetSuiteProduct()
     {

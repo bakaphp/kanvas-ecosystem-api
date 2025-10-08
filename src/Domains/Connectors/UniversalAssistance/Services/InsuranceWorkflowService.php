@@ -553,19 +553,222 @@ class InsuranceWorkflowService
     protected function getCountryName(string $countryCode): string
     {
         $countries = [
+            // Americas
             'AR' => 'ARGENTINA',
-            'DO' => 'REPUBLICA DOMINICANA',
-            'US' => 'ESTADOS UNIDOS',
-            'CA' => 'CANADA',
-            'MX' => 'MEXICO',
-            'ES' => 'ESPAÑA',
-            'FR' => 'FRANCIA',
-            'IT' => 'ITALIA',
+            'BO' => 'BOLIVIA',
             'BR' => 'BRASIL',
+            'CA' => 'CANADA',
+            'CL' => 'CHILE',
             'CO' => 'COLOMBIA',
+            'CR' => 'COSTA RICA',
+            'CU' => 'CUBA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'EC' => 'ECUADOR',
+            'SV' => 'EL SALVADOR',
+            'GT' => 'GUATEMALA',
+            'GY' => 'GUYANA',
+            'HT' => 'HAITI',
+            'HN' => 'HONDURAS',
+            'JM' => 'JAMAICA',
+            'MX' => 'MEXICO',
+            'NI' => 'NICARAGUA',
+            'PA' => 'PANAMA',
+            'PY' => 'PARAGUAY',
+            'PE' => 'PERU',
+            'PR' => 'PUERTO RICO',
+            'SR' => 'SURINAM',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'US' => 'USA',
+            'UY' => 'URUGUAY',
+            'VE' => 'VENEZUELA',
+
+            // Europe
+            'AD' => 'ANDORRA',
+            'AT' => 'AUSTRIA',
+            'BE' => 'BELGICA',
+            'BG' => 'BULGARIA',
+            'HR' => 'CROACIA',
+            'CY' => 'CHIPRE',
+            'CZ' => 'REPUBLICA CHECA',
+            'DK' => 'DINAMARCA',
+            'EE' => 'ESTONIA',
+            'FI' => 'FINLANDIA',
+            'FR' => 'FRANCIA',
+            'DE' => 'ALEMANIA',
+            'GR' => 'GRECIA',
+            'HU' => 'HUNGRIA',
+            'IS' => 'ISLANDIA',
+            'IE' => 'IRLANDA',
+            'IT' => 'ITALIA',
+            'LV' => 'LETONIA',
+            'LI' => 'LIECHTENSTEIN',
+            'LT' => 'LITUANIA',
+            'LU' => 'LUXEMBURGO',
+            'MT' => 'MALTA',
+            'MC' => 'MONACO',
+            'ME' => 'MONTENEGRO',
+            'NL' => 'HOLANDA',
+            'NO' => 'NORUEGA',
+            'PL' => 'POLONIA',
+            'PT' => 'PORTUGAL',
+            'RO' => 'RUMANIA',
+            'RU' => 'RUSIA',
+            'SM' => 'SAN MARINO',
+            'RS' => 'SERBIA',
+            'SK' => 'ESLOVAQUIA',
+            'SI' => 'ESLOVENIA',
+            'ES' => 'ESPAÑA',
+            'SE' => 'SUECIA',
+            'CH' => 'SUIZA',
+            'UA' => 'UCRANIA',
+            'GB' => 'INGLATERRA',
+            'VA' => 'CIUDAD VATICANO',
+
+            // Asia
+            'AF' => 'AFGHANISTAN',
+            'AM' => 'ARMENIA',
+            'AZ' => 'AZERBAIJAN',
+            'BH' => 'BAHREIN',
+            'BD' => 'BANGLADESH',
+            'BT' => 'BHUTAN',
+            'BN' => 'BRUNEI',
+            'KH' => 'CAMBOYA',
+            'CN' => 'CHINA',
+            'GE' => 'GEORGIA',
+            'IN' => 'INDIA',
+            'ID' => 'INDONESIA',
+            'IR' => 'IRAN',
+            'IQ' => 'IRAK',
+            'IL' => 'ISRAEL',
+            'JP' => 'JAPON',
+            'JO' => 'JORDANIA',
+            'KZ' => 'KAZAJISTAN',
+            'KP' => 'COREA DEL NORTE',
+            'KR' => 'COREA DEL SUR',
+            'KW' => 'KUWAIT',
+            'KG' => 'KIRGUISTAN',
+            'LA' => 'LAOS',
+            'LB' => 'LIBANO',
+            'MY' => 'MALASIA',
+            'MV' => 'MALDIVAS',
+            'MN' => 'MONGOLIA',
+            'MM' => 'MYANMAR',
+            'NP' => 'NEPAL',
+            'OM' => 'OMAN',
+            'PK' => 'PAKISTAN',
+            'PS' => 'PALESTINA',
+            'PH' => 'FILIPINAS',
+            'QA' => 'QATAR',
+            'SA' => 'ARABIA SAUDITA',
+            'SG' => 'SINGAPUR',
+            'LK' => 'SRI LANKA',
+            'SY' => 'SIRIA',
+            'TW' => 'TAIWAN',
+            'TJ' => 'TAYIKISTAN',
+            'TH' => 'TAILANDIA',
+            'TL' => 'TIMOR ORIENTAL',
+            'TR' => 'TURQUIA',
+            'TM' => 'TURKMENISTAN',
+            'AE' => 'EMIRATOS ARABES UNIDOS',
+            'UZ' => 'UZBEKISTAN',
+            'VN' => 'VIETNAM',
+            'YE' => 'YEMEN',
+
+            // Africa
+            'DZ' => 'ARGELIA',
+            'AO' => 'ANGOLA',
+            'BJ' => 'BENIN',
+            'BW' => 'BOTSWANA',
+            'BF' => 'BURKINA FASO',
+            'BI' => 'BURUNDI',
+            'CV' => 'CABO VERDE',
+            'CM' => 'CAMERUN',
+            'CF' => 'REPUBLICA CENTROAFRICANA',
+            'TD' => 'CHAD',
+            'KM' => 'COMORAS',
+            'CG' => 'CONGO',
+            'CI' => 'COSTA DE MARFIL',
+            'DJ' => 'YIBUTI',
+            'EG' => 'EGIPTO',
+            'GQ' => 'GUINEA ECUATORIAL',
+            'ER' => 'ERITREA',
+            'ET' => 'ETIOPIA',
+            'GA' => 'GABON',
+            'GM' => 'GAMBIA',
+            'GH' => 'GHANA',
+            'GN' => 'GUINEA',
+            'GW' => 'GUINEA BISSAU',
+            'KE' => 'KENIA',
+            'LS' => 'LESOTO',
+            'LR' => 'LIBERIA',
+            'LY' => 'LIBIA',
+            'MG' => 'MADAGASCAR',
+            'MW' => 'MALAWI',
+            'ML' => 'MALI',
+            'MR' => 'MAURITANIA',
+            'MU' => 'MAURICIO',
+            'MA' => 'MARRUECOS',
+            'MZ' => 'MOZAMBIQUE',
+            'NA' => 'NAMIBIA',
+            'NE' => 'NIGER',
+            'NG' => 'NIGERIA',
+            'RW' => 'RUANDA',
+            'ST' => 'SANTO TOME Y PRINCIPE',
+            'SN' => 'SENEGAL',
+            'SC' => 'SEYCHELLES',
+            'SL' => 'SIERRA LEONA',
+            'SO' => 'SOMALIA',
+            'ZA' => 'SUDAFRICA',
+            'SS' => 'SUDAN DEL SUR',
+            'SD' => 'SUDAN',
+            'SZ' => 'SUAZILANDIA',
+            'TZ' => 'TANZANIA',
+            'TG' => 'TOGO',
+            'TN' => 'TUNEZ',
+            'UG' => 'UGANDA',
+            'ZM' => 'ZAMBIA',
+            'ZW' => 'ZIMBABWE',
+
+            // Oceania
+            'AU' => 'AUSTRALIA',
+            'FJ' => 'FIYI',
+            'KI' => 'KIRIBATI',
+            'MH' => 'ISLAS MARSHALL',
+            'FM' => 'MICRONESIA',
+            'NR' => 'NAURU',
+            'NZ' => 'NUEVA ZELANDA',
+            'PW' => 'PALAOS',
+            'PG' => 'PAPUA NUEVA GUINEA',
+            'WS' => 'SAMOA',
+            'SB' => 'ISLAS SALOMON',
+            'TO' => 'TONGA',
+            'TV' => 'TUVALU',
+            'VU' => 'VANUATU',
+
+            // Caribbean/Other
+            'AI' => 'ANGUILA',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'AW' => 'ARUBA',
+            'BS' => 'BAHAMAS',
+            'BB' => 'BARBADOS',
+            'BZ' => 'BELICE',
+            'BM' => 'BERMUDAS',
+            'VG' => 'ISLAS VIRGENES BRITANICAS',
+            'KY' => 'ISLAS CAIMAN',
+            'CW' => 'CURAZAO',
+            'DM' => 'DOMINICA',
+            'GD' => 'GRANADA',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'MS' => 'ISLA DE MONTSERRAT',
+            'AN' => 'ANTILLAS HOLANDESAS',
+            'KN' => 'SAN CRISTOBAL Y NIEVES',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE Y GRANADINAS',
+            'TC' => 'ISLAS TURCAS Y CAICOS',
         ];
 
-        return $countries[$countryCode] ?? 'REPUBLICA DOMINICANA'; // Default to a valid country instead of INTERNACIONAL
+        return $countries[$countryCode] ?? 'ARGENTINA'; // Default to a valid country
     }
 
     /**
@@ -607,42 +810,20 @@ class InsuranceWorkflowService
 
     /**
      * Get product duration from plan attributes
-     * Prioritize the original eSIM plan duration over calculated dates from voucher
+     * Search for the SPECIFIC duration that corresponds to the current plan/eSIM,
+     * not just the first one found
      */
     protected function getProductDuration(array $personData): int
     {
-        // PRIORITY 1: Try to get duration from variant attributes (most reliable for eSIM plans)
-        if (isset($personData['variant']['attributes'])) {
-            // Handle both array of objects and associative array formats
-            if (is_array($personData['variant']['attributes'])) {
-                foreach ($personData['variant']['attributes'] as $attribute) {
-                    // Handle object-style attributes
-                    if (isset($attribute['name']) && $attribute['name'] === 'Variant Duration' && isset($attribute['value'])) {
-                        $variantDuration = (int) $attribute['value'];
-                        if ($variantDuration > 0) {
-                            return $variantDuration;
-                        }
-                    }
-                    // Handle direct key-value attributes
-                    if (isset($attribute['Variant Duration'])) {
-                        $variantDuration = (int) $attribute['Variant Duration'];
-                        if ($variantDuration > 0) {
-                            return $variantDuration;
-                        }
-                    }
-                }
-            }
-
-            // Handle direct associative array access
-            if (isset($personData['variant']['attributes']['Variant Duration'])) {
-                $variantDuration = (int) $personData['variant']['attributes']['Variant Duration'];
-                if ($variantDuration > 0) {
-                    return $variantDuration;
-                }
+        // PRIORITY 1: Try Universal Assistance plan duration (most reliable for UA insurance)
+        if (isset($personData['plan']['duration'])) {
+            $planDuration = (int) $personData['plan']['duration'];
+            if ($planDuration > 0) {
+                return $planDuration;
             }
         }
 
-        // PRIORITY 2: Try variant_info attributes from eSIM data
+        // PRIORITY 2: Try variant_info attributes from eSIM data (passed from ProcessInsuranceCartActivity)
         if (isset($personData['variant_info']['attributes']['Variant Duration'])) {
             $variantDuration = (int) $personData['variant_info']['attributes']['Variant Duration'];
             if ($variantDuration > 0) {
@@ -650,128 +831,21 @@ class InsuranceWorkflowService
             }
         }
 
-        // PRIORITY 3: Extract from product variant name if it contains duration info
-        if (isset($personData['variant']['name'])) {
-            $variantName = $personData['variant']['name'];
-            if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-        }
-
-        // PRIORITY 4: Try to get duration from plan configuration (multiple possible locations)
-        $planDurationSources = [
-            $personData['plan']['duration'] ?? null,
-            $personData['plan']['attributes']['duration'] ?? null,
-            $personData['duration'] ?? null,
-            $personData['variantDuration'] ?? null,
-            $personData['plan']['variantDuration'] ?? null
-        ];
-
-        foreach ($planDurationSources as $planDuration) {
-            if ($planDuration !== null && $planDuration !== '') {
-                $durationInt = (int) $planDuration;
-                if ($durationInt > 0) {
-                    return $durationInt;
-                }
-            }
-        }
-
-        // PRIORITY 5: Try eSIM details duration
-        if (isset($personData['eSimDetails']['variantDuration'])) {
-            $esimDuration = (int) $personData['eSimDetails']['variantDuration'];
-            if ($esimDuration > 0) {
-                return $esimDuration;
-            }
-        }
-
-        // PRIORITY 6: Extract from plan name if it contains duration info
-        if (isset($personData['plan']['name'])) {
-            $planName = $personData['plan']['name'];
-            if (preg_match('/(\d+)\s*dias?/i', $planName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-            // Also try other formats like "5 days", "5-days", etc.
-            if (preg_match('/(\d+)[\s\-]?days?/i', $planName, $matches)) {
-                $extractedDuration = (int) $matches[1];
-                if ($extractedDuration > 0) {
-                    return $extractedDuration;
-                }
-            }
-        }
-
-        // PRIORITY 7: Try variant name from different locations
-        $variantNameSources = [
-            $personData['variantPlan'] ?? null,
-            $personData['variant']['variantPlan'] ?? null,
-            $personData['eSimDetails']['variantPlan'] ?? null
-        ];
-
-        foreach ($variantNameSources as $variantName) {
-            if ($variantName && is_string($variantName)) {
-                if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
-                    $extractedDuration = (int) $matches[1];
-                    if ($extractedDuration > 0) {
-                        return $extractedDuration;
-                    }
-                }
-                if (preg_match('/(\d+)[\s\-]?days?/i', $variantName, $matches)) {
-                    $extractedDuration = (int) $matches[1];
-                    if ($extractedDuration > 0) {
-                        return $extractedDuration;
-                    }
-                }
-            }
-        }
-
-        // PRIORITY 8: Calculate from activation and expiration dates if available
-        if (isset($personData['activationDate']) && isset($personData['expirationDate'])) {
-            try {
-                $activationDate = Carbon::parse($personData['activationDate']);
-                $expirationDate = Carbon::parse($personData['expirationDate']);
-
-                // Use diffInDays + 1 for inclusive calculation
-                $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1);
-
-                if ($calculatedDuration > 0 && $calculatedDuration <= 365) { // Sanity check
-                    return $calculatedDuration;
-                }
-            } catch (\Exception $e) {
-                // Ignore date parsing errors
-            }
-        }
-
-        // PRIORITY 9: Try other date combinations
-        $dateCombinations = [
-            ['startDate', 'endDate'],
-            ['fechaInicio', 'fechaFin'],
-            ['start_date', 'end_date']
-        ];
-
-        foreach ($dateCombinations as [$startKey, $endKey]) {
-            if (isset($personData[$startKey]) && isset($personData[$endKey])) {
-                try {
-                    $startDate = Carbon::parse($personData[$startKey]);
-                    $endDate = Carbon::parse($personData[$endKey]);
-                    $calculatedDuration = (int)($startDate->diffInDays($endDate) + 1);
-
-                    if ($calculatedDuration > 0 && $calculatedDuration <= 365) {
-                        return $calculatedDuration;
-                    }
-                } catch (\Exception $e) {
-                    // Ignore date parsing errors
-                }
-            }
-        }
-
         // DEFAULT: Return 7 days as fallback
         return 7;
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Store voucher information in eSim message metadata for both titular and dependents
@@ -1649,18 +1723,6 @@ class InsuranceWorkflowService
 
                 // Use the convenio from the quotation where the product was found
                 $exactConvenio = $matchedProduct['source_convenio'] ?? '';
-
-                // Add debug info for price extraction
-                $matchedProduct['price_extraction_debug'] = [
-                    'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
-                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',
-                    'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
-                    'extracted_price' => $exactPrecioEmision,
-                    'is_numeric' => is_numeric($exactPrecioEmision),
-                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00',
-                    'source_quotation' => $matchedProduct['source_quotation'] ?? 'unknown',
-                    'source_convenio' => $exactConvenio
-                ];
             }
         } catch (\Exception $e) {
             // Handle errors silently

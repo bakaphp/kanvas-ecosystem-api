@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -51,8 +52,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $this->overwriteAppService($app);
 
-        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 5);
-        $messageFiles = $entity->getFiles();
+        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
+        $entity->refresh();
+        $messageFiles = $this->getFilesWithRetry($entity);
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
@@ -72,25 +74,25 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $entity->setPrivate();
 
                 if (! empty($this->validateImageLimit($entity, $params))) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Image limit validation failed',
-                    ];
+                    ]);
                 }
 
                 if (empty($this->apiUrl)) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'API URL not configured',
-                    ];
+                    ]);
                 }
 
                 if ($messageFiles->isEmpty()) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'Message does not have any files',
-                    ];
+                    ]);
                 }
 
                 // Deduct user credit based on the selected image filter
@@ -106,21 +108,21 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     if ($isOpenAi) {
                         $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity, $params);
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                     } elseif ($isGeminiBanana) {
                         // Process with Gemini-Nano-Banana
                         $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter);
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                         // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
                         $processedImageUrl = null;
@@ -133,12 +135,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         );
 
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'request_id' => $requestId,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                     }
 
@@ -164,6 +166,27 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             },
             company: $company,
         );
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 
     public function validateImageLimit(Message $message, array $params): array
@@ -543,7 +566,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your image for {$title} has been processed",
+                message: htmlspecialchars("Your image for {$title} has been processed", ENT_QUOTES, 'UTF-8'),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [

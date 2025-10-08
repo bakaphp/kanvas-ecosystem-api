@@ -171,6 +171,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     'app' => $message->app,
                     'company' => $message->company,
                     'text' => $request['Body'],
+                    'communication_channel' => 'sms',
                     'batchKey' => $batchKey,
                 ]
             );
@@ -331,9 +332,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     protected function getOrCreateChannel(string $from, ?string $name = null, ?Lead $lead = null): Channel
     {
         $slug = Str::slug('twilio-' . $from);
+        $slugWithout = Str::slug('twilio-' . preg_replace('/^\+?1/', '', $from));
 
-        return DB::transaction(function () use ($slug, $from, $name, $lead) {
-            $channel = Channel::where('slug', $slug)
+        return DB::transaction(function () use ($slug, $slugWithout, $from, $name, $lead) {
+            $channel = Channel::whereIn('slug', [$slug, $slugWithout])
                         ->where('companies_id', $this->receiver->company->getId())
                         ->where('apps_id', $this->receiver->app->getId())
                         ->lockForUpdate()  // This applies a database-level lock

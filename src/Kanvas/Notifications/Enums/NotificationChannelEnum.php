@@ -7,6 +7,7 @@ namespace Kanvas\Notifications\Enums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use NotificationChannels\Expo\ExpoChannel;
 
 enum NotificationChannelEnum: int
@@ -39,6 +40,7 @@ enum NotificationChannelEnum: int
             'PUSH' => OneSignalNotificationChannel::class,
             'EXPO' => ExpoChannel::class,
             'DATABASE' => KanvasDatabase::class,
+            'SMS' => TwilioSmsChannel::class,
             default => throw new ValidationException('Invalid channel ' . $slug),
         };
     }
@@ -52,6 +54,7 @@ enum NotificationChannelEnum: int
             ExpoChannel::class => self::EXPO->value,
             KanvasDatabase::class => self::DATABASE->value,
             'database' => self::DATABASE->value,
+            TwilioSmsChannel::class => self::SMS->value,
             default => throw new ValidationException('Invalid channel ' . $class),
         };
     }

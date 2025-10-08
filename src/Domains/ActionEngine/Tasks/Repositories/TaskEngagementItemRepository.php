@@ -10,7 +10,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class TaskEngagementItemRepository
 {
-    public static function getLeadsTaskItems(Lead $lead, ?int $taskListId = null): Builder
+    public static function getLeadsTaskItems(Lead $lead, int|string|null $taskListId = null): Builder
     {
         return TaskListItem::leftJoin('company_task_engagement_items', function ($join) use ($lead) {
             $join->on('company_task_list_items.id', '=', 'company_task_engagement_items.task_list_item_id')
@@ -42,7 +42,7 @@ class TaskEngagementItemRepository
         ');
     }
 
-    public static function getLeadCompletedTaskItems(Lead $lead, ?int $taskListId = null): Builder
+    public static function getLeadCompletedTaskItems(Lead $lead, int|string|null $taskListId = null): Builder
     {
         return self::getLeadsTaskItems($lead, $taskListId)
             ->whereNotNull('company_task_engagement_items.lead_id')

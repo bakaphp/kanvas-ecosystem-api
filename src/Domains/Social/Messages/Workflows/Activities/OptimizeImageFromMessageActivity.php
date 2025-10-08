@@ -53,28 +53,29 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 if ($message->parent_id) {
                     // For child messages, use 'image' key
                     if (! isset($messageContent['image'])) {
-                        return [
+                        return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Child message does not have an image url',
-                        ];
+                        ]);
                     }
                     $imageUrl = $messageContent['image'];
                 } else {
                     // For parent messages, use 'ai_image.image' key
                     if (! isset($messageContent['ai_image']) || ! isset($messageContent['ai_image']['image'])) {
-                        return [
+                        return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Parent message does not have a valid AI image url',
-                        ];
+                            'content' => $messageContent,
+                        ]);
                     }
                     $imageUrl = $messageContent['ai_image']['image'];
                 }
 
                 if (! Str::isUrl($imageUrl)) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'The provided image URL is not valid',
-                    ];
+                    ]);
                 }
 
                 $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
