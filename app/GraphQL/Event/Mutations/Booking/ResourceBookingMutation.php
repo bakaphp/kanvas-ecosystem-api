@@ -181,6 +181,7 @@ class ResourceBookingMutation
             'resources_type' => $resource->getMorphClass(),
             'participants' => $input['participants'],
             'resources' => $input['resources'],
+            'order_items' => $input['order_items'] ?? [],
             'dates' => [
                 [
                     'date' => $startAt->toDateString(),

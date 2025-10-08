@@ -187,6 +187,14 @@ input TimeSlotBookingInput {
     metadata: Mixed
 }
 
+input OrderItemInput {
+    variant_id: ID!
+    name: String!
+    quantity: Int!
+    price: Float!
+    metadata: Mixed
+}
+
 input ResourceBookingInput {
     resources_id: ID!
     resources_type: String
@@ -200,6 +208,7 @@ input ResourceBookingInput {
     payment_method_id: String
     metadata: Mixed
     resources: Mixed
+    order_items: [OrderItemInput!]
 }
 
 input ResourceBookingUpdateInput {
