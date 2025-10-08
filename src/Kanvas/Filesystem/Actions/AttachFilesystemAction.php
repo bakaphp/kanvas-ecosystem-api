@@ -122,7 +122,7 @@ class AttachFilesystemAction
 
             // Flush cache if method exists
             if (method_exists($fileEntity, 'flushCache')) {
-             //   $fileEntity->flushCache();
+                //   $fileEntity->flushCache();
             }
 
             // Fire events after successful database operations
