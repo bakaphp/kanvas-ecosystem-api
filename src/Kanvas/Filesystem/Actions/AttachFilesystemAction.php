@@ -122,7 +122,7 @@ class AttachFilesystemAction
 
             // Flush cache if method exists
             if (method_exists($fileEntity, 'flushCache')) {
-                $fileEntity->flushCache();
+             //   $fileEntity->flushCache();
             }
 
             // Fire events after successful database operations
@@ -131,7 +131,7 @@ class AttachFilesystemAction
             }
 
             if (method_exists($this->entity, 'clearLightHouseCache')) {
-                $this->entity->clearLightHouseCacheJob();
+             //   $this->entity->clearLightHouseCacheJob();
             }
 
             if (method_exists($this->entity, 'searchable')) {

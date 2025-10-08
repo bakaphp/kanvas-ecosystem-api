@@ -34,13 +34,13 @@ class Filesystem extends BaseModel
     use UuidTrait;
     use HashTableTrait;
     //use Cachable;
-    use QueryCacheable;
+   // use QueryCacheable;
 
     public $cacheFor = 604800; //1 week
     public $cacheTags = ['filesystem'];
     public $cachePrefix = 'filesystem_';
     public $cacheDriver = 'redis';
-    protected static $flushCacheOnUpdate = true;
+   // protected static $flushCacheOnUpdate = true;
     public ?string $macroKey = null;
     public mixed $withoutAllGlobalScopes;
 
