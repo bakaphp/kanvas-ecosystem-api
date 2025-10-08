@@ -30,16 +30,16 @@ class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
     //use Cachable;
-    use QueryCacheable;
+    // use QueryCacheable;
 
     public $cacheFor = 604800; //1 week
     public $cacheTags = ['filesystemEntity'];
     public $cachePrefix = 'filesystemEntity_';
     public $cacheDriver = 'redis';
-    protected static $flushCacheOnUpdate = true;
+    //    protected static $flushCacheOnUpdate = true;
 
     protected $table = 'filesystem_entities';
-    protected $touches = ['filesystem'];
+    // protected $touches = ['filesystem'];
 
     protected $fillable = [
         'filesystem_id',
