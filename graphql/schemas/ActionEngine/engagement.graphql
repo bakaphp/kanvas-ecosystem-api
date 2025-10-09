@@ -2,9 +2,9 @@ type Engagement {
     id: ID!
     uuid: String!
     user: User! @belongsTo
-    company_action: CompanyAction! @belongsTo
-    message: Message! @belongsTo
-    lead: Lead! @belongsTo
+    company_action: CompanyAction! @belongsTo(relation: "companyAction")
+    message: Message @belongsTo
+    lead: Lead @belongsTo
     people: People @belongsTo
     entity_uuid: String!
     slug: String!
@@ -49,6 +49,40 @@ extend type Mutation @guard {
 
 # Query definition
 extend type Query @guard {
+    engagements(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "companies_actions_id"
+                    "message_id"
+                    "leads_id"
+                    "people_id"
+                    "pipelines_stages_id"
+                    "entity_uuid"
+                    "slug"
+                ]
+            )
+
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "slug"
+                    "pipelines_stages_id"
+                ]
+            )
+    ): [Engagement!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Engagements\\Models\\Engagement"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
     engagementByFilter(filter: EngagementFilterInput!): Engagement
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@engagementByFilter"
