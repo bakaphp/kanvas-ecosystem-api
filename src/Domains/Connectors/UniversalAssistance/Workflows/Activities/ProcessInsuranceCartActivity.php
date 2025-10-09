@@ -1320,7 +1320,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         try {
             $message = Message::getById($messageId);
-            if (!$message) {
+            if (! $message) {
                 return;
             }
 
