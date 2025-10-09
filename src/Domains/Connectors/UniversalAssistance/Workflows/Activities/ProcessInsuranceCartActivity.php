@@ -43,7 +43,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // Create separate service instance for each eSIM with its specific message_id
                         $service = new InsuranceWorkflowService($app, $order, $esimInsuranceData['message_id'] ?? null);
 
-                        // NEW LOGIC: Group people by plan/convenio within this eSIM's insurance data
                         $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
 
                         // Store results with eSIM index for tracking
