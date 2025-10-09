@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
-use GuzzleHttp\Handler\Proxy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
