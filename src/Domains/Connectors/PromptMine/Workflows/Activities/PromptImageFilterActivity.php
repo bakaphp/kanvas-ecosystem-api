@@ -446,7 +446,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter, array $params): ?Filesystem
     {
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
-        $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
+        $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
         $imageContent = Http::get($imageUrl)->body();
         if (empty($imageContent)) {
