@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
@@ -239,7 +240,15 @@ class PullLeadAction
                 $lead->set(LeadCustomFieldEnum::TRADE_IN->value, $vehicleTradeIn);
             }
         } catch (Throwable $e) {
-            report($e);
+            $message = $e->getMessage();
+
+            $isIgnoredTradeInNotFound = $e instanceof ClientException
+                && str_starts_with($message, 'Client error: `GET https://api.vinsolutions.com/vehicles/trade?leadId=')
+                && str_contains($message, '`404 Not Found` response');
+
+            if (! $isIgnoredTradeInNotFound) {
+                report($e);
+            }
         }
     }
 }
