@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
