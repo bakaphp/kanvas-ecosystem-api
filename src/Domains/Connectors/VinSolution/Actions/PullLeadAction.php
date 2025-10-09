@@ -93,7 +93,7 @@ class PullLeadAction
                     $lead,
                     $currentLead
                 );
-                
+
                 $this->setTradeInVehicle(
                     $vinCompany,
                     $user,
