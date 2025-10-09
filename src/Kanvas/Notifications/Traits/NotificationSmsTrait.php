@@ -17,7 +17,8 @@ trait NotificationSmsTrait
             return [];
         }
 
-        $phone = $this->toUser->cell_phone_number ?? $this->toUser->phone_number;
+        $appUser = $this->toUser->getAppProfile($this->app);
+        $phone = $appUser->two_step_phone_number ?? $this->toUser->cell_phone_number ?? $this->toUser->phone_number;
 
         if (empty($phone)) {
             return [];
