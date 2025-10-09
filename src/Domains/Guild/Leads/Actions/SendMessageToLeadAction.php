@@ -81,6 +81,7 @@ class SendMessageToLeadAction
                 'content' => $message,
                 'lead' => $this->lead,
                 'noHi' => true,
+                'company' => $this->lead->company,
             ],
             ['mail'],
             $this->lead
