@@ -25,7 +25,6 @@ use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use GuzzleHttp\Exception\ClientException;
 use Throwable;
 
 class PullLeadAction
