@@ -31,5 +31,6 @@ class HandOffNotification extends Notification
         $this->setData($data);
         $this->setSubject('Lead Handoff Notification');
         $this->setPushTemplateName('lead_handoff_push_notification');
+        $this->setSmsTemplateName('lead_handoff_sms_notification');
     }
 }
