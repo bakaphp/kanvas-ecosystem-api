@@ -18,9 +18,10 @@ class TwilioSmsChannel
 
         $company = $message['company'];
         $cellphone = $message['phone'];
+        $content = $message['content'];
         $fromPhone = $company->get('twilio_from_phone_number');
 
-        if (empty($fromPhone)) {
+        if (empty($fromPhone) || empty($content) || empty($cellphone)) {
             return;
         }
 
@@ -30,7 +31,7 @@ class TwilioSmsChannel
             $cellphone, // to
             [
                 'from' => $fromPhone,
-                'body' => $message,
+                'body' => $content,
             ]
         );
     }

@@ -27,7 +27,7 @@ trait NotificationSmsTrait
         return [
             'user_id' => $this->toUser->getId(),
             'phone' => $phone,
-            'content' => $this->message(),
+            'content' => $this->getSmsTemplate(),
             'title' => $this->subject ?? '',
             'app' => $this->app,
             'company' => $this->company,
