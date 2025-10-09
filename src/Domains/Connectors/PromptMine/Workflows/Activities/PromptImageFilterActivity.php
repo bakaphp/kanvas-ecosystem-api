@@ -636,7 +636,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
-            $imageUrl = $params['additional_images'];
+            $imageUrl = array_values($params['additional_images']);
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
