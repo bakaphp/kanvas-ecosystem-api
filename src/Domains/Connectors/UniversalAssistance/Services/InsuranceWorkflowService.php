@@ -2325,18 +2325,17 @@ class InsuranceWorkflowService
     {
         // Use the selected quotation's convenio and quotation type
         $convenio = $selectedQuotation['convenio'];
-        $quotationType = $selectedQuotation['type'];
+        $quotationType = $selectedQuotation['quotation_type'] ?? $selectedQuotation['type'];
 
-        // Create voucher data for the group (first person as primary, rest as beneficiaries)
+        // Extract the quoted price from the quotation data for the voucher
+        $quotationData = $selectedQuotation['quotation_data'];
+        $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
+
+        // Create voucher data for the group using ONLY the primary person (no DatosBeneficiarios)
         $primaryPerson = $groupedPersonsData[0];
-        $additionalBeneficiaries = array_slice($groupedPersonsData, 1);
 
-        // Build group voucher data with all people included
-        if ($quotationType === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
-        } else {
-            $voucherData = $this->buildGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
-        }
+        // Build voucher data with ONLY primary person and correct price
+        $voucherData = $this->buildSinglePersonVoucherWithGroupPrice($primaryPerson, $originCountryCode, $destinationCountryCode, $convenio, $quotedPrice, $quotationType);
 
         // Create the voucher using the client (using existing quotation method with voucher creation flag)
         try {
@@ -2369,6 +2368,49 @@ class InsuranceWorkflowService
                 'people_names' => $this->extractPeopleNames($groupedPersonsData)
             ];
         }
+    }
+
+    /**
+     * Extract quoted price from group quotation data
+     */
+    protected function extractQuotedPriceFromGroupQuotation(array $quotationData): string
+    {
+        // Look for price in Universal Assistance quotation response structure
+        if (isset($quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+            $cotizadorData = $quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+
+            // Handle both single object and array of objects
+            if (is_array($cotizadorData) && isset($cotizadorData[0])) {
+                $cotizadorData = $cotizadorData[0];
+            }
+
+            $price = $cotizadorData['PrecioEmision'] ?? $cotizadorData['PrecioNeto'] ?? $cotizadorData['PrecioBruto'] ?? '0.00';
+            return strval($price);
+        }
+
+        return '0.00';
+    }
+
+    /**
+     * Build voucher data for single person but with group-calculated price
+     * This creates a voucher with ONLY the primary person but the price calculated for the entire group
+     */
+    protected function buildSinglePersonVoucherWithGroupPrice(array $primaryPerson, string $originCountryCode, string $destinationCountryCode, string $convenio, string $groupPrice, string $quotationType): array
+    {
+        // Build voucher data for just the primary person
+        if ($quotationType === 'cross_selling') {
+            $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+        } else {
+            $voucherData = $this->buildVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+        }
+
+        // Override the price with the group-calculated price
+        $voucherData['Precio'] = $groupPrice;
+
+        // CRITICAL: Remove DatosBeneficiarios to ensure only primary person in voucher
+        unset($voucherData['DatosBeneficiarios']);
+
+        return $voucherData;
     }
 
     /**
@@ -2495,21 +2537,13 @@ class InsuranceWorkflowService
      */
     protected function performGroupQuotation(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
     {
-        // Build group voucher data with ALL people for quotation
-        $primaryPerson = $groupedPersonsData[0];
-        $additionalBeneficiaries = array_slice($groupedPersonsData, 1);
+        // Build group QUOTATION data (different from voucher data - includes all ages in Edad1, Edad2, etc.)
+        $quotationData = $this->buildGroupQuotationData($groupedPersonsData, $originCountryCode, $destinationCountryCode, $convenio);
 
-        // Build voucher data including ALL group members for accurate quotation
-        if ($quotationType === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
-        } else {
-            $voucherData = $this->buildGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
-        }
-
-        // Perform the quotation using the client with ALL group members
+        // Perform the quotation using the client with ALL group members properly structured
         try {
             $result = $this->client->createSingleQuotationWithCountries(
-                $voucherData,
+                $quotationData,
                 $quotationType,
                 $originCountryCode,
                 $destinationCountryCode,
@@ -2526,7 +2560,7 @@ class InsuranceWorkflowService
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
                 'group_size' => count($groupedPersonsData),
-                'quotation_request_input' => $voucherData  // Include the original quotation request data with ALL people
+                'quotation_request_input' => $quotationData  // Include the original quotation request data with ALL people
             ];
         } catch (\Exception $e) {
             return [
@@ -2536,6 +2570,90 @@ class InsuranceWorkflowService
                 'quotation_type' => $quotationType,
                 'group_size' => count($groupedPersonsData)
             ];
+        }
+    }
+
+    /**
+     * Build quotation data for a group (different from voucher data)
+     * For quotation, we need to include all ages in Edad1, Edad2, Edad3... and CantidadPasajeros
+     * This is used for getting quotes, not for creating vouchers
+     */
+    protected function buildGroupQuotationData(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $convenio): array
+    {
+        // Get primary person for basic data
+        $primaryPerson = $groupedPersonsData[0];
+        
+        // Calculate ages for all people in the group
+        $ages = [];
+        foreach ($groupedPersonsData as $person) {
+            $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
+            if ($birthDate) {
+                $age = $this->calculateAge($birthDate);
+                $ages[] = $age;
+            }
+        }
+
+        // Get travel dates
+        $activationDate = $primaryPerson['activationDate'] ?? null;
+        $expirationDate = $primaryPerson['expirationDate'] ?? null;
+        
+        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('d/m/Y') : '';
+        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('d/m/Y') : '';
+
+        // Get destination info
+        $originCountryName = $this->getCountryName($originCountryCode);
+        $destinationName = $this->getDestinationName($destinationCountryCode);
+
+        // Build quotation data structure (UALeadCotizadorReq format)
+        $quotationData = [
+            'IdLead' => '',
+            'OrganizacionEmisora' => $this->client->getOrganizationForQuotationType('quotation'),
+            'CantCotizaciones' => 1,
+            'Convenio' => $convenio,
+            'Folleto' => '',
+            'PaisOrigen' => $originCountryName,
+            'Destino' => $destinationName,
+            'TipoViaje' => 'Un viaje',
+            'FechaInicio' => $fechaInicio,
+            'FechaFin' => $fechaFin,
+            'CantidadPasajeros' => count($groupedPersonsData), // CRITICAL: Total number of people
+            'PackFamiliar' => '',
+            // Add all ages to individual Edad fields
+            'Edad1' => $ages[0] ?? '',
+            'Edad2' => $ages[1] ?? '',
+            'Edad3' => $ages[2] ?? '',
+            'Edad4' => $ages[3] ?? '',
+            'Edad5' => $ages[4] ?? '',
+            'Edad6' => $ages[5] ?? '',
+            'Edad7' => $ages[6] ?? '',
+            'Edad8' => $ages[7] ?? '',
+            'Edad9' => $ages[8] ?? '',
+            'Edad10' => $ages[9] ?? '',
+            'ApellidoContacto' => '',
+            'NombreContacto' => '',
+            'TelefonoContacto' => '',
+            'EmailContacto' => '',
+            'Categoria' => '',
+            'Precompras' => '',
+            'NroDocumento' => '',
+            'TipoDocumento' => '',
+        ];
+
+        return $quotationData;
+    }
+
+    /**
+     * Calculate age from birth date
+     */
+    protected function calculateAge(string $birthDate): int
+    {
+        try {
+            $birth = new \DateTime($birthDate);
+            $today = new \DateTime();
+            $age = $today->diff($birth)->y;
+            return $age;
+        } catch (\Exception $e) {
+            return 0; // Default age if parsing fails
         }
     }
 }
