@@ -236,4 +236,22 @@ class UsersRepository
             ->where('assigned_roles.scope', $roleScope)
             ->where('assigned_roles.role_id', $role->id);
     }
+
+    public static function getCompanyAppUserByRole(CompanyInterface $company, AppInterface $app, string $roleName): Builder
+    {
+        $roleScope = RolesEnums::getScope($app);
+        $role = RolesRepository::getByNameFromCompany(
+            name: $roleName,
+            app: $app
+        );
+
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+            ->join('assigned_roles', 'assigned_roles.entity_id', '=', 'users.id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users_associated_apps.companies_id', $company->getId())
+            ->where('assigned_roles.entity_type', Users::class)
+            ->where('assigned_roles.scope', $roleScope)
+            ->where('assigned_roles.role_id', $role->id);
+    }
 }
