@@ -2582,7 +2582,7 @@ class InsuranceWorkflowService
     {
         // Get primary person for basic data
         $primaryPerson = $groupedPersonsData[0];
-        
+
         // Calculate ages for all people in the group
         $ages = [];
         foreach ($groupedPersonsData as $person) {
@@ -2596,7 +2596,7 @@ class InsuranceWorkflowService
         // Get travel dates
         $activationDate = $primaryPerson['activationDate'] ?? null;
         $expirationDate = $primaryPerson['expirationDate'] ?? null;
-        
+
         $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('d/m/Y') : '';
         $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('d/m/Y') : '';
 
