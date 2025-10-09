@@ -1154,6 +1154,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // For grouped vouchers, create a special result structure
                         $result['titular'] = [
                             'voucher_result' => $group['result']['group_voucher_result'],
+                            'dual_quotation_results' => $group['result']['dual_quotation_results'] ?? null,
+                            'selected_quotation' => $group['result']['selected_quotation'] ?? null,
                             'group_metadata' => [
                                 'is_grouped' => true,
                                 'group_size' => $group['group_size'],

@@ -1954,59 +1954,109 @@ class InsuranceWorkflowService
 
     /**
      * Extract IdLeadOut from quotation response.
+     * Handles multiple possible response structures from Universal Assistance API
      */
     protected function extractIdLeadOut($quotationResponse): ?string
     {
-        // Handle direct IdLeadOut field
-        if (isset($quotationResponse['IdLeadOut'])) {
-            return $quotationResponse['IdLeadOut'];
+        if (empty($quotationResponse)) {
+            return null;
         }
 
-        // Check if it's in DatosLeadCotizadorOut
+        // Convert to array for consistent handling
+        if (is_object($quotationResponse)) {
+            $quotationResponse = $this->convertObjectsToArrays($quotationResponse);
+        }
+
+        // LEVEL 1: Direct IdLeadOut field (simple case)
+        if (isset($quotationResponse['IdLeadOut'])) {
+            return (string) $quotationResponse['IdLeadOut'];
+        }
+
+        // LEVEL 2: Check in DatosLeadCotizadorOut (direct structure)
         if (isset($quotationResponse['DatosLeadCotizadorOut'])) {
             $quoteData = $quotationResponse['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
             if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
-                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
+                $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
+                if ($idLeadOut) {
+                    return (string) $idLeadOut;
+                }
             }
 
-            // Handle object case
-            if (is_object($quoteData)) {
-                return $quoteData->IdLeadOut ?? null;
+            // Handle object/associative array case
+            if (is_array($quoteData) && isset($quoteData['IdLeadOut'])) {
+                return (string) $quoteData['IdLeadOut'];
             }
         }
 
-        // Check in nested quotation_data structure (for full responses)
-        if (isset($quotationResponse['quotation_data']['DatosLeadCotizadorOut'])) {
-            $quoteData = $quotationResponse['quotation_data']['DatosLeadCotizadorOut'];
+        // LEVEL 3: Check in UALeadCotizadorResp/DatosLeadCotizadorOut (standard UA response)
+        if (isset($quotationResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+            $quoteData = $quotationResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
             if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
-                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
+                $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
+                if ($idLeadOut) {
+                    return (string) $idLeadOut;
+                }
             }
 
-            // Handle object case
-            if (is_object($quoteData)) {
-                return $quoteData->IdLeadOut ?? null;
+            // Handle object/associative array case
+            if (is_array($quoteData) && isset($quoteData['IdLeadOut'])) {
+                return (string) $quoteData['IdLeadOut'];
             }
         }
 
-        // Check in quote_response structure
-        if (isset($quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-            $quoteData = $quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+        // LEVEL 4: Check in nested quotation_data structure (from performGroupQuotation)
+        if (isset($quotationResponse['quotation_data'])) {
+            $nestedData = $quotationResponse['quotation_data'];
 
-            // Handle array case - take first element
-            if (is_array($quoteData) && ! empty($quoteData)) {
-                $firstQuote = $quoteData[0];
-                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
+            // Recursive call with nested data
+            $nestedResult = $this->extractIdLeadOut($nestedData);
+            if ($nestedResult) {
+                return $nestedResult;
             }
+        }
 
-            // Handle object case
-            if (is_object($quoteData)) {
-                return $quoteData->IdLeadOut ?? null;
+        // LEVEL 5: Check in quote_response structure (alternative nesting)
+        if (isset($quotationResponse['quote_response'])) {
+            $quoteResponseData = $quotationResponse['quote_response'];
+
+            // Recursive call with quote_response data
+            $quoteResult = $this->extractIdLeadOut($quoteResponseData);
+            if ($quoteResult) {
+                return $quoteResult;
+            }
+        }
+
+        // LEVEL 6: Check in response structure (client response wrapper)
+        if (isset($quotationResponse['response'])) {
+            $responseData = $quotationResponse['response'];
+
+            // Recursive call with response data
+            $responseResult = $this->extractIdLeadOut($responseData);
+            if ($responseResult) {
+                return $responseResult;
+            }
+        }
+
+        // LEVEL 7: Deep search in any array structure (last resort)
+        if (is_array($quotationResponse)) {
+            foreach ($quotationResponse as $key => $value) {
+                if ($key === 'IdLeadOut' && $value) {
+                    return (string) $value;
+                }
+
+                // Search in nested arrays/objects
+                if ((is_array($value) || is_object($value)) && !empty($value)) {
+                    $deepResult = $this->extractIdLeadOut($value);
+                    if ($deepResult) {
+                        return $deepResult;
+                    }
+                }
             }
         }
 
@@ -2331,11 +2381,28 @@ class InsuranceWorkflowService
         $quotationData = $selectedQuotation['quotation_data'];
         $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
 
+        // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
+        $idLeadOut = $this->extractIdLeadOut($quotationData);
+
+        // Debug logging (can be removed after testing)
+        if (!$idLeadOut) {
+            // Log the structure to help debug
+            error_log('[UA-DEBUG] IdLeadOut not found. Quotation data structure: ' . json_encode(array_keys($quotationData ?? []), JSON_PRETTY_PRINT));
+            error_log('[UA-DEBUG] Selected quotation structure: ' . json_encode(array_keys($selectedQuotation ?? []), JSON_PRETTY_PRINT));
+        } else {
+            error_log('[UA-DEBUG] IdLeadOut extracted successfully: ' . $idLeadOut);
+        }
+
         // Create voucher data for the group using ONLY the primary person (no DatosBeneficiarios)
         $primaryPerson = $groupedPersonsData[0];
 
         // Build voucher data with ONLY primary person and correct price
         $voucherData = $this->buildSinglePersonVoucherWithGroupPrice($primaryPerson, $originCountryCode, $destinationCountryCode, $convenio, $quotedPrice, $quotationType);
+
+        // CRITICAL: Set the LeadId from the quotation
+        if ($idLeadOut) {
+            $voucherData['LeadId'] = $idLeadOut;
+        }
 
         // Create the voucher using the client (using existing quotation method with voucher creation flag)
         try {
@@ -2355,7 +2422,9 @@ class InsuranceWorkflowService
                 'convenio_used' => $convenio,
                 'quotation_type_used' => $quotationType,
                 'group_size' => count($groupedPersonsData),
-                'people_names' => $this->extractPeopleNames($groupedPersonsData)
+                'people_names' => $this->extractPeopleNames($groupedPersonsData),
+                'id_lead_out_used' => $idLeadOut, // For debugging
+                'quote_response' => $quotationData // Include the original quotation response
             ];
         } catch (\Exception $e) {
             return [
@@ -2365,7 +2434,9 @@ class InsuranceWorkflowService
                 'convenio_used' => $convenio,
                 'quotation_type_used' => $quotationType,
                 'group_size' => count($groupedPersonsData),
-                'people_names' => $this->extractPeopleNames($groupedPersonsData)
+                'people_names' => $this->extractPeopleNames($groupedPersonsData),
+                'id_lead_out_used' => $idLeadOut, // For debugging
+                'quote_response' => $quotationData // Include the original quotation response
             ];
         }
     }
