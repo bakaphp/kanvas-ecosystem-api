@@ -2051,7 +2051,7 @@ class InsuranceWorkflowService
                 }
 
                 // Search in nested arrays/objects
-                if ((is_array($value) || is_object($value)) && !empty($value)) {
+                if ((is_array($value) || is_object($value)) && ! empty($value)) {
                     $deepResult = $this->extractIdLeadOut($value);
                     if ($deepResult) {
                         return $deepResult;
@@ -2384,14 +2384,7 @@ class InsuranceWorkflowService
         // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
         $idLeadOut = $this->extractIdLeadOut($quotationData);
 
-        // Debug logging (can be removed after testing)
-        if (!$idLeadOut) {
-            // Log the structure to help debug
-            error_log('[UA-DEBUG] IdLeadOut not found. Quotation data structure: ' . json_encode(array_keys($quotationData ?? []), JSON_PRETTY_PRINT));
-            error_log('[UA-DEBUG] Selected quotation structure: ' . json_encode(array_keys($selectedQuotation ?? []), JSON_PRETTY_PRINT));
-        } else {
-            error_log('[UA-DEBUG] IdLeadOut extracted successfully: ' . $idLeadOut);
-        }
+        // Extract IdLeadOut validation completed
 
         // Create voucher data for the group using ONLY the primary person (no DatosBeneficiarios)
         $primaryPerson = $groupedPersonsData[0];
