@@ -2722,12 +2722,12 @@ class InsuranceWorkflowService
         // CRITICAL: Ensure ALL people are included with proper ages
         $ages = [];
         $ageDetails = [];
-        
+
         foreach ($groupedPersonsData as $index => $person) {
             $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
             $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
             $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
-            
+
             if ($birthDate) {
                 $age = $this->calculateAge($birthDate);
                 $ages[] = $age;
@@ -2790,7 +2790,7 @@ class InsuranceWorkflowService
         // VALIDATION: Ensure all ages were properly assigned
         $agesAssigned = 0;
         for ($i = 1; $i <= 10; $i++) {
-            if (!empty($quotationData["Edad{$i}"])) {
+            if (! empty($quotationData["Edad{$i}"])) {
                 $agesAssigned++;
             }
         }
