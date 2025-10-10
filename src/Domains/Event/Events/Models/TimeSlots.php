@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Event\Models\BaseModel;
 
@@ -25,6 +26,7 @@ class TimeSlots extends BaseModel
         'companies_id',
         'resources_id',
         'resources_type',
+        'schedule_rules_id',
         'start_at',
         'end_at',
         'capacity',
@@ -37,5 +39,22 @@ class TimeSlots extends BaseModel
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
+    }
+
+    public function scheduleRule(): BelongsTo
+    {
+        return $this->belongsTo(ScheduleRules::class, 'schedule_rules_id');
+    }
+
+
+    public function isFromScheduleRule(): bool
+    {
+        return $this->schedule_rules_id !== null;
+    }
+
+
+    public function isStandalone(): bool
+    {
+        return $this->schedule_rules_id === null;
     }
 }
