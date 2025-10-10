@@ -2421,6 +2421,25 @@ class InsuranceWorkflowService
         $quotationData = $selectedQuotation['result']['quotation_data'] ?? $selectedQuotation['quotation_data'] ?? [];
         $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
 
+        if (empty($quotedPrice) || $quotedPrice === '0.00') {
+            // Try alternative price extraction methods if primary method failed
+            $alternativePaths = [
+                $selectedQuotation['result'] ?? null,
+                $selectedQuotation['quotation_request_input'] ?? null,
+                $selectedQuotation ?? null
+            ];
+
+            foreach ($alternativePaths as $path) {
+                if ($path && is_array($path)) {
+                    $altPrice = $this->extractQuotedPriceFromGroupQuotation($path);
+                    if ($altPrice !== '0.00') {
+                        $quotedPrice = $altPrice;
+                        break;
+                    }
+                }
+            }
+        }
+
         // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
         // For group quotations, try multiple possible paths
         $idLeadOut = null;
@@ -2491,21 +2510,51 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Extract quoted price from group quotation data
+     * Extract quoted price from group quotation data - Enhanced to match individual voucher logic
      */
     protected function extractQuotedPriceFromGroupQuotation(array $quotationData): string
     {
-        // Look for price in Universal Assistance quotation response structure
-        if (isset($quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-            $cotizadorData = $quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+        // Try multiple paths to find the price, similar to individual voucher logic
+        $searchPaths = [
+            // Path 1: Direct UALeadCotizadorResp structure
+            $quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            // Path 2: quote_response structure
+            $quotationData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            // Path 3: response structure
+            $quotationData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
+            // Path 4: Direct DatosLeadCotizadorOut
+            $quotationData['DatosLeadCotizadorOut'] ?? null,
+        ];
 
-            // Handle both single object and array of objects
-            if (is_array($cotizadorData) && isset($cotizadorData[0])) {
-                $cotizadorData = $cotizadorData[0];
+        foreach ($searchPaths as $cotizadorData) {
+            if ($cotizadorData !== null) {
+                // Handle both single object and array of objects
+                if (is_array($cotizadorData) && isset($cotizadorData[0])) {
+                    $cotizadorData = $cotizadorData[0];
+                }
+
+                // Try multiple price fields in order of preference
+                $price = $cotizadorData['PrecioEmision'] ??
+                        $cotizadorData['PrecioNeto'] ??
+                        $cotizadorData['PrecioBruto'] ??
+                        null;
+
+                if ($price !== null && is_numeric($price) && floatval($price) > 0) {
+                    return strval($price);
+                }
             }
+        }
 
-            $price = $cotizadorData['PrecioEmision'] ?? $cotizadorData['PrecioNeto'] ?? $cotizadorData['PrecioBruto'] ?? '0.00';
-            return strval($price);
+        // Additional fallback: Try to extract from any nested structures
+        if (is_array($quotationData)) {
+            foreach ($quotationData as $key => $value) {
+                if (is_array($value) && strpos($key, 'Lead') !== false) {
+                    $nestedPrice = $this->extractQuotedPriceFromGroupQuotation($value);
+                    if ($nestedPrice !== '0.00') {
+                        return $nestedPrice;
+                    }
+                }
+            }
         }
 
         return '0.00';
@@ -2524,8 +2573,19 @@ class InsuranceWorkflowService
             $voucherData = $this->buildVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         }
 
-        // Override the price with the group-calculated price
-        $voucherData['Precio'] = $groupPrice;
+        // CRITICAL: Override the price with the group-calculated price
+        // Ensure we have a valid price before setting it
+        if (! empty($groupPrice) && is_numeric($groupPrice) && floatval($groupPrice) > 0) {
+            $voucherData['Precio'] = strval($groupPrice);
+        } else {
+            // If group price is invalid, try to extract from individual plan
+            $fallbackPrice = $primaryPerson['plan']['price'] ?? '0.00';
+            if (is_numeric($fallbackPrice) && floatval($fallbackPrice) > 0) {
+                $voucherData['Precio'] = strval($fallbackPrice);
+            } else {
+                $voucherData['Precio'] = '0.00';
+            }
+        }
 
         // CRITICAL: Remove DatosBeneficiarios to ensure only primary person in voucher
         unset($voucherData['DatosBeneficiarios']);
@@ -2705,25 +2765,80 @@ class InsuranceWorkflowService
             throw new ValidationException('buildGroupQuotationData called with empty group data');
         }
 
-        $groupSize = count($groupedPersonsData);
+        // CRITICAL FIX: Handle both flat array of people and nested structure with titular/dependents
+        $flatPersonsArray = [];
+
+        // Check if this is a nested structure (titular/dependents) or flat array
+        if (isset($groupedPersonsData['titular']) || isset($groupedPersonsData['dependents'])) {
+            // Nested structure - extract titular and dependents into flat array
+            if (isset($groupedPersonsData['titular'])) {
+                $flatPersonsArray[] = $groupedPersonsData['titular'];
+            }
+            if (isset($groupedPersonsData['dependents']) && is_array($groupedPersonsData['dependents'])) {
+                foreach ($groupedPersonsData['dependents'] as $dependent) {
+                    $flatPersonsArray[] = $dependent;
+                }
+            }
+        } else {
+            // Check if it's already a flat array of person objects
+            $isFlat = true;
+            foreach ($groupedPersonsData as $key => $item) {
+                if (! is_numeric($key) && ! is_array($item)) {
+                    $isFlat = false;
+                    break;
+                }
+                // Check if item has person-like structure
+                if (! isset($item['firstname']) && ! isset($item['firstName']) &&
+                    ! isset($item['dob']) && ! isset($item['birthDate'])) {
+                    $isFlat = false;
+                    break;
+                }
+            }
+
+            if ($isFlat) {
+                $flatPersonsArray = $groupedPersonsData;
+            } else {
+                throw new ValidationException('buildGroupQuotationData received unrecognized data structure. Expected either flat array of people or titular/dependents structure.');
+            }
+        }
+
+        $groupSize = count($flatPersonsArray);
+
+        // DEBUGGING: Log what we received to identify the data structure issue
+        $debugInfo = [];
+        foreach ($flatPersonsArray as $index => $person) {
+            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
+            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
+            $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
+            $debugInfo[] = "Person {$index}: {$firstName} {$lastName} (DOB: {$birthDate})";
+        }
+
+        // If we only have 1 person but expecting a family group, this indicates the family grouping failed
+        if ($groupSize === 1) {
+            // Check if this person has family information that wasn't processed correctly
+            $person = $flatPersonsArray[0];
+            $errorMsg = "Group quotation called with only 1 person - family grouping may have failed. ";
+            $errorMsg .= "Person: " . implode(', ', $debugInfo);
+            throw new ValidationException($errorMsg);
+        }
 
         // Log detailed group information for debugging
         $peopleNames = [];
-        foreach ($groupedPersonsData as $person) {
+        foreach ($flatPersonsArray as $person) {
             $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
             $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
             $peopleNames[] = "{$firstName} {$lastName}";
         }
 
         // Get primary person for basic data
-        $primaryPerson = $groupedPersonsData[0];
+        $primaryPerson = $flatPersonsArray[0];
 
         // Calculate ages for all people in the group
         // CRITICAL: Ensure ALL people are included with proper ages
         $ages = [];
         $ageDetails = [];
 
-        foreach ($groupedPersonsData as $index => $person) {
+        foreach ($flatPersonsArray as $index => $person) {
             $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
             $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
             $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
