@@ -64,6 +64,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
                 $language = $order->metadata['language'] ?? $params['language'] ?? 'en';
+                $metaDataSendEmail = (bool) ($order->metadata['send_kanvas_email'] ?? false);
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -323,7 +324,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 }
 
                 try {
-                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true)) {
+                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true) || $metaDataSendEmail) {
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
