@@ -982,39 +982,38 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $allPeople = [];
         $planGroups = [];
 
+        // For family grouping, we prioritize keeping families together over plan optimization
+        // All people from the same eSIM will be grouped together for family voucher
+        $familyGroupKey = 'family_group_esim_' . $esimIndex;
+
         // Add titular
         if (isset($insuranceData['titular'])) {
-            $titularPlanKey = $service->generatePlanGroupKey($insuranceData['titular']);
             $allPeople[] = [
                 'data' => $insuranceData['titular'],
                 'type' => 'titular',
-                'plan_key' => $titularPlanKey,
+                'plan_key' => $familyGroupKey, // Use family group key instead of plan-based key
                 'person_id' => 'titular'
             ];
 
-            // Initialize plan group
-            if (! isset($planGroups[$titularPlanKey])) {
-                $planGroups[$titularPlanKey] = [];
+            // Initialize family group
+            if (! isset($planGroups[$familyGroupKey])) {
+                $planGroups[$familyGroupKey] = [];
             }
-            $planGroups[$titularPlanKey][] = $insuranceData['titular'];
+            $planGroups[$familyGroupKey][] = $insuranceData['titular'];
         }
 
-        // Add dependents
+        // Add dependents to the same family group
         if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
             foreach ($insuranceData['dependents'] as $index => $dependent) {
-                $dependentPlanKey = $service->generatePlanGroupKey($dependent);
                 $allPeople[] = [
                     'data' => $dependent,
                     'type' => 'dependent',
-                    'plan_key' => $dependentPlanKey,
+                    'plan_key' => $familyGroupKey, // Use same family group key
                     'person_id' => "dependent_{$index}"
                 ];
 
-                // Add to plan group
-                if (! isset($planGroups[$dependentPlanKey])) {
-                    $planGroups[$dependentPlanKey] = [];
-                }
-                $planGroups[$dependentPlanKey][] = $dependent;
+                // Add to same family group
+                $planGroups[$familyGroupKey][] = $dependent;
             }
         }
 
