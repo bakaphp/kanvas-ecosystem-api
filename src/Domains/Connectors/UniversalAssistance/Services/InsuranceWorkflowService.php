@@ -2378,7 +2378,7 @@ class InsuranceWorkflowService
         $quotationType = $selectedQuotation['quotation_type'] ?? $selectedQuotation['type'];
 
         // Extract the quoted price from the quotation data for the voucher
-        $quotationData = $selectedQuotation['quotation_data'];
+        $quotationData = $selectedQuotation['result']['quotation_data'] ?? $selectedQuotation['quotation_data'] ?? [];
         $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
 
         // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
