@@ -2360,9 +2360,8 @@ class InsuranceWorkflowService
      */
     protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
     {
-        // CRITICAL FIX: Get the first person correctly from either flat array or titular/dependents structure
         $firstPerson = null;
-        
+
         if (isset($groupedPersonsData['titular'])) {
             // Nested structure - use titular as the primary person
             $firstPerson = $groupedPersonsData['titular'];
@@ -2668,21 +2667,21 @@ class InsuranceWorkflowService
         $simplified = [];
 
         foreach (['inclusion', 'cross_selling'] as $quotationType) {
-            if (isset($dualQuotationResult[$quotationType]['result']['success']) && 
+            if (isset($dualQuotationResult[$quotationType]['result']['success']) &&
                 $dualQuotationResult[$quotationType]['result']['success']) {
-                
+
                 $quotationData = $dualQuotationResult[$quotationType]['result']['quotation_data'] ?? [];
-                
+
                 // Extract only the essential quote response (UALeadCotizadorResp)
-                $quoteResponse = $quotationData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                                $quotationData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+                $quoteResponse = $quotationData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                $quotationData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                 null;
 
                 // Try to find product matching information for this quotation
                 $targetPlan = $dualQuotationResult[$quotationType]['target_plan'] ?? '';
                 $productMatchInfo = null;
-                
-                if ($quoteResponse && !empty($targetPlan)) {
+
+                if ($quoteResponse && ! empty($targetPlan)) {
                     $productMatchInfo = $this->findMatchingProductInQuoteData($targetPlan, is_array($quoteResponse) ? $quoteResponse : [$quoteResponse]);
                 }
 
