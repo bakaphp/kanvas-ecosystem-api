@@ -105,7 +105,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 if ($messageFiles->count() > 1) {
                     //lets add them to params since this is optional
-                    $params['additional_images'] = $messageFiles->slice(1)->map(fn($file) => $file->url)->toArray();
+                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
                 }
 
                 try {
