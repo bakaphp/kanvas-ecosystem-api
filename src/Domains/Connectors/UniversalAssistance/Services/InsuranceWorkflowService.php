@@ -2700,16 +2700,44 @@ class InsuranceWorkflowService
      */
     protected function buildGroupQuotationData(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $convenio): array
     {
+        // VALIDATION: Ensure we received the expected group data
+        if (empty($groupedPersonsData)) {
+            throw new ValidationException('buildGroupQuotationData called with empty group data');
+        }
+
+        $groupSize = count($groupedPersonsData);
+        
+        // Log detailed group information for debugging
+        $peopleNames = [];
+        foreach ($groupedPersonsData as $person) {
+            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
+            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
+            $peopleNames[] = "{$firstName} {$lastName}";
+        }
+
         // Get primary person for basic data
         $primaryPerson = $groupedPersonsData[0];
 
         // Calculate ages for all people in the group
+        // CRITICAL: Ensure ALL people are included with proper ages
         $ages = [];
-        foreach ($groupedPersonsData as $person) {
+        $ageDetails = [];
+        
+        foreach ($groupedPersonsData as $index => $person) {
+            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
+            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
             $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
+            
             if ($birthDate) {
                 $age = $this->calculateAge($birthDate);
                 $ages[] = $age;
+                $ageDetails[] = "{$firstName} {$lastName}: {$age} años (DOB: {$birthDate})";
+            } else {
+                // If birth date is missing, use a default age to ensure person is still included in quotation
+                // This prevents quotation from having fewer people than expected
+                $defaultAge = 30; // Default adult age for missing birth dates
+                $ages[] = $defaultAge;
+                $ageDetails[] = "{$firstName} {$lastName}: {$defaultAge} años (DOB missing - using default)";
             }
         }
 
@@ -2736,9 +2764,9 @@ class InsuranceWorkflowService
             'TipoViaje' => 'Un viaje',
             'FechaInicio' => $fechaInicio,
             'FechaFin' => $fechaFin,
-            'CantidadPasajeros' => count($groupedPersonsData), // CRITICAL: Total number of people
+            'CantidadPasajeros' => $groupSize, // CRITICAL: Total number of people in group
             'PackFamiliar' => '',
-            // Add all ages to individual Edad fields
+            // Add all ages to individual Edad fields - Universal Assistance expects individual age fields
             'Edad1' => $ages[0] ?? '',
             'Edad2' => $ages[1] ?? '',
             'Edad3' => $ages[2] ?? '',
@@ -2758,6 +2786,19 @@ class InsuranceWorkflowService
             'NroDocumento' => '',
             'TipoDocumento' => '',
         ];
+
+        // VALIDATION: Ensure all ages were properly assigned
+        $agesAssigned = 0;
+        for ($i = 1; $i <= 10; $i++) {
+            if (!empty($quotationData["Edad{$i}"])) {
+                $agesAssigned++;
+            }
+        }
+
+        // Validate that the number of ages assigned matches the group size
+        if ($agesAssigned !== $groupSize) {
+            throw new ValidationException("Mismatch in group quotation data: Expected {$groupSize} people but only assigned {$agesAssigned} ages. Ages: " . implode(', ', $ages));
+        }
 
         return $quotationData;
     }
