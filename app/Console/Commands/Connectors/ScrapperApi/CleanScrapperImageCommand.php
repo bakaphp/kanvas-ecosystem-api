@@ -4,34 +4,43 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\ScrapperApi;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 class CleanScrapperImageCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:scrapper-cleanup-product-images {app_id} {company_id} {--product_id=} {--force : Force reprocessing of already cleaned images}';
 
     protected ?string $aiAPI = null;
+    protected Apps $app;
+    protected Users $user;
 
     public function handle(): void
     {
-        $app = Apps::getById((int) $this->argument('app_id'));
+        $this->app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($this->app);
         $company = Companies::getById((int) $this->argument('company_id'));
+        $this->user = $company->users()->first();
 
-        $this->aiAPI = $app->get('scrapper_api_image_removal_api');
+        $this->aiAPI = $this->app->get('scrapper_api_image_removal_api');
         $kanvasImageRemoval = $company->get('scrapper_api_image_removal_api_key') ?? 'https://cdn2.kanvas.dev/sc-mask.png';
         $productId = (int) $this->option('product_id');
 
         if ($productId) {
-            $products = Products::fromApp($app)->fromCompany($company)->where('id', $productId)->where('is_published', 1)->get();
+            $products = Products::fromApp($this->app)->fromCompany($company)->where('id', $productId)->where('is_published', 1)->get();
+        } else {
+            $products = Products::fromApp($this->app)->fromCompany($company)->where('is_published', 1)->get();
         }
-
-        $products = Products::fromApp($app)->fromCompany($company)->get();
 
         $this->info('Processing ' . $products->count() . ' products...');
         $processedCount = 0;
@@ -48,7 +57,8 @@ class CleanScrapperImageCommand extends Command
                     continue;
                 }
 
-                // Get all files for this variant
+                $variant->clearLightHouseCache(withKanvasConfiguration: false);
+                // Get all files for this variant (limit to 25)
                 $files = $variant->getFiles();
 
                 if ($files->isEmpty()) {
@@ -66,13 +76,26 @@ class CleanScrapperImageCommand extends Command
 
                     // Remove watermark from the image
                     $cleanedImageUrl = $this->removeWatermarkFromImage($originalUrl, $kanvasImageRemoval);
+                    sleep(1);
 
                     if ($cleanedImageUrl) {
-                        $cleanedFiles[] = [
-                            'url' => $cleanedImageUrl,
-                            'name' => $fileEntity->filesystem->name,
-                        ];
-                        $this->info('  ✓ Successfully cleaned image');
+                        // Upload cleaned image to app's CDN
+                        $cdnUrl = $this->uploadToCdn($cleanedImageUrl, $fileEntity->filesystem->name);
+
+                        if ($cdnUrl) {
+                            $cleanedFiles[] = [
+                                'url' => $cdnUrl,
+                                'name' => $fileEntity->filesystem->name,
+                            ];
+                            $this->info('  ✓ Successfully cleaned and uploaded image');
+                        } else {
+                            $this->warn('  ✗ Failed to upload cleaned image, will keep original');
+                            $cleanedFiles[] = [
+                                'url' => $originalUrl,
+                                'name' => $fileEntity->filesystem->name,
+                            ];
+                            $errorCount++;
+                        }
                     } else {
                         $this->warn('  ✗ Failed to clean image, will keep original');
                         $cleanedFiles[] = [
@@ -158,12 +181,12 @@ class CleanScrapperImageCommand extends Command
 
             // Return the cleaned image URL from the response
             // The API should return the URL of the cleaned image
-            if (isset($result['url'])) {
-                return $result['url'];
+            if (isset($result[0]['url'])) {
+                return $result[0]['url'];
             }
 
-            if (isset($result['image_url'])) {
-                return $result['image_url'];
+            if (isset($result[0]['image_url'])) {
+                return $result[0]['image_url'];
             }
 
             if (isset($result['data']['url'])) {
@@ -176,6 +199,27 @@ class CleanScrapperImageCommand extends Command
             return null;
         } catch (Throwable $e) {
             $this->error('Error removing watermark: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Upload cleaned image from URL to app's CDN.
+     *
+     * @param string $imageUrl The URL of the cleaned image to upload
+     * @param string $originalName The original filename
+     * @return string|null The CDN URL of the uploaded file, or null on failure
+     */
+    private function uploadToCdn(string $imageUrl, string $originalName): ?string
+    {
+        try {
+            $filesystemService = new FilesystemServices($this->app);
+            $filesystem = $filesystemService->uploadFileFromUrl($imageUrl, $this->user);
+
+            return $filesystem->url;
+        } catch (Throwable $e) {
+            $this->error('Error uploading to CDN: ' . $e->getMessage());
 
             return null;
         }
