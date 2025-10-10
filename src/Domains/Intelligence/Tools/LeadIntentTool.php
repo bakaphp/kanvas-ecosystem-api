@@ -31,7 +31,13 @@ class LeadIntentTool implements ContextToolInterface
         $subSource = $this->entity->get('sub_source');
         $source = $sources->where('Source', $leadSource)
             ->where('Sub_Source', $subSource)
-            ->firstOrFail();
+            ->first();
+        if (! $source) {
+            $source = [
+                'Backend' => 'Advance Request',
+                'Default_Completion_Status' => 'Incomplete',
+            ];
+        }
 
         return [
             'lead_intent' => $source['Backend'],
