@@ -1745,6 +1745,35 @@ class InsuranceWorkflowService
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
+        // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher (for individual vouchers)
+        $idLeadOut = null;
+
+        // Try to extract IdLeadOut from the matched product first
+        if ($matchedProduct && ($matchedProduct['found'] ?? false) && isset($matchedProduct['quote_data']['IdLeadOut'])) {
+            $idLeadOut = $matchedProduct['quote_data']['IdLeadOut'];
+        }
+
+        // If not found in matched product, try from dual quotation results
+        if (! $idLeadOut) {
+            // Get the quotation data that was actually used
+            $sourceQuotationType = $matchedProduct['source_quotation'] ?? $actualQuotationType;
+            $quotationResult = $dualQuotationResult[$sourceQuotationType]['result'] ?? null;
+
+            if ($quotationResult && ($quotationResult['success'] ?? false)) {
+                $idLeadOut = $this->extractIdLeadOut($quotationResult['quotation_data'] ?? $quotationResult);
+            }
+        }
+
+        // If still not found, try from selectedQuotation
+        if (! $idLeadOut) {
+            $idLeadOut = $this->extractIdLeadOut($selectedQuotation);
+        }
+
+        // Set the extracted IdLeadOut to the voucher data
+        if ($idLeadOut) {
+            $voucherData['LeadId'] = $idLeadOut;
+        }
+
         // Set the EXACT price from the matched product
         if (! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision)) {
             $voucherData['Precio'] = strval($exactPrecioEmision);
