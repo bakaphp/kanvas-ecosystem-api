@@ -2534,9 +2534,9 @@ class InsuranceWorkflowService
                 }
 
                 // Try multiple price fields in order of preference
-                $price = $cotizadorData['PrecioEmision'] ?? 
-                        $cotizadorData['PrecioNeto'] ?? 
-                        $cotizadorData['PrecioBruto'] ?? 
+                $price = $cotizadorData['PrecioEmision'] ??
+                        $cotizadorData['PrecioNeto'] ??
+                        $cotizadorData['PrecioBruto'] ??
                         null;
 
                 if ($price !== null && is_numeric($price) && floatval($price) > 0) {
@@ -2783,13 +2783,13 @@ class InsuranceWorkflowService
             // Check if it's already a flat array of person objects
             $isFlat = true;
             foreach ($groupedPersonsData as $key => $item) {
-                if (!is_numeric($key) && !is_array($item)) {
+                if (! is_numeric($key) && ! is_array($item)) {
                     $isFlat = false;
                     break;
                 }
                 // Check if item has person-like structure
-                if (!isset($item['firstname']) && !isset($item['firstName']) &&
-                    !isset($item['dob']) && !isset($item['birthDate'])) {
+                if (! isset($item['firstname']) && ! isset($item['firstName']) &&
+                    ! isset($item['dob']) && ! isset($item['birthDate'])) {
                     $isFlat = false;
                     break;
                 }
