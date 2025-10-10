@@ -23,7 +23,7 @@ class CleanScrapperImageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $this->aiAPI = $app->get('scrapper_api_image_removal_api') ?? 'https://prompt-mine-ai-api.vercel.app/api/image/Gemini-Nano-Banana/i2i';
+        $this->aiAPI = $app->get('scrapper_api_image_removal_api');
         $kanvasImageRemoval = $company->get('scrapper_api_image_removal_api_key') ?? 'https://cdn2.kanvas.dev/sc-mask.png';
         $productId = (int) $this->option('product_id');
 
