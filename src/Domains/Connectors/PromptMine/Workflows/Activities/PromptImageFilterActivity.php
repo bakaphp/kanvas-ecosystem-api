@@ -468,6 +468,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
                 $index++;
             }
+            $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
         }
 
         $response = $response->post($apiUrl);
