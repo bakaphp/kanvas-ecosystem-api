@@ -127,7 +127,20 @@ class DownloadAllLeadsCommand extends Command
 
                                 new SyncLeadAction($newLead)->execute();
                                 $newLead->set('downloaded_from_eleads', true);
-                                $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+                                $hasEmail = $newLead->people?->getEmails()->first()?->value ?? null;
+                                $hasCellPhone = $newLead->people?->getCellPhones()->first()?->value ?? null;
+
+                                $agentNotificationChannel = match (true) {
+                                    $hasEmail && $hasCellPhone => 'sms',
+                                    $hasEmail => 'email',
+                                    $hasCellPhone => 'sms',
+                                    default => null,
+                                };
+
+                                if ($agentNotificationChannel !== null) {
+                                    $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+                                }
+
                                 $newLead->fireWorkflow(
                                     WorkflowEnum::CREATED->value,
                                     true,
