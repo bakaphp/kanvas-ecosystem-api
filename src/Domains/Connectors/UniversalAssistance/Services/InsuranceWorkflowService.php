@@ -2669,7 +2669,6 @@ class InsuranceWorkflowService
         foreach (['inclusion', 'cross_selling'] as $quotationType) {
             if (isset($dualQuotationResult[$quotationType]['result']['success']) &&
                 $dualQuotationResult[$quotationType]['result']['success']) {
-
                 $quotationData = $dualQuotationResult[$quotationType]['result']['quotation_data'] ?? [];
 
                 // Extract only the essential quote response (UALeadCotizadorResp)
