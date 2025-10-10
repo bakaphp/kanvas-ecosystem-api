@@ -465,7 +465,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $index = 2;
             foreach ($params['additional_images'] as $additionalImage) {
-                $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
+                $optimizedImage = ImageOptimizerService::optimizeImageFromUrl($additionalImage);
+                $response->attach('image_' . $index, $optimizedImage, basename(parse_url($additionalImage, PHP_URL_PATH)));
                 $index++;
             }
             $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
