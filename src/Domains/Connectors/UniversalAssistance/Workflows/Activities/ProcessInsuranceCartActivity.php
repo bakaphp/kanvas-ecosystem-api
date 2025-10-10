@@ -985,7 +985,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // For family grouping, we prioritize keeping families together over plan optimization
         // All people from the same eSIM will be grouped together for family voucher
         $familyGroupKey = 'family_group_esim_' . $esimIndex;
-        
+
         // Add titular
         if (isset($insuranceData['titular'])) {
             $allPeople[] = [

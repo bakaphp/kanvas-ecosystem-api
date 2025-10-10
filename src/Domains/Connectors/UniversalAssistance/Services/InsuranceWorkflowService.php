@@ -2706,7 +2706,7 @@ class InsuranceWorkflowService
         }
 
         $groupSize = count($groupedPersonsData);
-        
+
         // Log detailed group information for debugging
         $peopleNames = [];
         foreach ($groupedPersonsData as $person) {
