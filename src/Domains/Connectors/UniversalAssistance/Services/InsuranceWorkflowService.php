@@ -1968,7 +1968,7 @@ class InsuranceWorkflowService
         }
 
         // LEVEL 1: Direct IdLeadOut field (simple case)
-        if (isset($quotationResponse['IdLeadOut'])) {
+        if (isset($quotationResponse['IdLeadOut']) && ! empty($quotationResponse['IdLeadOut'])) {
             return (string) $quotationResponse['IdLeadOut'];
         }
 
@@ -1977,7 +1977,7 @@ class InsuranceWorkflowService
             $quoteData = $quotationResponse['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
-            if (is_array($quoteData) && ! empty($quoteData)) {
+            if (is_array($quoteData) && ! empty($quoteData) && isset($quoteData[0])) {
                 $firstQuote = $quoteData[0];
                 $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
                 if ($idLeadOut) {
@@ -1996,7 +1996,7 @@ class InsuranceWorkflowService
             $quoteData = $quotationResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
-            if (is_array($quoteData) && ! empty($quoteData)) {
+            if (is_array($quoteData) && ! empty($quoteData) && isset($quoteData[0])) {
                 $firstQuote = $quoteData[0];
                 $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
                 if ($idLeadOut) {
@@ -2010,18 +2010,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // LEVEL 4: Check in nested quotation_data structure (from performGroupQuotation)
-        if (isset($quotationResponse['quotation_data'])) {
-            $nestedData = $quotationResponse['quotation_data'];
-
-            // Recursive call with nested data
-            $nestedResult = $this->extractIdLeadOut($nestedData);
-            if ($nestedResult) {
-                return $nestedResult;
-            }
-        }
-
-        // LEVEL 5: Check in quote_response structure (alternative nesting)
+        // LEVEL 4: Check in quote_response structure (client response wrapper)
         if (isset($quotationResponse['quote_response'])) {
             $quoteResponseData = $quotationResponse['quote_response'];
 
@@ -2032,7 +2021,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // LEVEL 6: Check in response structure (client response wrapper)
+        // LEVEL 5: Check in response structure (client response wrapper)
         if (isset($quotationResponse['response'])) {
             $responseData = $quotationResponse['response'];
 
@@ -2043,7 +2032,29 @@ class InsuranceWorkflowService
             }
         }
 
-        // LEVEL 7: Deep search in any array structure (last resort)
+        // LEVEL 6: Check in nested quotation_data structure (from performGroupQuotation)
+        if (isset($quotationResponse['quotation_data'])) {
+            $nestedData = $quotationResponse['quotation_data'];
+
+            // Recursive call with nested data
+            $nestedResult = $this->extractIdLeadOut($nestedData);
+            if ($nestedResult) {
+                return $nestedResult;
+            }
+        }
+
+        // LEVEL 7: Check in result structure (workflow result wrapper)
+        if (isset($quotationResponse['result'])) {
+            $resultData = $quotationResponse['result'];
+
+            // Recursive call with result data
+            $resultResult = $this->extractIdLeadOut($resultData);
+            if ($resultResult) {
+                return $resultResult;
+            }
+        }
+
+        // LEVEL 8: Deep search in any array structure (last resort)
         if (is_array($quotationResponse)) {
             foreach ($quotationResponse as $key => $value) {
                 if ($key === 'IdLeadOut' && $value) {
@@ -2051,7 +2062,7 @@ class InsuranceWorkflowService
                 }
 
                 // Search in nested arrays/objects
-                if ((is_array($value) || is_object($value)) && ! empty($value)) {
+                if ((is_array($value) || is_object($value)) && !empty($value)) {
                     $deepResult = $this->extractIdLeadOut($value);
                     if ($deepResult) {
                         return $deepResult;
@@ -2382,7 +2393,23 @@ class InsuranceWorkflowService
         $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
 
         // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
-        $idLeadOut = $this->extractIdLeadOut($quotationData);
+        // For group quotations, try multiple possible paths
+        $idLeadOut = null;
+
+        // Path 1: Try from result.quotation_data first
+        if (isset($selectedQuotation['result']['quotation_data'])) {
+            $idLeadOut = $this->extractIdLeadOut($selectedQuotation['result']['quotation_data']);
+        }
+
+        // Path 2: Try from result.quotation_request_input (fallback)
+        if (! $idLeadOut && isset($selectedQuotation['result']['quotation_request_input'])) {
+            $idLeadOut = $this->extractIdLeadOut($selectedQuotation['result']['quotation_request_input']);
+        }
+
+        // Path 3: Try from the full selectedQuotation structure
+        if (! $idLeadOut) {
+            $idLeadOut = $this->extractIdLeadOut($selectedQuotation);
+        }
 
         // Extract IdLeadOut validation completed
 
