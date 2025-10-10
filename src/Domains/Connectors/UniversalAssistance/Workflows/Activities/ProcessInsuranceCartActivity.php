@@ -1022,14 +1022,26 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $groupIndex = 0;
 
         foreach ($planGroups as $planKey => $groupPeople) {
+            $groupSize = count($groupPeople);
+            $peopleInfo = [];
+            foreach ($groupPeople as $person) {
+                $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
+                $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
+                $dob = $person['dob'] ?? $person['birthDate'] ?? 'Unknown';
+                $planName = $person['plan']['name'] ?? 'Unknown Plan';
+                $peopleInfo[] = "{$firstName} {$lastName} (DOB: {$dob}, Plan: {$planName})";
+            }
+
             if (count($groupPeople) > 1) {
                 // Multiple people with same plan = create group voucher
+                // ENSURE both titular and dependents are included
                 $groupResult = $service->processGroupedInsuranceWorkflow($groupPeople, $planKey);
                 $groupResults["group_{$groupIndex}"] = [
                     'type' => 'grouped_voucher',
                     'plan_key' => $planKey,
                     'group_size' => count($groupPeople),
                     'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
+                    'debug_people_info' => $peopleInfo, // Add debugging info
                     'result' => $groupResult
                 ];
             } else {
