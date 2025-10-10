@@ -173,6 +173,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
                 }
 
+                $timezone = $lead->company->get('timezone') ?? 'UTC';
+                $now = Carbon::now($timezone);
+
+                $lead->set(EnumsConfigurationEnum::LAST_MESSAGE_TIME->value, $now->toDateTimeString());
+                $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);
+
+                $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
+
                 //move to stage 2 of the pipeline
                 $lead->moveToNextPipelineStage();
 

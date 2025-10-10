@@ -64,6 +64,9 @@ class CreateContentSessionAction
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
                 'impersonate_email' => $lead->company->get('impersonate_email'),
+                'last_message_time' => $lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value),
+                'last_message' => $lead->get(ConfigurationEnum::LAST_MESSAGE->value),
+                'intent_number' => $lead->get('intent_number') ?? 0,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
