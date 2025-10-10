@@ -2687,19 +2687,19 @@ class InsuranceWorkflowService
                 'error' => 'No inclusion quotation performed'
             ],
             'cross_selling' => [
-                'type' => 'cross_selling', 
+                'type' => 'cross_selling',
                 'success' => false,
                 'error' => 'No cross_selling quotation performed'
             ]
         ];
 
         // Process inclusion quotation
-        if (isset($dualQuotationResult['inclusion']['result']['success']) && 
+        if (isset($dualQuotationResult['inclusion']['result']['success']) &&
             $dualQuotationResult['inclusion']['result']['success']) {
-            
+
             $inclusionData = $dualQuotationResult['inclusion']['result']['quotation_data'] ?? [];
-            $inclusionQuote = $inclusionData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                             $inclusionData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+            $inclusionQuote = $inclusionData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                             $inclusionData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                              null;
 
             if ($inclusionQuote) {
@@ -2715,12 +2715,12 @@ class InsuranceWorkflowService
         }
 
         // Process cross_selling quotation  
-        if (isset($dualQuotationResult['cross_selling']['result']['success']) && 
+        if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
             $dualQuotationResult['cross_selling']['result']['success']) {
-            
+
             $crossSellingData = $dualQuotationResult['cross_selling']['result']['quotation_data'] ?? [];
-            $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
-                                $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? 
+            $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                 null;
 
             if ($crossSellingQuote) {
