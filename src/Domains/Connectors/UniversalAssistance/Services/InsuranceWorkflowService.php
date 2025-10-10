@@ -2091,7 +2091,7 @@ class InsuranceWorkflowService
                 }
 
                 // Search in nested arrays/objects
-                if ((is_array($value) || is_object($value)) && !empty($value)) {
+                if ((is_array($value) || is_object($value)) && ! empty($value)) {
                     $deepResult = $this->extractIdLeadOut($value);
                     if ($deepResult) {
                         return $deepResult;
