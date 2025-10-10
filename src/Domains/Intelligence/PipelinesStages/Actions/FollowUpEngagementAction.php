@@ -36,7 +36,7 @@ class FollowUpEngagementAction
         $timeDiff = $lastMessageTime->diffInMinutes($now);
         if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
             $promptText = is_array($rules['prompt']) ? implode(' ', $rules['prompt']) : (string) $rules['prompt'];
-            $prompt = Blade::render($promptText, []);
+            $prompt = Blade::render($promptText, $content);
 
             $message = new CreateMessageAction($prompt, $session)->execute();
             if (isset($rules['send_message']) && $rules['send_message']) {
