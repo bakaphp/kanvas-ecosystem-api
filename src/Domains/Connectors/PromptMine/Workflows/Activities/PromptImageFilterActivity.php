@@ -105,7 +105,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 if ($messageFiles->count() > 1) {
                     //lets add them to params since this is optional
-                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+                    $params['additional_images'] = $messageFiles->slice(1)->map(fn($file) => $file->url)->toArray();
                 }
 
                 try {
@@ -465,8 +465,24 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $index = 2;
             foreach ($params['additional_images'] as $additionalImage) {
-                $optimizedImage = ImageOptimizerService::optimizeImageFromUrl($additionalImage);
-                $response->attach('image_' . $index, $optimizedImage, basename(parse_url($additionalImage, PHP_URL_PATH)));
+                $optimizedImagePath = ImageOptimizerService::optimizeImageFromUrl($additionalImage);
+                $fileName = basename($additionalImage);
+
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mimeType = $finfo->file($optimizedImagePath);
+
+                $uploadedFile = new UploadedFile(
+                    $optimizedImagePath,
+                    $fileName,
+                    $mimeType,
+                    null,
+                    true
+                );
+
+                $filesystem = new FilesystemServices($entity->app);
+                $fileSystemUrl = $filesystem->upload($uploadedFile, $entity->user);
+
+                $response->attach('image_' . $index, $fileSystemUrl, $fileName);
                 $index++;
             }
             // $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
