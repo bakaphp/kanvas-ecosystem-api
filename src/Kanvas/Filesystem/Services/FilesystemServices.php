@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Exception;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -210,5 +212,101 @@ class FilesystemServices
         }
 
         return null;
+    }
+
+    public function uploadFileFromUrl(string $fileUrl, Users $user): ModelsFilesystem
+    {
+        // Download the file to a temporary location
+        $tempFilePath = $this->downloadFileFromUrl($fileUrl);
+
+        if ($tempFilePath === null) {
+            throw new InvalidArgumentException('Failed to download file from URL: ' . $fileUrl);
+        }
+
+        // Extract the original filename from the URL
+        $parsedUrl = parse_url($fileUrl);
+        $path = $parsedUrl['path'] ?? '';
+        $originalName = basename($path);
+
+        // If no filename found in URL, generate one
+        if (empty($originalName) || strpos($originalName, '.') === false) {
+            $mimeType = mime_content_type($tempFilePath);
+            $extension = $this->getExtensionFromMimeType($mimeType);
+            $originalName = uniqid('file_') . '.' . $extension;
+        }
+
+        try {
+            // Create an UploadedFile instance and upload it
+            $uploadedFile = new UploadedFile(
+                $tempFilePath,
+                $originalName,
+                mime_content_type($tempFilePath),
+                null,
+                true
+            );
+
+            return $this->upload($uploadedFile, $user);
+        } finally {
+            // Clean up the temporary file
+            if (file_exists($tempFilePath)) {
+                @unlink($tempFilePath);
+            }
+        }
+    }
+
+    protected function downloadFileFromUrl(string $fileUrl): ?string
+    {
+        try {
+            // Download with timeout and error handling
+            $response = Http::timeout(30)
+                ->throw()
+                ->get($fileUrl);
+
+            // Extract extension from URL or Content-Type header
+            $extension = $this->getExtensionFromUrl($fileUrl);
+
+            if (empty($extension)) {
+                $contentType = $response->header('Content-Type');
+                $extension = $this->getExtensionFromMimeType($contentType);
+            }
+
+            $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+
+            // Write the response body to file
+            file_put_contents($tempFilePath, $response->body());
+
+            return $tempFilePath;
+        } catch (Exception $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    protected function getExtensionFromUrl(string $fileUrl): string
+    {
+        $fileInfo = pathinfo(parse_url($fileUrl, PHP_URL_PATH) ?? '');
+
+        return $fileInfo['extension'] ?? '';
+    }
+
+    /**
+     * Get file extension from MIME type.
+     */
+    protected function getExtensionFromMimeType(string $mimeType): string
+    {
+        $mimeMap = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'application/pdf' => 'pdf',
+            'text/plain' => 'txt',
+            'application/zip' => 'zip',
+            'application/json' => 'json',
+            'text/csv' => 'csv',
+        ];
+
+        return $mimeMap[$mimeType] ?? 'bin';
     }
 }
