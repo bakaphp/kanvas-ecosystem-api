@@ -50,6 +50,11 @@ extend type Query @guard {
                     "currency"
                 ]
             )
+        resourceType: _
+            @whereConditions(
+                columns: ["resources_type"]
+                handler: "App\\GraphQL\\Event\\Handlers\\ResourceTypeHandler"
+            )
         orderBy: _ @orderBy(columns: ["id", "start_at", "end_at", "created_at", "updated_at"])
     ): [TimeSlots!]!
         @paginate(
