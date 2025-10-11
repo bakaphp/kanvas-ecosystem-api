@@ -38,10 +38,10 @@ class TimeSlotBookingMutation
             ->where('resources_type', $timeSlot->resources_type)
             ->first();
 
-        if (!$scheduleRule) {
+        if (! $scheduleRule) {
             throw new ValidationException('Schedule rule not found for the given time slot resource.');
         }
-        
+
         $input['start_at'] = $timeSlot->start_at->toDateTimeString();
         $input['end_at'] = $timeSlot->end_at->toDateTimeString();
 
