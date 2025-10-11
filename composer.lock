@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "885f7377c1f754028366d9bea809aa61",
+    "content-hash": "d1fee7f76c2ef41e57dcdc1644bbacd0",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1684,16 +1684,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.90.0",
+            "version": "v0.91.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "bbbadc7a77ff5050e86146fab8820abb79f404c2"
+                "reference": "0c09548c594bbd761d772e4495ea9d9f208ba61f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/bbbadc7a77ff5050e86146fab8820abb79f404c2",
-                "reference": "bbbadc7a77ff5050e86146fab8820abb79f404c2",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/0c09548c594bbd761d772e4495ea9d9f208ba61f",
+                "reference": "0c09548c594bbd761d772e4495ea9d9f208ba61f",
                 "shasum": ""
             },
             "require": {
@@ -1749,7 +1749,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.90.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.91.0"
             },
             "funding": [
                 {
@@ -1757,7 +1757,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-10-01T21:53:32+00:00"
+            "time": "2025-10-10T16:34:01+00:00"
         },
         {
             "name": "egulias/email-validator",
