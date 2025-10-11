@@ -40,7 +40,7 @@ class ScheduleRulesManagementMutation
         $windowFrom = Carbon::now();
         $windowTo = Carbon::now()->addYear();
 
-        dispatch_sync(new GenerateTimeSlots(
+        dispatch(new GenerateTimeSlots(
             $entity->id,
             $scheduleRule->id,
             $windowFrom,
@@ -57,6 +57,9 @@ class ScheduleRulesManagementMutation
 
         $scheduleRule = ScheduleRules::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app);
 
+        // Delete all upcoming time slots related to this schedule rule
+        $scheduleRule->deleteUpcomingTimeSlots();
+
         $scheduleRule->update([
             'resources_id' => $req['input']['resources_id'] ?? $scheduleRule->resources_id,
             'resources_type' => $req['input']['resources_type'] ?? $scheduleRule->resources_type,
@@ -71,6 +74,16 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
+        $windowFrom = Carbon::now();
+        $windowTo = Carbon::now()->addYear();
+
+        dispatch(new GenerateTimeSlots(
+            $scheduleRule->resources_id,
+            $scheduleRule->id,
+            $windowFrom,
+            $windowTo
+        ));
+
         return $scheduleRule;
     }
 
@@ -79,7 +92,12 @@ class ScheduleRulesManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        return ScheduleRules::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app)->delete();
+        $scheduleRule = ScheduleRules::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app);
+
+        // Delete all upcoming time slots related to this schedule rule
+        $scheduleRule->deleteUpcomingTimeSlots();
+
+        return $scheduleRule->delete();
     }
 
     private function getEntity(string $entityType, int|string $entityId): Model

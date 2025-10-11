@@ -35,6 +35,11 @@ class EventVersion extends BaseModel
         return $this->belongsTo(Event::class);
     }
 
+    public function timeSlot(): BelongsTo
+    {
+        return $this->belongsTo(TimeSlots::class, 'time_slot_id');
+    }
+
     public function dates(): HasMany
     {
         return $this->hasMany(EventVersionDate::class);

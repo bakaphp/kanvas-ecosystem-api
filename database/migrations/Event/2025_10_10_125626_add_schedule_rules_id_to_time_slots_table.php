@@ -16,6 +16,11 @@ return new class () extends Migration {
                   ->on('schedule_rules')
                   ->onDelete('set null');
         });
+
+        Schema::table('event_versions', function (Blueprint $table) {
+            $table->bigInteger('time_slot_id')->unsigned()->nullable()->after('event_id');
+            $table->index('time_slot_id');
+        });
     }
 
     /**
@@ -27,6 +32,11 @@ return new class () extends Migration {
             $table->dropForeign(['schedule_rules_id']);
             $table->dropIndex(['schedule_rules_id']);
             $table->dropColumn('schedule_rules_id');
+        });
+
+        Schema::table('event_versions', function (Blueprint $table) {
+            $table->dropIndex(['time_slot_id']);
+            $table->dropColumn('time_slot_id');
         });
     }
 };

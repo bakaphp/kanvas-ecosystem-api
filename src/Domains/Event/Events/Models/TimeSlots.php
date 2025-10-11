@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Event\Models\BaseModel;
 
@@ -46,6 +47,10 @@ class TimeSlots extends BaseModel
         return $this->belongsTo(ScheduleRules::class, 'schedule_rules_id');
     }
 
+    public function eventVersions(): HasMany
+    {
+        return $this->hasMany(EventVersion::class, 'time_slot_id');
+    }
 
     public function isFromScheduleRule(): bool
     {
@@ -56,5 +61,16 @@ class TimeSlots extends BaseModel
     public function isStandalone(): bool
     {
         return $this->schedule_rules_id === null;
+    }
+
+    /**
+     * Check if this time slot has an existing booking/event
+     * Simply checks if there are any non-deleted event_versions linked to this slot
+     */
+    public function hasBooking(): bool
+    {
+        return $this->eventVersions()
+            ->where('is_deleted', 0)
+            ->exists();
     }
 }
