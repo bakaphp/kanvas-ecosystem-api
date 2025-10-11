@@ -157,10 +157,10 @@ class CreateEventAction
                     name: $itemData['name'],
                     sku: $itemVariant->sku,
                     quantity: $itemData['quantity'],
-                    price: (float) $itemData['price'],
+                    price: (float) (isset($data['price']) ? $data['price'] : 0),
                     tax: 0,
                     discount: 0.0,
-                    currency: Currencies::getByCode('USD'),
+                    currency: $itemData['currency_code'] ?? Currencies::getByCode('USD'),
                     quantityShipped: 0,
                     metadata: $itemData['metadata'] ?? null
                 );
