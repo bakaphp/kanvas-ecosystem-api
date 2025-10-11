@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\CMLink\Actions\CreateEsimOrderAction;
@@ -34,7 +33,6 @@ use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient;
 use Throwable;
 
