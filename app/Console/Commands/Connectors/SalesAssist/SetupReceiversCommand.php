@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\SalesAssist\Enums\EmailTemplatesEnum;
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -34,7 +35,7 @@ class SetupReceiversCommand extends Command
             ? array_map('trim', explode(',', $receiversOption))
             : null;
 
-        if (!$rotationId) {
+        if (! $rotationId) {
             $leadRotation = LeadRotation::create([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
@@ -42,7 +43,7 @@ class SetupReceiversCommand extends Command
                 'hits' => 1,
                 'leads_rotations_email' => '',
                 'config' => [
-                    'email_template' => 'lead-company',
+                    'email_template' => EmailTemplatesEnum::LEAD_COMPANY_EMAIL->value,
                     'notification_mode' => LeadNotificationModeEnum::NOTIFY_AGENTS->value,
                     'notification_user_mode' => LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS->value,
                 ]
@@ -50,7 +51,7 @@ class SetupReceiversCommand extends Command
 
             $rotationId = $leadRotation->getId();
         }
- 
+
         $this->setDefaultReceivers($app, $company, $user, $rotationId, $receivers);
 
         $this->info('Lead receivers processed successfully.');
