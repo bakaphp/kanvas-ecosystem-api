@@ -466,7 +466,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $index = 2;
             foreach ($params['additional_images'] as $additionalImage) {
                 $optimizedImagePath = ImageOptimizerService::optimizeImageFromUrl($additionalImage);
-                $filename = basename(parse_url($additionalImage, PHP_URL_PATH)) ?: 'image.png';
+                $filename = basename(parse_url($optimizedImagePath, PHP_URL_PATH)) ?: 'image.png';
 
                 $finfo = new finfo(FILEINFO_MIME_TYPE);
                 $mimeType = $finfo->file($optimizedImagePath);
@@ -482,7 +482,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $filesystem = new FilesystemServices($entity->app);
                 $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
-                \Illuminate\Support\Facades\Log::info('image_' . $index . ': ' . $fileSystemRecord->size . ' - ' . $filename);
+                \Illuminate\Support\Facades\Log::info('image_' . $index . ': ' . $fileSystemRecord->url . $fileSystemRecord->size . ' - ' . $filename);
                 $response->attach('image_' . $index, $fileSystemRecord->url, $filename);
                 $index++;
             }
