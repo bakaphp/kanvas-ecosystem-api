@@ -481,9 +481,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 $filesystem = new FilesystemServices($entity->app);
                 $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
+                $optimizedImageContent = Http::get($fileSystemRecord->url)->body();
 
-                \Illuminate\Support\Facades\Log::info('image_' . $index . ': ' . $fileSystemRecord->url . $fileSystemRecord->size . ' - ' . $filename);
-                $response->attach('image_' . $index, $fileSystemRecord->url, $filename);
+                // \Illuminate\Support\Facades\Log::info('image_' . $index . ': ' . $ . ' - ' . $filename);
+                $response->attach('image_' . $index, $optimizedImageContent, $filename);
                 $index++;
             }
             // $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
