@@ -16,11 +16,28 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
+        $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
-        $keys = $redis->keys($key);
+
+        // Use scan instead of keys
+        $cursor = null;
+        $keys = [];
+
+        do {
+            $result = $redis->scan(
+                $cursor,
+                ['MATCH' => $pattern, 'COUNT' => 100]
+            );
+
+            $cursor = $result[0];
+            $foundKeys = $result[1] ?? [];
+
+            foreach ($foundKeys as $key) {
+                $keys[] = $key;
+            }
+        } while ($cursor !== 0);
+
         if (empty($keys) && $withKanvasConfiguration) {
-            //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
             return;
@@ -30,7 +47,6 @@ trait HasLightHouseCache
             $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
         }
 
-        //$this->generateCustomFieldsLighthouseCache();
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
