@@ -482,7 +482,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $filesystem = new FilesystemServices($entity->app);
                 $fileSystemRecord = $filesystem->upload($uploadedFile, $entity->user);
 
-                \Illuminate\Support\Facades\Log::info($fileSystemRecord->url);
+                \Illuminate\Support\Facades\Log::info('image_' . $index . ': ' . $fileSystemRecord->size . ' - ' . $filename);
                 $response->attach('image_' . $index, $fileSystemRecord->url, $filename);
                 $index++;
             }
