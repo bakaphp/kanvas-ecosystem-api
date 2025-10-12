@@ -44,7 +44,7 @@ trait HasLightHouseCache
         }
 
         foreach ($keys as $key) {
-            $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
+            $redis->unlink(str_replace(config('database.redis.options.prefix'), '', $key));
         }
 
         if ($withKanvasConfiguration) {
