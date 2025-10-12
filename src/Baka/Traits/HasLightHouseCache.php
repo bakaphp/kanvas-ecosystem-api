@@ -20,7 +20,7 @@ trait HasLightHouseCache
         $redis = Redis::connection('graph-cache');
 
         // Use scan instead of keys
-        $cursor = null;
+        $cursor = 0; // Start with 0, not null
         $keys = [];
 
         do {
@@ -28,6 +28,11 @@ trait HasLightHouseCache
                 $cursor,
                 ['MATCH' => $pattern, 'COUNT' => 100]
             );
+
+            // Handle false return when no keys exist
+            if ($result === false) {
+                break;
+            }
 
             $cursor = $result[0];
             $foundKeys = $result[1] ?? [];
