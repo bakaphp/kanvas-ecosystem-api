@@ -465,7 +465,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         //     ->attach('prompt', $prompt);
 
         $model = 'gemini-2.5-flash-image-preview';
-        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, $model, $params);
+        $response = $this->submitImage($apiUrl, $imageUrl, '', $prompt, $model, $params);
         $responseData = $response->json();
 
         // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
