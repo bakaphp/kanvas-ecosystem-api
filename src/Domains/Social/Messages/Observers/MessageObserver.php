@@ -53,5 +53,9 @@ class MessageObserver
     {
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
+
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->searchable();
+        }
     }
 }
