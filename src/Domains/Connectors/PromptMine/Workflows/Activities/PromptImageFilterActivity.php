@@ -272,7 +272,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $params)->json();
+        $model = 'fal-ai/';
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -463,7 +464,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         //     ->attach('model', 'gemini-2.5-flash-image-preview')
         //     ->attach('prompt', $prompt);
 
-        $response = $this->submitImage($imageUrl, $imageFilter, $prompt, $params);
+        $model = 'gemini-2.5-flash-image-preview';
+        $response = $this->submitImage($imageUrl, $imageFilter, $prompt, $model, $params);
         $responseData = $response->json();
 
         // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
@@ -636,7 +638,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, array $params): Response
+    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
@@ -647,7 +649,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->post($this->apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model' => $model . $imageFilter,
             'prompt' => $prompt,
         ]);
 
