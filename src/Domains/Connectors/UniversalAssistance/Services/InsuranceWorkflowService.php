@@ -2610,14 +2610,8 @@ class InsuranceWorkflowService
             'Edad8' => $ages[7] ?? '',
             'Edad9' => $ages[8] ?? '',
             'Edad10' => $ages[9] ?? '',
-            'ApellidoContacto' => '',
-            'NombreContacto' => '',
-            'TelefonoContacto' => '',
-            'EmailContacto' => '',
             'Categoria' => '',
             'Precompras' => '',
-            'NroDocumento' => '',
-            'TipoDocumento' => '',
         ];
 
         // VALIDATION: Ensure all ages were properly assigned
