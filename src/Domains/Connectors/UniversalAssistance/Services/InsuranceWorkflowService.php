@@ -2399,7 +2399,7 @@ class InsuranceWorkflowService
             'selection_logic' => [
                 'variant' => $planVariant,
                 'target_plan' => $targetPlan,
-                'group_size' => count($groupedPersonsData),
+                'group_size' => $actualGroupSize, // Use consistent actual group size
                 'origin_country_code' => $originCountryCode,
                 'inclusion_type' => $inclusionType,
                 'cross_selling_type' => $crossSellingType,
@@ -2415,6 +2415,17 @@ class InsuranceWorkflowService
      */
     protected function performGroupQuotation(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
     {
+        // Calculate the actual group size before building quotation data
+        $actualGroupSize = 0;
+        if (isset($groupedPersonsData['titular'])) {
+            $actualGroupSize = 1; // titular
+            if (isset($groupedPersonsData['dependents']) && is_array($groupedPersonsData['dependents'])) {
+                $actualGroupSize += count($groupedPersonsData['dependents']);
+            }
+        } else {
+            $actualGroupSize = count($groupedPersonsData);
+        }
+
         // Build group QUOTATION data (different from voucher data - includes all ages in Edad1, Edad2, etc.)
         $quotationData = $this->buildGroupQuotationData($groupedPersonsData, $originCountryCode, $destinationCountryCode, $convenio);
 
@@ -2437,7 +2448,7 @@ class InsuranceWorkflowService
                 'quotation_data' => $result,
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'group_size' => count($groupedPersonsData),
+                'group_size' => $actualGroupSize, // Use calculated actual group size
                 'quotation_request_input' => $quotationData,  // Include the original quotation request data with ALL people
             ];
         } catch (\Exception $e) {
@@ -2446,7 +2457,8 @@ class InsuranceWorkflowService
                 'error' => $e->getMessage(),
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'group_size' => count($groupedPersonsData),
+                'group_size' => $actualGroupSize, // Use calculated actual group size
+                'quotation_request_debug' => $quotationData ?? null, // Include quotation data for debugging on error
             ];
         }
     }
