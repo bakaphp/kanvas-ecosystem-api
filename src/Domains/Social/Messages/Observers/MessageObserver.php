@@ -40,7 +40,7 @@ class MessageObserver
         }
 
         if ($message->parent_id && $message->parent) {
-             $message->parent->increment('total_children');
+            $message->parent->increment('total_children');
         }
 
 
