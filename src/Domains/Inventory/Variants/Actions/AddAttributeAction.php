@@ -25,10 +25,12 @@ class AddAttributeAction
 
         $variantAttribute = VariantsAttributes::where('products_variants_id', $this->variant->getId())
         ->where('attributes_id', $this->attribute->getId())
+        ->withTrashed()
         ->first();
 
         if ($variantAttribute) {
             $variantAttribute->value = $this->value;
+            $variantAttribute->is_deleted = 0;
             $variantAttribute->update();
         } else {
             $variantAttribute = new VariantsAttributes();
