@@ -450,10 +450,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
-        $imageContent = Http::get($imageUrl)->body();
-        if (empty($imageContent)) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
+        // $imageContent = Http::get($imageUrl)->body();
+        // if (empty($imageContent)) {
+        //     throw new Exception("Failed to download image from URL: {$imageUrl}");
+        // }
 
         // Extract filename from URL or use a default
         // $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
@@ -464,8 +464,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         //     ->attach('model', 'gemini-2.5-flash-image-preview')
         //     ->attach('prompt', $prompt);
 
-        $model = 'gemini-2.5-flash-image-preview';
-        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, $model, $params);
+        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, '', $params);
         $responseData = $response->json();
 
         // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
