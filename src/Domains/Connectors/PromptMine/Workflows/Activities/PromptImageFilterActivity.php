@@ -37,6 +37,7 @@ use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
+use Illuminate\Http\Client\Response;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -271,7 +272,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $params);
+        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -463,6 +464,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         //     ->attach('prompt', $prompt);
 
         $response = $this->submitImage($imageUrl, $imageFilter, $prompt, $params);
+        $responseData = $response->json();
 
         // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
         //     $index = 2;
@@ -475,23 +477,21 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
         // $response = $response->post($apiUrl);
 
-        if ($response['status'] !== 'success') {
-            throw new Exception('Gemini Banana API request failed: ' . json_encode($response));
+        if (! $response->successful()) {
+            throw new Exception('Gemini Banana API request failed: ' . json_encode($responseData));
         }
-
-        // $responseData = $response->json();
 
         // Extract the URL from the response structure
         // Response format: { "0": { "url": "...", "file_name": "...", ... } }
         $processedImageUrl = null;
-        if (isset($response['0']['url'])) {
-            $processedImageUrl = $response['0']['url'];
+        if (isset($responseData['0']['url'])) {
+            $processedImageUrl = $responseData['0']['url'];
         } elseif (isset($response[0]['url'])) {
-            $processedImageUrl = $response[0]['url'];
+            $processedImageUrl = $responseData[0]['url'];
         }
 
         if (! $processedImageUrl) {
-            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($response));
+            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($responseData));
         }
 
         // Optimize and upload the processed image
@@ -636,7 +636,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, array $params): array
+    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, array $params): Response
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
@@ -651,7 +651,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'prompt' => $prompt,
         ]);
 
-        return $response->json();
+        return $response;
     }
 
     /**
