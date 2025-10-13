@@ -1230,17 +1230,21 @@ class InsuranceWorkflowService
      */
     protected function performSingleQuotation(array $personData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
     {
-        // Build voucher data for the quotation - handle both old and new quotation types
+        // Build quotation data with ages calculated - this ensures individual quotations
+        // have the same structure as group quotations with proper age information
+        $quotationData = $this->buildIndividualQuotationData($personData, $originCountryCode, $destinationCountryCode, $convenio);
+
+        // Build voucher data for voucher creation (will be used later if needed)
         if (in_array($quotationType, ['cross_selling', 'cross_selling_ii'])) {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         } else {
             $voucherData = $this->buildVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         }
 
-        // Perform the quotation using the client
+        // Perform the quotation using the client with quotation data that includes ages
         try {
             $result = $this->client->createSingleQuotationWithCountries(
-                $voucherData,
+                $quotationData,
                 $quotationType,
                 $originCountryCode,
                 $destinationCountryCode,
@@ -1256,7 +1260,8 @@ class InsuranceWorkflowService
                 'quotation_data' => $result,
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'quotation_request_input' => $voucherData,  // Include the original quotation request data
+                'quotation_request_input' => $quotationData,  // Include the quotation request data with ages
+                'voucher_request_input' => $voucherData,  // Include voucher data for later voucher creation
             ];
         } catch (\Exception $e) {
             return [
@@ -2714,5 +2719,55 @@ class InsuranceWorkflowService
         ];
 
         return $simplified;
+    }
+
+    /**
+     * Convert individual voucher data to quotation data with calculated ages
+     * This ensures individual quotations have the same structure as group quotations
+     */
+    protected function buildIndividualQuotationData(array $personData, string $originCountryCode, string $destinationCountryCode, string $convenio): array
+    {
+        // Get destination name using the proper mapping
+        $destination = $this->getDestinationName($destinationCountryCode);
+        if (! $this->isValidDestination($destination)) {
+            $destination = 'Centro america/Caribe'; // Safe fallback
+        }
+
+        // Calculate dates based on eSIM plan duration
+        $activationDate = Carbon::parse($personData['activationDate'] ?? now());
+        $duration = $this->getProductDuration($personData);
+        $expirationDate = clone $activationDate;
+        $expirationDate->addDays($duration - 1);
+
+        // Calculate age from birthdate
+        $age = $this->calculateAge($personData['dob']);
+
+        return [
+            'IdLead' => '',
+            'OrganizacionEmisora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT',
+            'CantCotizaciones' => 1,
+            'Convenio' => $convenio,
+            'Folleto' => '',
+            'PaisOrigen' => $this->getCountryName($originCountryCode),
+            'Destino' => $destination,
+            'TipoViaje' => 'Un viaje',
+            'FechaInicio' => $activationDate->format('m/d/Y'),
+            'FechaFin' => $expirationDate->format('m/d/Y'),
+            'CantidadPasajeros' => 1,
+            'PackFamiliar' => '',
+            // Set the age for the single person in Edad1
+            'Edad1' => $age,
+            'Edad2' => '',
+            'Edad3' => '',
+            'Edad4' => '',
+            'Edad5' => '',
+            'Edad6' => '',
+            'Edad7' => '',
+            'Edad8' => '',
+            'Edad9' => '',
+            'Edad10' => '',
+            'Categoria' => '',
+            'Precompras' => '',
+        ];
     }
 }

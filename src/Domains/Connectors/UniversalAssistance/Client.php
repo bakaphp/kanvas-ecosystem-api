@@ -229,7 +229,7 @@ class Client
      * Create a single quotation with specific country-based convenio logic
      * This method uses the origin and destination country codes from input data to determine the proper convenio
      */
-    public function createSingleQuotationWithCountries(array $voucherData, string $quotationType, string $originCountryCode, string $destinationCountryCode, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
+    public function createSingleQuotationWithCountries(array $quotationData, string $quotationType, string $originCountryCode, string $destinationCountryCode, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
     {
         // Generate unique control number for each individual voucher
         // Use combination of order ID, current timestamp and random component for maximum uniqueness
@@ -244,40 +244,54 @@ class Client
         $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
-        // Set control number and organization
-        $voucherData['NroControl'] = $controlNumber;
-
-        // ALWAYS respect the convenio determined by the workflow
-        // Check both 'Contrato' and 'contrato' keys for consistency
-        $workflowConvenio = $voucherData['Contrato'] ?? $voucherData['contrato'] ?? null;
-
-        if ($workflowConvenio && ! empty($workflowConvenio)) {
-            // Use the convenio determined by workflow (variant logic)
-            $voucherData['Contrato'] = $workflowConvenio;
-            unset($voucherData['contrato']); // Remove lowercase version if it exists for consistency
+        // Handle both quotation data (new approach) and voucher data (legacy approach)
+        if (isset($quotationData['Edad1'])) {
+            // New approach: We received quotation data with ages already calculated
+            $leadData = $quotationData;
+            $convenio = $quotationData['Convenio'];
         } else {
-            // If no convenio from workflow, use basic quotation type logic as fallback
-            $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
-        }
+            // Legacy approach: We received voucher data and need to convert it
+            // Set control number and organization
+            $quotationData['NroControl'] = $controlNumber;
 
-        if (isset($voucherData['DatosAgencia'])) {
-            $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
-        }
+            // ALWAYS respect the convenio determined by the workflow
+            // Check both 'Contrato' and 'contrato' keys for consistency
+            $workflowConvenio = $quotationData['Contrato'] ?? $quotationData['contrato'] ?? null;
 
-        try {
+            if ($workflowConvenio && ! empty($workflowConvenio)) {
+                // Use the convenio determined by workflow (variant logic)
+                $quotationData['Contrato'] = $workflowConvenio;
+                unset($quotationData['contrato']); // Remove lowercase version if it exists for consistency
+            } else {
+                // If no convenio from workflow, use basic quotation type logic as fallback
+                $quotationData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
+            }
+
+            if (isset($quotationData['DatosAgencia'])) {
+                $quotationData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
+            }
+
             // Convert country codes to country names for the quote request
             $originCountryName = $this->countryCodeToName($originCountryCode);
             $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
 
             // Create a quote to get detailed product/plan information using extracted countries
-            $leadData = $this->convertVoucherDataToLeadDataWithCountries($voucherData, $quotationType, $originCountryName, $destinationName);
+            $leadData = $this->convertVoucherDataToLeadDataWithCountries($quotationData, $quotationType, $originCountryName, $destinationName);
+            $convenio = $quotationData['Contrato'];
+        }
+
+        try {
+            // Convert country codes to country names for the result
+            $originCountryName = $this->countryCodeToName($originCountryCode);
+            $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
+
             $quoteResult = $this->createOrUpdateLead($leadData, true);
 
             $result = [
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $voucherData['Contrato'], // Use the convenio that was actually used
+                'convenio' => $convenio, // Use the convenio that was actually used
                 'origin_country_code' => $originCountryCode,
                 'destination_country_code' => $destinationCountryCode,
                 'origin_country_name' => $originCountryName,
@@ -286,30 +300,17 @@ class Client
                 'response' => $quoteResult             // Main response with all details for Excel
             ];
 
-            // Only create voucher if not quote-only mode
+            // Note: Individual quotations in quote-only mode don't create vouchers
+            // Voucher creation will be handled separately with proper voucher data
             if (! $quoteOnly) {
-                $voucherResult = $this->createVoucher($voucherData, true);
-                $result['voucher_response'] = $voucherResult;  // Voucher confirmation
-
-                // Query voucher to get complete insurance information
-                try {
-                    if (isset($voucherResult['IdVoucher'])) {
-                        $voucherQueryResponse = $this->queryVoucher([
-                            'VoucherNumber' => $voucherResult['IdVoucher'],
-                            'Organization' => $this->getOrganizationForQuotationType($quotationType)
-                        ]);
-
-                        // Filter and store essential query data
-                        $result['voucher_query'] = $this->filterVoucherQueryResponse($voucherQueryResponse);
-                    }
-                } catch (Exception $queryException) {
-                    $result['voucher_query_error'] = $queryException->getMessage();
-                }
+                // For voucher creation, we need proper voucher data structure
+                // This would need to be handled differently for individual quotations
+                throw new ValidationException("Voucher creation from individual quotations not implemented in this context");
             }
 
             // Store in order metadata if provided
             if ($order) {
-                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $voucherData['Contrato']);
+                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $convenio);
             }
 
             return $result;
