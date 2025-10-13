@@ -35,10 +35,15 @@ class MessageObserver
 
     public function created(Message $message): void
     {
-        if ($message->parent_id && $message->parent) {
-            $message->parent->increment('total_children');
-            $message->parent->searchable();
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->searchable();
         }
+
+        if ($message->parent_id && $message->parent) {
+             $message->parent->increment('total_children');
+        }
+
+
         $message->clearLightHouseCacheJob();
 
         $message->user->getAppProfile($message->app)->increment('total_messages_count');
