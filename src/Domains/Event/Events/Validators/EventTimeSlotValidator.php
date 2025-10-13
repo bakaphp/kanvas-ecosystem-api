@@ -61,6 +61,29 @@ class EventTimeSlotValidator
                 "Time slot is not available. Resource is already booked from {$conflictingEvents->start_time} to {$conflictingEvents->end_time} on {$conflictingEvents->event_date} for event: {$conflictingEvents->name}"
             );
         }
+
+        // Check for holds on the time slot
+        $startDateTime = $date . ' ' . $startTime;
+        $endDateTime = $date . ' ' . $endTime;
+
+        $conflictingHold = DB::connection('event')
+            ->table('event_holds')
+            ->where('resources_id', $resourcesId)
+            ->where('resources_type', $resourcesType)
+            ->where('companies_id', $companiesId)
+            ->where('apps_id', $appsId)
+            ->where('expires_at', '>', now())
+            ->where(function ($query) use ($startDateTime, $endDateTime) {
+                $query->where('start_at', '<', $endDateTime)
+                      ->where('end_at', '>', $startDateTime);
+            })
+            ->first();
+
+        if ($conflictingHold) {
+            throw new ValidationException(
+                "Time slot is currently held by another user and will be available after the hold expires."
+            );
+        }
     }
 
     /**

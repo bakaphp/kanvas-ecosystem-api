@@ -79,4 +79,79 @@ final class FilesystemTest extends TestCase
         $this->assertGreaterThan(0, $user->getFiles()->count());
         $this->assertGreaterThan(0, $user->getFiles()->first()->delete());
     }
+
+    public function testUploadFileFromUrl()
+    {
+        $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
+
+        $filesystemService = new FilesystemServices(app(Apps::class));
+        $user = Auth::user();
+
+        $filesystem = $filesystemService->uploadFileFromUrl($url, $user);
+
+        $this->assertInstanceOf(Filesystem::class, $filesystem);
+        $this->assertNotEmpty($filesystem->url);
+        $this->assertNotEmpty($filesystem->path);
+        $this->assertStringContainsString('.png', $filesystem->name);
+
+        // Clean up
+        $this->assertTrue($filesystemService->delete($filesystem));
+    }
+
+    public function testUploadFileFromUrlWithoutExtension()
+    {
+        // URL without clear file extension
+        $url = 'https://picsum.photos/200/300';
+
+        $filesystemService = new FilesystemServices(app(Apps::class));
+        $user = Auth::user();
+
+        $filesystem = $filesystemService->uploadFileFromUrl($url, $user);
+
+        $this->assertInstanceOf(Filesystem::class, $filesystem);
+        $this->assertNotEmpty($filesystem->url);
+        $this->assertNotEmpty($filesystem->path);
+
+        // Clean up
+        $filesystemService->delete($filesystem);
+    }
+
+    public function testUploadFileFromUrlInvalidUrl()
+    {
+        $url = 'https://invalid-url-that-does-not-exist-12345.com/file.jpg';
+
+        $filesystemService = new FilesystemServices(app(Apps::class));
+        $user = Auth::user();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Failed to download file from URL');
+
+        $filesystemService->uploadFileFromUrl($url, $user);
+    }
+
+    public function testUploadFileFromUrlDifferentFileTypes()
+    {
+        $urls = [
+            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+            'https://filesamples.com/samples/document/txt/sample3.txt',
+        ];
+
+        $filesystemService = new FilesystemServices(app(Apps::class));
+        $user = Auth::user();
+
+        foreach ($urls as $url) {
+            try {
+                $filesystem = $filesystemService->uploadFileFromUrl($url, $user);
+
+                $this->assertInstanceOf(Filesystem::class, $filesystem);
+                $this->assertNotEmpty($filesystem->url);
+
+                // Clean up
+                $filesystemService->delete($filesystem);
+            } catch (\Exception $e) {
+                // Skip if URL is not accessible during testing
+                $this->markTestSkipped('URL not accessible: ' . $url);
+            }
+        }
+    }
 }

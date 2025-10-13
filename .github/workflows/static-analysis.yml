@@ -12,6 +12,7 @@ jobs:
       DB_HOST: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
+      REDIS_HOST_QUEUE: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
       DB_DATABASE: kanvas

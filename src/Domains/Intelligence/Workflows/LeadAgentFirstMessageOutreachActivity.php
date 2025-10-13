@@ -61,19 +61,28 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                 $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
+                $email = $lead->people->getEmails()->first()?->value ?? '';
 
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
-                if (empty($cellPhone)) {
-                    throw new RuntimeException('Lead does not have a phone number , wont be able to send message until we add email support');
-                }
+                $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
 
                 //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-                if (empty($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value))) {
+                if (empty($communicationChannel)) {
                     return [
                         'error' => 'No communication channel selected , please set one to be able to send messages',
                         'context' => $createContext,
                         'first_message' => $firstLeadMessage,
                     ];
+                }
+
+                $communicationChannelNumber = match ($communicationChannel) {
+                    'sms' => $cellPhone,
+                    'email' => $email,
+                    default => $cellPhone
+                };
+
+                if (empty($communicationChannelNumber)) {
+                    throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
                 }
 
                 if (isset($params['create_session'])) {
@@ -85,8 +94,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_namespace' => Lead::class,
                         'name' => 'Lead ' . $lead->getId() . ' Session',
                         'slug' => SessionChannelService::createChannelSlug(
-                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                            $cellPhone
+                            $communicationChannel,
+                            $communicationChannelNumber
                         ),
                     ]);
                     $channel = (new CreateChannelAction($channel))->execute();
@@ -100,8 +109,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'entity_namespace' => Lead::class,
                         'user' => $lead->user->toArray(),
                         'canal_id' => SessionChannelService::createCanalId(
-                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                            $cellPhone
+                            $communicationChannel,
+                            $communicationChannelNumber
                         ),
                     ]);
                     new CreateSessionAction($sessionDto)->execute();
@@ -112,9 +121,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     && $lead->company->get('overwrite_phone_number') !== null) {
                     $overwriteConfig = $lead->company->get('overwrite_phone_number');
                     $overwriteConfig = array_flip($overwriteConfig);
-                    $originalRemoteJid = match ($lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)) {
+                    $originalRemoteJid = match ($communicationChannel) {
                         'whatsapp' => $cellPhone = $cellPhone . '@s.whatsapp.net',
-                        'sms' => '+' . $cellPhone
+                        'sms' => '+' . $cellPhone,
+                        'email' => SessionChannelService::createChannelSlug('email', $email),
                     };
 
                     if (isset($overwriteConfig[$originalRemoteJid])) {
@@ -126,17 +136,32 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 if (! isset($params['disable_sending'])) {
                     $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                     $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+
+                    $messageType = match ($communicationChannel) {
+                        'sms' => 'twilio-sms',
+                        'email' => 'mailgun-email',
+                        default => 'twilio-sms',
+                    };
+
                     //$doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true); //@this is not needed but just in case
 
                     if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
-                            $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                            $communicationChannel,
                             $firstLeadMessage['message'],
                             $params['from'] ?? null,
+                            $firstLeadMessage['title'] ?? null,
                         );
                         $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
-                        $createMessage = $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
+                        //$createMessage = $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
+                        $createMessage = $this->createMessage(
+                            $lead,
+                            $firstLeadMessage['message'],
+                            $communicationChannelNumber,
+                            $channel ?? null,
+                            $messageType
+                        );
 
                         try {
                             //todo this is not the right place to do this but for now its ok
@@ -147,6 +172,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         }
                     }
                 }
+
+                $timezone = $lead->company->get('timezone') ?? 'UTC';
+                $now = Carbon::now($timezone);
+
+                $lead->set(EnumsConfigurationEnum::LAST_MESSAGE_TIME->value, $now->toDateTimeString());
+                $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);
+
+                $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
 
                 //move to stage 2 of the pipeline
                 $lead->moveToNextPipelineStage();
@@ -179,7 +212,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         Lead $lead,
         string $text,
         string $to,
-        ?Channel $channel = null
+        ?Channel $channel = null,
+        string $messageType = 'twilio-sms',
     ): Message {
         $user = $lead->user;
         $agentUser = $lead->app->get('kanvas_agent_user_id');
@@ -191,8 +225,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             new MessageTypeInput(
                 $lead->app->getId(),
                 0,
-                'twilio-sms',
-                'twilio-sms',
+                $messageType,
+                $messageType,
             )
         ))->execute();
 

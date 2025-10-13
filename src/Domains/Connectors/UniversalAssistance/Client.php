@@ -1428,36 +1428,44 @@ class Client
 
     /**
      * Convert voucher data to lead data format with specific countries
+     * Always preserves the quotation data structure from buildGroupQuotationData
+     * CRITICAL: This method preserves ALL group data including CantidadPasajeros and all Edad1-Edad10 fields
      */
     protected function convertVoucherDataToLeadDataWithCountries(array $voucherData, string $quotationType, string $originCountryName, string $destinationName): array
     {
-        $edad = $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30';
+        // CRITICAL: Always preserve the quotation data structure that comes from buildGroupQuotationData
+        // This ensures family groups maintain ALL person data (ages, count) for proper Universal Assistance pricing
+        // Whether it's 1 person or 10 people, this structure must be preserved exactly as built
 
-        return [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
-            'CantCotizaciones' => 1, // Important: Request quotation data
-            'Convenio' => $voucherData['Contrato'], // Use the convenio already set based on countries
-            'Folleto' => '', // Empty like working request
-            'PaisOrigen' => $originCountryName, // Use provided origin country name
-            'Destino' => $destinationName, // Use provided destination name
-            'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
-            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
-            'CantidadPasajeros' => 1, // Single person quotation
-            'PackFamiliar' => '', // Empty for individual
-            'Edad1' => $edad, // Set primary age
-            'Edad2' => '', // Empty for additional passengers
-            'Edad3' => '',
-            'Edad4' => '',
-            'Edad5' => '',
-            'Edad6' => '',
-            'Edad7' => '',
-            'Edad8' => '',
-            'Edad9' => '',
-            'Edad10' => '',
-            'Categoria' => '', // Empty like working example
-            'Precompras' => '' // Empty like working example
+
+        $leadData = [
+            'IdLead' => $voucherData['IdLead'] ?? '',
+            'OrganizacionEmisora' => $voucherData['OrganizacionEmisora'] ?? $this->getOrganizationForQuotationType($quotationType),
+            'CantCotizaciones' => $voucherData['CantCotizaciones'] ?? 1,
+            'Convenio' => $voucherData['Convenio'] ?? $voucherData['Contrato'] ?? '',
+            'Folleto' => $voucherData['Folleto'] ?? '',
+            'PaisOrigen' => $voucherData['PaisOrigen'] ?? $originCountryName,
+            'Destino' => $voucherData['Destino'] ?? $destinationName,
+            'TipoViaje' => $voucherData['TipoViaje'] ?? 'Un viaje',
+            'FechaInicio' => $voucherData['FechaInicio'] ?? date('m/d/Y'),
+            'FechaFin' => $voucherData['FechaFin'] ?? date('m/d/Y', strtotime('+7 days')),
+            'CantidadPasajeros' => $voucherData['CantidadPasajeros'] ?? 1,
+            'PackFamiliar' => $voucherData['PackFamiliar'] ?? '',
+            // Preserve all ages from the quotation data
+            'Edad1' => $voucherData['Edad1'] ?? '',
+            'Edad2' => $voucherData['Edad2'] ?? '',
+            'Edad3' => $voucherData['Edad3'] ?? '',
+            'Edad4' => $voucherData['Edad4'] ?? '',
+            'Edad5' => $voucherData['Edad5'] ?? '',
+            'Edad6' => $voucherData['Edad6'] ?? '',
+            'Edad7' => $voucherData['Edad7'] ?? '',
+            'Edad8' => $voucherData['Edad8'] ?? '',
+            'Edad9' => $voucherData['Edad9'] ?? '',
+            'Edad10' => $voucherData['Edad10'] ?? '',
+            'Categoria' => $voucherData['Categoria'] ?? '',
+            'Precompras' => $voucherData['Precompras'] ?? '',
         ];
+
+        return $leadData;
     }
 }

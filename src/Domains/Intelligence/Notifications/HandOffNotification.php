@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Notifications;
 
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 use NotificationChannels\Expo\ExpoChannel;
@@ -16,6 +17,7 @@ class HandOffNotification extends Notification
         'mail',
         OneSignalNotificationChannel::class,
         ExpoChannel::class,
+        TwilioSmsChannel::class,
     ];
 
     public function __construct(
@@ -29,5 +31,6 @@ class HandOffNotification extends Notification
         $this->setData($data);
         $this->setSubject('Lead Handoff Notification');
         $this->setPushTemplateName('lead_handoff_push_notification');
+        $this->setSmsTemplateName('lead_handoff_sms_notification');
     }
 }

@@ -21,6 +21,7 @@ use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -64,6 +65,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
                 $language = $order->metadata['language'] ?? $params['language'] ?? 'en';
+                $metaDataSendEmail = (bool) ($order->metadata['send_kanvas_email'] ?? false);
+
+                if (isset($order->metadata['is_stand'])) {
+                    $this->fixStandUSProductSku($order);
+                }
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -323,7 +329,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 }
 
                 try {
-                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true)) {
+                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true) || $metaDataSendEmail) {
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
@@ -455,5 +461,128 @@ class CreateOrderInESimActivity extends KanvasActivity
             $filename,
             $order->user
         );
+    }
+
+    protected function findVariantByClosestChannelPrice(int $targetAmountInCents, int $productId, Order $order): ?Variants
+    {
+        try {
+            // Get the default channel for the order's company and app
+            $defaultChannel = Channels::getDefault($order->company, $order->app);
+
+            // Get all published variants for the product with their channel prices
+            $variants = Variants::query()
+                ->where('products_id', $productId)
+                ->where('is_published', 1)
+                ->whereHas('channels', function ($query) use ($defaultChannel) {
+                    $query->where('channels_id', $defaultChannel->getId());
+                })
+                ->get();
+
+            if ($variants->isEmpty()) {
+                return null;
+            }
+
+            $closestVariant = null;
+            $smallestDifference = PHP_INT_MAX;
+
+            foreach ($variants as $variant) {
+                // Get the channel price from the pivot relationship
+                $channelPrice = $variant->channels->first()?->pivot?->price ?? null;
+
+                if ($channelPrice === null) {
+                    continue;
+                }
+
+                // Convert to cents for comparison
+                $variantPriceInCents = (int) ($channelPrice * 100);
+                $difference = abs($targetAmountInCents - $variantPriceInCents);
+
+                if ($difference < $smallestDifference) {
+                    $smallestDifference = $difference;
+                    $closestVariant = $variant;
+                }
+
+                // If we found an exact match, no need to continue
+                if ($difference === 0) {
+                    break;
+                }
+            }
+
+            return $closestVariant;
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    /**
+     * @todo remove this hack when frontend deploys
+     */
+    protected function fixStandUSProductSku(Order $order): void
+    {
+        $validateEsimProductType = ['local', 'global', 'regional'];
+        $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $paymentIntentId = explode('_secret_', $order->metadata['paymentIntent'] ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+
+        if (empty($paymentIntentId)) {
+            return;
+        }
+
+        $stripePaymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+        $itemAmount = $stripePaymentIntent->amount ?? 0;
+        $correctProduct = 221606;
+
+        //  $hasUsBadProduct = false;
+        $foundItem = null;
+        foreach ($order->items as $item) {
+            $variant = $item->variant;
+            // Get the product type from the variant's product
+            $productType = strtolower($variant->product->productType->name ?? '');
+            if (! in_array($productType, $validateEsimProductType)) {
+                continue;
+            }
+
+            if ((int) $variant->getId() !== 239306) { // This is the bad product id
+                //  $hasUsBadProduct = true;
+
+                continue;
+            }
+
+            $itemUnitPrice = (int) ($item->unit_price_net_amount * 100); // Convert to cents for comparison
+            if ($itemAmount > $itemUnitPrice) {
+                $foundItem = $item->id;
+
+                break;
+            }
+        }
+
+        if ($foundItem) {
+            foreach ($order->items as $item) {
+                if ((int) $item->id === (int) $foundItem) {
+                    // Find the correct variant by closest channel price
+                    $correctVariant = $this->findVariantByClosestChannelPrice(
+                        $itemAmount,
+                        $item->variant->product->getId(),
+                        $order
+                    );
+
+                    if ($correctVariant) {
+                        $item->product_sku = $correctVariant->sku;
+                        $item->variant_id = $correctVariant->getId();
+                        $item->unit_price_net_amount = $itemAmount / 100;
+                        $item->unit_price_gross_amount = $itemAmount / 100;
+                        $item->saveOrFail();
+                        $order->calculateTotal();
+                        $order->updateOrFail();
+
+                        $order->addTag('stand-us-fix');
+                        $order->refresh();
+                    }
+
+                    return;
+                }
+            }
+        }
     }
 }

@@ -27,11 +27,17 @@ class LeadIntentTool implements ContextToolInterface
             throw new Exception('No ADF sources found for this company');
         }
         $sources = collect($sources);
-        $leadType = $this->entity->type->name;
+        $leadSource = $this->entity->source->name;
         $subSource = $this->entity->get('sub_source');
-        $source = $sources->where('Source', $leadType)
+        $source = $sources->where('Source', $leadSource)
             ->where('Sub_Source', $subSource)
-            ->firstOrFail();
+            ->first();
+        if (! $source) {
+            $source = [
+                'Backend' => 'Advance Request',
+                'Default_Completion_Status' => 'Incomplete',
+            ];
+        }
 
         return [
             'lead_intent' => $source['Backend'],

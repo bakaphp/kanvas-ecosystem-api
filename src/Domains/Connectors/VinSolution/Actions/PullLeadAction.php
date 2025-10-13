@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\VinSolution\DataTransferObject\People;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -19,6 +21,7 @@ use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
+use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
@@ -86,6 +89,13 @@ class PullLeadAction
                 );
 
                 $this->setVehicleOfInterest(
+                    $vinCompany,
+                    $user,
+                    $lead,
+                    $currentLead
+                );
+
+                $this->setTradeInVehicle(
                     $vinCompany,
                     $user,
                     $lead,
@@ -210,6 +220,35 @@ class PullLeadAction
             }
         } catch (Throwable $e) {
             report($e);
+        }
+    }
+
+    private function setTradeInVehicle(
+        Dealer $vinCompany,
+        User $user,
+        ModelsLead $lead,
+        array $currentLead
+    ): void {
+        try {
+            $vehicleTradeIn = current(TradeIn::getByLeadId(
+                $vinCompany,
+                $user,
+                $currentLead['LeadId']
+            )->items);
+
+            if (is_array($vehicleTradeIn) && count($vehicleTradeIn)) {
+                $lead->set(LeadCustomFieldEnum::TRADE_IN->value, $vehicleTradeIn);
+            }
+        } catch (Throwable $e) {
+            $message = $e->getMessage();
+
+            $isIgnoredTradeInNotFound = $e instanceof ClientException
+                && str_starts_with($message, 'Client error: `GET https://api.vinsolutions.com/vehicles/trade?leadId=')
+                && str_contains($message, '`404 Not Found` response');
+
+            if (! $isIgnoredTradeInNotFound) {
+                report($e);
+            }
         }
     }
 }

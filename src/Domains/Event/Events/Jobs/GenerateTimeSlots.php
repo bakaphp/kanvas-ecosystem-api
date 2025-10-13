@@ -51,6 +51,7 @@ class GenerateTimeSlots implements ShouldQueue
             TimeSlots::upsert([[
               'resources_id'        => $resource->id,
               'resources_type'      => $resource->getMorphClass(),
+              'schedule_rules_id'   => $rule->id,
               'start_at'            => $localStart->clone()->setTimezone('UTC'),
               'apps_id'             => $rule->apps_id,
               'companies_id'        => $rule->companies_id,
@@ -61,7 +62,7 @@ class GenerateTimeSlots implements ShouldQueue
               'updated_at'          => now(),
               'created_at'          => now(),
             ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
-              'end_at','capacity','price_snapshot','currency','updated_at'
+              'schedule_rules_id','end_at','capacity','price_snapshot','currency','updated_at'
             ]);
         }
     }

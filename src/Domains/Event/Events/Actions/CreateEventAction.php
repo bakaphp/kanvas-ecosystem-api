@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
-use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
@@ -106,12 +105,6 @@ class CreateEventAction
 
             return $event;
         });
-
-        // Send notification to participants after successful creation
-        $eventVersion = $event->versions->first();
-        if ($eventVersion) {
-            new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value)->execute();
-        }
 
         return $event;
     }
