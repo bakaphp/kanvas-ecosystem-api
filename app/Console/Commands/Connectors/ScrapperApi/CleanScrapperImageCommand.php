@@ -19,9 +19,11 @@ class CleanScrapperImageCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:scrapper-cleanup-product-images {app_id} {company_id} {--product_id=} {--force : Force reprocessing of already cleaned images}';
+    protected $signature = 'kanvas:scrapper-cleanup-product-images {app_id} {company_id} {--product_id=} {--force : Force reprocessing of already cleaned images} {--provider=pixelbin : Watermark removal provider (pixelbin or legacy)}';
 
     protected ?string $aiAPI = null;
+    protected ?string $pixelbinApiToken = null;
+    protected string $provider = 'pixelbin';
     protected Apps $app;
     protected Users $user;
 
@@ -32,7 +34,36 @@ class CleanScrapperImageCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
         $this->user = $company->users()->first();
 
-        $this->aiAPI = $this->app->get('scrapper_api_image_removal_api');
+        // Determine which provider to use
+        $requestedProvider = strtolower($this->option('provider') ?? 'pixelbin');
+
+        // Try PixelBin first (default)
+        if ($requestedProvider === 'pixelbin') {
+            $this->pixelbinApiToken = $this->app->get('pixelbin_api_token');
+
+            if (! empty($this->pixelbinApiToken)) {
+                $this->provider = 'pixelbin';
+                $this->info('Using PixelBin watermark removal provider');
+            } else {
+                $this->warn('PixelBin API token not configured, falling back to legacy provider...');
+                $requestedProvider = 'legacy';
+            }
+        }
+
+        // Setup legacy provider if needed
+        if ($requestedProvider === 'legacy') {
+            $this->aiAPI = $this->app->get('scrapper_api_image_removal_api');
+
+            if (! empty($this->aiAPI)) {
+                $this->provider = 'legacy';
+                $this->info('Using legacy watermark removal provider');
+            } else {
+                $this->error('No watermark removal provider configured. Please configure either pixelbin_api_token or scrapper_api_image_removal_api');
+
+                return;
+            }
+        }
+
         $kanvasImageRemoval = $company->get('scrapper_api_image_removal_api_key') ?? 'https://cdn2.kanvas.dev/sc-mask.png';
         $productId = (int) $this->option('product_id');
 
@@ -58,7 +89,6 @@ class CleanScrapperImageCommand extends Command
                 }
 
                 $variant->clearLightHouseCache(withKanvasConfiguration: false);
-                // Get all files for this variant (limit to 25)
                 $files = $variant->getFiles();
 
                 if ($files->isEmpty()) {
@@ -74,9 +104,12 @@ class CleanScrapperImageCommand extends Command
                     $originalUrl = $fileEntity->filesystem->url;
                     $this->info("  Processing file: {$originalUrl}");
 
-                    // Remove watermark from the image
-                    $cleanedImageUrl = $this->removeWatermarkFromImage($originalUrl, $kanvasImageRemoval);
-                    sleep(1);
+                    // Remove watermark from the image using selected provider
+                    $cleanedImageUrl = $this->provider === 'pixelbin'
+                        ? $this->removeWatermarkWithPixelBin($originalUrl)
+                        : $this->removeWatermarkWithLegacy($originalUrl, $kanvasImageRemoval);
+
+                    sleep($this->provider === 'pixelbin' ? 2 : 1);
 
                     if ($cleanedImageUrl) {
                         // Upload cleaned image to app's CDN
@@ -119,6 +152,7 @@ class CleanScrapperImageCommand extends Command
                     // Mark variant as processed to avoid reprocessing
                     $variant->set('watermark_removed', true);
                     $variant->set('watermark_removed_at', now()->toDateTimeString());
+                    $variant->set('watermark_removed_provider', $this->provider);
 
                     $processedCount++;
                     $this->info("  ✓ Variant {$variant->id} updated successfully");
@@ -127,18 +161,164 @@ class CleanScrapperImageCommand extends Command
         }
 
         $this->info("\n=== Processing Complete ===");
+        $this->info("Provider used: {$this->provider}");
         $this->info("Variants processed: {$processedCount}");
         $this->info("Errors encountered: {$errorCount}");
     }
 
     /**
-     * Remove watermark from image using AI API.
+     * Remove watermark from image using PixelBin API.
+     *
+     * @param string $imageUrl The URL of the image with watermark
+     * @return string|null The URL of the cleaned image, or null on failure
+     */
+    private function removeWatermarkWithPixelBin(string $imageUrl): ?string
+    {
+        try {
+            $this->info('  Submitting to PixelBin API...');
+
+            // Submit the watermark removal request
+            $response = Http::timeout(120)
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'Authorization' => 'Bearer ' . base64_encode($this->pixelbinApiToken),
+                ])
+                ->asMultipart()
+                ->post('https://api.pixelbin.io/service/platform/transformation/v1.0/predictions/wm/remove', [
+                    [
+                        'name' => 'input.image',
+                        'contents' => $imageUrl,
+                    ],
+                    [
+                        'name' => 'input.rem_text',
+                        'contents' => 'true',
+                    ],
+                    [
+                        'name' => 'input.rem_logo',
+                        'contents' => 'true',
+                    ],
+                    [
+                        'name' => 'input.box1',
+                        'contents' => '0_0_100_100',
+                    ],
+                    [
+                        'name' => 'input.box2',
+                        'contents' => '0_0_0_0',
+                    ],
+                    [
+                        'name' => 'input.box3',
+                        'contents' => '0_0_0_0',
+                    ],
+                    [
+                        'name' => 'input.box4',
+                        'contents' => '0_0_0_0',
+                    ],
+                    [
+                        'name' => 'input.box5',
+                        'contents' => '0_0_0_0',
+                    ],
+                ]);
+
+            if (! $response->successful()) {
+                $this->warn('  API request failed: ' . $response->status());
+                $this->warn('  Response: ' . $response->body());
+
+                return null;
+            }
+
+            $result = $response->json();
+
+            // Extract the status URL
+            $statusUrl = $result['urls']['get'] ?? null;
+
+            if (! $statusUrl) {
+                $this->warn('  No status URL in response');
+
+                return null;
+            }
+
+            $this->info('  Polling for result...');
+
+            // Poll for the result
+            return $this->pollForResult($statusUrl);
+        } catch (Throwable $e) {
+            $this->error('  Error removing watermark: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Poll the PixelBin API for the result.
+     *
+     * @param string $statusUrl The URL to poll for status
+     * @param int $maxAttempts Maximum number of polling attempts
+     * @param int $sleepSeconds Seconds to wait between polls
+     * @return string|null The URL of the cleaned image, or null on failure
+     */
+    private function pollForResult(string $statusUrl, int $maxAttempts = 30, int $sleepSeconds = 3): ?string
+    {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = Http::timeout(30)
+                    ->withHeaders([
+                        'Accept' => 'application/json',
+                        'Authorization' => 'Bearer ' . base64_encode($this->pixelbinApiToken),
+                    ])
+                    ->get($statusUrl);
+
+                if (! $response->successful()) {
+                    $this->warn("  Poll attempt {$attempt}/{$maxAttempts} failed: " . $response->status());
+                    sleep($sleepSeconds);
+
+                    continue;
+                }
+
+                $result = $response->json();
+                $status = $result['status'] ?? null;
+
+                if ($status === 'SUCCESS') {
+                    $outputUrl = $result['output'][0] ?? null;
+
+                    if ($outputUrl) {
+                        $this->info('  ✓ Watermark removal completed');
+
+                        return $outputUrl;
+                    }
+
+                    $this->warn('  Status is SUCCESS but no output URL found');
+
+                    return null;
+                }
+
+                if ($status === 'FAILURE') {
+                    $this->warn('  Watermark removal failed');
+
+                    return null;
+                }
+
+                // Status is PENDING, continue polling
+                $this->info("  Poll attempt {$attempt}/{$maxAttempts} - Status: {$status}");
+                sleep($sleepSeconds);
+            } catch (Throwable $e) {
+                $this->warn("  Poll attempt {$attempt}/{$maxAttempts} error: " . $e->getMessage());
+                sleep($sleepSeconds);
+            }
+        }
+
+        $this->warn('  Max polling attempts reached, watermark removal timed out');
+
+        return null;
+    }
+
+    /**
+     * Remove watermark from image using legacy AI API with mask.
      *
      * @param string $imageUrl The URL of the image with watermark
      * @param string $maskUrl The URL of the mask image (white area = watermark to remove)
      * @return string|null The URL of the cleaned image, or null on failure
      */
-    private function removeWatermarkFromImage(string $imageUrl, string $maskUrl): ?string
+    private function removeWatermarkWithLegacy(string $imageUrl, string $maskUrl): ?string
     {
         try {
             // Download images to temporary files
@@ -146,7 +326,7 @@ class CleanScrapperImageCommand extends Command
             $maskImage = Http::get($maskUrl)->body();
 
             if (empty($originalImage) || empty($maskImage)) {
-                $this->warn('Failed to download images for watermark removal');
+                $this->warn('  Failed to download images for watermark removal');
 
                 return null;
             }
@@ -172,7 +352,7 @@ class CleanScrapperImageCommand extends Command
             unlink($tempMask);
 
             if (! $response->successful()) {
-                $this->warn('API request failed: ' . $response->status());
+                $this->warn('  API request failed: ' . $response->status());
 
                 return null;
             }
@@ -180,7 +360,6 @@ class CleanScrapperImageCommand extends Command
             $result = $response->json();
 
             // Return the cleaned image URL from the response
-            // The API should return the URL of the cleaned image
             if (isset($result[0]['url'])) {
                 return $result[0]['url'];
             }
@@ -193,12 +372,11 @@ class CleanScrapperImageCommand extends Command
                 return $result['data']['url'];
             }
 
-            // If the response contains base64 or other formats, handle accordingly
-            $this->warn('Unexpected API response format');
+            $this->warn('  Unexpected API response format');
 
             return null;
         } catch (Throwable $e) {
-            $this->error('Error removing watermark: ' . $e->getMessage());
+            $this->error('  Error removing watermark: ' . $e->getMessage());
 
             return null;
         }
@@ -219,7 +397,7 @@ class CleanScrapperImageCommand extends Command
 
             return $filesystem->url;
         } catch (Throwable $e) {
-            $this->error('Error uploading to CDN: ' . $e->getMessage());
+            $this->error('  Error uploading to CDN: ' . $e->getMessage());
 
             return null;
         }
@@ -249,7 +427,7 @@ class CleanScrapperImageCommand extends Command
             $cleanedImageUrl = Cache::remember($cleanedImageCacheKey, $cacheMinutes, function () use ($imageUrl, $maskUrl) {
                 $this->info('Removing watermark from: ' . $imageUrl);
 
-                return $this->removeWatermarkFromImage($imageUrl, $maskUrl);
+                return $this->removeWatermarkWithLegacy($imageUrl, $maskUrl);
             });
 
             // Use cleaned image if available, otherwise use original
