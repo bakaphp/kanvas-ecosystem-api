@@ -638,7 +638,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $apiUrl,string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
+    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
