@@ -2669,7 +2669,6 @@ class InsuranceWorkflowService
         // Process inclusion quotation
         if (isset($dualQuotationResult['inclusion']['result']['success']) &&
             $dualQuotationResult['inclusion']['result']['success']) {
-
             $inclusionData = $dualQuotationResult['inclusion']['result']['quotation_data'] ?? [];
             $inclusionQuote = $inclusionData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                              $inclusionData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
@@ -2690,7 +2689,6 @@ class InsuranceWorkflowService
         // Process cross_selling quotation
         if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
             $dualQuotationResult['cross_selling']['result']['success']) {
-
             $crossSellingData = $dualQuotationResult['cross_selling']['result']['quotation_data'] ?? [];
             $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
                                 $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
