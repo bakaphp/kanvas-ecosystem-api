@@ -454,42 +454,44 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         // Extract filename from URL or use a default
-        $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
+        // $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
 
         // Create multipart request
-        $response = Http::asMultipart()
-            ->attach('image', $imageContent, $filename)
-            ->attach('model', 'gemini-2.5-flash-image-preview')
-            ->attach('prompt', $prompt);
+        // $response = Http::asMultipart()
+        //     ->attach('image', $imageContent, $filename)
+        //     ->attach('model', 'gemini-2.5-flash-image-preview')
+        //     ->attach('prompt', $prompt);
 
-        if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
-            $index = 2;
-            foreach ($params['additional_images'] as $additionalImage) {
-                $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
-                $index++;
-            }
-            $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
+        $response = $this->submitImage($imageUrl, $imageFilter, $prompt, $params);
+
+        // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
+        //     $index = 2;
+        //     foreach ($params['additional_images'] as $additionalImage) {
+        //         $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
+        //         $index++;
+        //     }
+        //     $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
+        // }
+
+        // $response = $response->post($apiUrl);
+
+        if ($response['status'] !== 'success') {
+            throw new Exception('Gemini Banana API request failed: ' . json_encode($response));
         }
 
-        $response = $response->post($apiUrl);
-
-        if (! $response->successful()) {
-            throw new Exception('Gemini Banana API request failed: ' . $response->body());
-        }
-
-        $responseData = $response->json();
+        // $responseData = $response->json();
 
         // Extract the URL from the response structure
         // Response format: { "0": { "url": "...", "file_name": "...", ... } }
         $processedImageUrl = null;
-        if (isset($responseData['0']['url'])) {
-            $processedImageUrl = $responseData['0']['url'];
-        } elseif (isset($responseData[0]['url'])) {
-            $processedImageUrl = $responseData[0]['url'];
+        if (isset($response['0']['url'])) {
+            $processedImageUrl = $response['0']['url'];
+        } elseif (isset($response[0]['url'])) {
+            $processedImageUrl = $response[0]['url'];
         }
 
         if (! $processedImageUrl) {
-            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($responseData));
+            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($response));
         }
 
         // Optimize and upload the processed image
