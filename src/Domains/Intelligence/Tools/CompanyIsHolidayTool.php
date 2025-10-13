@@ -29,7 +29,8 @@ class CompanyIsHolidayTool implements ContextToolInterface
         $usHolidays = Yasumi::create('USA', $today->year);
 
         // Check if today is a US federal holiday
-        $isFederalHoliday = $usHolidays->isHoliday($today->toDateTimeImmutable());
+        $todayImmutable = $today->toDateTimeImmutable();
+        $isFederalHoliday = $usHolidays->isHoliday($todayImmutable);
 
         if (! $isFederalHoliday) {
             return [
@@ -40,8 +41,25 @@ class CompanyIsHolidayTool implements ContextToolInterface
             ];
         }
 
-        // Get the federal holiday name
-        $federalHolidayName = $usHolidays->getHoliday($today->toDateTimeImmutable())->getName();
+        // Get the federal holiday name by iterating through holidays
+        $federalHolidayName = null;
+        foreach ($usHolidays as $holiday) {
+            if ($holiday->format('Y-m-d') === $today->format('Y-m-d')) {
+                $federalHolidayName = $holiday->getName();
+
+                break;
+            }
+        }
+
+        // Fallback if no holiday name found (shouldn't happen if isHoliday returned true)
+        if ($federalHolidayName === null) {
+            return [
+                'is_holiday' => false,
+                'is_a_working_day' => true,
+                'holiday_info' => null,
+                'date_checked' => $today->toDateString(),
+            ];
+        }
 
         // Check if this federal holiday is in the company's observed holidays list
         $isCompanyObservedHoliday = in_array($federalHolidayName, $companyObservedHolidays, true);
