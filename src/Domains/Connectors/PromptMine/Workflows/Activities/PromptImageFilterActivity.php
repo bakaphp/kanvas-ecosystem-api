@@ -10,6 +10,7 @@ use Exception;
 use finfo;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -37,7 +38,6 @@ use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
-use Illuminate\Http\Client\Response;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
