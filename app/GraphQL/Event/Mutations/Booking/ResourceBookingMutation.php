@@ -9,6 +9,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Event\Events\Actions\BuildEventDataAction;
 use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
@@ -90,10 +91,10 @@ class ResourceBookingMutation
             $eventHold->delete();
         }
 
-        // Get the resource entity
         $resource = $this->getResource($bookingData['resources_type'], $bookingData['resources_id']);
 
-        $eventDto = EventDto::from($app, $user, $company, $this->buildEventData($resource, $bookingData, $app, $user, $company));
+        $eventData = new BuildEventDataAction($resource, $user, $bookingData)->execute();
+        $eventDto = EventDto::from($app, $user, $company, $eventData);
 
         $createEventAction = new CreateEventAction($eventDto);
         $event = $createEventAction->execute();

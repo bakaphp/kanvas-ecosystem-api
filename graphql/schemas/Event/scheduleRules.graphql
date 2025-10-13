@@ -71,13 +71,17 @@ extend type Query @guard {
                     "id"
                     "companies_id"
                     "resources_id"
-                    "resources_type"
                     "start_at"
                     "end_at"
                     "slot_duration_min"
                     "lead_time_min"
                     "cutoff_time_min"
                 ]
+            )
+        resourceType: _
+            @whereConditions(
+                columns: ["resources_type"]
+                handler: "App\\GraphQL\\Event\\Handlers\\ResourceTypeHandler"
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "start_at"])
     ): [ScheduleRules!]!
