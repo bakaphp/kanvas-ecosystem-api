@@ -1032,9 +1032,12 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $peopleInfo[] = "{$firstName} {$lastName} (DOB: {$dob}, Plan: {$planName})";
             }
 
-            if (count($groupPeople) > 1) {
-                // Multiple people with same plan = create group voucher
-                // ENSURE both titular and dependents are included
+            // Check if this is a family group (has dependents in original data)
+            $hasDependents = isset($insuranceData['dependents']) && !empty($insuranceData['dependents']);
+
+            if ($hasDependents) {
+                // Family group: ALWAYS use processGroupedInsuranceWorkflow for families
+                // This ensures ONE voucher per family/group regardless of group size
                 $groupResult = $service->processGroupedInsuranceWorkflow($groupPeople, $planKey);
                 $groupResults["group_{$groupIndex}"] = [
                     'type' => 'grouped_voucher',
@@ -1045,34 +1048,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'result' => $groupResult
                 ];
             } else {
-                // Single person = process individually (existing logic)
+                // Individual: Only titular, no dependents - use individual processing
                 $person = $groupPeople[0];
-                $personType = $this->findPersonType($person, $insuranceData);
-
-                if ($personType === 'titular') {
-                    $individualResult = $service->processTitular($person);
-                    $groupResults["group_{$groupIndex}"] = [
-                        'type' => 'individual_titular',
-                        'plan_key' => $planKey,
-                        'group_size' => 1,
-                        'people_in_group' => ['titular'],
-                        'result' => ['titular' => $individualResult]
-                    ];
-                } else {
-                    // For dependents, we need titular's country data
-                    $titularOriginCountryCode = $insuranceData['titular']['originCountryCode'] ?? 'AR';
-                    $titularDestinationCountryCode = $insuranceData['titular']['destinationCountryCode'] ??
-                                                   $insuranceData['titular']['destinyCountryCode'] ?? 'DO';
-
-                    $individualResult = $service->processDependent($person, $titularOriginCountryCode, $titularDestinationCountryCode);
-                    $groupResults["group_{$groupIndex}"] = [
-                        'type' => 'individual_dependent',
-                        'plan_key' => $planKey,
-                        'group_size' => 1,
-                        'people_in_group' => [$this->findPersonIdentifier($person, $insuranceData)],
-                        'result' => ['dependents' => [$individualResult]]
-                    ];
-                }
+                $individualResult = $service->processTitular($person, false); // false = no dependents
+                $groupResults["group_{$groupIndex}"] = [
+                    'type' => 'individual_titular',
+                    'plan_key' => $planKey,
+                    'group_size' => 1,
+                    'people_in_group' => ['titular'],
+                    'result' => ['titular' => $individualResult]
+                ];
             }
             $groupIndex++;
         }
@@ -1163,6 +1148,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $group['type'] === 'grouped_voucher') {
                     if ($group['type'] === 'grouped_voucher') {
                         // For grouped vouchers, create a special result structure
+                        // The result from processGroupedInsuranceWorkflow has the structure directly
                         $result['titular'] = [
                             'voucher_result' => $group['result']['group_voucher_result'],
                             'dual_quotation_results' => $group['result']['dual_quotation_results'] ?? null,
@@ -1171,9 +1157,29 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 'is_grouped' => true,
                                 'group_size' => $group['group_size'],
                                 'plan_key' => $group['plan_key'],
-                                'people_in_group' => $group['people_in_group']
+                                'people_in_group' => $group['people_in_group'],
+                                'persons_in_group' => $group['result']['persons_in_group'] ?? []
                             ]
                         ];
+
+                        // For group vouchers, we also need to create dependent entries that reference the same voucher
+                        // This ensures compatibility with the existing storage logic
+                        if (isset($group['result']['persons_in_group'])) {
+                            $dependentEntries = [];
+                            foreach ($group['result']['persons_in_group'] as $index => $person) {
+                                // Skip the titular (first person typically)
+                                if ($index === 0) continue;
+
+                                // Create a dependent entry that references the group voucher
+                                $dependentEntries[] = [
+                                    'voucher_result' => $group['result']['group_voucher_result'], // Same voucher for all
+                                    'person_data' => $person,
+                                    'is_group_member' => true,
+                                    'group_voucher_reference' => true
+                                ];
+                            }
+                            $result['dependents'] = $dependentEntries;
+                        }
                     } else {
                         $result['titular'] = $group['result']['titular'];
                     }
