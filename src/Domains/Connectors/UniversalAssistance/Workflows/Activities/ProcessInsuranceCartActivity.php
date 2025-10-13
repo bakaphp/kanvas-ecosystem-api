@@ -1033,7 +1033,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
 
             // Check if this is a family group (has dependents in original data)
-            $hasDependents = isset($insuranceData['dependents']) && !empty($insuranceData['dependents']);
+            $hasDependents = isset($insuranceData['dependents']) && ! empty($insuranceData['dependents']);
 
             if ($hasDependents) {
                 // Family group: ALWAYS use processGroupedInsuranceWorkflow for families
@@ -1168,7 +1168,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             $dependentEntries = [];
                             foreach ($group['result']['persons_in_group'] as $index => $person) {
                                 // Skip the titular (first person typically)
-                                if ($index === 0) continue;
+                                if ($index === 0) {
+                                    continue;
+                                }
 
                                 // Create a dependent entry that references the group voucher
                                 $dependentEntries[] = [
