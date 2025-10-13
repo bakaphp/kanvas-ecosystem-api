@@ -4,85 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Event;
 
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Event\Events\Actions\SendEventEmailsAction;
-use Kanvas\Event\Events\Models\EventCategory;
-use Kanvas\Event\Events\Models\EventType;
-use Kanvas\Event\Support\Setup;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Regions\Models\Regions;
-use Tests\GraphQL\Inventory\Traits\InventoryCases;
-use Tests\TestCase;
+use Kanvas\Event\Events\Models\EventHold;
 
-class ResourceBookingCrudTest extends TestCase
+class ResourceBookingCrudTest extends ResourceBookingBase
 {
-    use InventoryCases;
-
-    protected $variant;
-    protected $region;
-    protected $company;
-    protected $user;
-    protected $apps;
-    protected $warehouseResponse;
-    protected $channelResponse;
-    protected $productResponse;
-    protected $variantId;
-
-    public function setUp(): void
-    {
-        parent::setUp();
-
-        // Mock notifications to prevent template lookup issues
-        Notification::fake();
-
-        // Mock the SendEventEmailsAction to prevent template lookups
-        $this->mock(SendEventEmailsAction::class, function ($mock) {
-            $mock->shouldReceive('execute')->andReturn(null);
-        });
-
-        $this->apps = app(Apps::class);
-        $this->user = Auth::user();
-        $this->company = $this->user->getCurrentCompany();
-        $this->region = Regions::getDefault($this->company, $this->apps);
-
-        $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
-
-        // Create product with attributes (correct way from ReservationsTest)
-        $this->productResponse = $this->createProduct(attributes: [
-            [
-                'name' => 'late_fee',
-                'value' => 100,
-            ],
-        ])->json()['data']['createProduct'];
-
-        $product = Products::find($this->productResponse['id']);
-        $this->variantId = $product->variants()->first()->id;
-
-        // Add variant to channel and warehouse
-        $this->addVariantToChannel(
-            variantId: (string) $this->variantId,
-            channelId: $this->channelResponse['id'],
-            warehouseData: [
-                'id' => $this->warehouseResponse['id'],
-            ]
-        );
-
-        $this->addVariantToWarehouse(
-            variantId: (string) $this->variantId,
-            warehouseId: $this->warehouseResponse['id'],
-            amount: 100
-        );
-
-        $setup = new Setup($this->apps, $this->user, $this->company);
-        $setup->run();
-    }
-
-    /**
-     * Test creating a resource booking (CREATE operation)
-     */
     public function testCreateResourceBooking(): void
     {
         $bookingData = $this->getBasicBookingData();
@@ -130,9 +55,6 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertEquals('12:00:00', $eventVersion['dates'][0]['end_time']);
     }
 
-    /**
-     * Test updating a resource booking (UPDATE operation)
-     */
     public function testUpdateResourceBooking(): void
     {
         // First create a booking
@@ -187,9 +109,6 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertEquals('16:00:00', $updatedEventVersion['dates'][0]['end_time']);
     }
 
-    /**
-     * Test deleting a resource booking (DELETE operation)
-     */
     public function testDeleteResourceBooking(): void
     {
         // First create a booking
@@ -222,9 +141,6 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertEquals($eventVersionId, $deleteResult['deleted_event']['id']);
     }
 
-    /**
-     * Test time slot validation - should prevent double booking
-     */
     public function testTimeSlotValidation(): void
     {
         // Create first booking
@@ -256,9 +172,6 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertStringContainsString('Time slot is not available', $response->json('errors.0.message'));
     }
 
-    /**
-     * Test resource booking with multiple participants and resources
-     */
     public function testMultiParticipantResourceBooking(): void
     {
         $bookingData = [
@@ -350,9 +263,6 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertNotNull($eventVersion['event']['resources']);
     }
 
-    /**
-     * Test update time slot validation - should prevent conflicting updates
-     */
     public function testUpdateTimeSlotValidation(): void
     {
         // Create two bookings with different time slots
@@ -391,54 +301,59 @@ class ResourceBookingCrudTest extends TestCase
         $this->assertStringContainsString('Time slot is not available', $response->json('errors.0.message'));
     }
 
-    /**
-     * Helper method to get basic booking data
-     */
-    private function getBasicBookingData(): array
+    public function testActiveHoldPreventsBooking(): void
     {
-        return [
+        // Create an active hold on a time slot
+        EventHold::create([
             'resources_id' => $this->variantId,
-            'resources_type' => 'variant',
+            'resources_type' => 'Kanvas\\Inventory\\Variants\\Models\\Variants',
             'start_at' => now()->addDay()->format('Y-m-d') . ' 10:00:00',
             'end_at' => now()->addDay()->format('Y-m-d') . ' 12:00:00',
-            'participants' => [
-                [
-                    'firstname' => 'John',
-                    'lastname' => 'Doe',
-                    'contacts' => [
-                        [
-                            'contacts_types_id' => 1,
-                            'value' => 'john@example.com',
-                            'weight' => 1
-                        ]
-                    ]
-                ]
-            ],
-            'event_name' => 'Test Resource Booking',
-            'event_description' => 'Test booking description',
-            'metadata' => [
-                'category_id' => EventCategory::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),
-                'type_id' => EventType::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),
-                'price' => 25.00,
-                'notes' => 'Test booking'
-            ],
-            'resources' => [
-                [
-                    'resources_id' => $this->variantId,
-                    'resources_type' => 'variant',
-                    'metadata' => [
-                        'notes' => 'Additional equipment needed'
-                    ]
-                ]
-            ]
-        ];
+            'users_id' => $this->user->id,
+            'companies_id' => $this->company->getId(),
+            'apps_id' => $this->apps->getId(),
+            'expires_at' => now()->addMinutes(15), // Active hold
+        ]);
+
+        // Try to create a booking in the same time slot (should fail)
+        $bookingData = $this->getBasicBookingData();
+
+        $response = $this->graphQL('
+            mutation bookResource($input: ResourceBookingInput!) {
+                bookResource(input: $input) {
+                    id
+                    name
+                }
+            }
+        ', [
+            'input' => $bookingData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        // Should have validation error about the hold
+        $this->assertNotNull($response->json('errors'));
+        $this->assertStringContainsString('held by another user', $response->json('errors.0.message'));
     }
 
-    /**
-     * Helper method to create a booking
-     */
-    private function createBooking(array $bookingData): array
+    public function testExpiredHoldAllowsBooking(): void
     {
+        // Create an expired hold on a time slot
+        EventHold::create([
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\\Inventory\\Variants\\Models\\Variants',
+            'start_at' => now()->addDay()->format('Y-m-d') . ' 10:00:00',
+            'end_at' => now()->addDay()->format('Y-m-d') . ' 12:00:00',
+            'users_id' => $this->user->id,
+            'companies_id' => $this->company->getId(),
+            'apps_id' => $this->apps->getId(),
+            'expires_at' => now()->subMinutes(5), // Expired hold
+        ]);
+
+        // Try to create a booking in the same time slot (should succeed)
+        $bookingData = $this->getBasicBookingData();
+
         $response = $this->graphQL('
             mutation bookResource($input: ResourceBookingInput!) {
                 bookResource(input: $input) {
@@ -456,6 +371,8 @@ class ResourceBookingCrudTest extends TestCase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
-        return $response->json('data.bookResource');
+        // Should succeed since hold is expired
+        $this->assertNull($response->json('errors'));
+        $this->assertNotNull($response->json('data.bookResource.id'));
     }
 }

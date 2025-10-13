@@ -81,11 +81,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $nuggetTitle = $this->generateTitleByPrompt($prompt);
+                // $nuggetTitle = $this->generateTitleByPrompt($prompt);
 
                 $messageInput = [
                     'message' => [
-                        'title' => $nuggetTitle,
+                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
@@ -98,6 +98,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
+                    'is_public' => 0
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
@@ -118,11 +119,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 if ($promptChannel && empty($promptChannel->title)) {
-                    $channelName = $this->cleanChannelTitle($message->message['title'] ?? $nuggetTitle);
+                    $channelName = $this->cleanChannelTitle($message->message['title']);
                     $promptChannel->name = $channelName;
                     $promptChannel->title = $channelName;
                     $promptChannel->update();
                 }
+
+                $message->is_public = 0;
+                $message->save();
 
                 return [
                     'result' => true,
@@ -292,6 +296,28 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+            $message->user->notify($errorProcessingImageNotification);
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 

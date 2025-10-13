@@ -35,6 +35,11 @@ class EventVersion extends BaseModel
         return $this->belongsTo(Event::class);
     }
 
+    public function timeSlot(): BelongsTo
+    {
+        return $this->belongsTo(TimeSlots::class, 'time_slot_id');
+    }
+
     public function dates(): HasMany
     {
         return $this->hasMany(EventVersionDate::class);
@@ -57,6 +62,8 @@ class EventVersion extends BaseModel
         return [
             'metadata' => Json::class,
             'agenda' => Json::class,
+            'start_at' => 'datetime',
+            'end_at' => 'datetime',
         ];
     }
 

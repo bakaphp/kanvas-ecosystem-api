@@ -42,7 +42,7 @@ class PromptUserCreditCommand extends Command
                 app: $app,
                 hours: 24,
                 messageTypesId: null,
-                getChildrenCount: false,
+                getChildrenCount: true, //for remix
                 messageJsonFilters: ['type' => 'image-format']
             );
 

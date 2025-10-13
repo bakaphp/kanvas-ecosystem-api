@@ -25,6 +25,7 @@ use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Traits\NotificationExpoTrait;
 use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
+use Kanvas\Notifications\Traits\NotificationSmsTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -38,6 +39,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     use NotificationRenderTrait;
     use NotificationOneSignalTrait;
     use NotificationExpoTrait;
+    use NotificationSmsTrait;
 
     protected Model $entity;
     protected Apps $app;

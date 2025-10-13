@@ -17,6 +17,7 @@ use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
+use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
@@ -95,6 +96,7 @@ use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Webhooks\StripePaymentIntentWebhookJob;
+use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
@@ -265,6 +267,8 @@ class KanvasWorkflowSynActionCommand extends Command
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
             AgentProcessEmailWebhookJob::class,
+            StripePaymentLinkWebhookJob::class,
+            PushParticipantActivity::class,
         ];
 
         $createdActions = [];

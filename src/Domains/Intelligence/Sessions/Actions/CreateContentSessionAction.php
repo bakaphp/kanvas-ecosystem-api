@@ -63,6 +63,10 @@ class CreateContentSessionAction
                 'company_timezone' => $lead->company->timezone,
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                'impersonate_email' => $lead->company->get('impersonate_email'),
+                'last_message_time' => $lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value),
+                'last_message' => $lead->get(ConfigurationEnum::LAST_MESSAGE->value),
+                'intent_number' => $lead->get('intent_number') ?? 0,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -222,7 +226,10 @@ class CreateContentSessionAction
             locale: 'en',
             user: null,
             company: $this->session->company,
-        )->select('products_variants.uuid', 'products_variants.name')->limit(10)->get();
+        )->select('products_variants.uuid', 'products_variants.name')
+            ->limit(10)
+            ->orderBy('products_variants.name', 'desc')
+            ->get();
 
         return $relatedVariant->toArray();
     }
@@ -234,7 +241,12 @@ class CreateContentSessionAction
     protected function getCheckListStatus(Lead $lead): array
     {
         try {
-            $checklistTaskCompleted = TaskEngagementItemRepository::getLeadCompletedTaskItems($lead)->get();
+            $checkList = $lead->get('check_list_status');
+            $checkListId = $lead->company->get('default_checklist_id');
+            if (isset($checkList['activeTaskListId'])) {
+                $checkListId = $checkList['activeTaskListId'];
+            }
+            $checklistTaskCompleted = TaskEngagementItemRepository::getLeadsTaskItems($lead, $checkListId)->get();
 
             if ($checklistTaskCompleted->isEmpty()) {
                 return [];
@@ -246,7 +258,7 @@ class CreateContentSessionAction
                     continue;
                 }
 
-                $checklist[Str::camel((string) $task->companyAction->description)] = 'COMPLETE';
+                $checklist[Str::camel((string) $task->companyAction->description)] = $task->status === 'completed' ? 'COMPLETED' : 'INCOMPLETE';
             }
 
             return $checklist;

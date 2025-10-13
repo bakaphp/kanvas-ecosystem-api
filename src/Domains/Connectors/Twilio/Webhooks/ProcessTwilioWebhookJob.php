@@ -331,6 +331,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     protected function getOrCreateChannel(string $from, ?string $name = null, ?Lead $lead = null): Channel
     {
+        $from = preg_replace('/^\+?1/', '', $from);
         $slug = Str::slug('twilio-' . $from);
         $slugWithout = Str::slug('twilio-' . preg_replace('/^\+?1/', '', $from));
 

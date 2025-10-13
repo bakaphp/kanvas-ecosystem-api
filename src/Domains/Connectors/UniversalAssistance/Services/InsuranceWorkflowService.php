@@ -124,8 +124,6 @@ class InsuranceWorkflowService
         return null;
     }
 
-
-
     /**
      * Validate insurance person data structure (updated for real input structure)
      */
@@ -193,8 +191,8 @@ class InsuranceWorkflowService
                 'destination_country' => $destinationCountryCode,
                 'variant_type' => $this->extractVariantType($titularData),
                 'duration_days' => $this->getProductDuration($titularData),
-                'quotation_timestamp' => now()->toISOString()
-            ]
+                'quotation_timestamp' => now()->toISOString(),
+            ],
         ];
 
         // Convert result to arrays to prevent stdClass errors
@@ -241,8 +239,8 @@ class InsuranceWorkflowService
                 'destination_country' => $titularDestinationCountryCode,
                 'variant_type' => $this->extractVariantType($dependentData),
                 'duration_days' => $this->getProductDuration($dependentData),
-                'quotation_timestamp' => now()->toISOString()
-            ]
+                'quotation_timestamp' => now()->toISOString(),
+            ],
         ];
 
         // Convert result to arrays to prevent stdClass errors
@@ -414,7 +412,7 @@ class InsuranceWorkflowService
             'Centro america/Caribe',
             'Europa',
             'Oceanía',
-            'Territorio Nacional'
+            'Territorio Nacional',
         ];
     }
 
@@ -729,18 +727,6 @@ class InsuranceWorkflowService
         return 7;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
     /**
      * Store voucher information in eSim message metadata for both titular and dependents
      */
@@ -834,7 +820,7 @@ class InsuranceWorkflowService
                 'product_quoted' => $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null),
                 'product_match' => $matchedProduct['found'] ? $matchedProduct['match_details'] : ['match' => false, 'reason' => 'Product not found in quote'],
                 'validation_timestamp' => now()->toISOString(),
-                'note' => 'Price validation skipped - voucher has empty price by design'
+                'note' => 'Price validation skipped - voucher has empty price by design',
             ],
             'voucher_data' => [
                 'control_number' => $voucherResult['control_number'] ?? null,
@@ -889,7 +875,7 @@ class InsuranceWorkflowService
                 'match' => false,
                 'reason' => 'Missing plan or product information',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted
+                'product_quoted' => $productQuoted,
             ];
         }
 
@@ -903,7 +889,7 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'exact',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted
+                'product_quoted' => $productQuoted,
             ];
         }
 
@@ -913,7 +899,7 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'partial_plan_in_product',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted
+                'product_quoted' => $productQuoted,
             ];
         }
 
@@ -923,7 +909,7 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'partial_product_in_plan',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted
+                'product_quoted' => $productQuoted,
             ];
         }
 
@@ -932,7 +918,7 @@ class InsuranceWorkflowService
             'match' => false,
             'reason' => 'No sufficient similarity found',
             'plan_requested' => $planRequested,
-            'product_quoted' => $productQuoted
+            'product_quoted' => $productQuoted,
         ];
     }
 
@@ -944,7 +930,7 @@ class InsuranceWorkflowService
         if (! $requestedPlanName || empty($quoteData)) {
             return [
                 'found' => false,
-                'reason' => 'Missing plan name or quote data'
+                'reason' => 'Missing plan name or quote data',
             ];
         }
 
@@ -958,7 +944,7 @@ class InsuranceWorkflowService
                     'source' => 'main_product',
                     'product_name' => $mainProductName,
                     'match_details' => $mainProductMatch,
-                    'quote_data' => $quoteData
+                    'quote_data' => $quoteData,
                 ];
             }
         }
@@ -984,7 +970,7 @@ class InsuranceWorkflowService
                             'product_name' => $productName,
                             'match_details' => $attributeMatch,
                             'attribute_data' => $attribute,
-                            'quote_data' => $quoteData
+                            'quote_data' => $quoteData,
                         ];
                     }
                 }
@@ -1015,7 +1001,7 @@ class InsuranceWorkflowService
                             'match_details' => $attributeMatch,
                             'attribute_data' => $attribute,
                             'quote_data' => $quoteData,
-                            'match_score' => $bestScore
+                            'match_score' => $bestScore,
                         ];
                     }
                 }
@@ -1026,6 +1012,7 @@ class InsuranceWorkflowService
         if ($bestMatch && $bestScore >= 30) { // At least 30% similarity
             $bestMatch['found'] = true;
             $bestMatch['source'] = 'partial_match';
+
             return $bestMatch;
         }
 
@@ -1034,7 +1021,7 @@ class InsuranceWorkflowService
             'reason' => 'No matching product found in quote response',
             'requested_plan' => $requestedPlanName,
             'available_products' => $this->extractAvailableProductNames($quoteData),
-            'main_product' => $mainProductName
+            'main_product' => $mainProductName,
         ];
     }
 
@@ -1215,14 +1202,14 @@ class InsuranceWorkflowService
                 'convenio' => $inclusionConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
-                'result' => $inclusionResult
+                'result' => $inclusionResult,
             ],
             'cross_selling' => [
                 'type' => $crossSellingType,
                 'convenio' => $crossSellingConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
-                'result' => $crossSellingResult
+                'result' => $crossSellingResult,
             ],
             'timestamp' => now()->toISOString(),
             'selection_logic' => [
@@ -1233,8 +1220,8 @@ class InsuranceWorkflowService
                 'inclusion_type' => $inclusionType,
                 'cross_selling_type' => $crossSellingType,
                 'inclusion_convenio' => $inclusionConvenio,
-                'cross_selling_convenio' => $crossSellingConvenio
-            ]
+                'cross_selling_convenio' => $crossSellingConvenio,
+            ],
         ];
     }
 
@@ -1269,14 +1256,14 @@ class InsuranceWorkflowService
                 'quotation_data' => $result,
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'quotation_request_input' => $voucherData  // Include the original quotation request data
+                'quotation_request_input' => $voucherData,  // Include the original quotation request data
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
                 'convenio' => $convenio,
-                'quotation_type' => $quotationType
+                'quotation_type' => $quotationType,
             ];
         }
     }
@@ -1295,10 +1282,10 @@ class InsuranceWorkflowService
         if ($crossSellingResult['success'] ?? false) {
             return [
                 'type' => 'cross_selling',
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
+                //'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
+                //'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1309,22 +1296,22 @@ class InsuranceWorkflowService
                         'origin_country_code' => $crossSellingResult['quotation_data']['origin_country_code'] ?? '',
                         'destination_country_code' => $crossSellingResult['quotation_data']['destination_country_code'] ?? '',
                         'origin_country_name' => $crossSellingResult['quotation_data']['origin_country_name'] ?? '',
-                        'destination_name' => $crossSellingResult['quotation_data']['destination_name'] ?? ''
-                    ]
+                        'destination_name' => $crossSellingResult['quotation_data']['destination_name'] ?? '',
+                    ],
                 ],
                 'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'quotation_type' => 'cross_selling',
-                'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1
+                'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
             ];
         }
 
         if ($inclusionResult['success'] ?? false) {
             return [
                 'type' => 'inclusion',
-                'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
+                //'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
+                //'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1335,12 +1322,12 @@ class InsuranceWorkflowService
                         'origin_country_code' => $inclusionResult['quotation_data']['origin_country_code'] ?? '',
                         'destination_country_code' => $inclusionResult['quotation_data']['destination_country_code'] ?? '',
                         'origin_country_name' => $inclusionResult['quotation_data']['origin_country_name'] ?? '',
-                        'destination_name' => $inclusionResult['quotation_data']['destination_name'] ?? ''
-                    ]
+                        'destination_name' => $inclusionResult['quotation_data']['destination_name'] ?? '',
+                    ],
                 ],
                 'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'quotation_type' => 'inclusion',
-                'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1
+                'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
             ];
         }
 
@@ -1352,8 +1339,8 @@ class InsuranceWorkflowService
             'convenio' => null,
             'errors' => [
                 'inclusion' => $inclusionResult['error'] ?? 'Unknown error',
-                'cross_selling' => $crossSellingResult['error'] ?? 'Unknown error'
-            ]
+                'cross_selling' => $crossSellingResult['error'] ?? 'Unknown error',
+            ],
         ];
     }
 
@@ -1373,7 +1360,7 @@ class InsuranceWorkflowService
             return [
                 'success' => false,
                 'error' => 'No valid quotation available for voucher creation - both inclusion and cross_selling failed',
-                'quotation_errors' => $selectedQuotation['errors'] ?? []
+                'quotation_errors' => $selectedQuotation['errors'] ?? [],
             ];
         }
 
@@ -1405,6 +1392,7 @@ class InsuranceWorkflowService
                             $matchedProduct = $inclusionMatch;
                             $matchedProduct['source_quotation'] = 'inclusion';
                             $matchedProduct['source_convenio'] = $dualQuotationResult['inclusion']['convenio'] ?? '';
+
                             break; // Exit foreach loop - found in inclusion
                         }
                     }
@@ -1427,6 +1415,7 @@ class InsuranceWorkflowService
                             $matchedProduct = $crossSellingMatch;
                             $matchedProduct['source_quotation'] = 'cross_selling';
                             $matchedProduct['source_convenio'] = $dualQuotationResult['cross_selling']['convenio'] ?? '';
+
                             break; // Found in cross_selling
                         }
                     }
@@ -1530,16 +1519,16 @@ class InsuranceWorkflowService
                 'destination_country_code' => $result['destination_country_code'] ?? '',
                 'origin_country_name' => $result['origin_country_name'] ?? '',
                 'destination_name' => $result['destination_name'] ?? '',
-                'voucher_response' => $result['voucher_response'] ?? null  // Only include actual voucher creation response
+                'voucher_response' => $result['voucher_response'] ?? null,  // Only include actual voucher creation response
             ];
 
             // Include one clean quote_response for reference (remove duplicates)
             if (isset($result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
                 $simplifiedVoucherData['quote_response'] = [
                     'UALeadCotizadorResp' => [
-                        'DatosLeadCotizadorOut' => $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut']
+                        'DatosLeadCotizadorOut' => $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'],
                     ],
-                    'quotation_input_data' => $result['quote_response']['quotation_input_data'] ?? null
+                    'quotation_input_data' => $result['quote_response']['quotation_input_data'] ?? null,
                 ];
             }
 
@@ -1549,7 +1538,7 @@ class InsuranceWorkflowService
                 'convenio_used' => $exactConvenio,
                 'quotation_type_used' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the original voucher request data
-                'matched_product' => $matchedProduct      // Include product matching details
+                'matched_product' => $matchedProduct,      // Include product matching details
             ];
         } catch (\Exception $e) {
             return [
@@ -1558,7 +1547,7 @@ class InsuranceWorkflowService
                 'convenio_attempted' => $exactConvenio,
                 'quotation_type_attempted' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the request data even on error
-                'matched_product' => $matchedProduct      // Include product matching details even on error
+                'matched_product' => $matchedProduct,      // Include product matching details even on error
             ];
         }
     }
@@ -1580,7 +1569,7 @@ class InsuranceWorkflowService
         if (empty($searchPlan)) {
             return [
                 'found' => false,
-                'reason' => 'Missing search plan'
+                'reason' => 'Missing search plan',
             ];
         }
 
@@ -1643,8 +1632,8 @@ class InsuranceWorkflowService
                         'original_search' => $searchPlan,
                         'cleaned_search' => $cleanedSearchPlan,
                         'original_product' => $nombreProducto,
-                        'cleaned_product' => $cleanedProductName
-                    ]
+                        'cleaned_product' => $cleanedProductName,
+                    ],
                 ];
             }
         }
@@ -1658,9 +1647,10 @@ class InsuranceWorkflowService
                 if (is_object($quote)) {
                     $quote = (array) $quote;
                 }
+
                 return $quote['NombreProducto'] ?? null;
             }, $quotesToCheck)),
-            'quotes_checked' => count($quotesToCheck)
+            'quotes_checked' => count($quotesToCheck),
         ];
     }
 
@@ -2002,7 +1992,7 @@ class InsuranceWorkflowService
         return implode('|', [
             $planName,
             strtoupper($originCountryCode),
-            strtoupper($destinationCountryCode)
+            strtoupper($destinationCountryCode),
         ]);
     }
 
@@ -2049,8 +2039,8 @@ class InsuranceWorkflowService
                 'variant_type' => $this->extractVariantType($firstPerson),
                 'duration_days' => $this->getProductDuration($firstPerson),
                 'group_size' => count($groupedPersonsData),
-                'quotation_timestamp' => now()->toISOString()
-            ]
+                'quotation_timestamp' => now()->toISOString(),
+            ],
         ];
     }
 
@@ -2096,7 +2086,7 @@ class InsuranceWorkflowService
             $alternativePaths = [
                 $selectedQuotation['result'] ?? null,
                 $selectedQuotation['quotation_request_input'] ?? null,
-                $selectedQuotation ?? null
+                $selectedQuotation ?? null,
             ];
 
             foreach ($alternativePaths as $path) {
@@ -2104,6 +2094,7 @@ class InsuranceWorkflowService
                     $altPrice = $this->extractQuotedPriceFromGroupQuotation($path);
                     if ($altPrice !== '0.00') {
                         $quotedPrice = $altPrice;
+
                         break;
                     }
                 }
@@ -2162,7 +2153,7 @@ class InsuranceWorkflowService
                 'group_size' => count($groupedPersonsData),
                 'people_names' => $this->extractPeopleNames($groupedPersonsData),
                 'id_lead_out_used' => $idLeadOut, // For debugging
-                'quote_response' => $quotationData // Include the original quotation response
+                'quote_response' => $quotationData, // Include the original quotation response
             ];
         } catch (\Exception $e) {
             return [
@@ -2174,7 +2165,7 @@ class InsuranceWorkflowService
                 'group_size' => count($groupedPersonsData),
                 'people_names' => $this->extractPeopleNames($groupedPersonsData),
                 'id_lead_out_used' => $idLeadOut, // For debugging
-                'quote_response' => $quotationData // Include the original quotation response
+                'quote_response' => $quotationData, // Include the original quotation response
             ];
         }
     }
@@ -2274,6 +2265,7 @@ class InsuranceWorkflowService
             $lastName = $person['lastName'] ?? $person['lastname'] ?? 'Person';
             $names[] = "{$firstName} {$lastName}";
         }
+
         return $names;
     }
 
@@ -2402,7 +2394,7 @@ class InsuranceWorkflowService
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
                 'group_size' => $actualGroupSize,
-                'result' => $inclusionResult
+                'result' => $inclusionResult,
             ],
             'cross_selling' => [
                 'type' => $crossSellingType,
@@ -2410,7 +2402,7 @@ class InsuranceWorkflowService
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
                 'group_size' => $actualGroupSize,
-                'result' => $crossSellingResult
+                'result' => $crossSellingResult,
             ],
             'timestamp' => now()->toISOString(),
             'selection_logic' => [
@@ -2421,8 +2413,8 @@ class InsuranceWorkflowService
                 'inclusion_type' => $inclusionType,
                 'cross_selling_type' => $crossSellingType,
                 'inclusion_convenio' => $inclusionConvenio,
-                'cross_selling_convenio' => $crossSellingConvenio
-            ]
+                'cross_selling_convenio' => $crossSellingConvenio,
+            ],
         ];
     }
 
@@ -2455,7 +2447,7 @@ class InsuranceWorkflowService
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
                 'group_size' => count($groupedPersonsData),
-                'quotation_request_input' => $quotationData  // Include the original quotation request data with ALL people
+                'quotation_request_input' => $quotationData,  // Include the original quotation request data with ALL people
             ];
         } catch (\Exception $e) {
             return [
@@ -2463,7 +2455,7 @@ class InsuranceWorkflowService
                 'error' => $e->getMessage(),
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'group_size' => count($groupedPersonsData)
+                'group_size' => count($groupedPersonsData),
             ];
         }
     }
@@ -2503,12 +2495,14 @@ class InsuranceWorkflowService
             foreach ($groupedPersonsData as $key => $item) {
                 if (! is_numeric($key) && ! is_array($item)) {
                     $isFlat = false;
+
                     break;
                 }
                 // Check if item has person-like structure
                 if (! isset($item['firstname']) && ! isset($item['firstName']) &&
                     ! isset($item['dob']) && ! isset($item['birthDate'])) {
                     $isFlat = false;
+
                     break;
                 }
             }
@@ -2535,8 +2529,9 @@ class InsuranceWorkflowService
         if ($groupSize === 1) {
             // Check if this person has family information that wasn't processed correctly
             $person = $flatPersonsArray[0];
-            $errorMsg = "Group quotation called with only 1 person - family grouping may have failed. ";
-            $errorMsg .= "Person: " . implode(', ', $debugInfo);
+            $errorMsg = 'Group quotation called with only 1 person - family grouping may have failed. ';
+            $errorMsg .= 'Person: ' . implode(', ', $debugInfo);
+
             throw new ValidationException($errorMsg);
         }
 
@@ -2645,6 +2640,7 @@ class InsuranceWorkflowService
             $birth = new \DateTime($birthDate);
             $today = new \DateTime();
             $age = $today->diff($birth)->y;
+
             return $age;
         } catch (\Exception $e) {
             return 0; // Default age if parsing fails
@@ -2695,28 +2691,65 @@ class InsuranceWorkflowService
         if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
             $dualQuotationResult['cross_selling']['result']['success']) {
 
-            $crossSellingData = $dualQuotationResult['cross_selling']['result']['quotation_data'] ?? [];
-            $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                null;
-
-            if ($crossSellingQuote) {
-                $simplified['cross_selling'] = [
-                    'type' => 'cross_selling',
-                    'success' => true,
-                    'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
-                    'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
-                    'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                    'quote_response' => $crossSellingQuote
+                if ($quoteResponse) {
+                    $simplified[$quotationType] = [
+                        'type' => $quotationType,
+                        'convenio' => $dualQuotationResult[$quotationType]['convenio'] ?? '',
+                        'target_plan' => $dualQuotationResult[$quotationType]['target_plan'] ?? '',
+                        'variant' => $dualQuotationResult[$quotationType]['variant'] ?? '',
+                        'group_size' => $dualQuotationResult[$quotationType]['group_size'] ?? 1,
+                        'product_match_info' => $productMatchInfo ?: [
+                            'found' => false,
+                            'reason' => 'No target plan specified or no matching product found',
+                            'searched_for' => $targetPlan,
+                        ],
+                        'result' => [
+                            'success' => true,
+                            'quotation_data' => [
+                                'quotation_type' => $quotationType,
+                                'control_number' => $quotationData['control_number'] ?? '',
+                                'organization' => $quotationData['organization'] ?? '',
+                                'convenio' => $quotationData['convenio'] ?? '',
+                                'origin_country_code' => $quotationData['origin_country_code'] ?? '',
+                                'destination_country_code' => $quotationData['destination_country_code'] ?? '',
+                                'origin_country_name' => $quotationData['origin_country_name'] ?? '',
+                                'destination_name' => $quotationData['destination_name'] ?? '',
+                                'quote_response' => [
+                                    'UALeadCotizadorResp' => [
+                                        'DatosLeadCotizadorOut' => $quoteResponse,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ];
+                }
+            } else {
+                // Include error information if quotation failed
+                $simplified[$quotationType] = [
+                    'type' => $quotationType,
+                    'convenio' => $dualQuotationResult[$quotationType]['convenio'] ?? '',
+                    'target_plan' => $dualQuotationResult[$quotationType]['target_plan'] ?? '',
+                    'variant' => $dualQuotationResult[$quotationType]['variant'] ?? '',
+                    'product_match_info' => [
+                        'found' => false,
+                        'reason' => 'Quotation failed - no product data available',
+                    ],
+                    'result' => [
+                        'success' => false,
+                        'error' => $dualQuotationResult[$quotationType]['result']['error'] ?? 'Quotation failed',
+                    ],
                 ];
             }
         }
 
         // Add simple summary
         $simplified['summary'] = [
-            'inclusion_success' => $simplified['inclusion']['success'] ?? false,
-            'cross_selling_success' => $simplified['cross_selling']['success'] ?? false,
-            'total_successful' => (int)($simplified['inclusion']['success'] ?? false) + (int)($simplified['cross_selling']['success'] ?? false)
+            'inclusion_success' => ($simplified['inclusion']['result']['success'] ?? false),
+            'cross_selling_success' => ($simplified['cross_selling']['result']['success'] ?? false),
+            'inclusion_product_found' => ($simplified['inclusion']['product_match_info']['found'] ?? false),
+            'cross_selling_product_found' => ($simplified['cross_selling']['product_match_info']['found'] ?? false),
+            'total_quotations_attempted' => 2,
+            'successful_quotations' => (int)($simplified['inclusion']['result']['success'] ?? false) + (int)($simplified['cross_selling']['result']['success'] ?? false),
         ];
 
         return $simplified;

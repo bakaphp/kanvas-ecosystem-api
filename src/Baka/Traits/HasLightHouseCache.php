@@ -16,21 +16,42 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
+        $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
-        $keys = $redis->keys($key);
+
+        // Use scan instead of keys
+        $cursor = 0; // Start with 0, not null
+        $keys = [];
+
+        do {
+            $result = $redis->scan(
+                $cursor,
+                ['MATCH' => $pattern, 'COUNT' => 100]
+            );
+
+            // Handle false return when no keys exist
+            if ($result === false) {
+                break;
+            }
+
+            $cursor = $result[0];
+            $foundKeys = $result[1] ?? [];
+
+            foreach ($foundKeys as $key) {
+                $keys[] = $key;
+            }
+        } while ($cursor !== 0);
+
         if (empty($keys) && $withKanvasConfiguration) {
-            //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
             return;
         }
 
         foreach ($keys as $key) {
-            $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
+            $redis->unlink(str_replace(config('database.redis.options.prefix'), '', $key));
         }
 
-        //$this->generateCustomFieldsLighthouseCache();
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
@@ -57,9 +78,6 @@ trait HasLightHouseCache
     public function generateCustomFieldsLighthouseCache(int $items = 25): void
     {
         if (method_exists($this, 'reCacheCustomFields')) {
-            /**
-             * @todo maybe not needed
-             */
             $this->reCacheCustomFields($items);
         }
 

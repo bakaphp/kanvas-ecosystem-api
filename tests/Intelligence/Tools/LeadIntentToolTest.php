@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Tools;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Tests\TestCase;
@@ -25,6 +26,14 @@ class LeadIntentToolTest extends TestCase
             'description' => 'Test Description',
             'is_active' => 1,
         ]);
+        $leadSource = LeadSource::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'name' => 'Contact Us',
+            'description' => 'Test Description',
+            'is_active' => 1,
+            'leads_types_id' => $leadType->id,
+        ]);
         $company->set('adf_sources', [
             [
                 'Source' => 'Contact Us',
@@ -41,6 +50,7 @@ class LeadIntentToolTest extends TestCase
         ]);
         $lead->set('sub_source', 'Website');
         $lead->leads_types_id = $leadType->id;
+        $lead->leads_sources_id = $leadSource->id;
         $lead->saveOrFail();
         $intent = new LeadIntentTool($lead)->execute();
         $this->assertEquals('General Inquiry', $intent['lead_intent']);

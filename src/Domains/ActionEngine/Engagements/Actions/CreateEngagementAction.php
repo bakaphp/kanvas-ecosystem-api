@@ -247,6 +247,11 @@ class CreateEngagementAction
         $urlParams = http_build_query(array_filter($params)) . ($extraField ? '&' . $extraField : '');
         $urlParams .= '&caction=' . $this->companyAction->uuid;
 
+        //@todo remove this
+        if ($this->actionSlug === 'get-deposit') {
+            $urlParams .= '&ia=1';
+        }
+
         // Add company language if set
         $companyLanguage = $this->lead->company->get('COMPANY_MULTI_LANGUAGE');
         if ($companyLanguage) {
@@ -525,15 +530,63 @@ class CreateEngagementAction
     ): void {
         if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
             $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
-            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, []);
 
+            $vehicleOfInterest = $lead->get('vehicle_of_interest');
+            $stockNumber = $vehicleOfInterest['stockNumber'] ?? 'N/A';
             $messageData = $message->message ?? [];
+
+            $stripePayment = [
+                'product_name' => 'Vehicle Purchase',
+                'product_description' => 'Stock No: ' . $stockNumber,
+                'success_url' => $messageData['action_link'],
+                'metadata' => [
+                    'leads_id' => $lead->getId(),
+                    'apps_id' => $lead->app->getId(),
+                    'message_id' => $message->getId(),
+                ],
+                'custom_fields' => [
+                    [
+                        'key' => 'customer_name',
+                        'label' => ['type' => 'custom', 'custom' => 'Customer Name'],
+                        'type' => 'text',
+                        'optional' => false, // Makes it required
+                        'text' => [
+                            'default_value' => $lead->people->name,
+                            'maximum_length' => 200,
+                        ],
+                    ],
+                    [
+                        'key' => 'stock_no',
+                        'label' => ['type' => 'custom', 'custom' => 'Stock No'],
+                        'type' => 'text',
+                        'optional' => true,
+                        'text' => [
+                            'default_value' => $stockNumber,
+                            'maximum_length' => 50,
+                        ],
+                    ],
+                     [
+                        'key' => 'sales_person',
+                        'label' => ['type' => 'custom', 'custom' => 'Sales Person'],
+                        'type' => 'text',
+                        'optional' => true,
+                         'text' => [
+                            'default_value' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
+                            'maximum_length' => 50,
+                        ],
+                    ],
+                ],
+            ];
+
+            $paymentLink = $stripeCheckout->generatePaymentLinkFromLeadMessage($lead, $message, $stripePayment);
+
             $paymentLinkFullLink = $paymentLink->url;
             if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {
                 $paymentLinkFullLink .= '?prefilled_email=' . urlencode($email);
             }
             $paymentShortLink = Url::getShortUrl($paymentLinkFullLink, $lead->app);
 
+            $messageData['normal_action_link'] = $messageData['action_link'] ?? '';
             $messageData['action_link'] = $paymentShortLink;
             $messageData['preview_link'] = $paymentShortLink;
             $message->message = $messageData;

@@ -269,4 +269,155 @@ class EngagementTest extends TestCase
             $this->assertArrayHasKey('message', $engagement['message']);
         }
     }
+
+    public function testListEngagements()
+    {
+        // Create a lead first
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+        $peopleId = $lead['data']['createLead']['people']['id'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1},"housing":{"type":"object","required":1},"financial":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]];
+
+        new Setup($app, $user, $company, $actions)->run();
+
+        // Create multiple engagements
+        $requestId1 = fake()->uuid();
+        $requestId2 = fake()->uuid();
+
+        // Create first engagement
+        $this->graphQL('
+        mutation StartLeadEngagement($input: CreateEngagementInput!) {
+            startLeadEngagement(input: $input) {
+                id
+                uuid
+            }
+        }
+    ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId1,
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertOk();
+
+        // Create second engagement
+        $this->graphQL('
+        mutation StartLeadEngagement($input: CreateEngagementInput!) {
+            startLeadEngagement(input: $input) {
+                id
+                uuid
+            }
+        }
+    ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId2,
+                'source' => 'api',
+                'status' => 'opened',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertOk();
+
+        // Query engagements list
+        $response = $this->graphQL('
+        query GetEngagements($first: Int!) {
+            engagements(first: $first, orderBy: [{ column: CREATED_AT, order: DESC }]) {
+                paginatorInfo {
+                    count
+                    currentPage
+                    total
+                }
+                data {
+                    id
+                    uuid
+                    entity_uuid
+                    slug
+                    user {
+                        id
+                        firstname
+                    }
+                    company_action {
+                        id
+                        name
+                    }
+                    message {
+                        id
+                        message
+                    }
+                    lead {
+                        id
+                        title
+                    }
+                    people {
+                        id
+                        firstname
+                    }
+                }
+            }
+        }
+    ', [
+            'first' => 10,
+        ]);
+
+        $response->assertOk();
+
+        $responseData = $response->json();
+
+        // Assert the response structure
+        $this->assertArrayHasKey('data', $responseData);
+        $this->assertArrayHasKey('engagements', $responseData['data']);
+        $this->assertArrayHasKey('paginatorInfo', $responseData['data']['engagements']);
+        $this->assertArrayHasKey('data', $responseData['data']['engagements']);
+
+        // Assert pagination info
+        $paginatorInfo = $responseData['data']['engagements']['paginatorInfo'];
+        $this->assertArrayHasKey('count', $paginatorInfo);
+        $this->assertArrayHasKey('currentPage', $paginatorInfo);
+        $this->assertArrayHasKey('total', $paginatorInfo);
+        $this->assertGreaterThanOrEqual(2, $paginatorInfo['count']);
+
+        // Assert engagement data
+        $engagements = $responseData['data']['engagements']['data'];
+        $this->assertNotEmpty($engagements);
+        $this->assertGreaterThanOrEqual(2, count($engagements));
+
+        // Assert structure of first engagement
+        $firstEngagement = $engagements[0];
+        $this->assertArrayHasKey('id', $firstEngagement);
+        $this->assertArrayHasKey('uuid', $firstEngagement);
+        $this->assertArrayHasKey('entity_uuid', $firstEngagement);
+        $this->assertArrayHasKey('slug', $firstEngagement);
+        $this->assertArrayHasKey('user', $firstEngagement);
+        $this->assertArrayHasKey('company_action', $firstEngagement);
+        $this->assertArrayHasKey('message', $firstEngagement);
+        $this->assertArrayHasKey('lead', $firstEngagement);
+        $this->assertArrayHasKey('people', $firstEngagement);
+
+        // Assert values are not null
+        $this->assertNotNull($firstEngagement['id']);
+        $this->assertNotNull($firstEngagement['uuid']);
+        $this->assertNotNull($firstEngagement['entity_uuid']);
+        $this->assertNotNull($firstEngagement['slug']);
+    }
 }
