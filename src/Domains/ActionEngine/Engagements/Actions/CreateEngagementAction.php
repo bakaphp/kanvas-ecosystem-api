@@ -247,6 +247,11 @@ class CreateEngagementAction
         $urlParams = http_build_query(array_filter($params)) . ($extraField ? '&' . $extraField : '');
         $urlParams .= '&caction=' . $this->companyAction->uuid;
 
+        //@todo remove this
+        if ($this->actionSlug === 'get-deposit') {
+            $urlParams .= '&ia=1';
+        }
+
         // Add company language if set
         $companyLanguage = $this->lead->company->get('COMPANY_MULTI_LANGUAGE');
         if ($companyLanguage) {
