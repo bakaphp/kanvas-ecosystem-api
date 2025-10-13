@@ -666,14 +666,8 @@ class Client
                             'Edad8' => $leadData['edad8'] ?? $leadData['Edad8'] ?? '',
                             'Edad9' => $leadData['edad9'] ?? $leadData['Edad9'] ?? '',
                             'Edad10' => $leadData['edad10'] ?? $leadData['Edad10'] ?? '',
-                            'ApellidoContacto' => $leadData['apellidoContacto'] ?? $leadData['ApellidoContacto'] ?? '',
-                            'NombreContacto' => $leadData['nombreContacto'] ?? $leadData['NombreContacto'] ?? '',
-                            'TelefonoContacto' => $leadData['telefonoContacto'] ?? $leadData['TelefonoContacto'] ?? '',
-                            'EmailContacto' => $leadData['emailContacto'] ?? $leadData['EmailContacto'] ?? '',
                             'Categoria' => $leadData['categoria'] ?? $leadData['Categoria'] ?? '',
                             'Precompras' => $leadData['precompras'] ?? $leadData['Precompras'] ?? '',
-                            'NroDocumento' => $leadData['nroDocumento'] ?? $leadData['NroDocumento'] ?? '',
-                            'TipoDocumento' => $leadData['tipoDocumento'] ?? $leadData['TipoDocumento'] ?? '',
                         ]
                     ]
                 ];
