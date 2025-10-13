@@ -1185,36 +1185,40 @@ class InsuranceWorkflowService
         // Get target plan from the actual plan name in the data
         $targetPlan = $personData['plan']['name'] ?? '';
 
-        // Determine convenios based on variant type
+        // Determine convenios and quotation types based on variant type
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios
+            // Basic → TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios
+            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            $inclusionType = 'inclusion_ii';
+            $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
-        // Perform inclusion quotation
-        $inclusionResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'inclusion', $inclusionConvenio);
+        // Perform inclusion quotation with correct type
+        $inclusionResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, $inclusionType, $inclusionConvenio);
 
         // Add delay between quotations
         usleep(5000);
 
-        // Perform cross selling quotation
-        $crossSellingResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'cross_selling', $crossSellingConvenio);
+        // Perform cross selling quotation with correct type
+        $crossSellingResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, $crossSellingType, $crossSellingConvenio);
 
         return [
             'inclusion' => [
-                'type' => 'inclusion',
+                'type' => $inclusionType,
                 'convenio' => $inclusionConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
                 'result' => $inclusionResult
             ],
             'cross_selling' => [
-                'type' => 'cross_selling',
+                'type' => $crossSellingType,
                 'convenio' => $crossSellingConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
@@ -1226,6 +1230,8 @@ class InsuranceWorkflowService
                 'target_plan' => $targetPlan,
                 'origin_country_code' => $originCountryCode,
                 'convenio_logic' => strtoupper($originCountryCode) === 'DO' ? 'DO_origin_forced_basic' : 'variant_based',
+                'inclusion_type' => $inclusionType,
+                'cross_selling_type' => $crossSellingType,
                 'inclusion_convenio' => $inclusionConvenio,
                 'cross_selling_convenio' => $crossSellingConvenio
             ]
@@ -1237,8 +1243,8 @@ class InsuranceWorkflowService
      */
     protected function performSingleQuotation(array $personData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
     {
-        // Build voucher data for the quotation
-        if ($quotationType === 'cross_selling') {
+        // Build voucher data for the quotation - handle both old and new quotation types
+        if (in_array($quotationType, ['cross_selling', 'cross_selling_ii'])) {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         } else {
             $voucherData = $this->buildVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
@@ -1951,67 +1957,30 @@ class InsuranceWorkflowService
 
         // PRIORITY 3: Use variant-based convenio logic (MAIN LOGIC)
         $planVariant = $this->extractVariantType($personData);
-        $quotationType = $selectedQuotation['quotation_type'] ?? 'inclusion';
+
+        // Smart default for quotation type based on variant
+        $defaultQuotationType = $planVariant === 'basic' ? 'inclusion' : 'inclusion_ii';
+        $quotationType = $selectedQuotation['quotation_type'] ?? $defaultQuotationType;
 
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios
+            // Basic → TELEASISTENCIA convenios (type I)
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios
+            // Unlimited → ASISTENCIA 10K REC convenios (type II)
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
 
-        // Return appropriate convenio based on quotation type
-        if ($quotationType === 'cross_selling') {
+        // Return appropriate convenio based on quotation type (handle all quotation types)
+        if (in_array($quotationType, ['cross_selling', 'cross_selling_ii'])) {
             return $crossSellingConvenio;
-        } else {
+        } elseif (in_array($quotationType, ['inclusion', 'inclusion_ii'])) {
             return $inclusionConvenio;
-        }
-    }
-
-    /**
-     * Determine convenio with comprehensive fallbacks for all possible data sources
-     */
-    protected function determineConvenioWithFallbacks(array $personData, string $convenio): string
-    {
-        // PRIORITY 1: convenio_used is ALWAYS the first priority
-        if (! empty($personData['convenio_used'] ?? null)) {
-            return $personData['convenio_used'];
-        }
-
-        if (! empty($personData['convenioUsed'] ?? null)) {
-            return $personData['convenioUsed'];
-        }
-
-        // PRIORITY 2: Use variant-based convenio logic (MAIN LOGIC)
-        $planVariant = $this->extractVariantType($personData);
-
-        // Get quotation type from various possible sources
-        $quotationType = $personData['quotation_type']
-            ?? $personData['quotation_type_used']
-            ?? $personData['plan']['type']
-            ?? $this->determinePlanType($personData)
-            ?? 'inclusion';
-
-        // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
-        if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
-        }
-
-        // Return appropriate convenio based on quotation type
-        if ($quotationType === 'cross_selling') {
-            return $crossSellingConvenio;
-        } else {
-            return $inclusionConvenio;
+            // Fallback for unknown quotation types - use variant-based default
+            return $planVariant === 'basic' ? $inclusionConvenio : $inclusionConvenio;
         }
     }
 
@@ -2391,11 +2360,17 @@ class InsuranceWorkflowService
         $planVariant = $this->extractVariantType($firstPerson);
         $targetPlan = $firstPerson['plan']['name'] ?? '';
 
-        // Determine convenios based on variant type
+        // Determine convenios and quotation types based on variant type
         if ($planVariant === 'basic') {
+            // Basic → TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
+            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            $inclusionType = 'inclusion_ii';
+            $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
         }
@@ -2411,18 +2386,18 @@ class InsuranceWorkflowService
             $actualGroupSize = count($groupedPersonsData);
         }
 
-        // Perform inclusion quotation with ALL people in group
-        $inclusionResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, 'inclusion', $inclusionConvenio);
+        // Perform inclusion quotation with ALL people in group and correct type
+        $inclusionResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, $inclusionType, $inclusionConvenio);
 
         // Add delay between quotations
         usleep(5000);
 
-        // Perform cross selling quotation with ALL people in group
-        $crossSellingResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, 'cross_selling', $crossSellingConvenio);
+        // Perform cross selling quotation with ALL people in group and correct type
+        $crossSellingResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, $crossSellingType, $crossSellingConvenio);
 
         return [
             'inclusion' => [
-                'type' => 'inclusion',
+                'type' => $inclusionType,
                 'convenio' => $inclusionConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
@@ -2430,7 +2405,7 @@ class InsuranceWorkflowService
                 'result' => $inclusionResult
             ],
             'cross_selling' => [
-                'type' => 'cross_selling',
+                'type' => $crossSellingType,
                 'convenio' => $crossSellingConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
@@ -2443,6 +2418,8 @@ class InsuranceWorkflowService
                 'target_plan' => $targetPlan,
                 'group_size' => count($groupedPersonsData),
                 'origin_country_code' => $originCountryCode,
+                'inclusion_type' => $inclusionType,
+                'cross_selling_type' => $crossSellingType,
                 'inclusion_convenio' => $inclusionConvenio,
                 'cross_selling_convenio' => $crossSellingConvenio
             ]
@@ -2714,7 +2691,7 @@ class InsuranceWorkflowService
             }
         }
 
-        // Process cross_selling quotation  
+        // Process cross_selling quotation
         if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
             $dualQuotationResult['cross_selling']['result']['success']) {
 
