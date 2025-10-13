@@ -2691,65 +2691,28 @@ class InsuranceWorkflowService
         if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
             $dualQuotationResult['cross_selling']['result']['success']) {
 
-                if ($quoteResponse) {
-                    $simplified[$quotationType] = [
-                        'type' => $quotationType,
-                        'convenio' => $dualQuotationResult[$quotationType]['convenio'] ?? '',
-                        'target_plan' => $dualQuotationResult[$quotationType]['target_plan'] ?? '',
-                        'variant' => $dualQuotationResult[$quotationType]['variant'] ?? '',
-                        'group_size' => $dualQuotationResult[$quotationType]['group_size'] ?? 1,
-                        'product_match_info' => $productMatchInfo ?: [
-                            'found' => false,
-                            'reason' => 'No target plan specified or no matching product found',
-                            'searched_for' => $targetPlan,
-                        ],
-                        'result' => [
-                            'success' => true,
-                            'quotation_data' => [
-                                'quotation_type' => $quotationType,
-                                'control_number' => $quotationData['control_number'] ?? '',
-                                'organization' => $quotationData['organization'] ?? '',
-                                'convenio' => $quotationData['convenio'] ?? '',
-                                'origin_country_code' => $quotationData['origin_country_code'] ?? '',
-                                'destination_country_code' => $quotationData['destination_country_code'] ?? '',
-                                'origin_country_name' => $quotationData['origin_country_name'] ?? '',
-                                'destination_name' => $quotationData['destination_name'] ?? '',
-                                'quote_response' => [
-                                    'UALeadCotizadorResp' => [
-                                        'DatosLeadCotizadorOut' => $quoteResponse,
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
-                }
-            } else {
-                // Include error information if quotation failed
-                $simplified[$quotationType] = [
-                    'type' => $quotationType,
-                    'convenio' => $dualQuotationResult[$quotationType]['convenio'] ?? '',
-                    'target_plan' => $dualQuotationResult[$quotationType]['target_plan'] ?? '',
-                    'variant' => $dualQuotationResult[$quotationType]['variant'] ?? '',
-                    'product_match_info' => [
-                        'found' => false,
-                        'reason' => 'Quotation failed - no product data available',
-                    ],
-                    'result' => [
-                        'success' => false,
-                        'error' => $dualQuotationResult[$quotationType]['result']['error'] ?? 'Quotation failed',
-                    ],
+            $crossSellingData = $dualQuotationResult['cross_selling']['result']['quotation_data'] ?? [];
+            $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
+                                null;
+
+            if ($crossSellingQuote) {
+                $simplified['cross_selling'] = [
+                    'type' => 'cross_selling',
+                    'success' => true,
+                    'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
+                    'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
+                    'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
+                    'quote_response' => $crossSellingQuote
                 ];
             }
         }
 
         // Add simple summary
         $simplified['summary'] = [
-            'inclusion_success' => ($simplified['inclusion']['result']['success'] ?? false),
-            'cross_selling_success' => ($simplified['cross_selling']['result']['success'] ?? false),
-            'inclusion_product_found' => ($simplified['inclusion']['product_match_info']['found'] ?? false),
-            'cross_selling_product_found' => ($simplified['cross_selling']['product_match_info']['found'] ?? false),
-            'total_quotations_attempted' => 2,
-            'successful_quotations' => (int)($simplified['inclusion']['result']['success'] ?? false) + (int)($simplified['cross_selling']['result']['success'] ?? false),
+            'inclusion_success' => $simplified['inclusion']['success'] ?? false,
+            'cross_selling_success' => $simplified['cross_selling']['success'] ?? false,
+            'total_successful' => (int)($simplified['inclusion']['success'] ?? false) + (int)($simplified['cross_selling']['success'] ?? false)
         ];
 
         return $simplified;
