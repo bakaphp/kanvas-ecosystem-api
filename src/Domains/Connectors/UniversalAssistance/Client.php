@@ -285,7 +285,10 @@ class Client
             $originCountryName = $this->countryCodeToName($originCountryCode);
             $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
 
-            $quoteResult = $this->createOrUpdateLead($leadData, true);
+            // Determine if we should use raw data based on the data structure
+            $useRawData = isset($quotationData['Edad1']);
+
+            $quoteResult = $this->createOrUpdateLead($leadData, $useRawData);
 
             $result = [
                 'quotation_type' => $quotationType,

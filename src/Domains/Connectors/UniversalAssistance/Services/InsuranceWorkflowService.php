@@ -1501,15 +1501,8 @@ class InsuranceWorkflowService
         usleep($delayMs);
 
         try {
-            // Create the actual voucher (not just quotation) using the correct quotation type
-            $result = $this->client->createSingleQuotationWithCountries(
-                $voucherData,
-                $actualQuotationType, // Use the quotation type where the product was found
-                $originCountryCode,
-                $destinationCountryCode,
-                $this->order,
-                false // Create actual voucher
-            );
+            // Create the actual voucher using the proper voucher creation method
+            $result = $this->client->createVoucher($voucherData, true);
 
             // Convert result to arrays and add metadata
             $result = $this->convertObjectsToArrays($result);
@@ -2138,16 +2131,9 @@ class InsuranceWorkflowService
             $voucherData['LeadId'] = $idLeadOut;
         }
 
-        // Create the voucher using the client (using existing quotation method with voucher creation flag)
+        // Create the voucher using the proper voucher creation method
         try {
-            $result = $this->client->createSingleQuotationWithCountries(
-                $voucherData,
-                $quotationType,
-                $originCountryCode,
-                $destinationCountryCode,
-                $this->order,
-                false // Create actual voucher, not just quotation
-            );
+            $result = $this->client->createVoucher($voucherData, true);
 
             return [
                 'success' => true,
