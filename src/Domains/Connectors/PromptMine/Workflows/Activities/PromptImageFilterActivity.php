@@ -273,7 +273,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         // Step 1: Submit the image for processing
         $model = 'fal-ai/';
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
+        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -465,7 +465,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         //     ->attach('prompt', $prompt);
 
         $model = 'gemini-2.5-flash-image-preview';
-        $response = $this->submitImage($imageUrl, $imageFilter, $prompt, $model, $params);
+        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, $model, $params);
         $responseData = $response->json();
 
         // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
@@ -638,7 +638,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
+    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
     {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
@@ -646,7 +646,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($this->apiUrl, [
+        ])->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => $model . $imageFilter,
