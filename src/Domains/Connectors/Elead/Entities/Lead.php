@@ -128,6 +128,12 @@ class Lead
      */
     public function addComment(string $comment): void
     {
+        // Normalize the text
+        $comment = html_entity_decode($comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Replace any remaining problematic characters
+        $comment = mb_convert_encoding($comment, 'UTF-8', 'auto');
+
         $client = new Client($this->app, $this->company);
         $client->post(
             '/sales/v2/elead/opportunities/comment',

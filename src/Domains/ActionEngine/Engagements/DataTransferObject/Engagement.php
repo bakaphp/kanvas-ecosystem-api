@@ -27,7 +27,7 @@ class Engagement extends Data
         public string $source,
         public ActionStatusEnum $status,
         public ?People $people = null,
-        public ?string $receiverId = null,
+        public string|int|null $receiverId = null,
         public string|int|null $taskId = null,
         public string $via = 'copy',
         public array $data = [],

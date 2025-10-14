@@ -137,6 +137,7 @@ class StripePaymentLinkService
             ],
             ],
             'customer_creation' => 'if_required',
+            'payment_method_types' => ['card'],
         ];
 
         /*    if ($lead->people_id && $lead->people && $email = $lead->people->getEmails()->first()?->value) {

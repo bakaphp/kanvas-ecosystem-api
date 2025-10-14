@@ -58,6 +58,7 @@ class VariantChannelBuilder
     ): Builder {
         $channelUuid = $args['id'];
         $attributes = $args['attributes'] ?? [];
+        $searchQuery = $args['search'] ?? null;
 
         if (isset($attributes['price']) && ! is_array($attributes['price'])) {
             throw new ValidationException('Price must be an array');
@@ -72,14 +73,23 @@ class VariantChannelBuilder
         //set index
         //ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
-        /**
-        * @var Builder
-        */
-        return VariantsChannelRepository::filterByAttributes(
+        // Start with your attribute filters
+        $query = VariantsChannelRepository::filterByAttributes(
             $channel->uuid,
             $attributes,
             $attributes['price'] ?? []
         );
+
+        // If there's a search query, get matching IDs from Algolia and filter by them
+        if ($searchQuery !== null) {
+            $algoliaResults = ModelsVariants::search($searchQuery)
+                ->take(100) // Adjust limit as needed
+                ->keys(); // Returns collection of IDs
+
+            $query->whereIn('products_variants.id', $algoliaResults);
+        }
+
+        return $query;
     }
 
     /**
