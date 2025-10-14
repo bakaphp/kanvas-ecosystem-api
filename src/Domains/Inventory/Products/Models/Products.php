@@ -561,8 +561,23 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public static function search($query = '', $callback = null, $limit = 100)
     {
         $app = app(Apps::class);
+        $model = new static();
 
-        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $isTypesense = method_exists($model, 'isTypesense') ? $model->isTypesense() : false;
+
+        if ($isTypesense) {
+            $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        } else {
+            $searchQuery = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback, $limit) {
+                $options['hitsPerPage'] = $limit;
+
+                if ($callback) {
+                    return $callback($algolia, $searchTerm, $options);
+                }
+
+                return $algolia->search($searchTerm, $options);
+            })->where('apps_id', 82);
+        }
 
         $user = auth()->user();
 
@@ -579,13 +594,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
-        if ($searchQuery->model->isTypesense()) {
+        if ($isTypesense) {
             $searchQuery->options([
                 'query_by' => 'name,description,translations',
                 'per_page' => $limit,
             ]);
-        } else {
-            $searchQuery->take($limit);
         }
 
         return $searchQuery;
