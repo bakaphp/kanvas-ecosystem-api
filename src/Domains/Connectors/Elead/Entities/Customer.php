@@ -78,6 +78,7 @@ class Customer
                     $customerData['emails'][] = [
                         'address' => filter_var($email->value, FILTER_VALIDATE_EMAIL) ? $email->value : preg_replace("/\s+/", '', Str::cleanup($name['firstName'] . $name['lastName']) . '@salesassist.io'),
                         'emailType' => 'Personal',
+                        'doNotEmail' => $email->is_opt_out === 1 ? true : false,
                     ];
                     $emailCount++;
                 }
@@ -116,6 +117,7 @@ class Customer
                             'number' => preg_replace('/\D+/', '', $phoneValue),
                             'phoneType' => 'Cellular',
                             'preferredTimeToContact' => 'Unspecified',
+                            'doNotText' => $phone->is_opt_out === 1 ? true : false,
                         ];
 
                         $phoneExist[] = $phoneValue;
