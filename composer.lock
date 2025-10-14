@@ -6652,16 +6652,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.0.2",
+            "version": "v2.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "53e70eb90562074d4af9a1ba4bf9da1235194e94"
+                "reference": "d23c647932c604de9707ecba265b03e19cd7d8f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/53e70eb90562074d4af9a1ba4bf9da1235194e94",
-                "reference": "53e70eb90562074d4af9a1ba4bf9da1235194e94",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/d23c647932c604de9707ecba265b03e19cd7d8f2",
+                "reference": "d23c647932c604de9707ecba265b03e19cd7d8f2",
                 "shasum": ""
             },
             "require": {
@@ -6701,9 +6701,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.0.2"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.0.3"
             },
-            "time": "2025-10-08T16:25:20+00:00"
+            "time": "2025-10-14T10:53:42+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
