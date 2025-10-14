@@ -34,12 +34,14 @@ use Throwable;
 class LLMMessageResponseActivity extends KanvasActivity
 {
     public $tries = 2;
+    protected ?AppInterface $app = null;
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         $company = $this->getCompany($app, $message->company);
+        $this->app = $app;
 
         return $this->executeIntegration(
             entity: $message,
@@ -79,11 +81,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ];
                 }
 
-                $nuggetTitle = $this->generateTitleByPrompt($prompt);
+                // $nuggetTitle = $this->generateTitleByPrompt($prompt);
 
                 $messageInput = [
                     'message' => [
-                        'title' => $nuggetTitle,
+                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
@@ -96,6 +98,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
+                    'is_public' => 0
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
@@ -116,11 +119,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                 ))->execute();
 
                 if ($promptChannel && empty($promptChannel->title)) {
-                    $channelName = $this->cleanChannelTitle($message->message['title'] ?? $nuggetTitle);
+                    $channelName = $this->cleanChannelTitle($message->message['title']);
                     $promptChannel->name = $channelName;
                     $promptChannel->title = $channelName;
                     $promptChannel->update();
                 }
+
+                $message->is_public = 0;
+                $message->save();
 
                 return [
                     'result' => true,
@@ -251,18 +257,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $params['enable_safety_checker'] = true;
             }
 
-            if (isset($message->message['image']) && $message->parent_id !== null) {
-                $previousChatResponse = Message::fromApp($message->app)
-                    ->where('id', '!=', $message->id)
-                    ->where('users_id', $message->users_id)
-                    ->where('companies_id', $message->companies_id)
-                    ->where('messages_types_id', $message->messages_types_id)
-                    ->orderBy('id', 'desc')
-                    ->first();
-                $previousChatResponseMessage = $previousChatResponse->message;
-                $previousParentMessage = $previousChatResponse?->parent?->message;
-                $params['previousImageUrl'] = isset($previousChatResponseMessage['image']) ? $previousChatResponseMessage['image'] : null;
-                $params['previousPrompts'] = ! empty($previousParentMessage['prompt']) ? [$previousParentMessage['prompt']] : [];
+            $channel = $message->channels?->first();
+            $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
+
+            if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
+                $previousChatResponseMessage = $previousChatResponse->message['prompt'];
+                $previousChatMessageChildren = $previousChatResponse->children()?->first();
+                $params['previousImageUrl'] = $previousChatMessageChildren !== null ? $previousChatMessageChildren->message['image'] : null;
+                $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];
                 $params['subscribe'] = true;
             }
         }
@@ -273,21 +275,55 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         try {
-            $generateImage = $promptClient->generateImage(
+            $generateImage = $previousChatResponse === null ? $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
                 params: $params
+            ) : $promptClient->continueImageChat(
+                //provider: $provider,
+                previousImageUrl: $params['previousImageUrl'] ?? null,
+                previousPrompts: $params['previousPrompts'] ?? [],
+                //model: $model,
+                model: $this->app->get('default-image-edit-model') ?? 'fal-ai/flux-kontext/dev',
+                newPrompt: $prompt,
+                subscribe: $params['subscribe'] ?? true,
+                //conversationId: $previousChatResponse->message['conversation_id'],
+                //messageId: $previousChatResponse->message['message_id'],
+                //params: $params
             );
         } catch (ClientException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                    'destination_id' => $message->getId(),
+                    'destination_type' => 'USER',
+                    'destination_event' => 'FOLLOWING',
+                ]);
+            $message->user->notify($errorProcessingImageNotification);
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
-        //return $promptClient->extractImageUrl($promptClient->generateImageWithIdeogram($prompt));
-        return (string) $promptClient->extractImageUrl(
+        $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
+
+        return (string) $promptClient->{$parseResponse}(
             $generateImage
         );
     }

@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -51,8 +53,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $this->overwriteAppService($app);
 
-        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 5);
-        $messageFiles = $entity->getFiles();
+        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
+        $entity->refresh();
+        $messageFiles = $this->getFilesWithRetry($entity);
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
@@ -72,25 +75,25 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $entity->setPrivate();
 
                 if (! empty($this->validateImageLimit($entity, $params))) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Image limit validation failed',
-                    ];
+                    ]);
                 }
 
                 if (empty($this->apiUrl)) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'API URL not configured',
-                    ];
+                    ]);
                 }
 
                 if ($messageFiles->isEmpty()) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'Message does not have any files',
-                    ];
+                    ]);
                 }
 
                 // Deduct user credit based on the selected image filter
@@ -101,26 +104,31 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 $processedImageUrl = null;
                 $requestId = null;
 
+                if ($messageFiles->count() > 1) {
+                    //lets add them to params since this is optional
+                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+                }
+
                 try {
                     // Process image based on the model type
                     if ($isOpenAi) {
                         $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity, $params);
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                     } elseif ($isGeminiBanana) {
                         // Process with Gemini-Nano-Banana
-                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter);
+                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter, $params);
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                         // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
                         $processedImageUrl = null;
@@ -129,16 +137,17 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
                             $fileUrl,
                             $imageFilter,
-                            $entity
+                            $entity,
+                            $params
                         );
 
                         if ($fileSystemRecord === null) {
-                            return [
+                            return $this->failWorkflow([
                                 'result' => false,
                                 'filter' => $imageFilter,
                                 'request_id' => $requestId,
                                 'message' => 'Failed to retrieve processed image',
-                            ];
+                            ]);
                         }
                     }
 
@@ -164,6 +173,27 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             },
             company: $company,
         );
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 
     public function validateImageLimit(Message $message, array $params): array
@@ -239,10 +269,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
      *
      * @return array [fileSystemRecord, processedImageUrl, requestId]
      */
-    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity): array
+    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($fileUrl, $imageFilter, $entity->message['prompt'] ?? '');
+        $model = 'fal-ai/';
+        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -414,38 +445,49 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Process image with Gemini-Nano-Banana
      */
-    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter): ?Filesystem
+    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter, array $params): ?Filesystem
     {
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
-        $apiUrl = rtrim($apiUrl, '/') . '/api/image/google/Gemini-Nano-Banana/i2i';
+        $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
-        $imageContent = Http::get($imageUrl)->body();
-        if (empty($imageContent)) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
+        // $imageContent = Http::get($imageUrl)->body();
+        // if (empty($imageContent)) {
+        //     throw new Exception("Failed to download image from URL: {$imageUrl}");
+        // }
 
         // Extract filename from URL or use a default
-        $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
+        // $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
 
         // Create multipart request
-        $response = Http::asMultipart()
-            ->attach('image', $imageContent, $filename)
-            ->attach('model', 'gemini-2.5-flash-image-preview')
-            ->attach('prompt', $prompt)
-            ->post($apiUrl);
+        // $response = Http::asMultipart()
+        //     ->attach('image', $imageContent, $filename)
+        //     ->attach('model', 'gemini-2.5-flash-image-preview')
+        //     ->attach('prompt', $prompt);
+
+        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, '', $params);
+        $responseData = $response->json();
+
+        // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
+        //     $index = 2;
+        //     foreach ($params['additional_images'] as $additionalImage) {
+        //         $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
+        //         $index++;
+        //     }
+        //     $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
+        // }
+
+        // $response = $response->post($apiUrl);
 
         if (! $response->successful()) {
-            throw new Exception('Gemini Banana API request failed: ' . $response->body());
+            throw new Exception('Gemini Banana API request failed: ' . json_encode($responseData));
         }
-
-        $responseData = $response->json();
 
         // Extract the URL from the response structure
         // Response format: { "0": { "url": "...", "file_name": "...", ... } }
         $processedImageUrl = null;
         if (isset($responseData['0']['url'])) {
             $processedImageUrl = $responseData['0']['url'];
-        } elseif (isset($responseData[0]['url'])) {
+        } elseif (isset($response[0]['url'])) {
             $processedImageUrl = $responseData[0]['url'];
         }
 
@@ -498,6 +540,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         $totalDelivery = 0;
+        $isRemix = $entity->message['remix_parent_id'] ?? false;
         $user = Users::getById($entity->users_id);
         $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
 
@@ -514,7 +557,18 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ))->execute();
 
         $messageCopy = $entity->message;
-        $messageCopy['ai_image'] = $cdnImageUrl;
+        if ($isRemix) {
+            $messageCopy['ai_image'] = array_merge(
+                ['ai_model' => $messageCopy['ai_model']],
+                [
+                    'nugget' => $cdnImageUrl,
+                    'title' => trim($title),
+                    'type' => 'image-format',
+                ]
+            );
+        } else {
+            $messageCopy['ai_image'] = $cdnImageUrl;
+        }
         $entity->message = $messageCopy;
         $entity->is_public = 1;
         $entity->save();
@@ -531,7 +585,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your image for {$title} has been processed",
+                message: htmlspecialchars("Your image for {$title} has been processed", ENT_QUOTES, 'UTF-8'),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [
@@ -583,18 +637,22 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $imageUrl, string $imageFilter, string $prompt): array
+    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
     {
+        if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
+            $params['additional_images'][] = $imageUrl;
+            $imageUrl = array_values($params['additional_images']);
+        }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($this->apiUrl, [
+        ])->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model' => $model . $imageFilter,
             'prompt' => $prompt,
         ]);
 
-        return $response->json();
+        return $response;
     }
 
     /**

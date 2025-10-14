@@ -15,6 +15,7 @@ trait NotificationRenderTrait
 {
     protected ?string $templateName = null;
     protected ?string $pushTemplateName = null;
+    protected ?string $smsTemplateName = null;
     public array $data = [];
 
     abstract public function getType(): NotificationTypes;
@@ -51,6 +52,13 @@ trait NotificationRenderTrait
         return $this;
     }
 
+    public function setSmsTemplateName(string $name): self
+    {
+        $this->smsTemplateName = $name;
+
+        return $this;
+    }
+
     public function setData(array $data): self
     {
         $this->data = array_merge($this->data, $data);
@@ -73,6 +81,15 @@ trait NotificationRenderTrait
         $templateName = $this->pushTemplateName
             ?? $this->templateName
             ?? $this->getType()->getPushTemplateName();
+
+        return $this->renderTemplate($templateName);
+    }
+
+    protected function getSmsTemplate(): string
+    {
+        $templateName = $this->smsTemplateName
+            ?? $this->templateName
+            ?? $this->getType()->getSmsTemplateName();
 
         return $this->renderTemplate($templateName);
     }

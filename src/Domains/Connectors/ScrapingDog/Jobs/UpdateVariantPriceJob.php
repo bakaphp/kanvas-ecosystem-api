@@ -129,11 +129,12 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             }
             if (! empty($mappedProduct['files'])) {
                 $variant->deleteFiles();
-
+                // $files = $mappedProduct['files'];
                 foreach ($mappedProduct['files'] as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
                 $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
+                // UpdateFileSystemJob::dispatch($variant, $files);
             }
 
             $variantData = $variant->toArray();

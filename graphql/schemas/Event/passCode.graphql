@@ -1,0 +1,108 @@
+input IssueEventCodeInput {
+    event_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input IssueParticipantCodeInput {
+    participant_id: ID!
+    event_version_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input IssueAllParticipantCodesInput {
+    event_version_id: ID!
+    motive_id: ID
+    format: String = "numeric"
+    expiration_date: DateTime
+}
+
+input CheckInWithPinInput {
+    code: String!
+    format: String = "numeric"
+}
+
+extend type Mutation @guard {
+    issueEventCode(
+        input: IssueEventCodeInput!
+    ): IssueCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueEventCode")
+    issueParticipantCode(
+        input: IssueParticipantCodeInput!
+    ): IssueParticipantCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueParticipantCode")
+    issueAllParticipantCodes(
+        input: IssueAllParticipantCodesInput!
+    ): IssueAllCodesResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueAllParticipantCodes")
+
+    checkInWithPin(
+        input: CheckInWithPinInput!
+    ): CheckInResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@checkInWithPin")
+}
+
+type IssueCodeResponse {
+    success: Boolean!
+    pass: ParticipantPass!
+    code: String
+    message: String!
+}
+
+type IssueParticipantCodeResponse {
+    success: Boolean!
+    pass: ParticipantPass!
+    code: String
+    participant: Participant!
+    message: String!
+}
+
+type IssueAllCodesResponse {
+    success: Boolean!
+    codes: Mixed!
+    total_issued: Int!
+    message: String!
+}
+
+type CheckInResponse {
+    success: Boolean!
+    message: String!
+    pass: ParticipantPass!
+    participant: Participant
+    event: Event!
+    event_version: EventVersion!
+    is_event_level: Boolean!
+    checked_in_at: String!
+    motive: ParticipantPassMotive!
+}
+
+type ParticipantPass {
+    id: ID!
+    event_id: ID!
+    event_version_id: ID!
+    participant_id: ID
+    participant_pass_motive_id: ID!
+    apps_id: ID!
+    companies_id: ID!
+    users_id: ID!
+    code: String
+    expiration_date: DateTime!
+    used_date: DateTime!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+    event: Event
+    eventVersion: EventVersion
+    participant: Participant
+    motive: ParticipantPassMotive
+}
+
+type ParticipantPassMotive {
+    id: ID!
+    apps_id: ID!
+    companies_id: ID!
+    users_id: ID!
+    name: String!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}

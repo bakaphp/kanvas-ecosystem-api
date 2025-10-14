@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Social\Messages\Models\Message;
@@ -72,7 +73,8 @@ class ProcessVideoRequestAction
 
             if ($isImageToVideo) {
                 // Process image-to-video
-                $messageFiles = $this->entity->getFiles();
+                //$messageFiles = $this->entity->getFiles();
+                $messageFiles = $this->getFilesWithRetry($this->entity);
                 if ($messageFiles->isEmpty()) {
                     return [
                         'result' => false,
@@ -80,8 +82,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrl = $messageFiles->first()->url;
-                $results = $this->submitImageToVideo($imageUrl, $videoModel, $apiUrl);
+                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -124,6 +126,27 @@ class ProcessVideoRequestAction
                 'message' => 'Error submitting video processing request: ' . $e->getMessage(),
             ];
         }
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 
     /**
@@ -184,7 +207,7 @@ class ProcessVideoRequestAction
     /**
      * Submit image-to-video request and return request ID
      */
-    protected function submitImageToVideo(string $imageUrl, string $videoModel, string $apiUrl): array
+    protected function submitImageToVideo(array $imageUrlsArray, string $videoModel, string $apiUrl): array
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('image-to-video');
@@ -193,7 +216,7 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrl,
+            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 

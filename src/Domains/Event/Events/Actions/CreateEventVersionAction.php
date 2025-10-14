@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
@@ -23,6 +24,18 @@ class CreateEventVersionAction
 
         // $this->validateSlug($slug);
 
+        // Calculate start_at and end_at from dates
+        $startAt = null;
+        $endAt = null;
+
+        if ($this->eventVersion->dates && $this->eventVersion->dates->count() > 0) {
+            $firstDate = $this->eventVersion->dates->first();
+            $lastDate = $this->eventVersion->dates->last();
+
+            $startAt = Carbon::parse($firstDate->date->format('Y-m-d') . ' ' . $firstDate->start_time);
+            $endAt = Carbon::parse($lastDate->date->format('Y-m-d') . ' ' . $lastDate->end_time);
+        }
+
         $eventVersion = ModelsEventVersion::updateOrCreate([
             'apps_id' => $this->eventVersion->event->app->getId(),
             'companies_id' => $this->eventVersion->event->company->getId(),
@@ -36,6 +49,8 @@ class CreateEventVersionAction
             'agenda' => $this->eventVersion->agenda ?? null,
             'metadata' => $this->eventVersion->metadata ?? null,
             'slug' => $slug,
+            'start_at' => $startAt,
+            'end_at' => $endAt,
         ]);
 
         $eventVersion->addDates($this->eventVersion->dates);

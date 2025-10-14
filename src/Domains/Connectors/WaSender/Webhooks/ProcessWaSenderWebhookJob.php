@@ -282,6 +282,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'app' => $message->app,
                         'company' => $message->company,
                         'process_document' => $processDocument,
+                        'communication_channel' => 'whatsapp',
                         'text' => $text,
                         'lastMessageParentDocument' => $lastUnprocessedImageParentMessage !== null ? $lastUnprocessedImageParentMessage : null,
                     ]

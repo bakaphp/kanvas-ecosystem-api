@@ -23,6 +23,7 @@ type Lead {
     participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
+    events: [Event!]! @morphToMany(relation: "events")
     tags: [Tag!]
         @paginate(
             defaultCount: 25

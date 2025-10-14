@@ -50,6 +50,12 @@ input CommunicationChannelPivot {
     config: String
 }
 
+input ChatSimpleInput {
+    agent_id: ID!
+    session_id: String!
+    message: String!
+}
+
 extend type Mutation @guard {
     createAiAgent(input: AgentAiInput!): AgentAi!
         @field(
@@ -62,6 +68,10 @@ extend type Mutation @guard {
     deleteAiAgent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@delete"
+        )
+    aiAgentChat(input: ChatSimpleInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@chat"
         )
 }
 

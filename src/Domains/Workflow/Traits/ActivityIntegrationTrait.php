@@ -27,6 +27,18 @@ trait ActivityIntegrationTrait
 {
     protected ?StatusEnum $workflowStatus = null;
 
+    public function setWorkflowStatus(StatusEnum $status): void
+    {
+        $this->workflowStatus = $status;
+    }
+
+    public function failWorkflow(array $message): array
+    {
+        $this->setWorkflowStatus(StatusEnum::FAILED);
+
+        return $message;
+    }
+
     public function getStatus(StatusEnum $status): ?Status
     {
         return Status::where('slug', $status->value)

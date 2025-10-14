@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -62,6 +63,10 @@ class CreateContentSessionAction
                 'company_timezone' => $lead->company->timezone,
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
+                'impersonate_email' => $lead->company->get('impersonate_email'),
+                'last_message_time' => $lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value),
+                'last_message' => $lead->get(ConfigurationEnum::LAST_MESSAGE->value),
+                'intent_number' => $lead->get('intent_number') ?? 0,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -112,6 +117,7 @@ class CreateContentSessionAction
             'contacts' => $people->contacts->toArray(),
             'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
+            'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
         ];
@@ -220,8 +226,46 @@ class CreateContentSessionAction
             locale: 'en',
             user: null,
             company: $this->session->company,
-        )->select('products_variants.uuid', 'products_variants.name')->limit(10)->get();
+        )->select('products_variants.uuid', 'products_variants.name')
+            ->limit(10)
+            ->orderBy('products_variants.name', 'desc')
+            ->get();
 
         return $relatedVariant->toArray();
+    }
+
+    /**
+     * @todo we need to combine both link and status
+     * @throws InvalidArgumentException
+     */
+    protected function getCheckListStatus(Lead $lead): array
+    {
+        try {
+            $checkList = $lead->get('check_list_status');
+            $checkListId = $lead->company->get('default_checklist_id');
+            if (isset($checkList['activeTaskListId'])) {
+                $checkListId = $checkList['activeTaskListId'];
+            }
+            $checklistTaskCompleted = TaskEngagementItemRepository::getLeadsTaskItems($lead, $checkListId)->get();
+
+            if ($checklistTaskCompleted->isEmpty()) {
+                return [];
+            }
+
+            $checklist = [];
+            foreach ($checklistTaskCompleted as $task) {
+                if (empty($task->companyAction) || empty($task->companyAction->description)) {
+                    continue;
+                }
+
+                $checklist[Str::camel((string) $task->companyAction->description)] = $task->status === 'completed' ? 'COMPLETED' : 'INCOMPLETE';
+            }
+
+            return $checklist;
+        } catch (Exception $e) {
+            report($e);
+
+            return [];
+        }
     }
 }

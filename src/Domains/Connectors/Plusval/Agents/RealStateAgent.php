@@ -8,6 +8,7 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\ProfileService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
@@ -265,12 +266,12 @@ class RealStateAgent extends BaseAgent
 
     public function getAgentPhone(): string
     {
-        /** @var People $agent */
+        /** @var People|Lead $agent */
         $agent = $this->entity;
 
         // Get agent's phone number (the person using the agent)
-        $agentPhones = $agent->getPhones()->pluck('value')->toArray();
-        $agentCellPhones = $agent->getCellPhones()->pluck('value')->toArray();
+        $agentPhones = $agent instanceof Lead ? $agent->people->getPhones()->pluck('value')->toArray() : $agent->getPhones()->pluck('value')->toArray();
+        $agentCellPhones = $agent instanceof Lead ? $agent->people->getCellPhones()->pluck('value')->toArray() : $agent->getCellPhones()->pluck('value')->toArray();
         $allAgentPhones = array_unique(array_merge($agentPhones, $agentCellPhones));
 
         if (empty($allAgentPhones)) {
