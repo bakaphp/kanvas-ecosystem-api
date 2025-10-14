@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class HandOffActivity extends KanvasActivity
@@ -47,10 +48,10 @@ class HandOffActivity extends KanvasActivity
                 $leadOwner = $leadOwner ?? $lead->owner ?? $lead->user;
 
                 $handOffType = $params['handoff_type'] ?? 'human';
-                $comunicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
+                $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
 
                 if (strtolower($handOffType) === 'compliance_internal') {
-                    $contactInfo = match (strtolower($comunicationChannel)) {
+                    $contactInfo = match (strtolower($communicationChannel)) {
                         'sms' => $lead->people->getCellPhones(),
                         'email' => $leadOwner->getEmails(),
                         default => null
@@ -68,19 +69,27 @@ class HandOffActivity extends KanvasActivity
                             $contact->optOut();
                         }
                     }
+
+                    $lead->people->fireWorkflow(
+                        WorkflowEnum::UPDATED->value,
+                        true,
+                        [
+                            'app' => $app,
+                        ]
+                    );
                 }
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
                     templateName: $params['template_name'] ?? 'lead_handoff',
                     data: [
-                                'lead' => $lead,
-                                'agent' => $leadOwner,
-                                'company' => $lead->company,
-                                'app' => $lead->app,
-                                'user' => $leadOwner,
-                                ...$params,
-                            ]
+                        'lead' => $lead,
+                        'agent' => $leadOwner,
+                        'company' => $lead->company,
+                        'app' => $lead->app,
+                        'user' => $leadOwner,
+                        ...$params,
+                    ]
                 );
 
                 $leadOwner->notify(
