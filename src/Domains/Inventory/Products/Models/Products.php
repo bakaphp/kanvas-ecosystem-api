@@ -127,6 +127,13 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return 'product-' . $this->companies_id . '-' . $this->apps_id;
     }
 
+    public function searchableOptions(): array
+    {
+        return [
+            'hitsPerPage' => 100,
+        ];
+    }
+
     #[Override]
     public function getActivitylogOptions(): LogOptions
     {
@@ -557,19 +564,23 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
-    public static function search($query = '', $callback = null, $limit = 100)
+    public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $model = new static();
+        $isTypesense = method_exists($model, 'isTypesense') ? $model->isTypesense() : false;
 
-        $query = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback, $limit) {
-            $options['hitsPerPage'] = $limit;
+        if (! $isTypesense) {
+            $searchQuery = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback) {
+                if ($callback) {
+                    return $callback($algolia, $searchTerm, $options);
+                }
 
-            if ($callback) {
-                return $callback($algolia, $searchTerm, $options);
-            }
-
-            return $algolia->search($searchTerm, $options);
-        })->where('apps_id', $app->getId());
+                return $algolia->search($searchTerm, $options);
+            })->where('apps_id', $app->getId());
+        } else {
+            $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        }
 
         $user = auth()->user();
 
@@ -577,23 +588,22 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             $user instanceof UserInterface &&
             (
                 ! auth()->user()->isAppOwner() ||
-            (
-                app()->bound(CompaniesBranches::class) &&
-                $app->get('enable_company_bound_search', false) // Only apply if this app setting is enabled
-            )
+                (
+                    app()->bound(CompaniesBranches::class) &&
+                    $app->get('enable_company_bound_search', false)
+                )
             )
         ) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+            $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
-        if ($query->model->isTypesense()) {
-            $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
-                'per_page' => $limit
+        if ($isTypesense) {
+            $searchQuery->options([
+                'query_by' => 'name,description,translations',
             ]);
         }
 
-        return $query;
+        return $searchQuery;
     }
 
     public function isPublished(): bool
