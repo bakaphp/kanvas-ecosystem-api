@@ -49,6 +49,7 @@ class HandOffActivity extends KanvasActivity
 
                 $handOffType = $params['handoff_type'] ?? 'human';
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
+                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
                 if (strtolower($handOffType) === 'compliance_internal') {
                     $contactInfo = match (strtolower($communicationChannel)) {
@@ -83,7 +84,7 @@ class HandOffActivity extends KanvasActivity
                         'message' => 'Compliance handoff processed successfully , stop all communications , update cms, not handoff email',
                     ];
                 }
-                
+
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
                     templateName: $params['template_name'] ?? 'lead_handoff',
@@ -109,8 +110,6 @@ class HandOffActivity extends KanvasActivity
                         $handOffNotification
                     );
                 }
-
-                $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
                 return [
                     'success' => true,
