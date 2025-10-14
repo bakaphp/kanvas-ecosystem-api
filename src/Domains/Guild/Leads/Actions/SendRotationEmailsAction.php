@@ -68,6 +68,7 @@ class SendRotationEmailsAction
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
         $payload['field_maps'] = $fieldMaps;
+        $payload['photo'] = $lead->company?->getPhoto()?->url;
 
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode, $this->channels);
     }
