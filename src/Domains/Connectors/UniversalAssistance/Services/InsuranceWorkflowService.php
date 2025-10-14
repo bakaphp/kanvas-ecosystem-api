@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
-use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -124,6 +123,8 @@ class InsuranceWorkflowService
         return null;
     }
 
+
+
     /**
      * Validate insurance person data structure (updated for real input structure)
      */
@@ -157,7 +158,7 @@ class InsuranceWorkflowService
     /**
      * Process titular (main applicant) insurance with dual quotation workflow
      */
-    public function processTitular(array $titularData): array
+    protected function processTitular(array $titularData): array
     {
         // Validate titular data structure
         if (! $this->validatePersonData($titularData, 'titular')) {
@@ -177,22 +178,12 @@ class InsuranceWorkflowService
         // Create voucher using the selected quotation's IdLead and plan information
         $voucherResult = $this->createVoucherFromSelectedQuotation($titularData, $selectedQuotation, $originCountryCode, $destinationCountryCode, 'titular', $dualQuotationResult);
 
-        // Create simplified result with complete quotation data and product matching information
+        // Combine all results
         $result = [
-            'dual_quotation_results' => $this->simplifyDualQuotationResults($dualQuotationResult),
+            'dual_quotation_results' => $dualQuotationResult,
             'selected_quotation' => $selectedQuotation,
             'voucher_result' => $voucherResult,
-            'workflow_type' => 'dual_quotation_with_plan_matching',
-            'person_type' => 'titular',
-            'input_plan_requested' => $titularData['plan']['name'] ?? 'Unknown plan',
-            'selected_product_match' => $voucherResult['matched_product'] ?? null,
-            'quotation_summary' => [
-                'origin_country' => $originCountryCode,
-                'destination_country' => $destinationCountryCode,
-                'variant_type' => $this->extractVariantType($titularData),
-                'duration_days' => $this->getProductDuration($titularData),
-                'quotation_timestamp' => now()->toISOString(),
-            ],
+            'workflow_type' => 'dual_quotation_with_plan_matching'
         ];
 
         // Convert result to arrays to prevent stdClass errors
@@ -209,7 +200,7 @@ class InsuranceWorkflowService
      * Process dependent insurance with dual quotation workflow
      * Each dependent gets their own voucher since they have individual plans to pay
      */
-    public function processDependent(array $dependentData, string $titularOriginCountryCode, string $titularDestinationCountryCode): array
+    protected function processDependent(array $dependentData, string $titularOriginCountryCode, string $titularDestinationCountryCode): array
     {
         // Validate dependent data structure
         if (! $this->validatePersonData($dependentData, 'dependent')) {
@@ -225,22 +216,12 @@ class InsuranceWorkflowService
         // Create voucher using the selected quotation's IdLead and plan information
         $voucherResult = $this->createVoucherFromSelectedQuotation($dependentData, $selectedQuotation, $titularOriginCountryCode, $titularDestinationCountryCode, 'dependent', $dualQuotationResult);
 
-        // Create simplified result with complete quotation data and product matching information
+        // Combine all results
         $result = [
-            'dual_quotation_results' => $this->simplifyDualQuotationResults($dualQuotationResult),
+            'dual_quotation_results' => $dualQuotationResult,
             'selected_quotation' => $selectedQuotation,
             'voucher_result' => $voucherResult,
-            'workflow_type' => 'dual_quotation_with_plan_matching',
-            'person_type' => 'dependent',
-            'input_plan_requested' => $dependentData['plan']['name'] ?? 'Unknown plan',
-            'selected_product_match' => $voucherResult['matched_product'] ?? null,
-            'quotation_summary' => [
-                'origin_country' => $titularOriginCountryCode,
-                'destination_country' => $titularDestinationCountryCode,
-                'variant_type' => $this->extractVariantType($dependentData),
-                'duration_days' => $this->getProductDuration($dependentData),
-                'quotation_timestamp' => now()->toISOString(),
-            ],
+            'workflow_type' => 'dual_quotation_with_plan_matching'
         ];
 
         // Convert result to arrays to prevent stdClass errors
@@ -251,6 +232,132 @@ class InsuranceWorkflowService
         // $this->storeVoucherInESimMessageMetadata($dependentData, $result, 'dependent');
 
         return $result;
+    }
+
+    /**
+     * Build voucher data for Universal Assistance from cart data
+     */
+    protected function buildVoucherData(array $personData, string $personType, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): array
+    {
+        // Convert destinationCountryCode to destination name (based on real input structure)
+        $destination = $this->getDestinationName($destinationCountryCode);
+
+        // Validate destination
+        if (! $this->isValidDestination($destination)) {
+            $destination = 'Centro america/Caribe'; // Safe fallback
+        }
+
+        // Calculate dates based on activation date and product duration
+        $activationDate = Carbon::parse($personData['activationDate']);
+
+        // Get duration from product attributes (1, 3, 7, 15, or 30 days)
+        $duration = $this->getProductDuration($personData);
+        $expirationDate = clone $activationDate;
+        $expirationDate->addDays($duration); // Duration days from activation date
+
+        // DEPRECATED: This method should not be used - convenio must be determined by variant logic
+        // Use buildVoucherDataWithConvenio() instead with proper variant-based convenio selection
+        throw new ValidationException("buildVoucherData is deprecated. Use buildVoucherDataWithConvenio() with variant-based convenio selection instead of country-based logic.");
+
+        return [
+            'NroControl' => '', // Will be set by dual quotation system
+            'Vendedor' => $this->app->get('UNIVERSAL_ASSISTANCE_USERNAME') ?: 'WSSIMLIMITEDO', // Using QA user as seller
+            'FechaEmision' => now()->format('m/d/Y'),
+            'Destino' => $destination,
+            'FechaVigencia' => $activationDate->format('m/d/Y'),
+            'FechaFinal' => $expirationDate->format('m/d/Y'),
+            'MonedaLista' => 'USD',
+            'Precio' => '0.00', // Empty price for voucher creation as requested
+            'NombreContactoVoucher' => '',
+            'NroTelContactoVoucher' => '',
+            'Canal' => 'Turismo',
+            'Contrato' => $contract, // Using country-based convenio logic
+            'LeadId' => '',
+            'EnvioVoucherMail' => 'Y',
+            'PostProcesoFlag' => 'N',
+            'Tarifa' => 'N',
+
+            'DatosAgencia' => [
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
+            ],
+
+            'DatosProducto' => [
+                'NombreProducto' => $personData['plan']['name'], // Use the actual plan name from cart data
+            ],
+
+            'DatosSolicitante' => [
+                'NroPolizaSeguro' => '',
+                'NombreSolicitante' => $personData['firstname'],
+                'ApellidoSolicitante' => $personData['lastname'],
+                'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
+                'NroDocumentoSolicitante' => $personData['idNumber'],
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
+                'CorreoElectronicoSolicitante' => $personData['email'],
+            ],
+        ];
+    }
+
+    /**
+     * Build Cross Selling voucher data with different pricing and enhanced features
+     */
+    protected function buildCrossSellingVoucherData(array $personData, string $personType, string $originCountryCode = 'AR', string $destinationCountryCode = 'DO'): array
+    {
+        // Convert destinationCountryCode to destination name (based on real input structure)
+        $destination = $this->getDestinationName($destinationCountryCode);
+
+        // Validate destination
+        if (! $this->isValidDestination($destination)) {
+            $destination = 'Centro america/Caribe'; // Safe fallback
+        }
+
+        // Calculate dates
+        $activationDate = Carbon::parse($personData['activationDate']);
+        $duration = $this->getProductDuration($personData);
+        $expirationDate = clone $activationDate;
+        $expirationDate->addDays($duration); // Duration days from activation date
+
+        // DEPRECATED: This method should not be used - convenio must be determined by variant logic
+        // Use buildCrossSellingVoucherDataWithConvenio() instead with proper variant-based convenio selection
+        throw new ValidationException("buildCrossSellingVoucherData is deprecated. Use buildCrossSellingVoucherDataWithConvenio() with variant-based convenio selection instead of country-based logic.");
+
+        return [
+            'NroControl' => '', // Will be set by dual quotation system
+            'Vendedor' => $this->app->get('UNIVERSAL_ASSISTANCE_USERNAME') ?: 'WSSIMLIMITEDO', // Using QA user as seller
+            'FechaEmision' => now()->format('m/d/Y'),
+            'Destino' => $destination, // Use proper destination instead of 'Mundial'
+            'FechaVigencia' => $activationDate->format('m/d/Y'),
+            'FechaFinal' => $expirationDate->format('m/d/Y'),
+            'MonedaLista' => 'USD',
+            'Precio' => '0.00', // Empty price for voucher creation as requested
+            'NombreContactoVoucher' => '',
+            'NroTelContactoVoucher' => '',
+            'Canal' => 'Turismo',
+            'Contrato' => $contract, // Using country-based convenio logic for Cross Selling
+            'LeadId' => '',
+            'EnvioVoucherMail' => 'Y',
+            'PostProcesoFlag' => 'N',
+            'Tarifa' => 'N',
+
+            'DatosAgencia' => [
+                'OrganizacionRegistradora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT', // PROD fallback
+            ],
+
+            'DatosProducto' => [
+                'NombreProducto' => $personData['plan']['name'], // Use the actual plan name from cart data
+            ],
+
+            'DatosSolicitante' => [
+                'NroPolizaSeguro' => '',
+                'NombreSolicitante' => $personData['firstname'],
+                'ApellidoSolicitante' => $personData['lastname'],
+                'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
+                'NroDocumentoSolicitante' => $personData['idNumber'],
+                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
+                'CorreoElectronicoSolicitante' => $personData['email'],
+            ],
+        ];
     }
 
     /**
@@ -412,7 +519,7 @@ class InsuranceWorkflowService
             'Centro america/Caribe',
             'Europa',
             'Oceanía',
-            'Territorio Nacional',
+            'Territorio Nacional'
         ];
     }
 
@@ -445,222 +552,19 @@ class InsuranceWorkflowService
     protected function getCountryName(string $countryCode): string
     {
         $countries = [
-            // Americas
             'AR' => 'ARGENTINA',
-            'BO' => 'BOLIVIA',
-            'BR' => 'BRASIL',
-            'CA' => 'CANADA',
-            'CL' => 'CHILE',
-            'CO' => 'COLOMBIA',
-            'CR' => 'COSTA RICA',
-            'CU' => 'CUBA',
             'DO' => 'REPUBLICA DOMINICANA',
-            'EC' => 'ECUADOR',
-            'SV' => 'EL SALVADOR',
-            'GT' => 'GUATEMALA',
-            'GY' => 'GUYANA',
-            'HT' => 'HAITI',
-            'HN' => 'HONDURAS',
-            'JM' => 'JAMAICA',
+            'US' => 'ESTADOS UNIDOS',
+            'CA' => 'CANADA',
             'MX' => 'MEXICO',
-            'NI' => 'NICARAGUA',
-            'PA' => 'PANAMA',
-            'PY' => 'PARAGUAY',
-            'PE' => 'PERU',
-            'PR' => 'PUERTO RICO',
-            'SR' => 'SURINAM',
-            'TT' => 'TRINIDAD Y TOBAGO',
-            'US' => 'USA',
-            'UY' => 'URUGUAY',
-            'VE' => 'VENEZUELA',
-
-            // Europe
-            'AD' => 'ANDORRA',
-            'AT' => 'AUSTRIA',
-            'BE' => 'BELGICA',
-            'BG' => 'BULGARIA',
-            'HR' => 'CROACIA',
-            'CY' => 'CHIPRE',
-            'CZ' => 'REPUBLICA CHECA',
-            'DK' => 'DINAMARCA',
-            'EE' => 'ESTONIA',
-            'FI' => 'FINLANDIA',
-            'FR' => 'FRANCIA',
-            'DE' => 'ALEMANIA',
-            'GR' => 'GRECIA',
-            'HU' => 'HUNGRIA',
-            'IS' => 'ISLANDIA',
-            'IE' => 'IRLANDA',
-            'IT' => 'ITALIA',
-            'LV' => 'LETONIA',
-            'LI' => 'LIECHTENSTEIN',
-            'LT' => 'LITUANIA',
-            'LU' => 'LUXEMBURGO',
-            'MT' => 'MALTA',
-            'MC' => 'MONACO',
-            'ME' => 'MONTENEGRO',
-            'NL' => 'HOLANDA',
-            'NO' => 'NORUEGA',
-            'PL' => 'POLONIA',
-            'PT' => 'PORTUGAL',
-            'RO' => 'RUMANIA',
-            'RU' => 'RUSIA',
-            'SM' => 'SAN MARINO',
-            'RS' => 'SERBIA',
-            'SK' => 'ESLOVAQUIA',
-            'SI' => 'ESLOVENIA',
             'ES' => 'ESPAÑA',
-            'SE' => 'SUECIA',
-            'CH' => 'SUIZA',
-            'UA' => 'UCRANIA',
-            'GB' => 'INGLATERRA',
-            'VA' => 'CIUDAD VATICANO',
-
-            // Asia
-            'AF' => 'AFGHANISTAN',
-            'AM' => 'ARMENIA',
-            'AZ' => 'AZERBAIJAN',
-            'BH' => 'BAHREIN',
-            'BD' => 'BANGLADESH',
-            'BT' => 'BHUTAN',
-            'BN' => 'BRUNEI',
-            'KH' => 'CAMBOYA',
-            'CN' => 'CHINA',
-            'GE' => 'GEORGIA',
-            'IN' => 'INDIA',
-            'ID' => 'INDONESIA',
-            'IR' => 'IRAN',
-            'IQ' => 'IRAK',
-            'IL' => 'ISRAEL',
-            'JP' => 'JAPON',
-            'JO' => 'JORDANIA',
-            'KZ' => 'KAZAJISTAN',
-            'KP' => 'COREA DEL NORTE',
-            'KR' => 'COREA DEL SUR',
-            'KW' => 'KUWAIT',
-            'KG' => 'KIRGUISTAN',
-            'LA' => 'LAOS',
-            'LB' => 'LIBANO',
-            'MY' => 'MALASIA',
-            'MV' => 'MALDIVAS',
-            'MN' => 'MONGOLIA',
-            'MM' => 'MYANMAR',
-            'NP' => 'NEPAL',
-            'OM' => 'OMAN',
-            'PK' => 'PAKISTAN',
-            'PS' => 'PALESTINA',
-            'PH' => 'FILIPINAS',
-            'QA' => 'QATAR',
-            'SA' => 'ARABIA SAUDITA',
-            'SG' => 'SINGAPUR',
-            'LK' => 'SRI LANKA',
-            'SY' => 'SIRIA',
-            'TW' => 'TAIWAN',
-            'TJ' => 'TAYIKISTAN',
-            'TH' => 'TAILANDIA',
-            'TL' => 'TIMOR ORIENTAL',
-            'TR' => 'TURQUIA',
-            'TM' => 'TURKMENISTAN',
-            'AE' => 'EMIRATOS ARABES UNIDOS',
-            'UZ' => 'UZBEKISTAN',
-            'VN' => 'VIETNAM',
-            'YE' => 'YEMEN',
-
-            // Africa
-            'DZ' => 'ARGELIA',
-            'AO' => 'ANGOLA',
-            'BJ' => 'BENIN',
-            'BW' => 'BOTSWANA',
-            'BF' => 'BURKINA FASO',
-            'BI' => 'BURUNDI',
-            'CV' => 'CABO VERDE',
-            'CM' => 'CAMERUN',
-            'CF' => 'REPUBLICA CENTROAFRICANA',
-            'TD' => 'CHAD',
-            'KM' => 'COMORAS',
-            'CG' => 'CONGO',
-            'CI' => 'COSTA DE MARFIL',
-            'DJ' => 'YIBUTI',
-            'EG' => 'EGIPTO',
-            'GQ' => 'GUINEA ECUATORIAL',
-            'ER' => 'ERITREA',
-            'ET' => 'ETIOPIA',
-            'GA' => 'GABON',
-            'GM' => 'GAMBIA',
-            'GH' => 'GHANA',
-            'GN' => 'GUINEA',
-            'GW' => 'GUINEA BISSAU',
-            'KE' => 'KENIA',
-            'LS' => 'LESOTO',
-            'LR' => 'LIBERIA',
-            'LY' => 'LIBIA',
-            'MG' => 'MADAGASCAR',
-            'MW' => 'MALAWI',
-            'ML' => 'MALI',
-            'MR' => 'MAURITANIA',
-            'MU' => 'MAURICIO',
-            'MA' => 'MARRUECOS',
-            'MZ' => 'MOZAMBIQUE',
-            'NA' => 'NAMIBIA',
-            'NE' => 'NIGER',
-            'NG' => 'NIGERIA',
-            'RW' => 'RUANDA',
-            'ST' => 'SANTO TOME Y PRINCIPE',
-            'SN' => 'SENEGAL',
-            'SC' => 'SEYCHELLES',
-            'SL' => 'SIERRA LEONA',
-            'SO' => 'SOMALIA',
-            'ZA' => 'SUDAFRICA',
-            'SS' => 'SUDAN DEL SUR',
-            'SD' => 'SUDAN',
-            'SZ' => 'SUAZILANDIA',
-            'TZ' => 'TANZANIA',
-            'TG' => 'TOGO',
-            'TN' => 'TUNEZ',
-            'UG' => 'UGANDA',
-            'ZM' => 'ZAMBIA',
-            'ZW' => 'ZIMBABWE',
-
-            // Oceania
-            'AU' => 'AUSTRALIA',
-            'FJ' => 'FIYI',
-            'KI' => 'KIRIBATI',
-            'MH' => 'ISLAS MARSHALL',
-            'FM' => 'MICRONESIA',
-            'NR' => 'NAURU',
-            'NZ' => 'NUEVA ZELANDA',
-            'PW' => 'PALAOS',
-            'PG' => 'PAPUA NUEVA GUINEA',
-            'WS' => 'SAMOA',
-            'SB' => 'ISLAS SALOMON',
-            'TO' => 'TONGA',
-            'TV' => 'TUVALU',
-            'VU' => 'VANUATU',
-
-            // Caribbean/Other
-            'AI' => 'ANGUILA',
-            'AG' => 'ANTIGUA Y BARBUDA',
-            'AW' => 'ARUBA',
-            'BS' => 'BAHAMAS',
-            'BB' => 'BARBADOS',
-            'BZ' => 'BELICE',
-            'BM' => 'BERMUDAS',
-            'VG' => 'ISLAS VIRGENES BRITANICAS',
-            'KY' => 'ISLAS CAIMAN',
-            'CW' => 'CURAZAO',
-            'DM' => 'DOMINICA',
-            'GD' => 'GRANADA',
-            'GP' => 'GUADALUPE',
-            'MQ' => 'MARTINICA',
-            'MS' => 'ISLA DE MONTSERRAT',
-            'AN' => 'ANTILLAS HOLANDESAS',
-            'KN' => 'SAN CRISTOBAL Y NIEVES',
-            'LC' => 'SANTA LUCIA',
-            'VC' => 'SAN VICENTE Y GRANADINAS',
-            'TC' => 'ISLAS TURCAS Y CAICOS',
+            'FR' => 'FRANCIA',
+            'IT' => 'ITALIA',
+            'BR' => 'BRASIL',
+            'CO' => 'COLOMBIA',
         ];
 
-        return $countries[$countryCode] ?? 'ARGENTINA'; // Default to a valid country
+        return $countries[$countryCode] ?? 'REPUBLICA DOMINICANA'; // Default to a valid country instead of INTERNACIONAL
     }
 
     /**
@@ -702,24 +606,165 @@ class InsuranceWorkflowService
 
     /**
      * Get product duration from plan attributes
-     * Search for the SPECIFIC duration that corresponds to the current plan/eSIM,
-     * not just the first one found
+     * Prioritize the original eSIM plan duration over calculated dates from voucher
      */
     protected function getProductDuration(array $personData): int
     {
-        // PRIORITY 1: Try Universal Assistance plan duration (most reliable for UA insurance)
-        if (isset($personData['plan']['duration'])) {
-            $planDuration = (int) $personData['plan']['duration'];
-            if ($planDuration > 0) {
-                return $planDuration;
+        // PRIORITY 1: Try to get duration from variant attributes (most reliable for eSIM plans)
+        if (isset($personData['variant']['attributes'])) {
+            // Handle both array of objects and associative array formats
+            if (is_array($personData['variant']['attributes'])) {
+                foreach ($personData['variant']['attributes'] as $attribute) {
+                    // Handle object-style attributes
+                    if (isset($attribute['name']) && $attribute['name'] === 'Variant Duration' && isset($attribute['value'])) {
+                        $variantDuration = (int) $attribute['value'];
+                        if ($variantDuration > 0) {
+                            return $variantDuration;
+                        }
+                    }
+                    // Handle direct key-value attributes
+                    if (isset($attribute['Variant Duration'])) {
+                        $variantDuration = (int) $attribute['Variant Duration'];
+                        if ($variantDuration > 0) {
+                            return $variantDuration;
+                        }
+                    }
+                }
+            }
+
+            // Handle direct associative array access
+            if (isset($personData['variant']['attributes']['Variant Duration'])) {
+                $variantDuration = (int) $personData['variant']['attributes']['Variant Duration'];
+                if ($variantDuration > 0) {
+                    return $variantDuration;
+                }
             }
         }
 
-        // PRIORITY 2: Try variant_info attributes from eSIM data (passed from ProcessInsuranceCartActivity)
+        // PRIORITY 2: Try variant_info attributes from eSIM data
         if (isset($personData['variant_info']['attributes']['Variant Duration'])) {
             $variantDuration = (int) $personData['variant_info']['attributes']['Variant Duration'];
             if ($variantDuration > 0) {
                 return $variantDuration;
+            }
+        }
+
+        // PRIORITY 3: Extract from product variant name if it contains duration info
+        if (isset($personData['variant']['name'])) {
+            $variantName = $personData['variant']['name'];
+            if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
+                $extractedDuration = (int) $matches[1];
+                if ($extractedDuration > 0) {
+                    return $extractedDuration;
+                }
+            }
+        }
+
+        // PRIORITY 4: Try to get duration from plan configuration (multiple possible locations)
+        $planDurationSources = [
+            $personData['plan']['duration'] ?? null,
+            $personData['plan']['attributes']['duration'] ?? null,
+            $personData['duration'] ?? null,
+            $personData['variantDuration'] ?? null,
+            $personData['plan']['variantDuration'] ?? null
+        ];
+
+        foreach ($planDurationSources as $planDuration) {
+            if ($planDuration !== null && $planDuration !== '') {
+                $durationInt = (int) $planDuration;
+                if ($durationInt > 0) {
+                    return $durationInt;
+                }
+            }
+        }
+
+        // PRIORITY 5: Try eSIM details duration
+        if (isset($personData['eSimDetails']['variantDuration'])) {
+            $esimDuration = (int) $personData['eSimDetails']['variantDuration'];
+            if ($esimDuration > 0) {
+                return $esimDuration;
+            }
+        }
+
+        // PRIORITY 6: Extract from plan name if it contains duration info
+        if (isset($personData['plan']['name'])) {
+            $planName = $personData['plan']['name'];
+            if (preg_match('/(\d+)\s*dias?/i', $planName, $matches)) {
+                $extractedDuration = (int) $matches[1];
+                if ($extractedDuration > 0) {
+                    return $extractedDuration;
+                }
+            }
+            // Also try other formats like "5 days", "5-days", etc.
+            if (preg_match('/(\d+)[\s\-]?days?/i', $planName, $matches)) {
+                $extractedDuration = (int) $matches[1];
+                if ($extractedDuration > 0) {
+                    return $extractedDuration;
+                }
+            }
+        }
+
+        // PRIORITY 7: Try variant name from different locations
+        $variantNameSources = [
+            $personData['variantPlan'] ?? null,
+            $personData['variant']['variantPlan'] ?? null,
+            $personData['eSimDetails']['variantPlan'] ?? null
+        ];
+
+        foreach ($variantNameSources as $variantName) {
+            if ($variantName && is_string($variantName)) {
+                if (preg_match('/(\d+)\s*dias?/i', $variantName, $matches)) {
+                    $extractedDuration = (int) $matches[1];
+                    if ($extractedDuration > 0) {
+                        return $extractedDuration;
+                    }
+                }
+                if (preg_match('/(\d+)[\s\-]?days?/i', $variantName, $matches)) {
+                    $extractedDuration = (int) $matches[1];
+                    if ($extractedDuration > 0) {
+                        return $extractedDuration;
+                    }
+                }
+            }
+        }
+
+        // PRIORITY 8: Calculate from activation and expiration dates if available
+        if (isset($personData['activationDate']) && isset($personData['expirationDate'])) {
+            try {
+                $activationDate = Carbon::parse($personData['activationDate']);
+                $expirationDate = Carbon::parse($personData['expirationDate']);
+
+                // Use diffInDays + 1 for inclusive calculation
+                $calculatedDuration = (int)($activationDate->diffInDays($expirationDate) + 1);
+
+                if ($calculatedDuration > 0 && $calculatedDuration <= 365) { // Sanity check
+                    return $calculatedDuration;
+                }
+            } catch (\Exception $e) {
+                // Ignore date parsing errors
+            }
+        }
+
+        // PRIORITY 9: Try other date combinations
+        $dateCombinations = [
+            ['startDate', 'endDate'],
+            ['fechaInicio', 'fechaFin'],
+            ['start_date', 'end_date']
+        ];
+
+        foreach ($dateCombinations as [$startKey, $endKey]) {
+            if (isset($personData[$startKey]) && isset($personData[$endKey])) {
+                try {
+                    $startDate = Carbon::parse($personData[$startKey]);
+                    $endDate = Carbon::parse($personData[$endKey]);
+                    $calculatedDuration = (int)($startDate->diffInDays($endDate) + 1);
+
+                    if ($calculatedDuration > 0 && $calculatedDuration <= 365) {
+                        return $calculatedDuration;
+                    }
+                } catch (\Exception $e) {
+                    // Ignore date parsing errors
+                }
             }
         }
 
@@ -820,7 +865,7 @@ class InsuranceWorkflowService
                 'product_quoted' => $matchedProduct['found'] ? $matchedProduct['product_name'] : ($quoteData['NombreProducto'] ?? null),
                 'product_match' => $matchedProduct['found'] ? $matchedProduct['match_details'] : ['match' => false, 'reason' => 'Product not found in quote'],
                 'validation_timestamp' => now()->toISOString(),
-                'note' => 'Price validation skipped - voucher has empty price by design',
+                'note' => 'Price validation skipped - voucher has empty price by design'
             ],
             'voucher_data' => [
                 'control_number' => $voucherResult['control_number'] ?? null,
@@ -875,7 +920,7 @@ class InsuranceWorkflowService
                 'match' => false,
                 'reason' => 'Missing plan or product information',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted,
+                'product_quoted' => $productQuoted
             ];
         }
 
@@ -889,7 +934,7 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'exact',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted,
+                'product_quoted' => $productQuoted
             ];
         }
 
@@ -899,7 +944,7 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'partial_plan_in_product',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted,
+                'product_quoted' => $productQuoted
             ];
         }
 
@@ -909,7 +954,25 @@ class InsuranceWorkflowService
                 'match' => true,
                 'match_type' => 'partial_product_in_plan',
                 'plan_requested' => $planRequested,
-                'product_quoted' => $productQuoted,
+                'product_quoted' => $productQuoted
+            ];
+        }
+
+        // Check for key words matching (for similar products)
+        $planWords = array_filter(explode(' ', $planNormalized));
+        $productWords = array_filter(explode(' ', $productNormalized));
+
+        $commonWords = array_intersect($planWords, $productWords);
+        $matchPercentage = count($commonWords) / max(count($planWords), count($productWords), 1);
+
+        if ($matchPercentage >= 0.5) { // 50% or more words match
+            return [
+                'match' => true,
+                'match_type' => 'keyword_similarity',
+                'match_percentage' => round($matchPercentage * 100, 2),
+                'common_words' => array_values($commonWords),
+                'plan_requested' => $planRequested,
+                'product_quoted' => $productQuoted
             ];
         }
 
@@ -917,9 +980,146 @@ class InsuranceWorkflowService
         return [
             'match' => false,
             'reason' => 'No sufficient similarity found',
+            'match_percentage' => round($matchPercentage * 100, 2),
             'plan_requested' => $planRequested,
-            'product_quoted' => $productQuoted,
+            'product_quoted' => $productQuoted
         ];
+    }
+
+    /**
+     * Validate pricing information from quotation
+     */
+    protected function validatePricing(array $personData, array $quoteData): array
+    {
+        $planPrice = $personData['plan']['price'] ?? null;
+        $quotedPrice = $quoteData['PrecioEmision'] ?? null;
+        $quotedCurrency = $quoteData['MonedaLista'] ?? null;
+
+        $validation = [
+            'plan_price' => $planPrice,
+            'quoted_price' => $quotedPrice,
+            'quoted_currency' => $quotedCurrency,
+            'price_match' => false,
+            'price_difference' => null,
+            'validation_notes' => []
+        ];
+
+        if ($planPrice !== null && $quotedPrice !== null) {
+            $planPriceFloat = (float) $planPrice;
+            $quotedPriceFloat = (float) $quotedPrice;
+
+            if ($planPriceFloat === $quotedPriceFloat) {
+                $validation['price_match'] = true;
+                $validation['match_type'] = 'exact';
+            } else {
+                $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ?
+                    round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
+
+                // Consider close matches (within 5% or $1)
+                $tolerance = max(0.05 * $planPriceFloat, 1.0);
+                if (abs($validation['price_difference']) <= $tolerance) {
+                    $validation['price_match'] = true;
+                    $validation['match_type'] = 'within_tolerance';
+                    $validation['validation_notes'][] = 'Price within acceptable tolerance';
+                }
+            }
+        } else {
+            if ($planPrice === null) {
+                $validation['validation_notes'][] = 'No plan price available for comparison';
+            }
+            if ($quotedPrice === null) {
+                $validation['validation_notes'][] = 'No quoted price received';
+            }
+        }
+
+        return $validation;
+    }
+
+    /**
+     * Validate pricing using the matched product information
+     */
+    protected function validatePricingWithMatchedProduct(array $personData, array $quoteData, array $matchedProduct): array
+    {
+        $planPrice = $personData['plan']['price'] ?? null;
+
+        // Only validate pricing if product was matched - NO FALLBACKS
+        $quotedPrice = null;
+        $priceSource = 'not_found';
+
+        if ($matchedProduct['found']) {
+            // Safety check for source key
+            $source = $matchedProduct['source'] ?? 'unknown';
+
+            if ($source === 'main_product') {
+                // Use main product pricing
+                $quotedPrice = $quoteData['PrecioEmision'] ?? $quoteData['PrecioNeto'] ?? null;
+                $priceSource = 'main_product';
+            } elseif (isset($matchedProduct['attribute_data'])) {
+                // Try to find price in the matched attribute
+                $attributeData = $matchedProduct['attribute_data'];
+                $quotedPrice = $attributeData['PrecioEmision'] ??
+                              $attributeData['Precio'] ??
+                              $attributeData['Valor'] ??
+                              $attributeData['price'] ??
+                              $attributeData['amount'] ?? null;
+
+                if ($quotedPrice !== null) {
+                    $priceSource = 'matched_attribute';
+                }
+            }
+        }
+
+        $quotedCurrency = $quoteData['MonedaLista'] ?? null;
+
+        $validation = [
+            'plan_price' => $planPrice,
+            'quoted_price' => $quotedPrice,
+            'quoted_currency' => $quotedCurrency,
+            'price_source' => $priceSource,
+            'price_match' => false,
+            'price_difference' => null,
+            'validation_notes' => []
+        ];
+
+        if ($planPrice !== null && $quotedPrice !== null) {
+            // Convert to numeric values for comparison
+            $planPriceFloat = (float) $planPrice;
+            $quotedPriceFloat = (float) $quotedPrice;
+
+            if ($planPriceFloat === $quotedPriceFloat) {
+                $validation['price_match'] = true;
+                $validation['match_type'] = 'exact';
+            } else {
+                $validation['price_difference'] = $quotedPriceFloat - $planPriceFloat;
+                $validation['price_difference_percentage'] = $planPriceFloat > 0 ?
+                    round(($validation['price_difference'] / $planPriceFloat) * 100, 2) : null;
+
+                // Consider close matches (within 5% or $1)
+                $tolerance = max(0.05 * $planPriceFloat, 1.0);
+                if (abs($validation['price_difference']) <= $tolerance) {
+                    $validation['price_match'] = true;
+                    $validation['match_type'] = 'within_tolerance';
+                    $validation['validation_notes'][] = 'Price within acceptable tolerance';
+                }
+            }
+        } else {
+            if ($planPrice === null) {
+                $validation['validation_notes'][] = 'No plan price available for comparison';
+            }
+            if ($quotedPrice === null) {
+                $validation['validation_notes'][] = 'No quoted price found for matched product';
+            }
+        }
+
+        // Add notes about product matching - NO FALLBACK MESSAGING
+        if ($matchedProduct['found']) {
+            $validation['validation_notes'][] = "Price extracted from {$priceSource} for matched product: {$matchedProduct['product_name']}";
+        } else {
+            $validation['validation_notes'][] = 'Product not matched - no pricing validation performed';
+        }
+
+        return $validation;
     }
 
     /**
@@ -930,7 +1130,7 @@ class InsuranceWorkflowService
         if (! $requestedPlanName || empty($quoteData)) {
             return [
                 'found' => false,
-                'reason' => 'Missing plan name or quote data',
+                'reason' => 'Missing plan name or quote data'
             ];
         }
 
@@ -944,7 +1144,7 @@ class InsuranceWorkflowService
                     'source' => 'main_product',
                     'product_name' => $mainProductName,
                     'match_details' => $mainProductMatch,
-                    'quote_data' => $quoteData,
+                    'quote_data' => $quoteData
                 ];
             }
         }
@@ -970,7 +1170,7 @@ class InsuranceWorkflowService
                             'product_name' => $productName,
                             'match_details' => $attributeMatch,
                             'attribute_data' => $attribute,
-                            'quote_data' => $quoteData,
+                            'quote_data' => $quoteData
                         ];
                     }
                 }
@@ -1001,7 +1201,7 @@ class InsuranceWorkflowService
                             'match_details' => $attributeMatch,
                             'attribute_data' => $attribute,
                             'quote_data' => $quoteData,
-                            'match_score' => $bestScore,
+                            'match_score' => $bestScore
                         ];
                     }
                 }
@@ -1012,7 +1212,6 @@ class InsuranceWorkflowService
         if ($bestMatch && $bestScore >= 30) { // At least 30% similarity
             $bestMatch['found'] = true;
             $bestMatch['source'] = 'partial_match';
-
             return $bestMatch;
         }
 
@@ -1021,7 +1220,7 @@ class InsuranceWorkflowService
             'reason' => 'No matching product found in quote response',
             'requested_plan' => $requestedPlanName,
             'available_products' => $this->extractAvailableProductNames($quoteData),
-            'main_product' => $mainProductName,
+            'main_product' => $mainProductName
         ];
     }
 
@@ -1054,6 +1253,69 @@ class InsuranceWorkflowService
         }
 
         return $products;
+    }
+
+    /**
+     * Store dependent information in eSim message metadata (same level as AeroAmbulancia)
+     * @deprecated Use storeVoucherInESimMessageMetadata instead
+     */
+    protected function storeDependentInESimMessageMetadata(array $dependentData): void
+    {
+        if (! $this->messageId) {
+            return;
+        }
+
+        $message = Message::getById($this->messageId);
+        $messageData = $message->message;
+
+        if (! isset($messageData['universalAssistanceData'])) {
+            $messageData['universalAssistanceData'] = [];
+        }
+
+        if (! isset($messageData['universalAssistanceData']['dependents'])) {
+            $messageData['universalAssistanceData']['dependents'] = [];
+        }
+
+        // Store essential dependent information
+        $dependentInfo = [
+            'name' => $dependentData['firstname'] . ' ' . $dependentData['lastname'],
+            'firstname' => $dependentData['firstname'],
+            'lastname' => $dependentData['lastname'],
+            'id_type' => $dependentData['idType'],
+            'id_number' => $dependentData['idNumber'],
+            'date_of_birth' => $dependentData['dob'],
+            'email' => $dependentData['email'],
+            'activation_date' => $dependentData['activationDate'],
+            'origin_country_code' => $dependentData['originCountryCode'] ?? 'DO',
+            'destiny_country_code' => $dependentData['destinationCountryCode'] ?? $dependentData['destinyCountryCode'] ?? 'US',
+            'plan' => [
+                'name' => $dependentData['plan']['name'] ?? null,
+                'type' => $this->determinePlanType($dependentData),
+                'price' => $dependentData['plan']['price'] ?? null,
+                'duration' => $dependentData['plan']['duration'] ?? $dependentData['duration'] ?? null,
+                'attributes' => $dependentData['plan']['attributes'] ?? null,
+            ],
+            'stored_at' => now()->toISOString(),
+            'covered_under_titular_voucher' => true,
+        ];
+
+        // Add minor flag if applicable
+        if (isset($dependentData['dob'])) {
+            try {
+                $birthDate = Carbon::parse($dependentData['dob']);
+                $age = $birthDate->diffInYears(now());
+                if ($age < 18) {
+                    $dependentInfo['minor'] = true;
+                }
+            } catch (\Exception $e) {
+                // Ignore age calculation errors
+            }
+        }
+
+        $messageData['universalAssistanceData']['dependents'][] = $dependentInfo;
+
+        $message->message = $messageData;
+        $message->saveOrFail();
     }
 
     /**
@@ -1172,56 +1434,48 @@ class InsuranceWorkflowService
         // Get target plan from the actual plan name in the data
         $targetPlan = $personData['plan']['name'] ?? '';
 
-        // Determine convenios and quotation types based on variant type
+        // Determine convenios based on variant type
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
-            $inclusionType = 'inclusion';
-            $crossSellingType = 'cross_selling';
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+            // Basic → TELEASISTENCIA convenios
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
-            $inclusionType = 'inclusion_ii';
-            $crossSellingType = 'cross_selling_ii';
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+            // Unlimited → ASISTENCIA 10K REC convenios
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
-        // Perform inclusion quotation with correct type
-        $inclusionResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, $inclusionType, $inclusionConvenio);
+        // Perform inclusion quotation
+        $inclusionResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'inclusion', $inclusionConvenio);
 
         // Add delay between quotations
         usleep(5000);
 
-        // Perform cross selling quotation with correct type
-        $crossSellingResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, $crossSellingType, $crossSellingConvenio);
+        // Perform cross selling quotation
+        $crossSellingResult = $this->performSingleQuotation($personData, $originCountryCode, $destinationCountryCode, 'cross_selling', $crossSellingConvenio);
 
         return [
             'inclusion' => [
-                'type' => $inclusionType,
+                'type' => 'inclusion',
                 'convenio' => $inclusionConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
-                'result' => $inclusionResult,
+                'result' => $inclusionResult
             ],
             'cross_selling' => [
-                'type' => $crossSellingType,
+                'type' => 'cross_selling',
                 'convenio' => $crossSellingConvenio,
                 'target_plan' => $targetPlan,
                 'variant' => $planVariant,
-                'result' => $crossSellingResult,
+                'result' => $crossSellingResult
             ],
             'timestamp' => now()->toISOString(),
             'selection_logic' => [
                 'variant' => $planVariant,
                 'target_plan' => $targetPlan,
-                'origin_country_code' => $originCountryCode,
-                'convenio_logic' => strtoupper($originCountryCode) === 'DO' ? 'DO_origin_forced_basic' : 'variant_based',
-                'inclusion_type' => $inclusionType,
-                'cross_selling_type' => $crossSellingType,
                 'inclusion_convenio' => $inclusionConvenio,
-                'cross_selling_convenio' => $crossSellingConvenio,
-            ],
+                'cross_selling_convenio' => $crossSellingConvenio
+            ]
         ];
     }
 
@@ -1230,21 +1484,17 @@ class InsuranceWorkflowService
      */
     protected function performSingleQuotation(array $personData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
     {
-        // Build quotation data with ages calculated - this ensures individual quotations
-        // have the same structure as group quotations with proper age information
-        $quotationData = $this->buildIndividualQuotationData($personData, $originCountryCode, $destinationCountryCode, $convenio);
-
-        // Build voucher data for voucher creation (will be used later if needed)
-        if (in_array($quotationType, ['cross_selling', 'cross_selling_ii'])) {
+        // Build voucher data for the quotation
+        if ($quotationType === 'cross_selling') {
             $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         } else {
             $voucherData = $this->buildVoucherDataWithConvenio($personData, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
         }
 
-        // Perform the quotation using the client with quotation data that includes ages
+        // Perform the quotation using the client
         try {
             $result = $this->client->createSingleQuotationWithCountries(
-                $quotationData,
+                $voucherData,
                 $quotationType,
                 $originCountryCode,
                 $destinationCountryCode,
@@ -1260,15 +1510,14 @@ class InsuranceWorkflowService
                 'quotation_data' => $result,
                 'convenio' => $convenio,
                 'quotation_type' => $quotationType,
-                'quotation_request_input' => $quotationData,  // Include the quotation request data with ages
-                'voucher_request_input' => $voucherData,  // Include voucher data for later voucher creation
+                'quotation_request_input' => $voucherData  // Include the original quotation request data
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
                 'convenio' => $convenio,
-                'quotation_type' => $quotationType,
+                'quotation_type' => $quotationType
             ];
         }
     }
@@ -1283,56 +1532,22 @@ class InsuranceWorkflowService
         $crossSellingResult = $dualQuotationResult['cross_selling']['result'] ?? [];
 
         // Simple priority: cross_selling first, then inclusion
-        // Return only essential data without duplicating the full quotation responses
+        // Just use whatever quotation is successful without complex matching
         if ($crossSellingResult['success'] ?? false) {
             return [
-                'type' => 'cross_selling',
-                //'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
-                'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
-                'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
-                'result' => [
-                    'success' => true,
-                    'quotation_data' => [
-                        'quotation_type' => 'cross_selling',
-                        'control_number' => $crossSellingResult['quotation_data']['control_number'] ?? '',
-                        'organization' => $crossSellingResult['quotation_data']['organization'] ?? '',
-                        'convenio' => $crossSellingResult['quotation_data']['convenio'] ?? '',
-                        'origin_country_code' => $crossSellingResult['quotation_data']['origin_country_code'] ?? '',
-                        'destination_country_code' => $crossSellingResult['quotation_data']['destination_country_code'] ?? '',
-                        'origin_country_name' => $crossSellingResult['quotation_data']['origin_country_name'] ?? '',
-                        'destination_name' => $crossSellingResult['quotation_data']['destination_name'] ?? '',
-                    ],
-                ],
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'quotation_type' => 'cross_selling',
-                'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
+                'quotation_data' => $dualQuotationResult['cross_selling'],
+                'selection_reason' => 'cross_selling_available',
+                'convenio' => $dualQuotationResult['cross_selling']['convenio']
             ];
         }
 
         if ($inclusionResult['success'] ?? false) {
             return [
-                'type' => 'inclusion',
-                //'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
-                'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
-                'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
-                'result' => [
-                    'success' => true,
-                    'quotation_data' => [
-                        'quotation_type' => 'inclusion',
-                        'control_number' => $inclusionResult['quotation_data']['control_number'] ?? '',
-                        'organization' => $inclusionResult['quotation_data']['organization'] ?? '',
-                        'convenio' => $inclusionResult['quotation_data']['convenio'] ?? '',
-                        'origin_country_code' => $inclusionResult['quotation_data']['origin_country_code'] ?? '',
-                        'destination_country_code' => $inclusionResult['quotation_data']['destination_country_code'] ?? '',
-                        'origin_country_name' => $inclusionResult['quotation_data']['origin_country_name'] ?? '',
-                        'destination_name' => $inclusionResult['quotation_data']['destination_name'] ?? '',
-                    ],
-                ],
-                'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'quotation_type' => 'inclusion',
-                'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
+                'quotation_data' => $dualQuotationResult['inclusion'],
+                'selection_reason' => 'inclusion_available',
+                'convenio' => $dualQuotationResult['inclusion']['convenio']
             ];
         }
 
@@ -1344,8 +1559,8 @@ class InsuranceWorkflowService
             'convenio' => null,
             'errors' => [
                 'inclusion' => $inclusionResult['error'] ?? 'Unknown error',
-                'cross_selling' => $crossSellingResult['error'] ?? 'Unknown error',
-            ],
+                'cross_selling' => $crossSellingResult['error'] ?? 'Unknown error'
+            ]
         ];
     }
 
@@ -1365,7 +1580,7 @@ class InsuranceWorkflowService
             return [
                 'success' => false,
                 'error' => 'No valid quotation available for voucher creation - both inclusion and cross_selling failed',
-                'quotation_errors' => $selectedQuotation['errors'] ?? [],
+                'quotation_errors' => $selectedQuotation['errors'] ?? []
             ];
         }
 
@@ -1397,7 +1612,6 @@ class InsuranceWorkflowService
                             $matchedProduct = $inclusionMatch;
                             $matchedProduct['source_quotation'] = 'inclusion';
                             $matchedProduct['source_convenio'] = $dualQuotationResult['inclusion']['convenio'] ?? '';
-
                             break; // Exit foreach loop - found in inclusion
                         }
                     }
@@ -1420,7 +1634,6 @@ class InsuranceWorkflowService
                             $matchedProduct = $crossSellingMatch;
                             $matchedProduct['source_quotation'] = 'cross_selling';
                             $matchedProduct['source_convenio'] = $dualQuotationResult['cross_selling']['convenio'] ?? '';
-
                             break; // Found in cross_selling
                         }
                     }
@@ -1433,6 +1646,18 @@ class InsuranceWorkflowService
 
                 // Use the convenio from the quotation where the product was found
                 $exactConvenio = $matchedProduct['source_convenio'] ?? '';
+
+                // Add debug info for price extraction
+                $matchedProduct['price_extraction_debug'] = [
+                    'PrecioEmision' => $productData['PrecioEmision'] ?? 'not_found',
+                    'PrecioNeto' => $productData['PrecioNeto'] ?? 'not_found',
+                    'PrecioBruto' => $productData['PrecioBruto'] ?? 'not_found',
+                    'extracted_price' => $exactPrecioEmision,
+                    'is_numeric' => is_numeric($exactPrecioEmision),
+                    'will_use_price' => ! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision) ? $exactPrecioEmision : '0.00',
+                    'source_quotation' => $matchedProduct['source_quotation'] ?? 'unknown',
+                    'source_convenio' => $exactConvenio
+                ];
             }
         } catch (\Exception $e) {
             // Handle errors silently
@@ -1455,35 +1680,6 @@ class InsuranceWorkflowService
         // Always set LeadId as empty string as requested
         $voucherData['LeadId'] = '';
 
-        // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher (for individual vouchers)
-        $idLeadOut = null;
-
-        // Try to extract IdLeadOut from the matched product first
-        if ($matchedProduct && ($matchedProduct['found'] ?? false) && isset($matchedProduct['quote_data']['IdLeadOut'])) {
-            $idLeadOut = $matchedProduct['quote_data']['IdLeadOut'];
-        }
-
-        // If not found in matched product, try from dual quotation results
-        if (! $idLeadOut) {
-            // Get the quotation data that was actually used
-            $sourceQuotationType = $matchedProduct['source_quotation'] ?? $actualQuotationType;
-            $quotationResult = $dualQuotationResult[$sourceQuotationType]['result'] ?? null;
-
-            if ($quotationResult && ($quotationResult['success'] ?? false)) {
-                $idLeadOut = $this->extractIdLeadOut($quotationResult['quotation_data'] ?? $quotationResult);
-            }
-        }
-
-        // If still not found, try from selectedQuotation
-        if (! $idLeadOut) {
-            $idLeadOut = $this->extractIdLeadOut($selectedQuotation);
-        }
-
-        // Set the extracted IdLeadOut to the voucher data
-        if ($idLeadOut) {
-            $voucherData['LeadId'] = $idLeadOut;
-        }
-
         // Set the EXACT price from the matched product
         if (! empty($exactPrecioEmision) && is_numeric($exactPrecioEmision)) {
             $voucherData['Precio'] = strval($exactPrecioEmision);
@@ -1496,51 +1692,32 @@ class InsuranceWorkflowService
             $voucherData['DatosProducto']['NombreProducto'] = $personData['plan']['name'];
         }
 
-        // Generate proper control numbers like quotations do
-        $controlNumbers = $this->client->generateSequentialControlNumbers();
-        $voucherData['NroControl'] = $controlNumbers['base'] . '-' . $this->client->getControlNumberSuffixForQuotationType($actualQuotationType);
-
         // Add delay to ensure unique timestamps
         $delayMs = $personType === 'titular' ? 5000 : 10000;
         usleep($delayMs);
 
         try {
-            // Create the actual voucher using the proper voucher creation method
-            $result = $this->client->createVoucher($voucherData, false);
+            // Create the actual voucher (not just quotation) using the correct quotation type
+            $result = $this->client->createSingleQuotationWithCountries(
+                $voucherData,
+                $actualQuotationType, // Use the quotation type where the product was found
+                $originCountryCode,
+                $destinationCountryCode,
+                $this->order,
+                false // Create actual voucher
+            );
 
             // Convert result to arrays and add metadata
             $result = $this->convertObjectsToArrays($result);
-
-            // Simplify the voucher result to avoid duplicate quote responses
-            $simplifiedVoucherData = [
-                'quotation_type' => $result['quotation_type'] ?? $actualQuotationType,
-                'control_number' => $result['control_number'] ?? '',
-                'organization' => $result['organization'] ?? '',
-                'convenio' => $result['convenio'] ?? $exactConvenio,
-                'origin_country_code' => $result['origin_country_code'] ?? '',
-                'destination_country_code' => $result['destination_country_code'] ?? '',
-                'origin_country_name' => $result['origin_country_name'] ?? '',
-                'destination_name' => $result['destination_name'] ?? '',
-                'voucher_response' => $result['voucher_response'] ?? null,  // Only include actual voucher creation response
-            ];
-
-            // Include one clean quote_response for reference (remove duplicates)
-            if (isset($result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-                $simplifiedVoucherData['quote_response'] = [
-                    'UALeadCotizadorResp' => [
-                        'DatosLeadCotizadorOut' => $result['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'],
-                    ],
-                    'quotation_input_data' => $result['quote_response']['quotation_input_data'] ?? null,
-                ];
-            }
+            $result['selected_quotation_metadata'] = $selectedQuotation;
 
             return [
                 'success' => true,
-                'voucher_data' => $simplifiedVoucherData,
+                'voucher_data' => $result,
                 'convenio_used' => $exactConvenio,
                 'quotation_type_used' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the original voucher request data
-                'matched_product' => $matchedProduct,      // Include product matching details
+                'matched_product' => $matchedProduct      // Include product matching details
             ];
         } catch (\Exception $e) {
             return [
@@ -1549,9 +1726,50 @@ class InsuranceWorkflowService
                 'convenio_attempted' => $exactConvenio,
                 'quotation_type_attempted' => $selectedQuotation['quotation_type'] ?? 'unknown',
                 'voucher_request_input' => $voucherData,  // Include the request data even on error
-                'matched_product' => $matchedProduct,      // Include product matching details even on error
+                'matched_product' => $matchedProduct      // Include product matching details even on error
             ];
         }
+    }
+
+    /**
+     * Get the best available plan from quotation data (first available plan as fallback)
+     */
+    protected function getBestAvailablePlan(array $quoteDataArray): array
+    {
+        if (empty($quoteDataArray) || ! is_array($quoteDataArray)) {
+            return ['found' => false, 'reason' => 'No quote data available'];
+        }
+
+        $quoteData = $quoteDataArray[0] ?? [];
+
+        // Check if there's a main product in the quote
+        if (isset($quoteData['NombreProducto']) && $quoteData['NombreProducto']) {
+            return [
+                'found' => true,
+                'product_name' => $quoteData['NombreProducto'],
+                'quote_data' => $quoteData,
+                'match_type' => 'fallback_main_product'
+            ];
+        }
+
+        // Check in attributes if available
+        $attributes = $quoteData['Atributo'] ?? $quoteData['attributes'] ?? [];
+        if (! empty($attributes) && is_array($attributes)) {
+            $firstAttribute = $attributes[0] ?? [];
+            $productName = $firstAttribute['NombreProducto'] ?? $firstAttribute['NombreVisible'] ?? null;
+
+            if ($productName) {
+                return [
+                    'found' => true,
+                    'product_name' => $productName,
+                    'attribute_data' => $firstAttribute,
+                    'quote_data' => $quoteData,
+                    'match_type' => 'fallback_first_attribute'
+                ];
+            }
+        }
+
+        return ['found' => false, 'reason' => 'No product names found in quote data'];
     }
 
     /**
@@ -1571,7 +1789,7 @@ class InsuranceWorkflowService
         if (empty($searchPlan)) {
             return [
                 'found' => false,
-                'reason' => 'Missing search plan',
+                'reason' => 'Missing search plan'
             ];
         }
 
@@ -1634,8 +1852,8 @@ class InsuranceWorkflowService
                         'original_search' => $searchPlan,
                         'cleaned_search' => $cleanedSearchPlan,
                         'original_product' => $nombreProducto,
-                        'cleaned_product' => $cleanedProductName,
-                    ],
+                        'cleaned_product' => $cleanedProductName
+                    ]
                 ];
             }
         }
@@ -1649,10 +1867,9 @@ class InsuranceWorkflowService
                 if (is_object($quote)) {
                     $quote = (array) $quote;
                 }
-
                 return $quote['NombreProducto'] ?? null;
             }, $quotesToCheck)),
-            'quotes_checked' => count($quotesToCheck),
+            'quotes_checked' => count($quotesToCheck)
         ];
     }
 
@@ -1672,120 +1889,59 @@ class InsuranceWorkflowService
 
     /**
      * Extract IdLeadOut from quotation response.
-     * Handles multiple possible response structures from Universal Assistance API
      */
     protected function extractIdLeadOut($quotationResponse): ?string
     {
-        if (empty($quotationResponse)) {
-            return null;
+        // Handle direct IdLeadOut field
+        if (isset($quotationResponse['IdLeadOut'])) {
+            return $quotationResponse['IdLeadOut'];
         }
 
-        // Convert to array for consistent handling
-        if (is_object($quotationResponse)) {
-            $quotationResponse = $this->convertObjectsToArrays($quotationResponse);
-        }
-
-        // LEVEL 1: Direct IdLeadOut field (simple case)
-        if (isset($quotationResponse['IdLeadOut']) && ! empty($quotationResponse['IdLeadOut'])) {
-            return (string) $quotationResponse['IdLeadOut'];
-        }
-
-        // LEVEL 2: Check in DatosLeadCotizadorOut (direct structure)
+        // Check if it's in DatosLeadCotizadorOut
         if (isset($quotationResponse['DatosLeadCotizadorOut'])) {
             $quoteData = $quotationResponse['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
-            if (is_array($quoteData) && ! empty($quoteData) && isset($quoteData[0])) {
+            if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
-                $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
-                if ($idLeadOut) {
-                    return (string) $idLeadOut;
-                }
+                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
 
-            // Handle object/associative array case
-            if (is_array($quoteData) && isset($quoteData['IdLeadOut'])) {
-                return (string) $quoteData['IdLeadOut'];
+            // Handle object case
+            if (is_object($quoteData)) {
+                return $quoteData->IdLeadOut ?? null;
             }
         }
 
-        // LEVEL 3: Check in UALeadCotizadorResp/DatosLeadCotizadorOut (standard UA response)
-        if (isset($quotationResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
-            $quoteData = $quotationResponse['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
+        // Check in nested quotation_data structure (for full responses)
+        if (isset($quotationResponse['quotation_data']['DatosLeadCotizadorOut'])) {
+            $quoteData = $quotationResponse['quotation_data']['DatosLeadCotizadorOut'];
 
             // Handle array case - take first element
-            if (is_array($quoteData) && ! empty($quoteData) && isset($quoteData[0])) {
+            if (is_array($quoteData) && ! empty($quoteData)) {
                 $firstQuote = $quoteData[0];
-                $idLeadOut = is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
-                if ($idLeadOut) {
-                    return (string) $idLeadOut;
-                }
+                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
 
-            // Handle object/associative array case
-            if (is_array($quoteData) && isset($quoteData['IdLeadOut'])) {
-                return (string) $quoteData['IdLeadOut'];
+            // Handle object case
+            if (is_object($quoteData)) {
+                return $quoteData->IdLeadOut ?? null;
             }
         }
 
-        // LEVEL 4: Check in quote_response structure (client response wrapper)
-        if (isset($quotationResponse['quote_response'])) {
-            $quoteResponseData = $quotationResponse['quote_response'];
+        // Check in quote_response structure
+        if (isset($quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'])) {
+            $quoteData = $quotationResponse['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'];
 
-            // Recursive call with quote_response data
-            $quoteResult = $this->extractIdLeadOut($quoteResponseData);
-            if ($quoteResult) {
-                return $quoteResult;
+            // Handle array case - take first element
+            if (is_array($quoteData) && ! empty($quoteData)) {
+                $firstQuote = $quoteData[0];
+                return is_array($firstQuote) ? ($firstQuote['IdLeadOut'] ?? null) : ($firstQuote->IdLeadOut ?? null);
             }
-        }
 
-        // LEVEL 5: Check in response structure (client response wrapper)
-        if (isset($quotationResponse['response'])) {
-            $responseData = $quotationResponse['response'];
-
-            // Recursive call with response data
-            $responseResult = $this->extractIdLeadOut($responseData);
-            if ($responseResult) {
-                return $responseResult;
-            }
-        }
-
-        // LEVEL 6: Check in nested quotation_data structure (from performGroupQuotation)
-        if (isset($quotationResponse['quotation_data'])) {
-            $nestedData = $quotationResponse['quotation_data'];
-
-            // Recursive call with nested data
-            $nestedResult = $this->extractIdLeadOut($nestedData);
-            if ($nestedResult) {
-                return $nestedResult;
-            }
-        }
-
-        // LEVEL 7: Check in result structure (workflow result wrapper)
-        if (isset($quotationResponse['result'])) {
-            $resultData = $quotationResponse['result'];
-
-            // Recursive call with result data
-            $resultResult = $this->extractIdLeadOut($resultData);
-            if ($resultResult) {
-                return $resultResult;
-            }
-        }
-
-        // LEVEL 8: Deep search in any array structure (last resort)
-        if (is_array($quotationResponse)) {
-            foreach ($quotationResponse as $key => $value) {
-                if ($key === 'IdLeadOut' && $value) {
-                    return (string) $value;
-                }
-
-                // Search in nested arrays/objects
-                if ((is_array($value) || is_object($value)) && ! empty($value)) {
-                    $deepResult = $this->extractIdLeadOut($value);
-                    if ($deepResult) {
-                        return $deepResult;
-                    }
-                }
+            // Handle object case
+            if (is_object($quoteData)) {
+                return $quoteData->IdLeadOut ?? null;
             }
         }
 
@@ -1949,825 +2105,67 @@ class InsuranceWorkflowService
 
         // PRIORITY 3: Use variant-based convenio logic (MAIN LOGIC)
         $planVariant = $this->extractVariantType($personData);
-
-        // Smart default for quotation type based on variant
-        $defaultQuotationType = $planVariant === 'basic' ? 'inclusion' : 'inclusion_ii';
-        $quotationType = $selectedQuotation['quotation_type'] ?? $defaultQuotationType;
+        $quotationType = $selectedQuotation['quotation_type'] ?? 'inclusion';
 
         // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+            // Basic → TELEASISTENCIA convenios
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+            // Unlimited → ASISTENCIA 10K REC convenios
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
-        // Return appropriate convenio based on quotation type (handle all quotation types)
-        if (in_array($quotationType, ['cross_selling', 'cross_selling_ii'])) {
-            return $crossSellingConvenio;
-        } elseif (in_array($quotationType, ['inclusion', 'inclusion_ii'])) {
-            return $inclusionConvenio;
-        } else {
-            // Fallback for unknown quotation types - use variant-based default
-            return $planVariant === 'basic' ? $inclusionConvenio : $inclusionConvenio;
-        }
-    }
-
-    /**
-     * Generate a unique plan key for grouping people with same plan
-     * People with the same plan key will be grouped into a single voucher
-     */
-    public function generatePlanGroupKey(array $personData): string
-    {
-        // Extract plan information - the key factors for grouping
-        $planName = $personData['plan']['name'] ?? 'unknown';
-
-        // Get country codes to ensure same origin/destination
-        $originCountryCode = $personData['originCountryCode'] ?? 'unknown';
-        $destinationCountryCode = $personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'unknown';
-
-        // Create a composite key that identifies the same plan/destination combination
-        // Format: plan_name|origin_country|destination_country
-        return implode('|', [
-            $planName,
-            strtoupper($originCountryCode),
-            strtoupper($destinationCountryCode),
-        ]);
-    }
-
-    /**
-     * Process grouped insurance workflow for people with the same plan
-     * Creates a single voucher for the entire group
-     */
-    public function processGroupedInsuranceWorkflow(array $groupedPersonsData, string $planGroupKey): array
-    {
-        if (empty($groupedPersonsData)) {
-            throw new ValidationException('No grouped persons data found');
-        }
-
-        // Use the first person's data to determine common parameters
-        $firstPerson = $groupedPersonsData[0];
-        $originCountryCode = $firstPerson['originCountryCode'] ?? 'AR';
-        $destinationCountryCode = $firstPerson['destinationCountryCode'] ?? $firstPerson['destinyCountryCode'] ?? 'DO';
-
-        // Convert any objects to arrays to prevent stdClass errors
-        $groupedPersonsData = $this->convertObjectsToArrays($groupedPersonsData);
-
-        // Perform dual quotation using ALL persons in the group (not just first person)
-        $dualQuotationResults = $this->performGroupDualQuotationWorkflow($groupedPersonsData, $originCountryCode, $destinationCountryCode);
-
-        // Select best quotation (same logic as individual processing)
-        $selectedQuotation = $this->selectBestQuotationForGroupVoucher($dualQuotationResults, $firstPerson);
-
-        // Create a single voucher for the entire group with all people included
-        $groupVoucherResult = $this->createGroupVoucher($groupedPersonsData, $selectedQuotation, $originCountryCode, $destinationCountryCode);
-
-        return [
-            'plan_group_key' => $planGroupKey,
-            'group_size' => count($groupedPersonsData),
-            'persons_in_group' => $groupedPersonsData,
-            'dual_quotation_results' => $this->simplifyDualQuotationResults($dualQuotationResults),
-            'selected_quotation' => $selectedQuotation,
-            'group_voucher_result' => $groupVoucherResult,
-            'workflow_type' => 'grouped_voucher_by_plan',
-            'input_plan_requested' => $firstPerson['plan']['name'] ?? 'Unknown plan',
-            'selected_product_match' => $groupVoucherResult['matched_product'] ?? null,
-            'quotation_summary' => [
-                'origin_country' => $originCountryCode,
-                'destination_country' => $destinationCountryCode,
-                'variant_type' => $this->extractVariantType($firstPerson),
-                'duration_days' => $this->getProductDuration($firstPerson),
-                'group_size' => count($groupedPersonsData),
-                'quotation_timestamp' => now()->toISOString(),
-            ],
-        ];
-    }
-
-    /**
-     * Select best quotation for group voucher (same logic as individual)
-     */
-    protected function selectBestQuotationForGroupVoucher(array $dualQuotationResults, array $referencePerson): array
-    {
-        // Use same logic as individual voucher selection
-        $targetPlan = $referencePerson['plan']['name'] ?? '';
-
-        // Check inclusion first (preferred for matching plan names)
-        if (isset($dualQuotationResults['inclusion']['result']['success']) &&
-            $dualQuotationResults['inclusion']['result']['success']) {
-            return $dualQuotationResults['inclusion'];
-        }
-
-        // Fallback to cross_selling if inclusion failed
-        if (isset($dualQuotationResults['cross_selling']['result']['success']) &&
-            $dualQuotationResults['cross_selling']['result']['success']) {
-            return $dualQuotationResults['cross_selling'];
-        }
-
-        // If both failed, return inclusion for error handling
-        return $dualQuotationResults['inclusion'];
-    }
-
-    /**
-     * Create a group voucher for multiple people with the same plan
-     */
-    protected function createGroupVoucher(array $groupedPersonsData, array $selectedQuotation, string $originCountryCode, string $destinationCountryCode): array
-    {
-        // Use the selected quotation's convenio and quotation type
-        $convenio = $selectedQuotation['convenio'];
-        $quotationType = $selectedQuotation['quotation_type'] ?? $selectedQuotation['type'];
-
-        // Extract the quoted price from the quotation data for the voucher
-        $quotationData = $selectedQuotation['result']['quotation_data'] ?? $selectedQuotation['quotation_data'] ?? [];
-        $quotedPrice = $this->extractQuotedPriceFromGroupQuotation($quotationData);
-
-        if (empty($quotedPrice) || $quotedPrice === '0.00') {
-            // Try alternative price extraction methods if primary method failed
-            $alternativePaths = [
-                $selectedQuotation['result'] ?? null,
-                $selectedQuotation['quotation_request_input'] ?? null,
-                $selectedQuotation ?? null,
-            ];
-
-            foreach ($alternativePaths as $path) {
-                if ($path && is_array($path)) {
-                    $altPrice = $this->extractQuotedPriceFromGroupQuotation($path);
-                    if ($altPrice !== '0.00') {
-                        $quotedPrice = $altPrice;
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        // CRITICAL: Extract IdLeadOut from the selected quotation to pass to voucher
-        // For group quotations, try multiple possible paths
-        $idLeadOut = null;
-
-        // Path 1: Try from result.quotation_data first
-        if (isset($selectedQuotation['result']['quotation_data'])) {
-            $idLeadOut = $this->extractIdLeadOut($selectedQuotation['result']['quotation_data']);
-        }
-
-        // Path 2: Try from result.quotation_request_input (fallback)
-        if (! $idLeadOut && isset($selectedQuotation['result']['quotation_request_input'])) {
-            $idLeadOut = $this->extractIdLeadOut($selectedQuotation['result']['quotation_request_input']);
-        }
-
-        // Path 3: Try from the full selectedQuotation structure
-        if (! $idLeadOut) {
-            $idLeadOut = $this->extractIdLeadOut($selectedQuotation);
-        }
-
-        // Extract IdLeadOut validation completed
-
-        // Create voucher data for the group using ONLY the primary person (no DatosBeneficiarios)
-        $primaryPerson = $groupedPersonsData[0];
-
-        // Build voucher data with ONLY primary person and correct price
-        $voucherData = $this->buildSinglePersonVoucherWithGroupPrice($primaryPerson, $originCountryCode, $destinationCountryCode, $convenio, $quotedPrice, $quotationType);
-
-        // CRITICAL: Set the LeadId from the quotation
-        if ($idLeadOut) {
-            $voucherData['LeadId'] = $idLeadOut;
-        }
-
-        // Generate proper control numbers like quotations do
-        $controlNumbers = $this->client->generateSequentialControlNumbers();
-        $voucherData['NroControl'] = $controlNumbers['base'] . '-' . $this->client->getControlNumberSuffixForQuotationType($quotationType);
-
-        // Create the voucher using the proper voucher creation method
-        try {
-            $result = $this->client->createVoucher($voucherData, false);
-
-            return [
-                'success' => true,
-                'voucher_data' => $this->convertObjectsToArrays($result),
-                'voucher_request_input' => $voucherData,
-                'convenio_used' => $convenio,
-                'quotation_type_used' => $quotationType,
-                'group_size' => count($groupedPersonsData),
-                'people_names' => $this->extractPeopleNames($groupedPersonsData),
-                'id_lead_out_used' => $idLeadOut, // For debugging
-                'quote_response' => $quotationData, // Include the original quotation response
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'voucher_request_input' => $voucherData,
-                'convenio_used' => $convenio,
-                'quotation_type_used' => $quotationType,
-                'group_size' => count($groupedPersonsData),
-                'people_names' => $this->extractPeopleNames($groupedPersonsData),
-                'id_lead_out_used' => $idLeadOut, // For debugging
-                'quote_response' => $quotationData, // Include the original quotation response
-            ];
-        }
-    }
-
-    /**
-     * Extract quoted price from group quotation data - Enhanced to match individual voucher logic
-     */
-    protected function extractQuotedPriceFromGroupQuotation(array $quotationData): string
-    {
-        // Try multiple paths to find the price, similar to individual voucher logic
-        $searchPaths = [
-            // Path 1: Direct UALeadCotizadorResp structure
-            $quotationData['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-            // Path 2: quote_response structure
-            $quotationData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-            // Path 3: response structure
-            $quotationData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ?? null,
-            // Path 4: Direct DatosLeadCotizadorOut
-            $quotationData['DatosLeadCotizadorOut'] ?? null,
-        ];
-
-        foreach ($searchPaths as $cotizadorData) {
-            if ($cotizadorData !== null) {
-                // Handle both single object and array of objects
-                if (is_array($cotizadorData) && isset($cotizadorData[0])) {
-                    $cotizadorData = $cotizadorData[0];
-                }
-
-                // Try multiple price fields in order of preference
-                $price = $cotizadorData['PrecioEmision'] ??
-                        $cotizadorData['PrecioNeto'] ??
-                        $cotizadorData['PrecioBruto'] ??
-                        null;
-
-                if ($price !== null && is_numeric($price) && floatval($price) > 0) {
-                    return strval($price);
-                }
-            }
-        }
-
-        // Additional fallback: Try to extract from any nested structures
-        if (is_array($quotationData)) {
-            foreach ($quotationData as $key => $value) {
-                if (is_array($value) && strpos($key, 'Lead') !== false) {
-                    $nestedPrice = $this->extractQuotedPriceFromGroupQuotation($value);
-                    if ($nestedPrice !== '0.00') {
-                        return $nestedPrice;
-                    }
-                }
-            }
-        }
-
-        return '0.00';
-    }
-
-    /**
-     * Build voucher data for single person but with group-calculated price
-     * This creates a voucher with ONLY the primary person but the price calculated for the entire group
-     */
-    protected function buildSinglePersonVoucherWithGroupPrice(array $primaryPerson, string $originCountryCode, string $destinationCountryCode, string $convenio, string $groupPrice, string $quotationType): array
-    {
-        // Build voucher data for just the primary person
+        // Return appropriate convenio based on quotation type
         if ($quotationType === 'cross_selling') {
-            $voucherData = $this->buildCrossSellingVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+            return $crossSellingConvenio;
         } else {
-            $voucherData = $this->buildVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+            return $inclusionConvenio;
         }
-
-        // CRITICAL: Override the price with the group-calculated price
-        // Ensure we have a valid price before setting it
-        if (! empty($groupPrice) && is_numeric($groupPrice) && floatval($groupPrice) > 0) {
-            $voucherData['Precio'] = strval($groupPrice);
-        } else {
-            // If group price is invalid, try to extract from individual plan
-            $fallbackPrice = $primaryPerson['plan']['price'] ?? '0.00';
-            if (is_numeric($fallbackPrice) && floatval($fallbackPrice) > 0) {
-                $voucherData['Precio'] = strval($fallbackPrice);
-            } else {
-                $voucherData['Precio'] = '0.00';
-            }
-        }
-
-        // CRITICAL: Remove DatosBeneficiarios to ensure only primary person in voucher
-        unset($voucherData['DatosBeneficiarios']);
-
-        return $voucherData;
     }
 
     /**
-     * Extract people names from group for logging
+     * Determine convenio with comprehensive fallbacks for all possible data sources
      */
-    protected function extractPeopleNames(array $groupedPersonsData): array
+    protected function determineConvenioWithFallbacks(array $personData, string $convenio): string
     {
-        $names = [];
-        foreach ($groupedPersonsData as $person) {
-            $firstName = $person['firstName'] ?? $person['firstname'] ?? 'Unknown';
-            $lastName = $person['lastName'] ?? $person['lastname'] ?? 'Person';
-            $names[] = "{$firstName} {$lastName}";
+        // PRIORITY 1: convenio_used is ALWAYS the first priority
+        if (! empty($personData['convenio_used'] ?? null)) {
+            return $personData['convenio_used'];
         }
 
-        return $names;
-    }
-
-    /**
-     * Build group voucher data with convenio for inclusion type
-     */
-    protected function buildGroupVoucherDataWithConvenio(array $primaryPerson, array $additionalBeneficiaries, string $originCountryCode, string $destinationCountryCode, string $convenio): array
-    {
-        // Start with primary person's voucher data
-        $primaryVoucherData = $this->buildVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
-
-        // Add additional beneficiaries to the voucher
-        if (! empty($additionalBeneficiaries)) {
-            $beneficiaries = [];
-            foreach ($additionalBeneficiaries as $index => $beneficiary) {
-                $beneficiaryData = $this->buildVoucherDataWithConvenio($beneficiary, 'dependent', $originCountryCode, $destinationCountryCode, $convenio);
-                $beneficiaries[] = $beneficiaryData['DatosSolicitante']; // Extract just the person data
-            }
-
-            // Add beneficiaries to the primary voucher data
-            $primaryVoucherData['DatosBeneficiarios'] = $beneficiaries;
+        if (! empty($personData['convenioUsed'] ?? null)) {
+            return $personData['convenioUsed'];
         }
 
-        return $primaryVoucherData;
-    }
+        // PRIORITY 2: Use variant-based convenio logic (MAIN LOGIC)
+        $planVariant = $this->extractVariantType($personData);
 
-    /**
-     * Build group voucher data with convenio for cross-selling type
-     */
-    protected function buildCrossSellingGroupVoucherDataWithConvenio(array $primaryPerson, array $additionalBeneficiaries, string $originCountryCode, string $destinationCountryCode, string $convenio): array
-    {
-        // Start with primary person's cross-selling voucher data
-        $primaryVoucherData = $this->buildCrossSellingVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+        // Get quotation type from various possible sources
+        $quotationType = $personData['quotation_type']
+            ?? $personData['quotation_type_used']
+            ?? $personData['plan']['type']
+            ?? $this->determinePlanType($personData)
+            ?? 'inclusion';
 
-        // Add additional beneficiaries to the cross-selling voucher
-        if (! empty($additionalBeneficiaries)) {
-            $beneficiaries = [];
-            foreach ($additionalBeneficiaries as $index => $beneficiary) {
-                $beneficiaryData = $this->buildCrossSellingVoucherDataWithConvenio($beneficiary, 'dependent', $originCountryCode, $destinationCountryCode, $convenio);
-                $beneficiaries[] = $beneficiaryData['DatosSolicitante']; // Extract just the person data
-            }
-
-            // Add beneficiaries to the primary voucher data
-            $primaryVoucherData['DatosBeneficiarios'] = $beneficiaries;
-        }
-
-        return $primaryVoucherData;
-    }
-
-    /**
-     * Perform dual quotation workflow for a GROUP of people with same plan
-     * Important: Includes ALL people in the quote so Universal Assistance can properly price based on ages and quantity
-     */
-    protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
-    {
-        // CRITICAL FIX: Convert flat array to titular/dependents structure if needed
-        if (! isset($groupedPersonsData['titular']) && ! isset($groupedPersonsData['dependents'])) {
-            // This is a flat array - convert to titular/dependents structure
-            if (count($groupedPersonsData) < 2) {
-                throw new ValidationException('Group quotation requires at least 2 people, but only ' . count($groupedPersonsData) . ' provided');
-            }
-
-            // Convert flat array to nested structure
-            $restructuredData = [
-                'titular' => $groupedPersonsData[0], // First person is titular
-                'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
-            ];
-
-            $groupedPersonsData = $restructuredData;
-        }
-
-        $firstPerson = null;
-
-        if (isset($groupedPersonsData['titular'])) {
-            // Nested structure - use titular as the primary person
-            $firstPerson = $groupedPersonsData['titular'];
-        } elseif (isset($groupedPersonsData[0])) {
-            // Flat array structure - use first person
-            $firstPerson = $groupedPersonsData[0];
-        } else {
-            throw new ValidationException('Unable to extract first person from group data for variant detection');
-        }
-
-        $planVariant = $this->extractVariantType($firstPerson);
-        $targetPlan = $firstPerson['plan']['name'] ?? '';
-
-        // Determine convenios and quotation types based on variant type
+        // Determine convenios based on variant type (same logic as performDualQuotationWorkflow)
         if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
-            $inclusionType = 'inclusion';
-            $crossSellingType = 'cross_selling';
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+            // Basic → TELEASISTENCIA convenios
+            $inclusionConvenio = '1-FOVL9FB';  // TELEASISTENCIA inclusion
+            $crossSellingConvenio = '1-FOVL9FG'; // TELEASISTENCIA cross selling
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
-            $inclusionType = 'inclusion_ii';
-            $crossSellingType = 'cross_selling_ii';
-            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
-            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+            // Unlimited → ASISTENCIA 10K REC convenios
+            $inclusionConvenio = '1-FPWPKRR';  // ASISTENCIA 10K REC inclusion
+            $crossSellingConvenio = '1-FPWPKRV'; // ASISTENCIA 10K REC cross selling
         }
 
-        // Calculate actual group size for reporting
-        $actualGroupSize = 0;
-        if (isset($groupedPersonsData['titular'])) {
-            $actualGroupSize = 1; // titular
-            if (isset($groupedPersonsData['dependents']) && is_array($groupedPersonsData['dependents'])) {
-                $actualGroupSize += count($groupedPersonsData['dependents']);
-            }
+        // Return appropriate convenio based on quotation type
+        if ($quotationType === 'cross_selling') {
+            return $crossSellingConvenio;
         } else {
-            $actualGroupSize = count($groupedPersonsData);
+            return $inclusionConvenio;
         }
-
-        // Perform inclusion quotation with ALL people in group and correct type
-        $inclusionResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, $inclusionType, $inclusionConvenio);
-
-        // Add delay between quotations
-        usleep(5000);
-
-        // Perform cross selling quotation with ALL people in group and correct type
-        $crossSellingResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, $crossSellingType, $crossSellingConvenio);
-
-        return [
-            'inclusion' => [
-                'type' => $inclusionType,
-                'convenio' => $inclusionConvenio,
-                'target_plan' => $targetPlan,
-                'variant' => $planVariant,
-                'group_size' => $actualGroupSize,
-                'result' => $inclusionResult,
-            ],
-            'cross_selling' => [
-                'type' => $crossSellingType,
-                'convenio' => $crossSellingConvenio,
-                'target_plan' => $targetPlan,
-                'variant' => $planVariant,
-                'group_size' => $actualGroupSize,
-                'result' => $crossSellingResult,
-            ],
-            'timestamp' => now()->toISOString(),
-            'selection_logic' => [
-                'variant' => $planVariant,
-                'target_plan' => $targetPlan,
-                'group_size' => $actualGroupSize, // Use consistent actual group size
-                'origin_country_code' => $originCountryCode,
-                'inclusion_type' => $inclusionType,
-                'cross_selling_type' => $crossSellingType,
-                'inclusion_convenio' => $inclusionConvenio,
-                'cross_selling_convenio' => $crossSellingConvenio,
-            ],
-        ];
-    }
-
-    /**
-     * Perform a group quotation with ALL people included for proper pricing
-     * Universal Assistance needs all ages and person count to calculate correct group pricing
-     */
-    protected function performGroupQuotation(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
-    {
-        // Calculate the actual group size before building quotation data
-        $actualGroupSize = 0;
-        if (isset($groupedPersonsData['titular'])) {
-            $actualGroupSize = 1; // titular
-            if (isset($groupedPersonsData['dependents']) && is_array($groupedPersonsData['dependents'])) {
-                $actualGroupSize += count($groupedPersonsData['dependents']);
-            }
-        } else {
-            $actualGroupSize = count($groupedPersonsData);
-        }
-
-        // Build group QUOTATION data (different from voucher data - includes all ages in Edad1, Edad2, etc.)
-        $quotationData = $this->buildGroupQuotationData($groupedPersonsData, $originCountryCode, $destinationCountryCode, $convenio);
-
-        // Perform the quotation using the client with ALL group members properly structured
-        try {
-            $result = $this->client->createSingleQuotationWithCountries(
-                $quotationData,
-                $quotationType,
-                $originCountryCode,
-                $destinationCountryCode,
-                $this->order,
-                true // Only quotation, no voucher creation yet
-            );
-
-            // Convert to arrays
-            $result = $this->convertObjectsToArrays($result);
-
-            return [
-                'success' => true,
-                'quotation_data' => $result,
-                'convenio' => $convenio,
-                'quotation_type' => $quotationType,
-                'group_size' => $actualGroupSize, // Use calculated actual group size
-                'quotation_request_input' => $quotationData,  // Include the original quotation request data with ALL people
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'convenio' => $convenio,
-                'quotation_type' => $quotationType,
-                'group_size' => $actualGroupSize, // Use calculated actual group size
-                'quotation_request_debug' => $quotationData ?? null, // Include quotation data for debugging on error
-            ];
-        }
-    }
-
-    /**
-     * Build quotation data for a group (different from voucher data)
-     * For quotation, we need to include all ages in Edad1, Edad2, Edad3... and CantidadPasajeros
-     * This is used for getting quotes, not for creating vouchers
-     */
-    protected function buildGroupQuotationData(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $convenio): array
-    {
-        // VALIDATION: Ensure we received the expected group data
-        if (empty($groupedPersonsData)) {
-            throw new ValidationException('buildGroupQuotationData called with empty group data');
-        }
-
-        // CRITICAL FIX: Handle both flat array of people and nested structure with titular/dependents
-        $flatPersonsArray = [];
-
-        // Check if this is a nested structure (titular/dependents) or flat array
-        if (isset($groupedPersonsData['titular']) || isset($groupedPersonsData['dependents'])) {
-            // Nested structure - extract titular and dependents into flat array
-            if (isset($groupedPersonsData['titular']) && is_array($groupedPersonsData['titular'])) {
-                $flatPersonsArray[] = $groupedPersonsData['titular'];
-            }
-
-            if (isset($groupedPersonsData['dependents']) && is_array($groupedPersonsData['dependents'])) {
-                foreach ($groupedPersonsData['dependents'] as $dependent) {
-                    if (is_array($dependent)) {
-                        $flatPersonsArray[] = $dependent;
-                    }
-                }
-            }
-        } else {
-            // Check if it's already a flat array of person objects
-            $isFlat = true;
-            foreach ($groupedPersonsData as $key => $item) {
-                if (! is_numeric($key) && ! is_array($item)) {
-                    $isFlat = false;
-
-                    break;
-                }
-                // Check if item has person-like structure
-                if (! isset($item['firstname']) && ! isset($item['firstName']) &&
-                    ! isset($item['dob']) && ! isset($item['birthDate'])) {
-                    $isFlat = false;
-
-                    break;
-                }
-            }
-
-            if ($isFlat) {
-                $flatPersonsArray = $groupedPersonsData;
-            } else {
-                throw new ValidationException('buildGroupQuotationData received unrecognized data structure. Expected either flat array of people or titular/dependents structure.');
-            }
-        }
-
-        $groupSize = count($flatPersonsArray);
-
-        // DEBUGGING: Log what we received to identify the data structure issue
-        $debugInfo = [];
-        foreach ($flatPersonsArray as $index => $person) {
-            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
-            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
-            $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
-            $debugInfo[] = "Person {$index}: {$firstName} {$lastName} (DOB: {$birthDate})";
-        }
-
-        // If we only have 1 person but expecting a family group, this indicates the family grouping failed
-        if ($groupSize === 1) {
-            // Check if this person has family information that wasn't processed correctly
-            $person = $flatPersonsArray[0];
-            $errorMsg = 'Group quotation called with only 1 person - family grouping may have failed. ';
-            $errorMsg .= 'Person: ' . implode(', ', $debugInfo);
-
-            throw new ValidationException($errorMsg);
-        }
-
-        // Log detailed group information for debugging
-        $peopleNames = [];
-        foreach ($flatPersonsArray as $person) {
-            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
-            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
-            $peopleNames[] = "{$firstName} {$lastName}";
-        }
-
-        // Get primary person for basic data
-        $primaryPerson = $flatPersonsArray[0];
-
-        // Calculate ages for all people in the group
-        // CRITICAL: Ensure ALL people are included with proper ages
-        $ages = [];
-        $ageDetails = [];
-
-        foreach ($flatPersonsArray as $index => $person) {
-            $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
-            $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
-            $birthDate = $person['dob'] ?? $person['birthDate'] ?? null;
-
-            if ($birthDate) {
-                $age = $this->calculateAge($birthDate);
-                $ages[] = $age;
-                $ageDetails[] = "{$firstName} {$lastName}: {$age} años (DOB: {$birthDate})";
-            } else {
-                // If birth date is missing, use a default age to ensure person is still included in quotation
-                // This prevents quotation from having fewer people than expected
-                $defaultAge = 30; // Default adult age for missing birth dates
-                $ages[] = $defaultAge;
-                $ageDetails[] = "{$firstName} {$lastName}: {$defaultAge} años (DOB missing - using default)";
-            }
-        }
-
-        // Get travel dates
-        $activationDate = $primaryPerson['activationDate'] ?? null;
-        $expirationDate = $primaryPerson['expirationDate'] ?? null;
-
-        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('d/m/Y') : '';
-        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('d/m/Y') : '';
-
-        // Get destination info
-        $originCountryName = $this->getCountryName($originCountryCode);
-        $destinationName = $this->getDestinationName($destinationCountryCode);
-
-        // Build quotation data structure (UALeadCotizadorReq format)
-        $quotationData = [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->client->getOrganizationForQuotationType('quotation'),
-            'CantCotizaciones' => 1,
-            'Convenio' => $convenio,
-            'Folleto' => '',
-            'PaisOrigen' => $originCountryName,
-            'Destino' => $destinationName,
-            'TipoViaje' => 'Un viaje',
-            'FechaInicio' => $fechaInicio,
-            'FechaFin' => $fechaFin,
-            'CantidadPasajeros' => $groupSize, // CRITICAL: Total number of people in group
-            'PackFamiliar' => '',
-            // Add all ages to individual Edad fields - Universal Assistance expects individual age fields
-            'Edad1' => $ages[0] ?? '',
-            'Edad2' => $ages[1] ?? '',
-            'Edad3' => $ages[2] ?? '',
-            'Edad4' => $ages[3] ?? '',
-            'Edad5' => $ages[4] ?? '',
-            'Edad6' => $ages[5] ?? '',
-            'Edad7' => $ages[6] ?? '',
-            'Edad8' => $ages[7] ?? '',
-            'Edad9' => $ages[8] ?? '',
-            'Edad10' => $ages[9] ?? '',
-            'Categoria' => '',
-            'Precompras' => '',
-        ];
-
-        // VALIDATION: Ensure all ages were properly assigned
-        $agesAssigned = 0;
-        for ($i = 1; $i <= 10; $i++) {
-            if (! empty($quotationData["Edad{$i}"])) {
-                $agesAssigned++;
-            }
-        }
-
-        // Validate that the number of ages assigned matches the group size
-        if ($agesAssigned !== $groupSize) {
-            throw new ValidationException("Mismatch in group quotation data: Expected {$groupSize} people but only assigned {$agesAssigned} ages. Ages: " . implode(', ', $ages));
-        }
-
-        return $quotationData;
-    }
-
-    /**
-     * Calculate age from birth date
-     */
-    protected function calculateAge(string $birthDate): int
-    {
-        try {
-            $birth = new \DateTime($birthDate);
-            $today = new \DateTime();
-            $age = $today->diff($birth)->y;
-
-            return $age;
-        } catch (\Exception $e) {
-            return 0; // Default age if parsing fails
-        }
-    }
-
-    /**
-     * Simplify dual quotation results to return only essential data for matching
-     * Returns clean structure with just 2 quote responses per person (inclusion + cross_selling)
-     */
-    protected function simplifyDualQuotationResults(array $dualQuotationResult): array
-    {
-        $simplified = [
-            'inclusion' => [
-                'type' => 'inclusion',
-                'success' => false,
-                'error' => 'No inclusion quotation performed'
-            ],
-            'cross_selling' => [
-                'type' => 'cross_selling',
-                'success' => false,
-                'error' => 'No cross_selling quotation performed'
-            ]
-        ];
-
-        // Process inclusion quotation
-        if (isset($dualQuotationResult['inclusion']['result']['success']) &&
-            $dualQuotationResult['inclusion']['result']['success']) {
-            $inclusionData = $dualQuotationResult['inclusion']['result']['quotation_data'] ?? [];
-            $inclusionQuote = $inclusionData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                             $inclusionData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                             null;
-
-            if ($inclusionQuote) {
-                $simplified['inclusion'] = [
-                    'type' => 'inclusion',
-                    'success' => true,
-                    'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
-                    'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
-                    'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                    'quote_response' => $inclusionQuote
-                ];
-            }
-        }
-
-        // Process cross_selling quotation
-        if (isset($dualQuotationResult['cross_selling']['result']['success']) &&
-            $dualQuotationResult['cross_selling']['result']['success']) {
-            $crossSellingData = $dualQuotationResult['cross_selling']['result']['quotation_data'] ?? [];
-            $crossSellingQuote = $crossSellingData['quote_response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                $crossSellingData['response']['UALeadCotizadorResp']['DatosLeadCotizadorOut'] ??
-                                null;
-
-            if ($crossSellingQuote) {
-                $simplified['cross_selling'] = [
-                    'type' => 'cross_selling',
-                    'success' => true,
-                    'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
-                    'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
-                    'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                    'quote_response' => $crossSellingQuote
-                ];
-            }
-        }
-
-        // Add simple summary
-        $simplified['summary'] = [
-            'inclusion_success' => $simplified['inclusion']['success'] ?? false,
-            'cross_selling_success' => $simplified['cross_selling']['success'] ?? false,
-            'total_successful' => (int)($simplified['inclusion']['success'] ?? false) + (int)($simplified['cross_selling']['success'] ?? false)
-        ];
-
-        return $simplified;
-    }
-
-    /**
-     * Convert individual voucher data to quotation data with calculated ages
-     * This ensures individual quotations have the same structure as group quotations
-     */
-    protected function buildIndividualQuotationData(array $personData, string $originCountryCode, string $destinationCountryCode, string $convenio): array
-    {
-        // Get destination name using the proper mapping
-        $destination = $this->getDestinationName($destinationCountryCode);
-        if (! $this->isValidDestination($destination)) {
-            $destination = 'Centro america/Caribe'; // Safe fallback
-        }
-
-        // Calculate dates based on eSIM plan duration
-        $activationDate = Carbon::parse($personData['activationDate'] ?? now());
-        $duration = $this->getProductDuration($personData);
-        $expirationDate = clone $activationDate;
-        $expirationDate->addDays($duration - 1);
-
-        // Calculate age from birthdate
-        $age = $this->calculateAge($personData['dob']);
-
-        return [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->app->get('UNIVERSAL_ASSISTANCE_ORGANIZATION') ?: '1-FOT6XKT',
-            'CantCotizaciones' => 1,
-            'Convenio' => $convenio,
-            'Folleto' => '',
-            'PaisOrigen' => $this->getCountryName($originCountryCode),
-            'Destino' => $destination,
-            'TipoViaje' => 'Un viaje',
-            'FechaInicio' => $activationDate->format('m/d/Y'),
-            'FechaFin' => $expirationDate->format('m/d/Y'),
-            'CantidadPasajeros' => 1,
-            'PackFamiliar' => '',
-            // Set the age for the single person in Edad1
-            'Edad1' => $age,
-            'Edad2' => '',
-            'Edad3' => '',
-            'Edad4' => '',
-            'Edad5' => '',
-            'Edad6' => '',
-            'Edad7' => '',
-            'Edad8' => '',
-            'Edad9' => '',
-            'Edad10' => '',
-            'Categoria' => '',
-            'Precompras' => '',
-        ];
     }
 }
