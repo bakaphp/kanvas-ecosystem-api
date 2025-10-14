@@ -628,12 +628,6 @@ class Client
         try {
             $client = $this->getQuoteClient();
 
-            // Debug: Get available functions
-            try {
-                $functions = $client->__getFunctions();
-            } catch (Exception $debugEx) {
-            }
-
             // Create the exact structure from your working QA SOAP request
             if ($useRawData) {
                 // Use raw QA data without transformation for testing
