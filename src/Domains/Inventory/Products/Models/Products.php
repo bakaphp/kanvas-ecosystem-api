@@ -561,15 +561,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $app = app(Apps::class);
 
-        $query = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback, $limit) {
-            $options['hitsPerPage'] = $limit;
-
-            if ($callback) {
-                return $callback($algolia, $searchTerm, $options);
-            }
-
-            return $algolia->search($searchTerm, $options);
-        })->where('apps_id', $app->getId());
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
 
         $user = auth()->user();
 
@@ -577,23 +569,25 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             $user instanceof UserInterface &&
             (
                 ! auth()->user()->isAppOwner() ||
-            (
-                app()->bound(CompaniesBranches::class) &&
-                $app->get('enable_company_bound_search', false) // Only apply if this app setting is enabled
-            )
+                (
+                    app()->bound(CompaniesBranches::class) &&
+                    $app->get('enable_company_bound_search', false)
+                )
             )
         ) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+            $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
-        if ($query->model->isTypesense()) {
-            $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
-                'per_page' => $limit
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'name,description,translations',
+                'per_page' => $limit,
             ]);
+        } else {
+            $searchQuery->take($limit);
         }
 
-        return $query;
+        return $searchQuery;
     }
 
     public function isPublished(): bool
