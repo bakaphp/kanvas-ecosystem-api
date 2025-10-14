@@ -77,8 +77,13 @@ class HandOffActivity extends KanvasActivity
                             'app' => $app,
                         ]
                     );
-                }
 
+                    return [
+                        'success' => true,
+                        'message' => 'Compliance handoff processed successfully , stop all communications , update cms, not handoff email',
+                    ];
+                }
+                
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
                     templateName: $params['template_name'] ?? 'lead_handoff',
