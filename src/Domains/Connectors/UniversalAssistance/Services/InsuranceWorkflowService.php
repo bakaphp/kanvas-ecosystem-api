@@ -1496,13 +1496,17 @@ class InsuranceWorkflowService
             $voucherData['DatosProducto']['NombreProducto'] = $personData['plan']['name'];
         }
 
+        // Generate proper control numbers like quotations do
+        $controlNumbers = $this->client->generateSequentialControlNumbers();
+        $voucherData['NroControl'] = $controlNumbers['base'] . '-' . $this->client->getControlNumberSuffixForQuotationType($actualQuotationType);
+
         // Add delay to ensure unique timestamps
         $delayMs = $personType === 'titular' ? 5000 : 10000;
         usleep($delayMs);
 
         try {
             // Create the actual voucher using the proper voucher creation method
-            $result = $this->client->createVoucher($voucherData, true);
+            $result = $this->client->createVoucher($voucherData, false);
 
             // Convert result to arrays and add metadata
             $result = $this->convertObjectsToArrays($result);
@@ -2131,9 +2135,13 @@ class InsuranceWorkflowService
             $voucherData['LeadId'] = $idLeadOut;
         }
 
+        // Generate proper control numbers like quotations do
+        $controlNumbers = $this->client->generateSequentialControlNumbers();
+        $voucherData['NroControl'] = $controlNumbers['base'] . '-' . $this->client->getControlNumberSuffixForQuotationType($quotationType);
+
         // Create the voucher using the proper voucher creation method
         try {
-            $result = $this->client->createVoucher($voucherData, true);
+            $result = $this->client->createVoucher($voucherData, false);
 
             return [
                 'success' => true,
