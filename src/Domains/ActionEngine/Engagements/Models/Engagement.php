@@ -95,7 +95,7 @@ class Engagement extends BaseModel
 
     public function stageMessage(): BelongsTo
     {
-        return $this->belongsTo(PipelineStageMessage::class, 'pipelines_stages_id', 'id');
+        return $this->belongsTo(PipelineStageMessage::class, 'pipelines_stages_id', 'pipelines_stages_id');
     }
 
     public static function getByMessageId(int|string $messageId): self
