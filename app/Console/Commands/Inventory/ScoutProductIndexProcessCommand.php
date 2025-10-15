@@ -14,12 +14,13 @@ use function Laravel\Prompts\select;
 class ScoutProductIndexProcessCommand extends Command
 {
     use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id}';
+    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id} {--company_id=}';
 
     /**
      * The console command description.
@@ -30,12 +31,13 @@ class ScoutProductIndexProcessCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);
+
+        $companyId = $this->option('company_id');
 
         $option = select(
             label: 'Select the type of function to be done',
@@ -44,16 +46,16 @@ class ScoutProductIndexProcessCommand extends Command
                 2 => 'Reindex',
             ],
         );
-        $this->executeAction($option, $app);
+        $this->executeAction($option, $app, $companyId);
 
         return;
     }
 
-    protected function executeAction(int $option, Apps $app)
+    protected function executeAction(int $option, Apps $app, ?string $companyId): void
     {
         $actions = [
-            1 => fn () => $this->delete($app),
-            2 => fn () => $this->reindex($app),
+            1 => fn () => $this->delete($app, $companyId),
+            2 => fn () => $this->reindex($app, $companyId),
         ];
 
         if (isset($actions[$option])) {
@@ -63,14 +65,20 @@ class ScoutProductIndexProcessCommand extends Command
         }
     }
 
-    public function reindex(Apps $app)
+    public function reindex(Apps $app, ?string $companyId): void
     {
-        $this->info('Reindex scout index for products App ' . $app->name);
-        $products = Products::fromApp($app)
+        $companyInfo = $companyId ? " for Company ID: {$companyId}" : '';
+        $this->info('Reindex scout index for products App ' . $app->name . $companyInfo);
+
+        $query = Products::fromApp($app)
                     ->where('is_published', 1)
-                    ->where('is_deleted', 0)
-                    ->orderBy('id', 'DESC')
-                    ->cursor();
+                    ->where('is_deleted', 0);
+
+        if ($companyId) {
+            $query->where('companies_id', $companyId);
+        }
+
+        $products = $query->orderBy('id', 'DESC')->cursor();
 
         $i = 0;
         //need to iterate so custom index take effect
@@ -81,10 +89,23 @@ class ScoutProductIndexProcessCommand extends Command
         $this->info('Total products to reindexed: ' . $i);
     }
 
-    public function delete(Apps $app)
+    public function delete(Apps $app, ?string $companyId): void
     {
-        $this->info('Cleaning up scout index for deleted products App ' . $app->name);
-        $products = Products::fromApp($app)->withTrashed()->where('is_published', 0)->orWhere('is_deleted', 1)->cursor();
+        $companyInfo = $companyId ? " for Company ID: {$companyId}" : '';
+        $this->info('Cleaning up scout index for deleted products App ' . $app->name . $companyInfo);
+
+        $query = Products::fromApp($app)
+                    ->withTrashed()
+                    ->where(function ($q) {
+                        $q->where('is_published', 0)
+                          ->orWhere('is_deleted', 1);
+                    });
+
+        if ($companyId) {
+            $query->where('companies_id', $companyId);
+        }
+
+        $products = $query->cursor();
 
         $i = 0;
         foreach ($products as $product) {
