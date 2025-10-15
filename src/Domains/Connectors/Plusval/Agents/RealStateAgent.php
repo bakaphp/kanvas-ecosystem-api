@@ -69,7 +69,7 @@ class RealStateAgent extends BaseAgent
                     ];
                 }
             }),
-            
+
             Tool::make(
                 'get_customer_information',
                 'I can get all customer information by name. When you ask for information about any customer by name, I will call this method to retrieve their deals with the complete profile for the customer and the agent.',
