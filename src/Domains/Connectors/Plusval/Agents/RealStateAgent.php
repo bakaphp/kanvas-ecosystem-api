@@ -32,7 +32,6 @@ class RealStateAgent extends BaseAgent
                     return [
                         'status' => 'error',
                         'message' => 'No phone number found for sender. Please add a phone number to your profile.',
-                        'is_agent' => false,
                     ];
                 }
 
