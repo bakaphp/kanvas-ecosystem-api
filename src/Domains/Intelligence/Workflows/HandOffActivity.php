@@ -51,40 +51,6 @@ class HandOffActivity extends KanvasActivity
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
-                if (strtolower($handOffType) === 'compliance_internal') {
-                    $contactInfo = match (strtolower($communicationChannel)) {
-                        'sms' => $lead->people->getCellPhones(),
-                        'email' => $leadOwner->getEmails(),
-                        default => null
-                    };
-
-                    if ($contactInfo === null) {
-                        return [
-                            'success' => false,
-                            'message' => 'No contact info found for the lead or the agent',
-                        ];
-                    }
-
-                    if ($contactInfo->count()) {
-                        foreach ($contactInfo as $contact) {
-                            $contact->optOut();
-                        }
-                    }
-
-                    $lead->people->fireWorkflow(
-                        WorkflowEnum::UPDATED->value,
-                        true,
-                        [
-                            'app' => $app,
-                        ]
-                    );
-
-                    return [
-                        'success' => true,
-                        'message' => 'Compliance handoff processed successfully , stop all communications , update cms, not handoff email',
-                    ];
-                }
-
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
                     templateName: $params['template_name'] ?? 'lead_handoff',
@@ -97,6 +63,45 @@ class HandOffActivity extends KanvasActivity
                         ...$params,
                     ]
                 );
+
+                if (strtolower($handOffType) === 'compliance_internal') {
+                    //$params['template_name'] = 'lead_compliance_handoff';
+                    $handOffNotification->setTemplateName('lead_handoff_compliance_handoff');
+                    $handOffNotification->setSubject('Lead Compliance Handoff Notification');
+                    $handOffNotification->setPushTemplateName('lead_handoff_compliance_push_notification');
+                    $handOffNotification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
+                    /*  $contactInfo = match (strtolower($communicationChannel)) {
+                         'sms' => $lead->people->getCellPhones(),
+                         'email' => $leadOwner->getEmails(),
+                         default => null
+                     };
+
+                     if ($contactInfo === null) {
+                         return [
+                             'success' => false,
+                             'message' => 'No contact info found for the lead or the agent',
+                         ];
+                     }
+
+                     if ($contactInfo->count()) {
+                         foreach ($contactInfo as $contact) {
+                             $contact->optOut();
+                         }
+                     }
+
+                     $lead->people->fireWorkflow(
+                         WorkflowEnum::UPDATED->value,
+                         true,
+                         [
+                             'app' => $app,
+                         ]
+                     );
+
+                     return [
+                         'success' => true,
+                         'message' => 'Compliance handoff processed successfully , stop all communications , update cms, not handoff email',
+                     ]; */
+                }
 
                 $leadOwner->notify(
                     $handOffNotification
