@@ -13,7 +13,7 @@ class FileSizeConverter
     *
     * @throws InvalidArgumentException
     */
-    public static function toBytes(string|int $size): int
+    public static function toBytes(string|int|float $size): int
     {
         $size = (string) $size;
         $size = strtoupper(trim($size));
