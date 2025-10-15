@@ -72,7 +72,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                         $messageType->getId(),
                     );
                     $randomRecommendedUserTag =  $userMessagesCategories[array_rand($userMessagesCategories)];
-                    $dynamicMessage = htmlspecialchars($notificationMessages[array_rand($notificationMessages)], ENT_QUOTES, 'UTF-8');
+                    $dynamicMessage = html_entity_decode($notificationMessages[array_rand($notificationMessages)], ENT_QUOTES, 'UTF-8');
 
                     if (str_contains($dynamicMessage, '[category]')) {
                         $dynamicMessage = str_replace('[category]', $randomRecommendedUserTag, $dynamicMessage);
