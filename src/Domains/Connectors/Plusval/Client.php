@@ -104,10 +104,9 @@ class Client
      *
      * @throws GuzzleException
      */
-    public function getProperties(string $phone, string $criteria): array
+    public function getProperties(string $criteria): array
     {
         $params = [
-            'phone' => $phone,
             'criteria' => $criteria,
         ];
 
@@ -141,7 +140,7 @@ class Client
             'phone' => $phone,
         ];
 
-        return $this->get('api/v2/ai/profile', $data);
+        return $this->get('api/v2/ai/phone/check', $data);
     }
 
     /**
