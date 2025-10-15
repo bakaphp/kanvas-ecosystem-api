@@ -585,7 +585,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: htmlspecialchars("Your image for {$title} has been processed", ENT_QUOTES, 'UTF-8'),
+                message: html_entity_decode("Your image for {$title} has been processed", ENT_QUOTES, 'UTF-8'),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [

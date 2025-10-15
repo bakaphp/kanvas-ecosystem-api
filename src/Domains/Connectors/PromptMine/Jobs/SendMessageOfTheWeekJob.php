@@ -49,7 +49,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             [
                 'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
                 'title' => 'Prompt of the Week',
-                'message' => htmlspecialchars("$messageOfTheWeek->message['title'] — Try it now and keep the momentum going.", ENT_QUOTES, 'UTF-8')
+                'message' => html_entity_decode("$messageOfTheWeek->message['title'] — Try it now and keep the momentum going.", ENT_QUOTES, 'UTF-8')
             ],
             $this->via
         );

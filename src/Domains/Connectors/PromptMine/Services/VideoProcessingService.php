@@ -98,7 +98,7 @@ class VideoProcessingService
         $errorProcessingImageNotification = new ImageProcessingPushNotification(
             user: $this->entity->user,
             entity: $this->entity,
-            message: htmlspecialchars($result['error'] ?? 'Video processing failed', ENT_QUOTES, 'UTF-8'),
+            message: html_entity_decode($result['error'] ?? 'Video processing failed', ENT_QUOTES, 'UTF-8'),
             title: 'Video processing failed',
             via: $endViaList,
             templates: [
@@ -360,7 +360,7 @@ class VideoProcessingService
                 user: $this->entity->user,
                 entity: $this->entity,
                 message: 'Tap to view your AI-generated video on prompt mine.',
-                title: htmlspecialchars('Video is ready ' . $title, ENT_QUOTES, 'UTF-8'),
+                title: html_entity_decode('Video is ready ' . $title, ENT_QUOTES, 'UTF-8'),
                 via: $endViaList,
                 templates: [
                     'email_template' => $params['email_template'] ?? null,
