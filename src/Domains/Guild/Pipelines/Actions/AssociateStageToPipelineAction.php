@@ -26,6 +26,7 @@ class AssociateStageToPipelineAction
                 'rotting_days' => $stage['rotting_days'],
                 'weight' => $stage['weight'],
                 'has_rotting_days' => 0,
+                'config' => $stage['config'] ?? null,
                 'pipelines_id' => $this->pipeline->id,
             ]
             );
