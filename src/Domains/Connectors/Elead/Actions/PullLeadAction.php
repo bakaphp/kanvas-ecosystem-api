@@ -168,44 +168,42 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found')) {
-                        if (! empty($phone)) {
-                            $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
-                            $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
+                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ! empty($phone)) {
+                        $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
+                        $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
 
-                            $searchForInternalCloseLead = $searchForInternalCloseLeadByPhone ?? $searchForInternalCloseLeadByAnything;
+                        $searchForInternalCloseLead = $searchForInternalCloseLeadByPhone ?? $searchForInternalCloseLeadByAnything;
 
-                            if ($searchForInternalCloseLead !== null) {
-                                $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
+                        if ($searchForInternalCloseLead !== null) {
+                            $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
 
-                                if (! $internalClosedLeads) {
-                                    $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($currentCustomer);
+                            if (! $internalClosedLeads) {
+                                $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($currentCustomer);
 
-                                    if ($activeLeadsQuery->count() === 0) {
-                                        continue;
-                                    }
-
-                                    $internalClosedLeads = $activeLeadsQuery->first();
-                                    $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
+                                if ($activeLeadsQuery->count() === 0) {
+                                    continue;
                                 }
 
-                                $results[] = [
-                                    'id' => $internalClosedLeads->id,
-                                    'uuid' => $internalClosedLeads->uuid,
-                                    'people_id' => $internalClosedLeads->people->id,
-                                    'firstname' => $internalClosedLeads->people->firstname,
-                                    'middlename' => $internalClosedLeads->people->middlename,
-                                    'lastname' => $internalClosedLeads->people->lastname,
-                                    'email' => $internalClosedLeads->people?->getEmails()->first()?->value,
-                                    'phone' => $internalClosedLeads->people?->getAllPhones()->first()?->value,
-                                    'status' => strtolower($internalClosedLeads->status()?->first()?->name ?? ''),
-                                    'lead_type' => $internalClosedLeads->type?->name,
-                                    'owner' => $internalClosedLeads->owner?->name ,
-                                    'owner_id' => $internalClosedLeads->leads_owner_id,
-                                    'custom_fields' => $internalClosedLeads->getAllCustomFields(),
-                                    'rank' => 1,
-                                ];
+                                $internalClosedLeads = $activeLeadsQuery->first();
+                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
                             }
+
+                            $results[] = [
+                                'id' => $internalClosedLeads->id,
+                                'uuid' => $internalClosedLeads->uuid,
+                                'people_id' => $internalClosedLeads->people->id,
+                                'firstname' => $internalClosedLeads->people->firstname,
+                                'middlename' => $internalClosedLeads->people->middlename,
+                                'lastname' => $internalClosedLeads->people->lastname,
+                                'email' => $internalClosedLeads->people?->getEmails()->first()?->value,
+                                'phone' => $internalClosedLeads->people?->getAllPhones()->first()?->value,
+                                'status' => strtolower($internalClosedLeads->status()?->first()?->name ?? ''),
+                                'lead_type' => $internalClosedLeads->type?->name,
+                                'owner' => $internalClosedLeads->owner?->name ,
+                                'owner_id' => $internalClosedLeads->leads_owner_id,
+                                'custom_fields' => $internalClosedLeads->getAllCustomFields(),
+                                'rank' => 1,
+                            ];
                         }
                     }
 
