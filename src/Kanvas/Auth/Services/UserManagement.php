@@ -93,6 +93,12 @@ class UserManagement
                 $this->user->addMultipleFilesFromUrl($files);
             }
 
+
+            //Save it empty to avoid having a fullName with unwanted lastname, ex: "Max Max". We are having issues with some frontends sending only the firstname as a fullname.
+            if (! isset($data['lastname']) && $this->app->get('dont_force_lastname_default')) {
+                $data['lastname'] = '';
+            }
+
             //update roles if
             $this->updateRole($roleIds);
         } catch (InternalServerErrorException $e) {

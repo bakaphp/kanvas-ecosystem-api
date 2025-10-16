@@ -28,22 +28,16 @@ class LeadFactory extends Factory
             'leads_receivers_id' => 0,
             'leads_owner_id' => 1,
             'apps_id' => function (array $attributes) {
-                if (isset($attributes['apps_id']) && $attributes['apps_id']) {
-                    return (int) $attributes['apps_id'];
-                }
-
-                return app(Apps::class)->getId(); // tu default
+                return app(Apps::class)->getId();
             },
             'companies_id' => function (array $attributes) {
-                if (! empty($attributes['companies_id'])) {
-                    return (int) $attributes['companies_id'];
-                }
-
                 return Companies::factory()->create()->getKey();
             },
             'people_id' => function (array $attributes) {
-                $appId = (int) $attributes['apps_id'];
-                $companyId = (int) $attributes['companies_id'];
+                // We can't rely on $attributes here because other closures haven't been resolved yet
+                // So we'll create the dependencies directly
+                $appId = app(Apps::class)->getId();
+                $companyId = Companies::factory()->create()->getKey();
 
                 return People::factory()
                     ->withAppId($appId)
@@ -96,6 +90,27 @@ class LeadFactory extends Factory
         return $this->state(function (array $attributes) use ($receiverId) {
             return [
                 'leads_receivers_id' => $receiverId,
+            ];
+        });
+    }
+
+    /**
+     * Create a lead with specified app and company, ensuring people is created with the same IDs
+     */
+    public function withAppAndCompany(int $appId, int $companyId)
+    {
+        return $this->state(function (array $attributes) use ($appId, $companyId) {
+            $peopleId = People::factory()
+                ->withAppId($appId)
+                ->withCompanyId($companyId)
+                ->withContacts()
+                ->create()
+                ->getId();
+
+            return [
+                'apps_id' => $appId,
+                'companies_id' => $companyId,
+                'people_id' => $peopleId,
             ];
         });
     }

@@ -450,6 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
+            'categories_flat' => $this->categories->pluck('slug')->toArray(),
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -789,6 +790,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'status',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'categories_flat',
+                    'type' => 'string[]',
                     'optional' => true,
                 ],
                 [

@@ -8,6 +8,7 @@ use Kanvas\Connectors\Plusval\Services\DealsService;
 use Kanvas\Connectors\Plusval\Services\ProfileService;
 use Kanvas\Connectors\Plusval\Services\PropertiesService;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
@@ -23,6 +24,52 @@ class RealStateAgent extends BaseAgent
         /** @psalm-suppress MixedReturnTypeCoercion */
         return [
             Tool::make(
+                'check_phone_number',
+                'I can check if the sender is an agent or a client and return their profile. When you receive a message from a phone number, I will call this method to verify if the phone number belongs to an agent or a client and retrieve their profile information.',
+            )->setCallable(function () {
+                $phone = $this->getSenderPhone();
+                if (empty($phone)) {
+                    return [
+                        'status' => 'error',
+                        'message' => 'No phone number found for sender. Please add a phone number to your profile.',
+                    ];
+                }
+
+                try {
+                    // Initialize the Plusval profile service
+                    $profileService = new ProfileService($this->app, $this->entity->company);
+
+                    // Get the sender profile by phone number
+                    $response = $profileService->getProfileByPhone($phone);
+
+                    // Process the API response
+                    if (isset($response['results']['profile']) && ! empty($response['results']['profile'])) {
+                        return [
+                            'status' => 'success',
+                            'message' => 'Profile retrieved successfully.',
+                            'phone' => $phone,
+                            'profile' => $response['results']['profile'],
+                        ];
+                    } else {
+                        return [
+                            'status' => 'no_results',
+                            'message' => "No profile found for sender with phone: {$phone}",
+                            'phone' => $phone,
+                            'profile' => [],
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    report($e);
+                    return [
+                        'status' => 'error',
+                        'message' => 'Error retrieving profile: ' . $e->getMessage(),
+                        'phone' => $phone,
+                        'profile' => [],
+                    ];
+                }
+            }),
+
+            Tool::make(
                 'get_customer_information',
                 'I can get all customer information by name. When you ask for information about any customer by name, I will call this method to retrieve their deals with the complete profile for the customer and the agent.',
             )->addProperty(
@@ -33,7 +80,7 @@ class RealStateAgent extends BaseAgent
                     required: true
                 )
             )->setCallable(function (string $customerName) {
-                $agentPhone = $this->getAgentPhone();
+                $agentPhone = $this->getSenderPhone();
                 if (empty($agentPhone)) {
                     return [
                         'status' => 'error',
@@ -94,11 +141,11 @@ class RealStateAgent extends BaseAgent
                     required: true
                 )
             )->setCallable(function (string $criteria) {
-                $agentPhone = $this->getAgentPhone();
-                if (empty($agentPhone)) {
+                $phone = $this->getSenderPhone();
+                if (empty($phone)) {
                     return [
                         'status' => 'error',
-                        'message' => 'No phone number found for agent. Please add a phone number to your profile.',
+                        'message' => 'No phone number found for sender. Please add a phone number to your profile.',
                         'properties' => [],
                     ];
                 }
@@ -107,8 +154,8 @@ class RealStateAgent extends BaseAgent
                     // Initialize the Plusval properties service
                     $propertiesService = new PropertiesService($this->app, $this->entity->company);
 
-                    // Search for properties using agent phone and criteria
-                    $response = $propertiesService->getPropertiesByAgentAndCriteria($agentPhone, $criteria);
+                    // Search for properties using search criteria
+                    $response = $propertiesService->getPropertiesByCriteria($criteria);
 
                     // Process the API response
                     if (isset($response['results']['properties']) && ! empty($response['results']['properties'])) {
@@ -117,7 +164,7 @@ class RealStateAgent extends BaseAgent
                         return [
                             'status' => 'success',
                             'message' => 'Found ' . count($properties) . " property(ies) for criteria: {$criteria}",
-                            'agent_phone' => $agentPhone,
+                            'sender_phone' => $phone,
                             'criteria' => $criteria,
                             'total_properties' => count($properties),
                             'properties' => $this->formatProperties($properties),
@@ -126,7 +173,7 @@ class RealStateAgent extends BaseAgent
                         return [
                             'status' => 'no_results',
                             'message' => "No properties found for criteria: {$criteria}",
-                            'agent_phone' => $agentPhone,
+                            'sender_phone' => $phone,
                             'criteria' => $criteria,
                             'total_properties' => 0,
                             'properties' => [],
@@ -137,7 +184,7 @@ class RealStateAgent extends BaseAgent
                     return [
                         'status' => 'error',
                         'message' => 'Error retrieving properties: ' . $e->getMessage(),
-                        'agent_phone' => $agentPhone,
+                        'sender_phone' => $phone,
                         'criteria' => $criteria,
                         'properties' => [],
                     ];
@@ -167,7 +214,7 @@ class RealStateAgent extends BaseAgent
                     )
                 )
             )->setCallable(function (int $dealId, array $propertiesIds) {
-                $agentPhone = $this->getAgentPhone();
+                $agentPhone = $this->getSenderPhone();
                 if (empty($agentPhone)) {
                     return [
                         'status' => 'error',
@@ -213,64 +260,17 @@ class RealStateAgent extends BaseAgent
                     ];
                 }
             }),
-
-            Tool::make(
-                'get_profile_information',
-                'I can get the agent profile information. When you ask for the agent profile, I will call this method to retrieve the agent\'s profile information.'
-            )->setCallable(function () {
-                $agentPhone = $this->getAgentPhone();
-                if (empty($agentPhone)) {
-                    return [
-                        'status' => 'error',
-                        'message' => 'No phone number found for agent. Please add a phone number to your profile.',
-                        'profile' => [],
-                    ];
-                }
-
-                try {
-                    // Initialize the Plusval profile service
-                    $profileService = new ProfileService($this->app, $this->entity->company);
-
-                    // Get the agent's profile by phone number
-                    $response = $profileService->getProfileByPhone($agentPhone);
-
-                    // Process the API response
-                    if (isset($response['results']['profile']) && ! empty($response['results']['profile'])) {
-                        return [
-                            'status' => 'success',
-                            'message' => 'Agent profile retrieved successfully.',
-                            'agent_phone' => $agentPhone,
-                            'profile' => $response['results']['profile'],
-                        ];
-                    } else {
-                        return [
-                            'status' => 'no_results',
-                            'message' => "No profile found for agent with phone: {$agentPhone}",
-                            'agent_phone' => $agentPhone,
-                            'profile' => [],
-                        ];
-                    }
-                } catch (\Exception $e) {
-                    report($e);
-                    return [
-                        'status' => 'error',
-                        'message' => 'Error retrieving agent profile: ' . $e->getMessage(),
-                        'agent_phone' => $agentPhone,
-                        'profile' => [],
-                    ];
-                }
-            }),
         ];
     }
 
-    public function getAgentPhone(): string
+    public function getSenderPhone(): string
     {
-        /** @var People $agent */
+        /** @var People|Lead $agent */
         $agent = $this->entity;
 
         // Get agent's phone number (the person using the agent)
-        $agentPhones = $agent->getPhones()->pluck('value')->toArray();
-        $agentCellPhones = $agent->getCellPhones()->pluck('value')->toArray();
+        $agentPhones = $agent instanceof Lead ? $agent->people->getPhones()->pluck('value')->toArray() : $agent->getPhones()->pluck('value')->toArray();
+        $agentCellPhones = $agent instanceof Lead ? $agent->people->getCellPhones()->pluck('value')->toArray() : $agent->getCellPhones()->pluck('value')->toArray();
         $allAgentPhones = array_unique(array_merge($agentPhones, $agentCellPhones));
 
         if (empty($allAgentPhones)) {

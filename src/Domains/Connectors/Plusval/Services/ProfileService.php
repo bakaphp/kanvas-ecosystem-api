@@ -23,21 +23,21 @@ class ProfileService
     }
 
     /**
-     * Get profile by agent phone number
+     * Get profile by phone number
      *
-     * @param string $agentPhone Agent's phone number (e.g., "+1 809-864-6241")
+     * @param string $phone Sender phone number (e.g., "+1 809-864-6241")
      * @throws GuzzleException
      * @throws ValidationException
      */
-    public function getProfileByPhone(string $agentPhone): array
+    public function getProfileByPhone(string $phone): array
     {
-        if (empty($agentPhone)) {
-            throw new ValidationException('Agent phone number is required');
+        if (empty($phone)) {
+            throw new ValidationException('Phone number is required');
         }
 
         // Clean and format phone number if needed
-        $agentPhone = PhoneHelper::formatPhoneNumber($agentPhone);
+        $phone = PhoneHelper::formatPhoneNumber($phone);
 
-        return $this->client->getProfile($agentPhone);
+        return $this->client->getProfile($phone);
     }
 }

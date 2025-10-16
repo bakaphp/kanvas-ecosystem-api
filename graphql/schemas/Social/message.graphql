@@ -231,6 +231,7 @@ extend type Query @guard {
                 ]
             )
         search: String @search
+        random: Boolean = false
     ): [Message!]!
         @paginate(
             defaultCount: 25

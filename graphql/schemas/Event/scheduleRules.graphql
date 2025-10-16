@@ -8,6 +8,7 @@ type ScheduleRules {
     start_at: DateTime!
     end_at: DateTime
     rrule: String!
+    day_rrule: String
     slot_duration_min: Int!
     lead_time_min: Int!
     cutoff_time_min: Int!
@@ -15,7 +16,7 @@ type ScheduleRules {
     is_deleted: Boolean!
     created_at: DateTime
     updated_at: DateTime
-   resource: TimeSlotResource @morphTo(related: "resource")
+    resource: TimeSlotResource @morphTo(related: "resource")
 }
 
 union ScheduleResource = Variant
@@ -26,6 +27,7 @@ input ScheduleRulesInput {
     start_at: DateTime!
     end_at: DateTime
     rrule: String!
+    day_rrule: String
     slot_duration_min: Int!
     lead_time_min: Int
     cutoff_time_min: Int
@@ -38,6 +40,7 @@ input ScheduleRulesUpdateInput {
     start_at: DateTime
     end_at: DateTime
     rrule: String
+    day_rrule: String
     slot_duration_min: Int
     lead_time_min: Int
     cutoff_time_min: Int
@@ -68,13 +71,17 @@ extend type Query @guard {
                     "id"
                     "companies_id"
                     "resources_id"
-                    "resources_type"
                     "start_at"
                     "end_at"
                     "slot_duration_min"
                     "lead_time_min"
                     "cutoff_time_min"
                 ]
+            )
+        resourceType: _
+            @whereConditions(
+                columns: ["resources_type"]
+                handler: "App\\GraphQL\\Event\\Handlers\\ResourceTypeHandler"
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "start_at"])
     ): [ScheduleRules!]!
