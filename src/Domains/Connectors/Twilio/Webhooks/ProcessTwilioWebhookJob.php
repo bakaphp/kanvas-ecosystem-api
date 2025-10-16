@@ -331,6 +331,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     protected function getOrCreateChannel(string $from, ?string $name = null, ?Lead $lead = null): Channel
     {
+        /**
+         * The +1 is the country code for USA, PR, CA and Dominican Republic, 
+         * when we need use the agent in LATAM o Europe we go to have problems, for example for mexico is +52
+         */
         $cleanedPhone = preg_replace('/^\+?1/', '', $from);
         $slug = Str::slug('twilio-' . $cleanedPhone);
 

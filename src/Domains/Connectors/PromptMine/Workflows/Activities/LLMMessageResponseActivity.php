@@ -261,7 +261,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
-                $previousChatResponseMessage = $previousChatResponse->message['prompt'];
+                $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                 $previousChatMessageChildren = $previousChatResponse->children()?->first();
                 $params['previousImageUrl'] = $previousChatMessageChildren !== null ? $previousChatMessageChildren->message['image'] : null;
                 $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];
