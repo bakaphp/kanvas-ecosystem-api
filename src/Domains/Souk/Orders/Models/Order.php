@@ -87,7 +87,9 @@ use Spatie\LaravelData\DataCollection;
 class Order extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
@@ -600,6 +602,20 @@ class Order extends BaseModel
         $customIndex = $app->get('app_custom_order_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'orders');
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 
     public function setOrderType(string $orderType): void

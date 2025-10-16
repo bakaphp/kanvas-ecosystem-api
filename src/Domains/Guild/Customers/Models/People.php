@@ -57,7 +57,8 @@ class People extends BaseModel
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
-    }    use HasTagsTrait;
+    }
+    use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;

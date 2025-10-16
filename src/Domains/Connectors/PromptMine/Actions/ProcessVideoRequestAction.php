@@ -265,7 +265,7 @@ class ProcessVideoRequestAction
             foreach ($payload as $key => $value) {
                 if ($key === 'image_url') {
                     // Download the image content and send as file
-                    $imageContent = Http::get($value)->body();
+                    $imageContent = Http::get(is_array($value) ? $value[0] : $value)->body();
                     $httpRequest = $httpRequest->attach(
                         'image',
                         $imageContent,
