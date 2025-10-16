@@ -33,6 +33,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
+use Throwable;
 
 /**
  * Class Leads.
@@ -116,6 +117,15 @@ class Lead extends BaseModel implements EventResourceInterface
 
         if ($app->get(LeadFilterEnum::FILTER_BY_BRANCH->value)) {
             return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
+        }
+
+        if ($app->get(LeadFilterEnum::FILTER_BY_OWNER_AGENTS->value) && $user->get('ZOHO_USER_OWNER_ID')) {
+            try {
+                $query->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
+                    ->where('leads_owner_id', $user->getId());
+            } catch (Throwable $th) {
+                //do nothing
+            }
         }
 
         if ($app->get(LeadFilterEnum::FILTER_BY_AGENTS->value)) {

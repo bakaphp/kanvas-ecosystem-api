@@ -578,7 +578,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $title = html_entity_decode($title, ENT_QUOTES);
+        $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
 
         try {
             // Send notification to the user
