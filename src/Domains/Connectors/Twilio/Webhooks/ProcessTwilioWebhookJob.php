@@ -331,15 +331,14 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     protected function getOrCreateChannel(string $from, ?string $name = null, ?Lead $lead = null): Channel
     {
-        $from = preg_replace('/^\+?1/', '', $from);
-        $slug = Str::slug('twilio-' . $from);
-        $slugWithout = Str::slug('twilio-' . preg_replace('/^\+?1/', '', $from));
+        $cleanedPhone = preg_replace('/^\+?1/', '', $from);
+        $slug = Str::slug('twilio-' . $cleanedPhone);
 
-        return DB::transaction(function () use ($slug, $slugWithout, $from, $name, $lead) {
-            $channel = Channel::whereIn('slug', [$slug, $slugWithout])
+        return DB::transaction(function () use ($slug, $name, $from, $lead): Channel {
+            $channel = Channel::where('slug', $slug)
                         ->where('companies_id', $this->receiver->company->getId())
                         ->where('apps_id', $this->receiver->app->getId())
-                        ->lockForUpdate()  // This applies a database-level lock
+                        ->lockForUpdate()
                         ->first();
             if (! $channel) {
                 $channel = Channel::firstOrCreate(
@@ -352,7 +351,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
-                ]
+                    ]
                 );
             }
             if ($lead) {
