@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Throwable;
 
 class DashboardBuilder
 {
@@ -44,20 +45,24 @@ class DashboardBuilder
         }
 
         if ($app->get(LeadFilterEnum::FILTER_BY_OWNER_AGENTS->value) && $user->get('ZOHO_USER_OWNER_ID')) {
-            $query = Lead::selectRaw('
+            try {
+                $query = Lead::selectRaw('
                 COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
                 COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
                 (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
             ', ['complete', 'closed', 'complete', 'closed', $agentInfo->users_linked_source_id, $company->getId()])
-                        ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
-                        ->where('leads_owner_id', $user->getId())
-                        ->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
-                        //where('leads.created_at', '>', '2025-01-01')
-                        ->fromCompany($company)
+                            ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
+                            ->where('leads_owner_id', $user->getId())
+                            ->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
+                            //where('leads.created_at', '>', '2025-01-01')
+                            ->fromCompany($company)
 
-                ->where('leads.is_deleted', 0);
+                    ->where('leads.is_deleted', 0);
 
-            return $query;
+                return $query;
+            } catch (Throwable $e) {
+                //ignore
+            }
         }
 
         /**
