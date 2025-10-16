@@ -97,4 +97,60 @@ class RecombeeInteractionService
 
         return $this->client->send($request);
     }
+
+    /**
+     * Add a detail view interaction.
+     */
+    public function addDetailView(string $userId, string $itemId, array $parameters = []): mixed
+    {
+        $defaultParameters = array_merge([
+            'cascadeCreate' => true,
+        ], $parameters);
+
+        $request = new AddDetailView($userId, $itemId, $defaultParameters);
+
+        return $this->client->send($request);
+    }
+
+    /**
+     * Add a bookmark interaction.
+     */
+    public function addBookmark(string $userId, string $itemId, array $parameters = []): mixed
+    {
+        $defaultParameters = array_merge([
+            'cascadeCreate' => true,
+        ], $parameters);
+
+        $request = new AddBookmark($userId, $itemId, $defaultParameters);
+
+        return $this->client->send($request);
+    }
+
+    /**
+     * Add a rating interaction.
+     */
+    public function addRating(string $userId, string $itemId, float $rating, array $parameters = []): mixed
+    {
+        $defaultParameters = array_merge([
+            'cascadeCreate' => true,
+        ], $parameters);
+
+        $request = new AddRating($userId, $itemId, $rating, $defaultParameters);
+
+        return $this->client->send($request);
+    }
+
+    /**
+     * Add a purchase interaction.
+     */
+    public function addPurchase(string $userId, string $itemId, array $parameters = []): mixed
+    {
+        $defaultParameters = array_merge([
+            'cascadeCreate' => true,
+        ], $parameters);
+
+        $request = new AddPurchase($userId, $itemId, $defaultParameters);
+
+        return $this->client->send($request);
+    }
 }

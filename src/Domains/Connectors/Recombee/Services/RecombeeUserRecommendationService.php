@@ -173,4 +173,23 @@ class RecombeeUserRecommendationService
 
         return $booster;
     }
+
+    /**
+     * Get recommendations for a user with optional filters.
+     */
+    public function getRecommendations(
+        string $userId,
+        int $count = 10,
+        array $options = []
+    ): array {
+        $defaultOptions = array_merge([
+            'cascadeCreate' => true,
+        ], $options);
+
+        $recommendation = $this->client->send(
+            new RecommendItemsToUser($userId, $count, $defaultOptions)
+        );
+
+        return $recommendation['recomms'] ?? [];
+    }
 }
