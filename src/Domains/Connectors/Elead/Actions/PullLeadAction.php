@@ -168,7 +168,7 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found')) {
+                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ! empty($phone)) {
                         $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
                         $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
 
