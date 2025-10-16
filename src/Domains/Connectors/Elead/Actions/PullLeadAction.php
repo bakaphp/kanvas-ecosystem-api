@@ -177,6 +177,10 @@ class PullLeadAction
                         if ($searchForInternalCloseLead !== null) {
                             $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
 
+                            if($currentCustomer === null) {
+                                $currentCustomer = $searchForInternalCloseLead;
+                            }
+
                             if (! $internalClosedLeads) {
                                 $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($currentCustomer);
 
