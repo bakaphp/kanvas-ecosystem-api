@@ -25,7 +25,7 @@ class RealStateAgent extends BaseAgent
         return [
             Tool::make(
                 'check_phone_number',
-                'I can check if the sender is an agent or a client and return their profile. When you receive a message from a phone number, I will call this method to verify if the phone number belongs to an agent or a client and retrieve their profile information.',
+                'I can check if the sender is an agent, client or lead and return their profile. When you receive a message from a phone number, I will call this method to verify if the phone number belongs to an agent, client or lead and retrieve their profile information.',
             )->setCallable(function () {
                 $phone = $this->getSenderPhone();
                 if (empty($phone)) {
