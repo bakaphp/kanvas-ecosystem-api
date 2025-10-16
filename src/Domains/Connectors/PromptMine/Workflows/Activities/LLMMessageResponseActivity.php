@@ -118,7 +118,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     ),
                 ))->execute();
 
-                if ($promptChannel && empty($promptChannel->title)) {
+                if ($promptChannel && empty($promptChannel->title) && isset($message->message['title']) && ! empty($message->message['title'])) {
                     $channelName = $this->cleanChannelTitle($message->message['title']);
                     $promptChannel->name = $channelName;
                     $promptChannel->title = $channelName;
@@ -261,7 +261,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
-                $previousChatResponseMessage = $previousChatResponse->message['prompt'];
+                $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                 $previousChatMessageChildren = $previousChatResponse->children()?->first();
                 $params['previousImageUrl'] = $previousChatMessageChildren !== null ? $previousChatMessageChildren->message['image'] : null;
                 $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];

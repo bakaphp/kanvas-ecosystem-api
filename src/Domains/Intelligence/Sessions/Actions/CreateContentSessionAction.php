@@ -67,6 +67,7 @@ class CreateContentSessionAction
                 'last_message_time' => $lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value),
                 'last_message' => $lead->get(ConfigurationEnum::LAST_MESSAGE->value),
                 'intent_number' => $lead->get('intent_number') ?? 0,
+                'max_intent_number' => $lead->pipeline->stages->count() ?? 0,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
