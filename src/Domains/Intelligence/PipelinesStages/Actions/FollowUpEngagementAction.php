@@ -46,10 +46,13 @@ class FollowUpEngagementAction
                     $this->lead->company->get('twilio_phone_number')
                 );
             }
+            
             $this->lead->set(ConfigurationEnum::LAST_MESSAGE_TIME->value, Carbon::now($timezone)->toDateTimeString());
             $this->lead->set(ConfigurationEnum::LAST_MESSAGE->value, $message);
+
             $intentNumber = $this->lead->get('intent_number') ?? 0;
             $intentNumber++;
+
             $this->lead->set('intent_number', $intentNumber);
             $this->lead->moveToNextPipelineStage();
 
