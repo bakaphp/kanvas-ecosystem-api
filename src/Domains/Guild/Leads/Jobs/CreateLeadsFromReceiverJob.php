@@ -85,8 +85,14 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         );
 
         $lead = $createLead->execute();
+        $sentEmail = ['no email sent'];
 
         if ($user) {
+            $sentEmail = [
+                'template' => $emailTemplate,
+                'flag' => $userFlag,
+                'payload' => $payload,
+            ];
             new SendRotationEmailsAction(
                 $lead,
                 $leadReceiver,
@@ -109,6 +115,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             'receiver' => $leadReceiver->getId(),
             'lead_id' => $lead->getId(),
             'lead' => $lead->toArray(),
+            'sent_email' => $sentEmail,
         ];
     }
 
