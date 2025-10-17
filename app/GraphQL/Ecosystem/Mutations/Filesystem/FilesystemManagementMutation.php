@@ -387,7 +387,11 @@ class FilesystemManagementMutation
     public function editFile(mixed $rootValue, array $request): string
     {
         $fileSystemEntityInput = FilesystemEntityUpdate::viaRequest($request['input']);
-        $fileSystemEntity = FilesystemEntities::getByUuid($request['uuid']);
+        $appId = app(Apps::class)->getId();
+
+        $fileSystemEntity = FilesystemEntities::whereHas('filesystem', function ($query) use ($appId) {
+            $query->where('apps_id', $appId);
+        })->where('uuid', $request['uuid'])->firstOrFail();
 
         $fileSystemEntity->updateOrFail([
             'field_name' => $fileSystemEntityInput->fieldName,
