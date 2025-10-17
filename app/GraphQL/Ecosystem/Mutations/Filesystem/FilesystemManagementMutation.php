@@ -17,6 +17,7 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
+use Kanvas\Filesystem\DataTransferObject\FilesystemEntityUpdate;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -381,5 +382,18 @@ class FilesystemManagementMutation
             'header' => $headers,
             'row' => $firstRow
         ];
+    }
+
+    public function editFile(mixed $rootValue, array $request): string
+    {
+        $fileSystemEntityInput = FilesystemEntityUpdate::viaRequest($request['input']);
+        $fileSystemEntity = FilesystemEntities::getByUuid($request['uuid']);
+
+        $fileSystemEntity->updateOrFail([
+            'field_name' => $fileSystemEntityInput->fieldName,
+            'weight' => $fileSystemEntityInput->weight,
+        ]);
+
+        return (string) $fileSystemEntity->uuid;
     }
 }
