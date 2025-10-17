@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Giftea\Services;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Recombee\Client;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Exceptions\ApiException;
 use Recombee\RecommApi\Requests\AddItemProperty;
@@ -25,7 +27,7 @@ class RecombeeItemService
         protected AppInterface $app,
         ?string $recombeeDatabase = null,
         ?string $recombeeApiKey = null,
-        string $recombeeRegion = 'ca-east'
+        ?string $recombeeRegion = null
     ) {
         $this->client = (new Client(
             $app,
@@ -47,7 +49,7 @@ class RecombeeItemService
             'image_url' => 'string',
             'type' => 'string',
             'companies_id' => 'int',
-            'price' => 'int',
+            'price' => 'double',
             'price_range' => 'string',
             'age_group' =>	'string', 	//"adult", "child", "baby"
             'relation_type' =>	'string', //	"pareja", "familiar"
@@ -98,6 +100,53 @@ class RecombeeItemService
             }
         }
     }
+
+    public function indexProductVariant(Variants $variant): mixed
+    {
+        try {
+            $price = $variant->getPriceInfoFromDefaultChannel()->price;
+        } catch (Exception $e) {
+            return null;
+        }
+
+        $priceRange = $price < 50 ? '0-50' : ($price < 100 ? '50-100' : ($price < 200 ? '100-200' : '200+'));
+
+        $data = [
+            'name' => $variant->name,
+            'category' => $variant->product->categories?->first()?->name,
+            'price' => $price,
+            'price_range' => $priceRange,
+            'age_group' => '26-35',
+            'relation_type' => $variant->get('relation_type') ?? null,
+            'interests' => $variant->get('interests') ?? null,
+            'gift_type' => $variant->get('gift_type') ?? null,
+            'occasion' => $variant->get('occasion') ?? null,
+            'gift_style' => $variant->get('gift_style') ?? null,
+            'image_url' => $variant->getFiles()->first()?->url ?? null,
+            'companies_id' => $variant->company->getId(),
+            'title' => $variant->name,
+            'description' => $variant->description,
+            'users_id' => $variant->users_id,
+            'total_like' => $variant->total_liked,
+            'total_dislike' => $variant->total_disliked,
+            'total_share' => $variant->total_shared,
+            'total_save' => $variant->total_saved,
+            'total_purchase' => $variant->total_purchased,
+            'created_at' => (int) strtotime($variant->created_at->toDateTimeString()),
+            'updated_at' => (int) strtotime($variant->updated_at->toDateTimeString()),
+            'is_premium' => $variant->is_premium,
+            'categories' => $variant->product->categories->pluck('name')->toArray(),
+            'interests' => $variant->product->categories->pluck('name')->toArray(),
+            'type' => $variant->product->productsType->name ?? null,
+        ];
+        $request = new SetItemValues(
+            $variant->getId(),
+            $data,
+            ['cascadeCreate' => true]
+        );
+
+        return $this->client->send($request);
+    }
   
     public function addItem(string $itemId, array $properties = []): mixed
     {
@@ -134,23 +183,13 @@ class RecombeeItemService
     {
         try {
             $options = [
-                'scenario' => config('recombee.scenarios.gift_finder'),
+                'scenario' => 'gift-recommendation',
                 'returnProperties' => true,
                 'cascadeCreate' => true,
-                'includedProperties' => [
-                    'name', 'category', 'price_range', 
-                    'image_url', 'description', 'age_group',
-                    'occasion', 'interests', 'gift_type',
-                ],
-                'diversity' => 0.3
+                'diversity' => 0.5,
             ];
 
             if (!empty($filters)) {
-                $filterString = $this->buildRecombeeFilter($filters);
-                if ($filterString) {
-                    $options['filter'] = $filterString;
-                }
-
                 $boosterString = $this->buildBooster($filters);
                 if ($boosterString) {
                     $options['booster'] = $boosterString;
@@ -160,6 +199,8 @@ class RecombeeItemService
             $request = new RecommendItemsToUser($userId, $limit, $options);
             $response = $this->client->send($request);
 
+            print_r(["response" => $response ]);
+
             return $response['recomms'] ?? [];
 
         } catch (ApiException $e) {
@@ -168,59 +209,31 @@ class RecombeeItemService
         }
     }
 
-    private function buildRecombeeFilter(array $filters): ?string
-    {
-        $conditions = [];
-
-        // Filtro de precio (HARD FILTER)
-        if (isset($filters['priceRange'])) {
-            [$min, $max] = $filters['priceRange'];
-            $conditions[] = "'price' >= {$min} and 'price' <= {$max}";
-        }
-
-        // Filtro de categorías (OR)
-        if (!empty($filters['categories'])) {
-            $categoryConditions = array_map(
-                fn($cat) => "'category' == \"{$cat}\"",
-                $filters['categories']
-            );
-            $conditions[] = '(' . implode(' or ', $categoryConditions) . ')';
-        }
-
-        // Filtro de ocasión
-        if (isset($filters['occasion'])) {
-            $conditions[] = "\"{$filters['occasion']}\" in 'occasion'";
-        }
-
-        // Filtro de rango de edad
-        if (isset($filters['ageRange'])) {
-            $conditions[] = "\"{$filters['ageRange']}\" in 'age_group'";
-        }
-
-        return !empty($conditions) ? implode(' and ', $conditions) : null;
-    }
-
     private function buildBooster(array $filters): ?string
     {
         $boosters = [];
 
-        // Boost por tags preferidos (intereses del quiz)
-        // Si un producto tiene estos tags, su score aumenta 50%
-        if (!empty($filters['preferredTags'])) {
-            foreach ($filters['preferredTags'] as $tag) {
-                $boosters[] = "if \"{$tag}\" in 'tags' then 1.5 else 1";
+        if (!empty($filters['categories'])) {
+            $categoryBoosts = [];
+            foreach ($filters['categories'] as $cat) {
+                $categoryBoosts[] = "'category' == \"{$cat}\"";
+            }
+            if (!empty($categoryBoosts)) {
+                $boosters[] = "(if (" . implode(' or ', $categoryBoosts) . ") then 2.0 else 1.0)";
             }
         }
 
-        // Boost por personalidad
-        // Si el producto coincide con la personalidad, aumenta 30%
-        if (isset($filters['personality'])) {
-            $boosters[] = "if \"{$filters['personality']}\" in 'personality' then 1.3 else 1";
+        if (isset($filters['occasion'])) {
+            $boosters[] = "(if 'occasion' == \"{$filters['occasion']}\" then 1.5 else 1.0)";
         }
 
-        // Boost por productos populares (opcional)
-        // Puedes agregar un campo 'popularity_score' a tus productos
-        // $boosters[] = "'popularity_score'";
+        if (isset($filters['ageRange'])) {
+            $boosters[] = "(if 'age_group' == \"{$filters['ageRange']}\" then 1.3 else 1.0)";
+        }
+
+        if (isset($filters['personality'])) {
+            $boosters[] = "(if 'gift_style' == \"{$filters['personality']}\" then 1.2 else 1.0)";
+        }
 
         return !empty($boosters) ? implode(' * ', $boosters) : null;
     }

@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Giftea\Services;
 
 use App\Models\QuizSession;
-use Exception;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Social\Messages\Models\Message;
 
 class QuizService
@@ -52,19 +50,8 @@ class QuizService
         ]);
     }
 
-    public function refineRecommendations(string $sessionId, array $additionalFilters, int $limit = 20): array
+    public function refineRecommendations(string $sessionId, array $filters, int $limit = 20): array
     {
-        $cachedSession = Cache::get("quiz_session:{$sessionId}");
-
-        if (!$cachedSession) {
-            throw new Exception('Session not found or expired');
-        }
-
-        $filters = array_merge(
-            $cachedSession['filters'],
-            $additionalFilters
-        );
-
         return $this->recombeeService->getRecommendations($sessionId, $filters, $limit);
     }
 

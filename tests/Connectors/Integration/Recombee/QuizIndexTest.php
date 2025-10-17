@@ -62,36 +62,80 @@ class QuizIndexTest extends TestCase
             'updated_at' => now()->toDateTimeString(),
         ]);
 
-        // Simulate product catalog
         $this->products = [
             [
                 'id' => 'product-1',
-                'name' => 'Modern Office Chair',
-                'category' => 'furniture',
-                'style' => 'modern',
-                'color' => 'blue',
-                'price_range' => 'mid',
-                'suitable_for' => ['office', 'home'],
+                'name' => 'Auriculares Bluetooth Premium',
+                'category' => 'tecnología',
+                'price' => 75,
+                'price_range' => '50-100',
+                'age_group' => '26-35',
+                'relation_type' => 'pareja',
+                'interests' => ['música', 'tecnología'],
+                'gift_type' => 'util',
+                'occasion' => 'aniversario',
+                'gift_style' => 'practico',
+                'image_url' => 'https://example.com/headphones.jpg',
                 'companies_id' => $company->getId(),
             ],
             [
                 'id' => 'product-2',
-                'name' => 'Wireless Headphones',
-                'category' => 'electronics',
-                'style' => 'modern',
-                'color' => 'black',
-                'price_range' => 'mid',
-                'suitable_for' => ['office', 'travel'],
+                'name' => 'Smartwatch Deportivo',
+                'category' => 'tecnología',
+                'price' => 120,
+                'price_range' => '100-200',
+                'age_group' => '26-35',
+                'relation_type' => 'pareja',
+                'interests' => ['tecnología', 'deportes'],
+                'gift_type' => 'util',
+                'occasion' => 'cumpleaños',
+                'gift_style' => 'practico',
+                'image_url' => 'https://example.com/smartwatch.jpg',
                 'companies_id' => $company->getId(),
             ],
             [
                 'id' => 'product-3',
-                'name' => 'Standing Desk',
-                'category' => 'furniture',
-                'style' => 'modern',
-                'color' => 'white',
-                'price_range' => 'high',
-                'suitable_for' => ['office'],
+                'name' => 'Vinilo Edición Especial The Beatles',
+                'category' => 'música',
+                'price' => 45,
+                'price_range' => '25-50',
+                'age_group' => '26-35',
+                'relation_type' => 'pareja',
+                'interests' => ['música', 'arte'],
+                'gift_type' => 'divertido',
+                'occasion' => 'aniversario',
+                'gift_style' => 'unico',
+                'image_url' => 'https://example.com/vinyl.jpg',
+                'companies_id' => $company->getId(),
+            ],
+            [
+                'id' => 'product-4',
+                'name' => 'Collar de Oro con Diamante',
+                'category' => 'joyería',
+                'price' => 350,
+                'price_range' => '200+',
+                'age_group' => '26-35',
+                'relation_type' => 'pareja',
+                'interests' => ['moda'],
+                'gift_type' => 'lujo',
+                'occasion' => 'aniversario',
+                'gift_style' => 'elegante',
+                'image_url' => 'https://example.com/necklace.jpg',
+                'companies_id' => $company->getId(),
+            ],
+            [
+                'id' => 'product-5',
+                'name' => 'Set de Herramientas para Hogar',
+                'category' => 'hogar',
+                'price' => 55,
+                'price_range' => '50-100',
+                'age_group' => '36-50',
+                'relation_type' => 'familiar',
+                'interests' => ['bricolaje'],
+                'gift_type' => 'util',
+                'occasion' => 'cumpleaños',
+                'gift_style' => 'practico',
+                'image_url' => 'https://example.com/tools.jpg',
                 'companies_id' => $company->getId(),
             ],
         ];
@@ -99,18 +143,22 @@ class QuizIndexTest extends TestCase
 
     public function indexProducts(RecombeeItemService $itemService): void
     {
-        
         $itemService->createProductDatabase();
 
-        // Index all products
         foreach ($this->products as $product) {
             $itemService->addItem($product['id'], [
                 'name' => $product['name'],
                 'category' => $product['category'],
-                'style' => $product['style'],
-                'color' => $product['color'],
+                'price' => $product['price'],
                 'price_range' => $product['price_range'],
-                'suitable_for' => implode(',', $product['suitable_for']),
+                'age_group' => $product['age_group'],
+                'relation_type' => $product['relation_type'],
+                'interests' => $product['interests'],
+                'gift_type' => $product['gift_type'],
+                'occasion' => $product['occasion'],
+                'gift_style' => $product['gift_style'],
+                'image_url' => $product['image_url'],
+                'companies_id' => $product['companies_id'],
             ]);
         }
     }
@@ -128,15 +176,20 @@ class QuizIndexTest extends TestCase
 
         $itemService->createProductDatabase();
 
-        // Index all products
         foreach ($this->products as $product) {
             $result = $itemService->addItem($product['id'], [
                 'name' => $product['name'],
                 'category' => $product['category'],
-                'style' => $product['style'],
-                'color' => $product['color'],
+                'price' => $product['price'],
                 'price_range' => $product['price_range'],
-                'suitable_for' => implode(',', $product['suitable_for']),
+                'age_group' => $product['age_group'],
+                'relation_type' => $product['relation_type'],
+                'interests' => $product['interests'],
+                'gift_type' => $product['gift_type'],
+                'occasion' => $product['occasion'],
+                'gift_style' => $product['gift_style'],
+                'image_url' => $product['image_url'],
+                'companies_id' => $product['companies_id'],
             ]);
 
             $this->assertEquals('ok', $result);
@@ -179,15 +232,6 @@ class QuizIndexTest extends TestCase
             $this->user
         );
 
-        print_r([
-            "appId" => $this->apps->getId(),
-            "companyId" => $this->company->getId(),
-            "userId" => $this->user->getId(),
-            "messageId" => $this->quizResponses->getId(),
-            "messageAppId" => $this->quizResponses->app->getId(),
-            "messageCompanyId" => $this->quizResponses->company->getId(),
-        ]);
-
         $itemService = new RecombeeItemService(
             $this->apps,
             env('TEST_RECOMBEE_DATABASE'),
@@ -216,8 +260,6 @@ class QuizIndexTest extends TestCase
                 'service' => $itemService
             ]
         );
-
-        print_r($result);
 
         $newMessage = Message::getById($this->quizResponses->getId(), $this->apps);
         $this->assertNotEmpty($newMessage->message['recoms'] ?? null);
