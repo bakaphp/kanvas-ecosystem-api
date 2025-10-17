@@ -20,6 +20,7 @@ return [
     */
     'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
     'user_auth_key' => env('USER_AUTH_KEY'),
+    'rest_api_url' => env('ONESIGNAL_REST_API_URL', 'https://api.onesignal.com'),
 
     /*
     |--------------------------------------------------------------------------
