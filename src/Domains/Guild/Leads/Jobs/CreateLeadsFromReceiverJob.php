@@ -85,7 +85,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         );
 
         $lead = $createLead->execute();
-        $sentEmail = false;
+        $sentEmail = ['no email sent'];
 
         if ($user) {
             $sentEmail = [
