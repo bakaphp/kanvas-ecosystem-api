@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Recombee;
 
-use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Giftea\Handlers\GifteaHandler;
@@ -25,9 +24,9 @@ class QuizIndexTest extends TestCase
     use HasIntegrationCompany;
     protected ?Message $quizResponses = null;
     protected array $products = [];
-    protected ?Users $user=null;
-    protected ?Companies $company=null;
-    protected ?Apps $apps=null;
+    protected ?Users $user = null;
+    protected ?Companies $company = null;
+    protected ?Apps $apps = null;
 
     public function setUp(): void
     {
@@ -212,10 +211,10 @@ class QuizIndexTest extends TestCase
             recombeeService: $itemService
         );
 
-       $this->indexProducts($itemService);      
+        $this->indexProducts($itemService);
 
-       $recommendations = $QuizService->processQuizSubmission(
-            $this->quizResponses, 
+        $recommendations = $QuizService->processQuizSubmission(
+            $this->quizResponses,
             (string) $user->getId()
         );
 
@@ -243,7 +242,7 @@ class QuizIndexTest extends TestCase
             recombeeService: $itemService
         );
 
-       $this->indexProducts($itemService); 
+        $this->indexProducts($itemService);
 
         $activity = new PushQuizToItemActivity(
             0,

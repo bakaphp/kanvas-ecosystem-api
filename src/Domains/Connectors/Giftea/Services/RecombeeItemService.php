@@ -37,13 +37,12 @@ class RecombeeItemService
         ))->getClient();
     }
 
-     public function createProductDatabase(): void
+    public function createProductDatabase(): void
     {
         $properties = [
             'name' => 'string',
             'category' => 'string',
             'suitable_for' => 'string',
-            'style' => 'string',
             'color' => 'string',
             'categories' => 'set',
             'image_url' => 'string',
@@ -118,7 +117,6 @@ class RecombeeItemService
             'price_range' => $priceRange,
             'age_group' => '26-35',
             'relation_type' => $variant->get('relation_type') ?? null,
-            'interests' => $variant->get('interests') ?? null,
             'gift_type' => $variant->get('gift_type') ?? null,
             'occasion' => $variant->get('occasion') ?? null,
             'gift_style' => $variant->get('gift_style') ?? null,
@@ -136,7 +134,7 @@ class RecombeeItemService
             'updated_at' => (int) strtotime($variant->updated_at->toDateTimeString()),
             'is_premium' => $variant->is_premium,
             'categories' => $variant->product->categories->pluck('name')->toArray(),
-            'interests' => $variant->product->categories->pluck('name')->toArray(),
+            'interests' =>  $variant->get('interests') ?? $variant->product->categories->pluck('name')->toArray(),
             'type' => $variant->product->productsType->name ?? null,
         ];
         $request = new SetItemValues(
@@ -147,7 +145,7 @@ class RecombeeItemService
 
         return $this->client->send($request);
     }
-  
+
     public function addItem(string $itemId, array $properties = []): mixed
     {
         $request = new SetItemValues(
@@ -189,7 +187,7 @@ class RecombeeItemService
                 'diversity' => 0.5,
             ];
 
-            if (!empty($filters)) {
+            if (! empty($filters)) {
                 $boosterString = $this->buildBooster($filters);
                 if ($boosterString) {
                     $options['booster'] = $boosterString;
@@ -202,7 +200,6 @@ class RecombeeItemService
             print_r(["response" => $response ]);
 
             return $response['recomms'] ?? [];
-
         } catch (ApiException $e) {
             Log::error('Recombee recommendation error: ' . $e->getMessage());
             throw $e;
@@ -213,12 +210,12 @@ class RecombeeItemService
     {
         $boosters = [];
 
-        if (!empty($filters['categories'])) {
+        if (! empty($filters['categories'])) {
             $categoryBoosts = [];
             foreach ($filters['categories'] as $cat) {
                 $categoryBoosts[] = "'category' == \"{$cat}\"";
             }
-            if (!empty($categoryBoosts)) {
+            if (! empty($categoryBoosts)) {
                 $boosters[] = "(if (" . implode(' or ', $categoryBoosts) . ") then 2.0 else 1.0)";
             }
         }
@@ -235,6 +232,6 @@ class RecombeeItemService
             $boosters[] = "(if 'gift_style' == \"{$filters['personality']}\" then 1.2 else 1.0)";
         }
 
-        return !empty($boosters) ? implode(' * ', $boosters) : null;
+        return ! empty($boosters) ? implode(' * ', $boosters) : null;
     }
 }

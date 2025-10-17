@@ -12,7 +12,8 @@ class QuizService
 {
     public function __construct(
         private RecombeeItemService $recombeeService
-    ) {}
+    ) {
+    }
 
     public function processQuizSubmission(Message $answers, ?string $userId = null): array
     {
@@ -90,11 +91,11 @@ class QuizService
     private function parseBudget(string $budget): array
     {
         $parts = explode('-', $budget);
-        
+
         if (count($parts) === 2) {
             return [(int) $parts[0], (int) $parts[1]];
         }
-        
+
         if (str_ends_with($budget, '+')) {
             $min = (int) rtrim($budget, '+');
             return [$min, 9999];

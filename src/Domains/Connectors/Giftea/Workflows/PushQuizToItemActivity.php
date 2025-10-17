@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Giftea\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\Giftea\Services\QuizService;
 use Kanvas\Connectors\Giftea\Services\RecombeeItemService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -47,9 +46,9 @@ class PushQuizToItemActivity extends KanvasActivity implements WorkflowActivityI
                 try {
                     $itemService = $params["service"] ?? new RecombeeItemService($app);
                     $QuizService = new QuizService($itemService);
-      
+
                     $result = $QuizService->processQuizSubmission(
-                        $message, 
+                        $message,
                         (string) $message->users_id
                     );
 
@@ -59,7 +58,6 @@ class PushQuizToItemActivity extends KanvasActivity implements WorkflowActivityI
                             'recoms' => $result
                         ]
                     ]);
-
                 } catch (Throwable $e) {
                     return [
                         'result' => false,
