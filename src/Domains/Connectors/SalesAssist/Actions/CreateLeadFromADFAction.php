@@ -28,6 +28,12 @@ class CreateLeadFromADFAction
 
         $data = $xml->toArray();
 
+        if (! isset($data['adf']['prospect'])) {
+            return [
+                'error' => 'ADF prospect not found in payload',
+            ];
+        }
+
         $people = PeoplesRepository::getMatchingEmailPhone(
             $app,
             $company,
