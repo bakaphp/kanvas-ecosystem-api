@@ -47,6 +47,7 @@ class RecombeeItemService
             'image_url' => 'string',
             'type' => 'string',
             'companies_id' => 'int',
+            'price' => 'int',
             'price_range' => 'string',
             'age_group' =>	'string', 	//"adult", "child", "baby"
             'relation_type' =>	'string', //	"pareja", "familiar"
@@ -193,7 +194,7 @@ class RecombeeItemService
 
         // Filtro de rango de edad
         if (isset($filters['ageRange'])) {
-            $conditions[] = "\"{$filters['ageRange']}\" in 'age_range'";
+            $conditions[] = "\"{$filters['ageRange']}\" in 'age_group'";
         }
 
         return !empty($conditions) ? implode(' and ', $conditions) : null;

@@ -16,31 +16,19 @@ class QuizService
         private RecombeeItemService $recombeeService
     ) {}
 
-    /**
-     * Procesar respuestas del quiz
-     */
     public function processQuizSubmission(Message $answers, ?string $userId = null): array
     {
-        // Generar session ID único
         $sessionId = $userId ?? 'guest_' . Str::uuid();
 
-        // 1. Construir filtros desde las respuestas del quiz
         $filters = $this->buildFiltersFromAnswers($answers);
 
-        // 2. Crear un "perfil virtual" del usuario basado en el quiz
-        // Esto le dice a Recombee qué tipo de productos le interesan
         $this->createVirtualUserProfile($sessionId, $answers);
 
-        // 3. Obtener recomendaciones DIRECTAMENTE de Recombee
-        // Recombee hará el trabajo de filtrar y rankear los productos
         $recommendations = $this->recombeeService->getRecommendations(
             $sessionId,
             $filters,
             20
         );
-
-        // 4. Guardar sesión para referencia
-        // $this->saveSession($sessionId, $answers, $recommendations, $userId);
 
         return [
             'sessionId' => $sessionId,
@@ -50,14 +38,10 @@ class QuizService
         ];
     }
 
-    /**
-     * Crear perfil virtual del usuario en Recombee
-     * Esto ayuda a Recombee a entender las preferencias sin hacer filtrado local
-     */
     private function createVirtualUserProfile(string $sessionId, Message $message): void
     {
         $answers = $message->message;
-        // Establecer propiedades del usuario virtual en Recombee
+
         $this->recombeeService->setUserProperties($sessionId, [
             'recipient_type' => $answers['recipient'],
             'target_age' => $answers['age'],
@@ -68,13 +52,10 @@ class QuizService
         ]);
     }
 
-    /**
-     * Refinar recomendaciones con filtros adicionales
-     */
     public function refineRecommendations(string $sessionId, array $additionalFilters, int $limit = 20): array
     {
         $cachedSession = Cache::get("quiz_session:{$sessionId}");
-        
+
         if (!$cachedSession) {
             throw new Exception('Session not found or expired');
         }
@@ -84,45 +65,36 @@ class QuizService
             $additionalFilters
         );
 
-        // Todo el filtrado y ranking lo hace Recombee
         return $this->recombeeService->getRecommendations($sessionId, $filters, $limit);
     }
 
-    /**
-     * Construir filtros para Recombee (NO para DB local)
-     */
     private function buildFiltersFromAnswers(Message $answers): array
     {
         $filters = [];
+        $messageData = $answers->message;
 
-        // Presupuesto
-        if (isset($answers['budget'])) {
-            $filters['priceRange'] = $this->parseBudget($answers['budget']);
+        if (isset($messageData['budget'])) {
+            $filters['priceRange'] = $this->parseBudget($messageData['budget']);
         }
 
-        // Ocasión
-        if (isset($answers['occasion'])) {
-            $filters['occasion'] = $answers['occasion'];
+        if (isset($messageData['occasion'])) {
+            $filters['occasion'] = $messageData['occasion'];
         }
 
-        // Rango de edad
-        if (isset($answers['age'])) {
-            $filters['ageRange'] = $answers['age'];
+        if (isset($messageData['age'])) {
+            $filters['ageRange'] = $messageData['age'];
         }
 
-        // Tags preferidos (intereses)
-        if (isset($answers['interests'])) {
-            $filters['preferredTags'] = $answers['interests'];
+        if (isset($messageData['interests'])) {
+            $filters['preferredTags'] = $messageData['interests'];
         }
 
-        // Categorías basadas en intereses
-        if (isset($answers['interests'])) {
-            $filters['categories'] = $this->mapInterestsToCategories($answers['interests']);
+        if (isset($messageData['interests'])) {
+            $filters['categories'] = $this->mapInterestsToCategories($messageData['interests']);
         }
 
-        // Personalidad
-        if (isset($answers['personality'])) {
-            $filters['personality'] = $answers['personality'];
+        if (isset($messageData['personality'])) {
+            $filters['personality'] = $messageData['personality'];
         }
 
         return $filters;
