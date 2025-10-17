@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
-use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
@@ -37,7 +36,9 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
-                    throw new Exception('Lead not found');
+                    return $this->failWorkflow([
+                        'error' => 'Message is not linked to a Lead entity',
+                    ]);
                 }
 
                 //$syncLeadAction = new SyncLeadAction($lead);
@@ -46,9 +47,9 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 $note = $message->message['content'] ?? '';
 
                 if (empty($note)) {
-                    return [
-                        'error' => 'Message content is empty, no note to add',
-                    ];
+                    return $this->failWorkflow([
+                        'error' => 'Message content is empty',
+                    ]);
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
