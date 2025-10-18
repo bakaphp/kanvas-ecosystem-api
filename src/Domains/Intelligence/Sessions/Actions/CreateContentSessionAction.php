@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Baka\Support\Str;
+use Carbon\Carbon;
 use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
@@ -28,7 +29,7 @@ use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
 use Yasumi\Exception\ProviderNotFoundException;
 use Yasumi\Exception\UnknownLocaleException;
-use Carbon\Carbon;
+
 class CreateContentSessionAction
 {
     protected Lead|People $entity;
