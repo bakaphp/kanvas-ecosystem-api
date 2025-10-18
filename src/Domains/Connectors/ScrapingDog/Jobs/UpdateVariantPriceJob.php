@@ -23,6 +23,8 @@ use Override;
 
 use function Sentry\captureException;
 
+use Throwable;
+
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
@@ -35,17 +37,31 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
     {
         $this->channel = Channels::getById($this->receiver->configuration['channel_id']);
         $this->warehouse = Warehouses::getById($this->receiver->configuration['warehouse_id']);
-        $app = $this->receiver->app;
-        $this->overwriteAppService($app);
-        $request = $this->webhookRequest->payload;
+        $maxAttempts = $this->receiver->configuration['max_attempts'] ?? 3;
         $minutesForUpdate = $this->receiver->configuration['minutes_for_update'] ?? 30;
+
+        $app = $this->receiver->app;
+        $request = $this->webhookRequest->payload;
+
         $key = 'update_v1_' . $request['sku'] . ':' . $this->receiver->app->getId();
         if (isset($request['forgot_cache'])) {
             Cache::forget($key);
         }
 
-        return Cache::remember($key, $minutesForUpdate, function () use ($request) {
-            return $this->updateVariant($request['sku']);
+        return Cache::remember($key, $minutesForUpdate, function () use ($request, $maxAttempts) {
+            $attempt = 0;
+
+            while ($attempt < $maxAttempts) {
+                $result = $this->updateVariant($request['sku']);
+
+                if (! empty($result)) {
+                    return $result;
+                }
+
+                $attempt++;
+            }
+
+            return [];
         });
     }
 
@@ -53,11 +69,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
     {
         $repository = new ScrapingDogRepository($this->receiver->app);
         $product = $repository->getByAsin($sku);
+
         $productVariantService = new ProductVariantService(
             $this->channel,
             $this->warehouse,
             $this->receiver->user,
         );
+
         $mappedProduct = $productVariantService->mapProduct($product);
         $appId = $this->receiver->app->getId();
         $desiredSlug = $mappedProduct['slug'];
@@ -72,6 +90,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $productModel->is_deleted = false;
             $productModel->save();
         }
+
         if ($productModel && $productModel->slug !== $desiredSlug) {
             $productModel->update(['slug' => $desiredSlug]);
         }
@@ -89,7 +108,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 ]);
                 $productModel = (new CreateProductAction(
                     $dto,
-                    auth()->user()
+                    $this->receiver->user
                 ))->execute();
             }
 
@@ -115,8 +134,9 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 $variant = VariantService::createVariantsFromArray(
                     $productModel,
                     [$newVariant],
-                    auth()->user()
+                    $this->receiver->user
                 )[0];
+
                 $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
                 $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
                 $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
@@ -127,6 +147,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                     (float) $mappedProduct['discountPrice']
                 );
             }
+
             if (! empty($mappedProduct['files'])) {
                 $variant->deleteFiles();
                 // $files = $mappedProduct['files'];
@@ -147,13 +168,15 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 ->toArray();
 
             $variants = Variants::with(['files', 'attributes'])
-            ->where('products_id', $productModel->getId())
-            ->where('apps_id', $this->receiver->app->getId())
-            ->get();
+                ->where('products_id', $productModel->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->get();
+
             $variantData['translation'] = [
                 'name' => $variant->getTranslation('name', 'es'),
                 'description' => $variant->getTranslation('description', 'es'),
             ];
+
             $variantData['customization_options'] = $product['customization_options'];
 
             $variants = Variants::with(['files', 'attributes'])
@@ -167,7 +190,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'variant' => $variantData,
                 'variants' => $variants,
             ];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             captureException($e);
         }
 
