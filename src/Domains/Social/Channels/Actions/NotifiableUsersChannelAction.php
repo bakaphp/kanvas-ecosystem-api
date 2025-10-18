@@ -27,8 +27,10 @@ class NotifiableUsersChannelAction
             message: $this->message,
             data: [
                 'message' => $this->message->message,
+                'channel' => $this->channel,
+                'user' => $this->message->user,
             ],
-            via: [OneSignalNotificationChannel::class]
+            via: ['broadcast']
         );
         Notification::send($users, $notification);
     }

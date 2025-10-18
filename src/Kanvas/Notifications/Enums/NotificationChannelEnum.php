@@ -18,6 +18,7 @@ enum NotificationChannelEnum: int
     case REALTIME = 4;
     case SMS = 5;
     case EXPO = 6;
+    case BROADCAST = 7;
 
     public static function getIdFromString(string $channel): ?int
     {
@@ -55,6 +56,7 @@ enum NotificationChannelEnum: int
             KanvasDatabase::class => self::DATABASE->value,
             'database' => self::DATABASE->value,
             TwilioSmsChannel::class => self::SMS->value,
+            'broadcast' => self::BROADCAST->value,
             default => throw new ValidationException('Invalid channel ' . $class),
         };
     }
