@@ -6,6 +6,7 @@ namespace App\GraphQL\Social\Queries\Interactions;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -17,6 +18,8 @@ class EntityInteractionsQueries
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
+        $app = app(Apps::class);
+
         return EntityInteractions::select(
             'entity_id',
             'entity_namespace',
@@ -25,6 +28,8 @@ class EntityInteractionsQueries
         )
         ->where('entity_id', $args['entity_id'])
         ->where('entity_namespace', $args['entity_namespace'])
+        ->notDeleted()
+        ->fromApp($app)
         ->groupBy(
             'entity_interactions.entity_id',
             'entity_interactions.entity_namespace',
