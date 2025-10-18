@@ -282,7 +282,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 params: $params
             ) : $promptClient->continueImageChat(
                 //provider: $provider,
-                previousImageUrl: $params['previousImageUrl'] ?? null,
+                previousImageUrl: $params['previousImageUrl'] ?? '',
                 previousPrompts: $params['previousPrompts'] ?? [],
                 //model: $model,
                 model: $this->app->get('default-image-edit-model') ?? 'fal-ai/flux-kontext/dev',
