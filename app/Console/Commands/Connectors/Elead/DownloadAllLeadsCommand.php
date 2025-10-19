@@ -128,8 +128,8 @@ class DownloadAllLeadsCommand extends Command
                                 new SyncLeadAction($newLead)->execute();
                                 $newLead->set('downloaded_from_eleads', true);
                                 $newLead->refresh();
-                                $hasEmail = $newLead->people?->getEmails()->first()?->value ?? null;
-                                $hasCellPhone = $newLead->people?->getCellPhones()->first()?->value ?? null;
+                                $hasEmail = $newLead->people?->getEmails()->count() > 0;
+                                $hasCellPhone = $newLead->people?->getCellPhones()->count() > 0;
 
                                 $agentNotificationChannel = match (true) {
                                     $hasEmail && $hasCellPhone => 'sms',
