@@ -26,6 +26,7 @@ class FollowUpEngagementCommand extends Command
         $stages = PipelineStage::join('pipelines', 'pipelines.id', '=', 'pipelines_stages.pipelines_id')
             ->whereNotNull('pipelines_stages.config')
             ->whereIn('pipelines.apps_id', $apps)
+            ->select('pipelines_stages.*')
             ->cursor();
 
         foreach ($stages as $stage) {
