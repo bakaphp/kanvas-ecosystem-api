@@ -16,6 +16,7 @@ use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as GuildLead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
@@ -138,34 +139,43 @@ class DownloadAllLeadsCommand extends Command
                             // Transform the lead data to match the expected format
                             $transformedLead = $this->transformVinLeadData($vinLeadData);
 
+                            $isNewLead = ModelsLead::getByCustomField(
+                                CustomFieldEnum::LEADS->value,
+                                $transformedLead['LeadId'],
+                                $company,
+                            );
+
                             // Use PullLeadAction to sync the lead
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
-                            $lead = GuildLead::getById($result['id']);
-                            $lead->set('downloaded_from_vin_solution', true);
-                            $lead->refresh();
 
-                            $hasEmail = $lead->people?->getEmails()->count() > 0;
-                            $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+                            if ($isNewLead) {
+                                $lead = GuildLead::getById($result['id']);
+                                $lead->set('downloaded_from_vin_solution', true);
+                                $lead->refresh();
 
-                            $agentNotificationChannel = match (true) {
-                                $hasEmail && $hasCellPhone => 'sms',
-                                $hasEmail => 'email',
-                                $hasCellPhone => 'sms',
-                                default => null,
-                            };
+                                $hasEmail = $lead->people?->getEmails()->count() > 0;
+                                $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
 
-                            if ($agentNotificationChannel !== null) {
-                                $lead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+                                $agentNotificationChannel = match (true) {
+                                    $hasEmail && $hasCellPhone => 'sms',
+                                    $hasEmail => 'email',
+                                    $hasCellPhone => 'sms',
+                                    default => null,
+                                };
+
+                                if ($agentNotificationChannel !== null) {
+                                    $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+                                }
+
+                                $lead->fireWorkflow(
+                                    WorkflowEnum::CREATED->value,
+                                    true,
+                                    [
+                                        'app' => $app,
+                                    ]
+                                );
                             }
-
-                            $lead->fireWorkflow(
-                                WorkflowEnum::CREATED->value,
-                                true,
-                                [
-                                    'app' => $app,
-                                ]
-                            );
 
                             if (! empty($result)) {
                                 $successCount++;
