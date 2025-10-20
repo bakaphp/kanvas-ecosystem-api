@@ -19,6 +19,8 @@ use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
 use Throwable;
+use Kanvas\Guild\Leads\Models\Lead as GuildLead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class DownloadAllLeadsCommand extends Command
 {
@@ -139,6 +141,31 @@ class DownloadAllLeadsCommand extends Command
                             // Use PullLeadAction to sync the lead
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
+                            $lead = GuildLead::getById($result['id']);
+                            $lead->set('downloaded_from_vin_solution', true);
+                            $lead->refresh();
+
+$hasEmail = $lead->people?->getEmails()->count() > 0;
+$hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+$agentNotificationChannel = match (true) {
+    $hasEmail && $hasCellPhone => 'sms',
+    $hasEmail => 'email',
+    $hasCellPhone => 'sms',
+    default => null,
+};
+
+if ($agentNotificationChannel !== null) {
+    $lead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+}
+
+$lead->fireWorkflow(
+    WorkflowEnum::CREATED->value,
+    true,
+    [
+        'app' => $app,
+    ]
+);
 
                             if (! empty($result)) {
                                 $successCount++;

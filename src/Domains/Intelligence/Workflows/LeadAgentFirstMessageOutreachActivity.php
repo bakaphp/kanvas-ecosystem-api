@@ -35,6 +35,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
+use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 
 class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 {
@@ -134,8 +135,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 //send the first message
                 if (! isset($params['disable_sending'])) {
-                    $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
-                    $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+                    $leadCurrentDateIn = null;
+                    if ($lead->get('downloaded_from_eleads')) {
+                        $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                        $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+                    } else {
+                    }
 
                     $messageType = match ($communicationChannel) {
                         'sms' => 'twilio-sms',
@@ -166,7 +171,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         try {
                             //todo this is not the right place to do this but for now its ok
                             //we need to make sure we have the phone call activity
-                            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)->execute('Sally Take Over', 'Sally stop the clock');
+                            if ($lead->get('downloaded_from_eleads')) {
+                                $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)
+                                ->execute('Sally Take Over', 'Sally stop the clock');
+                            } elseif ($lead->get('downloaded_from_vin_solution')) {
+                                // To do VinSolution Push Note to Lead
+                            }
                         } catch (Exception $e) {
                             report($e);
                         }
