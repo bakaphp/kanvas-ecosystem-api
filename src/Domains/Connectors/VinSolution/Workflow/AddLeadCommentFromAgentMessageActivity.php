@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 
 class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
