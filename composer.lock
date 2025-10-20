@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6e15c30b3aa55561b3087d06256de2b5",
+    "content-hash": "2c09fb429bd46c9cfa0e895feed2cf0b",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1684,16 +1684,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.93.0",
+            "version": "v0.94.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "06e38dbe2b1869ca331592cf507ac86a0681a4ae"
+                "reference": "9e388ea946c5ba024cb84cca937765b55cbd954a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/06e38dbe2b1869ca331592cf507ac86a0681a4ae",
-                "reference": "06e38dbe2b1869ca331592cf507ac86a0681a4ae",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/9e388ea946c5ba024cb84cca937765b55cbd954a",
+                "reference": "9e388ea946c5ba024cb84cca937765b55cbd954a",
                 "shasum": ""
             },
             "require": {
@@ -1749,7 +1749,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.93.0"
+                "source": "https://github.com/prism-php/prism/tree/v0.94.0"
             },
             "funding": [
                 {
@@ -1757,7 +1757,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-10-15T16:49:35+00:00"
+            "time": "2025-10-16T15:37:43+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -3768,16 +3768,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.5.6",
+            "version": "2.5.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "f401ee3d33ccf0103008d9b498cf7638336157cc"
+                "reference": "e6c32172964b90308467a380dfd32b7d16d26667"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/f401ee3d33ccf0103008d9b498cf7638336157cc",
-                "reference": "f401ee3d33ccf0103008d9b498cf7638336157cc",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/e6c32172964b90308467a380dfd32b7d16d26667",
+                "reference": "e6c32172964b90308467a380dfd32b7d16d26667",
                 "shasum": ""
             },
             "require": {
@@ -3830,9 +3830,9 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.5.6"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.5.8"
             },
-            "time": "2025-10-15T13:51:21+00:00"
+            "time": "2025-10-17T17:44:51+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -5286,22 +5286,22 @@
         },
         {
             "name": "lcobucci/jwt",
-            "version": "5.5.0",
+            "version": "5.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/lcobucci/jwt.git",
-                "reference": "a835af59b030d3f2967725697cf88300f579088e"
+                "reference": "bb3e9f21e4196e8afc41def81ef649c164bca25e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/lcobucci/jwt/zipball/a835af59b030d3f2967725697cf88300f579088e",
-                "reference": "a835af59b030d3f2967725697cf88300f579088e",
+                "url": "https://api.github.com/repos/lcobucci/jwt/zipball/bb3e9f21e4196e8afc41def81ef649c164bca25e",
+                "reference": "bb3e9f21e4196e8afc41def81ef649c164bca25e",
                 "shasum": ""
             },
             "require": {
                 "ext-openssl": "*",
                 "ext-sodium": "*",
-                "php": "~8.2.0 || ~8.3.0 || ~8.4.0",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
                 "psr/clock": "^1.0"
             },
             "require-dev": {
@@ -5343,7 +5343,7 @@
             ],
             "support": {
                 "issues": "https://github.com/lcobucci/jwt/issues",
-                "source": "https://github.com/lcobucci/jwt/tree/5.5.0"
+                "source": "https://github.com/lcobucci/jwt/tree/5.6.0"
             },
             "funding": [
                 {
@@ -5355,7 +5355,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-01-26T21:29:45+00:00"
+            "time": "2025-10-17T11:30:53+00:00"
         },
         {
             "name": "league/commonmark",
@@ -5548,16 +5548,16 @@
         },
         {
             "name": "league/csv",
-            "version": "9.26.0",
+            "version": "9.27.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/csv.git",
-                "reference": "7fce732754d043f3938899e5183e2d0f3d31b571"
+                "reference": "cb491b1ba3c42ff2bcd0113814f4256b42bae845"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/csv/zipball/7fce732754d043f3938899e5183e2d0f3d31b571",
-                "reference": "7fce732754d043f3938899e5183e2d0f3d31b571",
+                "url": "https://api.github.com/repos/thephpleague/csv/zipball/cb491b1ba3c42ff2bcd0113814f4256b42bae845",
+                "reference": "cb491b1ba3c42ff2bcd0113814f4256b42bae845",
                 "shasum": ""
             },
             "require": {
@@ -5635,7 +5635,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-10-01T11:24:54+00:00"
+            "time": "2025-10-16T08:22:09+00:00"
         },
         {
             "name": "league/flysystem",
@@ -11368,16 +11368,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.17.1",
+            "version": "4.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "6ec15bb6798128f01aecb67dcd18a937251a27a5"
+                "reference": "c10784f1133d540a702bd6db36ed659f4bc0606a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/6ec15bb6798128f01aecb67dcd18a937251a27a5",
-                "reference": "6ec15bb6798128f01aecb67dcd18a937251a27a5",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/c10784f1133d540a702bd6db36ed659f4bc0606a",
+                "reference": "c10784f1133d540a702bd6db36ed659f4bc0606a",
                 "shasum": ""
             },
             "require": {
@@ -11439,7 +11439,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.17.1"
+                "source": "https://github.com/spatie/laravel-data/tree/4.18.0"
             },
             "funding": [
                 {
@@ -11447,7 +11447,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-09-04T08:30:23+00:00"
+            "time": "2025-10-16T16:44:07+00:00"
         },
         {
             "name": "spatie/laravel-google-calendar",
