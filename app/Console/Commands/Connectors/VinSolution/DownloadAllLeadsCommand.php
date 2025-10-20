@@ -150,7 +150,7 @@ class DownloadAllLeadsCommand extends Command
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
                             if ($existingLead === null) {
-                                $this->setCommunicationChannel((string) $transformedLead['LeadId']);
+                                $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
                             }
 
                             if (! empty($result)) {
@@ -189,10 +189,11 @@ class DownloadAllLeadsCommand extends Command
         }
     }
 
-    private function setCommunicationChannel(string $leadId): void
+    private function setCommunicationChannel(string $leadId, string $vinSolutionDateIn): void
     {
         $lead = GuildLead::getById($leadId);
         $lead->set('downloaded_from_vin_solution', true);
+        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
         $lead->refresh();
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;

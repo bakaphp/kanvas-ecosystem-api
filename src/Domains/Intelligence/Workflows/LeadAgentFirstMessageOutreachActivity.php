@@ -134,20 +134,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 //send the first message
                 if (! isset($params['disable_sending'])) {
-                    $leadCurrentDateIn = null;
-                    if ($lead->get('downloaded_from_eleads')) {
-                        $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
-                        $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
-                    } else {
-                    }
+                    $leadCurrentDateIn = $this->getLeadCreatedAt($lead);
 
                     $messageType = match ($communicationChannel) {
                         'sms' => 'twilio-sms',
                         'email' => 'mailgun-email',
                         default => 'twilio-sms',
                     };
-
-                    //$doubleCheckIsInternet = Str::contains((string) $eLeadOpportunity->upType, 'Internet', true); //@this is not needed but just in case
 
                     if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
                         new SendMessageToLeadAction($lead)->execute(
@@ -158,7 +151,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
                         $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
-                        //$createMessage = $this->createMessage($lead, $firstLeadMessage['message'], $cellPhone, $channel ?? null);
                         $createMessage = $this->createMessage(
                             $lead,
                             $firstLeadMessage['message'],
@@ -168,14 +160,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
 
                         try {
-                            //todo this is not the right place to do this but for now its ok
-                            //we need to make sure we have the phone call activity
-                            if ($lead->get('downloaded_from_eleads')) {
-                                $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)
-                                ->execute('Sally Take Over', 'Sally stop the clock');
-                            } elseif ($lead->get('downloaded_from_vin_solution')) {
-                                // To do VinSolution Push Note to Lead
-                            }
+                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead);
                         } catch (Exception $e) {
                             report($e);
                         }
@@ -207,7 +192,37 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
     }
 
-    public function isWithinOneDay(Lead $lead, string $dateString): bool
+    private function getLeadCreatedAt(Lead $lead): ?string
+    {
+        $leadCurrentDateIn = null;
+        if ($lead->get('downloaded_from_eleads')) {
+            $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+            $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
+        } elseif ($lead->get('downloaded_from_vin_solution')) {
+            $leadCurrentDateIn = (string) $lead->get('vin_solution_date_in');
+        }
+
+        return $leadCurrentDateIn;
+    }
+
+    /**
+     *  @todo this is not the right place to do this but for now its ok
+     * we need to make sure we have the phone call activity
+     */
+    private function leadExternalActivityDateIn(Lead $lead): mixed
+    {
+        $outBoundPhoneCallActivity = null;
+        if ($lead->get('downloaded_from_eleads')) {
+            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)
+            ->execute('Sally Take Over', 'Sally stop the clock');
+        } elseif ($lead->get('downloaded_from_vin_solution')) {
+            // To do VinSolution Push Note to Lead
+        }
+
+        return $outBoundPhoneCallActivity;
+    }
+
+    private function isWithinOneDay(Lead $lead, string $dateString): bool
     {
         $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
 
