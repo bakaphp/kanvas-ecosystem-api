@@ -285,6 +285,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $statusResponse = $this->checkProcessingStatus($requestId, $imageFilter);
 
         if ($statusResponse['status'] !== 'COMPLETED') {
+            $this->sendFailNotification(
+                $entity,
+                'Uh oh! Generation failed. Please try again or adjust your prompt.',
+                $params
+            );
+
             throw new Exception('Image processing did not complete successfully: ' . json_encode($statusResponse));
         }
 
@@ -454,6 +460,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $responseData = $response->json();
 
         if (! $response->successful()) {
+            $this->sendFailNotification(
+                $entity,
+                'Uh oh! Generation failed. Please try again or adjust your prompt.',
+                $params
+            );
+
             throw new Exception('Gemini Banana API request failed: ' . json_encode($responseData));
         }
 
@@ -551,8 +563,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $title = str_replace("&#039;", "'", $title);
-        $title = str_replace("&amp;#039;", "'", $title);
+        $title = str_replace('&#039;', "'", $title);
+        $title = str_replace('&amp;#039;', "'", $title);
         $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
 
         try {
@@ -717,5 +729,32 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ->generate();
 
         return str_replace(['```', 'json'], '', $response->text);
+    }
+
+    private function sendFailNotification(Message $entity, string $message, array $params): void
+    {
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
+        $errorProcessingImageNotification = new ImageProcessingPushNotification(
+            user: $entity->user,
+            entity: $entity,
+            message: $message,
+            title: 'Error processing image',
+            via: $endViaList,
+            templates: [
+                'email_template' => $params['email_template'],
+                'push_template' => $params['push_template'],
+            ],
+        );
+
+        //send to the user profile when it fails
+        $errorProcessingImageNotification->setData([
+            'destination_id' => $entity->getId(),
+            'destination_type' => 'USER',
+            'destination_event' => 'FOLLOWING',
+        ]);
+        $entity->user->notify($errorProcessingImageNotification);
     }
 }
