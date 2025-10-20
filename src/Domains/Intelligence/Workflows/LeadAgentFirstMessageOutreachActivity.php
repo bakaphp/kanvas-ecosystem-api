@@ -35,7 +35,6 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
-use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 
 class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 {
