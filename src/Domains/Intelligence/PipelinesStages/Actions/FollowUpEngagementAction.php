@@ -42,14 +42,13 @@ class FollowUpEngagementAction
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
-
         if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
-            $promptText = is_array($rules['prompt']) ? implode(' ', $rules['prompt']) : (string) $rules['prompt'];
-            $messages = $session->channel->messages;
-            $content['messages'] = $messages;
-            $prompt = Blade::render($promptText, $content);
-
-            $message = new CreateMessageAction($prompt, $session)->execute();
+            $message = new CreateMessageFollowUpAction(
+                $this->lead,
+                $this->lead->stage,
+                $session
+            )
+            ->execute();
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
                     $this->lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
