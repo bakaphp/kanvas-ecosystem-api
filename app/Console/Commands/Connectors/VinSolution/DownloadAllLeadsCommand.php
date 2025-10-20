@@ -139,7 +139,7 @@ class DownloadAllLeadsCommand extends Command
                             // Transform the lead data to match the expected format
                             $transformedLead = $this->transformVinLeadData($vinLeadData);
 
-                            $isNewLead = ModelsLead::getByCustomField(
+                            $existingLead = ModelsLead::getByCustomField(
                                 CustomFieldEnum::LEADS->value,
                                 $transformedLead['LeadId'],
                                 $company,
@@ -149,7 +149,7 @@ class DownloadAllLeadsCommand extends Command
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
-                            if ($isNewLead) {
+                            if ($existingLead === null) {
                                 $lead = GuildLead::getById($result['id']);
                                 $lead->set('downloaded_from_vin_solution', true);
                                 $lead->refresh();
