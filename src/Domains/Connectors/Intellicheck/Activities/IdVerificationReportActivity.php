@@ -98,9 +98,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             ],
                             'license' => $idCheck['dLIDNumberRaw'] ?? '',
                             'exp_date' => [
-                                'day' => isset($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
-                                'month' => isset($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
-                                'year' => isset($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
+                                'day' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
+                                'month' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
+                                'year' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
                             ],
                             'state_id' => 0,
                             'firstname' => $idCheck['firstName'] ?? '',
