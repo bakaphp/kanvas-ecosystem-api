@@ -64,6 +64,24 @@ class SendLeadEmailsAction
                 $data
             );
         }
+
+        if ($payload['extraEmails'] ?? null) {
+            $extraEmails = is_array($payload['extraEmails']) ? $payload['extraEmails'] : explode(',', $payload['extraEmails']);
+            foreach ($extraEmails as $email) {
+                try {
+                    $this->sendEmail(
+                        $this->lead,
+                        $leadTemplate,
+                        trim($email),
+                        $data
+                    );
+                } catch (Exception $e) {
+                    report($e);
+
+                    continue;
+                }
+            }
+        }
     }
 
     public function getProduct(string $productId): object
