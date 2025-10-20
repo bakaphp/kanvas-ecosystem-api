@@ -35,10 +35,10 @@ class SendRotationEmailsAction
 
             // determine notification mode: just agents, just leads or all
             $notificationMode = isset($this->leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($this->leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL; // leads || agets
-            
+
             // determine notification user mode: just owner or rotation users + owner
             $notificationUserMode = isset($this->leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($this->leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_OWNER;
-            
+
             $shouldNotifyRotationUsers = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $this->leadReceiver->rotation?->agents?->count() > 0;
             // get the users/agents to notify
             $users = $shouldNotifyRotationUsers

@@ -35,6 +35,8 @@ class SendLeadEmailsAction
         $data = [
             ...$payload,
             'lead' => $this->lead,
+            'company' => $this->lead->company,
+            'app' => $this->lead->app,
         ];
         $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
         $shouldSendToUser = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_AGENTS;
@@ -110,13 +112,13 @@ class SendLeadEmailsAction
         );
         $notification->setTemplateName($emailTemplateName);
         $notification->setType(NotificationTypes::firstOrCreate([
-            'apps_id' => $this->lead->app->getId(),
-            'key' => $this->lead::class,
-            'name' => Str::simpleSlug($this->lead::class),
-            'system_modules_id' => SystemModulesRepository::getByModelName($this->lead::class, $this->lead->app)->getId(),
-            'is_deleted' => 0,
+           'apps_id' => $this->lead->app->getId(),
+           'key' => $this->lead::class,
+           'name' => Str::simpleSlug($this->lead::class),
+           'system_modules_id' => SystemModulesRepository::getByModelName($this->lead::class, $this->lead->app)->getId(),
+           'is_deleted' => 0,
         ], [
-            'template' => $emailTemplateName,
+           'template' => $emailTemplateName,
         ])->name);
 
         $notification->channels = $this->channels;

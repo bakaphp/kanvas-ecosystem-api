@@ -28,7 +28,7 @@ class GetOrderStatsAction
     ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
-            $end   = Carbon::parse($date, $timezone)->endOfDay()->timezone('UTC');
+            $end = Carbon::parse($date, $timezone)->endOfDay()->timezone('UTC');
         } else {
             $start = $startDate ? Carbon::parse($startDate, $timezone)->startOfDay()->timezone('UTC') : now()->startOfDay()->timezone('UTC');
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
@@ -47,7 +47,7 @@ class GetOrderStatsAction
             'currentCount' => $currentCount,
             'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
-            'orderRotationAvg' => $ordersInPeriod["orderAvg"] > 0 ? ($dailyTurnover["totalExits"] / $ordersInPeriod["orderAvg"]) : 0
+            'orderRotationAvg' => $ordersInPeriod['orderAvg'] > 0 ? ($dailyTurnover['totalExits'] / $ordersInPeriod['orderAvg']) : 0,
         ];
     }
 
@@ -59,7 +59,7 @@ class GetOrderStatsAction
         $connection = (new OrderTransitionHistory())->getConnectionName();
 
         $initialSubQuery = OrderTransitionHistory::query()
-            ->selectRaw("order_id, MIN(changed_at) as initial_date")
+            ->selectRaw('order_id, MIN(changed_at) as initial_date')
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
@@ -69,7 +69,7 @@ class GetOrderStatsAction
             ->getQuery();
 
         $finalSubQuery = OrderTransitionHistory::query()
-            ->selectRaw("order_id, MAX(changed_at) as final_date")
+            ->selectRaw('order_id, MAX(changed_at) as final_date')
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
             ->whereHas('toStatus', function ($query) {
@@ -82,7 +82,7 @@ class GetOrderStatsAction
             ->mergeBindings($initialSubQuery)
             ->join(DB::raw("({$finalSubQuery->toSql()}) as final"), 'initial.order_id', '=', 'final.order_id')
             ->mergeBindings($finalSubQuery)
-            ->selectRaw("initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) / 60 as diff_hours")
+            ->selectRaw('initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) / 60 as diff_hours')
             ->get();
 
         return [
@@ -103,7 +103,7 @@ class GetOrderStatsAction
     {
         $dateList = $this->generateDateList($start, $end);
 
-        $dateRangeSub = DB::raw("(SELECT " . implode(" UNION ALL SELECT ", $dateList) . ") as date_list(date_val)");
+        $dateRangeSub = DB::raw('(SELECT ' . implode(' UNION ALL SELECT ', $dateList) . ') as date_list(date_val)');
 
         $activeOrders = DB::raw("
             (SELECT DISTINCT order_id 
@@ -171,22 +171,22 @@ class GetOrderStatsAction
             ];
         });
 
-        $totalEntries = $byDates->sum(fn ($entry) => $entry["count"] ?? 0);
+        $totalEntries = $byDates->sum(fn ($entry) => $entry['count'] ?? 0);
 
-        $maxOrders = $byDates->sortByDesc(fn ($entry) => $entry["count"] ?? 0)->first();
-        $minOrders = $byDates->sortBy(fn ($entry) => $entry["count"] ?? 0)->first();
+        $maxOrders = $byDates->sortByDesc(fn ($entry) => $entry['count'] ?? 0)->first();
+        $minOrders = $byDates->sortBy(fn ($entry) => $entry['count'] ?? 0)->first();
 
         return [
-            "orderAvg" => $totalEntries / $daysInRange->count(),
-            "maxOrdersDate" => [
-                "date" => $maxOrders["date"],
-                "count" => $maxOrders["count"]
+            'orderAvg' => $totalEntries / $daysInRange->count(),
+            'maxOrdersDate' => [
+                'date' => $maxOrders['date'],
+                'count' => $maxOrders['count'],
             ],
-            "minOrdersDate" => [
-                "date" => $minOrders["date"],
-                "count" => $minOrders["count"]
+            'minOrdersDate' => [
+                'date' => $minOrders['date'],
+                'count' => $minOrders['count'],
             ],
-            "data" => $byDates->toArray()
+            'data' => $byDates->toArray(),
         ];
     }
 
@@ -216,7 +216,7 @@ class GetOrderStatsAction
     private function getDailyTurnover($start, $end): array
     {
         $entries = OrderTransitionHistory::query()
-            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(changed_at) as date")
+            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
@@ -228,7 +228,7 @@ class GetOrderStatsAction
             ->keyBy('date');
 
         $exits = OrderTransitionHistory::query()
-            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(changed_at) as date")
+            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
@@ -255,24 +255,24 @@ class GetOrderStatsAction
         $totalEntries = $entries->sum(fn ($entry) => $entry->count ?? 0);
         $totalExits = $exits->sum(fn ($entry) => $entry->count ?? 0);
 
-        $maxExit =  $exits->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
+        $maxExit = $exits->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
         $maxEntry = $entries->sortByDesc(fn ($entry) => $entry->count ?? 0)->first();
 
         return [
-            "totalEntries" => $entries->sum(fn ($entry) => $entry->count ?? 0),
-            "totalExits" => $exits->sum(fn ($entry) => $entry->count ?? 0),
-            "exitAvg" => $dates->count() > 0 ? $totalExits / $dates->count() : 0,
-            "entryAvg" => $dates->count() > 0 ? $totalEntries / $dates->count() : 0,
-            "exitPercentage" => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
-            "maxExitDate" => [
-                "date" => $maxExit?->date,
-                "count" => $maxExit?->count
+            'totalEntries' => $entries->sum(fn ($entry) => $entry->count ?? 0),
+            'totalExits' => $exits->sum(fn ($entry) => $entry->count ?? 0),
+            'exitAvg' => $dates->count() > 0 ? $totalExits / $dates->count() : 0,
+            'entryAvg' => $dates->count() > 0 ? $totalEntries / $dates->count() : 0,
+            'exitPercentage' => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
+            'maxExitDate' => [
+                'date' => $maxExit?->date,
+                'count' => $maxExit?->count,
             ],
-            "maxEntryDate" => [
-                "date" => $maxEntry?->date,
-                "count" => $maxEntry?->count
+            'maxEntryDate' => [
+                'date' => $maxEntry?->date,
+                'count' => $maxEntry?->count,
             ],
-            "data" => $byDates
+            'data' => $byDates,
         ];
     }
 }
