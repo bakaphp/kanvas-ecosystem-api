@@ -83,7 +83,7 @@ class PullLeadAction
                     'owner' => $lead->owner?->name ,
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
-                    'recentlyCreated' => $lead->wasRecentlyCreated(),
+                    'recentlyCreated' => $lead->wasRecentlyCreated,
 
                 ],
             ];
@@ -166,7 +166,7 @@ class PullLeadAction
                         'owner_id' => $lead->leads_owner_id,
                         'custom_fields' => $lead->getAllCustomFields(),
                         'rank' => $customer['rank'],
-                        'recentlyCreated' => $lead->wasRecentlyCreated(),
+                        'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
                 } catch (Throwable $th) {
                     //ignore the error
