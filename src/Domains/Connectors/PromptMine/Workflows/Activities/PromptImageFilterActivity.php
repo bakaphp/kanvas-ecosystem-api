@@ -287,7 +287,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if ($statusResponse['status'] !== 'COMPLETED') {
             $this->sendFailNotification(
                 $entity,
-                'Uh oh! Generation failed. Please try again or adjust your prompt.',
+                "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
                 $params
             );
 
@@ -372,6 +372,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 // If we're out of retries, rethrow the exception
                 if ($attempt >= $maxRetries) {
+                    $this->sendFailNotification(
+                        $entity,
+                        "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
+                        $params
+                    );
+
                     throw new Exception("Image processing failed after {$maxRetries} attempts: " . $e->getMessage());
                 }
 
@@ -397,7 +403,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: 'Your image could not be processed because it violated our content policy. Please try again with a different image.',
+                message: "Your recent creation couldn't be completed as it didn't comply with the content provider’s policies.",
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
@@ -462,7 +468,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         if (! $response->successful()) {
             $this->sendFailNotification(
                 $entity,
-                'Uh oh! Generation failed. Please try again or adjust your prompt.',
+                "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
                 $params
             );
 
