@@ -16,11 +16,11 @@ use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Leads\Models\Lead as GuildLead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
-use Throwable;
-use Kanvas\Guild\Leads\Models\Lead as GuildLead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class DownloadAllLeadsCommand extends Command
 {
@@ -145,27 +145,27 @@ class DownloadAllLeadsCommand extends Command
                             $lead->set('downloaded_from_vin_solution', true);
                             $lead->refresh();
 
-$hasEmail = $lead->people?->getEmails()->count() > 0;
-$hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+                            $hasEmail = $lead->people?->getEmails()->count() > 0;
+                            $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
 
-$agentNotificationChannel = match (true) {
-    $hasEmail && $hasCellPhone => 'sms',
-    $hasEmail => 'email',
-    $hasCellPhone => 'sms',
-    default => null,
-};
+                            $agentNotificationChannel = match (true) {
+                                $hasEmail && $hasCellPhone => 'sms',
+                                $hasEmail => 'email',
+                                $hasCellPhone => 'sms',
+                                default => null,
+                            };
 
-if ($agentNotificationChannel !== null) {
-    $lead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
-}
+                            if ($agentNotificationChannel !== null) {
+                                $lead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+                            }
 
-$lead->fireWorkflow(
-    WorkflowEnum::CREATED->value,
-    true,
-    [
-        'app' => $app,
-    ]
-);
+                            $lead->fireWorkflow(
+                                WorkflowEnum::CREATED->value,
+                                true,
+                                [
+                                    'app' => $app,
+                                ]
+                            );
 
                             if (! empty($result)) {
                                 $successCount++;
