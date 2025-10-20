@@ -17,7 +17,6 @@ use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
-use Kanvas\Guild\Leads\Models\Lead as GuildLead;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -191,7 +190,7 @@ class DownloadAllLeadsCommand extends Command
 
     private function setCommunicationChannel(string $leadId, string $vinSolutionDateIn): void
     {
-        $lead = GuildLead::getById($leadId);
+        $lead = ModelsLead::getById($leadId);
         $lead->set('downloaded_from_vin_solution', true);
         $lead->set('vin_solution_date_in', $vinSolutionDateIn);
         $lead->refresh();
