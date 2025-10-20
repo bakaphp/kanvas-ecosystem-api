@@ -58,7 +58,8 @@ class CreateContentSessionAction
         $channel = $lead->socialChannels()->orderBy('created_at', 'desc')->first();
         $lastMessage = $channel?->getLastMessage();
         $timezone = $lead->company->get('timezone') ?? 'UTC';
-        $lastMessageTime = $lastMessage ? Carbon::parse($lastMessage->created_at, $timezone)->toDateTimeString() : null;
+        $lastMessageTime = $lastMessage !== null ? Carbon::parse($lastMessage->created_at, $timezone)->toDateTimeString() : null;
+
         return array_merge(
             [
                 'lead_id' => $lead->id,
