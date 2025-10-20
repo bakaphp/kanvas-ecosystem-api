@@ -731,7 +731,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         return str_replace(['```', 'json'], '', $response->text);
     }
 
-    private function sendFailNotification(Message $entity, string $message,  array $params): void
+    private function sendFailNotification(Message $entity, string $message, array $params): void
     {
         $endViaList = array_map(
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
