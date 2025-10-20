@@ -265,8 +265,8 @@ class GetOrderStatsAction
             "entryAvg" => $dates->count() > 0 ? $totalEntries / $dates->count() : 0,
             "exitPercentage" => $totalEntries > 0 ? ($totalExits / $totalEntries * 100) : 0,
             "maxExitDate" => [
-                "date" => $maxExit->date,
-                "count" => $maxExit->count
+                "date" => $maxExit?->date,
+                "count" => $maxExit?->count
             ],
             "maxEntryDate" => [
                 "date" => $maxEntry?->date,
