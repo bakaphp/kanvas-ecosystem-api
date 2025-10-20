@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\PublicAppScopeTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
@@ -25,6 +26,8 @@ use Kanvas\Souk\Models\BaseModel;
  */
 class OrderStatus extends BaseModel
 {
+    use PublicAppScopeTrait;
+
     protected $guarded = [];
 
     protected $casts = [

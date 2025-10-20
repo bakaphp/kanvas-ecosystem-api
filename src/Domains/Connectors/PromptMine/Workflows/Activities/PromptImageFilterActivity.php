@@ -450,40 +450,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
-        // $imageContent = Http::get($imageUrl)->body();
-        // if (empty($imageContent)) {
-        //     throw new Exception("Failed to download image from URL: {$imageUrl}");
-        // }
-
-        // Extract filename from URL or use a default
-        // $filename = basename(parse_url($imageUrl, PHP_URL_PATH)) ?: 'image.png';
-
-        // Create multipart request
-        // $response = Http::asMultipart()
-        //     ->attach('image', $imageContent, $filename)
-        //     ->attach('model', 'gemini-2.5-flash-image-preview')
-        //     ->attach('prompt', $prompt);
-
         $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, '', $params);
         $responseData = $response->json();
-
-        // if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
-        //     $index = 2;
-        //     foreach ($params['additional_images'] as $additionalImage) {
-        //         $response->attach('image_' . $index, Http::get($additionalImage)->body(), basename(parse_url($additionalImage, PHP_URL_PATH)));
-        //         $index++;
-        //     }
-        //     $apiUrl = str_replace('i2i', 'Mi2i', $apiUrl);
-        // }
-
-        // $response = $response->post($apiUrl);
 
         if (! $response->successful()) {
             throw new Exception('Gemini Banana API request failed: ' . json_encode($responseData));
         }
 
-        // Extract the URL from the response structure
-        // Response format: { "0": { "url": "...", "file_name": "...", ... } }
         $processedImageUrl = null;
         if (isset($responseData['0']['url'])) {
             $processedImageUrl = $responseData['0']['url'];
@@ -578,6 +551,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
+        $title = str_replace("&#039;", "'", $title);
+        $title = str_replace("&amp;#039;", "'", $title);
         $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
 
         try {

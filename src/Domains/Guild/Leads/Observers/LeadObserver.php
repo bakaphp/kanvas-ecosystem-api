@@ -90,7 +90,7 @@ class LeadObserver
     public function updated(Lead $lead): void
     {
         //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
-        Subscription::broadcast('leadUpdate', $lead, true);
+        //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
 
         //$lead->clearLightHouseCacheJob();

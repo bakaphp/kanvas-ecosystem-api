@@ -24,6 +24,7 @@ use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Users\Actions\SendUserNotificationAction;
@@ -122,11 +123,11 @@ class CreateBaseOrderAction
             taxes: $totalTax,
             totalDiscount: $totalDiscount,
             totalShipping: $totalShipping,
-            status: 'completed',
+            status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
             shippingMethod: null,
             currency: $currency,
-            fulfillmentStatus: 'pending',
+            fulfillmentStatus: OrderStatusEnum::PENDING->value,
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,
             metadata: $this->request['input']['metadata'] ?? [],
