@@ -38,10 +38,28 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                         'error' => 'Message is not linked to a Lead entity',
                     ]);
                 }
-                return new PushNoteToLeadAction(
+
+                $note = $message->message['content'] ?? '';
+
+                if (empty($note)) {
+                    return $this->failWorkflow([
+                        'error' => 'Message content is empty',
+                    ]);
+                }
+
+                $fromAgent = (bool) ($message->message['from_me'] ?? false);
+                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+
+                $vinNote = new PushNoteToLeadAction(
                     lead: $lead,
                     message: $message,
-                )->execute();
+                )->execute($note);
+
+                return [
+                    'note' => $vinNote,
+                    'from_agent' => $fromAgent,
+                    'lead' => $lead->getId(),
+                ];
             }
         );
     }
