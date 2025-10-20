@@ -386,12 +386,16 @@ class FilesystemManagementMutation
 
     public function editFile(mixed $rootValue, array $request): string
     {
-        $fileSystemEntityInput = FilesystemEntityUpdate::viaRequest($request['input']);
+        $fileSystemEntityInput = FilesystemEntityUpdate::from($request['input']);
         $appId = app(Apps::class)->getId();
 
         $fileSystemEntity = FilesystemEntities::whereHas('filesystem', function ($query) use ($appId) {
             $query->where('apps_id', $appId);
         })->where('uuid', $request['uuid'])->firstOrFail();
+
+        if ($fileSystemEntity->filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
+            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
+        }
 
         $fileSystemEntity->updateOrFail([
             'field_name' => $fileSystemEntityInput->fieldName,

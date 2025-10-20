@@ -14,7 +14,7 @@ class FilesystemEntityUpdate extends Data
     ) {
     }
 
-    public static function viaRequest(array $data): self
+    public static function fromMultiple(array $data): self
     {
         return new self(
             $data['field_name'],
