@@ -48,7 +48,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             $this->user,
             [
                 'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
-                'title' => 'Prompt of the Week',
+                'title' => 'AI creation of the Week',
                 'message' => html_entity_decode("$messageOfTheWeek->message['title'] — Try it now and keep the momentum going.", ENT_QUOTES, 'UTF-8')
             ],
             $this->via

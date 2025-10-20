@@ -49,9 +49,9 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                     ];
                 }
 
-                $notificationMessage = $params['message'] ?? 'New message from %s';
-                $notificationTitle = $params['title'] ?? 'New message';
-                $subject = $params['subject'] ?? 'New message from %s';
+                $notificationMessage = $params['message'] ?? 'New AI creation from %s';
+                $notificationTitle = $params['title'] ?? 'New AI creation';
+                $subject = $params['subject'] ?? 'New AI creation from %s';
                 $viaList = $params['via'] ?? ['database'];
 
                 // Map notification channels
