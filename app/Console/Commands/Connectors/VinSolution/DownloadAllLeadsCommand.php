@@ -209,13 +209,13 @@ class DownloadAllLeadsCommand extends Command
             $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
         }
 
-        $lead->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            [
-                'app' => $lead->app,
-            ]
-        );
+        /*  $lead->fireWorkflow(
+             WorkflowEnum::CREATED->value,
+             true,
+             [
+                 'app' => $lead->app,
+             ]
+         ); */
     }
 
     /**
