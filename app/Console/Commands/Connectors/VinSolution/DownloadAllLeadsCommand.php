@@ -150,31 +150,7 @@ class DownloadAllLeadsCommand extends Command
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
                             if ($existingLead === null) {
-                                $lead = GuildLead::getById($result['id']);
-                                $lead->set('downloaded_from_vin_solution', true);
-                                $lead->refresh();
-
-                                $hasEmail = $lead->people?->getEmails()->count() > 0;
-                                $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
-
-                                $agentNotificationChannel = match (true) {
-                                    $hasEmail && $hasCellPhone => 'sms',
-                                    $hasEmail => 'email',
-                                    $hasCellPhone => 'sms',
-                                    default => null,
-                                };
-
-                                if ($agentNotificationChannel !== null) {
-                                    $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
-                                }
-
-                                $lead->fireWorkflow(
-                                    WorkflowEnum::CREATED->value,
-                                    true,
-                                    [
-                                        'app' => $app,
-                                    ]
-                                );
+                                $this->setCommunicationChannel((string) $transformedLead['LeadId']);
                             }
 
                             if (! empty($result)) {
@@ -211,6 +187,35 @@ class DownloadAllLeadsCommand extends Command
         } catch (Throwable $e) {
             $this->error('Failed to download leads: ' . $e->getMessage());
         }
+    }
+
+    private function setCommunicationChannel(string $leadId): void
+    {
+        $lead = GuildLead::getById($leadId);
+        $lead->set('downloaded_from_vin_solution', true);
+        $lead->refresh();
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel !== null) {
+            $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
     }
 
     /**
