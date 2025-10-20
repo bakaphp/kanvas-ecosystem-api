@@ -25,7 +25,7 @@ class PushNoteToLeadAction
     ) {
     }
 
-    public function execute(): array
+    public function execute(?string $note = null): array
     {
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
@@ -48,7 +48,7 @@ class PushNoteToLeadAction
             $this->lead->get(CustomFieldEnum::LEADS->value)
         );
 
-        $note = $this->getNote($this->message->getMessage());
+        $note = $note === null ? $this->getNote($this->message->getMessage()) : $note;
 
         $vinLead->addNotes(
             $vinCompany,

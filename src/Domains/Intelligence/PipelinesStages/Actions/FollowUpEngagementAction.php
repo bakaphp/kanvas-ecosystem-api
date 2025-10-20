@@ -31,7 +31,7 @@ class FollowUpEngagementAction
         $content = $session->content;
 
         $rules = $config['notification_engagement_rules'];
-        $lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
+        //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
         $timezone = $this->lead->company->get('timezone') ?? 'UTC';
 
         $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
@@ -58,7 +58,7 @@ class FollowUpEngagementAction
                 );
             }
 
-            $intentNumber = $this->lead->get('intent_number') ?? 0;
+            $intentNumber = (int) ($this->lead->get('intent_number') ?? 0);
             $intentNumber++;
 
             $this->lead->set('intent_number', $intentNumber);
