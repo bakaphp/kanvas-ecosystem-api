@@ -603,4 +603,14 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderExportQuery@export"
             # scopes: ["fromApp", "notDeleted"]
         )
+    orderStatus(
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _ @whereConditions(columns: ["id", "companies_id", "name"])
+    ): [OrderStatus!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+            scopes: ["fromPublicApp", "notDeleted"]
+        )
+
 }
