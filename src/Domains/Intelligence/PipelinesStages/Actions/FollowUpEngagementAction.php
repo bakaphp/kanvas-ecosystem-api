@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
