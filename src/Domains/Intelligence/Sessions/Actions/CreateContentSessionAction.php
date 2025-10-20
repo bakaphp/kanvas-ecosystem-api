@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Baka\Support\Str;
+use Carbon\Carbon;
 use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
@@ -54,6 +55,11 @@ class CreateContentSessionAction
 
     protected function mapLead(Lead $lead): array
     {
+        $channel = $lead->socialChannels()->orderBy('created_at', 'desc')->first();
+        $lastMessage = $channel?->getLastMessage();
+        $timezone = $lead->company->get('timezone') ?? 'UTC';
+        $lastMessageTime = $lastMessage !== null ? Carbon::parse($lastMessage->created_at, $timezone)->toDateTimeString() : null;
+
         return array_merge(
             [
                 'lead_id' => $lead->id,
@@ -64,8 +70,8 @@ class CreateContentSessionAction
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
                 'impersonate_email' => $lead->company->get('impersonate_email'),
-                'last_message_time' => $lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value),
-                'last_message' => $lead->get(ConfigurationEnum::LAST_MESSAGE->value),
+                'last_message_time' => $lastMessageTime,
+                'last_message' => $lastMessage,
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline->stages->count() ?? 0,
             ],
