@@ -106,7 +106,21 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Approach 2: Extract from order metadata (eSim workflow pattern)
+        // Approach 2: Try webhook structure from order metadata (new format)
+        if (empty($insuranceData)) {
+            $orderMetadata = $order->metadata ?? [];
+            
+            // Check for webhook structure: { "event": "insurance_order_completed", "insurance": {...} }
+            if (isset($orderMetadata['event']) && $orderMetadata['event'] === 'insurance_order_completed' && isset($orderMetadata['insurance'])) {
+                $insuranceData = $orderMetadata['insurance'];
+            }
+            // Also check for direct insurance webhook data in metadata
+            elseif (isset($orderMetadata['insurance']) && isset($orderMetadata['insurance']['titular'])) {
+                $insuranceData = $orderMetadata['insurance'];
+            }
+        }
+
+        // Approach 3: Extract from order metadata (eSim workflow pattern)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
 
@@ -121,7 +135,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
-        // Approach 3: Direct metadata fallback locations
+        // Approach 4: Direct metadata fallback locations
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
             $insuranceData = $orderMetadata['universalAssistanceData']['insurance'] ??
@@ -137,6 +151,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Convert any objects to arrays (in case data was JSON decoded as objects)
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
+        // Transform webhook data format to internal format if needed
+        $insuranceData = $this->transformWebhookDataFormat($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
             throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
@@ -171,6 +188,78 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         return $data;
+    }
+
+    /**
+     * Transform webhook data format to internal insurance format
+     * Converts the webhook structure to the format expected by InsuranceWorkflowService
+     */
+    protected function transformWebhookDataFormat(array $insuranceData): array
+    {
+        // If data already has the expected format (titular key exists), return as is
+        if (isset($insuranceData['titular'])) {
+            return $insuranceData;
+        }
+
+        // Transform field names from webhook format to internal format if necessary
+        if (isset($insuranceData['titular'])) {
+            // Transform titular data
+            $insuranceData['titular'] = $this->transformPersonDataFromWebhook($insuranceData['titular']);
+        }
+
+        if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
+            // Transform dependents data
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                $insuranceData['dependents'][$index] = $this->transformPersonDataFromWebhook($dependent);
+            }
+        }
+
+        return $insuranceData;
+    }
+
+    /**
+     * Transform person data from webhook format to internal format
+     * Maps webhook field names to internal field names
+     */
+    protected function transformPersonDataFromWebhook(array $personData): array
+    {
+        // Map webhook field names to internal field names
+        $fieldMap = [
+            'dob' => 'birthDate',
+            'sex' => 'gender', 
+            'firstname' => 'firstName',
+            'lastname' => 'lastName',
+            'phone' => 'telephone',
+            'idType' => 'documentType',
+            'idNumber' => 'documentNumber',
+        ];
+
+        $transformedData = $personData;
+
+        // Apply field mappings
+        foreach ($fieldMap as $webhookField => $internalField) {
+            if (isset($personData[$webhookField]) && !isset($transformedData[$internalField])) {
+                $transformedData[$internalField] = $personData[$webhookField];
+            }
+        }
+
+        // Transform gender format (m/f to M/F)
+        if (isset($transformedData['gender'])) {
+            $transformedData['gender'] = strtoupper($transformedData['gender']);
+        }
+        if (isset($transformedData['sex'])) {
+            $transformedData['gender'] = strtoupper($transformedData['sex']);
+        }
+
+        // Ensure we have both originCountryCode and destinationCountryCode
+        if (!isset($transformedData['originCountryCode']) && isset($personData['originCountryCode'])) {
+            $transformedData['originCountryCode'] = $personData['originCountryCode'];
+        }
+        if (!isset($transformedData['destinationCountryCode']) && isset($personData['destinationCountryCode'])) {
+            $transformedData['destinationCountryCode'] = $personData['destinationCountryCode'];
+        }
+
+        return $transformedData;
     }
 
     /**
