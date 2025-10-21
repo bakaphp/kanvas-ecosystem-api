@@ -2431,16 +2431,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.9.1",
+            "version": "v1.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "2a3f9350fd4a2d4dc80dd6db0b287885479e295c"
+                "reference": "ed5aeceb5818566be80af9de577d105f77b32cf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/2a3f9350fd4a2d4dc80dd6db0b287885479e295c",
-                "reference": "2a3f9350fd4a2d4dc80dd6db0b287885479e295c",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/ed5aeceb5818566be80af9de577d105f77b32cf8",
+                "reference": "ed5aeceb5818566be80af9de577d105f77b32cf8",
                 "shasum": ""
             },
             "require": {
@@ -2474,9 +2474,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.9.1"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.10.0"
             },
-            "time": "2025-10-07T18:41:09+00:00"
+            "time": "2025-10-20T22:38:13+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -2792,16 +2792,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.32.1",
+            "version": "v4.33.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb"
+                "reference": "b50269e23204e5ae859a326ec3d90f09efe3047d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb",
-                "reference": "c4ed1c1f9bbc1e91766e2cd6c0af749324fe87cb",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/b50269e23204e5ae859a326ec3d90f09efe3047d",
+                "reference": "b50269e23204e5ae859a326ec3d90f09efe3047d",
                 "shasum": ""
             },
             "require": {
@@ -2830,9 +2830,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.32.1"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.33.0"
             },
-            "time": "2025-09-14T05:14:52+00:00"
+            "time": "2025-10-15T20:10:28+00:00"
         },
         {
             "name": "graham-campbell/result-type",
