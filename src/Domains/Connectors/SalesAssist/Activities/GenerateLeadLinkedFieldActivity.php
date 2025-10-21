@@ -108,7 +108,7 @@ class GenerateLeadLinkedFieldActivity extends KanvasActivity
          * @todo move this logic inside this activity
          */
         $url = sprintf(
-            '%s/v2/leads/%s/pdf-linked-fields?key=%s',
+            '%s/v2/leads/%s/pdf-linked-fields?key=%s&kanvas=true',
             rtrim($baseUrl, '/'), // Remove trailing slash if present
             $lead->uuid,
             $lead->company->uuid

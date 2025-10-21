@@ -109,6 +109,10 @@ class UpdatePeopleAction
         }
 
         if ($this->peopleData->address->count()) {
+            if ($this->peopleData->flushPreviousAddress) {
+                $this->people->address()->delete();
+            }
+
             // Deduplicate incoming addresses and filter out empty/invalid addresses
             $deduplicatedAddresses = $this->peopleData->address
                 ->toCollection()
