@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -42,6 +41,7 @@ class FollowUpEngagementAction
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
+
         if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
             $message = new CreateMessageFollowUpAction(
                 $this->lead,
@@ -49,6 +49,7 @@ class FollowUpEngagementAction
                 $session
             )
             ->execute();
+
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
                     $this->lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),

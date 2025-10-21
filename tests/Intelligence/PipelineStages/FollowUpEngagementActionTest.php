@@ -10,6 +10,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -18,7 +19,6 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
-use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 
 class FollowUpEngagementActionTest extends TestCase
 {
@@ -119,11 +119,12 @@ class FollowUpEngagementActionTest extends TestCase
             'canal_id' => 'lead_' . $lead->getId() . '_session',
             'userModel' => $user,
         ]);
+
         $session = new CreateSessionAction($sessionDto)->execute();
         $session->content = new CreateContentSessionAction($session)->execute();
         $session->saveOrFail();
         $message = new FollowUpEngagementAction($lead)->execute();
-        dump($message);
+
         $this->assertIsArray($message);
     }
 }
