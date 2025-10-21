@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
+use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -101,6 +103,17 @@ class CreateEventAction
             // Store additional resources in pivot table
             if (count($this->event->resources)) {
                 $this->storeEventResources($event, $this->event->resources);
+            }
+
+            if ($eventVersion) {
+                $codes = (new CreatePassAction(
+                    $eventVersion->event,
+                    $eventVersion
+                ))->forAllParticipants();
+
+                new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
+                    'codes' => $codes,
+                ])->execute();
             }
 
             return $event;

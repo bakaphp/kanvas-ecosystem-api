@@ -12,6 +12,7 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassMotive;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
+use Kanvas\Event\Passes\Services\PassMotiveService;
 use Kanvas\Exceptions\ValidationException;
 
 class CreatePassAction
@@ -19,7 +20,7 @@ class CreatePassAction
     public function __construct(
         private Event $event,
         private EventVersion $eventVersion,
-        private ParticipantPassMotive $motive,
+        private ?ParticipantPassMotive $motive = null,
         private ?int $participantId = null,
         private ?Carbon $expirationDate = null,
         private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN
@@ -35,11 +36,19 @@ class CreatePassAction
             $plainCode
         )->execute();
 
+
+        $motive = $this->motive ?? PassMotiveService::getMotive(
+            $this->event->company,
+            $this->event->app,
+            'default',
+            $this->eventVersion->users_id
+        );
+
         $pass = ParticipantPass::create([
             'event_id' => $this->event->getId(),
             'event_version_id' => $this->eventVersion->getId(),
             'participant_id' => $this->participantId,
-            'participant_pass_motive_id' => $this->motive->getId(),
+            'participant_pass_motive_id' => $motive->getId(),
             'apps_id' => $this->event->apps_id,
             'format' => $this->format->value,
             'companies_id' => $this->event->companies_id,
@@ -66,11 +75,18 @@ class CreatePassAction
             throw new ValidationException('No participants found for this event version.');
         }
 
+        $motive = $this->motive ?? PassMotiveService::getMotive(
+            $this->event->company,
+            $this->event->app,
+            'default',
+            $this->eventVersion->users_id
+        );
+
         foreach ($participants as $participant) {
             [$pass, $plainCode] = (new self(
                 $this->event,
                 $this->eventVersion,
-                $this->motive,
+                $motive,
                 $participant->getId(),
                 $this->expirationDate,
                 $this->format
@@ -83,7 +99,7 @@ class CreatePassAction
         [$pass, $plainCode] = (new self(
             $this->event,
             $this->eventVersion,
-            $this->motive,
+            $motive,
             null,
             $this->expirationDate,
             $this->format

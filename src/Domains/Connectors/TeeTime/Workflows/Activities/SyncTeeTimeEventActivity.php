@@ -37,8 +37,7 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
                         if ($eventVersion) {
                             $codes = (new CreatePassAction(
                                 $eventVersion->event,
-                                $eventVersion,
-                                null
+                                $eventVersion
                             ))->forAllParticipants();
 
                             new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
