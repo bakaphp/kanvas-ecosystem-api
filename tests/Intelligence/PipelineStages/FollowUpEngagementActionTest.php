@@ -119,11 +119,12 @@ class FollowUpEngagementActionTest extends TestCase
             'canal_id' => 'lead_' . $lead->getId() . '_session',
             'userModel' => $user,
         ]);
+        
         $session = new CreateSessionAction($sessionDto)->execute();
         $session->content = new CreateContentSessionAction($session)->execute();
         $session->saveOrFail();
         $message = new FollowUpEngagementAction($lead)->execute();
-        dump($message);
+
         $this->assertIsArray($message);
     }
 }
