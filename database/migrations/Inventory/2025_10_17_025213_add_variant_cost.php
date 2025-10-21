@@ -9,11 +9,11 @@ return new class () extends Migration {
      * Run the migrations.
      */
     public function up(): void
-    {        
+    {
         Schema::table('products_variants', function (Blueprint $table) {
             $table->decimal('base_cost', 12, 4)->default(0)->after('sku');
         });
-        
+
         Schema::table('products_variants_warehouses', function (Blueprint $table) {
             $table->decimal('cost', 12, 4)->default(0)->after('price');
         });
