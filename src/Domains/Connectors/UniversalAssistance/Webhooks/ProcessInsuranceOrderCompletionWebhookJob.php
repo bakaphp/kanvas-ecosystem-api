@@ -154,6 +154,4 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         $order->metadata = $currentMetadata;
         $order->saveOrFail();
     }
-
-
 }
