@@ -109,7 +109,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Approach 2: Try webhook structure from order metadata (new format)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
-            
+
             // Check for webhook structure: { "event": "insurance_order_completed", "insurance": {...} }
             if (isset($orderMetadata['event']) && $orderMetadata['event'] === 'insurance_order_completed' && isset($orderMetadata['insurance'])) {
                 $insuranceData = $orderMetadata['insurance'];
@@ -226,7 +226,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Map webhook field names to internal field names
         $fieldMap = [
             'dob' => 'birthDate',
-            'sex' => 'gender', 
+            'sex' => 'gender',
             'firstname' => 'firstName',
             'lastname' => 'lastName',
             'phone' => 'telephone',
@@ -238,7 +238,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Apply field mappings
         foreach ($fieldMap as $webhookField => $internalField) {
-            if (isset($personData[$webhookField]) && !isset($transformedData[$internalField])) {
+            if (isset($personData[$webhookField]) && ! isset($transformedData[$internalField])) {
                 $transformedData[$internalField] = $personData[$webhookField];
             }
         }
@@ -252,10 +252,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         // Ensure we have both originCountryCode and destinationCountryCode
-        if (!isset($transformedData['originCountryCode']) && isset($personData['originCountryCode'])) {
+        if (! isset($transformedData['originCountryCode']) && isset($personData['originCountryCode'])) {
             $transformedData['originCountryCode'] = $personData['originCountryCode'];
         }
-        if (!isset($transformedData['destinationCountryCode']) && isset($personData['destinationCountryCode'])) {
+        if (! isset($transformedData['destinationCountryCode']) && isset($personData['destinationCountryCode'])) {
             $transformedData['destinationCountryCode'] = $personData['destinationCountryCode'];
         }
 

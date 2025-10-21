@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Webhooks;
 
 use Exception;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\WorkflowAction;
-use Kanvas\Exceptions\ValidationException;
 use Override;
 
 /**
@@ -80,7 +80,7 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         // Validate required titular fields
         $titular = $payload['insurance']['titular'];
         $requiredFields = ['firstname', 'lastname', 'dob', 'sex', 'idType', 'idNumber'];
-        
+
         foreach ($requiredFields as $field) {
             if (empty($titular[$field])) {
                 throw new ValidationException("Required field '{$field}' is missing in titular data");
@@ -97,7 +97,7 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
                 if (! is_array($dependent)) {
                     throw new ValidationException("Dependent at index {$index} must be an object");
                 }
-                
+
                 foreach ($requiredFields as $field) {
                     if (empty($dependent[$field])) {
                         throw new ValidationException("Required field '{$field}' is missing in dependent data at index {$index}");
@@ -142,14 +142,14 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         // Store the complete webhook payload in metadata
         // This follows the pattern that ProcessInsuranceCartActivity expects
         $currentMetadata['insurance_webhook'] = $payload;
-        
+
         // Also store just the insurance data for easier access
         $currentMetadata['insurance'] = $payload['insurance'] ?? [];
-        
+
         // Store additional webhook info
         $currentMetadata['webhook_received_at'] = now()->toISOString();
         $currentMetadata['webhook_event'] = $payload['event'] ?? 'insurance_order_completed';
-        
+
         // Store plan info if available
         if (isset($payload['plan_info'])) {
             $currentMetadata['plan_info'] = $payload['plan_info'];
@@ -170,7 +170,7 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         try {
             // Get webhook configuration parameters
             $configuration = $this->receiver->configuration ?? [];
-            
+
             // Get receiver_id from configuration (standard pattern)
             $receiverId = $configuration['receiver_id'] ?? 0;
 
@@ -192,7 +192,6 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
                 'metadata_stored' => true,
                 'ready_for_processing' => ! is_null($workflowAction),
             ];
-
         } catch (Exception $e) {
             return [
                 'workflow_action_found' => false,
