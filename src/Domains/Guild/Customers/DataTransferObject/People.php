@@ -39,7 +39,8 @@ class People extends Data
         public array $tags = [],
         public array $peopleEmploymentHistory = [],
         public ?string $organization = null,
-        public ?string $created_at = null
+        public ?string $created_at = null,
+        public ?bool $flushPreviousAddress = false,
     ) {
         $this->cleanFirstNameFromMiddleName();
     }
@@ -88,5 +89,10 @@ class People extends Data
             array_pop($nameParts);
             $this->firstname = implode(' ', $nameParts);
         }
+    }
+
+    public function flushPreviousAddress(): void
+    {
+        $this->flushPreviousAddress = true;
     }
 }

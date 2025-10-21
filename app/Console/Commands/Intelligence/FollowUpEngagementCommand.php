@@ -7,6 +7,7 @@ namespace App\Console\Commands\Intelligence;
 use Illuminate\Console\Command;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 
 class FollowUpEngagementCommand extends Command
@@ -28,15 +29,24 @@ class FollowUpEngagementCommand extends Command
             ->whereIn('pipelines.apps_id', $apps)
             ->select('pipelines_stages.*')
             ->cursor();
+
         $whereNotIn = [];
         foreach ($stages as $stage) {
             $config = $stage->config;
+
             if (isset($config['notification_engagement_rules']) && $config['notification_engagement_rules']) {
                 $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
+                ->whereIn('id', [525873,525867,509766,513064,513546])
                 ->whereNotIn('id', $whereNotIn)
                 ->cursor();
+
                 foreach ($leads as $lead) {
-                    (new FollowUpEngagementAction($lead))->execute();
+                    if ($lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value) === null) {
+                        continue;
+                    }
+
+                    //how do we avoid sending notifications for leads that haven'b been contacted
+                    new FollowUpEngagementAction($lead)->execute();
                     $whereNotIn[] = $lead->id;
                 }
             }
