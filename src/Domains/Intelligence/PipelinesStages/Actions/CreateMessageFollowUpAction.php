@@ -39,15 +39,17 @@ class CreateMessageFollowUpAction
         $rules = $config['notification_engagement_rules'];
 
         $data = [
-            'data' => [
-                'day' => $rules['day'],
-                'templates' => $rules['templates'],
-                'conversation_history' => $this->mapConversationHistory(),
-                'context' => $this->session->content,
+            'day' => $rules['day'],
+            'templates' => $rules['templates'],
+            'conversation_history' => $this->mapConversationHistory(),
+            'context' => [
+                'company' => $this->lead->company,
+                'lead' => $this->lead,
+                'lead_owner' => $this->lead->owner,
             ],
         ];
 
-        $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data);
+        $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.5-pro')
             ->withPrompt($prompt)
@@ -79,7 +81,7 @@ class CreateMessageFollowUpAction
 
         foreach ($messages as $message) {
             $conversationHistory[] = [
-                'user' => $message->users_id === $this->session->agent->user_id ? 'agent' : 'lead',
+                'user' => $message->slug ? 'lead' : 'agent',
                 'message' => $message->message,
             ];
         }

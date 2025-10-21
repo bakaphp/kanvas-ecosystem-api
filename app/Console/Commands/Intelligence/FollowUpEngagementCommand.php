@@ -28,13 +28,16 @@ class FollowUpEngagementCommand extends Command
             ->whereIn('pipelines.apps_id', $apps)
             ->select('pipelines_stages.*')
             ->cursor();
-
+        $whereNotIn = [];
         foreach ($stages as $stage) {
             $config = $stage->config;
             if (isset($config['notification_engagement_rules']) && $config['notification_engagement_rules']) {
-                $leads = Lead::where('pipeline_stage_id', '=', $stage->id)->cursor();
+                $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
+                ->whereNotIn('id', $whereNotIn)
+                ->cursor();
                 foreach ($leads as $lead) {
                     (new FollowUpEngagementAction($lead))->execute();
+                    $whereNotIn[] = $lead->id;
                 }
             }
         }
