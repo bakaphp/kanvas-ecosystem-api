@@ -25,6 +25,9 @@ class FollowUpEngagementAction
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
                 ->first();
+        if (! $session) {
+            return null;
+        }
 
         $lastMessage = $session->channel->getLastMessage();
         $content = $session->content;
