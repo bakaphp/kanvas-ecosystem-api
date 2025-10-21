@@ -8,7 +8,6 @@ use Exception;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Override;
 
 /**
@@ -44,16 +43,12 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         // Store webhook data in order metadata
         $this->storeWebhookDataInOrder($order, $payload);
 
-        // Check workflow configuration
-        $workflowResults = $this->checkInsuranceWorkflowConfiguration($order, $payload);
-
         return [
             'status' => 200,
             'message' => 'Insurance order completion processed successfully',
             'order_id' => $order->getId(),
             'webhook_event' => $payload['event'] ?? 'insurance_order_completed',
             'metadata_updated' => true,
-            'workflow_configuration' => $workflowResults,
         ];
     }
 
@@ -160,45 +155,5 @@ class ProcessInsuranceOrderCompletionWebhookJob extends ProcessWebhookJob
         $order->saveOrFail();
     }
 
-    /**
-     * Check workflow configuration and store metadata for insurance processing
-     * The webhook receiver's primary job is to store the data in order metadata
-     * The actual workflow execution should be triggered separately by ProcessInsuranceCartActivity
-     */
-    protected function checkInsuranceWorkflowConfiguration(Order $order, array $payload): array
-    {
-        try {
-            // Get webhook configuration parameters
-            $configuration = $this->receiver->configuration ?? [];
 
-            // Get receiver_id from configuration (standard pattern)
-            $receiverId = $configuration['receiver_id'] ?? 0;
-
-            // Find the ProcessInsuranceCartActivity workflow action
-            $workflowAction = WorkflowAction::where('name', 'ProcessInsuranceCartActivity')
-                ->where('companies_id', $this->receiver->company->getId())
-                ->first();
-
-            if (! $workflowAction) {
-                $workflowAction = WorkflowAction::where('model_name', 'LIKE', '%ProcessInsuranceCartActivity%')
-                    ->where('companies_id', $this->receiver->company->getId())
-                    ->first();
-            }
-
-            return [
-                'workflow_action_found' => ! is_null($workflowAction),
-                'workflow_action_id' => $workflowAction?->getId(),
-                'receiver_id' => $receiverId,
-                'metadata_stored' => true,
-                'ready_for_processing' => ! is_null($workflowAction),
-            ];
-        } catch (Exception $e) {
-            return [
-                'workflow_action_found' => false,
-                'error' => $e->getMessage(),
-                'metadata_stored' => true, // Important: metadata was still stored
-                'receiver_id' => $this->receiver->configuration['receiver_id'] ?? 0,
-            ];
-        }
-    }
 }
