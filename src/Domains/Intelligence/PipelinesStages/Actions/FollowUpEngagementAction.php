@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -44,12 +43,13 @@ class FollowUpEngagementAction
         $timeDiff = $lastMessageTime->diffInMinutes($now);
 
         if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
-            $promptText = is_array($rules['prompt']) ? implode(' ', $rules['prompt']) : (string) $rules['prompt'];
-            $messages = $session->channel->messages;
-            $content['messages'] = $messages;
-            $prompt = Blade::render($promptText, $content);
+            $message = new CreateMessageFollowUpAction(
+                $this->lead,
+                $this->lead->stage,
+                $session
+            )
+            ->execute();
 
-            $message = new CreateMessageAction($prompt, $session)->execute();
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
                     $this->lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
