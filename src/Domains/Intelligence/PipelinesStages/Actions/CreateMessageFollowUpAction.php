@@ -48,7 +48,6 @@ class CreateMessageFollowUpAction
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data);
-        dump($prompt);
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.5-pro')
             ->withPrompt($prompt)
