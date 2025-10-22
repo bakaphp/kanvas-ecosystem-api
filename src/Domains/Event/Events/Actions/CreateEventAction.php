@@ -106,7 +106,9 @@ class CreateEventAction
                 $this->storeEventResources($event, $this->event->resources);
             }
 
-            if ($eventVersion) {
+            $participants = $eventVersion->participants;
+
+            if ($eventVersion && ! $participants->isEmpty()) {
                 $codes = (new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion
