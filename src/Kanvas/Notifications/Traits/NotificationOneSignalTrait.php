@@ -35,9 +35,9 @@ trait NotificationOneSignalTrait
 
         return [
             'user_id' => $this->toUser->getId(),
-            'message' => $messageContent['message'],
-            'title' => $messageContent['title'] ?? '',
-            'subtitle' => $messageContent['subtitle'] ?? '',
+            'message' => html_entity_decode($messageContent['message'], ENT_QUOTES, 'UTF-8'),
+            'title' => html_entity_decode($messageContent['title'] ?? '', ENT_QUOTES, 'UTF-8'),
+            'subtitle' => html_entity_decode($messageContent['subtitle'] ?? '', ENT_QUOTES, 'UTF-8'),
             'apps_id' => $this->app->getId(),
             'data' => $this->getData(),
         ];
