@@ -56,7 +56,7 @@ class CreateMessageFollowUpAction
 
         $messageType = MessageType::firstOrCreate([
             'apps_id' => $this->session->apps_id,
-            'languages_id' => 1,
+            //'languages_id' => 1,
             //'name' => 'AI Generated Message',
             'name' => 'twilio-sms',
             'verb' => 'twilio-sms',
