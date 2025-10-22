@@ -35,7 +35,7 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
                 $this->receiver->app,
                 $mainCompany,
                 $this->receiver->user
-            )->execute($this->app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
+            )->execute($this->receiver->app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
         }
 
 
