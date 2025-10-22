@@ -72,10 +72,12 @@ class CreateMessageFollowUpAction
             'message' => $responseText,
         ]);
 
-        $leadSystemModule = SystemModulesRepository::getByModelName(get_class($this->lead), $this->lead->app);
         $message = new CreateSocialMessageAction(
             $messageInput,
-            $leadSystemModule,
+            SystemModulesRepository::getByModelName(
+                get_class($this->lead),
+                $this->lead->app
+            ),
             $this->lead->getId(),
         )->execute();
         $this->session->channel->addMessage($message);
