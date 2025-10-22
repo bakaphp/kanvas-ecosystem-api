@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -40,6 +41,7 @@ class FollowUpEngagementAction
         if ($hoursTool['status'] !== 'work_hours') {
             return null;
         }
+
         $now = Carbon::now($timezone);
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
@@ -55,7 +57,7 @@ class FollowUpEngagementAction
 
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
-                    $this->lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
+                    $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                     $message,
                     $this->lead->company->get('twilio_phone_number')
                 );
