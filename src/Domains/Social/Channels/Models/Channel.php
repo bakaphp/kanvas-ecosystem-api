@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Social\Channels\Events\MessageAddedToChannelEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -108,6 +109,8 @@ class Channel extends BaseModel
            'app' => $message->app,
            'company' => $message->company,
         ]);
+
+        MessageAddedToChannelEvent::dispatch($this, $message);
     }
 
     /**
