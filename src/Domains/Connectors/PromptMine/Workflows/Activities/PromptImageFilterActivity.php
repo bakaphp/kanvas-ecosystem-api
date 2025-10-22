@@ -571,16 +571,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $title = str_replace('&#039;', "'", $title);
-        $title = str_replace('&amp;#039;', "'", $title);
-        $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
-
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your image for {$title} has been processed",
+                message: addslashes("Your image for {$title} has been processed"),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [
