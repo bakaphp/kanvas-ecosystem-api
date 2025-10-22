@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\Passes;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\Participant;
-use Kanvas\Event\Participants\Models\ParticipantPassMotive;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Event\Passes\Actions\ScanPassAction;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
+use Kanvas\Event\Passes\Services\PassMotiveService;
 
 class EventPassCodeMutation
 {
@@ -30,7 +29,7 @@ class EventPassCodeMutation
         $event = Event::getByIdFromCompanyApp($input['event_id'], $company, $app);
         $eventVersion = $event->versions()->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -75,7 +74,7 @@ class EventPassCodeMutation
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -116,7 +115,7 @@ class EventPassCodeMutation
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -181,25 +180,5 @@ class EventPassCodeMutation
             'checked_in_at' => $pass->used_date->toDateTimeString(),
             'motive' => $pass->motive,
         ];
-    }
-
-
-    private function getMotive(Companies $company, Apps $app, $motiveId, $userId): ParticipantPassMotive
-    {
-        $motive = ParticipantPassMotive::fromCompany($company)
-            ->fromApp($app)
-            ->find($motiveId);
-
-        if (! $motive) {
-            $motive = ParticipantPassMotive::fromCompany($company)
-                ->fromApp($app)
-                ->firstOrCreate([
-                    'name' => 'Default',
-                ], [
-                    'users_id' => $userId,
-                ]);
-        }
-
-        return $motive;
     }
 }
