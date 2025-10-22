@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
@@ -71,7 +72,14 @@ class CreateMessageFollowUpAction
             'message' => $responseText,
         ]);
 
-        $message = new CreateSocialMessageAction($messageInput)->execute();
+        $message = new CreateSocialMessageAction(
+            $messageInput,
+            SystemModulesRepository::getByModelName(
+                get_class($this->lead),
+                $this->lead->app
+            ),
+            $this->lead->getId(),
+        )->execute();
         $this->session->channel->addMessage($message);
 
         return $responseText;
