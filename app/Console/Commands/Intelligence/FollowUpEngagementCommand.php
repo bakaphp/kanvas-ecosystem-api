@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -48,8 +49,18 @@ class FollowUpEngagementCommand extends Command
                     }
 
                     //how do we avoid sending notifications for leads that haven'b been contacted
-                    $result = new FollowUpEngagementAction($lead)->execute();
+                    try {
+                        $result = new FollowUpEngagementAction($lead)->execute();
+                    } catch (Exception $e) {
+                        $this->error('Error processing lead ID ' . $lead->id . ': ' . $e->getMessage());
+                        report($e);
+
+                        continue;
+                    }
+
                     $whereNotIn[] = $lead->id;
+                    sleep(2); // to avoid hitting rate limits
+
                     if ($result === null || empty($result)) {
                         continue;
                     }
