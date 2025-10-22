@@ -10,6 +10,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 
 class FollowUpEngagementCommand extends Command
 {
@@ -45,6 +46,17 @@ class FollowUpEngagementCommand extends Command
                 foreach ($leads as $lead) {
                     $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
                     if ($shouldSkip) {
+                        continue;
+                    }
+
+                    $hoursTool = new CompanyWorkHoursTool($lead)->execute();
+                    if ($hoursTool['status'] !== 'work_hours') {
+                        $this->info('Skipping lead ID ' . $lead->id . ' ' . $lead->people->name . '  - outside work hours');
+                        $this->line('  Status: ' . $hoursTool['status']);
+                        $this->line('  Day: ' . $hoursTool['weekday']);
+                        $this->line('  Hours: ' . $hoursTool['opens_at_local'] . ' - ' . $hoursTool['closes_at_local']);
+                        $this->line('  Next open: ' . $hoursTool['next_open_human']);
+
                         continue;
                     }
 
