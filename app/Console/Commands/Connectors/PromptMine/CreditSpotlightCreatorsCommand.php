@@ -97,7 +97,6 @@ class CreditSpotlightCreatorsCommand extends Command
      */
     private function creditSpotlightCreators(array $newSpotlightPrompts, Apps $app, Companies $company): void
     {
-
         foreach ($newSpotlightPrompts as $message) {
             $creator = $message->user();
 
