@@ -46,7 +46,7 @@ class UpdatePeopleAction
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?
-        $this->people->update($attributes);
+        $this->people->updateOrFail($attributes);
 
         $this->people->setCustomFields($this->peopleData->custom_fields);
         $this->people->saveCustomFields();
