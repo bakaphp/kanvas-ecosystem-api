@@ -243,7 +243,10 @@ extend type Query @guard {
         hasVariants: _
             @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
-            @whereHasConditions(relation: "categories", columns: ["id", "name", "slug"])
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         hasWarehouses: _
             @whereHasConditions(
                 relation: "warehouses"
@@ -294,5 +297,11 @@ extend type Query @guard {
     productSemanticSearch(query: String!): [Product!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
+        )
+    productRecommendations(id: ID!, intent: String!): [Product!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"
+            defaultCount: 25
         )
 }
