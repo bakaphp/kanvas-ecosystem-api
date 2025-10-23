@@ -10,10 +10,10 @@ use Illuminate\Support\Arr;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
+use Kanvas\Connectors\PromptMine\Notifications\SpotlightCreatorCreditPushNotification;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 
 class CreditSpotlightCreatorsCommand extends Command
 {
@@ -62,8 +62,7 @@ class CreditSpotlightCreatorsCommand extends Command
         $newSpotlightPrompts = $this->checkForNewPrompts($response['recomms'], $app, $company);
 
         // Verify if a prompt a new creator has been added
-       $this->creditSpotlightCreators($newSpotlightPrompts, $app, $company);
-
+        $this->creditSpotlightCreators($newSpotlightPrompts, $app, $company);
     }
 
     private function checkForNewPrompts(array $recommendations, Apps $app, Companies $company): array
@@ -76,7 +75,7 @@ class CreditSpotlightCreatorsCommand extends Command
                 ->whereIn('id', $spotlightMessages)
                 ->where('companies_id', $company->getId())
                 ->first();
-                
+
 
             if ($message === null) {
                 // New prompt found
@@ -99,20 +98,55 @@ class CreditSpotlightCreatorsCommand extends Command
      */
     private function creditSpotlightCreators(array $newSpotlightPrompts, Apps $app, Companies $company): void
     {
+
         foreach ($newSpotlightPrompts as $message) {
-                $creator = $message->user();
+            $creator = $message->user();
 
-                if (! $creator->get('order_credits')) {
-                    $creator->set('order_credits', '{"video":{"veo-3.1-fast-generate-preview":1,"veo-3.1-generate-preview":1,"veo-3.1-fast-generate-001":1}}');
-                    return;
-                }
+            if (! $creator->get('order_credits')) {
+                $creator->set('order_credits', '{"video":{"veo-3.1-fast-generate-preview":1,"veo-3.1-generate-preview":1,"veo-3.1-fast-generate-001":1}}');
+                return;
+            }
 
-                $creditsArray = json_decode($creator->get('order_credits'), true);
-                foreach ($creditsArray as $modelCredit) {
-                    $modelCredit += 1;
-                }
+            $creditsArray = json_decode($creator->get('order_credits'), true);
+            foreach ($creditsArray as $modelCredit) {
+                $modelCredit += 1;
+            }
 
-                $this->info("Credited 1 to creator ID: {$creator->getId()} for message ID: {$message->getId()}");
+            $this->info("Credited 1 to creator ID: {$creator->getId()} for message ID: {$message->getId()}");
+
+            //Notify the creator about the credit addition
+            $this->sendCreatorCreditNotification(
+                entity: $message,
+                params: [
+                    'push_template' => 'spotlight_creator_credit_notification_push',
+                ]
+            );
         }
+    }
+
+    private function sendCreatorCreditNotification(Message $entity, array $params): void
+    {
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $params['via'] ?? ['database']
+        );
+        $errorProcessingImageNotification = new SpotlightCreatorCreditPushNotification(
+            user: $entity->user,
+            entity: $entity,
+            message: "Your AI creation was so good, we had to feature it. As a thank you, we've added one free Veo 3 generation credit to your account. Check it out!",
+            title: "You're in the Spotlight!",
+            via: $endViaList,
+            templates: [
+                'push_template' => $params['push_template'],
+            ],
+        );
+
+        //send to the user profile when it fails
+        $errorProcessingImageNotification->setData([
+            'destination_id' => $entity->getId(),
+            'destination_type' => 'USER',
+            'destination_event' => 'FOLLOWING',
+        ]);
+        $entity->user->notify($errorProcessingImageNotification);
     }
 }
