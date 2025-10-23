@@ -92,9 +92,6 @@ class CreditSpotlightCreatorsCommand extends Command
         return $newSpotlightPrompts;
     }
 
-    /**
-     * @todo implement actual crediting logic, @kaioken should know how this works.
-     */
     private function creditSpotlightCreators(array $newSpotlightPrompts, Apps $app, Companies $company): void
     {
         foreach ($newSpotlightPrompts as $message) {
