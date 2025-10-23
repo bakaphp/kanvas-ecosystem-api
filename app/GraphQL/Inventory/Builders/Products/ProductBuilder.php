@@ -101,4 +101,14 @@ class ProductBuilder
             ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
             ->get();
     }
+
+    public function getProductRecommendations(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        // @todo Implement product recommendations logic
+        return Products::where('id', '!=', $args['id']);
+    }
 }
