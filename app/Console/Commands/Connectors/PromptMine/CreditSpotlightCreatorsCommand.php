@@ -13,6 +13,7 @@ use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Users\Models\Users;
 
 class CreditSpotlightCreatorsCommand extends Command
 {
@@ -43,7 +44,7 @@ class CreditSpotlightCreatorsCommand extends Command
 
         // Fetch spotlight creators from recommbee.
 
-        $user = auth()->user();
+        $user = Users::find(-1);
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
         $currentPage = (int) ($args['page'] ?? 1);
@@ -63,7 +64,6 @@ class CreditSpotlightCreatorsCommand extends Command
         // Verify if a prompt a new creator has been added
        $this->creditSpotlightCreators($newSpotlightPrompts, $app, $company);
 
-        return 0;
     }
 
     private function checkForNewPrompts(array $recommendations, Apps $app, Companies $company): array
@@ -100,13 +100,19 @@ class CreditSpotlightCreatorsCommand extends Command
     private function creditSpotlightCreators(array $newSpotlightPrompts, Apps $app, Companies $company): void
     {
         foreach ($newSpotlightPrompts as $message) {
-                $creator = $message->getUser();
-                $creditAmount = 10;
+                $creator = $message->user();
 
-                // Assuming there's a method to credit the user
-                $creator->creditAccount($creditAmount);
+                if (! $creator->get('order_credits')) {
+                    $creator->set('order_credits', '{"video":{"veo-3.1-fast-generate-preview":1,"veo-3.1-generate-preview":1,"veo-3.1-fast-generate-001":1}}');
+                    return;
+                }
 
-                $this->info("Credited {$creditAmount} to creator ID: {$creator->getId()} for message ID: {$message->getId()}");
+                $creditsArray = json_decode($creator->get('order_credits'), true);
+                foreach ($creditsArray as $modelCredit) {
+                    $modelCredit += 1;
+                }
+
+                $this->info("Credited 1 to creator ID: {$creator->getId()} for message ID: {$message->getId()}");
         }
     }
 }
