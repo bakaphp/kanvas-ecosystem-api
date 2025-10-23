@@ -14,7 +14,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Override;
 
-class MessageAddedToChannelEvent implements ShouldBroadcast
+class ChannelMessageCreatedEvent implements ShouldBroadcast
 {
     use SerializesModels;
     use Dispatchable;
