@@ -6,14 +6,13 @@ namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Support\Arr;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Connectors\PromptMine\Notifications\SpotlightCreatorCreditPushNotification;
+use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 
 class CreditSpotlightCreatorsCommand extends Command
 {

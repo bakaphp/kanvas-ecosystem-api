@@ -134,7 +134,6 @@ class RecombeeUserRecommendationService
         $recommIdName = 'for-you-feed' ? CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value : $scenario . '-recomm-id';
 
         try {
-
             if ($user->get($recommIdName)) {
                 return $this->getItemToUserPagination(
                     (string) $user->get($recommIdName),
