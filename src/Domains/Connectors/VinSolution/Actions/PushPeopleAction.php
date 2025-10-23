@@ -159,9 +159,11 @@ class PushPeopleAction
     {
         $contactAddress = [];
 
-        if ($people->address()->count() > 0) {
+        $addresses = $people->address()->latest('created_at')->get();
+
+        if ($addresses->count() > 0) {
             $i = 1;
-            foreach ($people->address as $address) {
+            foreach ($addresses as $address) {
                 $toAddress = new Address($isNew ? 0 : $i, $address);
                 $contactAddress[] = $toAddress->transform();
                 $i++;
