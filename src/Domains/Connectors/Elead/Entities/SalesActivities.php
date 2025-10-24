@@ -113,6 +113,14 @@ class SalesActivities
         return $response;
     }
 
+    public static function getActivityOutcome(AppInterface $app, Companies $company, string $activityId): array
+    {
+        $client = new Client($app, $company);
+        $response = $client->get("/sales/v1/elead/activities/{$activityId}/outcomes");
+
+        return $response;
+    }
+
     /**
      * Get activity by activity ID.
      */
