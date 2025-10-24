@@ -61,7 +61,7 @@
         "powersync/authorizenet-sdk-php": "^2.0",
         "pusher/pusher-php-server": "^7.2",
         "quickbooks/v3-php-sdk": "^6.2",
-        "recombee/php-api-client": "^5.0",
+        "recombee/php-api-client": "^6.0",
         "rennokki/laravel-eloquent-query-cache": "dev-master",
         "rlanvin/php-rrule": "^2.6",
         "ryanwinchester/netsuite-php": "^2024.2",

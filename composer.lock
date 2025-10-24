@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "56ac82137a37b2f2d6f74426c91eeefd",
+    "content-hash": "a284bc773641c5f3bcec6a7a4558879a",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -10155,16 +10155,16 @@
         },
         {
             "name": "recombee/php-api-client",
-            "version": "v5.1.1",
+            "version": "v6.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/recombee/php-api-client.git",
-                "reference": "01ea55da5316fd780ddd7c2c39ea6bc707bacfb3"
+                "reference": "040f58a15883da10fbffa2798ffa220f2fe91413"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/01ea55da5316fd780ddd7c2c39ea6bc707bacfb3",
-                "reference": "01ea55da5316fd780ddd7c2c39ea6bc707bacfb3",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/040f58a15883da10fbffa2798ffa220f2fe91413",
+                "reference": "040f58a15883da10fbffa2798ffa220f2fe91413",
                 "shasum": ""
             },
             "require": {
@@ -10195,9 +10195,9 @@
             "homepage": "https://recombee.com",
             "support": {
                 "issues": "https://github.com/recombee/php-api-client/issues",
-                "source": "https://github.com/recombee/php-api-client/tree/v5.1.1"
+                "source": "https://github.com/recombee/php-api-client/tree/v6.0.0"
             },
-            "time": "2025-09-19T15:15:03+00:00"
+            "time": "2025-10-23T12:03:34+00:00"
         },
         {
             "name": "rennokki/laravel-eloquent-query-cache",
