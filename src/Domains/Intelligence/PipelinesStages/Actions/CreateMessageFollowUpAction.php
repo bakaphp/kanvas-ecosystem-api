@@ -69,7 +69,14 @@ class CreateMessageFollowUpAction
             'company' => $this->session->company,
             'user' => $user,
             'type' => $messageType,
-            'message' => $responseText,
+            'message' => [
+                'content' => $responseText,
+                'raw_data' => $responseText,
+                'message_id' => '--',
+                'chat_jid' => '--',
+                'from_me' => true,
+            ],
+           'is_public' => 1,
         ]);
 
         $message = new CreateSocialMessageAction(
