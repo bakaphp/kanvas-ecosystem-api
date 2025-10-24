@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use Baka\Support\Url;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -55,6 +57,13 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
+
+                $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
+                if ($aiChatLink !== null && $fromAgent) {
+                    $aiChatLink = Url::getShortUrl($aiChatLink, $app);
+                    $note .= " <br/><br/> AI Assistant Chat Link: {$aiChatLink}";
+                }
+
                 $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
                 $eLeadOpportunity->addComment($note);
 
