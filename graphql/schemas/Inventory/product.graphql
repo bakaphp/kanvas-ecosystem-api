@@ -298,7 +298,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
         )
-    productRecommendations(id: ID!, intent: String!): [Product!]!
+    productRecommendations(id: ID!, intent: String!, config: Mixed): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"
