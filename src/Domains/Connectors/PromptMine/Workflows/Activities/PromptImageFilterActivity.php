@@ -748,7 +748,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             title: 'Error processing image',
             via: $endViaList,
             templates: [
-                'email_template' => $params['email_template'],
+                'email_template' => 'image-processing-failure-generic-error',
                 'push_template' => $params['push_template'],
             ],
         );
