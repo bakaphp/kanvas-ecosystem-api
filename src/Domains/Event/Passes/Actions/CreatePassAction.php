@@ -13,7 +13,6 @@ use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassMotive;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
 use Kanvas\Event\Passes\Services\PassMotiveService;
-use Kanvas\Exceptions\ValidationException;
 
 class CreatePassAction
 {
@@ -72,7 +71,7 @@ class CreatePassAction
         $participants = $this->eventVersion->participants;
 
         if ($participants->isEmpty()) {
-            throw new ValidationException('No participants found for this event version.');
+            return [];
         }
 
         $motive = $this->motive ?? PassMotiveService::getMotive(
