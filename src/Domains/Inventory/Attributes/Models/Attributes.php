@@ -37,6 +37,7 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  * @property int $is_searchable
  * @property int $is_visible
  * @property int $weight
+ * @property int $is_deleted
  */
 #[ObservedBy(AttributeObserver::class)]
 class Attributes extends BaseModel
@@ -133,6 +134,25 @@ class Attributes extends BaseModel
     public function addDefaultValue(mixed $value): void
     {
         $this->addDefaultValues([$value]);
+    }
+
+    public function searchableAs(): string
+    {
+        // As for this stage, the code doesn't know in which app need to set the index.
+        $attribute = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $attribute->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_attribute_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'attribute_index');
+    }
+
+    public function isPublished(): bool
+    {
+        if (isset($this->app) && $this->app->get('allow_unpublished_attributes')) {
+            return ! $this->is_deleted;
+        }
+
+        return ! $this->is_deleted;
     }
 
     public static function search($query = '', $callback = null)
