@@ -304,6 +304,115 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
     }
 
+    public function testOrderLateFeeWithHolidays(): void
+    {
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // Configure company with holiday settings
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::COUNTRY_CODE->value, 'DO');
+
+        // Add special days: Christmas Eve as half-day, custom company day as full day
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+            [
+                'date' => "2025-12-25",
+                'type' => 'full_day',
+                'name' => 'Christmas',
+            ],
+        ]);
+
+        // Create late fee product
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        // Create main product
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        // Setup channels and warehouses
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+        $today = CarbonImmutable::create(2025, 12, 26, 0, 0, 0, $timezone);
+        Date::setTestNow($today->subDays(2)->startOfSecond());
+
+        $order1 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $today->subDays(2)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $today->subDays(1)->startOfDay()->toDateTimeString(), // Dec 20
+                ],
+            ],
+        );
+
+        $order2 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $today->subDays(3)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $today->subDays(2)->startOfDay()->toDateTimeString(), // Dec 23
+                ],
+            ],
+        );
+
+        $total = $order1->getTotalAmount();
+
+        Date::setTestNow($today->startOfSecond());
+
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $today->toDateTimeString(),
+                orderIds: [$order1->getId(), $order2->getId()],
+                addLateFee: true
+            );
+
+        // Verify results
+        $reservation1 = $order1->fresh();
+        $reservation2 = $order2->fresh();
+
+        $this->assertCount(1, $lateOrders);
+        $this->assertEquals(100, $reservation1->fresh()->getTotalAmount());
+        $this->assertEquals($total + 100, $reservation2->fresh()->getTotalAmount());
+    }
+
     public function testAddAndRemoveLateFee(): void
     {
         Notification::fake();
