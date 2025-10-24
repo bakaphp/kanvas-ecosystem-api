@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -45,7 +44,6 @@ class Attributes extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use CascadeSoftDeletes;
-    use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
     use DynamicSearchableTrait {
         search as public traitSearch;
