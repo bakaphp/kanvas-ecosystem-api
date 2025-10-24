@@ -149,6 +149,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         }
 
                         $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
+                        $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
+
                         $notification = new Blank(
                             'id-verification-report',
                             [
@@ -167,6 +169,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $entity->set($key, true);
                         $notification->setSubject($name . ' - ID Verification Report');
                         Notification::send($usersToNotify, $notification);
+                        $entity->owner?->notify($notification);
+
+                        foreach ($managers as $manager) {
+                            if ($usersToNotify->contains($manager)) {
+                                continue;
+                            }
+                            $manager->notify($notification);
+                        }
 
                         // Generate PDF
                         /*                $pdfReport = PdfService::generatePdfFromTemplate(
