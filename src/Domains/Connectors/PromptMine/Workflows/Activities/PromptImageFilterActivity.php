@@ -372,6 +372,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 // If we're out of retries, rethrow the exception
                 if ($attempt >= $maxRetries) {
+                    $params['email_template'] = 'image-processing-failure-generic-error';
                     $this->sendFailNotification(
                         $entity,
                         "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
@@ -407,7 +408,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
-                    'email_template' => $params['email_template'],
+                    'email_template' => 'image-processing-failure-policy-violation',
                     'push_template' => $params['push_template'],
                 ],
             );
@@ -466,6 +467,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $responseData = $response->json();
 
         if (! $response->successful()) {
+            $params['email_template'] = 'image-processing-failure-generic-error';
             $this->sendFailNotification(
                 $entity,
                 "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
@@ -569,16 +571,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $title = str_replace('&#039;', "'", $title);
-        $title = str_replace('&amp;#039;', "'", $title);
-        $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
-
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your image for {$title} has been processed",
+                message: addslashes("Your image for {$title} has been processed"),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [
@@ -750,7 +748,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             title: 'Error processing image',
             via: $endViaList,
             templates: [
-                'email_template' => $params['email_template'],
+                'email_template' => 'image-processing-failure-generic-error',
                 'push_template' => $params['push_template'],
             ],
         );

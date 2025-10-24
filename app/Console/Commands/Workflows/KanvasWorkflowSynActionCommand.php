@@ -103,6 +103,7 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceVoucherActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\ProcessInsuranceCartActivity;
+use Kanvas\Connectors\VinSolution\Workflow\AddLeadCommentFromAgentMessageActivity as VinSolutionAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushLeadActivity;
@@ -266,6 +267,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
+            VinSolutionAddLeadCommentFromAgentMessageActivity::class,
             AgentProcessEmailWebhookJob::class,
             StripePaymentLinkWebhookJob::class,
             PushParticipantActivity::class,

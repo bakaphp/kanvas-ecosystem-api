@@ -65,7 +65,7 @@ class CreatePeopleAction
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
             $people = PeoplesRepository::getById($this->peopleData->id, $company);
-            $people->update($attributes);
+            $people->updateOrFail($attributes);
         } else {
             $attributes['companies_id'] = $company->getId();
             $people = People::create($attributes);
