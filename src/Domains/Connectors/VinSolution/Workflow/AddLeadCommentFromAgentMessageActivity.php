@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use Baka\Support\Url;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -48,6 +50,11 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
+                $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
+                if ($aiChatLink !== null && $fromAgent) {
+                    $aiChatLink = Url::getShortUrl($aiChatLink, $app);
+                    $note .= " <br/><br/> View Full Conversation here: {$aiChatLink}";
+                }
                 $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
 
                 $vinNote = new PushNoteToLeadAction(

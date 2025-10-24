@@ -550,6 +550,7 @@ class Lead extends BaseModel implements EventResourceInterface
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
@@ -562,7 +563,13 @@ class Lead extends BaseModel implements EventResourceInterface
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+         } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
