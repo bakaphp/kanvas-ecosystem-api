@@ -60,7 +60,7 @@ class CreateContentSessionAction
                 'lead_channel_id' => $lead->uuid,
                 'type' => $lead->type?->name,
                 'status' => $lead->status()->first()?->name,
-                'company_timezone' => $lead->company->get('timezone'),
+                'company_timezone' => $lead->company->timezone ?? $lead->company->get('timezone'),
                 'kanvas_flow_state' => $lead->get('kanvas_flow_state'),
                 'additional_context_information' => $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
                 'impersonate_email' => $lead->company->get('impersonate_email'),
