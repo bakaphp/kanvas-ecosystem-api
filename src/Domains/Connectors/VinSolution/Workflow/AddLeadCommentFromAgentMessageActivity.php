@@ -52,7 +52,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
                 $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
                 if ($aiChatLink !== null && $fromAgent) {
-                    $aiChatLink = Url::getShortUrl($aiChatLink, $app);
+                    $aiChatLink = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
                     $note .= " \n\n View Full Conversation here: {$aiChatLink}";
                 }
                 $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
