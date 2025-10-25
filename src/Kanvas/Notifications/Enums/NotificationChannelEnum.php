@@ -55,6 +55,8 @@ enum NotificationChannelEnum: int
             KanvasDatabase::class => self::DATABASE->value,
             'database' => self::DATABASE->value,
             TwilioSmsChannel::class => self::SMS->value,
+            'sms' => self::SMS->value,
+            'expo' => self::EXPO->value,
             default => throw new ValidationException('Invalid channel ' . $class),
         };
     }
