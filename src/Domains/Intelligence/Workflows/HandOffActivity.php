@@ -46,6 +46,7 @@ class HandOffActivity extends KanvasActivity
                 }
 
                 $leadOwner = $leadOwner ?? $lead->owner ?? $lead->user;
+                $handOffUserRole = $params['hand_off_user_role'] ?? 'Manager';
 
                 $handOffType = $params['handoff_type'] ?? 'human';
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
@@ -108,7 +109,7 @@ class HandOffActivity extends KanvasActivity
                 );
 
                 //managers
-                $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, 'Manager')->get();
+                $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, $handOffUserRole)->get();
 
                 foreach ($managers as $manager) {
                     $manager->notify(
