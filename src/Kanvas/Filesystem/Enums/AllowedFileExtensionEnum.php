@@ -13,7 +13,7 @@ enum AllowedFileExtensionEnum
     {
         return match ($this) {
             self::ONLY_IMAGES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'json', 'pdf', 'txt', 'text', 'heic'],
-            self::WORK_FILES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'pdf', 'csv'],
+            self::WORK_FILES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'pdf', 'csv', 'odt', 'ods', 'odp', 'json', 'heic'],
         };
     }
 }
