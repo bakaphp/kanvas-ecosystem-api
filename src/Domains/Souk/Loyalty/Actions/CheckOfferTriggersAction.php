@@ -89,7 +89,7 @@ class CheckOfferTriggersAction
         }
 
         // Check if this order contains matching items
-        $hasMatchingItems = $this->order->orderItems()
+        $hasMatchingItems = $this->order->allItems()
             ->whereHas('variant.product', function (Builder $query) use ($productTypes, $productCategories, $productAttributes): void {
                 $this->buildProductTypeQuery($query, $productTypes, $productCategories, $productAttributes);
             })
@@ -104,7 +104,7 @@ class CheckOfferTriggersAction
             ->where('users_id', $this->user->getId())
             ->where('id', '!=', $this->order->getId())
             ->where('status', 'completed')
-            ->whereHas('orderItems.variant.product', function (Builder $query) use ($productTypes, $productCategories, $productAttributes): void {
+            ->whereHas('allItems.variant.product', function (Builder $query) use ($productTypes, $productCategories, $productAttributes): void {
                 $this->buildProductTypeQuery($query, $productTypes, $productCategories, $productAttributes);
             })
             ->count();
@@ -188,7 +188,7 @@ class CheckOfferTriggersAction
         }
 
         if ($productSku !== null) {
-            $matchesCurrentOrder = $this->order->orderItems()
+            $matchesCurrentOrder = $this->order->allItems()
                 ->whereHas('variant.product', function (Builder $query) use ($productSku): void {
                     $query->where('sku', $productSku);
                 })
@@ -208,7 +208,7 @@ class CheckOfferTriggersAction
                 return $query->where('total', $price);
             })
             ->when($productSku !== null, function (Builder $query, string $sku): Builder {
-                return $query->whereHas('orderItems.variant.product', function (Builder $q) use ($sku): void {
+                return $query->whereHas('allItems.variant.product', function (Builder $q) use ($sku): void {
                     $q->where('sku', $sku);
                 });
             })

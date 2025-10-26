@@ -60,7 +60,7 @@ class LoyaltyProgram extends BaseModel
         ];
     }
 
-    public function tiers(): HasMsany
+    public function tiers(): HasMany
     {
         return $this->hasMany(LoyaltyTier::class);
     }
