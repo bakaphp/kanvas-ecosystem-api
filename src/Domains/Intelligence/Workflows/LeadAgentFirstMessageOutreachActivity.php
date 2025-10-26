@@ -224,7 +224,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function isWithinOneDay(Lead $lead, string $dateString): bool
     {
-        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
+        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? $lead->company->timezone ?? 'America/New_York';
 
         $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
         $now = Carbon::now($leadTimezone);
