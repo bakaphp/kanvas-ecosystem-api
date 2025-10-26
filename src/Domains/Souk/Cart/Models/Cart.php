@@ -141,9 +141,9 @@ class Cart extends BaseModel
      */
     public function isEligibleForRecovery(): bool
     {
-        return $this->status === 'abandoned' && 
+        return $this->status === 'abandoned' &&
                $this->recovery_email_sent_at === null &&
-               $this->abandoned_at && 
+               $this->abandoned_at &&
                $this->abandoned_at->diffInHours(now()) >= 1;
     }
 }

@@ -19,7 +19,10 @@ use Kanvas\Users\Models\Users;
  */
 class ProcessReferralRedemptionJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public function __construct(
         private int $orderId,
@@ -53,7 +56,7 @@ class ProcessReferralRedemptionJob implements ShouldQueue
             /** @var array $redemption */
             $referralCode = $redemption['referral_code'];
             $redemptionRecord = $redemption['redemption'];
-            
+
             Log::info('Referral code redeemed', [
                 'user_id' => $user->getId(),
                 'order_id' => $order->getId(),

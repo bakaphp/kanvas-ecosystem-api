@@ -23,7 +23,7 @@ enum TriggerType: string
      */
     public function getDescription(): string
     {
-        return match($this) {
+        return match ($this) {
             self::FIRST_PURCHASE => 'First Purchase Ever',
             self::FIRST_PRODUCT_TYPE => 'First Purchase by Product Type',
             self::FIRST_CATEGORY => 'First Purchase by Category',

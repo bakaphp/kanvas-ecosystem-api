@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Integration;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Loyalty\Factories\LoyaltyOfferFactory;
 use Kanvas\Souk\Loyalty\Factories\LoyaltyProgramFactory;
 use Kanvas\Souk\Loyalty\Factories\LoyaltyTierFactory;
-use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 final class LoyaltyIntegrationTest extends TestCase
