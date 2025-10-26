@@ -46,7 +46,7 @@ class HandOffActivity extends KanvasActivity
                 }
 
                 $leadOwner = $leadOwner ?? $lead->owner ?? $lead->user;
-                $handOffUserRole = $params['hand_off_user_role'] ?? 'Manager';
+                $handOffUserRole = $lead->company->get('ai_agent_handoff_user_role') ?? 'Manager';
 
                 $handOffType = $params['handoff_type'] ?? 'human';
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
