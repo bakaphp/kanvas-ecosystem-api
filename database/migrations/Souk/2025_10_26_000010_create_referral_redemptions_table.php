@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -21,21 +20,21 @@ return new class() extends Migration
             $table->unsignedBigInteger('referee_user_id');
             $table->unsignedBigInteger('orders_id')->nullable();
             $table->unsignedBigInteger('discounts_id')->nullable();
-            
+
             // Rewards given
             $table->integer('referrer_points_awarded')->default(0);
             $table->decimal('referee_discount_amount', 12, 2)->default(0.0);
-            
+
             // Status
             $table->enum('status', ['pending', 'completed', 'cancelled'])->default('pending');
             $table->timestamp('redeemed_at')->nullable();
-            
+
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('referral_codes_id')->references('id')->on('referral_codes')->onDelete('cascade');
             $table->foreign('orders_id')->references('id')->on('orders')->onDelete('set null');
-            
+
             $table->index('referrer_user_id');
             $table->index('referee_user_id');
             $table->index('status');

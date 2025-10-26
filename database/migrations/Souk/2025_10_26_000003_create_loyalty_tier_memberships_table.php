@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -24,7 +23,7 @@ return new class() extends Migration
             $table->timestamp('tier_promoted_at')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->unique(['users_id', 'loyalty_programs_id']);
             $table->foreign('loyalty_tiers_id')->references('id')->on('loyalty_tiers')->onDelete('cascade');
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');

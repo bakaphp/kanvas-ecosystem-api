@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -26,11 +25,11 @@ return new class() extends Migration
             $table->timestamp('credited_at')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('orders_id')->references('id')->on('orders')->onDelete('cascade');
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');
             $table->foreign('loyalty_tier_memberships_id')->references('id')->on('loyalty_tier_memberships')->onDelete('cascade');
-            
+
             $table->index('orders_id');
             $table->index('loyalty_programs_id');
             $table->index('status');

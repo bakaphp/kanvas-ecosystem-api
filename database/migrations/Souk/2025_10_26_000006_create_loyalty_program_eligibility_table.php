@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -18,7 +17,7 @@ return new class() extends Migration
             $table->unsignedBigInteger('loyalty_programs_id');
             $table->string('name');
             $table->text('description')->nullable();
-            
+
             // Eligibility conditions (all must be true)
             $table->boolean('requires_existing_membership')->default(false);
             $table->integer('min_purchase_count')->nullable();
@@ -28,15 +27,15 @@ return new class() extends Migration
             $table->json('required_tier_ids')->nullable();
             $table->json('allowed_user_segments')->nullable();
             $table->json('excluded_user_ids')->nullable();
-            
+
             // Assignment settings
             $table->boolean('auto_enroll')->default(true);
             $table->integer('priority')->default(0);
             $table->boolean('is_active')->default(true);
-            
+
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');
             $table->index('apps_id');
             $table->index('loyalty_programs_id');

@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -22,14 +21,14 @@ return new class() extends Migration
             $table->text('description')->nullable();
             $table->enum('offer_type', ['discount', 'points', 'exclusive', 'free_shipping'])->default('points');
             $table->enum('trigger_type', [
-                'first_purchase', 
-                'tier_upgrade', 
-                'birthday', 
-                'milestone', 
+                'first_purchase',
+                'tier_upgrade',
+                'birthday',
+                'milestone',
                 'referral',
                 'seasonal',
                 'social_action',
-                'manual'
+                'manual',
             ]);
             $table->json('trigger_value')->nullable();
             $table->integer('reward_value')->nullable();
@@ -37,7 +36,7 @@ return new class() extends Migration
             $table->enum('status', ['draft', 'active', 'paused', 'archived'])->default('active');
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');
             $table->index('loyalty_programs_id');
             $table->index('status');

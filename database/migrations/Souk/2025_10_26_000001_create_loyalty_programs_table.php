@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -22,16 +21,16 @@ return new class() extends Migration
             $table->decimal('earn_multiplier', 5, 2)->default(1.0);
             $table->integer('expiration_days')->default(365);
             $table->boolean('is_active')->default(true);
-            
+
             // Referral configuration
             $table->boolean('referral_enabled')->default(false);
             $table->enum('referral_strategy', ['single', 'multiple'])->default('single');
             $table->json('referral_config')->nullable();
-            
+
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->index(['apps_id', 'companies_id']);
             $table->index('is_active');
             $table->index('referral_enabled');

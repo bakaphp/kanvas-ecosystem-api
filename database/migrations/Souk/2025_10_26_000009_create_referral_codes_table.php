@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -20,28 +19,28 @@ return new class() extends Migration
             $table->string('code', 50)->unique();
             $table->unsignedBigInteger('loyalty_programs_id');
             $table->unsignedBigInteger('discounts_id')->nullable();
-            
+
             // Rewards
             $table->integer('referrer_reward')->default(500);
             $table->integer('referee_reward')->default(100);
             $table->decimal('referee_discount', 5, 2)->default(10.0);
-            
+
             // Usage tracking
             $table->integer('max_uses')->nullable();
             $table->integer('current_uses')->default(0);
             $table->timestamp('expires_at')->nullable();
             $table->boolean('is_active')->default(true);
-            
+
             // Strategy
             $table->enum('strategy', ['single', 'multiple'])->default('single');
-            
+
             // Metadata
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');
-            
+
             $table->index('code');
             $table->index('users_id');
             $table->index('loyalty_programs_id');

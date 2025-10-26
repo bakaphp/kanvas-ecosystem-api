@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class() extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -18,7 +17,7 @@ return new class() extends Migration
             $table->unsignedBigInteger('users_id');
             $table->unsignedBigInteger('orders_id')->nullable();
             $table->unsignedBigInteger('loyalty_programs_id');
-            
+
             // Why this program was selected
             $table->enum('selection_reason', [
                 'user_selection',
@@ -30,21 +29,21 @@ return new class() extends Migration
                 'user_segment_rule',
                 'default_program',
                 'referral_source',
-                'custom_rule'
+                'custom_rule',
             ]);
-            
+
             // Conditions that matched
             $table->json('matched_conditions')->nullable();
-            
+
             // Alternative programs that could have matched
             $table->json('alternative_programs')->nullable();
-            
+
             $table->timestamps();
             $table->boolean('is_deleted')->default(false)->index();
-            
+
             $table->foreign('orders_id')->references('id')->on('orders')->onDelete('set null');
             $table->foreign('loyalty_programs_id')->references('id')->on('loyalty_programs')->onDelete('cascade');
-            
+
             $table->index('users_id');
             $table->index('orders_id');
             $table->index('loyalty_programs_id');
