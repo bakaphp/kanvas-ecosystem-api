@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Souk\Integration;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Loyalty\Factories\LoyaltyProgramFactory;
 use Kanvas\Souk\Referrals\Factories\ReferralCodeFactory;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class ReferralIntegrationTest extends TestCase

@@ -10,8 +10,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Loyalty\Actions\CheckOfferTriggersAction;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -21,7 +21,10 @@ use Kanvas\Users\Models\Users;
  */
 class ProcessOfferTriggersJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public function __construct(
         private int $orderId,
@@ -37,7 +40,7 @@ class ProcessOfferTriggersJob implements ShouldQueue
         $order = Order::find($this->orderId);
         $user = Users::find($this->userId);
 
-        if (!$order || !$user) {
+        if (! $order || ! $user) {
             return;
         }
 
@@ -53,10 +56,10 @@ class ProcessOfferTriggersJob implements ShouldQueue
         // Notify user about new offers
         foreach ($triggeredOffers as $offerAssignment) {
             $offer = $offerAssignment->loyaltyOffer;
-            
+
             // TODO: Send notification (email, push, in-app modal, etc.)
             // $user->notify(new OfferAvailableNotification($offerAssignment));
-            
+
             // Log for analytics
             Log::info('Offer triggered for user', [
                 'user_id' => $user->getId(),
