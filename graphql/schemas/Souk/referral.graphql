@@ -62,7 +62,7 @@ extend type Query @guard {
         )
 
     referralCodeUsages(
-        code: String! @eq
+        code: String!
         where: _
             @whereConditions(
                 columns: ["id", "referrer_user_id", "referee_user_id", "status"]

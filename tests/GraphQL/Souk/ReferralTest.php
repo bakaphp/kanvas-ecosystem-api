@@ -170,6 +170,51 @@ final class ReferralTest extends TestCase
     }
 
     /**
+     * Test viewing referral code usages list
+     */
+    public function testViewReferralCodeUsages(): void
+    {
+        $app = app(Apps::class);
+
+        $response = $this->graphQL('
+            query($code: String!) {
+                referralCodeUsages(code: $code) {
+                    paginatorInfo {
+                        count
+                        total
+                    }
+                    data {
+                        id
+                        referrer_user_id
+                        referee_user_id
+                        referrer_points_awarded
+                        referee_discount_amount
+                        status
+                    }
+                }
+            }
+        ', [
+            'code' => $this->referralCode->code,
+        ], []);
+
+        $response->assertSuccessful();
+
+        $usagesData = $response->json('data.referralCodeUsages');
+
+        // Verify we have 2 completed usages
+        $this->assertEquals(2, $usagesData['paginatorInfo']['count']);
+        $this->assertEquals(2, $usagesData['paginatorInfo']['total']);
+
+        // Verify each usage has correct data
+        foreach ($usagesData['data'] as $usage) {
+            $this->assertEquals('completed', $usage['status']);
+            $this->assertEquals($this->referrer->id, $usage['referrer_user_id']);
+            $this->assertEquals(500, $usage['referrer_points_awarded']);
+            $this->assertEquals(10.0, $usage['referee_discount_amount']);
+        }
+    }
+
+    /**
      * Test updating referral code to deactivate it
      */
     public function testUpdateReferralCodeDeactivate(): void
