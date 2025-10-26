@@ -36,7 +36,7 @@ class ReferralRedemptionBuilder
             ->with(['referrer', 'referee', 'referralCode'])
             ->whereHas('referralCode', function (Builder $q) use ($code, $user) {
                 $q->where('code', $code);
-                //   $q->where('users_id', $user->id);
+                $q->where('users_id', $user->id);
             });
 
         // Order by created_at descending
