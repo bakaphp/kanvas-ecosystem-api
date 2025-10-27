@@ -1360,7 +1360,7 @@ class Client
         // Try to get origin country from DatosSolicitante (person's residence country)
         if (isset($voucherData['DatosSolicitante']['PaisResidenciaSolicitante'])) {
             $countryName = $voucherData['DatosSolicitante']['PaisResidenciaSolicitante'];
-            return $this->countryNameToCode($countryName);
+            return $this->countryCodeToName($countryName);
         }
 
         // Default to AR (Argentina) if not found
@@ -1392,28 +1392,6 @@ class Client
 
         // Default to DO if not found
         return 'DO';
-    }
-
-    /**
-     * Convert country name to country code (reverse mapping)
-     */
-    protected function countryNameToCode(string $countryName): string
-    {
-        $nameToCode = [
-            'ARGENTINA' => 'AR',
-            'REPUBLICA DOMINICANA' => 'DO',
-            'ESTADOS UNIDOS' => 'US',
-            'CANADA' => 'CA',
-            'MEXICO' => 'MX',
-            'ESPAÑA' => 'ES',
-            'FRANCIA' => 'FR',
-            'ITALIA' => 'IT',
-            'BRASIL' => 'BR',
-            'COLOMBIA' => 'CO',
-        ];
-
-        $normalizedName = strtoupper($countryName);
-        return $nameToCode[$normalizedName] ?? 'AR'; // Default to AR
     }
 
     /**
