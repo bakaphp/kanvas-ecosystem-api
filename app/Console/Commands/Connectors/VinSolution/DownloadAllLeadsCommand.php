@@ -165,7 +165,7 @@ class DownloadAllLeadsCommand extends Command
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
-                            if ($existingLead === null) {
+                            if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
                                 // Check if this lead should have communication channel set based on percentage
                                 if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
                                     $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
