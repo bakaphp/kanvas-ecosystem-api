@@ -1210,7 +1210,7 @@ class Client
 
             // Use the existing countryCodeToName function to find the matching code
             $commonCodes = ['AR', 'DO', 'US', 'CO', 'MX', 'PE', 'CL', 'VE', 'EC', 'UY', 'PY', 'BO', 'BR', 'CR', 'PA', 'GT', 'HN', 'NI', 'SV', 'ES', 'FR', 'IT', 'DE', 'GB', 'PT', 'TR'];
-            
+
             foreach ($commonCodes as $code) {
                 if (strtoupper($this->countryCodeToName($code)) === $countryName) {
                     return $code;
