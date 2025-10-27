@@ -3768,16 +3768,16 @@
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.6.2",
+            "version": "2.6.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "fa71ae25baaef251909726a43d33a21035f25d13"
+                "reference": "49cd97f89cbc25bc329dfe9dc96ec5988aa6baf6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/fa71ae25baaef251909726a43d33a21035f25d13",
-                "reference": "fa71ae25baaef251909726a43d33a21035f25d13",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/49cd97f89cbc25bc329dfe9dc96ec5988aa6baf6",
+                "reference": "49cd97f89cbc25bc329dfe9dc96ec5988aa6baf6",
                 "shasum": ""
             },
             "require": {
@@ -3830,9 +3830,9 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.6.2"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.6.3"
             },
-            "time": "2025-10-22T09:03:01+00:00"
+            "time": "2025-10-24T09:05:56+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -17003,16 +17003,16 @@
         },
         {
             "name": "brianium/paratest",
-            "version": "v7.14.1",
+            "version": "v7.14.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/paratestphp/paratest.git",
-                "reference": "e1a93c38a94f4808faf75552e835666d3a6f8bb2"
+                "reference": "de06de1ae1203b11976c6ca01d6a9081c8b33d45"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/paratestphp/paratest/zipball/e1a93c38a94f4808faf75552e835666d3a6f8bb2",
-                "reference": "e1a93c38a94f4808faf75552e835666d3a6f8bb2",
+                "url": "https://api.github.com/repos/paratestphp/paratest/zipball/de06de1ae1203b11976c6ca01d6a9081c8b33d45",
+                "reference": "de06de1ae1203b11976c6ca01d6a9081c8b33d45",
                 "shasum": ""
             },
             "require": {
@@ -17026,7 +17026,7 @@
                 "phpunit/php-code-coverage": "^12.4.0",
                 "phpunit/php-file-iterator": "^6",
                 "phpunit/php-timer": "^8",
-                "phpunit/phpunit": "^12.4.0",
+                "phpunit/phpunit": "^12.4.1",
                 "sebastian/environment": "^8.0.3",
                 "symfony/console": "^6.4.20 || ^7.3.4",
                 "symfony/process": "^6.4.20 || ^7.3.4"
@@ -17036,7 +17036,7 @@
                 "ext-pcntl": "*",
                 "ext-pcov": "*",
                 "ext-posix": "*",
-                "phpstan/phpstan": "^2.1.30",
+                "phpstan/phpstan": "^2.1.31",
                 "phpstan/phpstan-deprecation-rules": "^2.0.3",
                 "phpstan/phpstan-phpunit": "^2.0.7",
                 "phpstan/phpstan-strict-rules": "^2.0.7",
@@ -17080,7 +17080,7 @@
             ],
             "support": {
                 "issues": "https://github.com/paratestphp/paratest/issues",
-                "source": "https://github.com/paratestphp/paratest/tree/v7.14.1"
+                "source": "https://github.com/paratestphp/paratest/tree/v7.14.2"
             },
             "funding": [
                 {
@@ -17092,7 +17092,7 @@
                     "type": "paypal"
                 }
             ],
-            "time": "2025-10-06T08:26:52+00:00"
+            "time": "2025-10-24T07:20:53+00:00"
         },
         {
             "name": "fakerphp/faker",
@@ -17550,16 +17550,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v1.4.0",
+            "version": "v1.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "8d2dedf7779c2e175a02a176dec38e6f9b35352b"
+                "reference": "20486fad67ee3e20f491e855aa6b9844b8140981"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/8d2dedf7779c2e175a02a176dec38e6f9b35352b",
-                "reference": "8d2dedf7779c2e175a02a176dec38e6f9b35352b",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/20486fad67ee3e20f491e855aa6b9844b8140981",
+                "reference": "20486fad67ee3e20f491e855aa6b9844b8140981",
                 "shasum": ""
             },
             "require": {
@@ -17612,7 +17612,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2025-10-14T01:13:19+00:00"
+            "time": "2025-10-24T06:22:38+00:00"
         },
         {
             "name": "laravel/mcp",
