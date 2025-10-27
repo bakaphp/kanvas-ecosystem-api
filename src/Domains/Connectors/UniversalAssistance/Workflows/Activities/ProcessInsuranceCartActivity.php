@@ -1181,7 +1181,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Check if titular is in this group
                 if (in_array('titular', $group['people_in_group']) ||
                     $group['type'] === 'grouped_voucher') {
-
                     if ($group['type'] === 'grouped_voucher') {
                         // For grouped vouchers, create a special result structure
                         $result['titular'] = [
@@ -1351,7 +1350,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     {
         try {
             $message = Message::getById($messageId);
-            if (!$message) {
+            if (! $message) {
                 return;
             }
 
