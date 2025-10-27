@@ -1387,7 +1387,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             $message->message = $currentMessage;
             $message->saveOrFail();
-
         } catch (\Exception $e) {
         }
     }
