@@ -187,7 +187,7 @@ class FilesystemServices
         );
     }
 
-    public static function downloadImageFromUrl(string $imageUrl): ?string
+    public static function downloadFromUrl(string $imageUrl): ?string
     {
         $fileInfo = pathinfo($imageUrl);
         $extension = $fileInfo['extension'] ?? null;

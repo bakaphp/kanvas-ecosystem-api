@@ -14,7 +14,7 @@ class ImageOptimizerService
     public static function optimizeImageFromUrl(string $imageUrl): string
     {
         //Download the file from url
-        $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
+        $imagePath = FilesystemServices::downloadFromUrl($imageUrl);
 
         $optimizerChain = OptimizerChainFactory::create();
         $optimizerChain->optimize($imagePath);

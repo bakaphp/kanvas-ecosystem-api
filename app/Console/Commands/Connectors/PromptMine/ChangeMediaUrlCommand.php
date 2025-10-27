@@ -109,7 +109,7 @@ class ChangeMediaUrlCommand extends Command
         // This uploads the image to the S3 bucket set on app settings "cloud-bucket". Remember to change the value if you want to upload somewhere else.
         $tempFilePath = match ($type) {
             'image-format' => ImageOptimizerService::optimizeImageFromUrl($mediaUrl),
-            'video-format' => FilesystemServices::downloadImageFromUrl($mediaUrl),
+            'video-format' => FilesystemServices::downloadFromUrl($mediaUrl),
         };
 
         $fileName = basename($tempFilePath);
