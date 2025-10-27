@@ -1206,8 +1206,15 @@ class Client
     {
         // Try to get origin country from DatosSolicitante (person's residence country)
         if (isset($voucherData['DatosSolicitante']['PaisResidenciaSolicitante'])) {
-            $countryName = $voucherData['DatosSolicitante']['PaisResidenciaSolicitante'];
-            return $this->countryNameToCode($countryName);
+            $countryName = strtoupper($voucherData['DatosSolicitante']['PaisResidenciaSolicitante']);
+
+            // Reverse lookup using the existing countryCodeToName method
+            $countryCodes = ['AR', 'DO', 'US', 'CA', 'MX', 'ES', 'FR', 'IT', 'BR', 'CO', 'PE', 'CL', 'VE', 'EC', 'UY', 'PY', 'BO'];
+            foreach ($countryCodes as $code) {
+                if (strtoupper($this->countryCodeToName($code)) === $countryName) {
+                    return $code;
+                }
+            }
         }
 
         // Default to AR (Argentina) if not found
@@ -1239,28 +1246,6 @@ class Client
 
         // Default to DO if not found
         return 'DO';
-    }
-
-    /**
-     * Convert country name to country code (reverse mapping)
-     */
-    protected function countryNameToCode(string $countryName): string
-    {
-        $nameToCode = [
-            'ARGENTINA' => 'AR',
-            'REPUBLICA DOMINICANA' => 'DO',
-            'ESTADOS UNIDOS' => 'US',
-            'CANADA' => 'CA',
-            'MEXICO' => 'MX',
-            'ESPAÑA' => 'ES',
-            'FRANCIA' => 'FR',
-            'ITALIA' => 'IT',
-            'BRASIL' => 'BR',
-            'COLOMBIA' => 'CO',
-        ];
-
-        $normalizedName = strtoupper($countryName);
-        return $nameToCode[$normalizedName] ?? 'AR'; // Default to AR
     }
 
     /**
