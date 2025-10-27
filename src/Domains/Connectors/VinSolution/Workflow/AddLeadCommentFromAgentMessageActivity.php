@@ -61,7 +61,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     $linkText = "\nView Full Conversation here: {$aiChatLink}";
 
                     if (strlen($note) + strlen($linkText) > 200) {
-                        $note = substr($note, 0, 200 - strlen($linkText) - 5) . "...\nFull Conversation: {$aiChatLink}";
+                        $note = substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
                     } else {
                         $note .= $linkText;
                     }
