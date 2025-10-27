@@ -1208,9 +1208,10 @@ class Client
         if (isset($voucherData['DatosSolicitante']['PaisResidenciaSolicitante'])) {
             $countryName = strtoupper($voucherData['DatosSolicitante']['PaisResidenciaSolicitante']);
 
-            // Reverse lookup using the existing countryCodeToName method
-            $countryCodes = ['AR', 'DO', 'US', 'CA', 'MX', 'ES', 'FR', 'IT', 'BR', 'CO', 'PE', 'CL', 'VE', 'EC', 'UY', 'PY', 'BO'];
-            foreach ($countryCodes as $code) {
+            // Use the existing countryCodeToName function to find the matching code
+            $commonCodes = ['AR', 'DO', 'US', 'CO', 'MX', 'PE', 'CL', 'VE', 'EC', 'UY', 'PY', 'BO', 'BR', 'CR', 'PA', 'GT', 'HN', 'NI', 'SV', 'ES', 'FR', 'IT', 'DE', 'GB', 'PT', 'TR'];
+            
+            foreach ($commonCodes as $code) {
                 if (strtoupper($this->countryCodeToName($code)) === $countryName) {
                     return $code;
                 }
