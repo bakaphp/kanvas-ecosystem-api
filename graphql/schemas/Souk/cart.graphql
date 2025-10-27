@@ -33,6 +33,7 @@ input CartItemInput {
     quantity: Int!
     variant_id: ID!
     channel_id: ID
+    warehouse_id: ID
     attributes: Mixed
 }
 
