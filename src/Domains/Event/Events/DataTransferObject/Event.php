@@ -41,6 +41,7 @@ class Event extends Data
         public readonly array $resources = [],
         public readonly array $orderItems = [],
         public readonly ?string $meeting_link = null,
+        public readonly ?int $timeSlotId = null,
     ) {
     }
 
@@ -64,7 +65,8 @@ class Event extends Data
             participants: $data['participants'] ?? [],
             resources: $data['resources'] ?? [],
             orderItems: $data['order_items'] ?? [],
-            meeting_link: $data['meeting_link'] ?? null
+            meeting_link: $data['meeting_link'] ?? null,
+            timeSlotId: $data['time_slot_id'] ?? null
         );
     }
 

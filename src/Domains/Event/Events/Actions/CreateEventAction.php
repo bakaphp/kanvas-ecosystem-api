@@ -272,23 +272,21 @@ class CreateEventAction
     protected function validateTimeSlotAvailability(): void
     {
         if (! $this->event->dates->count()) {
-            return; // No dates to validate
+            return;
         }
 
-        $dateData = $this->event->dates[0]; // Assuming single date for now
+        $dateData = $this->event->dates[0];
         $resourcesId = $this->event->resource?->id;
         $resourcesType = $this->event->resource?->getMorphClass();
 
         if (! $resourcesId || ! $resourcesType) {
-            return; // No resource to validate against
+            return;
         }
 
-        // Parse the new time slot
         $newDate = $dateData->date->format('Y-m-d');
         $newStartTime = $dateData->start_time;
         $newEndTime = $dateData->end_time;
 
-        // Use shared validator
         EventTimeSlotValidator::validateForCreate(
             $resourcesId,
             $resourcesType,
@@ -296,7 +294,8 @@ class CreateEventAction
             $this->event->app->getId(),
             $newDate,
             $newStartTime,
-            $newEndTime
+            $newEndTime,
+            $this->event->timeSlotId
         );
     }
 }

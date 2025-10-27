@@ -95,6 +95,7 @@ class BuildEventDataAction
             'resources_type' => $resource->getMorphClass(),
             'participants' => $input['participants'],
             'resources' => $input['resources'] ?? [],
+            'time_slot_id' => $input['time_slot_id'] ?? null,
             'dates' => [
                 [
                     'date' => $startAt->toDateString(),

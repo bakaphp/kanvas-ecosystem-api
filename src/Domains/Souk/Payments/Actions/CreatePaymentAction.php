@@ -3,6 +3,7 @@
 namespace Kanvas\Souk\Payments\Actions;
 
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -42,16 +43,22 @@ class CreatePaymentAction
             "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
             "payment_methods_id" => $paymentMethodId,
+            'payment_intent_id' => $formData['payment_intent_id'] ?? null,
             'users_id' => $this->user->getId(),
             'companies_id' => $this->order->companies_id,
             'currency' => $this->order->currency,
-            'status' => PaymentStatusEnum::PENDING->value
+            'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value
         ];
 
         $payment = $this->order->payments()->create($paymentFormData);
-        $this->order->updateQuietly([
-            'status' => OrderStatusEnum::PENDING->value,
-        ]);
+
+        if ($payment->status === PaymentStatusEnum::PAID->value) {
+            $this->order->markAsPaid($this->user);
+        } else {
+            $this->order->updateQuietly([
+                'status' => OrderStatusEnum::PENDING->value,
+            ]);
+        }
 
         if (isset($formData['order_metadata'])) {
             $this->order->metadata = [

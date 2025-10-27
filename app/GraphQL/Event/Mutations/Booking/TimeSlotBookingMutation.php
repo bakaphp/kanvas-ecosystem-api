@@ -11,7 +11,6 @@ use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Exceptions\ValidationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -33,20 +32,23 @@ class TimeSlotBookingMutation
             ->fromCompany($company)
             ->findOrFail($input['time_slot_id']);
 
-        // Get the schedule rule to access metadata for default values
-        $scheduleRule = ScheduleRules::where('resources_id', $timeSlot->resources_id)
-            ->where('resources_type', $timeSlot->resources_type)
-            ->first();
+        // Extract resource information from the time slot
+        $bookingData = $input;
+        $bookingData['resources_id'] = $timeSlot->resources_id;
+        $bookingData['resources_type'] = $timeSlot->resources_type;
+        $bookingData['start_at'] = $timeSlot->start_at->toDateTimeString();
+        $bookingData['end_at'] = $timeSlot->end_at->toDateTimeString();
+        $bookingData['time_slot_id'] = $timeSlot->id;
 
-        if (! $scheduleRule) {
-            throw new ValidationException('Schedule rule not found for the given time slot resource.');
+        // Use the resource from the time slot
+        $resource = $timeSlot->resource;
+
+        if (! $resource) {
+            throw new ValidationException('Resource not found for the given time slot.');
         }
 
-        $input['start_at'] = $timeSlot->start_at->toDateTimeString();
-        $input['end_at'] = $timeSlot->end_at->toDateTimeString();
-
-        $eventData = new BuildEventDataAction($scheduleRule->resource, $user, $input)->execute();
-
+        // Build event data using the same action as bookResource
+        $eventData = new BuildEventDataAction($resource, $user, $bookingData)->execute();
         $eventDto = EventDto::from($app, $user, $company, $eventData);
 
         $createEventAction = new CreateEventAction($eventDto);
@@ -54,20 +56,19 @@ class TimeSlotBookingMutation
 
         $eventVersion = $event->versions->first();
 
-        // Link event version to time slot
-        $updateData = ['time_slot_id' => $timeSlot->id];
+        // Link event version to time slot and update metadata
+        $metadata = $bookingData['metadata'] ?? [];
+        $metadata['time_slot_id'] = $timeSlot->id;
+        $metadata['resource_name'] = $resource?->name ?? '';
 
-        if (isset($input['metadata']) || isset($input['hold_id'])) {
-            $metadata = $input['metadata'] ?? [];
-            if (isset($input['hold_id'])) {
-                $metadata['hold_id'] = $input['hold_id'];
-            }
-            $updateData['metadata'] = $metadata;
+        if (isset($bookingData['hold_id'])) {
+            $metadata['hold_id'] = $bookingData['hold_id'];
         }
 
-        $eventVersion->update($updateData);
+        $eventVersion->update(['metadata' => $metadata]);
 
-        $this->updateTimeSlotCapacity($timeSlot, count($input['participants']));
+        // Update time slot capacity
+        $this->updateTimeSlotCapacity($timeSlot, count($bookingData['participants']));
 
         return $eventVersion;
     }

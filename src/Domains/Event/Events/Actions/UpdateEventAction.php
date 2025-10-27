@@ -142,22 +142,20 @@ class UpdateEventAction
     protected function validateTimeSlotAvailability(): void
     {
         $event = $this->eventVersion->event;
-        $dateData = $this->updateData['dates'][0]; // Assuming single date for now
+        $dateData = $this->updateData['dates'][0];
 
-        // Get resource information
         $resourcesId = $this->updateData['resources_id'] ?? $event->resources_id;
         $resourcesType = $this->updateData['resources_type'] ?? $event->resources_type;
 
         if (! $resourcesId || ! $resourcesType) {
-            return; // No resource to validate against
+            return;
         }
 
-        // Parse the new time slot
         $newDate = $dateData['date'];
         $newStartTime = $dateData['start_time'];
         $newEndTime = $dateData['end_time'];
+        $timeSlotId = $this->eventVersion->time_slot_id;
 
-        // Use shared validator
         EventTimeSlotValidator::validateForUpdate(
             $resourcesId,
             $resourcesType,
@@ -166,7 +164,8 @@ class UpdateEventAction
             $newDate,
             $newStartTime,
             $newEndTime,
-            $event->id
+            $event->id,
+            $timeSlotId
         );
     }
 
