@@ -2000,7 +2000,7 @@ class InsuranceWorkflowService
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
                 'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
-                'SexoSolicitante' => $personData['sex'] ?? 'M', // Use actual sex or default to M
+                'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
@@ -2061,7 +2061,7 @@ class InsuranceWorkflowService
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
                 'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
-                'SexoSolicitante' => $personData['sex'] ?? 'M', // Use actual sex or default to M
+                'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
                 'EdadSolicitante' => Carbon::parse($personData['dob'])->age,
