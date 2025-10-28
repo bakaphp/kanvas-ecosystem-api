@@ -44,6 +44,13 @@ class UserManagement
                       }
  */
             //@todo when we update the login to use userAssociatedApps we need to remove this
+
+
+            //Save it empty to avoid having a fullName with unwanted lastname, ex: "Max Max". We are having issues with some frontends sending only the firstname as a fullname.
+            if (! isset($data['lastname']) && $this->app->get('dont_force_lastname_default')) {
+                $data['lastname'] = '';
+            }
+            
             $this->user->update($data);
             $userAppProfile->update($data);
 
@@ -91,12 +98,6 @@ class UserManagement
 
             if ($files) {
                 $this->user->addMultipleFilesFromUrl($files);
-            }
-
-
-            //Save it empty to avoid having a fullName with unwanted lastname, ex: "Max Max". We are having issues with some frontends sending only the firstname as a fullname.
-            if (! isset($data['lastname']) && $this->app->get('dont_force_lastname_default')) {
-                $data['lastname'] = '';
             }
 
             //update roles if
