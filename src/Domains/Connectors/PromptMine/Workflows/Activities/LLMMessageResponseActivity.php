@@ -14,6 +14,7 @@ use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
+use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -23,7 +24,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -66,9 +66,15 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
+                } elseif ($isTypeImage && $message->getFiles()) {
+                    $result = $this->generateFilteredImageResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
+                    $messageTypeKey = 'image';
                 } else {
-                    $response = $this->generateImageResponse($message);
-                    $chatHistory = []; // No chat history for images
+                    $result = $this->generateImageResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
                 }
 
@@ -85,7 +91,6 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $messageInput = [
                     'message' => [
-                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
@@ -218,6 +223,40 @@ class LLMMessageResponseActivity extends KanvasActivity
         ];
     }
 
+    private function generateFilteredImageResponse(Message $message): array
+    {
+        $prompt = $message->message['prompt'] ?? null;
+        $imageFilterService = new ImageFilterService(
+            app: $this->app,
+            entity: $message,
+            params: [],
+        );
+
+        $imageFilterResult = $imageFilterService->execute();
+
+        if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
+            throw new \Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+        }
+
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult['processed_image_url']);
+
+        return [
+            'response' => $imageFilterResult['processed_image_url'] ?? '',
+            'chat_history' => $fullConversation,
+        ];
+    }
+
     private function getChatHistory(Message $message): array
     {
         $channel = $message->channels->first();
@@ -240,7 +279,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         return [];
     }
 
-    private function generateImageResponse(Message $message): string
+    private function generateImageResponse(Message $message): array
     {
         new MessageOrderFulfillmentAction($message)->execute('image');
 
@@ -313,22 +352,38 @@ class LLMMessageResponseActivity extends KanvasActivity
             );
 
             $errorProcessingImageNotification->setData([
-                    'destination_id' => $message->getId(),
-                    'destination_type' => 'USER',
-                    'destination_event' => 'FOLLOWING',
-                ]);
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $message->user->notify($errorProcessingImageNotification);
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
-        $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
+        $response = [
+            'image_url' => $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl',
+        ];
 
-        return (string) $promptClient->{$parseResponse}(
-            $generateImage
-        );
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $response);
+
+        return [
+            'response' => $response['image_url'],
+            'chat_history' => $fullConversation,
+        ];
     }
 
-    public function validateImageLimit(Message $message): ?string
+    public function validateImageLimit(Message $message): ?array
     {
         try {
             (new CheckMessagePostLimitAction(
@@ -375,12 +430,12 @@ class LLMMessageResponseActivity extends KanvasActivity
             $useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
-                (string) json_encode([
+                [
                     'error' => 'You have reached your daily image generation limit.',
                     'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
                     'limit' => $message->app->get('message-post-limit') ?? 0,
                     'flag' => true,
-                ]);
+                ];
         }
 
         return null;
@@ -410,5 +465,15 @@ class LLMMessageResponseActivity extends KanvasActivity
         } catch (ModelNotFoundException $e) {
             return $entity->company;
         }
+    }
+
+    private function updateChatHistory(array $chatHistory, string $role, string $content): array
+    {
+        $chatHistory[] = [
+            'role' => $role,
+            'content' => $content,
+        ];
+
+        return $chatHistory;
     }
 }
