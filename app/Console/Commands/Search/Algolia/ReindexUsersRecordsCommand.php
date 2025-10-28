@@ -6,9 +6,8 @@ namespace App\Console\Commands\Social;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 
 class ReindexUsersRecordsCommand extends Command
 {
@@ -44,12 +43,13 @@ class ReindexUsersRecordsCommand extends Command
     public function reindex(Apps $app)
     {
         $this->info('Reindex scout index for user App ' . $app->name);
-        $users = DB::table('users')
+        $users = Users::query()
             ->join('users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
             ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users_associated_apps.user_active', 1)
             ->where('companies_id', 0)
             ->where('users.is_deleted', 0)
+            ->select('users.*')
             ->get();
 
         $this->info('Total users to reindexed: ' . $users->count());
