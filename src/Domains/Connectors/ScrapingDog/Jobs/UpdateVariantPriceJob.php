@@ -147,6 +147,14 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 );
             }
 
+            $customDict = collect($mappedProduct['custom_fields'])
+                ->pluck('data', 'name')
+                ->only(['product_information', 'feature_bullets'])
+                ->all();
+
+            $variant->set('product_information', $customDict['product_information']);
+            $variant->set('feature_bullets', $customDict['feature_bullets']);
+
             if (! empty($mappedProduct['files'])) {
                 $variant->deleteFiles();
                 // $files = $mappedProduct['files'];
@@ -177,6 +185,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             ];
 
             $variantData['customization_options'] = $product['customization_options'];
+            $variantData['product_information'] = $customDict['product_information'] ?? [];
+            $variantData['feature_bullets'] = $customDict['feature_bullets'] ?? [];
 
             $variants = Variants::with(['files', 'attributes'])
                 ->where('products_id', $productModel->getId())
