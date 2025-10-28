@@ -116,7 +116,8 @@ class ProductBuilder
         $company = $user->getCurrentCompany();
         $intent = $args['intent'] ?? 'product';
         $productId = (int) $args['id'];
-        $scenario = $args['scenario'] ?? ConfigurationEnum::FOR_YOU_SCENARIO->value;
+        //$scenario = $args['scenario'] ?? ConfigurationEnum::FOR_YOU_SCENARIO->value;
+        $scenario = $intent;
         $limit = $args['first'] ?? 25;
 
         // Return all products if Recombee is not configured
