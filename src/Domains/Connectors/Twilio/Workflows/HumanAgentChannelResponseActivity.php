@@ -21,6 +21,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         $message = $params['content'] ?? null;
+        $fromHumanAgent = $params['from_human'] ?? false;
         $user = $params['user'] ?? null; //@todo fix this get the user from the message
 
         $fromPhone = $params['from'] ?? null;
@@ -29,10 +30,17 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $fromPhone, $params) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $fromPhone, $fromHumanAgent, $params) {
                 if (empty($message)) {
                     return $this->failWorkflow([
                         'message' => 'Message or user not found',
+                        'entity' => null,
+                    ]);
+                }
+
+                if (empty($fromHumanAgent)) {
+                    return $this->failWorkflow([
+                        'message' => 'Message is not from human agent',
                         'entity' => null,
                     ]);
                 }
