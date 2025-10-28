@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Social;
+namespace App\Console\Commands\Search\Algolia;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
