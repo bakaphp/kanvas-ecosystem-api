@@ -34,7 +34,6 @@ class ConvertTextToSpeechActivity extends KanvasActivity
 
         sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 10);
         $entity->refresh();
-        $this->app = $app;
 
         $company = $this->getCompany($app, $entity);
 
@@ -57,13 +56,12 @@ class ConvertTextToSpeechActivity extends KanvasActivity
                     ]);
                 }
 
-                // Process the file system record as needed
-
                 return [
                     'result' => true,
                     'message' => 'Text to speech conversion completed successfully',
                     'message_id' => $entity->getId(),
                     'company_id' => $integrationCompany->getId(),
+                    'app_id' => $app->getId(),
                 ];
                 
             },
@@ -79,8 +77,9 @@ class ConvertTextToSpeechActivity extends KanvasActivity
     protected function processFalAiTextToSpeech(Model $entity, array $params): ?Filesystem
     {
         // Step 1: Submit the image for processing
-        $model = 'fal-ai/';
-        $response = $this->submitData($this->apiUrl, $entity->message['prompt'], $model, $params)->json();
+        $model = 'fal-ai/elevenlabs/tts/eleven-v3';
+        $endpoint = $entity->app->get('PROMPT_TEXT_TO_SPEECH_API_URL');
+        $response = $this->submitData($endpoint, $entity->message['prompt'], $model, $entity->message['voice'] ?? null)->json();
         $response = $response->json()['audio'];
 
         $tempFilePath = FilesystemServices::downloadFromUrl($response['url']);
@@ -88,7 +87,7 @@ class ConvertTextToSpeechActivity extends KanvasActivity
         if ($tempFilePath === null) {
             return null;
         }
-        
+
         $fileName = basename($tempFilePath);
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($tempFilePath);
@@ -110,7 +109,7 @@ class ConvertTextToSpeechActivity extends KanvasActivity
      /**
      * Submit data for processing
      */
-    protected function submitData(string $apiUrl, string $prompt, string $model, array $params): Response
+    protected function submitData(string $apiUrl, string $prompt, string $model, string $voice): Response
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
@@ -118,7 +117,7 @@ class ConvertTextToSpeechActivity extends KanvasActivity
             'operation' => 'submit',
             'text' => $prompt,
             'model' => $model,
-            'voice' => $prompt,
+            'voice' => $voice,
         ]);
 
         return $response;
