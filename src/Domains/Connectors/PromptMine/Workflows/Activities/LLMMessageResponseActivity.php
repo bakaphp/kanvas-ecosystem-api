@@ -14,6 +14,7 @@ use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
+use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -23,8 +24,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -353,10 +352,10 @@ class LLMMessageResponseActivity extends KanvasActivity
             );
 
             $errorProcessingImageNotification->setData([
-                    'destination_id' => $message->getId(),
-                    'destination_type' => 'USER',
-                    'destination_event' => 'FOLLOWING',
-                ]);
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $message->user->notify($errorProcessingImageNotification);
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }

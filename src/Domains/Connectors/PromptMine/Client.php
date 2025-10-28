@@ -93,7 +93,6 @@ class Client
      * Extract the chat history from the response while excluding the latest response.
      *
      * @param array $messages The original messages sent
-     * @param array $response The API response
      * @return array Array of chat history messages
      */
     public function extractChatHistory(array $messages): array

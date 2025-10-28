@@ -47,9 +47,7 @@ class ImageFilterService
         protected ?AppInterface $app = null,
         protected ?Message $entity = null,
         protected ?array $params = null,
-    )
-    {
-    }
+    ) {}
 
     public function execute(): array
     {
@@ -66,104 +64,104 @@ class ImageFilterService
 
         $company = $this->getCompany($this->app, $this->entity);
 
-                $this->entity->setPrivate();
+        $this->entity->setPrivate();
 
-                if (! empty($this->validateImageLimit($this->entity, $this->params))) {
+        if (! empty($this->validateImageLimit($this->entity, $this->params))) {
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Image limit validation failed',
+            ];
+        }
+
+        if (empty($this->apiUrl)) {
+            return [
+                'result' => false,
+                'message' => 'API URL not configured',
+            ];
+        }
+
+        if ($messageFiles->isEmpty()) {
+            return [
+                'result' => false,
+                'message' => 'Message does not have any files',
+            ];
+        }
+
+        // Deduct user credit based on the selected image filter
+        new MessageOrderFulfillmentAction($entity)->execute('image');
+
+        $fileUrl = $messageFiles->first()->url;
+        $fileSystemRecord = null;
+        $processedImageUrl = null;
+        $requestId = null;
+
+        if ($messageFiles->count() > 1) {
+            //lets add them to params since this is optional
+            $params['additional_images'] = $messageFiles->slice(1)->map(fn($file) => $file->url)->toArray();
+        }
+
+        try {
+            // Process image based on the model type
+            if ($isOpenAi) {
+                $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $params);
+                if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
-                        'message_id' => $this->entity->getId(),
-                        'message' => 'Image limit validation failed',
+                        'filter' => $imageFilter,
+                        'message' => 'Failed to retrieve processed image',
                     ];
                 }
-
-                if (empty($this->apiUrl)) {
+            } elseif ($isGeminiBanana) {
+                // Process with Gemini-Nano-Banana
+                $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $params);
+                if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
-                        'message' => 'API URL not configured',
+                        'filter' => $imageFilter,
+                        'message' => 'Failed to retrieve processed image',
                     ];
                 }
-
-                if ($messageFiles->isEmpty()) {
-                    return [
-                        'result' => false,
-                        'message' => 'Message does not have any files',
-                    ];
-                }
-
-                // Deduct user credit based on the selected image filter
-                new MessageOrderFulfillmentAction($entity)->execute('image');
-
-                $fileUrl = $messageFiles->first()->url;
-                $fileSystemRecord = null;
+                // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
                 $processedImageUrl = null;
-                $requestId = null;
+            } else {
+                // Process with fal.ai
+                list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
+                    $fileUrl,
+                    $imageFilter,
+                    $this->entity,
+                    $params
+                );
 
-                if ($messageFiles->count() > 1) {
-                    //lets add them to params since this is optional
-                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
-                }
-
-                try {
-                    // Process image based on the model type
-                    if ($isOpenAi) {
-                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $params);
-                        if ($fileSystemRecord === null) {
-                            return [
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'message' => 'Failed to retrieve processed image',
-                            ];
-                        }
-                    } elseif ($isGeminiBanana) {
-                        // Process with Gemini-Nano-Banana
-                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $params);
-                        if ($fileSystemRecord === null) {
-                            return [
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'message' => 'Failed to retrieve processed image',
-                            ];
-                        }
-                        // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
-                        $processedImageUrl = null;
-                    } else {
-                        // Process with fal.ai
-                        list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
-                            $fileUrl,
-                            $imageFilter,
-                            $this->entity,
-                            $params
-                        );
-
-                        if ($fileSystemRecord === null) {
-                            return [
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'request_id' => $requestId,
-                                'message' => 'Failed to retrieve processed image',
-                            ];
-                        }
-                    }
-
-                    // Create nugget message and send notification - common for both methods
-                    return $this->finalizeProcessing(
-                        $this->entity,
-                        $fileSystemRecord,
-                        $fileUrl,
-                        $processedImageUrl,
-                        $params,
-                        $requestId,
-                        $imageFilter
-                    );
-                } catch (Exception $e) {
-                    report($e);
-
+                if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
-                        'message_id' => $this->entity->getId(),
-                        'message' => 'Error processing image: ' . $e->getMessage(),
+                        'filter' => $imageFilter,
+                        'request_id' => $requestId,
+                        'message' => 'Failed to retrieve processed image',
                     ];
                 }
+            }
+
+            // Create nugget message and send notification - common for both methods
+            return $this->finalizeProcessing(
+                $this->entity,
+                $fileSystemRecord,
+                $fileUrl,
+                $processedImageUrl,
+                $params,
+                $requestId,
+                $imageFilter
+            );
+        } catch (Exception $e) {
+            report($e);
+
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Error processing image: ' . $e->getMessage(),
+            ];
+        }
     }
 
     protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
