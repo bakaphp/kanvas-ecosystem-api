@@ -5,6 +5,42 @@ type OrderStats {
     dailyTurnover: DailyTurnover!
     averageRotation: AverageRotation!
     orderRotationAvg: Float
+    orderTransactions: String
+}
+type OrderPaymentStats {
+    period: Period!
+    ordersInPeriod: OrdersInPeriodPayment!
+    currentCount: Int!
+}
+
+type OrdersInPeriodPayment {
+    orderAvg: Float
+    count: Int
+    totalAmount: Float
+    byServices: [OrderPaymentService!]
+    byTransaction: OrderPaymentByTransaction
+    data: [OrderPaymentStateCount!]!
+}
+
+type OrderPaymentService {
+    variantId: Int!
+    productName: String!
+    variantName: String
+    serviceName: String!
+    orderCount: Int!
+    totalQuantity: Int!
+    totalAmount: Float!
+}
+
+type OrderPaymentByTransaction {
+    card: Int
+    transfer: Int
+}
+
+type OrderPaymentStateCount {
+    date: String!
+    count: Int!
+    states: Mixed!
 }
 
 type AverageRotation {
@@ -70,9 +106,24 @@ input OrderStatsInput {
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
 }
 
+input OrderPaymentStatsInput {
+    paidStates: [String!]
+    variantId: Int # Filter by specific service/variant
+    productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    date: String # single date (e.g., "2025-07-07")
+    startDate: String # start of period (e.g., "2025-07-01")
+    endDate: String # end of period (e.g., "2025-07-07")
+    timezone: String # e.g., "America/New_York"
+    baseDate: String # starting date to count current orders (e.g., "2025-07-07")
+}
+
 extend type Query @guard {
     orderStats(input: OrderStatsInput): OrderStats!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"
+        )
+    orderPaymentStats(input: OrderPaymentStatsInput): OrderPaymentStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getPaymentStats"
         )
 }
