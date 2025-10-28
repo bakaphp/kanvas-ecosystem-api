@@ -34,9 +34,10 @@ class OrderPaymentRepository
             })
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
-                    $q->where('variants_id', $variantId);
+                    $q->where('variant_id', $variantId);
                 });
             })
+            ->with(['items'])
             ->whereBetween('orders.created_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)

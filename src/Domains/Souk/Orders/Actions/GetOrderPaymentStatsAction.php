@@ -47,7 +47,7 @@ class GetOrderPaymentStatsAction
         ];
     }
 
-    private function getOrdersInPeriod($start, $end, $currentCount = null): array
+    private function getOrdersInPeriod(Carbon $start, Carbon $end, $currentCount = null): array
     {
         $results = $this->repository->getOrdersInPeriodWithPayments(
             $start,
