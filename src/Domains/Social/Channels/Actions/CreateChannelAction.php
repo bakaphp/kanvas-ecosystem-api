@@ -26,13 +26,20 @@ class CreateChannelAction
 
         // Support both legacy and new entity_namespace for slug uniqueness
         $channel = Channel::where('apps_id', $this->channelDto->apps->id)
-            ->where('companies_id', $this->channelDto->companies->id)
-            ->where('slug', $slug)
-            ->whereIn('entity_namespace', [
-                $this->channelDto->entity_namespace,
-                $legacySystemModule,
-            ])
-            ->first();
+        ->where('companies_id', $this->channelDto->companies->id)
+        ->where('slug', $slug)
+        ->first();
+
+        if (! $channel) {
+            $channel = Channel::where('apps_id', $this->channelDto->apps->id)
+                ->where('companies_id', $this->channelDto->companies->id)
+                ->where('slug', $slug)
+                ->whereIn('entity_namespace', [
+                    $this->channelDto->entity_namespace,
+                    $legacySystemModule,
+                ])
+                ->first();
+        }
 
         if (! $channel) {
             $channel = Channel::create([
