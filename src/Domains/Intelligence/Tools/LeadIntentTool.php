@@ -29,12 +29,22 @@ class LeadIntentTool implements ContextToolInterface
         $sources = collect($sources);
         $leadSource = $this->entity->source->name;
         $subSource = $this->entity->get('sub_source');
+
+        /**
+         * @todo standardize source and subsource names to lowercase to avoid issues like this
+         */
+        if ($this->entity->get('VIN_SOLUTION_LEADS')) {
+            $leadSource = $this->entity->type->name;
+            $subSource = $this->entity->source->name;
+        }
+
         $source = $sources->where('Source', $leadSource)
-            ->where('Sub_Source', $subSource)
-            ->first();
+           ->where('Sub_Source', $subSource)
+           ->first();
+
         if (! $source) {
             $source = [
-                'Backend' => 'Advance Request',
+                'Backend' => 'ADVANCED_REQUEST',
                 'Default_Completion_Status' => 'Incomplete',
             ];
         }
