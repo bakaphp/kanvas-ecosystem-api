@@ -73,8 +73,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
                 } else {
-                    $response = $this->generateImageResponse($message);
-                    $chatHistory = []; // No chat history for 
+                    $result = $this->generateImageResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
                 }
 
@@ -279,7 +280,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         return [];
     }
 
-    private function generateImageResponse(Message $message): string
+    private function generateImageResponse(Message $message): array
     {
         new MessageOrderFulfillmentAction($message)->execute('image');
 
@@ -360,14 +361,30 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
-        $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
+        $response = [
+            'image_url' => $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl',
+        ];
 
-        return (string) $promptClient->{$parseResponse}(
-            $generateImage
-        );
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $response);
+
+        return [
+            'response' => $response['image_url'],
+            'chat_history' => $fullConversation,
+        ];
     }
 
-    public function validateImageLimit(Message $message): ?string
+    public function validateImageLimit(Message $message): ?array
     {
         try {
             (new CheckMessagePostLimitAction(
@@ -414,12 +431,12 @@ class LLMMessageResponseActivity extends KanvasActivity
             $useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
-                (string) json_encode([
+                [
                     'error' => 'You have reached your daily image generation limit.',
                     'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
                     'limit' => $message->app->get('message-post-limit') ?? 0,
                     'flag' => true,
-                ]);
+                ];
         }
 
         return null;
