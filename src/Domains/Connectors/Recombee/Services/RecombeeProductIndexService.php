@@ -13,6 +13,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantPriceService;
 use Recombee\RecommApi\Client as RecommApiClient;
 use Recombee\RecommApi\Requests\AddItemProperty;
+use Recombee\RecommApi\Requests\DeleteItem;
 use Recombee\RecommApi\Requests\ListItemProperties;
 use Recombee\RecommApi\Requests\SetItemValues;
 
@@ -219,5 +220,19 @@ class RecombeeProductIndexService
             // Fallback to first warehouse price
             return (float) ($variant->variantWarehouses()->first()?->price ?? 0);
         }
+    }
+
+    public function removeProduct(Products $product): mixed
+    {
+        $request = new DeleteItem((string) $product->getId());
+
+        return $this->client->send($request);
+    }
+
+    public function removeVariant(Variants $variant): mixed
+    {
+        $request = new DeleteItem('variant_' . $variant->getId());
+
+        return $this->client->send($request);
     }
 }

@@ -298,7 +298,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             $endViaList = array_map(
                 [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push']
+                ['push', 'mail']
             );
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
@@ -347,7 +347,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    ['push']
+                    ['push', 'mail']
                 );
                 $errorProcessingImageNotification = new ImageProcessingPushNotification(
                     user: $message->user,
