@@ -90,7 +90,7 @@ class ImageFilterService
         }
 
         // Deduct user credit based on the selected image filter
-        new MessageOrderFulfillmentAction($entity)->execute('image');
+        new MessageOrderFulfillmentAction($this->entity)->execute('image');
 
         $fileUrl = $messageFiles->first()->url;
         $fileSystemRecord = null;
