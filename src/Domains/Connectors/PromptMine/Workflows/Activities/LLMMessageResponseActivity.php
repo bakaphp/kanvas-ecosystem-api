@@ -360,8 +360,13 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
         }
 
+        $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
+        $generateResponse = (string) $promptClient->{$parseResponse}(
+            $generateImage
+        );
+
         $response = [
-            'image_url' => $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl',
+            'image_url' => $generateResponse,
         ];
 
         // Get existing chat history from parent message or create new conversation
