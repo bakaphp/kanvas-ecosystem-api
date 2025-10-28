@@ -50,7 +50,6 @@ class UserManagement
             if (! isset($data['lastname']) && $this->app->get('dont_force_lastname_default')) {
                 $data['lastname'] = '';
             }
-            
             $this->user->update($data);
             $userAppProfile->update($data);
 
