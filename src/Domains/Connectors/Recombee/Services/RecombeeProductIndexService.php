@@ -22,9 +22,9 @@ class RecombeeProductIndexService
 
     public function __construct(
         protected AppInterface $app,
-        string $recombeeDatabase = 'products',
+        ?string $recombeeDatabase = null,
         ?string $recombeeApiKey = null,
-        string $recombeeRegion = 'ca-east'
+        ?string $recombeeRegion = 'ca-east'
     ) {
         $this->client = (new Client(
             $app,
