@@ -96,7 +96,7 @@ class Client
      * @param array $response The API response
      * @return array Array of chat history messages
      */
-    public function extractChatHistory(array $messages, array $response): array
+    public function extractChatHistory(array $messages): array
     {
         $history = [];
 
@@ -119,15 +119,15 @@ class Client
      * @param array $response The API response
      * @return array Complete conversation array
      */
-    public function getFullConversation(array $messages, array $response): array
+    public function getFullConversation(array $messages, ?array $response): array
     {
-        $conversation = $this->extractChatHistory($messages, $response);
+        $conversation = $this->extractChatHistory($messages);
 
-        $responseText = $this->extractChatResponseText($response);
-        if ($responseText) {
+        // $responseText = $this->extractChatResponseText($response);
+        if ($response) {
             $conversation[] = [
                 'role' => 'assistant',
-                'content' => $responseText,
+                'content' => $response,
                 'timestamp' => time(),
             ];
         }

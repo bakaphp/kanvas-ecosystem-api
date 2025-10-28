@@ -24,6 +24,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -66,9 +67,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
+                } elseif ($isTypeImage && $message->getFiles()) {
+                    $result = $this->generateFilteredImageResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
+                    $messageTypeKey = 'image';
                 } else {
                     $response = $this->generateImageResponse($message);
-                    $chatHistory = []; // No chat history for images
+                    $chatHistory = []; // No chat history for 
                     $messageTypeKey = 'image';
                 }
 
@@ -85,7 +91,6 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $messageInput = [
                     'message' => [
-                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
@@ -215,6 +220,40 @@ class LLMMessageResponseActivity extends KanvasActivity
             'response' => str_replace(['```', 'json'], '', $responseText ?? ''),
             'chat_history' => $fullConversation,
             'ai_model_used' => $aiModel, // Include which model was used
+        ];
+    }
+
+    private function generateFilteredImageResponse(Message $message): array
+    {
+        $prompt = $message->message['prompt'] ?? null;
+        $imageFilterService = new ImageFilterService(
+            app: $this->app,
+            entity: $message,
+            params: [],
+        );
+
+        $imageFilterResult = $imageFilterService->execute();
+
+        if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
+            throw new \Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+        }
+
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult['processed_image_url']);
+
+        return [
+            'response' => $imageFilterResult['processed_image_url'] ?? '',
+            'chat_history' => $fullConversation,
         ];
     }
 
@@ -410,5 +449,15 @@ class LLMMessageResponseActivity extends KanvasActivity
         } catch (ModelNotFoundException $e) {
             return $entity->company;
         }
+    }
+
+    private function updateChatHistory(array $chatHistory, string $role, string $content): array
+    {
+        $chatHistory[] = [
+            'role' => $role,
+            'content' => $content,
+        ];
+
+        return $chatHistory;
     }
 }
