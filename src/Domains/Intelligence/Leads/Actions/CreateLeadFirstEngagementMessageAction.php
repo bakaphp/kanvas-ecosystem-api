@@ -71,7 +71,7 @@ class CreateLeadFirstEngagementMessageAction
         );
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-prod')
                    ->withMaxTokens(7000) // Increase from default
                    ->withSchema($schema)
                    ->withPrompt($prompt)
