@@ -402,6 +402,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
         $paymentIntentId = $this->createTestPaymentIntent($bookingData["order_items"][0], $this->apps)->id;
 
+
         $confirmData = [
             'event_version_id' => $eventVersion['id'],
             'payment_intent_id' => $paymentIntentId,

@@ -48,15 +48,8 @@ class TimeSlotBookingMutation
         }
 
         // Build event data using the same action as bookResource
-        $eventData = new BuildEventDataAction($resource, $user, $bookingData)->execute();
+        $eventData = new BuildEventDataAction($resource, $user, $company, $bookingData)->execute();
         $eventDto = EventDto::from($app, $user, $company, $eventData);
-
-        $createEventAction = new CreateEventAction($eventDto);
-        $event = $createEventAction->execute();
-
-        $eventVersion = $event->versions->first();
-
-        // Link event version to time slot and update metadata
         $metadata = $bookingData['metadata'] ?? [];
         $metadata['time_slot_id'] = $timeSlot->id;
         $metadata['resource_name'] = $resource?->name ?? '';
@@ -65,7 +58,10 @@ class TimeSlotBookingMutation
             $metadata['hold_id'] = $bookingData['hold_id'];
         }
 
-        $eventVersion->update(['metadata' => $metadata]);
+        $createEventAction = new CreateEventAction($eventDto, $metadata);
+        $event = $createEventAction->execute();
+
+        $eventVersion = $event->versions->first();
 
         // Update time slot capacity
         $this->updateTimeSlotCapacity($timeSlot, count($bookingData['participants']));

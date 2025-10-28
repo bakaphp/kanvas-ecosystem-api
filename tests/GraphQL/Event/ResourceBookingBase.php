@@ -55,7 +55,7 @@ abstract class ResourceBookingBase extends TestCase
             ],
         ])->json();
 
-        print_r($response);
+        print_r($response['errors'][0][0] ?? '');
         $this->productResponse = $response['data']['createProduct'];
 
         $product = Products::find($this->productResponse['id']);
@@ -110,9 +110,9 @@ abstract class ResourceBookingBase extends TestCase
             "order_items" => [
                 [
                     'variant_id' => $this->variantId,
+                    "name" => "Resource Booking Fee",
                     'quantity' => 1,
                     'price' => 25.00,
-                    'currency' => 'USD',
                 ]
             ],
             'resources' => [
@@ -146,6 +146,7 @@ abstract class ResourceBookingBase extends TestCase
             'X-Kanvas-App' => $this->apps->key,
         ]);
 
+        print_r($response->json('errors')[0] ?? '');
         return $response->json('data.bookResource');
     }
 }

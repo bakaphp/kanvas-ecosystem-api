@@ -3,7 +3,6 @@
 namespace Kanvas\Souk\Payments\Actions;
 
 use Kanvas\Payments\Models\PaymentMethods;
-use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -25,8 +24,9 @@ class CreatePaymentAction
     {
         $paymentMethodId = $formData['payment_methods_id'] ?? $this->order->payment_method_id;
         $paymentMethod = PaymentMethods::fromApp($this->order->app)->where('id', $paymentMethodId)->first();
+        $paymentIntent = $formData['payment_intent_id'];
 
-        if (! $paymentMethod) {
+        if (! $paymentMethod && ! $paymentIntent) {
             throw new \Exception('Payment method not found');
         }
 

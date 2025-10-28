@@ -255,7 +255,7 @@ class Order extends BaseModel
 
     public function markAsPaid(UserInterface $user): void
     {
-        if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
             new TransitionOrderStateAction(
                 $this,
                 $user,

@@ -76,7 +76,8 @@ class StripePaymentService
         ];
     }
 
-    public function processPaymentIntent(string $paymentIntentId, ?string $paymentMethodId = null): void{
+    public function processPaymentIntent(string $paymentIntentId, ?string $paymentMethodId = null): void
+    {
         if (Str::contains($paymentIntentId, '_secret_')) {
             $paymentIntentId = explode('_secret_', $paymentIntentId ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
         }

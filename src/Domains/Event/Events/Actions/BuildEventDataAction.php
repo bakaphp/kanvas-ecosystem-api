@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,7 @@ class BuildEventDataAction
     public function __construct(
         private Model $resource,
         private UserInterface $user,
+        private CompanyInterface $company,
         private array $input,
     ) {
     }
@@ -30,7 +32,7 @@ class BuildEventDataAction
         $input = $this->input;
         $resource = $this->resource;
         $user = $this->user;
-        $company = $resource->company;
+        $company = $this->company;
         $app = $resource->app;
 
         $startAt = Carbon::parse($input['start_at']);
@@ -64,11 +66,10 @@ class BuildEventDataAction
         ]);
 
         $theme = Theme::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
             'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => 0,
         ]);
 
         $themeArea = ThemeArea::firstOrCreate([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Booking;
 
+use Baka\Support\Str;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
@@ -56,11 +57,15 @@ class EventPaymentMutation
             ];
 
             // link existing stripe logic
-            $stripe = new StripePaymentService($event->app);
+            $stripe = new StripePaymentService($app);
             $stripe->processPaymentIntent($paymentIntentId);
 
             // Create payment record to keep the data separated from the order
             $payment = new CreatePaymentAction($order, $user)->execute($paymentData);
+
+            if (! $payment) {
+                throw new ValidationException('Payment could not be processed');
+            }
 
             $activeStatus = EventStatus::firstOrCreate([
                 'companies_id' => $company->getId(),
@@ -68,6 +73,7 @@ class EventPaymentMutation
                 'name' => EventStatusEnum::ACTIVE->value,
             ], [
                 'users_id' => $user->getId(),
+                'slug' =>  strtolower(Str::slug(EventStatusEnum::ACTIVE->value)),
             ]);
 
             $event->update([

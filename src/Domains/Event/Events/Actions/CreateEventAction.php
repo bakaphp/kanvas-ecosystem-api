@@ -6,6 +6,7 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
@@ -13,6 +14,7 @@ use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
@@ -34,7 +36,8 @@ use Spatie\LaravelData\DataCollection;
 class CreateEventAction
 {
     public function __construct(
-        protected Event $event
+        protected Event $event,
+        protected array $metadata = []
     ) {
     }
 
@@ -80,7 +83,8 @@ class CreateEventAction
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
-                    slug: $eventVersionSlug
+                    slug: $eventVersionSlug,
+                    metadata: $this->metadata
                 )
             );
 
@@ -96,9 +100,10 @@ class CreateEventAction
                 );
                 $createParticipant->execute();
             }
-
-            if ($event->resources_id && ! $event->orders->count()) {
-                $this->createEventOrder($event, $this->event->orderItems);
+            
+            $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
+            if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
+                $this->createEventOrder($eventVersion, $this->event->orderItems);
             }
 
             // Store additional resources in pivot table
@@ -150,9 +155,9 @@ class CreateEventAction
         )->validate();
     }
 
-    protected function createEventOrder(ModelsEvent $event, array $orderItemsData = []): void
+    protected function createEventOrder(ModelsEventVersion $eventVersion, array $orderItemsData = []): void
     {
-        $variant = $event->resource;
+        $variant = $eventVersion->event->resource;
 
         if (! $variant) {
             return;
@@ -162,12 +167,12 @@ class CreateEventAction
         $total = 0;
 
         // If order_items are provided, create OrderItem DTOs from them
-        if (! empty($orderItemsData)) {
+        if (count($orderItemsData)) {
             foreach ($orderItemsData as $itemData) {
-                $itemVariant = Variants::getById($itemData['variant_id'], $event->app);
+                $itemVariant = Variants::getById($itemData['variant_id'], $eventVersion->event->app);
 
                 $orderItem = new OrderItem(
-                    app: $event->app,
+                    app: $eventVersion->event->app,
                     variant: $itemVariant,
                     name: $itemData['name'],
                     sku: $itemVariant->sku,
@@ -184,23 +189,28 @@ class CreateEventAction
                 $total += $orderItem->getTotal();
             }
         } else {
+            $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
+            Log::error('Creating default order item for event version ' . $eventVersion->meta . ' with price ' . $price);
+            Log::error(json_encode($eventVersion->metadata));
             // Default: create single order item for the main resource
             $orderItem = new OrderItem(
-                app: $event->app,
+                app: $eventVersion->event->app,
                 variant: $variant,
-                name: $event->name,
+                name: $eventVersion->event->name,
                 sku: $variant->sku,
-                quantity: 1,
-                price: 0,
+                quantity: $eventVersion->metadata['quantity'] ?? 1,
+                price: $price,
                 tax: 0,
                 discount: 0.0,
-                currency: Currencies::getByCode('USD'),
+                currency: $eventVersion->metadata['currency'] ?? Currencies::getByCode('USD'),
                 quantityShipped: 0
             );
 
             $orderItemsCollection[] = $orderItem;
-            $total = $orderItem->price;
+            $total = $orderItem->getTotal();
         }
+
+        $event = $eventVersion->event;
 
         $people = PeoplesRepository::getByEmail($event->user->email, $event->company, $event->app);
         if (! $people) {
@@ -229,12 +239,13 @@ class CreateEventAction
 
         $dto = Order::from([
             'app' => $event->app,
-            'region' => Regions::getDefault($event->company, $event->apps),
+            'region' => Regions::getDefault($event->company, $event->app),
             'token'  => Str::random(32),
             'company' => $event->company,
             'people' => $people,
             'user' => $event->user,
             'orderNumber' => '',
+            'orderType' => 'event',
             'total' => (float) $total,
             'taxes' => 0.0,
             'totalDiscount' => 0.0,
