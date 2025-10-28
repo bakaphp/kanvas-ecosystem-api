@@ -33,7 +33,7 @@ class VehicleInterestTool implements ContextToolInterface
 
         return [
             'condition' => $vehicleInterest['isNew'] ?? '',
-            'year' => $vehicleInterest['yearFrom'] ?? '',
+            'year' => $vehicleInterest['yearFrom'] ?? $vehicleInterest['year'] ?? '',
             'make' => $vehicleInterest['make'] ?? '',
             'model' => $vehicleInterest['model'] ?? '',
             'trim' => $vehicleInterest['trim'] ?? '',
