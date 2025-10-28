@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Search\Algolia;
+namespace App\Console\Commands\Connectors\PromptMine;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
