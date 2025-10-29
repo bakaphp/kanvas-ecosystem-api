@@ -525,32 +525,6 @@ class ImageFilterService
         $user = Users::getById($entity->users_id);
         $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
-        // $createNuggetMessage = (new CreateNuggetMessageAction(
-        //     parentMessage: $entity,
-        //     messageData: [
-        //         'title' => trim($title),
-        //         'type' => 'image-format',
-        //         'image' => $cdnImageUrl,
-        //     ],
-        //     messageTypeVerb: 'chat-response',
-        // ))->execute();
-
-        // $messageCopy = $entity->message;
-        // if ($isRemix) {
-        //     $messageCopy['ai_image'] = array_merge(
-        //         ['ai_model' => $messageCopy['ai_model']],
-        //         [
-        //             'nugget' => $cdnImageUrl,
-        //             'title' => trim($title),
-        //             'type' => 'image-format',
-        //         ]
-        //     );
-        // } else {
-        //     $messageCopy['ai_image'] = $cdnImageUrl;
-        // }
-        // $entity->message = $messageCopy;
-        // $entity->is_public = 1;
-        // $entity->save();
 
         $endViaList = array_map(
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
