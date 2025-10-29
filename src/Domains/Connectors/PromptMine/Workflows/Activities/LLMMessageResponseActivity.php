@@ -49,7 +49,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($message, $app, $params) {
                 $prompt = $message->message['prompt'] ?? null;
 
                 if (empty($prompt)) {
@@ -69,7 +69,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
                 } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
-                    $result = $this->generateFilteredImageResponse($message);
+                    $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
@@ -225,13 +225,13 @@ class LLMMessageResponseActivity extends KanvasActivity
         ];
     }
 
-    private function generateFilteredImageResponse(Message $message): array
+    private function generateFilteredImageResponse(Message $message, array $params): array
     {
         $prompt = $message->message['prompt'] ?? null;
         $imageFilterService = new ImageFilterService(
             app: $this->app,
             entity: $message,
-            params: [],
+            params: $params,
         );
 
         $imageFilterResult = $imageFilterService->execute();
