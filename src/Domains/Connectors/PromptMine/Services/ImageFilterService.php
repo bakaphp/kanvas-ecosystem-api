@@ -171,15 +171,15 @@ class ImageFilterService
 
         $files = [];
         foreach ($entity->message['ai_image'] as $fileInfo) {
-                $file = Filesystem::fromApp($entity->app)
-                    ->where('companies_id', $entity->companies_id)
-                    ->where('name', $fileInfo['name'])
-                    ->where('is_deleted', 0)
-                    ->first();
-                if (! $file) {
-                    continue;
-                }
-                $files[] = $file;
+            $file = Filesystem::fromApp($entity->app)
+                ->where('companies_id', $entity->companies_id)
+                ->where('name', $fileInfo['name'])
+                ->where('is_deleted', 0)
+                ->first();
+            if (! $file) {
+                continue;
+            }
+            $files[] = $file;
         }
 
         return collect($files);
