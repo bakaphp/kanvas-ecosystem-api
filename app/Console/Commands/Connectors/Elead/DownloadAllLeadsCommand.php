@@ -64,8 +64,8 @@ class DownloadAllLeadsCommand extends Command
         // Date settings
         $fromDateOption = $this->option('from');
         $fromDate = is_string($fromDateOption) ? $fromDateOption : Carbon::now('America/Los_Angeles')
-            ->subMinutes(10)
-            ->format('Y-m-d');
+            ->subMinutes(5)
+            ->format('Y-m-d H:i:s');
 
         $this->info('Starting Elead leads download');
         $this->info("Company: {$company->name} (ID: {$company->getId()})");
@@ -108,7 +108,7 @@ class DownloadAllLeadsCommand extends Command
                                 $existingCount++;
                                 $this->line("Lead {$leadId} already exists as {$existingLead->id} - updating");
 
-                                new SyncLeadAction($existingLead)->execute();
+                                //new SyncLeadAction($existingLead)->execute();
                             } else {
                                 $this->line("Creating new Lead {$leadId}");
 
