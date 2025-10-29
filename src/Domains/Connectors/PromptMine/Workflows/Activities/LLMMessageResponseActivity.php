@@ -49,7 +49,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($message, $app, $params) {
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
 
                 if (empty($prompt)) {

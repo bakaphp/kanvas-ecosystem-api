@@ -97,13 +97,13 @@ class ImageFilterService
 
         if ($messageFiles->count() > 1) {
             //lets add them to params since this is optional
-            $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+            $this->params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
         }
 
         try {
             // Process image based on the model type
             if ($isOpenAi) {
-                $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $params);
+                $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $this->params);
                 if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
@@ -113,7 +113,7 @@ class ImageFilterService
                 }
             } elseif ($isGeminiBanana) {
                 // Process with Gemini-Nano-Banana
-                $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $params);
+                $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $this->params);
                 if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
@@ -129,7 +129,7 @@ class ImageFilterService
                     $fileUrl,
                     $imageFilter,
                     $this->entity,
-                    $params
+                    $this->params
                 );
 
                 if ($fileSystemRecord === null) {
@@ -148,7 +148,7 @@ class ImageFilterService
                 $fileSystemRecord,
                 $fileUrl,
                 $processedImageUrl,
-                $params,
+                $this->params,
                 $requestId,
                 $imageFilter
             );
