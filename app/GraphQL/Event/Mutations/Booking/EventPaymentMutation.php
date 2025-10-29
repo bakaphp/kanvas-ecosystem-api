@@ -30,16 +30,13 @@ class EventPaymentMutation
         $paymentIntentId = $input['payment_intent_id'];
 
         $eventVersion = EventVersion::where('id', $eventVersionId)
-            ->where('companies_id', $company->getId())
-            ->where('apps_id', $app->getId())
+            ->fromCompany($company)
+            ->fromApp($app)
             ->firstOrFail();
 
         $event = $eventVersion->event;
 
-        $order = $event->orders()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->first();
+        $order = $event->orders()->first();
 
         if (! $order) {
             throw new ValidationException('No order found for this event');

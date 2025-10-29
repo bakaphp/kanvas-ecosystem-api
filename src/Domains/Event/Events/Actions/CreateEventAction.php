@@ -6,7 +6,6 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
@@ -100,7 +99,7 @@ class CreateEventAction
                 );
                 $createParticipant->execute();
             }
-            
+
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
                 $this->createEventOrder($eventVersion, $this->event->orderItems);
@@ -190,8 +189,6 @@ class CreateEventAction
             }
         } else {
             $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
-            Log::error('Creating default order item for event version ' . $eventVersion->meta . ' with price ' . $price);
-            Log::error(json_encode($eventVersion->metadata));
             // Default: create single order item for the main resource
             $orderItem = new OrderItem(
                 app: $eventVersion->event->app,
