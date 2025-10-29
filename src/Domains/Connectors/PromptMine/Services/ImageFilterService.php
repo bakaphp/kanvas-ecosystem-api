@@ -15,7 +15,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
