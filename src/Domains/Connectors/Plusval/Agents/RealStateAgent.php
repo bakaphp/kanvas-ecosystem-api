@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Plusval\Agents;
 
+use Kanvas\Connectors\Plusval\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Plusval\Helpers\PhoneHelper;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
@@ -18,13 +20,15 @@ class RealStateAgent extends BaseAgent
         /** @psalm-suppress MixedReturnTypeCoercion */
         $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
         $apiKey = $this->app->get(ConfigurationEnum::API_KEY->value);
+        $senderPhone = PhoneHelper::formatPhoneNumber($this->getSenderPhone());
         return [
             ...McpConnector::make([
                 'url' => $baseUrl . '/mcp/plusval',
                 'token' => 'BEARER_TOKEN',
                 'timeout' => 30,
                 'headers' => [
-                    'x-api-key' => $apiKey
+                    'x-api-key' => $apiKey,
+                    'x-sender-phone' => $senderPhone
                 ]
             ])->tools(),
         ];
