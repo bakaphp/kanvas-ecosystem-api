@@ -251,7 +251,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         ];
 
         $promptClient = new PromptClient($message->app);
-        $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult['processed_image_url']);
+        $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult);
 
         return [
             'response' => $imageFilterResult['processed_image_url'] ?? '',

@@ -498,6 +498,7 @@ class ImageFilterService
         }
 
         // Optimize and upload the processed image
+        \Illuminate\Support\Facades\Log::info("NANO URL", [$processedImageUrl, $responseData]);
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
         $fileName = basename($tempFilePath);
 
@@ -586,7 +587,7 @@ class ImageFilterService
             'message_data' => $entity->message,
             'message_id' => $entity->getId(),
             'original_image_url' => $originalImageUrl,
-            'processed_image_url' => $cdnImageUrl,
+            'image_url' => $cdnImageUrl,
         ];
 
         // Add processed image URL and request ID if they exist (for fal-ai processing)
