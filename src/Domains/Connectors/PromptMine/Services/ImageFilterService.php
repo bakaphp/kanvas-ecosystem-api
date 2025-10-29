@@ -52,8 +52,6 @@ class ImageFilterService
 
     public function execute(): array
     {
-        sleep($this->app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
-        $this->entity->refresh();
         $messageFiles = $this->getFilesWithRetry($this->entity);
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
