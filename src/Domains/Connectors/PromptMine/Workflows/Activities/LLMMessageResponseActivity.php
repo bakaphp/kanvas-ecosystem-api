@@ -68,7 +68,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
-                } elseif ($isTypeImage && $message->getFiles()->count() > 0) {
+                } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
                     $result = $this->generateFilteredImageResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
