@@ -42,7 +42,6 @@ class ImageFilterService
     protected const int STATUS_CHECK_DELAY = 2;
     public $tries = 3;
 
-
     public function __construct(
         protected ?AppInterface $app = null,
         protected ?Message $entity = null,
