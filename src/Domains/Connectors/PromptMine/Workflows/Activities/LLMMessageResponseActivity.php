@@ -38,7 +38,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
-        sleep($this->app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
+        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
         $message->refresh();
         $this->overwriteAppService($app);
 
@@ -105,7 +105,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
-                    'is_public' => 0
+                    'is_public' => 1
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
