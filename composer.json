@@ -84,7 +84,7 @@
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
-        "twilio/sdk": "<8.8.5",
+        "twilio/sdk": "<8.8.6",
         "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
