@@ -182,6 +182,7 @@ class EchoPayService
             ],
             'merchant' => $merchant->toArray(),
         ];
+
         $response = $this->client->post(ConfigurationEnum::SETUP_PAYER_PATH->value, $formData);
 
         return [
