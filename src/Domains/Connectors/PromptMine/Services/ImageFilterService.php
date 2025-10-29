@@ -50,7 +50,8 @@ class ImageFilterService
 
     public function execute(): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
+        $messageFiles = $this->getFilesFromFilesystem($this->entity);
+        \Illuminate\Support\Facades\Log::info("GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
@@ -78,7 +79,7 @@ class ImageFilterService
             ];
         }
 
-        if ($messageFiles->isEmpty()) {
+        if ($messageFiles->count() == 0) {
             return [
                 'result' => false,
                 'message' => 'Message does not have any files',
@@ -159,6 +160,28 @@ class ImageFilterService
                 'message' => 'Error processing image: ' . $e->getMessage(),
             ];
         }
+    }
+
+    protected function getFilesFromFilesystem(Model $entity): Collection
+    {
+        if (! isset($entity->message['ai_image']) && count($entity->message['ai_image']) == 0) {
+            return collect([]);
+        }
+
+        $files = [];
+        foreach ($entity->message['ai_image'] as $fileInfo) {
+            $file = Filesystem::fromApp($entity->app)
+                ->where('companies_id', $entity->companies_id)
+                ->where('name', $fileInfo['name'])
+                ->where('is_deleted', 0)
+                ->first();
+            if (! $file) {
+                continue;
+            }
+            $files[] = $file;
+        }
+
+        return collect($files);
     }
 
     protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
