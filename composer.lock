@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a284bc773641c5f3bcec6a7a4558879a",
+    "content-hash": "cc202cc24fd891a7d7df297353ce24bd",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -10939,16 +10939,16 @@
         },
         {
             "name": "shopify/shopify-api",
-            "version": "v5.11.0",
+            "version": "v6.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Shopify/shopify-api-php.git",
-                "reference": "ed1c9cd01b68a0beb89ad770123ebc926bb7a98c"
+                "reference": "f4d177e8ce062aa302aef10e29bc274ac26ccd19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/ed1c9cd01b68a0beb89ad770123ebc926bb7a98c",
-                "reference": "ed1c9cd01b68a0beb89ad770123ebc926bb7a98c",
+                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/f4d177e8ce062aa302aef10e29bc274ac26ccd19",
+                "reference": "f4d177e8ce062aa302aef10e29bc274ac26ccd19",
                 "shasum": ""
             },
             "require": {
@@ -11007,9 +11007,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Shopify/shopify-api-php/issues",
-                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.11.0"
+                "source": "https://github.com/Shopify/shopify-api-php/tree/v6.0.0"
             },
-            "time": "2025-07-11T14:07:16+00:00"
+            "time": "2025-10-28T19:19:42+00:00"
         },
         {
             "name": "silber/bouncer",
