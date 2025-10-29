@@ -38,6 +38,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
+        sleep($this->app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
+        $message->refresh();
         $this->overwriteAppService($app);
 
         $company = $this->getCompany($app, $message->company);

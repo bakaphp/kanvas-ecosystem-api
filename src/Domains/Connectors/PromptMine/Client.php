@@ -118,7 +118,7 @@ class Client
      * @param array $response The API response
      * @return array Complete conversation array
      */
-    public function getFullConversation(array $messages, ?array $response): array
+    public function getFullConversation(array $messages, ?array $response = null): array
     {
         $conversation = $this->extractChatHistory($messages);
 
