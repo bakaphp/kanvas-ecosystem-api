@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Booking;
 
+use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
@@ -32,6 +33,11 @@ class TimeSlotBookingMutation
             ->fromCompany($company)
             ->findOrFail($input['time_slot_id']);
 
+        // Validate capacity before booking
+        $participantCount = count($input['participants'] ?? []);
+        if (!$timeSlot->hasAvailableCapacity($participantCount)) {
+            throw new ValidationException('Time slot does not have enough available capacity. Available: ' . $timeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
+        }
         // Extract resource information from the time slot
         $bookingData = $input;
         $bookingData['resources_id'] = $timeSlot->resources_id;
@@ -53,6 +59,8 @@ class TimeSlotBookingMutation
         $metadata = $bookingData['metadata'] ?? [];
         $metadata['time_slot_id'] = $timeSlot->id;
         $metadata['resource_name'] = $resource?->name ?? '';
+        $metadata['resource_type'] = $bookingData['resources_type'];
+        $metadata['slug_suffix'] = Str::uuid()->toString();
 
         if (isset($bookingData['hold_id'])) {
             $metadata['hold_id'] = $bookingData['hold_id'];
@@ -63,19 +71,13 @@ class TimeSlotBookingMutation
 
         $eventVersion = $event->versions->first();
 
-        // Update time slot capacity
-        $this->updateTimeSlotCapacity($timeSlot, count($bookingData['participants']));
+        // Update time slot status based on available capacity
+        $newStatus = $timeSlot->isFullyBooked()
+            ? TimeSlotStatusEnum::BOOKED->value
+            : TimeSlotStatusEnum::OPEN->value;
+
+        $timeSlot->update(['status' => $newStatus]);
 
         return $eventVersion;
-    }
-
-    private function updateTimeSlotCapacity(TimeSlots $timeSlot, int $participantCount): void
-    {
-        if ($timeSlot->capacity >= $participantCount) {
-            $timeSlot->update([
-                'capacity' => $timeSlot->capacity - $participantCount,
-                'status' => $timeSlot->capacity - $participantCount <= 0 ? TimeSlotStatusEnum::BOOKED->value : TimeSlotStatusEnum::OPEN->value
-            ]);
-        }
     }
 }

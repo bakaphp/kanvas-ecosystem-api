@@ -50,6 +50,11 @@ class CreateEventAction
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
             $slug = $slug . '-' . $this->event->type->getId();
+
+            // Append unique suffix if provided (for multiple bookings per time slot)
+            if (isset($this->metadata['slug_suffix'])) {
+                $slug = $slug . '-' . $this->metadata['slug_suffix'];
+            }
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
@@ -68,16 +73,21 @@ class CreateEventAction
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
+
             if ($this->event->dates->count()) {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
             } else {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
+
+            $currencyCode = $this->metadata['currency_code'] ?? 'USD';
+            
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
-                    currency: Currencies::getByCode('USD'),
+                    timeSlotId: $this->event->timeSlotId,
+                    currency: Currencies::getByCode($currencyCode),
                     name: $this->event->name,
                     version: 1,
                     description: $this->event->description,
@@ -100,7 +110,7 @@ class CreateEventAction
                 );
                 $createParticipant->execute();
             }
-            
+
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
                 $this->createEventOrder($eventVersion, $this->event->orderItems);

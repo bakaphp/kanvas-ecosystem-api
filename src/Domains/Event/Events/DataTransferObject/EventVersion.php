@@ -17,6 +17,7 @@ class EventVersion extends Data
         public readonly Event $event,
         public readonly UserInterface $user,
         public readonly Currencies $currency,
+        public readonly ?int $timeSlotId = null,
         public readonly string $name,
         public readonly string|int $version,
         #[DataCollectionOf(EventDate::class)]
@@ -39,6 +40,7 @@ class EventVersion extends Data
             event: $event,
             user: $user,
             currency: $currencies,
+            timeSlotId: $data['time_slot_id'] ?? null,
             name: $data['name'],
             version: $data['version'] ?? 1,
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
