@@ -105,6 +105,7 @@ abstract class ResourceBookingBase extends TestCase
                 'type_id' => EventType::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),
                 'price' => 25.00,
                 'notes' => 'Test booking',
+                'create_order' => '1',
             ],
             "order_items" => [
                 [
