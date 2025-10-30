@@ -392,6 +392,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
+    generateOrderPaymentIntent(orderId: ID!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntentToOrder"
+        )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
