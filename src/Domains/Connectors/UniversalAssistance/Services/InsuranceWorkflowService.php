@@ -158,7 +158,7 @@ class InsuranceWorkflowService
     /**
      * Process titular (main applicant) insurance with dual quotation workflow
      */
-    protected function processTitular(array $titularData): array
+    public function processTitular(array $titularData): array
     {
         // Validate titular data structure
         if (! $this->validatePersonData($titularData, 'titular')) {
@@ -200,7 +200,7 @@ class InsuranceWorkflowService
      * Process dependent insurance with dual quotation workflow
      * Each dependent gets their own voucher since they have individual plans to pay
      */
-    protected function processDependent(array $dependentData, string $titularOriginCountryCode, string $titularDestinationCountryCode): array
+    public function processDependent(array $dependentData, string $titularOriginCountryCode, string $titularDestinationCountryCode): array
     {
         // Validate dependent data structure
         if (! $this->validatePersonData($dependentData, 'dependent')) {
@@ -2166,6 +2166,311 @@ class InsuranceWorkflowService
             return $crossSellingConvenio;
         } else {
             return $inclusionConvenio;
+        }
+    }
+
+    /**
+     * Generate a unique plan key for grouping people with same plan
+     * People with the same plan key will be grouped into a single voucher
+     */
+    public function generatePlanGroupKey(array $personData): string
+    {
+        // Extract plan information - the key factors for grouping
+        $planName = $personData['plan']['name'] ?? 'unknown';
+
+        // Get country codes to ensure same origin/destination
+        $originCountryCode = $personData['originCountryCode'] ?? 'unknown';
+        $destinationCountryCode = $personData['destinationCountryCode'] ?? $personData['destinyCountryCode'] ?? 'unknown';
+
+        // Create a composite key that identifies the same plan/destination combination
+        // Format: plan_name|origin_country|destination_country
+        return implode('|', [
+            $planName,
+            strtoupper($originCountryCode),
+            strtoupper($destinationCountryCode)
+        ]);
+    }
+
+    /**
+     * Process grouped insurance workflow for people with the same plan
+     * Creates a single voucher for the entire group
+     */
+    public function processGroupedInsuranceWorkflow(array $groupedPersonsData, string $planGroupKey): array
+    {
+        if (empty($groupedPersonsData)) {
+            throw new ValidationException('No grouped persons data found');
+        }
+
+        // Use the first person's data to determine common parameters
+        $firstPerson = $groupedPersonsData[0];
+        $originCountryCode = $firstPerson['originCountryCode'] ?? 'AR';
+        $destinationCountryCode = $firstPerson['destinationCountryCode'] ?? $firstPerson['destinyCountryCode'] ?? 'DO';
+
+        // Convert any objects to arrays to prevent stdClass errors
+        $groupedPersonsData = $this->convertObjectsToArrays($groupedPersonsData);
+
+        // Perform dual quotation using ALL persons in the group (not just first person)
+        $dualQuotationResults = $this->performGroupDualQuotationWorkflow($groupedPersonsData, $originCountryCode, $destinationCountryCode);
+
+        // Select best quotation (same logic as individual processing)
+        $selectedQuotation = $this->selectBestQuotationForGroupVoucher($dualQuotationResults, $firstPerson);
+
+        // Create a single voucher for the entire group with all people included
+        $groupVoucherResult = $this->createGroupVoucher($groupedPersonsData, $selectedQuotation, $originCountryCode, $destinationCountryCode);
+
+        return [
+            'plan_group_key' => $planGroupKey,
+            'group_size' => count($groupedPersonsData),
+            'persons_in_group' => $groupedPersonsData,
+            'dual_quotation_results' => $dualQuotationResults,
+            'selected_quotation' => $selectedQuotation,
+            'group_voucher_result' => $groupVoucherResult,
+            'workflow_type' => 'grouped_voucher_by_plan'
+        ];
+    }
+
+    /**
+     * Select best quotation for group voucher (same logic as individual)
+     */
+    protected function selectBestQuotationForGroupVoucher(array $dualQuotationResults, array $referencePerson): array
+    {
+        // Use same logic as individual voucher selection
+        $targetPlan = $referencePerson['plan']['name'] ?? '';
+
+        // Check inclusion first (preferred for matching plan names)
+        if (isset($dualQuotationResults['inclusion']['result']['success']) &&
+            $dualQuotationResults['inclusion']['result']['success']) {
+            return $dualQuotationResults['inclusion'];
+        }
+
+        // Fallback to cross_selling if inclusion failed
+        if (isset($dualQuotationResults['cross_selling']['result']['success']) &&
+            $dualQuotationResults['cross_selling']['result']['success']) {
+            return $dualQuotationResults['cross_selling'];
+        }
+
+        // If both failed, return inclusion for error handling
+        return $dualQuotationResults['inclusion'];
+    }
+
+    /**
+     * Create a group voucher for multiple people with the same plan
+     */
+    protected function createGroupVoucher(array $groupedPersonsData, array $selectedQuotation, string $originCountryCode, string $destinationCountryCode): array
+    {
+        // Use the selected quotation's convenio and quotation type
+        $convenio = $selectedQuotation['convenio'];
+        $quotationType = $selectedQuotation['type'];
+
+        // Create voucher data for the group (first person as primary, rest as beneficiaries)
+        $primaryPerson = $groupedPersonsData[0];
+        $additionalBeneficiaries = array_slice($groupedPersonsData, 1);
+
+        // Build group voucher data with all people included
+        if ($quotationType === 'cross_selling') {
+            $voucherData = $this->buildCrossSellingGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
+        } else {
+            $voucherData = $this->buildGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
+        }
+
+        // Create the voucher using the client (using existing quotation method with voucher creation flag)
+        try {
+            $result = $this->client->createSingleQuotationWithCountries(
+                $voucherData,
+                $quotationType,
+                $originCountryCode,
+                $destinationCountryCode,
+                $this->order,
+                false // Create actual voucher, not just quotation
+            );
+
+            return [
+                'success' => true,
+                'voucher_data' => $this->convertObjectsToArrays($result),
+                'voucher_request_input' => $voucherData,
+                'convenio_used' => $convenio,
+                'quotation_type_used' => $quotationType,
+                'group_size' => count($groupedPersonsData),
+                'people_names' => $this->extractPeopleNames($groupedPersonsData)
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'voucher_request_input' => $voucherData,
+                'convenio_used' => $convenio,
+                'quotation_type_used' => $quotationType,
+                'group_size' => count($groupedPersonsData),
+                'people_names' => $this->extractPeopleNames($groupedPersonsData)
+            ];
+        }
+    }
+
+    /**
+     * Extract people names from group for logging
+     */
+    protected function extractPeopleNames(array $groupedPersonsData): array
+    {
+        $names = [];
+        foreach ($groupedPersonsData as $person) {
+            $firstName = $person['firstName'] ?? $person['firstname'] ?? 'Unknown';
+            $lastName = $person['lastName'] ?? $person['lastname'] ?? 'Person';
+            $names[] = "{$firstName} {$lastName}";
+        }
+        return $names;
+    }
+
+    /**
+     * Build group voucher data with convenio for inclusion type
+     */
+    protected function buildGroupVoucherDataWithConvenio(array $primaryPerson, array $additionalBeneficiaries, string $originCountryCode, string $destinationCountryCode, string $convenio): array
+    {
+        // Start with primary person's voucher data
+        $primaryVoucherData = $this->buildVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+
+        // Add additional beneficiaries to the voucher
+        if (! empty($additionalBeneficiaries)) {
+            $beneficiaries = [];
+            foreach ($additionalBeneficiaries as $index => $beneficiary) {
+                $beneficiaryData = $this->buildVoucherDataWithConvenio($beneficiary, 'dependent', $originCountryCode, $destinationCountryCode, $convenio);
+                $beneficiaries[] = $beneficiaryData['DatosSolicitante']; // Extract just the person data
+            }
+
+            // Add beneficiaries to the primary voucher data
+            $primaryVoucherData['DatosBeneficiarios'] = $beneficiaries;
+        }
+
+        return $primaryVoucherData;
+    }
+
+    /**
+     * Build group voucher data with convenio for cross-selling type
+     */
+    protected function buildCrossSellingGroupVoucherDataWithConvenio(array $primaryPerson, array $additionalBeneficiaries, string $originCountryCode, string $destinationCountryCode, string $convenio): array
+    {
+        // Start with primary person's cross-selling voucher data
+        $primaryVoucherData = $this->buildCrossSellingVoucherDataWithConvenio($primaryPerson, 'titular', $originCountryCode, $destinationCountryCode, $convenio);
+
+        // Add additional beneficiaries to the cross-selling voucher
+        if (! empty($additionalBeneficiaries)) {
+            $beneficiaries = [];
+            foreach ($additionalBeneficiaries as $index => $beneficiary) {
+                $beneficiaryData = $this->buildCrossSellingVoucherDataWithConvenio($beneficiary, 'dependent', $originCountryCode, $destinationCountryCode, $convenio);
+                $beneficiaries[] = $beneficiaryData['DatosSolicitante']; // Extract just the person data
+            }
+
+            // Add beneficiaries to the primary voucher data
+            $primaryVoucherData['DatosBeneficiarios'] = $beneficiaries;
+        }
+
+        return $primaryVoucherData;
+    }
+
+    /**
+     * Perform dual quotation workflow for a GROUP of people with same plan
+     * Important: Includes ALL people in the quote so Universal Assistance can properly price based on ages and quantity
+     */
+    protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
+    {
+        // Use first person to determine variant and convenios
+        $firstPerson = $groupedPersonsData[0];
+        $planVariant = $this->extractVariantType($firstPerson);
+        $targetPlan = $firstPerson['plan']['name'] ?? '';
+
+        // Determine convenios based on variant type
+        if ($planVariant === 'basic') {
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+        } else {
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+        }
+
+        // Perform inclusion quotation with ALL people in group
+        $inclusionResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, 'inclusion', $inclusionConvenio);
+
+        // Add delay between quotations
+        usleep(5000);
+
+        // Perform cross selling quotation with ALL people in group
+        $crossSellingResult = $this->performGroupQuotation($groupedPersonsData, $originCountryCode, $destinationCountryCode, 'cross_selling', $crossSellingConvenio);
+
+        return [
+            'inclusion' => [
+                'type' => 'inclusion',
+                'convenio' => $inclusionConvenio,
+                'target_plan' => $targetPlan,
+                'variant' => $planVariant,
+                'group_size' => count($groupedPersonsData),
+                'result' => $inclusionResult
+            ],
+            'cross_selling' => [
+                'type' => 'cross_selling',
+                'convenio' => $crossSellingConvenio,
+                'target_plan' => $targetPlan,
+                'variant' => $planVariant,
+                'group_size' => count($groupedPersonsData),
+                'result' => $crossSellingResult
+            ],
+            'timestamp' => now()->toISOString(),
+            'selection_logic' => [
+                'variant' => $planVariant,
+                'target_plan' => $targetPlan,
+                'group_size' => count($groupedPersonsData),
+                'origin_country_code' => $originCountryCode,
+                'inclusion_convenio' => $inclusionConvenio,
+                'cross_selling_convenio' => $crossSellingConvenio
+            ]
+        ];
+    }
+
+    /**
+     * Perform a group quotation with ALL people included for proper pricing
+     * Universal Assistance needs all ages and person count to calculate correct group pricing
+     */
+    protected function performGroupQuotation(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode, string $quotationType, string $convenio): array
+    {
+        // Build group voucher data with ALL people for quotation
+        $primaryPerson = $groupedPersonsData[0];
+        $additionalBeneficiaries = array_slice($groupedPersonsData, 1);
+
+        // Build voucher data including ALL group members for accurate quotation
+        if ($quotationType === 'cross_selling') {
+            $voucherData = $this->buildCrossSellingGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
+        } else {
+            $voucherData = $this->buildGroupVoucherDataWithConvenio($primaryPerson, $additionalBeneficiaries, $originCountryCode, $destinationCountryCode, $convenio);
+        }
+
+        // Perform the quotation using the client with ALL group members
+        try {
+            $result = $this->client->createSingleQuotationWithCountries(
+                $voucherData,
+                $quotationType,
+                $originCountryCode,
+                $destinationCountryCode,
+                $this->order,
+                true // Only quotation, no voucher creation yet
+            );
+
+            // Convert to arrays
+            $result = $this->convertObjectsToArrays($result);
+
+            return [
+                'success' => true,
+                'quotation_data' => $result,
+                'convenio' => $convenio,
+                'quotation_type' => $quotationType,
+                'group_size' => count($groupedPersonsData),
+                'quotation_request_input' => $voucherData  // Include the original quotation request data with ALL people
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'convenio' => $convenio,
+                'quotation_type' => $quotationType,
+                'group_size' => count($groupedPersonsData)
+            ];
         }
     }
 }
