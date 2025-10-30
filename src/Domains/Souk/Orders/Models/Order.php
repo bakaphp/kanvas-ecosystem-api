@@ -24,6 +24,7 @@ use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -250,6 +251,21 @@ class Order extends BaseModel
     {
         $this->status = 'canceled';
         $this->saveOrFail();
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+            new TransitionOrderStateAction(
+                $this,
+                $user,
+                $orderStatus
+            )->execute(true);
+        }
+
+        // to keep the legacy support
+        $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->completed();
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
