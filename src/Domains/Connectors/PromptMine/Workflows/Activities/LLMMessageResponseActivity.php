@@ -222,14 +222,14 @@ class LLMMessageResponseActivity extends KanvasActivity
         ];
 
         try {
-        // Use PromptMine client for chat response with AI model configuration
-        $promptClient = new PromptClient($message->app);
-        $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
+            // Use PromptMine client for chat response with AI model configuration
+            $promptClient = new PromptClient($message->app);
+            $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
 
-        // Extract response text and update chat history
-        $responseText = $promptClient->extractChatResponseText($apiResponse);
-        $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
-        } catch (ClientException|ServerException $e) {
+            // Extract response text and update chat history
+            $responseText = $promptClient->extractChatResponseText($apiResponse);
+            $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+        } catch (ClientException | ServerException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
@@ -381,7 +381,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageId: $previousChatResponse->message['message_id'],
                 //params: $params
             );
-        } catch (ClientException|ServerException $e) {
+        } catch (ClientException | ServerException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
