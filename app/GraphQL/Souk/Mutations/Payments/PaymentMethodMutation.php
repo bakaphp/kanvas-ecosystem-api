@@ -26,7 +26,7 @@ class PaymentMethodMutation
             // TODO: move this to a provider to avoid hardcoding here
             if ($input['processor']) {
                 $processor = app("payment.{$input['processor']}");
-                $input['brand'] = $this->guessCardBrand($input['number']);
+                $input['brand'] = $this->guessCardBrand($input['number']) ?? $input['brand'] ?? null;
                 // $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
                 $paymentMethod = $processor->addCardFromRequest($input, $user);
             } else {
@@ -142,7 +142,7 @@ class PaymentMethodMutation
         return $paymentMethod->delete();
     }
 
-    public function guessCardBrand($number): ?string
+    public function guessCardBrand(string $number): ?string
     {
         $number = preg_replace('/[^0-9]/', '', $number);
 
@@ -166,6 +166,23 @@ class PaymentMethodMutation
         // American Express
         if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
             return 'american express';
+        }
+
+        return strtolower($this->getCardBrand($number));
+    }
+
+    public function getCardBrand(string $cardNumber): ?string
+    {
+        // Remove spaces and dashes
+        $cardNumber = preg_replace('/[\s\-]/', '', $cardNumber);
+
+        // Check card brand by prefix and length
+        if (preg_match('/^4[0-9]{12}(?:[0-9]{3})?$/', $cardNumber)) {
+            return 'Visa';
+        } elseif (preg_match('/^5[1-5][0-9]{14}$/', $cardNumber)) {
+            return 'Mastercard';
+        } elseif (preg_match('/^3[47][0-9]{13}$/', $cardNumber)) {
+            return 'American Express';
         }
 
         return null;
