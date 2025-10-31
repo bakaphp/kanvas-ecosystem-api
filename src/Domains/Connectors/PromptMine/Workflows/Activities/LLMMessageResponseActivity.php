@@ -221,13 +221,50 @@ class LLMMessageResponseActivity extends KanvasActivity
             'content' => $prompt,
         ];
 
-        // Use PromptMine client for chat response with AI model configuration
-        $promptClient = new PromptClient($message->app);
-        $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
+        try {
+            // Use PromptMine client for chat response with AI model configuration
+            $promptClient = new PromptClient($message->app);
+            $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
 
-        // Extract response text and update chat history
-        $responseText = $promptClient->extractChatResponseText($apiResponse);
-        $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+            // Extract response text and update chat history
+            $responseText = $promptClient->extractChatResponseText($apiResponse);
+            $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+        } catch (ClientException | ServerException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
+
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push', 'mail']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
+            $message->user->notify($errorProcessingImageNotification);
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            return [
+                'response' => $message->app->get('NSFW_IMAGE_URL'), //$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '',
+                'chat_history' => [],
+                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
+                'nsfw_flag' => true,
+            ];
+        }
+
 
         return [
             'response' => str_replace(['```', 'json'], '', $responseText ?? ''),
@@ -344,7 +381,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageId: $previousChatResponse->message['message_id'],
                 //params: $params
             );
-        } catch (ClientException|ServerException $e) {
+        } catch (ClientException | ServerException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
@@ -373,7 +410,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             return [
-                'response' => $message->app->get('NSFW_IMAGE_URL'), //$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '',
+                'response' => 'Your prompt was flagged as not safe for work and could not be processed.',
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
@@ -490,15 +527,5 @@ class LLMMessageResponseActivity extends KanvasActivity
         } catch (ModelNotFoundException $e) {
             return $entity->company;
         }
-    }
-
-    private function updateChatHistory(array $chatHistory, string $role, string $content): array
-    {
-        $chatHistory[] = [
-            'role' => $role,
-            'content' => $content,
-        ];
-
-        return $chatHistory;
     }
 }
