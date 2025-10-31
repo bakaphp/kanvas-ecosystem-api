@@ -73,7 +73,7 @@ class SendLeadEmailsAction
                 try {
                     $this->sendEmail(
                         $this->lead,
-                        $leadTemplate,
+                        $userTemplate,
                         trim($email),
                         $data
                     );
