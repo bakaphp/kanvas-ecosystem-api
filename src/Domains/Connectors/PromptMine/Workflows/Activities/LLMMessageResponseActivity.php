@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
@@ -61,6 +62,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
+                $isNotSafeForWork = false;
 
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
@@ -78,15 +80,20 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 }
 
+                $error = false;
+                $errorReason = null;
                 if (empty($response)) {
-                    return [
+                    /* return [
                         'result' => false,
                         'error' => 'Response is empty',
                         'message' => $message->toArray(),
                         'message_id' => $message->id,
-                    ];
+                    ]; */
+                    $errorReason = 'Response is empty';
+                    $error = true;
                 }
 
                 // $nuggetTitle = $this->generateTitleByPrompt($prompt);
@@ -96,6 +103,10 @@ class LLMMessageResponseActivity extends KanvasActivity
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
+                        'nsfw_flag' => $isNotSafeForWork ?? false,
+                        'error' => $error,
+                        'error_reason' => $error ? $result['message'] ?? $errorReason : null,
+                        'nsfw_reason' => $isNotSafeForWork ? $result['message'] ?? 'Content flagged as NSFW' : null,
                     ],
                     'reactions_count' => 0,
                     'comments_count' => 0,
@@ -105,7 +116,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
-                    'is_public' => 1
+                    'is_public' => 1,
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
@@ -333,7 +344,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageId: $previousChatResponse->message['message_id'],
                 //params: $params
             );
-        } catch (ClientException $e) {
+        } catch (ClientException|ServerException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
@@ -359,7 +370,14 @@ class LLMMessageResponseActivity extends KanvasActivity
                 'destination_event' => 'FOLLOWING',
             ]);
             $message->user->notify($errorProcessingImageNotification);
-            return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            return [
+                'response' => $message->app->get('NSFW_IMAGE_URL'), //$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '',
+                'chat_history' => [],
+                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
+                'nsfw_flag' => true,
+            ];
         }
 
         $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
