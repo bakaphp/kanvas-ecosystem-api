@@ -164,16 +164,12 @@ class InsuranceWorkflowService
             throw new ValidationException('Invalid titular data structure');
         }
 
-        // UNIFIED WORKFLOW: Use processGroupedInsuranceWorkflow for individual (group of 1)
-        // This ensures consistent behavior between individual and group processing
-        // since the group workflow is proven to work correctly
-        
         // Generate plan group key for single person
         $planGroupKey = $this->generatePlanGroupKey($titularData);
-        
+
         // Use the group workflow with a single person (group of 1)
         $groupResult = $this->processGroupedInsuranceWorkflow([$titularData], $planGroupKey);
-        
+
         // Adapt the group result to individual result format for backward compatibility
         $result = [
             'dual_quotation_results' => $groupResult['dual_quotation_results'] ?? [],
