@@ -42,7 +42,7 @@ class VehicleInterestTool implements ContextToolInterface
             'in_stock' => isset($vehicleInterest['stockNumber']) && ! empty($vehicleInterest['stockNumber']) ? true : false,
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
             'price' => isset($variant) ? ($variant?->getPriceInfoFromDefaultChannel()->price ?? 0) : 0,
-            'uuid' => isset($variant) ? $variant?->uuid : '',
+            'uuid' => isset($variant) ? $variant?->product->uuid : '',
         ];
     }
 }
