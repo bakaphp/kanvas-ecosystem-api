@@ -148,7 +148,7 @@ class CreateContentSessionAction
         $results = [];
         $aiAgentUserId = (int) $this->entity->company->get('ai-agent-user-id');
         $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $this->entity->user;
-        
+
         foreach ($actions as $key => $action) {
             try {
                 $engagement = new CreateEngagementAction(
