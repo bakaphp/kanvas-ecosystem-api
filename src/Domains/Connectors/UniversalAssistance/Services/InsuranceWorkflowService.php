@@ -11,6 +11,7 @@ use Kanvas\Connectors\UniversalAssistance\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 
 class InsuranceWorkflowService
 {
