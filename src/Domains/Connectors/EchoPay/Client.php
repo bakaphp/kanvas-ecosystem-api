@@ -20,7 +20,6 @@ class Client
     protected string $secret;
     protected GuzzleClient $client;
 
-
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
@@ -57,6 +56,7 @@ class Client
         ]);
 
         $body = json_decode($result->getBody()->getContents());
+
         return $body->data->token;
     }
 
