@@ -167,7 +167,10 @@ class PullLeadAction
         };
 
         if ($agentNotificationChannel !== null) {
-            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+            $lead->set(
+                LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value,
+                $agentNotificationChannel
+            );
         }
 
         $lead->fireWorkflow(
