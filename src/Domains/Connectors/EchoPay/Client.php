@@ -77,8 +77,8 @@ class Client
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
             throw new EchoPayException(
-                is_array($errorMessage) ? implode(', ', $errorMessage) : $errorMessage,
-                (int) $response->getStatusCode(),
+                $errorMessage,
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -104,8 +104,8 @@ class Client
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
             throw new EchoPayException(
-                is_array($errorMessage) ? implode(', ', $errorMessage) : $errorMessage,
-                (int) $response->getStatusCode(),
+                $errorMessage,
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -131,8 +131,8 @@ class Client
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
             throw new EchoPayException(
-                is_array($errorMessage) ? implode(', ', $errorMessage) : $errorMessage,
-                (int) $response->getStatusCode(),
+                $errorMessage,
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -157,7 +157,7 @@ class Client
 
             throw new EchoPayException(
                 $errorMessage,
-                (int) $response->getStatusCode(),
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
