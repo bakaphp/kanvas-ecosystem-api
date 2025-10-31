@@ -92,7 +92,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'users' => $lead->user,
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
-                        'name' => ucwords($communicationChannel) . $lead->getId(),
+                        'name' => ucwords($communicationChannel) . ' ' . $lead->getId(),
                         'slug' => SessionChannelService::createChannelSlug(
                             $communicationChannel,
                             $communicationChannelNumber
