@@ -22,4 +22,5 @@ enum ConfigurationEnum: string
     case LEAD_CONTEXT_INFO = 'lead_ai_agent_context_info';
     case LAST_MESSAGE_TIME = 'last_message_time';
     case LAST_MESSAGE = 'last_message';
+    case MUTE_AI_AGENT = 'mute_ai_agent';
 }
