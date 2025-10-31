@@ -36,6 +36,7 @@ class GetOrderPaymentStatsAction
 
         $currentCount = 0;
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+        $currentCount = $ordersInPeriod['count'] ?? 0;
 
         return [
             'period' => [
@@ -86,9 +87,7 @@ class GetOrderPaymentStatsAction
         $totalAmount = $byDates->sum(fn ($entry) => $entry['states']['amount'] ?? 0);
 
         // Get service stats from the already filtered orders
-        $byServices = $this->variantId === null
-            ? $this->getServiceStatsFromOrders($start, $end)
-            : [];
+        $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
 
         return [
             'orderAvg' => $daysInRange->count() > 0 ? $totalEntries / $daysInRange->count() : 0,
@@ -109,7 +108,8 @@ class GetOrderPaymentStatsAction
         $orderIds = $this->repository->getOrderIdsByPaymentCriteria(
             $start,
             $end,
-            $this->paidStates
+            $this->paidStates,
+            $this->variantId
         );
 
         if ($orderIds->isEmpty()) {
