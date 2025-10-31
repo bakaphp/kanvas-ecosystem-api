@@ -82,6 +82,25 @@ class LeadObserver
                     )
                 )
             )->execute();
+
+            $aiNotesChannel = $lead->company->get('enable_ai_notes_channel', false);
+
+            if ($aiNotesChannel) {
+                (
+                    new CreateChannelAction(
+                        new Channel(
+                            $lead->app,
+                            $lead->company,
+                            $lead->user,
+                            (string)$lead->getKey(),
+                            Lead::class,
+                            'Notes',
+                            'AI Notes Channel',
+                            Str::uuid()->toString()
+                        )
+                    )
+                )->execute();
+            }
         }
 
         //$lead->clearLightHouseCacheJob();
