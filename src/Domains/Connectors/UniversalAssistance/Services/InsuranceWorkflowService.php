@@ -8,10 +8,10 @@ use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Client;
+use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Connectors\UniversalAssistance\Enums\ConfigurationEnum;
 
 class InsuranceWorkflowService
 {
