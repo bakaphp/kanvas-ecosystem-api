@@ -35,6 +35,8 @@ type OrderPaymentService {
 type OrderPaymentByTransaction {
     card: Int
     transfer: Int
+    cardAmount: Money
+    transferAmount: Money
 }
 
 type OrderPaymentStateCount {

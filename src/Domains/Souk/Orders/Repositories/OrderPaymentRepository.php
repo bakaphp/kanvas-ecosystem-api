@@ -50,7 +50,9 @@ class OrderPaymentRepository
                 SUM(orders.total_net_amount) AS amount,
                 COUNT(DISTINCT payments.id) AS card,
                 GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
-                COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction
+                COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction,
+                SUM(CASE WHEN payments.id IS NULL THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+                SUM(CASE WHEN payments.id IS NOT NULL THEN orders.total_net_amount ELSE 0 END) AS card_amount
             ")
             ->groupBy('date')
             ->orderBy('date')
