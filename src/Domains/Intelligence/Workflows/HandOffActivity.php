@@ -52,6 +52,7 @@ class HandOffActivity extends KanvasActivity
                 $handOffType = strtolower($params['handoff_type'] ?? 'human');
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+                $companyHumanHandOffOnlySms = (bool) ($lead->company->get('ai_human_handoff_only_sms') ?? false);
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
@@ -66,7 +67,7 @@ class HandOffActivity extends KanvasActivity
                     ]
                 );
 
-                if ($handOffType === 'human') {
+                if ($companyHumanHandOffOnlySms && $handOffType === 'human') {
                     $handOffNotification->channels = [
                         TwilioSmsChannel::class,
                     ];
