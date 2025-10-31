@@ -32,7 +32,8 @@ class OrderPaymentRepository
             ->leftJoin('payments', function ($join) {
                 $join->on('payments.payable_id', '=', 'orders.id')
                     ->where('payments.payable_type', Order::class)
-                    ->where('payments.is_deleted', '=', 0);
+                    ->where('payments.is_deleted', '=', 0)
+                    ->where('payments.status', '=', 'paid');
             })
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
