@@ -139,12 +139,13 @@ class PullLeadAction
 
     private function isWithin10Minutes(string $dateString): bool
     {
+        $diffTime = $this->company->get(ConfigurationEnum::LEAD_TIME_DIFF_MINUTES->value, 10) ?? 10;
         $leadTimezone = $this->company->get('timezone', 'America/New_York') ?? $this->company->timezone ?? 'America/New_York';
 
         $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
         $now = Carbon::now($leadTimezone);
 
-        return $leadDate->diffInMinutes($now) <= 10 && $leadDate->isPast();
+        return $leadDate->diffInMinutes($now) <= $diffTime && $leadDate->isPast();
     }
 
     private function setCommunicationChannel(ModelsLead $lead, string $vinSolutionDateIn): void
