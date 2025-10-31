@@ -129,21 +129,25 @@ class PaymentManagementMutation
 
         $totalAmount = (int) round($amount * 100);
 
-        $intent = PaymentIntent::create([
-            'amount' => $totalAmount,
-            'currency' => $currencyCode,
-            'customer' => $customer->id,
-        ]);
-
-        return [
-            'status' => 'success',
-            'id' => $intent->id,
-            'client_secret' => $intent->client_secret,
-            'message' => [
-                'message' => 'Payment intent generated successfully',
-                'amount' => $amount,
+        try {
+            $intent = PaymentIntent::create([
+                'amount' => $totalAmount,
                 'currency' => $currencyCode,
-            ],
-        ];
+                'customer' => $customer->id,
+            ]);
+
+            return [
+                'status' => 'success',
+                'id' => $intent->id,
+                'client_secret' => $intent->client_secret,
+                'message' => [
+                    'message' => 'Payment intent generated successfully',
+                    'amount' => $amount,
+                    'currency' => $currencyCode,
+                ],
+            ];
+        } catch (\Exception $e) {
+            throw new ValidationException($e->getMessage());
+        }
     }
 }
