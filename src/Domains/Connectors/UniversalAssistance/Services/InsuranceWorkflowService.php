@@ -164,34 +164,31 @@ class InsuranceWorkflowService
             throw new ValidationException('Invalid titular data structure');
         }
 
-        // Extract origin and destination country codes from input data
-        $originCountryCode = $titularData['originCountryCode'] ?? 'AR'; // Default to Argentina
-        $destinationCountryCode = $titularData['destinationCountryCode'] ?? $titularData['destinyCountryCode'] ?? 'DO'; // Default to Dominican Republic
-
-        // Perform dual quotation workflow - always get both inclusion and cross selling quotations
-        $dualQuotationResult = $this->performDualQuotationWorkflow($titularData, $originCountryCode, $destinationCountryCode);
-
-        // Find the best matching plan based on variant type and quotation results
-        $selectedQuotation = $this->selectBestQuotationForVoucher($titularData, $dualQuotationResult);
-
-        // Create voucher using createGroupVoucher (individual is just a group with one person)
-        $voucherResult = $this->createGroupVoucher([$titularData], $selectedQuotation, $originCountryCode, $destinationCountryCode);
-
-        // Create simplified result with complete quotation data and product matching information
+        // UNIFIED WORKFLOW: Use processGroupedInsuranceWorkflow for individual (group of 1)
+        // This ensures consistent behavior between individual and group processing
+        // since the group workflow is proven to work correctly
+        
+        // Generate plan group key for single person
+        $planGroupKey = $this->generatePlanGroupKey($titularData);
+        
+        // Use the group workflow with a single person (group of 1)
+        $groupResult = $this->processGroupedInsuranceWorkflow([$titularData], $planGroupKey);
+        
+        // Adapt the group result to individual result format for backward compatibility
         $result = [
-            'dual_quotation_results' => $this->simplifyDualQuotationResults($dualQuotationResult),
-            'selected_quotation' => $selectedQuotation,
-            'voucher_result' => $voucherResult,
-            'workflow_type' => 'dual_quotation_with_plan_matching',
+            'dual_quotation_results' => $groupResult['dual_quotation_results'] ?? [],
+            'selected_quotation' => $groupResult['selected_quotation'] ?? [],
+            'voucher_result' => $groupResult['group_voucher_result'] ?? [],
+            'workflow_type' => 'individual_using_group_workflow', // Updated to reflect new approach
             'person_type' => 'titular',
             'input_plan_requested' => $titularData['plan']['name'] ?? 'Unknown plan',
-            'selected_product_match' => $voucherResult['matched_product'] ?? null,
-            'quotation_summary' => [
-                'origin_country' => $originCountryCode,
-                'destination_country' => $destinationCountryCode,
-                'variant_type' => $this->extractVariantType($titularData),
-                'duration_days' => $this->getProductDuration($titularData),
-                'quotation_timestamp' => now()->toISOString(),
+            'selected_product_match' => $groupResult['selected_product_match'] ?? null,
+            'quotation_summary' => $groupResult['quotation_summary'] ?? [],
+            // Include group workflow metadata for debugging
+            'group_workflow_metadata' => [
+                'plan_group_key' => $groupResult['plan_group_key'] ?? $planGroupKey,
+                'group_size' => $groupResult['group_size'] ?? 1,
+                'workflow_type' => $groupResult['workflow_type'] ?? 'grouped_voucher_by_plan',
             ],
         ];
 
@@ -1274,7 +1271,7 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Select the best quotation for voucher creation - simplified approach
+     * Select the best quotation for voucher creation - fixed convenio source
      */
     protected function selectBestQuotationForVoucher(array $personData, array $dualQuotationResult): array
     {
@@ -1282,15 +1279,13 @@ class InsuranceWorkflowService
         $inclusionResult = $dualQuotationResult['inclusion']['result'] ?? [];
         $crossSellingResult = $dualQuotationResult['cross_selling']['result'] ?? [];
 
-        // Simple priority: cross_selling first, then inclusion
-        // Return only essential data without duplicating the full quotation responses
+        // Simple priority: cross_selling first, then inclusion (keep original logic)
+        // FIXED: Use quotation_data convenio instead of original request convenio
         if ($crossSellingResult['success'] ?? false) {
             return [
                 'type' => 'cross_selling',
-                //'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1304,7 +1299,7 @@ class InsuranceWorkflowService
                         'destination_name' => $crossSellingResult['quotation_data']['destination_name'] ?? '',
                     ],
                 ],
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
+                'convenio' => $crossSellingResult['quotation_data']['convenio'] ?? $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'quotation_type' => 'cross_selling',
                 'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
             ];
@@ -1313,10 +1308,8 @@ class InsuranceWorkflowService
         if ($inclusionResult['success'] ?? false) {
             return [
                 'type' => 'inclusion',
-                //'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1330,7 +1323,7 @@ class InsuranceWorkflowService
                         'destination_name' => $inclusionResult['quotation_data']['destination_name'] ?? '',
                     ],
                 ],
-                'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
+                'convenio' => $inclusionResult['quotation_data']['convenio'] ?? $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'quotation_type' => 'inclusion',
                 'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
             ];
