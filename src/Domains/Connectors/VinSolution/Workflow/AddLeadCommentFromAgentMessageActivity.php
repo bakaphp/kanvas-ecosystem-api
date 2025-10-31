@@ -8,6 +8,7 @@ use Baka\Support\Url;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Templates\Blank;
@@ -53,8 +54,9 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
                 $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
+                $agentChannel = '(' . ucfirst($lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms') . ') ';
 
-                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+                $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
 
                 if ($aiChatLink !== null) {
                     $aiChatLink = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
@@ -91,7 +93,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
     /**
      * @todo this is not the best place but , this is just for the client to test and move
-     * to another action
+     * to another action.
      */
     protected function notifyManagers(Message $message): void
     {
@@ -115,7 +117,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $managers = UsersRepository::getCompanyAppUserByRole(
             $message->company,
             $message->app,
-            'AiManager'
+            'BDCManager'
         )->get();
 
         foreach ($managers as $manager) {

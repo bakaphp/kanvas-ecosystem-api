@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
@@ -38,6 +39,11 @@ class EventVersion extends BaseModel
     public function timeSlot(): BelongsTo
     {
         return $this->belongsTo(TimeSlots::class, 'time_slot_id');
+    }
+
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
     public function dates(): HasMany

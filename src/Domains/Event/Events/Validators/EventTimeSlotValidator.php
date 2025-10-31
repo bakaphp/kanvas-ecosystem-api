@@ -10,7 +10,10 @@ use Kanvas\Exceptions\ValidationException;
 class EventTimeSlotValidator
 {
     /**
-     * Validates that a time slot is available for a resource
+     * Three scenarios:
+     * 1. No resource: Skip validation
+     * 2. Event has time_slot_id: Validate against the specific time slot
+     * 3. Event has no time_slot_id: Check for overlapping events
      */
     public static function validateAvailability(
         int|string $resourcesId,
@@ -20,13 +23,82 @@ class EventTimeSlotValidator
         string $date,
         string $startTime,
         string $endTime,
-        ?int $excludeEventId = null
+        ?int $excludeEventId = null,
+        ?int $timeSlotId = null
     ): void {
         if (! $resourcesId || ! $resourcesType) {
-            return; // No resource to validate against
+            return;
         }
 
-        // Query to check for overlapping events for the same resource
+        if ($timeSlotId) {
+            self::validateAgainstTimeSlot($timeSlotId, $companiesId, $appsId, $excludeEventId);
+            return;
+        }
+
+        self::validateAgainstOverlappingEvents(
+            $resourcesId,
+            $resourcesType,
+            $companiesId,
+            $appsId,
+            $date,
+            $startTime,
+            $endTime,
+            $excludeEventId
+        );
+    }
+
+    private static function validateAgainstTimeSlot(
+        int $timeSlotId,
+        int $companiesId,
+        int $appsId,
+        ?int $excludeEventId = null
+    ): void {
+        $query = DB::connection('event')
+            ->table('time_slots')
+            ->where('id', $timeSlotId)
+            ->where('companies_id', $companiesId)
+            ->where('apps_id', $appsId);
+
+        $timeSlot = $query->first();
+
+        if (! $timeSlot) {
+            throw new ValidationException('Time slot not found.');
+        }
+
+        $existingBooking = DB::connection('event')
+            ->table('event_versions')
+            ->where('time_slot_id', $timeSlotId)
+            ->where('is_deleted', 0);
+
+        if ($excludeEventId) {
+            $existingBooking->where('event_id', '!=', $excludeEventId);
+        }
+
+        $booking = $existingBooking->first();
+
+        if ($booking) {
+            throw new ValidationException(
+                "Time slot is already booked. Please select a different time slot."
+            );
+        }
+
+        if ($timeSlot->capacity <= 0) {
+            throw new ValidationException(
+                "Time slot is fully booked. No capacity remaining."
+            );
+        }
+    }
+
+    private static function validateAgainstOverlappingEvents(
+        int|string $resourcesId,
+        string $resourcesType,
+        int $companiesId,
+        int $appsId,
+        string $date,
+        string $startTime,
+        string $endTime,
+        ?int $excludeEventId = null
+    ): void {
         $query = DB::connection('event')
             ->table('events as e')
             ->join('event_versions as ev', 'e.id', '=', 'ev.event_id')
@@ -37,9 +109,7 @@ class EventTimeSlotValidator
             ->where('e.apps_id', $appsId)
             ->whereDate('evd.event_date', $date)
             ->where(function ($query) use ($startTime, $endTime) {
-                // Check for time overlap
                 $query->where(function ($q) use ($startTime, $endTime) {
-                    // Case 1: New event starts before existing ends and ends after existing starts
                     $q->where('evd.start_time', '<', $endTime)
                       ->where('evd.end_time', '>', $startTime);
                 });
@@ -47,7 +117,6 @@ class EventTimeSlotValidator
             ->whereNull('e.deleted_at')
             ->whereNull('ev.deleted_at');
 
-        // Exclude current event if updating
         if ($excludeEventId) {
             $query->where('e.id', '!=', $excludeEventId);
         }
@@ -62,7 +131,6 @@ class EventTimeSlotValidator
             );
         }
 
-        // Check for holds on the time slot
         $startDateTime = $date . ' ' . $startTime;
         $endDateTime = $date . ' ' . $endTime;
 
@@ -86,9 +154,6 @@ class EventTimeSlotValidator
         }
     }
 
-    /**
-     * Validates time slot for creating a new event
-     */
     public static function validateForCreate(
         int|string $resourcesId,
         string $resourcesType,
@@ -96,31 +161,8 @@ class EventTimeSlotValidator
         int $appsId,
         string $date,
         string $startTime,
-        string $endTime
-    ): void {
-        self::validateAvailability(
-            $resourcesId,
-            $resourcesType,
-            $companiesId,
-            $appsId,
-            $date,
-            $startTime,
-            $endTime
-        );
-    }
-
-    /**
-     * Validates time slot for updating an existing event
-     */
-    public static function validateForUpdate(
-        int|string $resourcesId,
-        string $resourcesType,
-        int $companiesId,
-        int $appsId,
-        string $date,
-        string $startTime,
         string $endTime,
-        int $excludeEventId
+        ?int $timeSlotId = null
     ): void {
         self::validateAvailability(
             $resourcesId,
@@ -130,7 +172,32 @@ class EventTimeSlotValidator
             $date,
             $startTime,
             $endTime,
-            $excludeEventId
+            null,
+            $timeSlotId
+        );
+    }
+
+    public static function validateForUpdate(
+        int|string $resourcesId,
+        string $resourcesType,
+        int $companiesId,
+        int $appsId,
+        string $date,
+        string $startTime,
+        string $endTime,
+        int $excludeEventId,
+        ?int $timeSlotId = null
+    ): void {
+        self::validateAvailability(
+            $resourcesId,
+            $resourcesType,
+            $companiesId,
+            $appsId,
+            $date,
+            $startTime,
+            $endTime,
+            $excludeEventId,
+            $timeSlotId
         );
     }
 }

@@ -62,9 +62,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value)) {
                     return [
-                        'message' => 'Lead is being handed off to human agent',
+                        'message' => 'Lead turned off AI agent responses',
                         'entity' => null,
                     ];
                 }

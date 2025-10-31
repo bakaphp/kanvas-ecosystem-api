@@ -93,15 +93,7 @@ class ResourceBookingMutation
 
         $resource = $this->getResource($bookingData['resources_type'], $bookingData['resources_id']);
 
-        $eventData = new BuildEventDataAction($resource, $user, $bookingData)->execute();
-        $eventDto = EventDto::from($app, $user, $company, $eventData);
-
-        $createEventAction = new CreateEventAction($eventDto);
-        $event = $createEventAction->execute();
-
-        $eventVersion = $event->versions->first();
-
-        // Update metadata with payment and hold information
+        $eventData = new BuildEventDataAction($resource, $user, $company, $bookingData)->execute();
         $metadata = $bookingData['metadata'] ?? [];
         if (isset($bookingData['hold_id'])) {
             $metadata['hold_id'] = $bookingData['hold_id'];
@@ -113,7 +105,12 @@ class ResourceBookingMutation
             $metadata['payment_method_id'] = $bookingData['payment_method_id'];
         }
 
-        $eventVersion->update(['metadata' => $metadata]);
+        $eventDto = EventDto::from($app, $user, $company, $eventData);
+
+        $createEventAction = new CreateEventAction($eventDto, $metadata);
+        $event = $createEventAction->execute();
+
+        $eventVersion = $event->versions->first();
 
         return $eventVersion;
     }
