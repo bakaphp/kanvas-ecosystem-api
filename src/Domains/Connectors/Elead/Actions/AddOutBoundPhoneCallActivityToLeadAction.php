@@ -54,6 +54,10 @@ class AddOutBoundPhoneCallActivityToLeadAction
             ]
         );
 
+        if ($this->lead->get('ai_stop_the_clock_notifications_enabled')) {
+            $this->notifyManagers();
+        }
+
         return $activity->activityId;
         /* $leadActivities = SalesActivities::getOpenActivitiesByOpportunityId(
             $this->lead->app,
