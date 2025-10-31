@@ -259,7 +259,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             return [
-                'response' => $message->app->get('NSFW_IMAGE_URL'), //$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '',
+                'response' => 'Your image prompt was flagged as not safe for work and could not be processed.',
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
@@ -411,7 +411,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             return [
-                'response' => 'Your prompt was flagged as not safe for work and could not be processed.',
+                'response' => $message->app->get('NSFW_IMAGE_URL'),
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
