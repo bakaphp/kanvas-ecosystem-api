@@ -175,7 +175,7 @@ class PullLeadAction
         }
 
         $lead->set('process_via_pull', true);
-        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
+        $lead->set('vin_solution_date_in', $createdAt);
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;
         $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
