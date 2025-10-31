@@ -87,7 +87,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     use AddressTraitRelationship;
     use CanPayFloat;
     use HasWalletsTrait;
-    use QueryCacheable;
+    //use QueryCacheable;
 
     protected $table = 'companies';
 
