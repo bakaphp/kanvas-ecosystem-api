@@ -150,7 +150,10 @@ class PullLeadAction
 
     private function setCommunicationChannel(ModelsLead $lead, string $vinSolutionDateIn): void
     {
-        if (empty($vinSolutionDateIn) || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) || ! $this->isWithin10Minutes($vinSolutionDateIn)) {
+        if (empty($vinSolutionDateIn)
+            || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)
+            || ! $this->isWithin10Minutes($vinSolutionDateIn)
+            || ! $lead->isActive()) {
             return;
         }
 
