@@ -86,7 +86,7 @@ class PaymentManagementMutation
         ];
     }
 
-    public function generatePaymentIntentToOrder(mixed $root, array $request): array
+    public function generatePaymentIntentFromOrder(mixed $root, array $request): array
     {
         $user = auth()->user();
         $app = app(Apps::class);
