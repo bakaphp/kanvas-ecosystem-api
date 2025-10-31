@@ -26,7 +26,7 @@ class PaymentMethodMutation
             // TODO: move this to a provider to avoid hardcoding here
             if ($input['processor']) {
                 $processor = app("payment.{$input['processor']}");
-                $input['brand'] = $this->guessCardBrand($input['number']) ?? $input['brand'];
+                $input['brand'] = $this->guessCardBrand($input['number']);
                 // $input['state'] = $input['country'] == 'DO' ? 'DN' : $input['state'];
                 $paymentMethod = $processor->addCardFromRequest($input, $user);
             } else {
@@ -147,7 +147,7 @@ class PaymentMethodMutation
         $number = preg_replace('/[^0-9]/', '', $number);
 
         if (! $this->isValidLuhn($number)) {
-            return null;
+            throw new ValidationException('The card number you entered is invalid. Please check and try again');
         }
 
         $firstDigit = substr($number, 0, 1);
