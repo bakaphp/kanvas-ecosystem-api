@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
@@ -24,7 +25,9 @@ use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class PullLeadAction
@@ -80,6 +83,12 @@ class PullLeadAction
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
+                //set comunication channel
+                $this->setCommunicationChannel(
+                    $lead,
+                    $currentLead['createdUtc'] ?? ''
+                );
+
                 //$lead->searchable();
                 $this->addCoBuyerParticipant(
                     $vinCompany,
@@ -126,6 +135,48 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    private function isWithin10Minutes(string $dateString): bool
+    {
+        $leadTimezone = $this->company->get('timezone', 'America/New_York') ?? $this->company->timezone ?? 'America/New_York';
+
+        $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
+        $now = Carbon::now($leadTimezone);
+
+        return $leadDate->diffInMinutes($now) <= 10 && $leadDate->isPast();
+    }
+
+    private function setCommunicationChannel(ModelsLead $lead, string $vinSolutionDateIn): void
+    {
+        if (empty($vinSolutionDateIn) || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) || ! $this->isWithin10Minutes($vinSolutionDateIn)) {
+            return;
+        }
+
+        $lead->set('process_via_pull', true);
+        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel !== null) {
+            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
     }
 
     private function addCoBuyerParticipant(
