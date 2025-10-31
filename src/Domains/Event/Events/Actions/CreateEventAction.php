@@ -72,11 +72,14 @@ class CreateEventAction
             } else {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
+
+            $currencyCode = $this->metadata['currency'] ?? 'USD';
+
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
-                    currency: Currencies::getByCode('USD'),
+                    currency: Currencies::getByCode($currencyCode),
                     name: $this->event->name,
                     version: 1,
                     description: $this->event->description,
@@ -164,11 +167,13 @@ class CreateEventAction
 
         $orderItemsCollection = [];
         $total = 0;
+        $orderCurrency = $eventVersion->currency ?? Currencies::getByCode('USD');
 
         // If order_items are provided, create OrderItem DTOs from them
         if (count($orderItemsData)) {
             foreach ($orderItemsData as $itemData) {
                 $itemVariant = Variants::getById($itemData['variant_id'], $eventVersion->event->app);
+                $currency = $eventVersion->currency ?? Currencies::getByCode($itemData['currency_code'] ?? 'USD');
 
                 $orderItem = new OrderItem(
                     app: $eventVersion->event->app,
@@ -179,7 +184,7 @@ class CreateEventAction
                     price: (float) ($itemData['price'] ?? 0.0),
                     tax: 0,
                     discount: 0.0,
-                    currency: $itemData['currency_code'] ?? Currencies::getByCode('USD'),
+                    currency: $currency,
                     quantityShipped: 0,
                     metadata: $itemData['metadata'] ?? null
                 );
@@ -189,7 +194,7 @@ class CreateEventAction
             }
         } else {
             $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
-            // Default: create single order item for the main resource
+
             $orderItem = new OrderItem(
                 app: $eventVersion->event->app,
                 variant: $variant,
@@ -199,7 +204,7 @@ class CreateEventAction
                 price: $price,
                 tax: 0,
                 discount: 0.0,
-                currency: $eventVersion->metadata['currency'] ?? Currencies::getByCode('USD'),
+                currency: $orderCurrency,
                 quantityShipped: 0
             );
 
@@ -249,7 +254,7 @@ class CreateEventAction
             'totalShipping' => 0.0,
             'status' => OrderStatusEnum::COMPLETED->value,
             'checkoutToken' => '',
-            'currency' => Currencies::getByCode('USD'),
+            'currency' => $orderCurrency,
             'items' => $items,
         ]);
         $action = new CreateOrderAction($dto);
