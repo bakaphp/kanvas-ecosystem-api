@@ -73,7 +73,7 @@ class CreateMessageFromEmailAction
                       'users' => $this->lead->user,
                       'entity_id' => $this->lead->getId(),
                       'entity_namespace' => Lead::class,
-                      'name' => 'Lead ' . $this->lead->getId() . ' Session',
+                      'name' => 'Email ' . $this->lead->getId(),
                       'slug' => SessionChannelService::createChannelSlug(
                           $this->lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                           $this->lead->email
