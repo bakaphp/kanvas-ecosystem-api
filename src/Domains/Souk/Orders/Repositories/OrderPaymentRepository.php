@@ -27,10 +27,12 @@ class OrderPaymentRepository
         ?int $variantId = null
     ): Collection {
         return Order::query()
-            ->join('order_statuses', 'orders.order_status_id', '=', 'order_statuses.id')
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
             ->leftJoin('payments', function ($join) {
                 $join->on('payments.payable_id', '=', 'orders.id')
-                    ->where('payments.payable_type', '=', Order::class);
+                    ->where('payments.payable_type', Order::class)
+                    ->where('payments.is_deleted', '=', 0);
             })
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
@@ -38,14 +40,15 @@ class OrderPaymentRepository
                 });
             })
             ->with(['items'])
-            ->whereBetween('orders.created_at', [$start, $end])
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
             ->selectRaw("
-                DATE(orders.created_at) AS date,
+                DATE(order_transitions_history.changed_at) AS date,
                 COUNT(DISTINCT orders.id) AS total,
                 SUM(orders.total_net_amount) AS amount,
                 COUNT(DISTINCT payments.id) AS card,
+                GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
                 COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction
             ")
             ->groupBy('date')
@@ -59,13 +62,21 @@ class OrderPaymentRepository
     public function getOrderIdsByPaymentCriteria(
         Carbon $start,
         Carbon $end,
-        array $paidStates
+        array $paidStates,
+        ?int $variantId = null
     ): Collection {
         return Order::query()
-            ->join('order_statuses', 'orders.order_status_id', '=', 'order_statuses.id')
-            ->whereBetween('orders.created_at', [$start, $end])
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('items', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->with(['items'])
             ->pluck('orders.id');
     }
 
