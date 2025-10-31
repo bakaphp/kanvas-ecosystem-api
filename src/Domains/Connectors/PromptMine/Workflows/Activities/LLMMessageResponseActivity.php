@@ -70,6 +70,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
