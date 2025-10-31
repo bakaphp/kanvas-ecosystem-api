@@ -65,9 +65,9 @@ class PortalPaymentProcessor
         }
 
         return [
-            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID') ?? "",
-            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY') ?? "",
-            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? "",
+            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID') ?? '',
+            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY') ?? '',
+            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? '',
         ];
     }
 
@@ -75,14 +75,14 @@ class PortalPaymentProcessor
     {
         $credentials = $this->getMerchantCredentials($order);
 
-        if (! $credentials["id"]) {
+        if (! $credentials['id']) {
             $orderTypeName = $order->orderType?->name;
             $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
 
             if ($isMultiMerchant && $orderTypeName) {
                 throw new \Exception("Missing merchant credentials for order type '{$orderTypeName}'. Please configure {$orderTypeName}_ECHO_PAY_MERCHANT_ID, {$orderTypeName}_ECHO_PAY_MERCHANT_KEY, and {$orderTypeName}_ECHO_PAY_MERCHANT_SECRET.");
             } else {
-                throw new \Exception("Missing default merchant credentials. Please configure ECHO_PAY_MERCHANT_ID, ECHO_PAY_MERCHANT_KEY, and ECHO_PAY_MERCHANT_SECRET.");
+                throw new \Exception('Missing default merchant credentials. Please configure ECHO_PAY_MERCHANT_ID, ECHO_PAY_MERCHANT_KEY, and ECHO_PAY_MERCHANT_SECRET.');
             }
         }
 
@@ -91,7 +91,7 @@ class PortalPaymentProcessor
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $credentials["id"],
+                    cardIdentifier: $credentials['id'],
                     platform: MerchantPlatformEnum::MOBILE,
                     customerId: 'user_' . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
