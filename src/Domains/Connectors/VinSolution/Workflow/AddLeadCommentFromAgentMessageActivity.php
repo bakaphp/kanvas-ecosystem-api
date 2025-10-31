@@ -117,7 +117,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $managers = UsersRepository::getCompanyAppUserByRole(
             $message->company,
             $message->app,
-            'AiManager'
+            'BDCManager'
         )->get();
 
         foreach ($managers as $manager) {
