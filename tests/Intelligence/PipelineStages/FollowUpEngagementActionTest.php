@@ -98,7 +98,12 @@ class FollowUpEngagementActionTest extends TestCase
             'apps_id' => $lead->apps_id,
             'companies_id' => $lead->companies_id,
             'role' => [
-                'background' => 'You are a helpful sales agent for a gaming store.',
+                'background' => [
+                    'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
+                    {!! json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+
+                    ',
+                ],
                 'steps' => [
                     'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
                     {!! json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
