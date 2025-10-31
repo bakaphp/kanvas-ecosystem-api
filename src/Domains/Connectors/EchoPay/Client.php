@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
@@ -18,7 +19,6 @@ class Client
     protected string $clientId;
     protected string $secret;
     protected GuzzleClient $client;
-
 
     public function __construct(
         protected AppInterface $app,
@@ -56,6 +56,7 @@ class Client
         ]);
 
         $body = json_decode($result->getBody()->getContents());
+
         return $body->data->token;
     }
 
@@ -70,7 +71,17 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
-            throw $e;
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true);
+
+            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+
+            throw new EchoPayException(
+                $errorMessage,
+                (int) $response->getStatusCode(),
+                $e,
+                $errorBody
+            );
         }
     }
 
@@ -87,7 +98,17 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
-            throw $e;
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true);
+
+            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+
+            throw new EchoPayException(
+                $errorMessage,
+                (int) $response->getStatusCode(),
+                $e,
+                $errorBody
+            );
         }
     }
 
@@ -104,7 +125,17 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
-            throw $e;
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true);
+
+            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+
+            throw new EchoPayException(
+                $errorMessage,
+                (int) $response->getStatusCode(),
+                $e,
+                $errorBody
+            );
         }
     }
 
@@ -119,7 +150,17 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
-            throw $e;
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true);
+
+            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+
+            throw new EchoPayException(
+                $errorMessage,
+                (int) $response->getStatusCode(),
+                $e,
+                $errorBody
+            );
         }
     }
 }

@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Templates\Blank;
@@ -57,6 +58,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
+                $agentChannel = '(' . ucfirst($lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms') . ') ';
 
                 $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
                 if ($aiChatLink !== null && $fromAgent) {
@@ -64,7 +66,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     $note .= " \n\n View Full Conversation here: {$aiChatLink}";
                 }
 
-                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+                $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
                 $eLeadOpportunity->addComment($note);
 
                 // Notify managers
@@ -111,7 +113,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $managers = UsersRepository::getCompanyAppUserByRole(
             $message->company,
             $message->app,
-            'AiManager'
+            'BDCManager'
         )->get();
 
         foreach ($managers as $manager) {

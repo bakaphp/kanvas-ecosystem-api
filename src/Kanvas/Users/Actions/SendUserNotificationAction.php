@@ -29,6 +29,7 @@ class SendUserNotificationAction
         protected AppInterface $app,
         protected Companies|CompanyInterface $company,
         protected Users $user,
+        protected RolesEnums $role = RolesEnums::OWNER
     ) {
     }
 
@@ -60,7 +61,7 @@ class SendUserNotificationAction
 
             try {
                 UserRoleNotificationService::notify(
-                    RolesEnums::OWNER->value,
+                    $this->role->value,
                     $notification,
                     $this->app
                 );

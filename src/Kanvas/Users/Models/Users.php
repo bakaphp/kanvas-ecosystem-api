@@ -920,7 +920,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_users';
+        $customIndex = $this->app ? $this->app->get('app_custom_users_index') : null;
+        return $customIndex ?: config('scout.prefix') . '_users';
     }
 
     public static function search($query = '', $callback = null)

@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
@@ -79,7 +78,6 @@ class Event extends Data
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {
-        Log::error('Getting entity for ' . $entityClass . ' with id ' . ($idField ?? 'null') . ' for company ' . $company->getId() . ' and app ' . $app->getId());
         return isset($idField)
             ? $entityClass::fromApp($app)->fromCompany($company)->where('id', $idField)->firstOrFail()
             : $entityClass::fromApp($app)->fromCompany($company)->where($defaultCondition, $defaultValue)->firstOrFail();

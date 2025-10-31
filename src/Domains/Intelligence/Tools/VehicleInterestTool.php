@@ -33,7 +33,7 @@ class VehicleInterestTool implements ContextToolInterface
 
         return [
             'condition' => $vehicleInterest['isNew'] ?? '',
-            'year' => $vehicleInterest['yearFrom'] ?? '',
+            'year' => $vehicleInterest['yearFrom'] ?? $vehicleInterest['year'] ?? '',
             'make' => $vehicleInterest['make'] ?? '',
             'model' => $vehicleInterest['model'] ?? '',
             'trim' => $vehicleInterest['trim'] ?? '',
@@ -42,6 +42,7 @@ class VehicleInterestTool implements ContextToolInterface
             'in_stock' => isset($vehicleInterest['stockNumber']) && ! empty($vehicleInterest['stockNumber']) ? true : false,
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
             'price' => isset($variant) ? ($variant?->getPriceInfoFromDefaultChannel()->price ?? 0) : 0,
+            'uuid' => isset($variant) ? $variant?->product->uuid : '',
         ];
     }
 }

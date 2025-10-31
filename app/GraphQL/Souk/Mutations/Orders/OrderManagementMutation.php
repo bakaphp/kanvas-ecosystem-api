@@ -161,7 +161,7 @@ class OrderManagementMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->fulfillment_status === 'fulfilled') {
+        if ($order->fulfillment_status === 'fulfilled' && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
         }
 
@@ -411,6 +411,7 @@ class OrderManagementMutation
 
         try {
             $date = $input['date'] ?? null;
+
             return new TransitionOrderStateAction(
                 $order,
                 $user,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\MorphEntityDataTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,7 @@ class Channel extends BaseModel
     use UuidTrait;
     use CanUseWorkflow;
     use HasTagsTrait;
+    use MorphEntityDataTrait;
 
     protected $table = 'channels';
 

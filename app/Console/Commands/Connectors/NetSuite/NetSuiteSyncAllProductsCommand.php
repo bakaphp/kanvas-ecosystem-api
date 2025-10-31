@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\NetSuite;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -66,7 +67,8 @@ class NetSuiteSyncAllProductsCommand extends Command
         new SendUserNotificationAction(
             $app,
             $company,
-            $user
+            $user,
+            RolesEnums::INVENTORY_MANAGER,
         )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
 
         $this->output->progressFinish();
