@@ -2584,8 +2584,8 @@ class InsuranceWorkflowService
         $activationDate = $primaryPerson['activationDate'] ?? null;
         $expirationDate = $primaryPerson['expirationDate'] ?? null;
 
-        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('d/m/Y') : '';
-        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('d/m/Y') : '';
+        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('m/d/Y') : '';
+        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('m/d/Y') : '';
 
         // Get destination info
         $originCountryName = $this->getCountryName($originCountryCode);
