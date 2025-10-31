@@ -174,8 +174,8 @@ class InsuranceWorkflowService
         // Find the best matching plan based on variant type and quotation results
         $selectedQuotation = $this->selectBestQuotationForVoucher($titularData, $dualQuotationResult);
 
-        // Create voucher using the selected quotation's IdLead and plan information
-        $voucherResult = $this->createVoucherFromSelectedQuotation($titularData, $selectedQuotation, $originCountryCode, $destinationCountryCode, 'titular', $dualQuotationResult);
+        // Create voucher using createGroupVoucher (individual is just a group with one person)
+        $voucherResult = $this->createGroupVoucher([$titularData], $selectedQuotation, $originCountryCode, $destinationCountryCode);
 
         // Create simplified result with complete quotation data and product matching information
         $result = [
