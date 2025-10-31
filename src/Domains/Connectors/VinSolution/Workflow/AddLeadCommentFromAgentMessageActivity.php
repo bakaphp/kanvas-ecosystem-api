@@ -93,7 +93,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
     /**
      * @todo this is not the best place but , this is just for the client to test and move
-     * to another action
+     * to another action.
      */
     protected function notifyManagers(Message $message): void
     {
@@ -117,7 +117,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $managers = UsersRepository::getCompanyAppUserByRole(
             $message->company,
             $message->app,
-            'AiManager'
+            'BDCManager'
         )->get();
 
         foreach ($managers as $manager) {
