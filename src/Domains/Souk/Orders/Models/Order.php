@@ -46,6 +46,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
+ * @property string|null $ip
  * @property string|null $user_email
  * @property string|null $user_phone
  * @property string|null $token
