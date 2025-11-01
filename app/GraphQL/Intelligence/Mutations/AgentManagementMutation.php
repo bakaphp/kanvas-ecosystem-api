@@ -8,6 +8,7 @@ use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
@@ -127,5 +129,41 @@ class AgentManagementMutation
         $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
 
         return $responseText;
+    }
+
+    public function createSession(mixed $root, array $req): string
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: $company
+        );
+
+        $lead = Lead::getByIdFromCompanyApp(
+            id: $req['lead_id'],
+            app: $app,
+            company: $company
+        );
+
+        $chatSession = new CreateSessionAction(
+            Session::from([
+                'app' => $app,
+                'company' => $company,
+                'channel' => $channel,
+                'entity_namespace' => Lead::class,
+                'entity_id' => $lead->getId(),
+                'canal_id' => $req['canal_id'],
+                'user' => [
+                    'name' => $lead->people->getName(),
+                    'id' => $lead->people->getId(),
+                    'email' => $lead->people->getEmails()->first()?->value,
+                ],
+                'agent' => $agent,
+            ])
+        )->execute();
+
+        return $chatSession->uuid;
     }
 }
