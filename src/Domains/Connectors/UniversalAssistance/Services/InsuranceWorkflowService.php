@@ -291,11 +291,68 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'CorreoElectronicoSolicitante' => $personData['email'],
             ],
         ];
+    }
+
+    public function countryCodeToName(string $countryCode): string
+    {
+        $codeToName = [
+            'AR' => 'ARGENTINA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'US' => 'USA',
+            'CO' => 'COLOMBIA',
+            'MX' => 'MEXICO',
+            'PE' => 'PERU',
+            'CL' => 'CHILE',
+            'VE' => 'VENEZUELA',
+            'EC' => 'ECUADOR',
+            'UY' => 'URUGUAY',
+            'PY' => 'PARAGUAY',
+            'BO' => 'BOLIVIA',
+            'BR' => 'BRASIL',
+            'CR' => 'COSTA RICA',
+            'PA' => 'PANAMA',
+            'GT' => 'GUATEMALA',
+            'HN' => 'HONDURAS',
+            'NI' => 'NICARAGUA',
+            'SV' => 'EL SALVADOR',
+            'BZ' => 'BELICE',
+            'JM' => 'JAMAICA',
+            'CU' => 'CUBA',
+            'HT' => 'HAITI',
+            'PR' => 'PUERTO RICO',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'BB' => 'BARBADOS',
+            'GD' => 'GRANADA',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'DM' => 'DOMINICA',
+            'KN' => 'SAN CRISTOBAL',
+            'AW' => 'ARUBA',
+            'CW' => 'CURACAO',
+            'BQ' => 'BONAIRE',
+            'SX' => 'SINT MAARTEN',
+            'MF' => 'SAN MARTIN',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'GF' => 'GUAYANA FRANCESA',
+            'SR' => 'SURINAM',
+            'GY' => 'GUYANA',
+            'ES' => 'ESPAÑA',
+            'FR' => 'FRANCIA',
+            'IT' => 'ITALIA',
+            'DE' => 'ALEMANIA',
+            'GB' => 'REINO UNIDO',
+            'PT' => 'PORTUGAL',
+            'TR' => 'TURQUIA',
+        ];
+
+        return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
     }
 
     /**
@@ -353,7 +410,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'CorreoElectronicoSolicitante' => $personData['email'],
             ],
@@ -1999,7 +2056,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
@@ -2060,7 +2117,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
