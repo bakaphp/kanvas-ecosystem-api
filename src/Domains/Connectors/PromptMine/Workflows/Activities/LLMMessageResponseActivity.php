@@ -303,7 +303,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult);
 
         return [
-            'response' => $imageFilterResult['processed_image_url'] ?? '',
+            'response' => $imageFilterResult['image_url'] ?? '',
             'chat_history' => $fullConversation,
         ];
     }
