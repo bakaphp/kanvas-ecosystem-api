@@ -56,7 +56,7 @@ class ImageOptimizerService
                 'error' => $e->getMessage(),
                 'path' => $imagePath,
             ]);
-            // Return the unoptimized image path
+            return $imagePath;
         }
 
         return $imagePath;
