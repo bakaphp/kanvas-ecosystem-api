@@ -6,6 +6,7 @@ namespace App\Console\Commands\Intelligence;
 
 use Exception;
 use Illuminate\Console\Command;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -19,7 +20,7 @@ class FollowUpEngagementCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'intelligence:notification-engagement {apps*}';
+    protected $signature = 'intelligence:notification-engagement {apps*} {--ignore-have-follow-up=0}';
 
     protected $description = 'Refresh the content of a session by its ID';
 
@@ -31,7 +32,6 @@ class FollowUpEngagementCommand extends Command
             ->whereIn('pipelines.apps_id', $apps)
             ->select('pipelines_stages.*')
             ->cursor();
-
         $whereNotIn = [];
         foreach ($stages as $stage) {
             $config = $stage->config;
@@ -45,8 +45,14 @@ class FollowUpEngagementCommand extends Command
 
                 foreach ($leads as $lead) {
                     $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
+
+                    $ignoreFollowUp = (bool)$this->option('ignore-have-follow-up');
+
                     if ($shouldSkip) {
                         continue;
+                    } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                        break;
                     }
 
                     $hoursTool = new CompanyWorkHoursTool($lead)->execute();
