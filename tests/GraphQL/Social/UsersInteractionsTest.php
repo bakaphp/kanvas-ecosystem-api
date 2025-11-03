@@ -28,6 +28,26 @@ class UsersInteractionsTest extends TestCase
         ]);
     }
 
+    public function testUserViewEntity()
+    {
+        $input = [
+            'entity_id' => fake()->uuid(),
+            'entity_namespace' => Lead::class,
+        ];
+        $this->graphQL(
+            '
+            mutation userViewEntity($input: UserInteractionInput!) {
+                userViewEntity(input: $input)
+            }
+            ',
+            [
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => ['userViewEntity' => true],
+        ]);
+    }
+
     public function testUserUnlikeEntity()
     {
         $input = [
