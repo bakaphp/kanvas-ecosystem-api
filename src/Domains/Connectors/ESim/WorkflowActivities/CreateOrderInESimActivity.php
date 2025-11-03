@@ -345,6 +345,12 @@ class CreateOrderInESimActivity extends KanvasActivity
                     // Handle notification failure
                 }
 
+                foreach ($responses as $response) {
+                    if (isset($response['status']) && $response['status'] === 'error') {
+                        return $this->failWorkflow($responses);
+                    }
+                }
+
                 if (count($responses) === 1) {
                     return $responses[0];
                 }
