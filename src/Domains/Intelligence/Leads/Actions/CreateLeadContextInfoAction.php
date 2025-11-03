@@ -33,13 +33,13 @@ class CreateLeadContextInfoAction
             ->where('is_deleted', 0)
             ->firstOrFail();
 
-        if (!isset($params['match_pipeline'])) {
+        if (! isset($params['match_pipeline'])) {
             $firstPipelineStage = $pipeline->stages->firstOrFail();
             $this->lead->pipeline_id = $pipeline->id;
             $this->lead->pipeline_stage_id = $firstPipelineStage->id;
             $this->lead->saveOrFail();
             $pipelineStageConfig = $firstPipelineStage->config;
-        }else{
+        } else {
             $pipelineStageConfig = $this->lead->stage->config;
         }
 
