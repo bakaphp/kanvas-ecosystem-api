@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Illuminate\Support\Facades\Log;
-use Spatie\ImageOptimizer\OptimizerChainFactory;
 use Spatie\ImageOptimizer\OptimizerChain;
 use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
-use Spatie\ImageOptimizer\Optimizers\Pngquant;
 use Spatie\ImageOptimizer\Optimizers\Optipng;
+use Spatie\ImageOptimizer\Optimizers\Pngquant;
 
 
 class ImageOptimizerService
@@ -18,7 +17,7 @@ class ImageOptimizerService
     {
         $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
 
-        if (!$imagePath || !file_exists($imagePath)) {
+        if (!$imagePath || ! file_exists($imagePath)) {
             throw new \RuntimeException("Failed to download image from URL");
         }
 
