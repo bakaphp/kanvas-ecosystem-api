@@ -10,7 +10,6 @@ use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
 use Spatie\ImageOptimizer\Optimizers\Optipng;
 use Spatie\ImageOptimizer\Optimizers\Pngquant;
 
-
 class ImageOptimizerService
 {
     public static function optimizeImageFromUrl(string $imageUrl): string
