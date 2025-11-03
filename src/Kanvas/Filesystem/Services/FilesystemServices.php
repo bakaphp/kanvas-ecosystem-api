@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -195,20 +196,39 @@ class FilesystemServices
         if (is_null($extension)) {
             $parsedUrl = parse_url($imageUrl);
             $path = $parsedUrl['path'];
-
             $extension = pathinfo($path, PATHINFO_EXTENSION);
         }
 
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
 
-        // Get the image content
-        $imageContent = file_get_contents($imageUrl);
+        try {
+            // Use Laravel HTTP client with retry logic
+            $response = Http::timeout(30)
+                ->retry(3, 100) // Retry 3 times with 100ms delay
+                ->get($imageUrl);
 
-        if ($imageContent !== false) {
-            // Save the image locally
-            file_put_contents($tempFilePath, $imageContent);
+            if ($response->successful()) {
+                $imageContent = $response->body();
 
-            return $tempFilePath;
+                Log::info('Downloaded the file', [
+                    'url' => $imageUrl,
+                    'size' => strlen($imageContent),
+                    'content_type' => $response->header('Content-Type'),
+                ]);
+
+                file_put_contents($tempFilePath, $imageContent);
+                return $tempFilePath;
+            }
+
+            Log::error('File request failed', [
+                'url' => $imageUrl,
+                'status' => $response->status(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('File download exception', [
+                'url' => $imageUrl,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return null;
