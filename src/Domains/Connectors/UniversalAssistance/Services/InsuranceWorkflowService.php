@@ -2309,18 +2309,25 @@ class InsuranceWorkflowService
      */
     protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
     {
-        // CRITICAL FIX: Convert flat array to titular/dependents structure if needed
         if (! isset($groupedPersonsData['titular']) && ! isset($groupedPersonsData['dependents'])) {
             // This is a flat array - convert to titular/dependents structure
-            if (count($groupedPersonsData) < 2) {
-                throw new ValidationException('Group quotation requires at least 2 people, but only ' . count($groupedPersonsData) . ' provided');
+            if (count($groupedPersonsData) < 1) {
+                throw new ValidationException('Group quotation requires at least 1 person, but ' . count($groupedPersonsData) . ' provided');
             }
 
-            // Convert flat array to nested structure
-            $restructuredData = [
-                'titular' => $groupedPersonsData[0], // First person is titular
-                'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
-            ];
+            if (count($groupedPersonsData) === 1) {
+                // Single person - treat as titular only (group of 1)
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0],
+                    'dependents' => [] // No dependents for single person
+                ];
+            } else {
+                // Multiple people - first is titular, rest are dependents
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0], // First person is titular
+                    'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
+                ];
+            }
 
             $groupedPersonsData = $restructuredData;
         }
