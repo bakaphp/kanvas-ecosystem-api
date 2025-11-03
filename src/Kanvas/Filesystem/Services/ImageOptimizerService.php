@@ -13,7 +13,7 @@ class ImageOptimizerService
     {
         $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
 
-        if (!$imagePath || !file_exists($imagePath)) {
+        if (! $imagePath || ! file_exists($imagePath)) {
             throw new \RuntimeException("Failed to download image from URL");
         }
 
