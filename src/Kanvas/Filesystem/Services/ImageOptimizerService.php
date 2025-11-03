@@ -32,7 +32,6 @@ class ImageOptimizerService
 
                 Log::info("Optimization succeeded on attempt $attempt");
                 break; // Success, exit loop
-
             } catch (\Exception $e) {
                 Log::warning("Optimization attempt $attempt failed", [
                     'error' => $e->getMessage(),
