@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Illuminate\Support\Facades\Log;
-use Spatie\ImageOptimizer\OptimizerChainFactory;
+use Spatie\ImageOptimizer\OptimizerChain;
+use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
+use Spatie\ImageOptimizer\Optimizers\Optipng;
 
 class ImageOptimizerService
 {
@@ -20,17 +22,30 @@ class ImageOptimizerService
         $maxRetries = 3;
         $retryDelay = 200000;
 
+        Log::info("Trying url $imageUrl");
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
-                Log::info("Optimization attempt $attempt");
+                $optimizerChain = new OptimizerChain();
+                $optimizerChain->addOptimizer(
+                    new Optipng([
+                        '-i0',
+                        '-o2',
+                        '-quiet',
+                    ])
+                );
 
-                $optimizerChain = OptimizerChainFactory::create();
+                $optimizerChain->addOptimizer(
+                    new Jpegoptim([
+                        '-m85',
+                        '--strip-all',
+                        '--all-progressive',
+                    ])
+                );
+
                 $optimizerChain
                     ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($imagePath);
-
-                Log::info("Optimization succeeded on attempt $attempt");
                 break; // Success, exit loop
             } catch (\Exception $e) {
                 Log::warning("Optimization attempt $attempt failed", [
