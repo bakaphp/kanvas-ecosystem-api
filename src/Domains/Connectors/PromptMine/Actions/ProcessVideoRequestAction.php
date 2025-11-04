@@ -266,15 +266,7 @@ class ProcessVideoRequestAction
     protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
         if ($this->isGoogleService && $isVideo) {
-            // For Google services, use multipart form data
-            $httpRequest = Http::asMultipart();
-
-            // Add each field from payload as form data
-            foreach ($payload as $key => $value) {
-                $httpRequest = $httpRequest->attach((string) $key, (string) $value);
-            }
-
-            $response = $httpRequest->post($apiUrl);
+            $response = Http::post($apiUrl, $payload);
         } else {
             // For non-Google services, use JSON
             $response = Http::withHeaders([
