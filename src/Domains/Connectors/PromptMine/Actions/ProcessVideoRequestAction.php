@@ -21,8 +21,7 @@ class ProcessVideoRequestAction
         protected Message $entity,
         protected AppInterface $app,
         protected array $params = []
-    ) {
-    }
+    ) {}
 
     public function execute(): array
     {
@@ -86,7 +85,7 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
                 $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
@@ -316,8 +315,10 @@ class ProcessVideoRequestAction
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
                         // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['model']) &&
-                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
+                            if (
+                                isset($modelConfig['model']) &&
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))
+                            ) {
                                 if (isset($modelConfig['input_config'])) {
                                     return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
                                 }
@@ -355,26 +356,22 @@ class ProcessVideoRequestAction
         return $defaults;
     }
 
-    private function constructModelPayload(Model $entity, array $payload, string $model): array
+    private function constructModelPayload(Model $entity, array $payload): array
     {
         $messageFiles = $this->getFilesWithRetry($this->entity);
-        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-        switch ($model) {
-            case "fal-ai/vidu/q1/start-end-to-video":
-            case "fal-ai/minimax/hailuo-02/pro/image-to-video":
-            case "fal-ai/pixverse/v5/transition":
-                $payload['image_url'] = $imageUrlsArray[0];
-                $payload['lastFrameUrl'] = $imageUrlsArray[1];
-                return $payload;
-                break;
-            case "fal-ai/vidu/q1/reference-to-video":
-                $payload["referenceImageUrls"] = $messageFiles;
-                return $payload;
-                break;
-            default:
-                $payload['image_url'] = $imageUrlsArray[0];
-                return $payload;
-                break;
-        }
+        Log::info('MESSAGE FILES:', [$messageFiles]);
+        $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
+        return match (true) {
+            count($imageUrlsArray) == 2 => array_merge($payload, [
+                'image_url' => $imageUrlsArray[0],
+                'lastFrameUrl' => $imageUrlsArray[1],
+            ]),
+            count($imageUrlsArray) > 2 => array_merge($payload, [
+                'referenceImageUrls' => $imageUrlsArray,
+            ]),
+            default => array_merge($payload, [
+                'image_url' => $imageUrlsArray[0],
+            ]),
+        };
     }
 }
