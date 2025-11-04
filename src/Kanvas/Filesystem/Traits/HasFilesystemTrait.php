@@ -164,7 +164,6 @@ trait HasFilesystemTrait
     public function getFiles(): Collection
     {
         //move to use $this->files();
-        DB::connection()->useWriteConnection();
         return FilesystemEntitiesRepository::getFilesByEntity($this);
     }
 
