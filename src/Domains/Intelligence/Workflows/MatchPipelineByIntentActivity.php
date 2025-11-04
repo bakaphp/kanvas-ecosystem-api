@@ -26,7 +26,7 @@ class MatchPipelineByIntentActivity extends KanvasActivity
             integrationOperation: function ($lead) {
                 $leadIntent = new LeadIntentTool($lead)->execute();
                 $key = $leadIntent['lead_intent'];
-                $config = $lead->company->get('match_pipeline');
+                $config = $params['match_pipeline'] ?? [];
                 $channel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
                 $pipelineId = $config[$key][$channel] ?? $config['default'][$channel] ?? null;
                 $pipeline = Pipeline::getById($pipelineId);
