@@ -21,7 +21,8 @@ class ProcessVideoRequestAction
         protected Message $entity,
         protected AppInterface $app,
         protected array $params = []
-    ) {}
+    ) {
+    }
 
     public function execute(): array
     {
@@ -85,7 +86,7 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
                 $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
@@ -360,7 +361,7 @@ class ProcessVideoRequestAction
     {
         $messageFiles = $this->getFilesWithRetry($this->entity);
         Log::info('MESSAGE FILES:', [$messageFiles]);
-        $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
+        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
         return match (true) {
             count($imageUrlsArray) == 2 => array_merge($payload, [
                 'image_url' => $imageUrlsArray[0],
