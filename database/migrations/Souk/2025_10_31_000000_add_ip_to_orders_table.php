@@ -13,7 +13,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('commerce')->table('orders', function (Blueprint $table) {
-            $table->string('ip', 45)->nullable()->index()->after('tracking_client_id');
+            $table->string('ip_address', 45)->nullable()->index()->after('tracking_client_id');
         });
     }
 
@@ -23,8 +23,8 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::connection('commerce')->table('orders', function (Blueprint $table) {
-            $table->dropIndex(['ip']);
-            $table->dropColumn('ip');
+            $table->dropIndex(['ip_address']);
+            $table->dropColumn('ip_address');
         });
     }
 };
