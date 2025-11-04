@@ -205,7 +205,7 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
-        $payment = Payments::getLatestForOrder($order);
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
