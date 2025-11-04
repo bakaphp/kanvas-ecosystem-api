@@ -44,13 +44,14 @@ class ImageFilterService
     public function __construct(
         protected ?AppInterface $app = null,
         protected ?Message $entity = null,
+        protected ?Collection $messageFiles = null,
         protected ?array $params = null,
     ) {
     }
 
     public function execute(): array
     {
-        $messageFiles = $this->getFilesFromFilesystem($this->entity);
+        $messageFiles = $this->messageFiles;
         \Illuminate\Support\Facades\Log::info("GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
@@ -174,6 +175,7 @@ class ImageFilterService
                 ->where('companies_id', $entity->companies_id)
                 ->where('name', $fileInfo['name'])
                 ->where('is_deleted', 0)
+                ->orderBy('id', 'DESC')
                 ->first();
             if (! $file) {
                 continue;
