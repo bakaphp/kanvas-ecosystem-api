@@ -129,7 +129,7 @@ class VerifyPeopleIdAction
                 return;
             }
 
-            $usersToNotify = UsersRepository::findUsersByArray($people->company->get('company_manager'), $app);
+            //$usersToNotify = UsersRepository::findUsersByArray($people->company->get('company_manager'), $app);
             $managers = UsersRepository::getCompanyAppUserByRole($people->company, $app, 'Manager')->get();
 
             $notification = new Blank(
@@ -149,13 +149,10 @@ class VerifyPeopleIdAction
 
             $people->set($key, true);
             $notification->setSubject($name . ' - ID Verification Report');
-            Notification::send($usersToNotify, $notification);
+            //Notification::send($usersToNotify, $notification);
             $lead->owner?->notify($notification);
 
             foreach ($managers as $manager) {
-                if ($usersToNotify->contains($manager)) {
-                    continue;
-                }
                 $manager->notify($notification);
             }
 
