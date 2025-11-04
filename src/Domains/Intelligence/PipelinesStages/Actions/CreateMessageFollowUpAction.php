@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -59,6 +60,8 @@ class CreateMessageFollowUpAction
             'work_hours_status' => $companyWorkHour,
             'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
             'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
+            'agent' => $this->session->agent,
+            'vehicle_interest' => new VehicleInterestTool($this->lead)->execute(),
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
