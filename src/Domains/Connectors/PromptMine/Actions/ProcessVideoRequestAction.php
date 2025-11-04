@@ -41,7 +41,7 @@ class ProcessVideoRequestAction
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoKey = str_replace('fal-ai/', 'google-v2/', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
