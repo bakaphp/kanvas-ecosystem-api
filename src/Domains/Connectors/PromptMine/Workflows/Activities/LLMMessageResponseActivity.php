@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
@@ -31,7 +32,6 @@ use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
-use Illuminate\Database\Eloquent\Collection;
 
 class LLMMessageResponseActivity extends KanvasActivity
 {
