@@ -597,6 +597,7 @@ class Lead extends BaseModel implements EventResourceInterface
         if ($currentStage) {
             return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
                 ->where('weight', '>', $currentStage->weight)
+                ->where('is_deleted', 0)
                 ->orderBy('weight', 'asc')
                 ->first();
         }
