@@ -228,13 +228,13 @@ class CreateOrderInESimActivity extends KanvasActivity
                                 $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
                                 $response['data']['plan'] = $sku;
                             }
+
+                            $response['provider'] = $variantDetail->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value
+                                ?? $variantDetail->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value
+                                ?? $providerValue;
                         } catch (Throwable $e) {
                             report($e);
                         }
-
-                        $response['provider'] = $variantDetail->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value
-                                ?? $variantDetail->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value
-                                ?? $providerValue;
 
                         // Create message for each eSim
                         if (! $isRefuelOrder) {
