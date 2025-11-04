@@ -38,7 +38,7 @@ class ProcessVideoRequestAction
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
 
-        Log::info('Video Model:',[$videoModel]);
+        Log::info('Video Model:', [$videoModel]);
         /**
          * if its google use the specific api route
          */
@@ -51,7 +51,7 @@ class ProcessVideoRequestAction
 
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
-        Log::info('SENDING DATA TO API:',[$apiUrl]);
+        Log::info('SENDING DATA TO API:', [$apiUrl]);
 
         if (empty($apiUrl) || empty($baseApiUrl)) {
             return [
@@ -226,7 +226,7 @@ class ProcessVideoRequestAction
         $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
 
 
-        Log::info('DATA PAYLOAD:',[$submitPayload]);
+        Log::info('DATA PAYLOAD:', [$submitPayload]);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
