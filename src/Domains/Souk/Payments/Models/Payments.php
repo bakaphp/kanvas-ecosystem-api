@@ -4,6 +4,7 @@ namespace Kanvas\Souk\Payments\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
@@ -68,5 +69,26 @@ class Payments extends BaseModel
     public function scopePending($query)
     {
         return $query->whereIn('status', [PaymentStatusEnum::PENDING->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
+    }
+
+    /**
+     * Get the latest payment for an entity with specific statuses.
+     */
+    public static function getLatestForEntity(Model $entity, ?array $statuses = null, ?int $appId = null): ?self
+    {
+        $statuses = $statuses ?? [
+            PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+            PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            PaymentStatusEnum::PENDING->value,
+        ];
+
+        return self::where([
+            'apps_id' => $entity->apps_id ?? $appId,
+            'payable_id' => $entity->id,
+            'payable_type' => get_class($entity),
+        ])
+        ->whereIn('status', $statuses)
+        ->latest()
+        ->first();
     }
 }
