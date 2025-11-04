@@ -82,8 +82,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -216,9 +216,10 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
+
+        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -263,17 +264,7 @@ class ProcessVideoRequestAction
 
             // Add each field from payload as form data
             foreach ($payload as $key => $value) {
-                if ($key === 'image_url') {
-                    // Download the image content and send as file
-                    $imageContent = Http::get(is_array($value) ? $value[0] : $value)->body();
-                    $httpRequest = $httpRequest->attach(
-                        'image',
-                        $imageContent,
-                        'image.png' // Default filename, could be extracted from URL if needed
-                    );
-                } else {
-                    $httpRequest = $httpRequest->attach((string) $key, (string) $value);
-                }
+                $httpRequest = $httpRequest->attach((string) $key, (string) $value);
             }
 
             $response = $httpRequest->post($apiUrl);
@@ -355,5 +346,28 @@ class ProcessVideoRequestAction
         }
 
         return $defaults;
+    }
+
+    private function constructModelPayload(Model $entity, array $payload, string $model): array
+    {
+        $messageFiles = $this->getFilesWithRetry($this->entity);
+        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+        switch ($model) {
+            case "fal-ai/vidu/q1/start-end-to-video":
+            case "fal-ai/minimax/hailuo-02/pro/image-to-video":
+            case "fal-ai/pixverse/v5/transition":
+                $payload['image_url'] = $imageUrlsArray[0];
+                $payload['lastFrameUrl'] = $imageUrlsArray[1];
+                return $payload;
+                break;
+            case "fal-ai/vidu/q1/reference-to-video":
+                $payload["referenceImageUrls"] = $messageFiles;
+                return $payload;
+                break;
+            default:
+                $payload['image_url'] = $imageUrlsArray[0];
+                return $payload;
+                break;
+        }
     }
 }

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -163,6 +164,7 @@ trait HasFilesystemTrait
     public function getFiles(): Collection
     {
         //move to use $this->files();
+        DB::connection()->useWriteConnection();
         return FilesystemEntitiesRepository::getFilesByEntity($this);
     }
 

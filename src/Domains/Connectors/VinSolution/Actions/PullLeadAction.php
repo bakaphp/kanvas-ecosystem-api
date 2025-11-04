@@ -72,6 +72,11 @@ class PullLeadAction
 
             if (! empty($vinLead['Leads'])) {
                 $currentLead = $vinLead['Leads'][0];
+                $createdAt = $currentLead['CreatedUtc'] ?? null;
+                $showIsShowRoom = $currentLead['IsOnShowroom'] ?? null;
+                $leadStatus = $currentLead['LeadStatusType'] ?? null;
+                $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+
                 $vinLead = DataTransferObjectLead::fromVinLeadArray(
                     $currentLead,
                     $vinCompany,
@@ -83,11 +88,13 @@ class PullLeadAction
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
-                //set comunication channel
-                $this->setCommunicationChannel(
-                    $lead,
-                    $currentLead['createdUtc'] ?? ''
-                );
+                //set communication channel
+                if ($lead->company->get('ai', false)) {
+                    $this->setCommunicationChannel(
+                        $lead,
+                        $currentLead ?? []
+                    );
+                }
 
                 //$lead->searchable();
                 $this->addCoBuyerParticipant(
@@ -139,7 +146,7 @@ class PullLeadAction
 
     private function isWithin10Minutes(string $dateString): bool
     {
-        $diffTime = $this->company->get(ConfigurationEnum::LEAD_TIME_DIFF_MINUTES->value, 10) ?? 10;
+        $diffTime = $this->company->get(ConfigurationEnum::LEAD_TIME_DIFF_MINUTES->value, 5) ?? 5;
         $leadTimezone = $this->company->get('timezone', 'America/New_York') ?? $this->company->timezone ?? 'America/New_York';
 
         $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
@@ -148,17 +155,27 @@ class PullLeadAction
         return $leadDate->diffInMinutes($now) <= $diffTime && $leadDate->isPast();
     }
 
-    private function setCommunicationChannel(ModelsLead $lead, string $vinSolutionDateIn): void
+    private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
     {
-        if (empty($vinSolutionDateIn)
+        $createdAt = $currentLead['CreatedUtc'] ?? null;
+        $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
+        $leadStatus = $currentLead['LeadStatusType'] ?? null;
+        $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+        $leadTypeName = (string) $lead->type?->name;
+
+        if (empty($createdAt)
+            || empty($lead->firstname)
+            || strtolower($lead->firstname) === 'name'
             || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)
-            || ! $this->isWithin10Minutes($vinSolutionDateIn)
+            || $showIsShowRoom === true
+            || ! in_array(strtolower($leadTypeName), ['internet'])
+            || ! $this->isWithin10Minutes($createdAt)
             || ! $lead->isActive()) {
             return;
         }
 
         $lead->set('process_via_pull', true);
-        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
+        $lead->set('vin_solution_date_in', $createdAt);
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;
         $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
