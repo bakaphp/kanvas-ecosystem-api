@@ -61,7 +61,7 @@ class CreateMessageFollowUpAction
             'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
         ];
 
-        $prompt = Blade::render(implode(' ', $this->agent->role['background']), ['data' => $data]);
+        $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
         $responseText = $this->generateResponseWithRetry($prompt);
         if (! $responseText['should_respond']) {
             return null;
