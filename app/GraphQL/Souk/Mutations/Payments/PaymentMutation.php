@@ -303,7 +303,12 @@ class PaymentMutation
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
 
-        $payment = Payments::forOrder($orderId, Order::class)->latest()->first();
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId,
+        ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
