@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\VinSolution\Actions\PushLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
@@ -37,6 +38,14 @@ class PushCoBuyerActivity extends KanvasActivity
                 $pushLead = new PushLeadAction($lead);
                 $vinLead = $pushLead->execute();
 
+                $idVerification = null;
+                if ($people->get('intellicheckResponse')) {
+                    $idVerification = new VerifyPeopleIdAction(
+                        people: $people,
+                        lead: $lead
+                    )->execute($people->get('intellicheckResponse'));
+                }
+
                 // Mark as processed
                 $lead->set(CustomFieldEnum::LEAD_CO_BUYER_PROCESSED->value, true);
 
@@ -46,6 +55,7 @@ class PushCoBuyerActivity extends KanvasActivity
                     'people' => $people->toArray(),
                     'entity' => $entity->toArray(),
                     'lead' => $lead->toArray(),
+                    'idVerification' => $idVerification,
                 ];
             },
             company: $company,
