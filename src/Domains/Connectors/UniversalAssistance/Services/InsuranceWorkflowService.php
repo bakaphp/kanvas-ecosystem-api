@@ -2589,14 +2589,9 @@ class InsuranceWorkflowService
             $debugInfo[] = "Person {$index}: {$firstName} {$lastName} (DOB: {$birthDate})";
         }
 
-        // If we only have 1 person but expecting a family group, this indicates the family grouping failed
-        if ($groupSize === 1) {
-            // Check if this person has family information that wasn't processed correctly
-            $person = $flatPersonsArray[0];
-            $errorMsg = 'Group quotation called with only 1 person - family grouping may have failed. ';
-            $errorMsg .= 'Person: ' . implode(', ', $debugInfo);
-
-            throw new ValidationException($errorMsg);
+        // Single person is valid for individual processing through group workflow
+        if ($groupSize === 0) {
+            throw new ValidationException('Group quotation called with no people. This indicates a data structure issue.');
         }
 
         // Log detailed group information for debugging
