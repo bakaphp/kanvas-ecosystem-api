@@ -199,6 +199,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $variantDetail = Variants::where('id', $itemDetail->variant_id)->first();
                             $detail['variant'] = $variantDetail->toArray();
                             $detail['variant']['attributes'] = $variantDetail->attributes()->pluck('value', 'name')->toArray();
+
                             $sku = $variantDetail->sku;
                             $response['items'][] = $detail;
                         }
@@ -230,6 +231,10 @@ class CreateOrderInESimActivity extends KanvasActivity
                         } catch (Throwable $e) {
                             report($e);
                         }
+
+                        $response['provider'] = $variantDetail->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value
+                                ?? $variantDetail->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value
+                                ?? $providerValue;
 
                         // Create message for each eSim
                         if (! $isRefuelOrder) {
