@@ -30,9 +30,9 @@ class HandOffActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return ['Handoff was already processed for this lead'];
-                }
+                /*  if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                     return ['Handoff was already processed for this lead'];
+                 } */
 
                 if (! empty($params['rotation_id'])) {
                     try {
