@@ -46,12 +46,12 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
-
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -124,12 +124,12 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
-
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -200,11 +200,12 @@ class PaymentMutation
         $orderId = (int) $request['orderId'];
         $user = auth()->user();
 
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForOrder($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -302,11 +303,7 @@ class PaymentMutation
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
 
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
-        ])->first();
+        $payment = Payments::forOrder($orderId, Order::class)->latest()->first();
 
         if (! $payment) {
             throw new Exception('Payment not found');
