@@ -40,10 +40,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
-        // sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
-        // $message->refresh();
         $this->overwriteAppService($app);
-
         $company = $this->getCompany($app, $message->company);
         $this->app = $app;
 
@@ -278,11 +275,9 @@ class LLMMessageResponseActivity extends KanvasActivity
     private function generateFilteredImageResponse(Message $message, array $params): array
     {
         $prompt = $message->message['prompt'] ?? null;
-        $messageFiles = $this->getFilesWithRetry($message);
         $imageFilterService = new ImageFilterService(
             app: $this->app,
             entity: $message,
-            messageFiles: $messageFiles,
             params: $params,
         );
 
@@ -531,26 +526,5 @@ class LLMMessageResponseActivity extends KanvasActivity
         } catch (ModelNotFoundException $e) {
             return $entity->company;
         }
-    }
-
-    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
-    {
-        $attempts = 0;
-
-        while ($attempts < $maxAttempts) {
-            $entity->refresh();
-            $files = $entity->getFiles();
-
-            if ($files->isNotEmpty()) {
-                return $files;
-            }
-
-            $attempts++;
-            if ($attempts < $maxAttempts) {
-                sleep($delaySeconds);
-            }
-        }
-
-        return new Collection();
     }
 }
