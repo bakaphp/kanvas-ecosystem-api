@@ -24,6 +24,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageManagementMutation
 {
@@ -85,6 +86,7 @@ class MessageManagementMutation
             $systemModule,
             $messageData['entity_id'] ?? null
         );
+        $action->runWorkflow = false;
         $message = $action->execute();
 
         if (! empty($data->files)) {
@@ -112,6 +114,14 @@ class MessageManagementMutation
         } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
             (new DistributeToUsers($message))->execute();
         }
+
+        $message->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                'app' => $app,
+            ]
+        );
 
         return $message;
     }
@@ -168,6 +178,7 @@ class MessageManagementMutation
 
         if ($message->delete()) {
             $message->unsearchableSync();
+
             return true;
         }
 
