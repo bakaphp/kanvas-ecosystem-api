@@ -405,14 +405,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentData = [
                     // FIXED: Prioritize original dependent data over SOAP response (which contains titular info)
                     'id' => $originalDependentData['id'] ?? $dependent['id'] ?? null,
-                    'firstName' => $originalDependentData['firstName'] 
+                    'firstName' => $originalDependentData['firstName']
                         ?? $originalDependentData['firstname']
                         ?? $dependent['firstName']
                         ?? $dependent['firstname']
                         ?? $dependentSolicitante['NombreSolicitante'] // Last fallback
                         ?? null,
                     'lastName' => $originalDependentData['lastName']
-                        ?? $originalDependentData['lastname'] 
+                        ?? $originalDependentData['lastname']
                         ?? $dependent['lastName']
                         ?? $dependent['lastname']
                         ?? $dependentSolicitante['ApellidoSolicitante'] // Last fallback
