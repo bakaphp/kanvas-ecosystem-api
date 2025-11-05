@@ -64,20 +64,20 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
-                    Log::info('ENTERED TEXT RESPONSE SERVICE');
+                    Log::info(self::class . ': ENTERED TEXT RESPONSE SERVICE');
                     $result = $this->generateChatResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
                     $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
-                    Log::info('ENTERED IMAGE FILTER SERVICE');
+                    Log::info(self::class . ': ENTERED IMAGE FILTER SERVICE');
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
                 } else {
-                    Log::info('ENTERED IMAGE CREATION SERVICE');
+                    Log::info(self::class . ': ENTERED IMAGE CREATION SERVICE');
                     $result = $this->generateImageResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];

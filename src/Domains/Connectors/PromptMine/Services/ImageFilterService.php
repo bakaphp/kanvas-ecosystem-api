@@ -52,8 +52,8 @@ class ImageFilterService
 
     public function execute(): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
-        Log::info("GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
+        $messageFiles = $this->entity->getFiles();
+        Log::info(self::class . ": GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
@@ -162,27 +162,6 @@ class ImageFilterService
                 'message' => 'Error processing image: ' . $e->getMessage(),
             ];
         }
-    }
-
-    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
-    {
-        $attempts = 0;
-
-        while ($attempts < $maxAttempts) {
-            $entity->refresh();
-            $files = $entity->getFiles();
-
-            if ($files->isNotEmpty()) {
-                return $files;
-            }
-
-            $attempts++;
-            if ($attempts < $maxAttempts) {
-                sleep($delaySeconds);
-            }
-        }
-
-        return new Collection();
     }
 
     public function validateImageLimit(Message $message, array $params): array
