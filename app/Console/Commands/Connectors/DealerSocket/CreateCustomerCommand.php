@@ -2,280 +2,196 @@
 
 namespace App\Console\Commands\Connectors\DealerSocket;
 
-class CreateCustomer extends BaseDealerSocketCommand
-{
-    protected $signature = 'dealersocket:create-customer
-                            {--type=Individual : Tipo de cliente (Individual o Company)}
-                            {--first-name= : Nombre}
-                            {--last-name= : Apellido}
-                            {--company-name= : Nombre de empresa}
-                            {--email= : Email}
-                            {--phone= : Teléfono}
-                            {--interactive : Modo interactivo}
-                            {--force : No pedir confirmación}
-                            {--show-config : Mostrar configuración}';
+use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Connectors\DealerSocket\CustomerClient;
+use Kanvas\Regions\Models\Regions;
 
-    protected $description = 'Crea un nuevo cliente en DealerSocket';
+class CreateCustomerCommand extends Command
+{
+    protected $signature = 'dealersocket:create-customer 
+                            {--type=Individual : Customer type (Individual|Company)}
+                            {--interactive : Ask for input interactively}
+                            {--company-id=1 : Company ID}
+                            {--app-id=1 : App ID}
+                            {--region-id=1 : Region ID}';
+
+    protected $description = 'Create a new customer in DealerSocket';
 
     public function handle()
     {
-        $this->info("🚀 DealerSocket - Crear Cliente\n");
+        $company = CompaniesRepository::getById($this->option('company-id'));
+        $app = Apps::getById($this->option('app-id'));
+        $region = Regions::getById($this->option('region-id'));
+
+        $this->info('🚀 Creating DealerSocket Customer...');
+        $this->newLine();
+
+        // Show environment info
+        $environment = config('dealersocket.environment', 'production');
         
-        if ($this->option('show-config')) {
-            $this->displayConfig();
+        if ($environment === 'testing') {
+            $this->comment('📍 Using Testing Environment');
+        } else {
+            $this->comment('🚀 Using Production Environment');
+        }
+        $this->newLine();
+
+        $customerType = $this->option('type');
+        
+        // Validate customer type
+        if (!in_array($customerType, ['Individual', 'Company'])) {
+            $this->error("❌ Invalid customer type: {$customerType}");
+            $this->info('Valid types: Individual, Company');
+            return Command::FAILURE;
         }
 
         $data = $this->option('interactive') 
-            ? $this->collectDataInteractive() 
-            : $this->collectDataFromOptions();
-
-        if (!$this->validateData($data)) {
-            return 1;
-        }
-
-        $this->displaySummary($data);
-
-        if (!$this->confirmAction('¿Deseas crear este cliente?')) {
-            $this->warn('❌ Operación cancelada');
-            return 0;
-        }
+            ? $this->getInteractiveInput($customerType) 
+            : $this->getDefaultData($customerType);
 
         try {
-            $this->info("\n⏳ Creando cliente...");
-            $createResponse = $this->customerClient->createCustomer($data);
-            $this->displayXmlResponse($createResponse, 'Resultado');
+            $client = new CustomerClient($company, $app, $region);
+            $response = $client->createCustomer($data);
 
-            $entityId = null;
-            if (is_object($createResponse)) {
-                $entityId = isset($createResponse->EntityId) ? (int)$createResponse->EntityId : null;
-            } elseif (is_array($createResponse)) {
-                $entityId = $createResponse['entityId'] ?? $createResponse['EntityId'] ?? null;
+            // Parse XML response
+            if ($response && isset($response->ProcessCustomerInformationDataArea)) {
+                $customerInfo = $response->ProcessCustomerInformationDataArea
+                    ->CustomerInformation
+                    ->CustomerInformationDetail
+                    ->CustomerParty ?? null;
+
+                if ($customerInfo) {
+                    $this->newLine();
+                    $this->info('✅ Customer created successfully!');
+                    $this->newLine();
+                    
+                    $tableData = [];
+                    
+                    // Entity ID
+                    if ($customerType === 'Individual' && isset($customerInfo->SpecifiedPerson->ID)) {
+                        $entityId = (string)$customerInfo->SpecifiedPerson->ID;
+                        $tableData[] = ['Entity ID', $entityId];
+                        
+                        // Store for later use
+                        cache()->put('last_created_customer_id', $entityId, now()->addHour());
+                    } elseif ($customerType === 'Company' && isset($customerInfo->SpecifiedOrganization->ID)) {
+                        $entityId = (string)$customerInfo->SpecifiedOrganization->ID;
+                        $tableData[] = ['Entity ID', $entityId];
+                        
+                        cache()->put('last_created_customer_id', $entityId, now()->addHour());
+                    }
+                    
+                    $tableData[] = ['Customer Type', $customerType];
+                    
+                    // Name
+                    if ($customerType === 'Individual') {
+                        $name = trim(
+                            ($customerInfo->SpecifiedPerson->GivenName ?? '') . ' ' . 
+                            ($customerInfo->SpecifiedPerson->FamilyName ?? '')
+                        );
+                        $tableData[] = ['Name', $name];
+                    } else {
+                        $companyName = (string)($customerInfo->SpecifiedOrganization->CompanyName ?? 'N/A');
+                        $tableData[] = ['Company Name', $companyName];
+                    }
+                    
+                    // Contact info
+                    if (isset($customerInfo->SpecifiedPerson->TelephoneCommunication->CompleteNumber)) {
+                        $tableData[] = ['Phone', (string)$customerInfo->SpecifiedPerson->TelephoneCommunication->CompleteNumber];
+                    }
+                    
+                    if (isset($customerInfo->SpecifiedPerson->URICommunication->URIID)) {
+                        $tableData[] = ['Email', (string)$customerInfo->SpecifiedPerson->URICommunication->URIID];
+                    }
+                    
+                    $this->table(['Field', 'Value'], $tableData);
+                    
+                    // Show search tip
+                    if (!empty($entityId)) {
+                        $this->newLine();
+                        $this->comment('💡 Tip: Use "php artisan dealersocket:search-customer ' . $entityId . '" to view this customer');
+                    }
+                    
+                    return Command::SUCCESS;
+                } else {
+                    $this->error('❌ Customer created but response format unexpected');
+                    $this->warn('Response: ' . $response->asXML());
+                    return Command::FAILURE;
+                }
+            } else {
+                $this->error('❌ Failed to create customer - Invalid response');
+                if ($response) {
+                    $this->warn('Response: ' . $response->asXML());
+                }
+                return Command::FAILURE;
             }
-
-            if (!$entityId) {
-                $this->warn('⚠️  Cliente creado pero no se pudo obtener el Entity ID');
-                return 0;
-            }
-
-            $this->info("✅ Cliente creado exitosamente!");
-            $this->line("🆔 Entity ID: {$entityId}");
-
-            // Buscar el cliente recién creado
-            $this->line('');
-            $this->info('Buscando información completa del cliente...');
-            
-            sleep(2);
-            
-            $customerData = $this->customerClient->searchCustomer(['entityId' => $entityId]);
-
-            // Mostrar información del cliente buscado
-            $this->displayCustomerSearchResponse($customerData);
-
-            return 0;
         } catch (\Exception $e) {
-            $this->displayError($e);
-            return 1;
+            $this->error('❌ Exception: ' . $e->getMessage());
+            if ($this->option('verbose')) {
+                $this->error($e->getTraceAsString());
+            }
+            return Command::FAILURE;
         }
     }
-    
-    protected function collectDataInteractive(): array
+
+    private function getInteractiveInput(string $customerType): array
     {
-        $type = $this->choice(
-            '¿Qué tipo de cliente?',
-            ['Individual', 'Company'],
-            0
-        );
-        
-        $data = ['type' => $type];
-        
-        if ($type === 'Individual') {
-            $data['firstName'] = $this->ask('Nombre');
-            $data['lastName'] = $this->ask('Apellido');
+        $this->info("📝 Enter {$customerType} customer information:");
+        $this->newLine();
+
+        $data = ['type' => $customerType];
+
+        if ($customerType === 'Individual') {
+            $this->comment('👤 Personal Information:');
+            $data['firstName'] = $this->ask('First Name');
+            $data['lastName'] = $this->ask('Last Name');
         } else {
-            $data['companyName'] = $this->ask('Nombre de la empresa');
+            $this->comment('🏢 Company Information:');
+            $data['companyName'] = $this->ask('Company Name');
+            
+            $this->newLine();
+            $this->comment('👤 Primary Contact:');
+            $data['contactFirstName'] = $this->ask('Contact First Name');
+            $data['contactLastName'] = $this->ask('Contact Last Name');
         }
+
+        $this->newLine();
+        $this->comment('📞 Contact Information:');
         
-        $data['email'] = $this->ask('Email (opcional)');
-        $data['phone'] = $this->ask('Teléfono (opcional)');
+        if ($this->confirm('Add phone number?', true)) {
+            $data['phone'] = $this->ask('Phone Number');
+        }
+
+        if ($this->confirm('Add email?', true)) {
+            $data['email'] = $this->ask('Email Address');
+        }
+
+        return $data;
+    }
+
+    private function getDefaultData(string $customerType): array
+    {
+        $timestamp = now()->timestamp;
         
-        return array_filter($data);
-    }
-    
-    protected function collectDataFromOptions(): array
-    {
-        return array_filter([
-            'type' => $this->option('type'),
-            'firstName' => $this->option('first-name'),
-            'lastName' => $this->option('last-name'),
-            'companyName' => $this->option('company-name'),
-            'email' => $this->option('email'),
-            'phone' => $this->option('phone'),
-        ]);
-    }
-    
-    protected function validateData(array $data): bool
-    {
-        if ($data['type'] === 'Individual') {
-            if (empty($data['firstName']) || empty($data['lastName'])) {
-                $this->error('❌ Para tipo Individual se requiere nombre y apellido');
-                return false;
-            }
+        if ($customerType === 'Individual') {
+            return [
+                'type' => 'Individual',
+                'firstName' => 'John',
+                'lastName' => 'Doe',
+                'phone' => '555-1234',
+                'email' => "john.doe.{$timestamp}@example.com",
+            ];
         } else {
-            if (empty($data['companyName'])) {
-                $this->error('❌ Para tipo Company se requiere nombre de empresa');
-                return false;
-            }
+            return [
+                'type' => 'Company',
+                'companyName' => 'Acme Corporation',
+                'contactFirstName' => 'Jane',
+                'contactLastName' => 'Smith',
+                'phone' => '555-5678',
+                'email' => "jane.smith.{$timestamp}@acme.com",
+            ];
         }
-        
-        return true;
-    }
-    
-    protected function displaySummary(array $data)
-    {
-        $this->info("\n📋 Resumen del cliente:");
-        $this->line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        
-        foreach ($data as $key => $value) {
-            $this->line(ucfirst($key) . ": " . $value);
-        }
-        
-        $this->line('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    }
-
-    /**
-     * Mostrar respuesta de búsqueda de cliente (ShowCustomerInformation)
-     */
-    protected function displayCustomerSearchResponse($response)
-    {
-        if (!is_object($response)) {
-            $this->warn('⚠️  Respuesta no válida');
-            return;
-        }
-
-        $this->line('');
-        $this->info(str_repeat('═', 60));
-        $this->info('📊 INFORMACIÓN COMPLETA DEL CLIENTE');
-        $this->info(str_repeat('═', 60));
-        $this->line('');
-
-        // Verificar éxito
-        $responseExpression = (string)($response->ShowCustomerInformationDataArea->Show->ResponseCriteria->ResponseExpression ?? '');
-        
-        if (strtolower($responseExpression) !== 'success') {
-            $this->error("❌ Búsqueda fallida: {$responseExpression}");
-            return;
-        }
-
-        $this->info('✅ Búsqueda exitosa');
-        $this->line('');
-
-        // Extraer datos
-        $customerInfo = $response->ShowCustomerInformationDataArea->CustomerInformation ?? null;
-        
-        if (!$customerInfo) {
-            $this->warn('⚠️  No se encontró información del cliente');
-            return;
-        }
-
-        $detail = $customerInfo->CustomerInformationDetail ?? null;
-        $party = $detail->CustomerParty ?? null;
-
-        if (!$party) {
-            $this->warn('⚠️  Datos del cliente incompletos');
-            return;
-        }
-
-        $entityId = (string)($party->PartyID ?? 'N/A');
-        $dmsId = (string)($party->DealerManagementSystemID ?? 'N/A');
-        
-        // Datos básicos
-        $tableData = [
-            ['Entity ID', $entityId],
-            ['DMS Customer ID', $dmsId],
-        ];
-
-        // Si es empresa
-        if (isset($party->SpecifiedOrganization)) {
-            $org = $party->SpecifiedOrganization;
-            $tableData[] = ['Tipo', 'Empresa'];
-            $tableData[] = ['Nombre Empresa', (string)($org->CompanyName ?? 'N/A')];
-            
-            // Contacto principal
-            if (isset($org->PrimaryContact->SpecifiedPerson)) {
-                $person = $org->PrimaryContact->SpecifiedPerson;
-                $fullName = trim((string)($person->GivenName ?? '') . ' ' . (string)($person->FamilyName ?? ''));
-                if ($fullName) {
-                    $tableData[] = ['Contacto', $fullName];
-                }
-                $tableData[] = ['Género', (string)($person->GenderCode ?? 'N/A')];
-            }
-            
-            // Dirección
-            if (isset($org->PostalAddress)) {
-                $address = $org->PostalAddress;
-                $tableData[] = ['Dirección', (string)($address->LineOne ?? 'N/A')];
-                $tableData[] = ['Ciudad', (string)($address->CityName ?? 'N/A')];
-                $tableData[] = ['Estado', (string)($address->StateOrProvinceCountrySubDivisionID ?? 'N/A')];
-                $tableData[] = ['Código Postal', (string)($address->Postcode ?? 'N/A')];
-            }
-            
-            // Teléfonos
-            if (isset($org->PrimaryContact->TelephoneCommunication)) {
-                foreach ($org->PrimaryContact->TelephoneCommunication as $phone) {
-                    $tableData[] = [
-                        'Teléfono (' . ($phone->UseCode ?? 'N/A') . ')',
-                        (string)($phone->CompleteNumber ?? 'N/A')
-                    ];
-                }
-            }
-            
-            // Email
-            if (isset($org->PrimaryContact->SpecifiedPerson->URICommunication)) {
-                $tableData[] = ['Email', (string)($org->PrimaryContact->SpecifiedPerson->URICommunication->URIID ?? 'N/A')];
-            }
-        }
-        
-        // Si es persona individual
-        if (isset($party->SpecifiedPerson)) {
-            $person = $party->SpecifiedPerson;
-            $tableData[] = ['Tipo', 'Individual'];
-            $tableData[] = ['Nombre', (string)($person->GivenName ?? 'N/A')];
-            $tableData[] = ['Apellido', (string)($person->FamilyName ?? 'N/A')];
-            
-            if (isset($person->PreferredName)) {
-                $tableData[] = ['Nombre Preferido', (string)$person->PreferredName];
-            }
-            
-            $tableData[] = ['Género', (string)($person->GenderCode ?? 'N/A')];
-            
-            // Dirección
-            if (isset($person->PostalAddress)) {
-                $address = $person->PostalAddress;
-                $tableData[] = ['Dirección', (string)($address->LineOne ?? 'N/A')];
-                $tableData[] = ['Ciudad', (string)($address->CityName ?? 'N/A')];
-                $tableData[] = ['Estado', (string)($address->StateOrProvinceCountrySubDivisionID ?? 'N/A')];
-                $tableData[] = ['Código Postal', (string)($address->Postcode ?? 'N/A')];
-            }
-            
-            // Teléfonos
-            if (isset($person->TelephoneCommunication)) {
-                foreach ($person->TelephoneCommunication as $phone) {
-                    $tableData[] = [
-                        'Teléfono (' . ($phone->UseCode ?? 'N/A') . ')',
-                        (string)($phone->CompleteNumber ?? 'N/A')
-                    ];
-                }
-            }
-            
-            // Email
-            if (isset($person->URICommunication)) {
-                $tableData[] = ['Email', (string)($person->URICommunication->URIID ?? 'N/A')];
-            }
-        }
-
-        $this->table(['Campo', 'Valor'], $tableData);
-        
-        $this->line('');
-        $this->info(str_repeat('═', 60));
     }
 }

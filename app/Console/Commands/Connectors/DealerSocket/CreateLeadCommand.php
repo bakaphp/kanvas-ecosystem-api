@@ -14,7 +14,7 @@ class CreateLeadCommand extends Command
     protected $signature = 'dealersocket:create-lead 
                             {--companyId=}
                             {--format=star : XML format (star|adf)}
-                            {--interactive : Ask for input interactively
+                            {--interactive : Ask for input interactively}
                             {--company-id=1 : Company ID}
                             {--app-id=1 : App ID}
                             {--region-id=1 : Region ID}';
