@@ -98,6 +98,14 @@ class MessageManagementMutation
             );
         }
 
+        $message->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+               'app' => $app,
+            ]
+        );
+
         if (! key_exists('distribution', $messageData)) {
             return $message;
         }
@@ -114,14 +122,6 @@ class MessageManagementMutation
         } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
             (new DistributeToUsers($message))->execute();
         }
-
-        $message->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            [
-                'app' => $app,
-            ]
-        );
 
         return $message;
     }
