@@ -9,8 +9,6 @@ use Kanvas\Connectors\DealerSocket\Services\AuthService;
 
 class EventSearchClient extends BaseClient
 {
-    protected AuthService $authService;
-    
     public function searchEvents(int $entityId, string $category = 'Sales')
     {
         $body = json_encode([
