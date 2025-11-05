@@ -88,6 +88,7 @@ class CreateOrderAction
             $order->language_code = $this->orderData->languageCode;
             $order->reference = $this->orderData->reference;
             $order->parent_id = $this->orderData->parent?->getId() ?? null;
+            $order->ip_address = $this->orderData->ip_address;
             $order->saveOrFail();
 
             if ($this->orderData->orderType) {
