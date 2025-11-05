@@ -71,11 +71,16 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $messageTypeKey = 'nugget';
                     $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
+                    $channel = $message->channels->first();
+                    $channel->is_deleted = 1;
+                    $channel->save();
                     Log::info(self::class . ': ENTERED IMAGE FILTER SERVICE');
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
+                    $channel->is_deleted = 0;
+                    $channel->save();
                 } else {
                     Log::info(self::class . ': ENTERED IMAGE CREATION SERVICE');
                     $result = $this->generateImageResponse($message);
