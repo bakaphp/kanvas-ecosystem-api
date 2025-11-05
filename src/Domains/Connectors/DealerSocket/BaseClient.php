@@ -32,7 +32,7 @@ abstract class BaseClient
             dealerId: $dealerId,
             vendorName: $vendorName
         );
-        $this->baseUrl = "https://api.dealersocket.com/api/DealerSocket";
+        $this->baseUrl = 'https://api.dealersocket.com/api/DealerSocket';
     }
 
     protected function post(string $endpoint, string $xmlBody)
@@ -49,7 +49,7 @@ abstract class BaseClient
     protected function parseResponse($response)
     {
         if ($response->failed()) {
-            throw new Exception("DealerSocket API Error: " . $response->body());
+            throw new Exception('DealerSocket API Error: ' . $response->body());
         }
 
         $contentType = $response->header('Content-Type');

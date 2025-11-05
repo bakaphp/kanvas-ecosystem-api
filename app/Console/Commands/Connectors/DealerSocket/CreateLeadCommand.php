@@ -8,7 +8,6 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\DealerSocket\LeadClient;
 use Kanvas\Regions\Models\Regions;
 
-
 class CreateLeadCommand extends Command
 {
     protected $signature = 'dealersocket:create-lead 
@@ -34,24 +33,23 @@ class CreateLeadCommand extends Command
         $format = $this->option('format');
         $environment = config('dealersocket.environment', 'production');
         $useOem = config('dealersocket.use_oem_testing_url', false);
-        
+
         if ($environment === 'testing' || $useOem) {
             $this->comment("📍 Using OEM Testing URL ({$format} format)");
         } else {
-            $this->comment("🚀 Using Production API URL");
+            $this->comment('🚀 Using Production API URL');
         }
         $this->newLine();
 
-        $data = $this->option('interactive') 
-            ? $this->getInteractiveInput() 
+        $data = $this->option('interactive')
+            ? $this->getInteractiveInput()
             : $this->getDefaultData();
 
         try {
-
             $client = new LeadClient($company, $app, $region);
 
             // Usar los métodos que ya existen en LeadClient
-            $response = $format === 'adf' 
+            $response = $format === 'adf'
                 ? $client->createSalesLeadADF($data)
                 : $client->createSalesLead($data);
 
@@ -59,7 +57,7 @@ class CreateLeadCommand extends Command
                 $this->newLine();
                 $this->info('✅ Lead created successfully!');
                 $this->newLine();
-                
+
                 $this->table(
                     ['Field', 'Value'],
                     [
@@ -71,26 +69,26 @@ class CreateLeadCommand extends Command
                         ['Existing Lead', ($response['existingLeadId'] ?? '0') !== '0' ? 'Yes' : 'No'],
                     ]
                 );
-                
+
                 // Store lead ID for search command
-                if (!empty($response['leadId'])) {
+                if (! empty($response['leadId'])) {
                     cache()->put('last_created_lead_id', $response['leadId'], now()->addHour());
-                    
+
                     $this->newLine();
                     $this->comment('💡 Tip: Use "php artisan dealersocket:search-lead ' . $response['leadId'] . '" to view this lead');
                 }
-                
+
                 return Command::SUCCESS;
             } else {
                 $this->error('❌ Failed to create lead');
                 $this->error('Error: ' . ($response['errorMessage'] ?? $response['error'] ?? 'Unknown error'));
-                
-                if (!empty($response['body'])) {
+
+                if (! empty($response['body'])) {
                     $this->newLine();
                     $this->warn('Response body:');
                     $this->line($response['body']);
                 }
-                
+
                 return Command::FAILURE;
             }
         } catch (\Exception $e) {
@@ -98,6 +96,7 @@ class CreateLeadCommand extends Command
             if ($this->option('verbose')) {
                 $this->error($e->getTraceAsString());
             }
+
             return Command::FAILURE;
         }
     }
@@ -119,7 +118,7 @@ class CreateLeadCommand extends Command
         ];
 
         $this->newLine();
-        
+
         // Address (optional)
         if ($this->confirm('Add address information?', false)) {
             $data['street'] = $this->ask('Street Address');
@@ -151,14 +150,14 @@ class CreateLeadCommand extends Command
 
         // Lead Info
         $data['leadInterestCode'] = $this->choice('Lead Interest', ['B' => 'Buy', 'L' => 'Lease', 'T' => 'Trade'], 'B');
-        
+
         // Comments
-        $data['customerComments'] = $this->confirm('Add customer comments?', false) 
-            ? $this->ask('Customer Comments') 
+        $data['customerComments'] = $this->confirm('Add customer comments?', false)
+            ? $this->ask('Customer Comments')
             : '';
-        
-        $data['leadComments'] = $this->confirm('Add lead comments?', false) 
-            ? $this->ask('Lead Comments') 
+
+        $data['leadComments'] = $this->confirm('Add lead comments?', false)
+            ? $this->ask('Lead Comments')
             : '';
 
         // Sales Person
@@ -202,27 +201,27 @@ class CreateLeadCommand extends Command
         // Generate unique IDs
         $timestamp = now()->timestamp;
         $random = substr(uniqid(), -6);
-        
+
         // Required fields for STAR format
         $data['senderNameCode'] = $data['senderNameCode'] ?? config('dealersocket.vendor_name', 'VendorName');
         $data['serviceId'] = $data['serviceId'] ?? 'WEB_LEAD';
         $data['bodId'] = $data['bodId'] ?? 'lead_' . $timestamp . '_' . $random;
         $data['documentId'] = $data['documentId'] ?? 'DOC_' . $timestamp;
-        
+
         // Customer type (relationship code)
         $data['customerType'] = $data['customerType'] ?? 'Prospect';
-        
+
         // Contact method
         $data['contactMethod'] = $data['contactMethod'] ?? 'Phone';
-        
+
         // Phone type mapping
         $data['phoneType'] = $this->mapPhoneType($data['phoneType'] ?? 'Cell Phone');
-        
+
         // Lead source
         $data['leadSource'] = $data['leadSource'] ?? 'Website';
-        
+
         // Address formatting (convert to nested array if needed)
-        if (!empty($data['street']) && empty($data['address'])) {
+        if (! empty($data['street']) && empty($data['address'])) {
             $data['address'] = [
                 'street' => $data['street'] ?? '',
                 'city' => $data['city'] ?? '',
@@ -230,36 +229,36 @@ class CreateLeadCommand extends Command
                 'zipCode' => $data['zipCode'] ?? '',
             ];
         }
-        
+
         // For ADF format
         $data['source'] = $data['source'] ?? $data['leadSource'];
         $data['namePart'] = $data['namePart'] ?? 'full';
         $data['providerName'] = $data['providerName'] ?? 'Website Lead Form';
         $data['service'] = $data['service'] ?? 'Web Lead';
-        
+
         // Vehicle interest for ADF
-        if (!empty($data['interestedVehicle'])) {
+        if (! empty($data['interestedVehicle'])) {
             $data['vehicle'] = $data['interestedVehicle'];
             $data['vehicle']['interest'] = $this->mapLeadInterestToADF($data['leadInterestCode'] ?? 'B');
         }
-        
+
         // Ensure comments are never null
         $data['customerComments'] = $data['customerComments'] ?? '';
         $data['leadComments'] = $data['leadComments'] ?? '';
         $data['comments'] = $data['customerComments'] ?: $data['leadComments'];
-        
+
         // Ensure sales person is not null
         $data['salesPerson'] = $data['salesPerson'] ?? '';
-        
+
         return $data;
     }
-    
+
     /**
      * Map phone type to STAR format channel code
      */
     private function mapPhoneType(string $type): string
     {
-        return match($type) {
+        return match ($type) {
             'Day Phone' => 'Phone',
             'Evening Phone' => 'Phone',
             'Cell Phone' => 'Mobile',
@@ -273,7 +272,7 @@ class CreateLeadCommand extends Command
      */
     private function mapLeadInterestToADF(string $code): string
     {
-        return match($code) {
+        return match ($code) {
             'B' => 'buy',
             'L' => 'lease',
             'T' => 'trade-in',

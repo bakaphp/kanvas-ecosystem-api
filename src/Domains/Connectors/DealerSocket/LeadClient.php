@@ -12,24 +12,28 @@ class LeadClient extends BaseClient
     public function createSalesLead(array $data)
     {
         $xml = $this->buildSalesLeadXML($data);
+
         return $this->postLead($xml);
     }
 
     public function createSalesLeadADF(array $data)
     {
         $xml = $this->buildADFLeadXML($data);
+
         return $this->postLead($xml);
     }
 
     public function createServiceLead(array $data)
     {
         $xml = $this->buildServiceLeadXML($data);
+
         return $this->postLead($xml);
     }
 
     public function createPartsLead(array $data)
     {
         $xml = $this->buildPartsLeadXML($data);
+
         return $this->postLead($xml);
     }
 
@@ -52,13 +56,13 @@ class LeadClient extends BaseClient
             return [
                 'success' => false,
                 'error' => 'HTTP Error: ' . $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ];
         }
 
         try {
             $xml = simplexml_load_string($response->body());
-            
+
             if ($xml === false) {
                 throw new Exception('Failed to parse XML response');
             }
@@ -75,17 +79,15 @@ class LeadClient extends BaseClient
                 'assignedName' => (string)($xml->DSAssignedName ?? ''),
                 'errorCode' => (string)($xml->ErrorCode ?? ''),
                 'errorMessage' => (string)($xml->ErrorMessage ?? ''),
-                'rawXml' => $response->body()
+                'rawXml' => $response->body(),
             ];
 
             return $result;
-
         } catch (Exception $e) {
-
             return [
                 'success' => false,
                 'error' => 'Parse Error: ' . $e->getMessage(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ];
         }
     }
@@ -96,7 +98,7 @@ class LeadClient extends BaseClient
         $dealerId = $this->authService->getDealerId();
         $now = now()->toIso8601String();
         $bodId = $data['bodId'] ?? uniqid('lead_', true);
-        
+
         $xml = <<<XML
 <?xml version="1.0" encoding="utf-8"?>
 <ProcessSalesLead xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
@@ -136,7 +138,7 @@ class LeadClient extends BaseClient
               <FamilyName>{$data['lastName']}</FamilyName>
 XML;
 
-        if (!empty($data['address'])) {
+        if (! empty($data['address'])) {
             $xml .= "\n              <ResidenceAddress>";
             $xml .= "\n                <AddressType>home</AddressType>";
             $xml .= "\n                <LineOne>{$data['address']['street']}</LineOne>";
@@ -147,27 +149,27 @@ XML;
             $xml .= "\n              </ResidenceAddress>";
         }
 
-        if (!empty($data['phone'])) {
+        if (! empty($data['phone'])) {
             $xml .= "\n              <TelephoneCommunication>";
             $xml .= "\n                <ChannelCode>{$data['phoneType']}</ChannelCode>";
             $xml .= "\n                <LocalNumber>{$data['phone']}</LocalNumber>";
             $xml .= "\n              </TelephoneCommunication>";
         }
 
-        if (!empty($data['email'])) {
+        if (! empty($data['email'])) {
             $xml .= "\n              <URICommunication>";
             $xml .= "\n                <URIID>{$data['email']}</URIID>";
             $xml .= "\n                <ChannelCode>email</ChannelCode>";
             $xml .= "\n              </URICommunication>";
         }
 
-        if (!empty($data['contactMethod'])) {
+        if (! empty($data['contactMethod'])) {
             $xml .= "\n              <ContactMethodTypeCode>{$data['contactMethod']}</ContactMethodTypeCode>";
         }
 
         $xml .= "\n            </SpecifiedPerson>";
 
-        if (!empty($data['vehicle'])) {
+        if (! empty($data['vehicle'])) {
             $xml .= "\n            <CurrentlyOwnedItem>";
             $xml .= "\n              <OwnedVehicleDetail>";
             $xml .= "\n                <SalesLeadOwnedVehicle>";
@@ -175,7 +177,7 @@ XML;
             $xml .= "\n                    <Model>{$data['vehicle']['model']}</Model>";
             $xml .= "\n                    <ModelYear>{$data['vehicle']['year']}</ModelYear>";
             $xml .= "\n                    <MakeString>{$data['vehicle']['make']}</MakeString>";
-            if (!empty($data['vehicle']['vin'])) {
+            if (! empty($data['vehicle']['vin'])) {
                 $xml .= "\n                    <VehicleID>{$data['vehicle']['vin']}</VehicleID>";
             }
             $xml .= "\n                  </Vehicle>";
@@ -190,10 +192,10 @@ XML;
         $xml .= "\n      </SalesLeadHeader>";
         $xml .= "\n      <SalesLeadDetail>";
 
-        if (!empty($data['financing'])) {
+        if (! empty($data['financing'])) {
             $xml .= "\n        <Financing>";
             $xml .= "\n          <FinanceTypeString>{$data['financing']['type']}</FinanceTypeString>";
-            if (!empty($data['financing']['amount'])) {
+            if (! empty($data['financing']['amount'])) {
                 $xml .= "\n          <EstimatedFinancingAmounts>";
                 $xml .= "\n            <ApprovedAmount currencyID=\"USD\">{$data['financing']['amount']}</ApprovedAmount>";
                 $xml .= "\n          </EstimatedFinancingAmounts>";
@@ -201,13 +203,13 @@ XML;
             $xml .= "\n        </Financing>";
         }
 
-        if (!empty($data['salesPerson'])) {
+        if (! empty($data['salesPerson'])) {
             $xml .= "\n        <SalesActivity>";
             $xml .= "\n          <SalesPersonName><![CDATA[{$data['salesPerson']}]]></SalesPersonName>";
             $xml .= "\n        </SalesActivity>";
         }
 
-        if (!empty($data['interestedVehicle'])) {
+        if (! empty($data['interestedVehicle'])) {
             $xml .= "\n        <SalesLeadLineItem>";
             $xml .= "\n          <SalesLeadVehicleLineItem>";
             $xml .= "\n            <SalesLeadVehicle>";
@@ -232,7 +234,7 @@ XML;
     {
         $leadId = $data['leadId'] ?? uniqid('lead_', true);
         $requestDate = now()->format('Y-m-d\TH:i:s.u\Z');
-        
+
         $xml = <<<XML
 <?xml version="1.0"?>
 <adf>
@@ -245,10 +247,10 @@ XML;
       <model><![CDATA[{$data['vehicle']['model']}]]></model>
 XML;
 
-        if (!empty($data['vehicle']['vin'])) {
+        if (! empty($data['vehicle']['vin'])) {
             $xml .= "\n      <vin><![CDATA[{$data['vehicle']['vin']}]]></vin>";
         }
-        if (!empty($data['vehicle']['stock'])) {
+        if (! empty($data['vehicle']['stock'])) {
             $xml .= "\n      <stock><![CDATA[{$data['vehicle']['stock']}]]></stock>";
         }
 
@@ -263,7 +265,7 @@ XML;
         $xml .= "\n          <![CDATA[{$data['phone']}]]>";
         $xml .= "\n        </phone>";
 
-        if (!empty($data['address'])) {
+        if (! empty($data['address'])) {
             $xml .= "\n        <address>";
             $xml .= "\n          <street line=\"1\"><![CDATA[{$data['address']['street']}]]></street>";
             $xml .= "\n          <city><![CDATA[{$data['address']['city']}]]></city>";
@@ -274,13 +276,13 @@ XML;
 
         $xml .= "\n      </contact>";
 
-        if (!empty($data['comments'])) {
+        if (! empty($data['comments'])) {
             $xml .= "\n      <comments><![CDATA[{$data['comments']}]]></comments>";
         }
 
         $xml .= "\n    </customer>";
         $xml .= "\n    <vendor>";
-        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . config('dealersocket.dealer_id') . "]]></id>";
+        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . config('dealersocket.dealer_id') . ']]></id>';
         $xml .= "\n      <vendorname>Vendor Name</vendorname>";
         $xml .= "\n      <contact>";
         $xml .= "\n        <name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name>";
@@ -355,7 +357,7 @@ XML;
 
     private function buildPartsLeadXML(array $data): string
     {
-        return "";
+        return '';
     }
 
     private function getDirectPostUrl(string $format): string
@@ -375,12 +377,13 @@ XML;
         }
 
         $baseUrl = config('dealersocket.base_url', 'https://api.dealersocket.com/api/DealerSocket');
+
         return "{$baseUrl}/DirectPost/{$dealerId}";
     }
 
     /**
      * Search lead by Lead ID
-     * 
+     *
      * @param string $leadId
      * @return array|null
      */
@@ -388,7 +391,7 @@ XML;
     {
         return $this->searchEvents([
             'entityId' => $entityId,
-            'eventCategory' => $eventCategory
+            'eventCategory' => $eventCategory,
         ]);
     }
 
@@ -396,17 +399,17 @@ XML;
     {
         $results = $this->searchEvents([
             'entityId' => $entityId,
-            'eventCategory' => 'Sales'
+            'eventCategory' => 'Sales',
         ]);
 
-        if (!empty($results['events'])) {
+        if (! empty($results['events'])) {
             foreach ($results['events'] as $event) {
                 if ($event['eventId'] === $eventId) {
                     return $event;
                 }
             }
         }
-        
+
         return [];
     }
 
@@ -414,7 +417,7 @@ XML;
     {
         $jsonBody = $this->buildEventSearchJSON($params);
         $response = $this->postEventSearch($jsonBody);
-        
+
         return $this->parseEventSearchResponse($response);
     }
 
@@ -422,14 +425,14 @@ XML;
     {
         $vendorName = $this->authService->getVendorName();
         $dealerId = $this->authService->getDealerId();
-        
+
         $data = [
             'vendor' => $vendorName,
             'dealerId' => $dealerId,
             'entityId' => $params['entityId'],
-            'eventCategory' => $params['eventCategory'] ?? 'Sales'
+            'eventCategory' => $params['eventCategory'] ?? 'Sales',
         ];
-        
+
         return json_encode($data);
     }
 
@@ -440,7 +443,6 @@ XML;
 
         $eventSearchUrl = 'https://iapi.dealersocket.com/webapi/EventSearch';
 
-
         $response = Http::withHeaders($headers)
             ->withBody($jsonBody, 'application/json')
             ->post($eventSearchUrl);
@@ -450,44 +452,41 @@ XML;
 
     /**
      * Format search results for display
-     * 
-     * @param array $results
-     * @return string
      */
     public function formatSearchResults(array $results): string
     {
         if (empty($results)) {
-            return "No results found.";
+            return 'No results found.';
         }
 
-        $output = "Found " . count($results) . " lead(s):\n\n";
+        $output = 'Found ' . count($results) . " lead(s):\n\n";
 
         foreach ($results as $index => $lead) {
-            $output .= "━━━━━ Lead #" . ($index + 1) . " ━━━━━\n";
-            $output .= "Lead ID: " . ($lead['leadId'] ?? 'N/A') . "\n";
-            $output .= "Customer ID: " . ($lead['customerId'] ?? 'N/A') . "\n";
-            $output .= "Status: " . ($lead['status'] ?? 'N/A') . "\n";
-            $output .= "Created: " . ($lead['createdDate'] ?? 'N/A') . "\n";
+            $output .= '━━━━━ Lead #' . ($index + 1) . " ━━━━━\n";
+            $output .= 'Lead ID: ' . ($lead['leadId'] ?? 'N/A') . "\n";
+            $output .= 'Customer ID: ' . ($lead['customerId'] ?? 'N/A') . "\n";
+            $output .= 'Status: ' . ($lead['status'] ?? 'N/A') . "\n";
+            $output .= 'Created: ' . ($lead['createdDate'] ?? 'N/A') . "\n";
 
-            if (!empty($lead['customer'])) {
+            if (! empty($lead['customer'])) {
                 $output .= "\nCustomer:\n";
-                $output .= "  Name: " . ($lead['customer']['firstName'] ?? '') . " " . 
+                $output .= '  Name: ' . ($lead['customer']['firstName'] ?? '') . ' ' .
                         ($lead['customer']['lastName'] ?? '') . "\n";
-                $output .= "  Email: " . ($lead['customer']['email'] ?? 'N/A') . "\n";
-                $output .= "  Phone: " . ($lead['customer']['phone'] ?? 'N/A') . "\n";
+                $output .= '  Email: ' . ($lead['customer']['email'] ?? 'N/A') . "\n";
+                $output .= '  Phone: ' . ($lead['customer']['phone'] ?? 'N/A') . "\n";
             }
 
-            if (!empty($lead['vehicle'])) {
+            if (! empty($lead['vehicle'])) {
                 $output .= "\nVehicle:\n";
-                $output .= "  " . ($lead['vehicle']['year'] ?? '') . " " . 
-                        ($lead['vehicle']['make'] ?? '') . " " . 
+                $output .= '  ' . ($lead['vehicle']['year'] ?? '') . ' ' .
+                        ($lead['vehicle']['make'] ?? '') . ' ' .
                         ($lead['vehicle']['model'] ?? '') . "\n";
-                $output .= "  VIN: " . ($lead['vehicle']['vin'] ?? 'N/A') . "\n";
+                $output .= '  VIN: ' . ($lead['vehicle']['vin'] ?? 'N/A') . "\n";
             }
 
             $output .= "\n";
         }
-        
+
         return $output;
     }
 
@@ -498,7 +497,7 @@ XML;
     {
         $data = json_decode(json_encode($response), true);
 
-        if (!empty($data['errorCode']) || !empty($data['errorMessage'])) {
+        if (! empty($data['errorCode']) || ! empty($data['errorMessage'])) {
             throw new Exception("EventSearch Error: {$data['errorMessage']}");
         }
 
@@ -515,10 +514,10 @@ XML;
                 'suffix' => $data['suffix'] ?? null,
                 'companyName' => $data['companyName'] ?? null,
             ],
-            'events' => []
+            'events' => [],
         ];
 
-        if (!empty($data['events']) && is_array($data['events'])) {
+        if (! empty($data['events']) && is_array($data['events'])) {
             foreach ($data['events'] as $event) {
                 $formatted['events'][] = [
                     'eventId' => $event['eventId'] ?? null,
@@ -536,7 +535,7 @@ XML;
                         'vin' => $event['vin'] ?? null,
                         'stockNumber' => $event['stockNumber'] ?? null,
                         'currentMileage' => $event['currentMileage'] ?? null,
-                    ]
+                    ],
                 ];
             }
         }
@@ -561,6 +560,7 @@ XML;
                 225 => '6 - Sold',
                 226 => '7 - Lost',
             ];
+
             return $salesStatuses[$status] ?? "Unknown ($status)";
         }
 
@@ -573,6 +573,7 @@ XML;
                 100169 => '4 - Completed',
                 100170 => '5 - Lost',
             ];
+
             return $serviceStatuses[$status] ?? "Unknown ($status)";
         }
 
@@ -582,12 +583,14 @@ XML;
     public function updateSalesEvent(int $eventId, int $entityId, array $data): array
     {
         $xml = $this->buildSalesEventUpdateXML($eventId, $entityId, $data);
+
         return $this->postEventUpdate($xml, 'sales');
     }
 
     public function updateServiceEvent(int $eventId, int $activityId, int $entityId, array $data): array
     {
         $xml = $this->buildServiceEventUpdateXML($eventId, $activityId, $entityId, $data);
+
         return $this->postEventUpdate($xml, 'service');
     }
 
@@ -596,7 +599,7 @@ XML;
         $headers = $this->authService->getHMACHeaders($xml);
         $headers['Content-Type'] = 'application/xml';
 
-        $endpoint = $type === 'sales' 
+        $endpoint = $type === 'sales'
             ? 'https://api.dealersocket.com/api/dealersocket/eventsales'
             : 'https://api.dealersocket.com/api/dealersocket/eventservice';
 
@@ -606,7 +609,6 @@ XML;
 
         return $this->parseEventUpdateResponse($response);
     }
-
 
     private function buildSalesEventUpdateXML(int $eventId, int $entityId, array $data): string
     {
@@ -641,11 +643,11 @@ XML;
         </DocumentIdentificationGroup>
 XML;
 
-        if (!empty($data['leadInterestCode'])) {
+        if (! empty($data['leadInterestCode'])) {
             $xml .= "\n        <LeadInterestCode>{$data['leadInterestCode']}</LeadInterestCode>";
         }
 
-        if (!empty($data['saleClassCode'])) {
+        if (! empty($data['saleClassCode'])) {
             $xml .= "\n        <SaleClassCode>{$data['saleClassCode']}</SaleClassCode>";
         }
 
@@ -658,7 +660,7 @@ XML;
         $xml .= "\n            <PartyID>{$entityId}</PartyID>";
         $xml .= "\n          </ProspectParty>";
 
-        if (!empty($data['tradeInVehicles']) && is_array($data['tradeInVehicles'])) {
+        if (! empty($data['tradeInVehicles']) && is_array($data['tradeInVehicles'])) {
             foreach (array_slice($data['tradeInVehicles'], 0, 3) as $tradeIn) {
                 $xml .= "\n          <CurrentlyOwnedItem>";
                 $xml .= "\n            <OwnedVehicleDetail>";
@@ -668,27 +670,27 @@ XML;
                 $xml .= "\n                  <ModelDescription>{$tradeIn['model']}</ModelDescription>";
                 $xml .= "\n                  <ModelYear>{$tradeIn['year']}</ModelYear>";
 
-                if (!empty($tradeIn['colorItemCode'])) {
+                if (! empty($tradeIn['colorItemCode'])) {
                     $xml .= "\n                  <ColorGroup>";
                     $xml .= "\n                    <ColorItemCode>{$tradeIn['colorItemCode']}</ColorItemCode>";
                     $xml .= "\n                  </ColorGroup>";
                 }
-                if (!empty($tradeIn['colorName'])) {
+                if (! empty($tradeIn['colorName'])) {
                     $xml .= "\n                  <ColorGroup>";
                     $xml .= "\n                    <ColorName>{$tradeIn['colorName']}</ColorName>";
                     $xml .= "\n                  </ColorGroup>";
                 }
-                if (!empty($tradeIn['vin'])) {
+                if (! empty($tradeIn['vin'])) {
                     $xml .= "\n                  <VehicleID>{$tradeIn['vin']}</VehicleID>";
                 }
 
                 $xml .= "\n                </Vehicle>";
                 $xml .= "\n              </SalesLeadOwnedVehicle>";
 
-                if (!empty($tradeIn['mileage'])) {
+                if (! empty($tradeIn['mileage'])) {
                     $xml .= "\n              <CurrentDistanceMeasure>{$tradeIn['mileage']}</CurrentDistanceMeasure>";
                 }
-                if (!empty($tradeIn['balanceAmount'])) {
+                if (! empty($tradeIn['balanceAmount'])) {
                     $xml .= "\n              <OwnedVehicleFinancing>";
                     $xml .= "\n                <EstimatedFinancingAmounts>";
                     $xml .= "\n                  <BalanceAmount>{$tradeIn['balanceAmount']}</BalanceAmount>";
@@ -707,13 +709,13 @@ XML;
         $xml .= "\n          <RelationshipTypeCode>Primary</RelationshipTypeCode>";
         $xml .= "\n        </ReceivingDealerParty>";
 
-        if (!empty($data['bdcAssignedUser'])) {
+        if (! empty($data['bdcAssignedUser'])) {
             $xml .= "\n        <ProviderParty>";
             $xml .= "\n          <PartyID>{$data['bdcAssignedUser']}</PartyID>";
             $xml .= "\n        </ProviderParty>";
         }
 
-        if (!empty($data['priorityRanking'])) {
+        if (! empty($data['priorityRanking'])) {
             $xml .= "\n        <LeadPreference>";
             $xml .= "\n          <PriorityRankingNumeric>{$data['priorityRanking']}</PriorityRankingNumeric>";
             $xml .= "\n        </LeadPreference>";
@@ -723,41 +725,41 @@ XML;
 
         $xml .= "\n      <SalesLeadDetail>";
 
-        if (!empty($data['leadStatus'])) {
+        if (! empty($data['leadStatus'])) {
             $xml .= "\n        <LeadStatus>{$data['leadStatus']}</LeadStatus>";
         }
 
-        if (!empty($data['preference'])) {
+        if (! empty($data['preference'])) {
             $xml .= "\n        <Preference>{$data['preference']}</Preference>";
         }
 
-        if (!empty($data['salesPersonName']) || !empty($data['interestedVehicle'])) {
+        if (! empty($data['salesPersonName']) || ! empty($data['interestedVehicle'])) {
             $xml .= "\n        <SalesActivity>";
-            
-            if (!empty($data['salesPersonName'])) {
+
+            if (! empty($data['salesPersonName'])) {
                 $xml .= "\n          <SalesPersonName>{$data['salesPersonName']}</SalesPersonName>";
             }
 
-            if (!empty($data['interestedVehicle'])) {
+            if (! empty($data['interestedVehicle'])) {
                 $vehicle = $data['interestedVehicle'];
                 $xml .= "\n          <Vehicle>";
-                
-                if (!empty($vehicle['make'])) {
+
+                if (! empty($vehicle['make'])) {
                     $xml .= "\n            <ManufacturerName>{$vehicle['make']}</ManufacturerName>";
                 }
-                if (!empty($vehicle['year'])) {
+                if (! empty($vehicle['year'])) {
                     $xml .= "\n            <ModelYear>{$vehicle['year']}</ModelYear>";
                 }
-                if (!empty($vehicle['model'])) {
+                if (! empty($vehicle['model'])) {
                     $xml .= "\n            <ModelDescription>{$vehicle['model']}</ModelDescription>";
                 }
-                if (!empty($vehicle['vin'])) {
+                if (! empty($vehicle['vin'])) {
                     $xml .= "\n            <VehicleID>{$vehicle['vin']}</VehicleID>";
                 }
-                if (!empty($vehicle['mileage'])) {
+                if (! empty($vehicle['mileage'])) {
                     $xml .= "\n            <VehicleNote>{$vehicle['mileage']}</VehicleNote>";
                 }
-                if (!empty($vehicle['stockNumber'])) {
+                if (! empty($vehicle['stockNumber'])) {
                     $xml .= "\n            <VehicleStockString>{$vehicle['stockNumber']}</VehicleStockString>";
                 }
 
@@ -811,30 +813,30 @@ XML;
         </DocumentIdentificationGroup>
 XML;
 
-        if (!empty($data['vehicle'])) {
+        if (! empty($data['vehicle'])) {
             $vehicle = $data['vehicle'];
             $xml .= "\n        <ServiceAppointmentVehicleLineItem>";
             $xml .= "\n          <Vehicle>";
-            
-            if (!empty($vehicle['make'])) {
+
+            if (! empty($vehicle['make'])) {
                 $xml .= "\n            <ManufacturerName>{$vehicle['make']}</ManufacturerName>";
             }
-            if (!empty($vehicle['model'])) {
+            if (! empty($vehicle['model'])) {
                 $xml .= "\n            <Model>{$vehicle['model']}</Model>";
             }
-            if (!empty($vehicle['year'])) {
+            if (! empty($vehicle['year'])) {
                 $xml .= "\n            <ModelYear>{$vehicle['year']}</ModelYear>";
             }
-            if (!empty($vehicle['vin'])) {
+            if (! empty($vehicle['vin'])) {
                 $xml .= "\n            <VehicleID>{$vehicle['vin']}</VehicleID>";
             }
-            
+
             $xml .= "\n          </Vehicle>";
-            
-            if (!empty($vehicle['mileage'])) {
+
+            if (! empty($vehicle['mileage'])) {
                 $xml .= "\n          <InDistanceMeasure unitCode=\"mile\">{$vehicle['mileage']}</InDistanceMeasure>";
             }
-            
+
             $xml .= "\n        </ServiceAppointmentVehicleLineItem>";
         }
 
@@ -843,7 +845,7 @@ XML;
         $xml .= "\n      <ServiceAppointmentDetail>";
         $xml .= "\n        <Appointment>";
 
-        if (!empty($data['appointmentDateTime'])) {
+        if (! empty($data['appointmentDateTime'])) {
             $xml .= "\n          <AppointmentDateTime>{$data['appointmentDateTime']}</AppointmentDateTime>";
         }
 
@@ -851,7 +853,7 @@ XML;
             $xml .= "\n          <AppointmentNotes><![CDATA[{$data['appointmentNotes']}]]></AppointmentNotes>";
         }
 
-        if (!empty($data['serviceAdvisor'])) {
+        if (! empty($data['serviceAdvisor'])) {
             $xml .= "\n          <RequestedConsultantName>{$data['serviceAdvisor']}</RequestedConsultantName>";
         }
 
@@ -859,57 +861,57 @@ XML;
             $xml .= "\n          <LeadSourceCode>{$data['leadSourceCode']}</LeadSourceCode>";
         }
 
-        if (!empty($data['appointmentStatus'])) {
+        if (! empty($data['appointmentStatus'])) {
             $xml .= "\n          <AppointmentStatus>{$data['appointmentStatus']}</AppointmentStatus>";
         }
 
-        if (!empty($data['alternateTransportation'])) {
+        if (! empty($data['alternateTransportation'])) {
             $xml .= "\n          <AlternateTransportation>{$data['alternateTransportation']}</AlternateTransportation>";
         }
 
         $method = $data['appointmentMethod'] ?? 'Web';
         $xml .= "\n          <AppointmentMethod>{$method}</AppointmentMethod>";
 
-        if (!empty($data['endAppointmentDateTime'])) {
+        if (! empty($data['endAppointmentDateTime'])) {
             $xml .= "\n          <EndAppointmentDateTime>{$data['endAppointmentDateTime']}</EndAppointmentDateTime>";
         }
 
-        if (!empty($data['requestedServices']) && is_array($data['requestedServices'])) {
+        if (! empty($data['requestedServices']) && is_array($data['requestedServices'])) {
             foreach ($data['requestedServices'] as $service) {
                 $xml .= "\n          <RequestedService>";
                 $xml .= "\n            <JobNumberString>{$service['jobNumber']}</JobNumberString>";
                 $xml .= "\n            <JobTypeString>{$service['jobType']}</JobTypeString>";
-                
-                if (!empty($service['packageCode'])) {
+
+                if (! empty($service['packageCode'])) {
                     $xml .= "\n            <PackageCode>{$service['packageCode']}</PackageCode>";
                 }
-                
+
                 $xml .= "\n            <ServiceLaborScheduling>";
                 $xml .= "\n              <LaborOperationID>{$service['operationId']}</LaborOperationID>";
                 $xml .= "\n              <LaborOperationDescription><![CDATA[{$service['description']}]]></LaborOperationDescription>";
-                
-                if (!empty($service['laborActionCode'])) {
+
+                if (! empty($service['laborActionCode'])) {
                     $xml .= "\n              <LaborActionCode>{$service['laborActionCode']}</LaborActionCode>";
                 }
-                if (!empty($service['laborHours'])) {
+                if (! empty($service['laborHours'])) {
                     $xml .= "\n              <LaborAllowanceHoursNumeric>{$service['laborHours']}</LaborAllowanceHoursNumeric>";
                 }
-                
+
                 $xml .= "\n            </ServiceLaborScheduling>";
                 $xml .= "\n          </RequestedService>";
             }
         }
 
-        if (!empty($data['serviceAdvisorParty'])) {
+        if (! empty($data['serviceAdvisorParty'])) {
             $xml .= "\n          <ServiceAdvisorParty>";
-            
-            if (!empty($data['serviceAdvisorParty']['userName'])) {
+
+            if (! empty($data['serviceAdvisorParty']['userName'])) {
                 $xml .= "\n            <PartyID>{$data['serviceAdvisorParty']['userName']}</PartyID>";
             }
-            if (!empty($data['serviceAdvisorParty']['dmsId'])) {
+            if (! empty($data['serviceAdvisorParty']['dmsId'])) {
                 $xml .= "\n            <DealerManagementSystemID>{$data['serviceAdvisorParty']['dmsId']}</DealerManagementSystemID>";
             }
-            
+
             $xml .= "\n          </ServiceAdvisorParty>";
         }
 
@@ -928,13 +930,13 @@ XML;
             return [
                 'success' => false,
                 'error' => 'HTTP Error: ' . $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ];
         }
 
         try {
             $xml = simplexml_load_string($response->body());
-            
+
             if ($xml === false) {
                 throw new Exception('Failed to parse XML response');
             }
@@ -946,16 +948,15 @@ XML;
                 'errorCode' => (string)($xml->ErrorCode ?? ''),
                 'errorMessage' => (string)($xml->ErrorMessage ?? ''),
                 'stackTrace' => (string)($xml->StackTrace ?? ''),
-                'rawXml' => $response->body()
+                'rawXml' => $response->body(),
             ];
 
             return $result;
-
         } catch (Exception $e) {
             return [
                 'success' => false,
                 'error' => 'Parse Error: ' . $e->getMessage(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ];
         }
     }

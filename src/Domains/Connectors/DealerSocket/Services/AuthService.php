@@ -23,7 +23,6 @@ class AuthService
         ?string $dealerId = null,
         ?string $vendorName = null
     ) {
-
         $this->publicKey = $publicKey ?? '';
         $this->privateKey = $privateKey ?? '';
 
@@ -38,7 +37,7 @@ class AuthService
     {
         $hash = hash_hmac('sha256', $body, $this->privateKey, true);
         $hashString = base64_encode($hash);
-        
+
         return $this->publicKey . ':' . $hashString;
     }
 
@@ -54,7 +53,7 @@ class AuthService
     {
         $hash = hash_hmac('sha256', $xmlBody, $this->privateKey, true);
         $hashString = base64_encode($hash);
-        
+
         return [
             'Authentication' => $this->publicKey . ':' . $hashString,
             'Content-Type' => 'application/xml',

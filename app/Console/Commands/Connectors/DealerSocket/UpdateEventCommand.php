@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands\Connectors\DealerSocket;
 
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\DealerSocket\LeadClient;
-use Exception;
 use Kanvas\Regions\Models\Regions;
 
 class UpdateEventCommand extends Command
@@ -31,7 +31,7 @@ class UpdateEventCommand extends Command
 
         // Show environment info
         $environment = config('dealersocket.environment', 'production');
-        
+
         if ($environment === 'testing') {
             $this->comment('📍 Using Testing Environment');
         } else {
@@ -41,7 +41,7 @@ class UpdateEventCommand extends Command
 
         try {
             $client = new LeadClient($company, $app, $region);
-            
+
             $type = $this->option('type');
 
             if ($type === 'sales') {
@@ -51,14 +51,15 @@ class UpdateEventCommand extends Command
             } else {
                 $this->error("❌ Invalid event type: {$type}");
                 $this->info('Valid types: sales, service');
+
                 return Command::FAILURE;
             }
-
         } catch (Exception $e) {
             $this->error('❌ Exception: ' . $e->getMessage());
             if ($this->option('verbose')) {
                 $this->error($e->getTraceAsString());
             }
+
             return Command::FAILURE;
         }
     }
@@ -70,29 +71,31 @@ class UpdateEventCommand extends Command
 
         // Get Event ID
         $eventId = $this->option('event-id');
-        if (!$eventId && $this->option('interactive')) {
+        if (! $eventId && $this->option('interactive')) {
             $eventId = $this->ask('Enter Event/Lead ID');
         }
 
-        if (!$eventId) {
+        if (! $eventId) {
             $this->error('❌ Event ID is required. Use --event-id=XXX or --interactive');
+
             return Command::FAILURE;
         }
 
         // Get Entity ID
         $entityId = $this->option('entity-id');
-        if (!$entityId && $this->option('interactive')) {
+        if (! $entityId && $this->option('interactive')) {
             $entityId = $this->ask('Enter Entity/Customer ID');
         }
 
-        if (!$entityId) {
+        if (! $entityId) {
             $this->error('❌ Entity ID is required. Use --entity-id=XXX or --interactive');
+
             return Command::FAILURE;
         }
 
         // Build update data
-        $data = $this->option('interactive') 
-            ? $this->getSalesEventDataInteractive() 
+        $data = $this->option('interactive')
+            ? $this->getSalesEventDataInteractive()
             : $this->getSalesEventDataExample();
 
         // Show summary before sending
@@ -112,8 +115,9 @@ class UpdateEventCommand extends Command
         $this->newLine();
 
         if ($this->option('interactive')) {
-            if (!$this->confirm('Proceed with update?', true)) {
+            if (! $this->confirm('Proceed with update?', true)) {
                 $this->info('Update cancelled.');
+
                 return Command::SUCCESS;
             }
             $this->newLine();
@@ -151,22 +155,21 @@ class UpdateEventCommand extends Command
             $this->comment("💡 Tip: Use \"php artisan dealersocket:search-lead --entity-id={$entityId}\" to verify the changes");
 
             return Command::SUCCESS;
-
         } else {
             $this->error('❌ Failed to update event');
             $this->error('Error: ' . ($response['errorMessage'] ?? $response['error'] ?? 'Unknown error'));
 
-            if (!empty($response['errorCode'])) {
+            if (! empty($response['errorCode'])) {
                 $this->error('Error Code: ' . $response['errorCode']);
             }
 
-            if (!empty($response['stackTrace'])) {
+            if (! empty($response['stackTrace'])) {
                 $this->newLine();
                 $this->warn('Stack Trace:');
                 $this->line($response['stackTrace']);
             }
 
-            if (!empty($response['rawXml']) && $this->option('verbose')) {
+            if (! empty($response['rawXml']) && $this->option('verbose')) {
                 $this->newLine();
                 $this->warn('Response XML:');
                 $this->line($response['rawXml']);
@@ -186,40 +189,43 @@ class UpdateEventCommand extends Command
 
         // Get Event ID
         $eventId = $this->option('event-id');
-        if (!$eventId && $this->option('interactive')) {
+        if (! $eventId && $this->option('interactive')) {
             $eventId = $this->ask('Enter Event ID');
         }
 
-        if (!$eventId) {
+        if (! $eventId) {
             $this->error('❌ Event ID is required. Use --event-id=XXX or --interactive');
+
             return Command::FAILURE;
         }
 
         // Get Activity ID
         $activityId = $this->option('activity-id');
-        if (!$activityId && $this->option('interactive')) {
+        if (! $activityId && $this->option('interactive')) {
             $activityId = $this->ask('Enter Activity ID (from appointment)');
         }
 
-        if (!$activityId) {
+        if (! $activityId) {
             $this->error('❌ Activity ID is required for service events. Use --activity-id=XXX or --interactive');
+
             return Command::FAILURE;
         }
 
         // Get Entity ID
         $entityId = $this->option('entity-id');
-        if (!$entityId && $this->option('interactive')) {
+        if (! $entityId && $this->option('interactive')) {
             $entityId = $this->ask('Enter Entity/Customer ID');
         }
 
-        if (!$entityId) {
+        if (! $entityId) {
             $this->error('❌ Entity ID is required. Use --entity-id=XXX or --interactive');
+
             return Command::FAILURE;
         }
 
         // Build update data
-        $data = $this->option('interactive') 
-            ? $this->getServiceEventDataInteractive() 
+        $data = $this->option('interactive')
+            ? $this->getServiceEventDataInteractive()
             : $this->getServiceEventDataExample();
 
         // Show summary
@@ -238,8 +244,9 @@ class UpdateEventCommand extends Command
         $this->newLine();
 
         if ($this->option('interactive')) {
-            if (!$this->confirm('Proceed with update?', true)) {
+            if (! $this->confirm('Proceed with update?', true)) {
                 $this->info('Update cancelled.');
+
                 return Command::SUCCESS;
             }
             $this->newLine();
@@ -279,16 +286,15 @@ class UpdateEventCommand extends Command
             $this->comment("💡 Tip: Use \"php artisan dealersocket:search-lead --entity-id={$entityId}\" to verify the changes");
 
             return Command::SUCCESS;
-
         } else {
             $this->error('❌ Failed to update service appointment');
             $this->error('Error: ' . ($response['errorMessage'] ?? $response['error'] ?? 'Unknown error'));
 
-            if (!empty($response['errorCode'])) {
+            if (! empty($response['errorCode'])) {
                 $this->error('Error Code: ' . $response['errorCode']);
             }
 
-            if (!empty($response['body']) && $this->option('verbose')) {
+            if (! empty($response['body']) && $this->option('verbose')) {
                 $this->newLine();
                 $this->warn('Response body:');
                 $this->line($response['body']);
@@ -318,7 +324,7 @@ class UpdateEventCommand extends Command
             'Write-Up',
             'Pending F&I',
             'Lost',
-            'Store Visit'
+            'Store Visit',
         ];
 
         $statusChoice = $this->choice('Lead Status', $statusOptions, 0);
@@ -405,13 +411,13 @@ class UpdateEventCommand extends Command
         $this->comment('🔄 Trade-in Vehicles:');
         if ($this->confirm('Add/Update trade-in vehicle?', false)) {
             $data['tradeInVehicles'] = [];
-            
+
             $maxTradeIns = 3;
             $currentCount = 0;
-            
+
             do {
-                $this->info("Trade-in #" . ($currentCount + 1) . ":");
-                
+                $this->info('Trade-in #' . ($currentCount + 1) . ':');
+
                 $tradeIn = [
                     'year' => $this->ask('Trade-in Year', date('Y') - 5),
                     'make' => $this->ask('Trade-in Make', 'Honda'),
@@ -420,15 +426,14 @@ class UpdateEventCommand extends Command
                     'mileage' => $this->ask('Mileage (optional)', ''),
                     'balanceAmount' => $this->ask('Loan Balance (optional)', ''),
                 ];
-                
+
                 $data['tradeInVehicles'][] = $tradeIn;
                 $currentCount++;
-                
             } while (
-                $currentCount < $maxTradeIns && 
+                $currentCount < $maxTradeIns &&
                 $this->confirm('Add another trade-in? (max 3)', false)
             );
-            
+
             $this->newLine();
         }
 
@@ -448,8 +453,8 @@ class UpdateEventCommand extends Command
                 'year' => date('Y'),
                 'make' => 'Honda',
                 'model' => 'Accord',
-                'stockNumber' => 'H' . date('Y') . '-001'
-            ]
+                'stockNumber' => 'H' . date('Y') . '-001',
+            ],
         ];
     }
 
@@ -469,7 +474,7 @@ class UpdateEventCommand extends Command
             'Completed',
             'No Show',
             'Canceled',
-            'Unqualified'
+            'Unqualified',
         ];
 
         $statusChoice = $this->choice('Appointment Status', $statusOptions, 0);
@@ -517,7 +522,7 @@ class UpdateEventCommand extends Command
             'Shuttle (Pick up)',
             'Rental',
             'Loaner',
-            'Valet Pick-up'
+            'Valet Pick-up',
         ];
 
         $transportChoice = $this->choice('Alternate Transportation', $transportOptions, 0);
@@ -546,9 +551,9 @@ class UpdateEventCommand extends Command
             'serviceAdvisor' => 'kgakramer',
             'alternateTransportation' => 'Loaner',
             'vehicle' => [
-                'mileage' => 52000
+                'mileage' => 52000,
             ],
-            'appointmentMethod' => 'Web'
+            'appointmentMethod' => 'Web',
         ];
     }
 
@@ -558,7 +563,7 @@ class UpdateEventCommand extends Command
             return 'No change';
         }
 
-        return match($priority) {
+        return match ($priority) {
             1 => '1 - Hot',
             2 => '2 - Medium',
             3 => '3 - Cold',
@@ -572,7 +577,7 @@ class UpdateEventCommand extends Command
             return 'No change';
         }
 
-        return match($code) {
+        return match ($code) {
             'B' => 'Buy',
             'L' => 'Lease',
             'T' => 'Trade',

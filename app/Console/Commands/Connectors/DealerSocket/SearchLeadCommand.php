@@ -3,11 +3,11 @@
 namespace App\Console\Commands\Connectors\DealerSocket;
 
 use Illuminate\Console\Command;
-use Kanvas\Connectors\DealerSocket\LeadClient;
-use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Connectors\DealerSocket\CustomerClient;
+use Kanvas\Connectors\DealerSocket\LeadClient;
 use Kanvas\Regions\Models\Regions;
 
 class SearchLeadCommand extends Command
@@ -56,19 +56,21 @@ class SearchLeadCommand extends Command
             // If email or phone provided, find entity-id first
             if ($email || $phone) {
                 $entityId = $this->findEntityId($company, $app, $region, $email, $phone);
-                
-                if (!$entityId) {
+
+                if (! $entityId) {
                     $this->error('❌ Customer not found with provided email/phone');
+
                     return 1;
                 }
-                
+
                 $this->info("✓ Found customer with Entity ID: {$entityId}");
                 $this->newLine();
             }
 
             // Validate we have entity-id
-            if (!$entityId) {
+            if (! $entityId) {
                 $this->error('❌ Please provide --entity-id, --email, or --phone');
+
                 return 1;
             }
 
@@ -77,14 +79,14 @@ class SearchLeadCommand extends Command
                 // Search for specific lead
                 $this->info("Searching for Lead ID: {$eventId}");
                 $result = $leadClient->searchByLeadId((int) $eventId, (int) $entityId);
-                
+
                 if (empty($result)) {
                     $this->warn('Lead not found.');
+
                     return 1;
                 }
-                
+
                 $this->displaySingleLead($result);
-                
             } else {
                 // Search all leads for customer
                 $this->info("Searching {$category} leads for Entity ID: {$entityId}");
@@ -94,16 +96,16 @@ class SearchLeadCommand extends Command
 
             $this->newLine();
             $this->info('✅ Search completed successfully!');
-            return 0;
 
+            return 0;
         } catch (\Exception $e) {
             $this->newLine();
             $this->error('❌ Exception: ' . $e->getMessage());
-            
+
             if ($this->output->isVerbose()) {
                 $this->error($e->getTraceAsString());
             }
-            
+
             return 1;
         }
     }
@@ -114,10 +116,10 @@ class SearchLeadCommand extends Command
     private function findEntityId(Companies $company, Apps $app, Regions $region, ?string $email, ?string $phone): ?int
     {
         $this->info('🔎 Finding customer first...');
-        
+
         try {
             $customerClient = new CustomerClient($company, $app, $region);
-            
+
             $criteria = [];
             if ($email) {
                 $criteria['email'] = $email;
@@ -126,23 +128,23 @@ class SearchLeadCommand extends Command
                 $criteria['phone'] = $phone;
                 $this->line("  Searching by phone: {$phone}");
             }
-            
+
             $customer = $customerClient->searchCustomer($criteria);
-            
+
             if (empty($customer['entityId'])) {
                 return null;
             }
-            
+
             // Display found customer info
-            if (!empty($customer['firstName']) || !empty($customer['lastName'])) {
+            if (! empty($customer['firstName']) || ! empty($customer['lastName'])) {
                 $name = trim(($customer['firstName'] ?? '') . ' ' . ($customer['lastName'] ?? ''));
                 $this->line("  Found: <comment>{$name}</comment>");
             }
-            
+
             return (int) $customer['entityId'];
-            
         } catch (\Exception $e) {
             $this->warn("  Error searching customer: {$e->getMessage()}");
+
             return null;
         }
     }
@@ -154,17 +156,19 @@ class SearchLeadCommand extends Command
     {
         if (empty($result)) {
             $this->warn('No results found.');
+
             return;
         }
 
         // Display customer info
-        if (!empty($result['customer'])) {
+        if (! empty($result['customer'])) {
             $this->displayCustomerInfo($result['customer']);
         }
 
         // Display leads/events
         if (empty($result['events'])) {
             $this->warn('📭 No active leads found for this customer.');
+
             return;
         }
 
@@ -177,7 +181,7 @@ class SearchLeadCommand extends Command
         }
 
         $this->newLine();
-        $this->info("Total Leads Found: " . count($result['events']));
+        $this->info('Total Leads Found: ' . count($result['events']));
     }
 
     /**
@@ -187,6 +191,7 @@ class SearchLeadCommand extends Command
     {
         if (empty($event)) {
             $this->warn('Lead not found.');
+
             return;
         }
 
@@ -203,19 +208,19 @@ class SearchLeadCommand extends Command
         $this->newLine();
         $this->info('👤 Customer Information:');
         $this->info(str_repeat('─', 80));
-        
+
         $name = trim(implode(' ', array_filter([
             $customer['firstName'] ?? '',
             $customer['middleName'] ?? '',
             $customer['lastName'] ?? '',
-            $customer['suffix'] ?? ''
+            $customer['suffix'] ?? '',
         ])));
-        
+
         if ($name) {
             $this->line("  Name: <comment>{$name}</comment>");
         }
-        
-        if (!empty($customer['companyName'])) {
+
+        if (! empty($customer['companyName'])) {
             $this->line("  Company: <comment>{$customer['companyName']}</comment>");
         }
     }
@@ -228,52 +233,52 @@ class SearchLeadCommand extends Command
         $this->newLine();
         $this->line("  <fg=cyan>Lead #{$number}</>");
         $this->line("  ├─ Event ID: <comment>{$event['eventId']}</comment>");
-        
-        $category = $event['eventCategory'] === 1 ? 'Sales' : 
+
+        $category = $event['eventCategory'] === 1 ? 'Sales' :
                    ($event['eventCategory'] === 2 ? 'Service' : 'Unknown');
         $this->line("  ├─ Category: <comment>{$category}</comment>");
-        
-        if (!empty($event['statusName'])) {
+
+        if (! empty($event['statusName'])) {
             $statusColor = $this->getStatusColor($event['status']);
             $this->line("  ├─ Status: <fg={$statusColor}>{$event['statusName']}</>");
         }
-        
-        if (!empty($event['personAssigned'])) {
+
+        if (! empty($event['personAssigned'])) {
             $this->line("  ├─ Assigned To: <comment>{$event['personAssigned']}</comment>");
         }
-        
-        if (!empty($event['insertDate'])) {
+
+        if (! empty($event['insertDate'])) {
             $this->line("  ├─ Created: <comment>{$event['insertDate']}</comment>");
         }
-        
-        if (!empty($event['updateDate'])) {
+
+        if (! empty($event['updateDate'])) {
             $this->line("  ├─ Updated: <comment>{$event['updateDate']}</comment>");
         }
-        
+
         // Vehicle information
         $vehicle = $event['vehicle'] ?? [];
-        if (!empty(array_filter($vehicle))) {
-            $this->line("  └─ Vehicle:");
-            
+        if (! empty(array_filter($vehicle))) {
+            $this->line('  └─ Vehicle:');
+
             $vehicleDesc = trim(implode(' ', array_filter([
                 $vehicle['year'] ?? '',
                 $vehicle['make'] ?? '',
-                $vehicle['model'] ?? ''
+                $vehicle['model'] ?? '',
             ])));
-            
+
             if ($vehicleDesc) {
                 $this->line("     ├─ Description: <comment>{$vehicleDesc}</comment>");
             }
-            
-            if (!empty($vehicle['vin'])) {
+
+            if (! empty($vehicle['vin'])) {
                 $this->line("     ├─ VIN: <comment>{$vehicle['vin']}</comment>");
             }
-            
-            if (!empty($vehicle['stockNumber'])) {
+
+            if (! empty($vehicle['stockNumber'])) {
                 $this->line("     ├─ Stock: <comment>{$vehicle['stockNumber']}</comment>");
             }
-            
-            if (!empty($vehicle['currentMileage'])) {
+
+            if (! empty($vehicle['currentMileage'])) {
                 $this->line("     └─ Mileage: <comment>{$vehicle['currentMileage']}</comment>");
             }
         }
@@ -292,17 +297,17 @@ class SearchLeadCommand extends Command
         if (in_array($status, [225, 100169])) {
             return 'green';
         }
-        
+
         // Lost
         if (in_array($status, [226, 100170])) {
             return 'red';
         }
-        
+
         // Unqualified
         if (in_array($status, [220, 100165])) {
             return 'gray';
         }
-        
+
         // Active statuses
         return 'yellow';
     }
@@ -336,12 +341,15 @@ class SearchLeadCommand extends Command
         switch ($searchMethod) {
             case '1':
                 $params['entityId'] = $this->ask('Enter Entity/Customer ID');
+
                 break;
             case '2':
                 $params['email'] = $this->ask('Enter customer email');
+
                 break;
             case '3':
                 $params['phone'] = $this->ask('Enter customer phone');
+
                 break;
         }
 
@@ -359,7 +367,7 @@ class SearchLeadCommand extends Command
         }
 
         $this->newLine();
-        
+
         return $params;
     }
 }

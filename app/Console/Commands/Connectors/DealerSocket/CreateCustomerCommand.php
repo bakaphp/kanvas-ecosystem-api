@@ -30,7 +30,7 @@ class CreateCustomerCommand extends Command
 
         // Show environment info
         $environment = config('dealersocket.environment', 'production');
-        
+
         if ($environment === 'testing') {
             $this->comment('📍 Using Testing Environment');
         } else {
@@ -39,16 +39,17 @@ class CreateCustomerCommand extends Command
         $this->newLine();
 
         $customerType = $this->option('type');
-        
+
         // Validate customer type
-        if (!in_array($customerType, ['Individual', 'Company'])) {
+        if (! in_array($customerType, ['Individual', 'Company'])) {
             $this->error("❌ Invalid customer type: {$customerType}");
             $this->info('Valid types: Individual, Company');
+
             return Command::FAILURE;
         }
 
-        $data = $this->option('interactive') 
-            ? $this->getInteractiveInput($customerType) 
+        $data = $this->option('interactive')
+            ? $this->getInteractiveInput($customerType)
             : $this->getDefaultData($customerType);
 
         try {
@@ -66,29 +67,29 @@ class CreateCustomerCommand extends Command
                     $this->newLine();
                     $this->info('✅ Customer created successfully!');
                     $this->newLine();
-                    
+
                     $tableData = [];
-                    
+
                     // Entity ID
                     if ($customerType === 'Individual' && isset($customerInfo->SpecifiedPerson->ID)) {
                         $entityId = (string)$customerInfo->SpecifiedPerson->ID;
                         $tableData[] = ['Entity ID', $entityId];
-                        
+
                         // Store for later use
                         cache()->put('last_created_customer_id', $entityId, now()->addHour());
                     } elseif ($customerType === 'Company' && isset($customerInfo->SpecifiedOrganization->ID)) {
                         $entityId = (string)$customerInfo->SpecifiedOrganization->ID;
                         $tableData[] = ['Entity ID', $entityId];
-                        
+
                         cache()->put('last_created_customer_id', $entityId, now()->addHour());
                     }
-                    
+
                     $tableData[] = ['Customer Type', $customerType];
-                    
+
                     // Name
                     if ($customerType === 'Individual') {
                         $name = trim(
-                            ($customerInfo->SpecifiedPerson->GivenName ?? '') . ' ' . 
+                            ($customerInfo->SpecifiedPerson->GivenName ?? '') . ' ' .
                             ($customerInfo->SpecifiedPerson->FamilyName ?? '')
                         );
                         $tableData[] = ['Name', $name];
@@ -96,28 +97,29 @@ class CreateCustomerCommand extends Command
                         $companyName = (string)($customerInfo->SpecifiedOrganization->CompanyName ?? 'N/A');
                         $tableData[] = ['Company Name', $companyName];
                     }
-                    
+
                     // Contact info
                     if (isset($customerInfo->SpecifiedPerson->TelephoneCommunication->CompleteNumber)) {
                         $tableData[] = ['Phone', (string)$customerInfo->SpecifiedPerson->TelephoneCommunication->CompleteNumber];
                     }
-                    
+
                     if (isset($customerInfo->SpecifiedPerson->URICommunication->URIID)) {
                         $tableData[] = ['Email', (string)$customerInfo->SpecifiedPerson->URICommunication->URIID];
                     }
-                    
+
                     $this->table(['Field', 'Value'], $tableData);
-                    
+
                     // Show search tip
-                    if (!empty($entityId)) {
+                    if (! empty($entityId)) {
                         $this->newLine();
                         $this->comment('💡 Tip: Use "php artisan dealersocket:search-customer ' . $entityId . '" to view this customer');
                     }
-                    
+
                     return Command::SUCCESS;
                 } else {
                     $this->error('❌ Customer created but response format unexpected');
                     $this->warn('Response: ' . $response->asXML());
+
                     return Command::FAILURE;
                 }
             } else {
@@ -125,6 +127,7 @@ class CreateCustomerCommand extends Command
                 if ($response) {
                     $this->warn('Response: ' . $response->asXML());
                 }
+
                 return Command::FAILURE;
             }
         } catch (\Exception $e) {
@@ -132,6 +135,7 @@ class CreateCustomerCommand extends Command
             if ($this->option('verbose')) {
                 $this->error($e->getTraceAsString());
             }
+
             return Command::FAILURE;
         }
     }
@@ -150,7 +154,7 @@ class CreateCustomerCommand extends Command
         } else {
             $this->comment('🏢 Company Information:');
             $data['companyName'] = $this->ask('Company Name');
-            
+
             $this->newLine();
             $this->comment('👤 Primary Contact:');
             $data['contactFirstName'] = $this->ask('Contact First Name');
@@ -159,7 +163,7 @@ class CreateCustomerCommand extends Command
 
         $this->newLine();
         $this->comment('📞 Contact Information:');
-        
+
         if ($this->confirm('Add phone number?', true)) {
             $data['phone'] = $this->ask('Phone Number');
         }
@@ -174,7 +178,7 @@ class CreateCustomerCommand extends Command
     private function getDefaultData(string $customerType): array
     {
         $timestamp = now()->timestamp;
-        
+
         if ($customerType === 'Individual') {
             return [
                 'type' => 'Individual',
