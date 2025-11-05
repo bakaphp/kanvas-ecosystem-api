@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
