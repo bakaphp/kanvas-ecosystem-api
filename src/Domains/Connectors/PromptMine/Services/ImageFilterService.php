@@ -2,21 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
+namespace Kanvas\Connectors\PromptMine\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
 use finfo;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
@@ -31,148 +29,161 @@ use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\KanvasActivity;
-use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
 
-class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
+class ImageFilterService
 {
     protected ?string $apiUrl = null;
     protected ?string $openaiApiUrl = null;
-    protected ?Apps $app = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
     public $tries = 3;
 
-    #[Override]
-    public function execute(Model $entity, AppInterface $app, array $params): array
-    {
-        $this->overwriteAppService($app);
+    public function __construct(
+        protected ?AppInterface $app = null,
+        protected ?Message $entity = null,
+        protected ?Collection $messageFiles = null,
+        protected ?array $params = null,
+    ) {
+    }
 
-        sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
-        $entity->refresh();
-        $messageFiles = $this->getFilesWithRetry($entity);
-        $this->app = $app;
-        $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
-        $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
-        $imageFilterName = $entity->message['ai_model']['name'] ?? 'cartoonify';
+    public function execute(): array
+    {
+        $messageFiles = $this->messageFiles;
+        \Illuminate\Support\Facades\Log::info("GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
+        $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
+        $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
+        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
         $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
 
-        $company = $this->getCompany($app, $entity);
+        $company = $this->getCompany($this->app, $this->entity);
 
-        return $this->executeIntegration(
-            entity: $entity,
-            app: $app,
-            integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi, $isGeminiBanana) {
-                $entity->setPrivate();
+        $this->entity->setPrivate();
 
-                if (! empty($this->validateImageLimit($entity, $params))) {
-                    return $this->failWorkflow([
-                        'result' => false,
-                        'message_id' => $entity->getId(),
-                        'message' => 'Image limit validation failed',
-                    ]);
-                }
+        if (! empty($this->validateImageLimit($this->entity, $this->params))) {
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Image limit validation failed',
+            ];
+        }
 
-                if (empty($this->apiUrl)) {
-                    return $this->failWorkflow([
-                        'result' => false,
-                        'message' => 'API URL not configured',
-                    ]);
-                }
+        if (empty($this->apiUrl)) {
+            return [
+                'result' => false,
+                'message' => 'API URL not configured',
+            ];
+        }
 
-                if ($messageFiles->isEmpty()) {
-                    return $this->failWorkflow([
-                        'result' => false,
-                        'message' => 'Message does not have any files',
-                    ]);
-                }
+        if ($messageFiles->count() == 0) {
+            return [
+                'result' => false,
+                'message' => 'Message does not have any files',
+            ];
+        }
 
-                // Deduct user credit based on the selected image filter
-                new MessageOrderFulfillmentAction($entity)->execute('image');
+        // Deduct user credit based on the selected image filter
+        new MessageOrderFulfillmentAction($this->entity)->execute('image');
 
-                $fileUrl = $messageFiles->first()->url;
-                $fileSystemRecord = null;
-                $processedImageUrl = null;
-                $requestId = null;
+        $fileUrl = $messageFiles->first()->url;
+        $fileSystemRecord = null;
+        $processedImageUrl = null;
+        $requestId = null;
 
-                if ($messageFiles->count() > 1) {
-                    //lets add them to params since this is optional
-                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
-                }
+        if ($messageFiles->count() > 1) {
+            //lets add them to params since this is optional
+            $this->params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+        }
 
-                try {
-                    // Process image based on the model type
-                    if ($isOpenAi) {
-                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity, $params);
-                        if ($fileSystemRecord === null) {
-                            return $this->failWorkflow([
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'message' => 'Failed to retrieve processed image',
-                            ]);
-                        }
-                    } elseif ($isGeminiBanana) {
-                        // Process with Gemini-Nano-Banana
-                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter, $params);
-                        if ($fileSystemRecord === null) {
-                            return $this->failWorkflow([
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'message' => 'Failed to retrieve processed image',
-                            ]);
-                        }
-                        // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
-                        $processedImageUrl = null;
-                    } else {
-                        // Process with fal.ai
-                        list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
-                            $fileUrl,
-                            $imageFilter,
-                            $entity,
-                            $params
-                        );
-
-                        if ($fileSystemRecord === null) {
-                            return $this->failWorkflow([
-                                'result' => false,
-                                'filter' => $imageFilter,
-                                'request_id' => $requestId,
-                                'message' => 'Failed to retrieve processed image',
-                            ]);
-                        }
-                    }
-
-                    // Create nugget message and send notification - common for both methods
-                    return $this->finalizeProcessing(
-                        $entity,
-                        $fileSystemRecord,
-                        $fileUrl,
-                        $processedImageUrl,
-                        $params,
-                        $requestId,
-                        $imageFilter
-                    );
-                } catch (Exception $e) {
-                    report($e);
-
+        try {
+            // Process image based on the model type
+            if ($isOpenAi) {
+                $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $this->params);
+                if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
-                        'message_id' => $entity->getId(),
-                        'message' => 'Error processing image: ' . $e->getMessage(),
+                        'filter' => $imageFilter,
+                        'message' => 'Failed to retrieve processed image',
                     ];
                 }
-            },
-            company: $company,
-        );
+            } elseif ($isGeminiBanana) {
+                // Process with Gemini-Nano-Banana
+                $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $this->params);
+                if ($fileSystemRecord === null) {
+                    return [
+                        'result' => false,
+                        'filter' => $imageFilter,
+                        'message' => 'Failed to retrieve processed image',
+                    ];
+                }
+                // For Gemini-Nano-Banana, we don't have a separate processed URL since we upload directly
+                $processedImageUrl = null;
+            } else {
+                // Process with fal.ai
+                list($fileSystemRecord, $processedImageUrl, $requestId) = $this->processImageWithFalAi(
+                    $fileUrl,
+                    $imageFilter,
+                    $this->entity,
+                    $this->params
+                );
+
+                if ($fileSystemRecord === null) {
+                    return [
+                        'result' => false,
+                        'filter' => $imageFilter,
+                        'request_id' => $requestId,
+                        'message' => 'Failed to retrieve processed image',
+                    ];
+                }
+            }
+
+            // Create nugget message and send notification - common for both methods
+            return $this->finalizeProcessing(
+                $this->entity,
+                $fileSystemRecord,
+                $fileUrl,
+                $processedImageUrl,
+                $this->params,
+                $requestId,
+                $imageFilter
+            );
+        } catch (Exception $e) {
+            report($e);
+
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Error processing image: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    protected function getFilesFromFilesystem(Model $entity): Collection
+    {
+        if (! isset($entity->message['ai_image']) && count($entity->message['ai_image']) == 0) {
+            return collect([]);
+        }
+
+        $files = [];
+        foreach ($entity->message['ai_image'] as $fileInfo) {
+            $file = Filesystem::fromApp($entity->app)
+                ->where('companies_id', $entity->companies_id)
+                ->where('name', $fileInfo['name'])
+                ->where('is_deleted', 0)
+                ->orderBy('id', 'DESC')
+                ->first();
+            if (! $file) {
+                continue;
+            }
+            $files[] = $file;
+        }
+
+        return collect($files);
     }
 
     protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
@@ -489,6 +500,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         // Optimize and upload the processed image
+        \Illuminate\Support\Facades\Log::info("NANO URL", [$processedImageUrl, $responseData]);
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
         $fileName = basename($tempFilePath);
 
@@ -533,38 +545,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         $totalDelivery = 0;
-        $isRemix = $entity->message['remix_parent_id'] ?? false;
+        // $isRemix = $entity->message['remix_parent_id'] ?? false;
         $user = Users::getById($entity->users_id);
         $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
-
-        // Create a new nugget message with the processed image
         $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
-        $createNuggetMessage = (new CreateNuggetMessageAction(
-            parentMessage: $entity,
-            messageData: [
-                'title' => trim($title),
-                'type' => 'image-format',
-                'image' => $cdnImageUrl,
-            ],
-            messageTypeVerb: 'chat-response',
-        ))->execute();
-
-        $messageCopy = $entity->message;
-        if ($isRemix) {
-            $messageCopy['ai_image'] = array_merge(
-                ['ai_model' => $messageCopy['ai_model']],
-                [
-                    'nugget' => $cdnImageUrl,
-                    'title' => trim($title),
-                    'type' => 'image-format',
-                ]
-            );
-        } else {
-            $messageCopy['ai_image'] = $cdnImageUrl;
-        }
-        $entity->message = $messageCopy;
-        $entity->is_public = 1;
-        $entity->save();
 
         $endViaList = array_map(
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
@@ -604,8 +588,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             'user_id' => $entity->user->getId(),
             'message_data' => $entity->message,
             'message_id' => $entity->getId(),
-            'nugget_message_id' => $createNuggetMessage->getId(),
             'original_image_url' => $originalImageUrl,
+            'image_url' => $cdnImageUrl,
         ];
 
         // Add processed image URL and request ID if they exist (for fal-ai processing)

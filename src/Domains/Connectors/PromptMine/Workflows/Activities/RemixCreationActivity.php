@@ -7,8 +7,11 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -57,6 +60,35 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 $entity->parent_id = $entity->message['remix_parent_id'];
                 $entity->save();
                 $entity->parent->increment('total_children');
+
+                //Send notification to the original message owner
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['database']
+                );
+
+                try {
+                    $remixMessage = Message::find($entity->message['remix_parent_id']);
+                    $promptRemixTitle = $remixMessage->message['title'] ?? '';
+                    $newMessageNotification = new MessageOwnerPushNotification(
+                        user: $entity->user,
+                        entity: $entity,
+                        message: "Your AI creation {$promptRemixTitle} has been remixed!",
+                        title: 'AI creation remixed',
+                        via: $endViaList,
+                        templates: [
+                            'email_template' => $params['email_template'],
+                            'push_template' => $params['push_template'],
+                        ],
+                    );
+                    $remixMessage->user->notify($newMessageNotification);
+                } catch (\Throwable $th) {
+                    return [
+                        'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
+                        'result' => true,
+                        'message_id' => $entity->getId(),
+                    ];
+                }
 
                 return [
                     'message' => 'Remix created successfully',

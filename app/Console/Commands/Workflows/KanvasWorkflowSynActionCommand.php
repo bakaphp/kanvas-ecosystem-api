@@ -67,6 +67,7 @@ use Kanvas\Connectors\PromptMine\Workflows\Activities\SaveLlmChoiceActivity;
 use Kanvas\Connectors\QuickBooks\Workflows\PushOrderToInvoiceActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
+use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
@@ -273,6 +274,7 @@ class KanvasWorkflowSynActionCommand extends Command
             StripePaymentLinkWebhookJob::class,
             PushParticipantActivity::class,
             HumanAgentChannelResponseActivity::class,
+            PushProductToItemActivity::class,
         ];
 
         $createdActions = [];

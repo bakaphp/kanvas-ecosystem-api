@@ -138,7 +138,7 @@ class ProductBuilder
             );
         } else {
             // Product-to-product recommendations (default)
-            $product = Products::getById($productId);
+            $product = Products::getById($productId, $app);
 
             $itemRecommendationService = new RecombeeItemRecommendationService(
                 $app,

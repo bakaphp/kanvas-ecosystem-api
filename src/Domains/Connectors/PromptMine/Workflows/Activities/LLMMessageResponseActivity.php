@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +16,7 @@ use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
+use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -23,7 +26,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -38,6 +40,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     public function execute(Message $message, AppInterface $app, array $params): array
     {
+        // sleep($app->get('PROMPT_IMAGE_WAIT_TIME') ?? 10);
+        // $message->refresh();
         $this->overwriteAppService($app);
 
         $company = $this->getCompany($app, $message->company);
@@ -47,7 +51,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
 
                 if (empty($prompt)) {
@@ -59,6 +63,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
+                $isNotSafeForWork = false;
 
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
@@ -66,29 +71,44 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
-                } else {
-                    $response = $this->generateImageResponse($message);
-                    $chatHistory = []; // No chat history for images
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
+                } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
+                    $result = $this->generateFilteredImageResponse($message, $params);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
+                } else {
+                    $result = $this->generateImageResponse($message);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
+                    $messageTypeKey = 'image';
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 }
 
+                $error = false;
+                $errorReason = null;
                 if (empty($response)) {
-                    return [
+                    /* return [
                         'result' => false,
                         'error' => 'Response is empty',
                         'message' => $message->toArray(),
                         'message_id' => $message->id,
-                    ];
+                    ]; */
+                    $errorReason = 'Response is empty';
+                    $error = true;
                 }
 
                 // $nuggetTitle = $this->generateTitleByPrompt($prompt);
 
                 $messageInput = [
                     'message' => [
-                        // 'title' => $nuggetTitle,
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
+                        'nsfw_flag' => $isNotSafeForWork ?? false,
+                        'error' => $error,
+                        'error_reason' => $error ? $result['message'] ?? $errorReason : null,
+                        'nsfw_reason' => $isNotSafeForWork ? $result['message'] ?? 'Content flagged as NSFW' : null,
                     ],
                     'reactions_count' => 0,
                     'comments_count' => 0,
@@ -98,7 +118,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     'total_shared' => 0,
                     'ip_address' => '127.0.0.1',
                     'parent_id' => $message->id,
-                    'is_public' => 0
+                    'is_public' => 1,
                 ];
 
                 $messageTypeDto = MessageTypeInput::from([
@@ -203,18 +223,91 @@ class LLMMessageResponseActivity extends KanvasActivity
             'content' => $prompt,
         ];
 
-        // Use PromptMine client for chat response with AI model configuration
-        $promptClient = new PromptClient($message->app);
-        $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
+        try {
+            // Use PromptMine client for chat response with AI model configuration
+            $promptClient = new PromptClient($message->app);
+            $apiResponse = $promptClient->generateChatResponse($messages, $aiModel);
 
-        // Extract response text and update chat history
-        $responseText = $promptClient->extractChatResponseText($apiResponse);
-        $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+            // Extract response text and update chat history
+            $responseText = $promptClient->extractChatResponseText($apiResponse);
+            $fullConversation = $promptClient->getFullConversation($messages, $apiResponse);
+        } catch (ClientException | ServerException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
+
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push', 'mail']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
+            $message->user->notify($errorProcessingImageNotification);
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            return [
+                'response' => 'Your prompt was flagged as not safe for work and could not be processed.',
+                'chat_history' => [],
+                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
+                'nsfw_flag' => true,
+            ];
+        }
+
 
         return [
             'response' => str_replace(['```', 'json'], '', $responseText ?? ''),
             'chat_history' => $fullConversation,
             'ai_model_used' => $aiModel, // Include which model was used
+        ];
+    }
+
+    private function generateFilteredImageResponse(Message $message, array $params): array
+    {
+        $prompt = $message->message['prompt'] ?? null;
+        $messageFiles = $this->getFilesWithRetry($message);
+        $imageFilterService = new ImageFilterService(
+            app: $this->app,
+            entity: $message,
+            messageFiles: $messageFiles,
+            params: $params,
+        );
+
+        $imageFilterResult = $imageFilterService->execute();
+
+        if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
+            throw new \Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+        }
+
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $imageFilterResult);
+
+        return [
+            'response' => $imageFilterResult['image_url'] ?? '',
+            'chat_history' => $fullConversation,
         ];
     }
 
@@ -240,7 +333,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         return [];
     }
 
-    private function generateImageResponse(Message $message): string
+    private function generateImageResponse(Message $message): array
     {
         new MessageOrderFulfillmentAction($message)->execute('image');
 
@@ -292,13 +385,13 @@ class LLMMessageResponseActivity extends KanvasActivity
                 //messageId: $previousChatResponse->message['message_id'],
                 //params: $params
             );
-        } catch (ClientException $e) {
+        } catch (ClientException | ServerException $e) {
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
             $endViaList = array_map(
                 [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push']
+                ['push', 'mail']
             );
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
@@ -313,22 +406,50 @@ class LLMMessageResponseActivity extends KanvasActivity
             );
 
             $errorProcessingImageNotification->setData([
-                    'destination_id' => $message->getId(),
-                    'destination_type' => 'USER',
-                    'destination_event' => 'FOLLOWING',
-                ]);
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
             $message->user->notify($errorProcessingImageNotification);
-            return $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : '';
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            return [
+                'response' => $message->app->get('NSFW_IMAGE_URL'),
+                'chat_history' => [],
+                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
+                'nsfw_flag' => true,
+            ];
         }
 
         $parseResponse = $previousChatResponse === null ? 'extractImageUrl' : 'extractImageChatUrl';
-
-        return (string) $promptClient->{$parseResponse}(
+        $generateResponse = (string) $promptClient->{$parseResponse}(
             $generateImage
         );
+
+        $response = [
+            'image_url' => $generateResponse,
+        ];
+
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $response);
+
+        return [
+            'response' => $response['image_url'],
+            'chat_history' => $fullConversation,
+        ];
     }
 
-    public function validateImageLimit(Message $message): ?string
+    public function validateImageLimit(Message $message): ?array
     {
         try {
             (new CheckMessagePostLimitAction(
@@ -347,7 +468,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             try {
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    ['push']
+                    ['push', 'mail']
                 );
                 $errorProcessingImageNotification = new ImageProcessingPushNotification(
                     user: $message->user,
@@ -375,12 +496,12 @@ class LLMMessageResponseActivity extends KanvasActivity
             $useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
 
             return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
-                (string) json_encode([
+                [
                     'error' => 'You have reached your daily image generation limit.',
                     'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
                     'limit' => $message->app->get('message-post-limit') ?? 0,
                     'flag' => true,
-                ]);
+                ];
         }
 
         return null;
@@ -410,5 +531,26 @@ class LLMMessageResponseActivity extends KanvasActivity
         } catch (ModelNotFoundException $e) {
             return $entity->company;
         }
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 }
