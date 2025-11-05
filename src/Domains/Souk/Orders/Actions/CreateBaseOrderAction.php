@@ -139,7 +139,7 @@ class CreateBaseOrderAction
             reference: $this->request['input']['reference'] ?? '',
             paymentStatus: 'unpaid',
             parent: $this->parent,
-            ip_address: $this->ipAddress,
+            ipAddress: $this->ipAddress,
         );
 
         $order = (new CreateOrderAction($order))->execute();
