@@ -11,7 +11,6 @@ use Kanvas\Regions\Models\Regions;
 class CreateLeadCommand extends Command
 {
     protected $signature = 'dealersocket:create-lead 
-                            {--companyId=}
                             {--format=star : XML format (star|adf)}
                             {--interactive : Ask for input interactively}
                             {--company-id=1 : Company ID}
