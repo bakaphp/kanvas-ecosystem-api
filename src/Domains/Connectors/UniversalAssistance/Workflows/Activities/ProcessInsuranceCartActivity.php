@@ -400,38 +400,54 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherRequestInput = $dependentVoucherResult['voucher_request_input'] ?? [];
                 $dependentSolicitante = $dependentVoucherRequestInput['DatosSolicitante'] ?? [];
 
+                $originalDependentData = $dependent['person_data'] ?? $dependent;
+
                 $dependentData = [
-                    // Extract key data we want to preserve from dependent with multiple fallbacks (same pattern as holder)
-                    'id' => $dependent['id'] ?? null,
-                    'firstName' => $dependent['firstName']
-                        ?? $dependentSolicitante['NombreSolicitante']
+                    // FIXED: Prioritize original dependent data over SOAP response (which contains titular info)
+                    'id' => $originalDependentData['id'] ?? $dependent['id'] ?? null,
+                    'firstName' => $originalDependentData['firstName'] 
+                        ?? $originalDependentData['firstname']
+                        ?? $dependent['firstName']
                         ?? $dependent['firstname']
+                        ?? $dependentSolicitante['NombreSolicitante'] // Last fallback
                         ?? null,
-                    'lastName' => $dependent['lastName']
-                        ?? $dependentSolicitante['ApellidoSolicitante']
+                    'lastName' => $originalDependentData['lastName']
+                        ?? $originalDependentData['lastname'] 
+                        ?? $dependent['lastName']
                         ?? $dependent['lastname']
+                        ?? $dependentSolicitante['ApellidoSolicitante'] // Last fallback
                         ?? null,
-                    'birthDate' => $dependent['birthDate']
-                        ?? $dependentSolicitante['FechaNacimientoSolicitante']
+                    'birthDate' => $originalDependentData['birthDate']
+                        ?? $originalDependentData['dob']
+                        ?? $dependent['birthDate']
+                        ?? $dependent['dob']
+                        ?? $dependentSolicitante['FechaNacimientoSolicitante'] // Last fallback
                         ?? null,
-                    'documentNumber' => $dependent['documentNumber']
-                        ?? $dependentSolicitante['NroDocumentoSolicitante']
+                    'documentNumber' => $originalDependentData['documentNumber']
+                        ?? $originalDependentData['idNumber']
+                        ?? $dependent['documentNumber']
                         ?? $dependent['idNumber']
+                        ?? $dependentSolicitante['NroDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'documentType' => $dependent['documentType']
-                        ?? $dependentSolicitante['TipoDocumentoSolicitante']
+                    'documentType' => $originalDependentData['documentType']
+                        ?? $originalDependentData['idType']
+                        ?? $dependent['documentType']
                         ?? $dependent['idType']
+                        ?? $dependentSolicitante['TipoDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'email' => $dependent['email']
-                        ?? $dependentSolicitante['CorreoElectronicoSolicitante']
+                    'email' => $originalDependentData['email']
+                        ?? $dependent['email']
+                        ?? $dependentSolicitante['CorreoElectronicoSolicitante'] // Last fallback
                         ?? null,
-                    'telephone' => $dependent['telephone']
-                        ?? $dependentSolicitante['TelefonoSolicitante']
+                    'telephone' => $originalDependentData['telephone']
+                        ?? $dependent['telephone']
+                        ?? $dependentSolicitante['TelefonoSolicitante'] // Last fallback
                         ?? null,
-                    'gender' => $dependent['gender']
-                        ?? $dependentSolicitante['SexoSolicitante']
+                    'gender' => $originalDependentData['gender']
+                        ?? $dependent['gender']
+                        ?? $dependentSolicitante['SexoSolicitante'] // Last fallback
                         ?? null,
-                    'relationship' => $dependent['relationship'] ?? null,
+                    'relationship' => $originalDependentData['relationship'] ?? $dependent['relationship'] ?? null,
                 ];
 
                 // Add the voucher fields directly at the top level of the dependent
