@@ -14,6 +14,7 @@ type Order {
     id: ID!
     uuid: String!
     tracking_client_id: String
+    ip_address: String
     user_email: String
     user_phone: String
     token: String
@@ -444,6 +445,7 @@ extend type Query @guard {
                     "created_at"
                     "updated_at"
                     "token"
+                    "ip_address"
                 ]
             )
         orderType: _
@@ -553,6 +555,7 @@ extend type Query @guard {
                     "parent_id"
                     "created_at"
                     "updated_at"
+                    "ip_address"
                 ]
             )
         orderType: _
