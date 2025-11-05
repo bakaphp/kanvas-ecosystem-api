@@ -457,7 +457,7 @@ class ImageFilterService
         }
 
         // Optimize and upload the processed image
-        \Illuminate\Support\Facades\Log::info("NANO URL", [$processedImageUrl, $responseData]);
+        Log::info("NANO URL", [$processedImageUrl, $responseData]);
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
         $fileName = basename($tempFilePath);
 
