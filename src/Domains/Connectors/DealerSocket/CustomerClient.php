@@ -5,98 +5,142 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DealerSocket;
 
 use Illuminate\Support\Facades\Http;
-use Kanvas\Connectors\DealerSocket\Services\AuthService;
 
 class CustomerClient extends BaseClient
 {
-    protected AuthService $authService;
-    protected string $baseUrl;
-
     public function createCustomer(array $data)
     {
-        $xml = $this->buildCustomerXML($data, 'create');
-        return $this->post('/Customer', $xml);
+      $xml = $this->buildCustomerXML($data, 'create');
+      return $this->post('/Customer', $xml);
     }
 
     public function updateCustomer(int $entityId, array $data)
     {
-        $data['entityId'] = $entityId;
-        $xml = $this->buildCustomerXML($data, 'update');
-        
-        $headers = $this->authService->getHeaders($xml);
-        $response = Http::withHeaders($headers)
-            ->withBody($xml, 'application/xml')
-            ->put($this->baseUrl . '/Customer');
-            
-        return $this->parseResponse($response);
+      $data['entityId'] = $entityId;
+      $xml = $this->buildCustomerXML($data, 'update');
+
+      $headers = $this->authService->getHeaders($xml);
+      $response = Http::withHeaders($headers)
+          ->withBody($xml, 'application/xml')
+          ->put($this->baseUrl . '/Customer');
+
+      return $this->parseResponse($response);
     }
 
     private function buildCustomerXML(array $data, string $action): string
     {
-        $vendorName = $this->authService->getVendorName();
-        $dealerId = $this->authService->getDealerId();
-        $now = now()->toIso8601String();
-        
-        $xml = <<<XML
-          <?xml version="1.0" encoding="utf-8"?>
-          <ProcessCustomerInformation xmlns="http://www.starstandard.org/STAR/5">
-            <ApplicationArea>
-              <Sender>
-                <CreatorNameCode>{$vendorName}</CreatorNameCode>
-                <DealerNumberID>{$dealerId}</DealerNumberID>
-              </Sender>
-              <CreationDateTime>{$now}</CreationDateTime>
-            </ApplicationArea>
-            <ProcessCustomerInformationDataArea>
-              <CustomerInformation>
-                <CustomerInformationDetail>
-                  <CustomerParty>
-                    <SpecialRemarksDescription>{$data['type']}</SpecialRemarksDescription>
-          XML;
+      $vendorName = $this->authService->getVendorName();
+      $dealerId = $this->authService->getDealerId();
+      $now = now()->toIso8601String();
 
-                  if ($data['type'] === 'Individual') {
-                      $xml .= $this->buildIndividualXML($data);
-                  } else {
-                      $xml .= $this->buildCompanyXML($data);
-                  }
+      $xml = <<<XML
+        <?xml version="1.0" encoding="utf-8"?>
+        <ProcessCustomerInformation xmlns="http://www.starstandard.org/STAR/5">
+          <ApplicationArea>
+            <Sender>
+              <CreatorNameCode>{$vendorName}</CreatorNameCode>
+              <DealerNumberID>{$dealerId}</DealerNumberID>
+            </Sender>
+            <CreationDateTime>{$now}</CreationDateTime>
+          </ApplicationArea>
+          <ProcessCustomerInformationDataArea>
+            <CustomerInformation>
+              <CustomerInformationDetail>
+                <CustomerParty>
+                  <SpecialRemarksDescription>{$data['type']}</SpecialRemarksDescription>
+        XML;
 
-                  $xml .= <<<XML
-                  </CustomerParty>
-                </CustomerInformationDetail>
-              </CustomerInformation>
-            </ProcessCustomerInformationDataArea>
-          </ProcessCustomerInformation>
-          XML;
+                if ($data['type'] === 'Individual') {
+                    $xml .= $this->buildIndividualXML($data);
+                } else {
+                    $xml .= $this->buildCompanyXML($data);
+                }
 
-        return $xml;
+                $xml .= <<<XML
+                </CustomerParty>
+              </CustomerInformationDetail>
+            </CustomerInformation>
+          </ProcessCustomerInformationDataArea>
+        </ProcessCustomerInformation>
+        XML;
+
+      return $xml;
     }
 
     private function buildIndividualXML(array $data): string
     {
-        $entityId = $data['entityId'] ?? '';
-        $phone = $data['phone'] ?? '';
-        $email = $data['email'] ?? '';
-        
-        $xml = <<<XML
-          <SpecifiedPerson>
-        XML;
+      $entityId = $data['entityId'] ?? '';
+      $phone = $data['phone'] ?? '';
+      $email = $data['email'] ?? '';
 
-        if (!empty($entityId)) {
-            $xml .= "\n            <ID>{$entityId}</ID>";
-        }
+      $xml = <<<XML
+        <SpecifiedPerson>
+      XML;
 
+      if (!empty($entityId)) {
+          $xml .= "\n            <ID>{$entityId}</ID>";
+      }
+
+      $xml .= <<<XML
+          <GivenName>{$data['firstName']}</GivenName>
+          <FamilyName>{$data['lastName']}</FamilyName>
+      XML;
+
+      if (!empty($phone)) {
+          $xml .= <<<XML
+            <TelephoneCommunication>
+              <CompleteNumber>{$phone}</CompleteNumber>
+              <UseCode>Home</UseCode>
+            </TelephoneCommunication>
+          XML;
+      }
+
+      if (!empty($email)) {
         $xml .= <<<XML
-            <GivenName>{$data['firstName']}</GivenName>
-            <FamilyName>{$data['lastName']}</FamilyName>
+          <URICommunication>
+            <URIID>{$email}</URIID>
+          </URICommunication>
+        XML;
+      }
+
+      $xml .= "\n          </SpecifiedPerson>";
+
+      return $xml;
+    }
+
+    private function buildCompanyXML(array $data): string
+    {
+      $entityId = $data['entityId'] ?? '';
+      $companyName = $data['companyName'] ?? '';
+      $phone = $data['phone'] ?? '';
+      $email = $data['email'] ?? '';
+
+      $xml = <<<XML
+        <SpecifiedOrganization>
+      XML;
+
+      if (!empty($entityId)) {
+        $xml .= "\n            <ID>{$entityId}</ID>";
+      }
+
+      $xml .= <<<XML
+          <CompanyName>{$companyName}</CompanyName>
+      XML;
+
+      if (!empty($data['contactFirstName']) && !empty($data['contactLastName'])) {
+        $xml .= <<<XML
+          <PrimaryContact>
+            <GivenName>{$data['contactFirstName']}</GivenName>
+            <FamilyName>{$data['contactLastName']}</FamilyName>
         XML;
 
         if (!empty($phone)) {
-            $xml .= <<<XML
-              <TelephoneCommunication>
-                <CompleteNumber>{$phone}</CompleteNumber>
-                <UseCode>Home</UseCode>
-              </TelephoneCommunication>
-            XML;
+          $xml .= <<<XML
+            <TelephoneCommunication>
+              <CompleteNumber>{$phone}</CompleteNumber>
+              <UseCode>Work</UseCode>
+            </TelephoneCommunication>
+          XML;
         }
 
         if (!empty($email)) {
@@ -107,60 +151,12 @@ class CustomerClient extends BaseClient
           XML;
         }
 
-        $xml .= "\n          </SpecifiedPerson>";
+        $xml .= "\n            </PrimaryContact>";
+      }
 
-        return $xml;
-    }
+      $xml .= "\n          </SpecifiedOrganization>";
 
-    private function buildCompanyXML(array $data): string
-    {
-        $entityId = $data['entityId'] ?? '';
-        $companyName = $data['companyName'] ?? '';
-        $phone = $data['phone'] ?? '';
-        $email = $data['email'] ?? '';
-        
-        $xml = <<<XML
-          <SpecifiedOrganization>
-        XML;
-
-        if (!empty($entityId)) {
-            $xml .= "\n            <ID>{$entityId}</ID>";
-        }
-        
-        $xml .= <<<XML
-            <CompanyName>{$companyName}</CompanyName>
-        XML;
-
-        if (!empty($data['contactFirstName']) && !empty($data['contactLastName'])) {
-            $xml .= <<<XML
-              <PrimaryContact>
-                <GivenName>{$data['contactFirstName']}</GivenName>
-                <FamilyName>{$data['contactLastName']}</FamilyName>
-            XML;
-
-            if (!empty($phone)) {
-              $xml .= <<<XML
-                <TelephoneCommunication>
-                  <CompleteNumber>{$phone}</CompleteNumber>
-                  <UseCode>Work</UseCode>
-                </TelephoneCommunication>
-              XML;
-            }
-
-            if (!empty($email)) {
-              $xml .= <<<XML
-                <URICommunication>
-                  <URIID>{$email}</URIID>
-                </URICommunication>
-              XML;
-            }
-
-            $xml .= "\n            </PrimaryContact>";
-        }
-
-        $xml .= "\n          </SpecifiedOrganization>";
-
-        return $xml;
+      return $xml;
     }
 
     public function searchCustomer(array $searchData)
@@ -194,8 +190,8 @@ class CustomerClient extends BaseClient
       return $this->searchCustomer($searchData);
     }
 
-private function buildSearchXML(array $searchData): string
-{
+  private function buildSearchXML(array $searchData): string
+  {
     $vendorName = $this->authService->getVendorName();
     $dealerId = $this->authService->getDealerId();
     $now = now()->toIso8601String();
