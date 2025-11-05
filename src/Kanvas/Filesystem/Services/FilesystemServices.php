@@ -199,7 +199,9 @@ class FilesystemServices
             $extension = pathinfo($path, PATHINFO_EXTENSION);
         }
 
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
+        $dirPath = storage_path('app/temp');
+
+        $tempFilePath = $dirPath . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
 
         try {
             // Use Laravel HTTP client with retry logic
