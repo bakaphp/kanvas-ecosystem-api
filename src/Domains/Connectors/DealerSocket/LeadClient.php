@@ -381,12 +381,6 @@ XML;
         return "{$baseUrl}/DirectPost/{$dealerId}";
     }
 
-    /**
-     * Search lead by Lead ID
-     *
-     * @param string $leadId
-     * @return array|null
-     */
     public function searchLeadsByEntityId(int $entityId, string $eventCategory = 'Sales'): array
     {
         return $this->searchEvents([
