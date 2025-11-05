@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -63,17 +64,20 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
+                    Log::info('ENTERED TEXT RESPONSE SERVICE');
                     $result = $this->generateChatResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'nugget';
                     $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                 } elseif ($isTypeImage && isset($message->message['ai_image']) && count($message->message['ai_image']) > 0) {
+                    Log::info('ENTERED IMAGE FILTER SERVICE');
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
                 } else {
+                    Log::info('ENTERED IMAGE CREATION SERVICE');
                     $result = $this->generateImageResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
