@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\DealerSocket;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Connectors\DealerSocket\BaseClient;
 
 class LeadClient extends BaseClient
 {
@@ -578,5 +577,386 @@ XML;
         }
 
         return "Unknown ($status)";
+    }
+
+    public function updateSalesEvent(int $eventId, int $entityId, array $data): array
+    {
+        $xml = $this->buildSalesEventUpdateXML($eventId, $entityId, $data);
+        return $this->postEventUpdate($xml, 'sales');
+    }
+
+    public function updateServiceEvent(int $eventId, int $activityId, int $entityId, array $data): array
+    {
+        $xml = $this->buildServiceEventUpdateXML($eventId, $activityId, $entityId, $data);
+        return $this->postEventUpdate($xml, 'service');
+    }
+
+    private function postEventUpdate(string $xml, string $type = 'sales'): array
+    {
+        $headers = $this->authService->getHMACHeaders($xml);
+        $headers['Content-Type'] = 'application/xml';
+
+        $endpoint = $type === 'sales' 
+            ? 'https://api.dealersocket.com/api/dealersocket/eventsales'
+            : 'https://api.dealersocket.com/api/dealersocket/eventservice';
+
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->post($endpoint);
+
+        return $this->parseEventUpdateResponse($response);
+    }
+
+
+    private function buildSalesEventUpdateXML(int $eventId, int $entityId, array $data): string
+    {
+        $vendorName = $this->authService->getVendorName();
+        $dealerId = $this->authService->getDealerId();
+        $now = now()->toIso8601String();
+
+        $xml = <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<ProcessSalesLead xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://www.starstandard.org/STAR/5">
+<ApplicationArea>
+    <Sender>
+    <CreatorNameCode>{$vendorName}</CreatorNameCode>
+    <SenderNameCode>{$vendorName}</SenderNameCode>
+    <DealerNumberID>{$dealerId}</DealerNumberID>
+    </Sender>
+    <CreationDateTime>{$now}</CreationDateTime>
+    <Destination>
+    <DestinationNameCode>DS</DestinationNameCode>
+    </Destination>
+</ApplicationArea>
+<ProcessSalesLeadDataArea>
+    <SalesLead>
+    <SalesLeadHeader>
+        <DocumentDateTime>{$now}</DocumentDateTime>
+        <DocumentIdentificationGroup>
+        <DocumentIdentification>
+            <DocumentID>{$eventId}</DocumentID>
+        </DocumentIdentification>
+        </DocumentIdentificationGroup>
+XML;
+
+        if (!empty($data['leadInterestCode'])) {
+            $xml .= "\n        <LeadInterestCode>{$data['leadInterestCode']}</LeadInterestCode>";
+        }
+
+        if (!empty($data['saleClassCode'])) {
+            $xml .= "\n        <SaleClassCode>{$data['saleClassCode']}</SaleClassCode>";
+        }
+
+        if (isset($data['leadComments'])) {
+            $xml .= "\n        <LeadComments><![CDATA[{$data['leadComments']}]]></LeadComments>";
+        }
+
+        $xml .= "\n        <CustomerProspect>";
+        $xml .= "\n          <ProspectParty>";
+        $xml .= "\n            <PartyID>{$entityId}</PartyID>";
+        $xml .= "\n          </ProspectParty>";
+
+        if (!empty($data['tradeInVehicles']) && is_array($data['tradeInVehicles'])) {
+            foreach (array_slice($data['tradeInVehicles'], 0, 3) as $tradeIn) {
+                $xml .= "\n          <CurrentlyOwnedItem>";
+                $xml .= "\n            <OwnedVehicleDetail>";
+                $xml .= "\n              <SalesLeadOwnedVehicle>";
+                $xml .= "\n                <Vehicle>";
+                $xml .= "\n                  <MakeString>{$tradeIn['make']}</MakeString>";
+                $xml .= "\n                  <ModelDescription>{$tradeIn['model']}</ModelDescription>";
+                $xml .= "\n                  <ModelYear>{$tradeIn['year']}</ModelYear>";
+
+                if (!empty($tradeIn['colorItemCode'])) {
+                    $xml .= "\n                  <ColorGroup>";
+                    $xml .= "\n                    <ColorItemCode>{$tradeIn['colorItemCode']}</ColorItemCode>";
+                    $xml .= "\n                  </ColorGroup>";
+                }
+                if (!empty($tradeIn['colorName'])) {
+                    $xml .= "\n                  <ColorGroup>";
+                    $xml .= "\n                    <ColorName>{$tradeIn['colorName']}</ColorName>";
+                    $xml .= "\n                  </ColorGroup>";
+                }
+                if (!empty($tradeIn['vin'])) {
+                    $xml .= "\n                  <VehicleID>{$tradeIn['vin']}</VehicleID>";
+                }
+
+                $xml .= "\n                </Vehicle>";
+                $xml .= "\n              </SalesLeadOwnedVehicle>";
+
+                if (!empty($tradeIn['mileage'])) {
+                    $xml .= "\n              <CurrentDistanceMeasure>{$tradeIn['mileage']}</CurrentDistanceMeasure>";
+                }
+                if (!empty($tradeIn['balanceAmount'])) {
+                    $xml .= "\n              <OwnedVehicleFinancing>";
+                    $xml .= "\n                <EstimatedFinancingAmounts>";
+                    $xml .= "\n                  <BalanceAmount>{$tradeIn['balanceAmount']}</BalanceAmount>";
+                    $xml .= "\n                </EstimatedFinancingAmounts>";
+                    $xml .= "\n              </OwnedVehicleFinancing>";
+                }
+
+                $xml .= "\n            </OwnedVehicleDetail>";
+                $xml .= "\n          </CurrentlyOwnedItem>";
+            }
+        }
+
+        $xml .= "\n        </CustomerProspect>";
+
+        $xml .= "\n        <ReceivingDealerParty>";
+        $xml .= "\n          <RelationshipTypeCode>Primary</RelationshipTypeCode>";
+        $xml .= "\n        </ReceivingDealerParty>";
+
+        if (!empty($data['bdcAssignedUser'])) {
+            $xml .= "\n        <ProviderParty>";
+            $xml .= "\n          <PartyID>{$data['bdcAssignedUser']}</PartyID>";
+            $xml .= "\n        </ProviderParty>";
+        }
+
+        if (!empty($data['priorityRanking'])) {
+            $xml .= "\n        <LeadPreference>";
+            $xml .= "\n          <PriorityRankingNumeric>{$data['priorityRanking']}</PriorityRankingNumeric>";
+            $xml .= "\n        </LeadPreference>";
+        }
+
+        $xml .= "\n      </SalesLeadHeader>";
+
+        $xml .= "\n      <SalesLeadDetail>";
+
+        if (!empty($data['leadStatus'])) {
+            $xml .= "\n        <LeadStatus>{$data['leadStatus']}</LeadStatus>";
+        }
+
+        if (!empty($data['preference'])) {
+            $xml .= "\n        <Preference>{$data['preference']}</Preference>";
+        }
+
+        if (!empty($data['salesPersonName']) || !empty($data['interestedVehicle'])) {
+            $xml .= "\n        <SalesActivity>";
+            
+            if (!empty($data['salesPersonName'])) {
+                $xml .= "\n          <SalesPersonName>{$data['salesPersonName']}</SalesPersonName>";
+            }
+
+            if (!empty($data['interestedVehicle'])) {
+                $vehicle = $data['interestedVehicle'];
+                $xml .= "\n          <Vehicle>";
+                
+                if (!empty($vehicle['make'])) {
+                    $xml .= "\n            <ManufacturerName>{$vehicle['make']}</ManufacturerName>";
+                }
+                if (!empty($vehicle['year'])) {
+                    $xml .= "\n            <ModelYear>{$vehicle['year']}</ModelYear>";
+                }
+                if (!empty($vehicle['model'])) {
+                    $xml .= "\n            <ModelDescription>{$vehicle['model']}</ModelDescription>";
+                }
+                if (!empty($vehicle['vin'])) {
+                    $xml .= "\n            <VehicleID>{$vehicle['vin']}</VehicleID>";
+                }
+                if (!empty($vehicle['mileage'])) {
+                    $xml .= "\n            <VehicleNote>{$vehicle['mileage']}</VehicleNote>";
+                }
+                if (!empty($vehicle['stockNumber'])) {
+                    $xml .= "\n            <VehicleStockString>{$vehicle['stockNumber']}</VehicleStockString>";
+                }
+
+                $xml .= "\n          </Vehicle>";
+            }
+
+            $xml .= "\n        </SalesActivity>";
+        }
+
+        $xml .= "\n      </SalesLeadDetail>";
+        $xml .= "\n    </SalesLead>";
+        $xml .= "\n  </ProcessSalesLeadDataArea>";
+        $xml .= "\n</ProcessSalesLead>";
+
+        return $xml;
+    }
+
+    private function buildServiceEventUpdateXML(int $eventId, int $activityId, int $entityId, array $data): string
+    {
+        $vendorName = $this->authService->getVendorName();
+        $dealerId = $this->authService->getDealerId();
+        $now = now()->toIso8601String();
+
+        $xml = <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<ProcessServiceAppointment xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xmlns="http://www.starstandard.org/STAR/5">
+<ApplicationArea>
+    <Sender>
+    <CreatorNameCode>{$vendorName}</CreatorNameCode>
+    <SenderNameCode>{$vendorName}</SenderNameCode>
+    <DealerNumberID>{$dealerId}</DealerNumberID>
+    </Sender>
+    <CreationDateTime>{$now}</CreationDateTime>
+    <Destination>
+    <DestinationNameCode>DS</DestinationNameCode>
+    </Destination>
+</ApplicationArea>
+<ProcessServiceAppointmentDataArea>
+    <ServiceAppointment>
+    <ServiceAppointmentHeader>
+        <DocumentIdentificationGroup>
+        <DocumentIdentification>
+            <DocumentID>{$eventId}</DocumentID>
+        </DocumentIdentification>
+        <AlternateDocumentIdentification>
+            <DocumentID>{$activityId}</DocumentID>
+            <AgencyRoleCode>ActivityId</AgencyRoleCode>
+        </AlternateDocumentIdentification>
+        </DocumentIdentificationGroup>
+XML;
+
+        if (!empty($data['vehicle'])) {
+            $vehicle = $data['vehicle'];
+            $xml .= "\n        <ServiceAppointmentVehicleLineItem>";
+            $xml .= "\n          <Vehicle>";
+            
+            if (!empty($vehicle['make'])) {
+                $xml .= "\n            <ManufacturerName>{$vehicle['make']}</ManufacturerName>";
+            }
+            if (!empty($vehicle['model'])) {
+                $xml .= "\n            <Model>{$vehicle['model']}</Model>";
+            }
+            if (!empty($vehicle['year'])) {
+                $xml .= "\n            <ModelYear>{$vehicle['year']}</ModelYear>";
+            }
+            if (!empty($vehicle['vin'])) {
+                $xml .= "\n            <VehicleID>{$vehicle['vin']}</VehicleID>";
+            }
+            
+            $xml .= "\n          </Vehicle>";
+            
+            if (!empty($vehicle['mileage'])) {
+                $xml .= "\n          <InDistanceMeasure unitCode=\"mile\">{$vehicle['mileage']}</InDistanceMeasure>";
+            }
+            
+            $xml .= "\n        </ServiceAppointmentVehicleLineItem>";
+        }
+
+        $xml .= "\n      </ServiceAppointmentHeader>";
+
+        $xml .= "\n      <ServiceAppointmentDetail>";
+        $xml .= "\n        <Appointment>";
+
+        if (!empty($data['appointmentDateTime'])) {
+            $xml .= "\n          <AppointmentDateTime>{$data['appointmentDateTime']}</AppointmentDateTime>";
+        }
+
+        if (isset($data['appointmentNotes'])) {
+            $xml .= "\n          <AppointmentNotes><![CDATA[{$data['appointmentNotes']}]]></AppointmentNotes>";
+        }
+
+        if (!empty($data['serviceAdvisor'])) {
+            $xml .= "\n          <RequestedConsultantName>{$data['serviceAdvisor']}</RequestedConsultantName>";
+        }
+
+        if (isset($data['leadSourceCode'])) {
+            $xml .= "\n          <LeadSourceCode>{$data['leadSourceCode']}</LeadSourceCode>";
+        }
+
+        if (!empty($data['appointmentStatus'])) {
+            $xml .= "\n          <AppointmentStatus>{$data['appointmentStatus']}</AppointmentStatus>";
+        }
+
+        if (!empty($data['alternateTransportation'])) {
+            $xml .= "\n          <AlternateTransportation>{$data['alternateTransportation']}</AlternateTransportation>";
+        }
+
+        $method = $data['appointmentMethod'] ?? 'Web';
+        $xml .= "\n          <AppointmentMethod>{$method}</AppointmentMethod>";
+
+        if (!empty($data['endAppointmentDateTime'])) {
+            $xml .= "\n          <EndAppointmentDateTime>{$data['endAppointmentDateTime']}</EndAppointmentDateTime>";
+        }
+
+        if (!empty($data['requestedServices']) && is_array($data['requestedServices'])) {
+            foreach ($data['requestedServices'] as $service) {
+                $xml .= "\n          <RequestedService>";
+                $xml .= "\n            <JobNumberString>{$service['jobNumber']}</JobNumberString>";
+                $xml .= "\n            <JobTypeString>{$service['jobType']}</JobTypeString>";
+                
+                if (!empty($service['packageCode'])) {
+                    $xml .= "\n            <PackageCode>{$service['packageCode']}</PackageCode>";
+                }
+                
+                $xml .= "\n            <ServiceLaborScheduling>";
+                $xml .= "\n              <LaborOperationID>{$service['operationId']}</LaborOperationID>";
+                $xml .= "\n              <LaborOperationDescription><![CDATA[{$service['description']}]]></LaborOperationDescription>";
+                
+                if (!empty($service['laborActionCode'])) {
+                    $xml .= "\n              <LaborActionCode>{$service['laborActionCode']}</LaborActionCode>";
+                }
+                if (!empty($service['laborHours'])) {
+                    $xml .= "\n              <LaborAllowanceHoursNumeric>{$service['laborHours']}</LaborAllowanceHoursNumeric>";
+                }
+                
+                $xml .= "\n            </ServiceLaborScheduling>";
+                $xml .= "\n          </RequestedService>";
+            }
+        }
+
+        if (!empty($data['serviceAdvisorParty'])) {
+            $xml .= "\n          <ServiceAdvisorParty>";
+            
+            if (!empty($data['serviceAdvisorParty']['userName'])) {
+                $xml .= "\n            <PartyID>{$data['serviceAdvisorParty']['userName']}</PartyID>";
+            }
+            if (!empty($data['serviceAdvisorParty']['dmsId'])) {
+                $xml .= "\n            <DealerManagementSystemID>{$data['serviceAdvisorParty']['dmsId']}</DealerManagementSystemID>";
+            }
+            
+            $xml .= "\n          </ServiceAdvisorParty>";
+        }
+
+        $xml .= "\n        </Appointment>";
+        $xml .= "\n      </ServiceAppointmentDetail>";
+        $xml .= "\n    </ServiceAppointment>";
+        $xml .= "\n  </ProcessServiceAppointmentDataArea>";
+        $xml .= "\n</ProcessServiceAppointment>";
+
+        return $xml;
+    }
+
+    private function parseEventUpdateResponse($response): array
+    {
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'error' => 'HTTP Error: ' . $response->status(),
+                'body' => $response->body()
+            ];
+        }
+
+        try {
+            $xml = simplexml_load_string($response->body());
+            
+            if ($xml === false) {
+                throw new Exception('Failed to parse XML response');
+            }
+
+            $success = strtolower((string)$xml->Success) === 'true';
+
+            $result = [
+                'success' => $success,
+                'errorCode' => (string)($xml->ErrorCode ?? ''),
+                'errorMessage' => (string)($xml->ErrorMessage ?? ''),
+                'stackTrace' => (string)($xml->StackTrace ?? ''),
+                'rawXml' => $response->body()
+            ];
+
+            return $result;
+
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Parse Error: ' . $e->getMessage(),
+                'body' => $response->body()
+            ];
+        }
     }
 }
