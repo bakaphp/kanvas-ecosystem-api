@@ -340,7 +340,7 @@ class PortalPaymentProcessor
             '05',
         ]);
 
-        if (isset($enrollmentData['paymentInformation'])) {
+        if (isset($enrollmentData['paymentInformation']['card']['type'])) {
             $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
             $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
             $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
