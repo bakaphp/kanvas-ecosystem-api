@@ -559,7 +559,7 @@ extend type Query @guard {
                     "parent_id"
                     "created_at"
                     "updated_at"
-                    "ip"
+                    "ip_address"
                 ]
             )
         orderType: _
