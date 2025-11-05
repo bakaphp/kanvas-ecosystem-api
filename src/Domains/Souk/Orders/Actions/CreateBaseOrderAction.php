@@ -44,6 +44,7 @@ class CreateBaseOrderAction
         protected ?Address $shippingAddress,
         protected ?array $request,
         protected ?ModelsOrder $parent = null,
+        protected ?string $ipAddress = null,
     ) {
     }
 
@@ -138,6 +139,7 @@ class CreateBaseOrderAction
             reference: $this->request['input']['reference'] ?? '',
             paymentStatus: 'unpaid',
             parent: $this->parent,
+            ip_address: $this->ipAddress,
         );
 
         $order = (new CreateOrderAction($order))->execute();
