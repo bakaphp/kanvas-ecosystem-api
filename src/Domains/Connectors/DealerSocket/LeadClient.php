@@ -954,4 +954,14 @@ XML;
             ];
         }
     }
+
+    public function getVendorName(): string
+    {
+        return $this->authService->getVendorName();
+    }
+
+    public function getDealerId(): string
+    {
+        return $this->authService->getDealerId();
+    }
 }
