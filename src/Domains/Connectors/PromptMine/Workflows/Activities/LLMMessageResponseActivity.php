@@ -360,7 +360,6 @@ class LLMMessageResponseActivity extends KanvasActivity
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
-
                 $originalMessageFromFirstGengeration = Message::fromApp($message->app)
                         ->where('slug', str_replace("-" . $message->getId(), "", $message->slug))
                         ->where('is_deleted', 0)
@@ -374,7 +373,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
                 }
-                
                 $params['previousImageUrl'] = $previousChatMessageChildren instanceof Message ? $previousChatMessageChildren->message['image'] : $previousChatImage['content'];
                 $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];
                 $params['subscribe'] = true;
@@ -554,7 +552,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     protected function getLastAssistantResponse(array $chatHistory): array
     {
-        $assistantMessages = array_filter($chatHistory, function($item) {
+        $assistantMessages = array_filter($chatHistory, function ($item) {
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
