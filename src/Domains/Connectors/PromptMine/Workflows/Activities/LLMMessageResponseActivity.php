@@ -76,6 +76,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $channel->save();
                     Log::info(self::class . ': ENTERED IMAGE FILTER SERVICE');
                     $result = $this->generateFilteredImageResponse($message, $params);
+
+                    //Lets optimize the image here again
+
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
@@ -150,7 +153,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $promptChannel->update();
                 }
 
-                $message->is_public = 0;
+                $message->is_public = 1;
                 $message->save();
 
                 return [
