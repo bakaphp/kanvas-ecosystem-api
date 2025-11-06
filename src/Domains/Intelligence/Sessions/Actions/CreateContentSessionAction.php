@@ -220,7 +220,7 @@ class CreateContentSessionAction
         ];
     }
 
-    protected function getRelatedVehicles(array $vehicleInterest): array
+    public function getRelatedVehicles(array $vehicleInterest): array
     {
         if (empty($vehicleInterest['make']) || empty($vehicleInterest['model'])) {
             return [];

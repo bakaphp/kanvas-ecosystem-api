@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -48,6 +53,30 @@ class CreateMessageFollowUpAction
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
+        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
+        $contentSession = new CreateContentSessionAction($this->session);
+        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest);
+        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
+        $relatedUuid[] = $vehicleInterest['uuid'];
+        $channel = Channels::getDefault($this->lead->company);
+        $engagementDto = EngagementData::from(
+            $this->lead->app,
+            $this->lead->company,
+            $this->lead->user,
+            $this->lead,
+            [
+                'action' => 'view-vehicle',
+                'request_id' => Str::uuid()->toString(),
+                'source' => 'ai',
+                'status' => 'sent',
+                'data' => [
+                    "product_id" => $relatedUuid,
+                    'channel_id' => $channel->uuid
+                ],
+                $this->lead->people,
+            ]
+        );
+        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
         $data = [
             'day' => $rules['day'],
             'templates' => $rules['templates'],
@@ -61,7 +90,8 @@ class CreateMessageFollowUpAction
             'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
             'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
             'agent' => $this->session->agent,
-            'vehicle_interest' => new VehicleInterestTool($this->lead)->execute(),
+            'vehicle_interest' => $vehicleInterest,
+            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
