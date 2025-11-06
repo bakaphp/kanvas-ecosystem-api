@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -16,6 +18,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -26,9 +29,6 @@ use Prism\Prism\Prism;
 use Prism\Prism\Schema\BooleanSchema;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
-use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
-use Kanvas\Inventory\Channels\Models\Channels;
-use Baka\Support\Str;
 
 class CreateMessageFollowUpAction
 {
