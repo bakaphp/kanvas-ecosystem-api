@@ -56,7 +56,7 @@ class CreateMessageFollowUpAction
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
         $contentSession = new CreateContentSessionAction($this->session);
         $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest);
-        $relatedUuid = collect($relatedVehicles)->select('uuid')->toArray();
+        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
         $relatedUuid[] = $vehicleInterest['uuid'];
         $channel = Channels::getDefault($this->lead->company);
         $engagementDto = EngagementData::from(
