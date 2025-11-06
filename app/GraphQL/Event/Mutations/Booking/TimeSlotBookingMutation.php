@@ -35,7 +35,7 @@ class TimeSlotBookingMutation
 
         // Validate capacity before booking
         $participantCount = count($input['participants'] ?? []);
-        if (!$timeSlot->hasAvailableCapacity($participantCount)) {
+        if (! $timeSlot->hasAvailableCapacity($participantCount)) {
             throw new ValidationException('Time slot does not have enough available capacity. Available: ' . $timeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
         }
         // Extract resource information from the time slot

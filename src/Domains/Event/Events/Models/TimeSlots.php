@@ -37,8 +37,6 @@ class TimeSlots extends BaseModel
         'meta',
     ];
 
-    protected $appends = ['capacity'];
-
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
