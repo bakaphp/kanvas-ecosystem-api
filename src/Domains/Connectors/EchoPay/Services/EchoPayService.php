@@ -228,8 +228,6 @@ class EchoPayService
 
         $response = $this->client->post(ConfigurationEnum::CHECK_PAYER_ENROLLMENT_PATH->value, $formData);
 
-        // Log::info('echo pay enrollment form data', $formData);
-        // Log::info('echo pay enrollment response', $response['data']);
         return [
             'clientReferenceInformation' => [
                 'code' => $response['data']['clientReferenceInformation']['code'],
@@ -266,12 +264,12 @@ class EchoPayService
                 'message' => $response['data']['errorInformation']['message'],
             ] : null,
             'id' => $response['data']['id'],
-            'paymentInformation' => [
+            'paymentInformation' => (isset($response['data']['paymentInformation']) && isset($response['data']['paymentInformation']['card'])) ? [
                 'card' => [
-                    'bin' => $response['data']['paymentInformation']['card']['bin'],
-                    'type' => $response['data']['paymentInformation']['card']['type'],
+                    'bin' => $response['data']['paymentInformation']['card']['bin'] ?? null,
+                    'type' => $response['data']['paymentInformation']['card']['type'] ?? null,
                 ],
-            ],
+            ] : null,
             'status' => $response['data']['status'],
             'submitTimeUtc' => $response['data']['submitTimeUtc'],
         ];
