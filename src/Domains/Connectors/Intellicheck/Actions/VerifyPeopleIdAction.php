@@ -12,6 +12,8 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -28,8 +30,10 @@ class VerifyPeopleIdAction
     ) {
     }
 
-    public function execute(array $verificationData): array
-    {
+    public function execute(
+        array $verificationData,
+        bool $sendNotification = true
+    ): array {
         //$isShowRoom = $params['is_showroom'] ?? false;
         $isShowRoom = ! isset($verificationData['ipqs']);
         // Get person name from lead entity
@@ -122,47 +126,16 @@ class VerifyPeopleIdAction
         }
         $people->del('get_docs_drivers_license');
 
-        dispatch(function () use ($lead, $people, $app, $reportData, $isShowRoom, $verificationData, $name) {
-            $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
-            if ($people->get($key)) {
-                // If the report has already been sent, we skip the rest of the process
-                return;
-            }
-
-            //$usersToNotify = UsersRepository::findUsersByArray($people->company->get('company_manager'), $app);
-            $managers = UsersRepository::getCompanyAppUserByRole($people->company, $app, 'Manager')->get();
-
-            $notification = new Blank(
-                'id-verification-report',
-                [
-                    'message' => $reportData['message'],
-                    'status' => $reportData['status'],
-                    'flags' => $reportData['flags'],
-                    'failures' => $reportData['failures'],
-                    'results' => $reportData['results'],
-                    'isShowRoom' => $isShowRoom,
-                    'verificationData' => $verificationData,
-                ],
-                ['mail'],
-                $lead,
+        if ($sendNotification) {
+            $this->sendNotification(
+                verificationData: $verificationData,
+                reportData: $reportData,
+                isShowRoom: $isShowRoom,
+                lead: $lead,
+                people: $people,
+                name: $name
             );
-
-            $people->set($key, true);
-            $notification->setSubject($name . ' - ID Verification Report');
-            //Notification::send($usersToNotify, $notification);
-            $lead->owner?->notify($notification);
-
-            foreach ($managers as $manager) {
-                $manager->notify($notification);
-            }
-
-            // Generate PDF
-            $this->generateReportPdf($reportData, $isShowRoom, $verificationData);
-
-            //$entity->addFile($pdfReport, 'id-verification');
-
-            //since we are running 2 diff version of the api, we need to slow you down to get the last message
-        })->delay(now()->addSeconds(30))->onQueue('notifications');
+        }
 
         return [
             'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
@@ -174,8 +147,60 @@ class VerifyPeopleIdAction
         ];
     }
 
-    protected function generateReportPdf(array $reportData, bool $isShowRoom, array $verificationData): void
-    {
+    protected function sendNotification(
+        array $verificationData,
+        array $reportData,
+        bool $isShowRoom,
+        Lead $lead,
+        People $people,
+        string $name,
+    ): void {
+        $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
+        if ($people->get($key)) {
+            // If the report has already been sent, we skip the rest of the process
+            return;
+        }
+
+        //$usersToNotify = UsersRepository::findUsersByArray($people->company->get('company_manager'), $app);
+        $managers = UsersRepository::getCompanyAppUserByRole($people->company, $people->app, 'Manager')->get();
+
+        $notification = new Blank(
+            'id-verification-report',
+            [
+                'message' => $reportData['message'],
+                'status' => $reportData['status'],
+                'flags' => $reportData['flags'],
+                'failures' => $reportData['failures'],
+                'results' => $reportData['results'],
+                'isShowRoom' => $isShowRoom,
+                'verificationData' => $verificationData,
+            ],
+            ['mail'],
+            $lead,
+        );
+
+        $people->set($key, true);
+        $notification->setSubject($name . ' - ID Verification Report');
+        //Notification::send($usersToNotify, $notification);
+        $lead->owner?->notify($notification);
+
+        foreach ($managers as $manager) {
+            $manager->notify($notification);
+        }
+
+        // Generate PDF
+        $this->generateReportPdf(
+            $reportData,
+            $isShowRoom,
+            $verificationData
+        );
+    }
+
+    protected function generateReportPdf(
+        array $reportData,
+        bool $isShowRoom,
+        array $verificationData,
+    ): void {
         try {
             $pdfReport = PdfService::generatePdfFromTemplate(
                 $this->lead->app,
@@ -194,6 +219,13 @@ class VerifyPeopleIdAction
             );
 
             $engagement = $this->createEngagement();
+
+            $this->processDriverLicenseImages(
+                engagement: $engagement,
+                isIdValid: in_array($reportData['status'], ['green', 'flag']),
+                verificationResults: $reportData,
+                isExpired: $reportData['status'] === 'flag'
+            );
             $message = $engagement->message;
             $message->addFile($pdfReport, 'id-verification');
         } catch (Throwable $e) {
@@ -226,5 +258,50 @@ class VerifyPeopleIdAction
         );
 
         return new CreateEngagementAction($engagementData)->execute();
+    }
+
+    protected function processDriverLicenseImages(
+        Engagement $engagement,
+        bool $isIdValid,
+        array $verificationResults,
+        bool $isExpired = false
+    ): void {
+        // Process back image
+        $driverLicenseImages = $this->people->get('driver_license_images');
+        if (isset($driverLicenseImages['back'])) {
+            $backFile = $this->createFileFromBase64($driverLicenseImages['back'], 'drivers_license_back.jpg');
+            $engagement->message->addFile($backFile, 'drivers_license_back');
+
+            // Set verification metadata
+            $backFile->set('id_verify', (int) $isIdValid);
+            $backFile->set('id_expired', (int) $isExpired);
+            $backFile->set('id_verification_msg', $verificationResults['message']);
+            $backFile->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
+        }
+
+        // Process front image
+        if (isset($driverLicenseImages['front'])) {
+            $frontFile = $this->createFileFromBase64($driverLicenseImages['front'], 'drivers_license_front.jpg');
+            $engagement->message->addFile($frontFile, 'drivers_license_front');
+
+            // Set verification metadata
+            $frontFile->set('id_verify', (int) $isIdValid);
+            $frontFile->set('id_expired', (int) $isExpired);
+            $frontFile->set('id_verification_msg', $verificationResults['message']);
+            $frontFile->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
+        }
+    }
+
+    protected function createFileFromBase64(
+        string $base64Data,
+        string $fileName = 'driver_license_image.jpg'
+    ): Filesystem {
+        $filesystemService = new FilesystemServices($this->lead->app, $this->lead->company);
+
+        return $filesystemService->createFileSystemFromBase64(
+            $base64Data,
+            $fileName,
+            $this->lead->user
+        );
     }
 }

@@ -43,7 +43,10 @@ class PushCoBuyerActivity extends KanvasActivity
                     $idVerification = new VerifyPeopleIdAction(
                         people: $people,
                         lead: $lead
-                    )->execute($people->get('intellicheckResponse'));
+                    )->execute(
+                        verificationData: $people->get('intellicheckResponse'),
+                        sendNotification: true
+                    );
                 }
 
                 // Mark as processed
