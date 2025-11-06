@@ -360,7 +360,6 @@ class LLMMessageResponseActivity extends KanvasActivity
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
-
                 if ($message->message['is_regenerated']) {
                     $chatHistory = $this->getChatHistory($message);
                     $previousChatResponseMessage = $message->message['prompt'];
