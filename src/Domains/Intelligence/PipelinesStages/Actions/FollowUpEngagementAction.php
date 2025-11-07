@@ -25,7 +25,10 @@ class FollowUpEngagementAction
         $session = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
+                ->fromApp($this->lead->app)
+                ->fromCompany($this->lead->company)
                 ->first();
+
         if (! $session) {
             return null;
         }
@@ -52,11 +55,13 @@ class FollowUpEngagementAction
                 $this->lead,
                 $this->lead->stage,
                 $session
-            )
-            ->execute();
-            if (! $message) {
+            )->execute();
+
+            //if message is null, we should response
+            if ($message === null) {
                 return null;
             }
+
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
                     $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
