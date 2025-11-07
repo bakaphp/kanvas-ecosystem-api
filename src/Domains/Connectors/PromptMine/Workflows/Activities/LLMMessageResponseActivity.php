@@ -73,9 +73,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $channel->is_deleted = 1;
                     $channel->save();
                     $result = $this->generateFilteredImageResponse($message, $params);
-
-                    //Lets optimize the image here again
-
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
                     $messageTypeKey = 'image';
@@ -361,6 +358,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
                     $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
+                    if (array_key_exists('chat_history', $message->message['chat_history']) && ! empty($message->message['chat_history'])) {
+                        unset($message->message['chat_history'][key($previousChatImage)]);
+                    }
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
@@ -553,7 +553,6 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
-
         return end($assistantMessages);
     }
 }
