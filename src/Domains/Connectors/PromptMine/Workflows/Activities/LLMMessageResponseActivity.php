@@ -445,17 +445,15 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         // Add the new user message to the conversation
         $messages = $chatHistory;
-        $promptClient = new PromptClient($message->app);
         if (array_key_exists('is_regeneration', $message->message) && ! $message->message['is_regeneration']) {
             $messages[] = [
             'role' => 'user',
             'content' => $prompt,
             ];
-            $fullConversation = $promptClient->getFullConversation($messages, $response);
-        } else {
-            $fullConversation = $promptClient->getFullConversation($messages, $response);
-            array_pop($fullConversation);
         }
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $response);
 
         return [
             'response' => $response['image_url'],
