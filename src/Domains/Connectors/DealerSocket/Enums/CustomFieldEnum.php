@@ -13,4 +13,6 @@ enum CustomFieldEnum: string
     case DEALER_SOCKET_USERNAME = 'dealer_socket_username';
     case DEALER_SOCKET_PASSWORD = 'dealer_socket_password';
     case DEALER_SOCKET_VENDOR_NAME = 'dealer_socket_vendor_name';
+    case DEALER_SOCKET_LEAD_ID = 'dealer_socket_lead_id';
+    case DEALER_SOCKET_CUSTOMER_ID = 'dealer_socket_customer_id';
 }
