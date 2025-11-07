@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -64,7 +63,6 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 if (! $isTypeImage) {
                     // Use the new chat functionality for text responses
-                    Log::info(self::class . ': ENTERED TEXT RESPONSE SERVICE');
                     $result = $this->generateChatResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
@@ -74,7 +72,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $channel = $message->channels->first();
                     $channel->is_deleted = 1;
                     $channel->save();
-                    Log::info(self::class . ': ENTERED IMAGE FILTER SERVICE');
                     $result = $this->generateFilteredImageResponse($message, $params);
 
                     //Lets optimize the image here again
@@ -85,7 +82,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $channel->is_deleted = 0;
                     $channel->save();
                 } else {
-                    Log::info(self::class . ': ENTERED IMAGE CREATION SERVICE');
                     $result = $this->generateImageResponse($message);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
@@ -268,13 +264,13 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             return [
-                'response' => 'Your prompt was flagged as not safe for work and could not be processed.',
+                'response' => $isNotSafeForWork ? 'Your prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try a different model.',
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
+                'error' => ! $isNotSafeForWork,
             ];
         }
-
 
         return [
             'response' => str_replace(['```', 'json'], '', $responseText ?? ''),
@@ -425,8 +421,10 @@ class LLMMessageResponseActivity extends KanvasActivity
             $message->user->notify($errorProcessingImageNotification);
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            $placeHolderText = urlencode('We could not process your prompt at this time') . '\n' . urlencode($e->getMessage());
+
             return [
-                'response' => $message->app->get('NSFW_IMAGE_URL'),
+                'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
@@ -551,6 +549,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
+
         return end($assistantMessages);
     }
 }
