@@ -53,15 +53,21 @@ class CreateMessageFollowUpAction
     {
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
+
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
         $contentSession = new CreateContentSessionAction($this->session);
+
         $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
         $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
-        $relatedUuid[] = $vehicleInterest['uuid'];
+
+        if (isset($vehicleInterest['uuid'])) {
+            $relatedUuid[] = $vehicleInterest['uuid'];
+        }
+
         $channel = Channels::getDefault($this->lead->company);
 
-        $engagementDto = Engagement::fromMultiple(
+        $engagementDto = Engagement::from(
             app: $this->lead->app,
             company: $this->lead->company,
             user: $this->lead->company->user,
@@ -80,6 +86,7 @@ class CreateMessageFollowUpAction
         );
 
         $engagement = new CreateEngagementAction($engagementDto, false)->execute();
+
         $data = [
             'day' => $rules['day'],
             'templates' => $rules['templates'],
@@ -98,6 +105,7 @@ class CreateMessageFollowUpAction
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
+
         $responseText = $this->generateResponseWithRetry($prompt);
         if (! $responseText['should_respond']) {
             return null;
@@ -135,6 +143,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
+
         $this->session->channel->addMessage($message);
 
         return $responseText['message'];
@@ -160,6 +169,7 @@ class CreateMessageFollowUpAction
                     'should_respond',
                 ]
         );
+
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
             $response = Prism::structured()
                        ->using(Provider::Gemini, 'gemini-2.5-flash')
