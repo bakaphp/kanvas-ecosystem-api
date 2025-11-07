@@ -39,7 +39,7 @@ class FollowUpEngagementCommand extends Command
             if (isset($config['notification_engagement_rules']) && $config['notification_engagement_rules']) {
                 $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
                 ->where('leads_status_id', '<=', 2) // only open leads
-                ->whereIn('id', [525873,525867,509766,513064,513546])
+                // ->whereIn('id', [525873,525867,509766,513064,513546])
                 ->whereNotIn('id', $whereNotIn)
                 ->cursor();
 
