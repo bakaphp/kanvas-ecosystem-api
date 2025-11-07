@@ -359,7 +359,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
                     $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
                     if (array_key_exists('chat_history', $message->message['chat_history']) && ! empty($message->message['chat_history'])) {
-                        unset($message->message['chat_history'][key($previousChatImage)]);
+                        unset($message->message['chat_history'][$previousChatImage['original_index']]);
                     }
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
@@ -553,6 +553,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
+        $assistantMessages[key($assistantMessages)]['original_index'] = key($assistantMessages);
         return end($assistantMessages);
     }
 }
