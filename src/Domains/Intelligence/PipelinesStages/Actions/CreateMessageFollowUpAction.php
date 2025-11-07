@@ -56,9 +56,8 @@ class CreateMessageFollowUpAction
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
         $contentSession = new CreateContentSessionAction($this->session);
-        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest);
+        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
         $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
-        $relatedUuid = array_slice($relatedUuid, 0, 3);
         $relatedUuid[] = $vehicleInterest['uuid'];
         $channel = Channels::getDefault($this->lead->company);
 
