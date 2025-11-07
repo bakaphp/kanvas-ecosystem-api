@@ -358,7 +358,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
                     $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    // unset($chatHistory[$previousChatImage['original_index']]);
+                    unset($chatHistory[$previousChatImage['original_index']]);
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
