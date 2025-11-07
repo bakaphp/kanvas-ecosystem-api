@@ -132,7 +132,7 @@ class VideoProcessingService
                     $this->processCompletedVideo($result['video_url'], $requestId, $params);
                 }
             } elseif ($result['status'] === 'FAILED') {
-                $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
+                $this->updateVideoProcessingStatus('FAILED', $result['error']['message'] ?? 'Video processing failed');
             }
         } catch (Exception $e) {
             report($e);
@@ -359,7 +359,7 @@ class VideoProcessingService
             $newMessageNotification = new VideoProcessingPushNotification(
                 user: $this->entity->user,
                 entity: $this->entity,
-                message: 'Tap to view your AI-generated video on prompt mine.',
+                message: 'Tap to view your AI-generated video on PromptMine.',
                 title: html_entity_decode('Video is ready ' . $title, ENT_QUOTES, 'UTF-8'),
                 via: $endViaList,
                 templates: [

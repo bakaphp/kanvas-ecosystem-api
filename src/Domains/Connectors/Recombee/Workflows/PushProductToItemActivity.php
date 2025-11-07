@@ -41,11 +41,19 @@ class PushProductToItemActivity extends KanvasActivity implements WorkflowActivi
                 $productTypeId = $params['product_type_id'] ?? null;
 
                 if (! $product->is_published) {
-                    return $this->failWorkflow([
+                    try {
+                        $productIndex = new RecombeeProductIndexService($app);
+                        $productIndex->createProductCatalogDatabase();
+                        $productIndex->removeProduct($product);
+                    } catch (Throwable $e) {
+                        //log error but continue
+                    }
+
+                    return [
                         'result' => false,
-                        'message' => 'Product is not published, should not be indexed',
+                        'message' => 'Product is not published, should not be indexed , removed from catalog if exists',
                         'id' => $product->id,
-                    ]);
+                    ];
                 }
 
                 if ($productTypeId !== null) {

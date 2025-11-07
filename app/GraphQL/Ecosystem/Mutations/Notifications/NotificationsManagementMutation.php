@@ -61,7 +61,7 @@ class NotificationsManagementMutation
         return true;
     }
 
-    public function anonymousNotification(mixed $root, array $request)
+    public function anonymousNotification(mixed $root, array $request): bool
     {
         $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'];
         $data['app'] = app(Apps::class);
