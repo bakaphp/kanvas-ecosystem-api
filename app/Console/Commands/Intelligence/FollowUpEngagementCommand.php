@@ -26,7 +26,7 @@ class FollowUpEngagementCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--ignore-have-follow-up=0}';
+    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--ignore-have-follow-up=0}';
 
     protected $description = 'Refresh the content of a session by its ID';
 
@@ -51,7 +51,8 @@ class FollowUpEngagementCommand extends Command
                 $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
                     ->where('leads_status_id', '<=', 2) // only open leads
                     ->where('is_deleted', '=', 0)
-                    ->whereIn('id', [525873,525867,509766,513064,513546])
+                    // ->whereIn('id', [525873,525867,509766,513064,513546])
+                    ->where('created_at', '>=', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
                     ->cursor();
 

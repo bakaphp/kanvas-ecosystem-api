@@ -63,11 +63,11 @@ class FollowUpEngagementAction
             }
 
             if (isset($rules['send_message']) && $rules['send_message']) {
-                new SendMessageToLeadAction($this->lead)->execute(
-                    $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                    $message,
-                    $this->lead->company->get('twilio_phone_number')
-                );
+                // new SendMessageToLeadAction($this->lead)->execute(
+                //     $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                //     $message,
+                //     $this->lead->company->get('twilio_phone_number')
+                // );
             }
 
             $intentNumber = (int) ($this->lead->get('intent_number') ?? 0);
