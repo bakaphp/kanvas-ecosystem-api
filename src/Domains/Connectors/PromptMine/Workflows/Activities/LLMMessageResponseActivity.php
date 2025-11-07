@@ -358,7 +358,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
                     $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    // unset($chatHistory[$previousChatImage['original_index']]);
+                    unset($chatHistory[$previousChatImage['original_index']]);
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
@@ -445,17 +445,15 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         // Add the new user message to the conversation
         $messages = $chatHistory;
-        $promptClient = new PromptClient($message->app);
         if (array_key_exists('is_regeneration', $message->message) && ! $message->message['is_regeneration']) {
             $messages[] = [
             'role' => 'user',
             'content' => $prompt,
             ];
-            $fullConversation = $promptClient->getFullConversation($messages, $response);
-        } else {
-            $fullConversation = $promptClient->getFullConversation($messages, $response);
-            array_pop($fullConversation);
         }
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $response);
 
         return [
             'response' => $response['image_url'],
