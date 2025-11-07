@@ -160,7 +160,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
 
                         try {
-                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead);
+                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                         } catch (Exception $e) {
                             report($e);
                         }
@@ -209,7 +209,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
      *  @todo this is not the right place to do this but for now its ok
      * we need to make sure we have the phone call activity
      */
-    private function leadExternalActivityDateIn(Lead $lead): mixed
+    private function leadExternalActivityDateIn(Lead $lead, Message $message): mixed
     {
         $outBoundPhoneCallActivity = null;
         if ($lead->get('downloaded_from_eleads')) {
