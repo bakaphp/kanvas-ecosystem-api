@@ -356,15 +356,17 @@ class LLMMessageResponseActivity extends KanvasActivity
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
-                if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration']) {
+                if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
                     $chatHistory = $this->getChatHistory($message);
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
+                    $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
+                    $params['previousImageUrl'] = $previousChatMessageChildren instanceof Message ? $previousChatMessageChildren->message['image'] : null;
                 }
-                $params['previousImageUrl'] = $previousChatMessageChildren instanceof Message ? $previousChatMessageChildren->message['image'] : $previousChatImage['content'];
+
                 $params['previousPrompts'] = $previousChatResponseMessage ? [$previousChatResponseMessage] : [];
                 $params['subscribe'] = true;
             }
@@ -549,7 +551,6 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
-
         return end($assistantMessages);
     }
 }
