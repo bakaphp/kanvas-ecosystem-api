@@ -376,9 +376,11 @@ class PortalPaymentProcessor
             'payment_status' => $paymentStatus,
         ]);
 
+        $errors = $this->extractErrorsFromEnrollment($enrollmentData);
+
         return [
             'status' => $paymentStatus,
-            'message' => $paymentStatus,
+            'message' => $paymentStatus . $errors['message'],
             'data' => ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']),
         ];
     }
@@ -661,5 +663,19 @@ class PortalPaymentProcessor
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    private function extractErrorsFromEnrollment(array $responseResult): array
+    {
+        $data = [
+            'message' => "",
+            'code' => "",
+        ];
+
+        if (isset($responseResult['errorInformation']) && is_array($responseResult['errorInformation'])) {
+            $data['message'] = " - " . $responseResult['errorInformation']['message'] ?? '';
+        }
+
+        return $data;
     }
 }
