@@ -143,7 +143,6 @@ class CreateUserAction
                 ['firstname' => 'required'],
                 ['firstname.required' => 'Registration information appears to be invalid.']
             );
-            $validator->fail();
 
             throw new ValidationException($validator);
         }
