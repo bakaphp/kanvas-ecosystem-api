@@ -43,6 +43,14 @@ class DealerSocketLeadService
                 ? $this->leadClient->createSalesLeadADF($leadData)
                 : $this->leadClient->createSalesLead($leadData);
 
+            if (isset($response['leadId'])) {
+                $this->setLeadId($lead, $response['leadId']);
+            }
+
+            if (isset($response['customerId'])) {
+                $this->setCustomerId($lead->people, $response['customerId']);
+            }
+
             return $response;
         } catch (Throwable $e) {
             Log::error('Failed to create DealerSocket lead', [
@@ -440,14 +448,23 @@ class DealerSocketLeadService
                 return null;
             }
 
-            // Extract vehicle data
-            $year = $vehicleOfInterest['year'] ?? $vehicleOfInterest['model_year'] ?? null;
-            $make = $vehicleOfInterest['make'] ?? $vehicleOfInterest['manufacturer'] ?? null;
+            // Extract vehicle data with the correct field names
+            $year = $vehicleOfInterest['yearFrom'] ?? $vehicleOfInterest['yearTo'] ?? $vehicleOfInterest['year'] ?? null;
+            $make = $vehicleOfInterest['make'] ?? null;
             $model = $vehicleOfInterest['model'] ?? null;
-            $status = $vehicleOfInterest['status'] ?? $vehicleOfInterest['condition'] ?? 'New';
-            $vin = $vehicleOfInterest['vin'] ?? null;
-            $stock = $vehicleOfInterest['stock'] ?? $vehicleOfInterest['stock_number'] ?? null;
 
+            // Determine status based on isNew field
+            $status = 'New'; // Default
+            if (isset($vehicleOfInterest['isNew'])) {
+                $status = $vehicleOfInterest['isNew'] === true || $vehicleOfInterest['isNew'] === 'true' ? 'New' : 'Used';
+            } elseif (isset($vehicleOfInterest['status'])) {
+                $status = $vehicleOfInterest['status'];
+            }
+
+            $vin = $vehicleOfInterest['vin'] ?? null;
+            $stock = $vehicleOfInterest['stockNumber'] ?? $vehicleOfInterest['stock'] ?? null;
+
+            // Validate required fields
             if (! $year && ! $make && ! $model) {
                 return null;
             }
@@ -468,14 +485,33 @@ class DealerSocketLeadService
                 $vehicle['stock'] = $stock;
             }
 
+            // Add price information if available (for internal tracking)
+            if (isset($vehicleOfInterest['priceFrom']) && $vehicleOfInterest['priceFrom'] > 0) {
+                $vehicle['priceFrom'] = $vehicleOfInterest['priceFrom'];
+            }
+            if (isset($vehicleOfInterest['priceTo']) && $vehicleOfInterest['priceTo'] > 0) {
+                $vehicle['priceTo'] = $vehicleOfInterest['priceTo'];
+            }
+
+            // Add mileage if available
+            if (isset($vehicleOfInterest['maxMileage']) && $vehicleOfInterest['maxMileage'] > 0) {
+                $vehicle['mileage'] = $vehicleOfInterest['maxMileage'];
+            }
+
             return $vehicle;
         } catch (Throwable $e) {
+            Log::debug('Failed to get interested vehicle from Lead', [
+                'lead_id' => $lead->id,
+                'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
 
     /**
      * Get sales person name
+     * for now we need to skip this until can map sales person
      */
     protected function getSalesPerson(Lead $lead): string
     {
@@ -492,12 +528,278 @@ class DealerSocketLeadService
         }
     }
 
-    /**
-     * Update a lead in DealerSocket
-     */
-    public function updateLead(Lead $lead, string $dealerSocketLeadId): array
+    public function setLeadId(Lead $lead, string $leadId): void
     {
-        // TODO: Implement update logic when UpdateEventCommand is ready
-        throw new Exception('Update lead functionality not yet implemented');
+        $lead->set(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region), $leadId);
+    }
+
+    public function setCustomerId(People $people, string $leadId): void
+    {
+        $people->set(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region), $leadId);
+    }
+
+    public function updateLead(Lead $lead): array
+    {
+        try {
+            $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
+            $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
+
+            if (! $eventId || ! $entityId) {
+                throw new Exception(
+                    'Lead is missing DealerSocket IDs. ' .
+                    'EventId: ' . ($eventId ?? 'missing') . ', ' .
+                    'EntityId: ' . ($entityId ?? 'missing') . '. ' .
+                    'Please create the lead in DealerSocket first.'
+                );
+            }
+
+            $updateData = $this->mapLeadToUpdateArray($lead);
+
+            $response = $this->leadClient->updateSalesEvent(
+                (int) $eventId,
+                (int) $entityId,
+                $updateData
+            );
+
+            if ($response['success']) {
+                Log::info('Successfully updated DealerSocket lead', [
+                    'lead_id' => $lead->id,
+                    'event_id' => $eventId,
+                    'entity_id' => $entityId,
+                ]);
+            } else {
+                Log::warning('DealerSocket rejected lead update', [
+                    'lead_id' => $lead->id,
+                    'event_id' => $eventId,
+                    'entity_id' => $entityId,
+                    'error_code' => $response['errorCode'] ?? null,
+                    'error_message' => $response['errorMessage'] ?? null,
+                ]);
+
+                throw new Exception($response['errorMessage'] ?? 'Update failed');
+            }
+
+            return $response;
+        } catch (Throwable $e) {
+            Log::error('Failed to update DealerSocket lead', [
+                'lead_id' => $lead->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            captureException($e);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Map Lead model to DealerSocket update array format
+     */
+    protected function mapLeadToUpdateArray(Lead $lead): array
+    {
+        $data = [];
+
+        // Map lead interest code (B=Buy, L=Lease, T=Trade)
+        try {
+            $type = $lead->type;
+            if ($type) {
+                $data['leadInterestCode'] = $this->mapLeadInterestCode($lead);
+            }
+        } catch (Throwable $e) {
+            // Ignore if type not available
+        }
+
+        try {
+            $vehicleOfInterest = $lead->get('vehicle_of_interest');
+            if ($vehicleOfInterest) {
+                if (is_string($vehicleOfInterest)) {
+                    $vehicleOfInterest = json_decode($vehicleOfInterest, true);
+                }
+                if (is_array($vehicleOfInterest)) {
+                    // Check isNew field
+                    if (isset($vehicleOfInterest['isNew'])) {
+                        $data['saleClassCode'] = $vehicleOfInterest['isNew'] === true || $vehicleOfInterest['isNew'] === 'true' ? 'New' : 'Used';
+                    } elseif (isset($vehicleOfInterest['status'])) {
+                        $data['saleClassCode'] = $vehicleOfInterest['status'];
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // Ignore if not available
+        }
+
+        // Lead comments (internal notes)
+        $leadComments = $this->getLeadComments($lead);
+        if ($leadComments) {
+            $data['leadComments'] = $leadComments;
+        }
+
+        // Add interested vehicle if available
+        $interestedVehicle = $this->getInterestedVehicle($lead);
+        if ($interestedVehicle) {
+            $data['interestedVehicle'] = [
+                'make' => $interestedVehicle['make'],
+                'model' => $interestedVehicle['model'],
+                'year' => $interestedVehicle['year'],
+            ];
+
+            // Add optional fields
+            if (! empty($interestedVehicle['vin'])) {
+                $data['interestedVehicle']['vin'] = $interestedVehicle['vin'];
+            }
+            if (! empty($interestedVehicle['stock'])) {
+                $data['interestedVehicle']['stockNumber'] = $interestedVehicle['stock'];
+            }
+            if (! empty($interestedVehicle['mileage'])) {
+                $data['interestedVehicle']['mileage'] = (string) $interestedVehicle['mileage'];
+            }
+        }
+
+        // Add trade-in vehicles if available (up to 3)
+        $tradeInVehicles = $this->getTradeInVehicles($lead);
+        if (! empty($tradeInVehicles)) {
+            $data['tradeInVehicles'] = $tradeInVehicles;
+        }
+
+        // // Add sales person if available
+        // $salesPersonName = $this->getSalesPerson($lead);
+        // if ($salesPersonName) {
+        //     $data['salesPersonName'] = $salesPersonName;
+        // }
+
+        // Add lead status if available
+        try {
+            $status = $lead->status;
+            if ($status) {
+                $data['leadStatus'] = $this->mapLeadStatusToDealerSocket($status->name);
+            }
+        } catch (Throwable $e) {
+            // Ignore if status not available
+        }
+
+        // Add BDC assigned user if available
+        try {
+            $bdcUser = $lead->get('bdc_assigned_user');
+            if ($bdcUser) {
+                $data['bdcAssignedUser'] = $bdcUser;
+            }
+        } catch (Throwable $e) {
+            // Ignore if not available
+        }
+
+        try {
+            $priority = $lead->get('priority_ranking');
+            if ($priority) {
+                $data['priorityRanking'] = (int) $priority;
+            }
+        } catch (Throwable $e) {
+            // Ignore if not available
+        }
+
+        try {
+            $preference = $lead->get('preference');
+            if ($preference) {
+                $data['preference'] = $preference;
+            }
+        } catch (Throwable $e) {
+            // Ignore if not available
+        }
+
+        return $data;
+    }
+
+    protected function getTradeInVehicles(Lead $lead): array
+    {
+        try {
+            $tradeIns = $lead->get('trade_in_vehicles');
+
+            if (! $tradeIns) {
+                return [];
+            }
+
+            if (is_string($tradeIns)) {
+                $tradeIns = json_decode($tradeIns, true);
+            }
+
+            if (! is_array($tradeIns)) {
+                return [];
+            }
+
+            if (! isset($tradeIns[0])) {
+                $tradeIns = [$tradeIns];
+            }
+
+            $vehicles = [];
+
+            foreach (array_slice($tradeIns, 0, 3) as $tradeIn) {
+                if (! is_array($tradeIn)) {
+                    continue;
+                }
+
+                $vehicle = [
+                    'make' => $tradeIn['make'] ?? 'Unknown',
+                    'model' => $tradeIn['model'] ?? 'Unknown',
+                    'year' => $tradeIn['year'] ?? $tradeIn['model_year'] ?? date('Y'),
+                ];
+
+                if (! empty($tradeIn['vin'])) {
+                    $vehicle['vin'] = $tradeIn['vin'];
+                }
+
+                if (! empty($tradeIn['color']) || ! empty($tradeIn['color_name'])) {
+                    if (! empty($tradeIn['color'])) {
+                        $vehicle['colorItemCode'] = $tradeIn['color'];
+                    }
+                    if (! empty($tradeIn['color_name'])) {
+                        $vehicle['colorName'] = $tradeIn['color_name'];
+                    }
+                }
+
+                if (! empty($tradeIn['mileage']) || ! empty($tradeIn['odometer'])) {
+                    $vehicle['mileage'] = $tradeIn['mileage'] ?? $tradeIn['odometer'];
+                }
+
+                if (! empty($tradeIn['balance']) || ! empty($tradeIn['payoff_amount'])) {
+                    $vehicle['balanceAmount'] = $tradeIn['balance'] ?? $tradeIn['payoff_amount'];
+                }
+
+                $vehicles[] = $vehicle;
+            }
+
+            return $vehicles;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Map internal lead status to DealerSocket status codes
+     *
+     * DealerSocket Sales Status Codes:
+     * 220 = 0 - Unqualified
+     * 221 = 1 - Up/Contacted
+     * 227 = 2 - Store Visit
+     * 222 = 3 - Demo Vehicle
+     * 223 = 4 - Write Up
+     * 224 = 5 - Pending F&I
+     * 225 = 6 - Sold
+     * 226 = 7 - Lost
+     */
+    protected function mapLeadStatusToDealerSocket(string $statusName): int
+    {
+        $statusName = strtolower(trim($statusName));
+
+        return match (true) {
+            str_contains($statusName, 'unqualified') => 220,
+            str_contains($statusName, 'contacted') || str_contains($statusName, 'new') || str_contains($statusName, 'open') => 221,
+            str_contains($statusName, 'visit') || str_contains($statusName, 'appointment') || str_contains($statusName, 'showroom') => 227,
+            str_contains($statusName, 'demo') || str_contains($statusName, 'test drive') => 222,
+            str_contains($statusName, 'write') || str_contains($statusName, 'negotiation') || str_contains($statusName, 'proposal') => 223,
+            str_contains($statusName, 'pending') || str_contains($statusName, 'finance') || str_contains($statusName, 'f&i') => 224,
+            str_contains($statusName, 'sold') || str_contains($statusName, 'won') || str_contains($statusName, 'closed') => 225,
+            str_contains($statusName, 'lost') || str_contains($statusName, 'dead') => 226,
+            default => 221,
+        };
     }
 }
