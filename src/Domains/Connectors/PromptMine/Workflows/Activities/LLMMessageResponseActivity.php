@@ -342,6 +342,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         $provider = (string) ($message->message['ai_model']['key'] ?? 'dalle3');
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
+        $chatHistory = $this->getChatHistory($message);
 
         if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value) {
             if (isset($message->message['platform']) && $message->message['platform'] === 'android') {
@@ -354,13 +355,10 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
-                    $chatHistory = $this->getChatHistory($message);
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
                     $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    if (array_key_exists('chat_history', $message->message['chat_history']) && ! empty($message->message['chat_history'])) {
-                        unset($message->message['chat_history'][$previousChatImage['original_index']]);
-                    }
+                    unset($chatHistory[$previousChatImage['original_index']]);
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
@@ -443,14 +441,16 @@ class LLMMessageResponseActivity extends KanvasActivity
         ];
 
         // Get existing chat history from parent message or create new conversation
-        $chatHistory = $this->getChatHistory($message);
+        // $chatHistory = $this->getChatHistory($message);
 
         // Add the new user message to the conversation
         $messages = $chatHistory;
-        $messages[] = [
+        if (! $message->message['is_regeneration']) {
+            $messages[] = [
             'role' => 'user',
             'content' => $prompt,
-        ];
+            ];
+        }
 
         $promptClient = new PromptClient($message->app);
         $fullConversation = $promptClient->getFullConversation($messages, $response);
