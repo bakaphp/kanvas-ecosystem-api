@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DealerSocket;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class CustomerClient extends BaseClient
 {
-    public function createCustomer(array $data): mixed
+    public function createCustomer(array $data): array
     {
         $xml = $this->buildCustomerXML($data, 'create');
 
-        return $this->post('/Customer', $xml);
+        $headers = $this->authService->getHeaders($xml);
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->post($this->baseUrl . '/Customer');
+
+        return $this->parseCustomerResponse($response);
     }
 
-    public function updateCustomer(int $entityId, array $data): mixed
+    public function updateCustomer(int $entityId, array $data): array
     {
         $data['entityId'] = $entityId;
         $xml = $this->buildCustomerXML($data, 'update');
@@ -25,7 +31,48 @@ class CustomerClient extends BaseClient
             ->withBody($xml, 'application/xml')
             ->put($this->baseUrl . '/Customer');
 
-        return $this->parseResponse($response);
+        return $this->parseCustomerResponse($response);
+    }
+
+    /**
+     * Parse Customer API response
+     */
+    private function parseCustomerResponse($response): array
+    {
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'error' => 'HTTP Error: ' . $response->status(),
+                'body' => $response->body(),
+            ];
+        }
+
+        try {
+            $xml = simplexml_load_string($response->body());
+
+            if ($xml === false) {
+                throw new Exception('Failed to parse XML response');
+            }
+
+            $success = strtolower((string)$xml->Success) === 'true';
+
+            $result = [
+                'success' => $success,
+                'entityId' => (string)($xml->EntityId ?? ''),
+                'dmsCustomerId' => (string)($xml->DMSCustomerId ?? ''),
+                'errorCode' => (string)($xml->ErrorCode ?? ''),
+                'errorMessage' => (string)($xml->ErrorMessage ?? ''),
+                'rawXml' => $response->body(),
+            ];
+
+            return $result;
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Parse Error: ' . $e->getMessage(),
+                'body' => $response->body(),
+            ];
+        }
     }
 
     private function buildCustomerXML(array $data, string $action): string
@@ -35,21 +82,21 @@ class CustomerClient extends BaseClient
         $now = now()->toIso8601String();
 
         $xml = <<<XML
-        <?xml version="1.0" encoding="utf-8"?>
-        <ProcessCustomerInformation xmlns="http://www.starstandard.org/STAR/5">
-          <ApplicationArea>
-            <Sender>
-              <CreatorNameCode>{$vendorName}</CreatorNameCode>
-              <DealerNumberID>{$dealerId}</DealerNumberID>
-            </Sender>
-            <CreationDateTime>{$now}</CreationDateTime>
-          </ApplicationArea>
-          <ProcessCustomerInformationDataArea>
-            <CustomerInformation>
-              <CustomerInformationDetail>
-                <CustomerParty>
-                  <SpecialRemarksDescription>{$data['type']}</SpecialRemarksDescription>
-        XML;
+<?xml version="1.0" encoding="utf-8"?>
+<ProcessCustomerInformation xmlns="http://www.starstandard.org/STAR/5">
+  <ApplicationArea>
+    <Sender>
+      <CreatorNameCode>{$vendorName}</CreatorNameCode>
+      <DealerNumberID>{$dealerId}</DealerNumberID>
+    </Sender>
+    <CreationDateTime>{$now}</CreationDateTime>
+  </ApplicationArea>
+  <ProcessCustomerInformationDataArea>
+    <CustomerInformation>
+      <CustomerInformationDetail>
+        <CustomerParty>
+          <SpecialRemarksDescription>{$data['type']}</SpecialRemarksDescription>
+XML;
 
         if ($data['type'] === 'Individual') {
             $xml .= $this->buildIndividualXML($data);
@@ -58,14 +105,14 @@ class CustomerClient extends BaseClient
         }
 
         $xml .= <<<XML
-                </CustomerParty>
-              </CustomerInformationDetail>
-            </CustomerInformation>
-          </ProcessCustomerInformationDataArea>
-        </ProcessCustomerInformation>
-        XML;
+        </CustomerParty>
+      </CustomerInformationDetail>
+    </CustomerInformation>
+  </ProcessCustomerInformationDataArea>
+</ProcessCustomerInformation>
+XML;
 
-        return $xml;
+        return ltrim($xml);
     }
 
     private function buildIndividualXML(array $data): string
@@ -74,34 +121,26 @@ class CustomerClient extends BaseClient
         $phone = $data['phone'] ?? '';
         $email = $data['email'] ?? '';
 
-        $xml = <<<XML
-        <SpecifiedPerson>
-      XML;
+        $xml = "\n          <SpecifiedPerson>";
 
         if (! empty($entityId)) {
             $xml .= "\n            <ID>{$entityId}</ID>";
         }
 
-        $xml .= <<<XML
-          <GivenName>{$data['firstName']}</GivenName>
-          <FamilyName>{$data['lastName']}</FamilyName>
-      XML;
+        $xml .= "\n            <GivenName>{$data['firstName']}</GivenName>";
+        $xml .= "\n            <FamilyName>{$data['lastName']}</FamilyName>";
 
         if (! empty($phone)) {
-            $xml .= <<<XML
-            <TelephoneCommunication>
-              <CompleteNumber>{$phone}</CompleteNumber>
-              <UseCode>Home</UseCode>
-            </TelephoneCommunication>
-          XML;
+            $xml .= "\n            <TelephoneCommunication>";
+            $xml .= "\n              <CompleteNumber>{$phone}</CompleteNumber>";
+            $xml .= "\n              <UseCode>Home</UseCode>";
+            $xml .= "\n            </TelephoneCommunication>";
         }
 
         if (! empty($email)) {
-            $xml .= <<<XML
-          <URICommunication>
-            <URIID>{$email}</URIID>
-          </URICommunication>
-        XML;
+            $xml .= "\n            <URICommunication>";
+            $xml .= "\n              <URIID>{$email}</URIID>";
+            $xml .= "\n            </URICommunication>";
         }
 
         $xml .= "\n          </SpecifiedPerson>";
@@ -116,40 +155,30 @@ class CustomerClient extends BaseClient
         $phone = $data['phone'] ?? '';
         $email = $data['email'] ?? '';
 
-        $xml = <<<XML
-        <SpecifiedOrganization>
-      XML;
+        $xml = "\n          <SpecifiedOrganization>";
 
         if (! empty($entityId)) {
             $xml .= "\n            <ID>{$entityId}</ID>";
         }
 
-        $xml .= <<<XML
-          <CompanyName>{$companyName}</CompanyName>
-      XML;
+        $xml .= "\n            <CompanyName>{$companyName}</CompanyName>";
 
         if (! empty($data['contactFirstName']) && ! empty($data['contactLastName'])) {
-            $xml .= <<<XML
-          <PrimaryContact>
-            <GivenName>{$data['contactFirstName']}</GivenName>
-            <FamilyName>{$data['contactLastName']}</FamilyName>
-        XML;
+            $xml .= "\n            <PrimaryContact>";
+            $xml .= "\n              <GivenName>{$data['contactFirstName']}</GivenName>";
+            $xml .= "\n              <FamilyName>{$data['contactLastName']}</FamilyName>";
 
             if (! empty($phone)) {
-                $xml .= <<<XML
-            <TelephoneCommunication>
-              <CompleteNumber>{$phone}</CompleteNumber>
-              <UseCode>Work</UseCode>
-            </TelephoneCommunication>
-          XML;
+                $xml .= "\n              <TelephoneCommunication>";
+                $xml .= "\n                <CompleteNumber>{$phone}</CompleteNumber>";
+                $xml .= "\n                <UseCode>Work</UseCode>";
+                $xml .= "\n              </TelephoneCommunication>";
             }
 
             if (! empty($email)) {
-                $xml .= <<<XML
-            <URICommunication>
-              <URIID>{$email}</URIID>
-            </URICommunication>
-          XML;
+                $xml .= "\n              <URICommunication>";
+                $xml .= "\n                <URIID>{$email}</URIID>";
+                $xml .= "\n              </URICommunication>";
             }
 
             $xml .= "\n            </PrimaryContact>";
@@ -160,29 +189,79 @@ class CustomerClient extends BaseClient
         return $xml;
     }
 
-    public function searchCustomer(array $searchData)
+    public function searchCustomer(array $searchData): array
     {
         $xml = $this->buildSearchXML($searchData);
 
-        return $this->post('/SearchEntity', $xml);
+        $headers = $this->authService->getHeaders($xml);
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->post($this->baseUrl . '/SearchEntity');
+
+        return $this->parseSearchResponse($response);
     }
 
-    public function getCustomerById(int $entityId)
+    /**
+     * Parse Search Entity response
+     */
+    private function parseSearchResponse($response): array
+    {
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'error' => 'HTTP Error: ' . $response->status(),
+                'body' => $response->body(),
+            ];
+        }
+
+        try {
+            $xml = simplexml_load_string($response->body());
+
+            if ($xml === false) {
+                throw new Exception('Failed to parse XML response');
+            }
+
+            $success = strtolower((string)$xml->Success) === 'true';
+
+            $result = [
+                'success' => $success,
+                'entityId' => (string)($xml->EntityId ?? ''),
+                'dmsCustomerId' => (string)($xml->DMSCustomerId ?? ''),
+                'firstName' => (string)($xml->FirstName ?? ''),
+                'lastName' => (string)($xml->LastName ?? ''),
+                'email' => (string)($xml->Email ?? ''),
+                'phone' => (string)($xml->Phone ?? ''),
+                'errorCode' => (string)($xml->ErrorCode ?? ''),
+                'errorMessage' => (string)($xml->ErrorMessage ?? ''),
+                'rawXml' => $response->body(),
+            ];
+
+            return $result;
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Parse Error: ' . $e->getMessage(),
+                'body' => $response->body(),
+            ];
+        }
+    }
+
+    public function getCustomerById(int $entityId): array
     {
         return $this->searchCustomer(['entityId' => $entityId]);
     }
 
-    public function getCustomerByEmail(string $email)
+    public function getCustomerByEmail(string $email): array
     {
         return $this->searchCustomer(['email' => $email]);
     }
 
-    public function getCustomerByPhone(string $phone)
+    public function getCustomerByPhone(string $phone): array
     {
         return $this->searchCustomer(['phone' => $phone]);
     }
 
-    public function getCustomerByName(?string $firstName, ?string $lastName)
+    public function getCustomerByName(?string $firstName, ?string $lastName): array
     {
         $searchData = [];
         if ($firstName) {
