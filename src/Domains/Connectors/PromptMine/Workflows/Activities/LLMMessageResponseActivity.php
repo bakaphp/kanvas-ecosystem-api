@@ -505,15 +505,17 @@ class LLMMessageResponseActivity extends KanvasActivity
                 report($e);
             }
 
-            $useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
+            //$useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
 
-            return $useOnlyImageResponse ? $message->app->get('LIMIT_IMAGE_URL') :
-                [
-                    'error' => 'You have reached your daily image generation limit.',
-                    'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
-                    'limit' => $message->app->get('message-post-limit') ?? 0,
-                    'flag' => true,
-                ];
+            return [
+              'response' => (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=You have reached your daily image generation limit.',
+              'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+              'chat_history' => [],
+              'limit' => $message->app->get('message-post-limit') ?? 0,
+              'flag' => true,
+              'message' => 'You have reached your daily image generation limit.',
+              'nsfw_flag' => true,
+            ];
         }
 
         return null;
