@@ -107,9 +107,12 @@ class CreateMessageFollowUpAction
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
-        if (! $responseText['should_respond']) {
+
+        //if no response or should not respond
+        if ((bool) ($responseText['should_respond'] ?? false) === false) {
             return null;
         }
+
         $messageType = MessageType::firstOrCreate([
             'apps_id' => $this->session->apps_id,
             //'languages_id' => 1,
@@ -120,6 +123,7 @@ class CreateMessageFollowUpAction
 
         $user = Users::getById($this->session->agent->user_id);
         $message = $responseText['message'];
+
         $messageInput = MessageInput::from([
             'app' => $this->session->app,
             'company' => $this->session->company,
