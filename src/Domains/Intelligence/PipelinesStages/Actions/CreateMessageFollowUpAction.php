@@ -8,7 +8,8 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
-use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -59,23 +60,25 @@ class CreateMessageFollowUpAction
         $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
         $relatedUuid[] = $vehicleInterest['uuid'];
         $channel = Channels::getDefault($this->lead->company);
-        $engagementDto = EngagementData::from(
-            $this->lead->app,
-            $this->lead->company,
-            $this->lead->user,
-            $this->lead,
-            [
-                'action' => 'view-vehicle',
-                'request_id' => Str::uuid()->toString(),
-                'source' => 'ai',
-                'status' => 'sent',
-                'data' => [
-                    "product_id" => $relatedUuid,
-                    'channel_id' => $channel->uuid
-                ],
-                $this->lead->people,
-            ]
+
+        $engagementDto = Engagement::fromMultiple(
+            app: $this->lead->app,
+            company: $this->lead->company,
+            user: $this->lead->company->user,
+            lead: $this->lead,
+            request: [
+                        'action' => 'view-vehicle',
+                        'request_id' => (string) Str::uuid(),
+                        'source' => 'ai',
+                        'status' => ActionStatusEnum::SENT->value,
+                        'data' => [
+                            'product_id' => $relatedUuid,
+                            'channel_id' => $channel->uuid,
+                        ],
+                    ],
+            people: $this->lead->people,
         );
+
         $engagement = new CreateEngagementAction($engagementDto, false)->execute();
         $data = [
             'day' => $rules['day'],
@@ -91,7 +94,7 @@ class CreateMessageFollowUpAction
             'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
             'agent' => $this->session->agent,
             'vehicle_interest' => $vehicleInterest,
-            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null
+            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
