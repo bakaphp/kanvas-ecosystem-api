@@ -355,13 +355,12 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            
             if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
                     $chatHistory = $this->getChatHistory($message);
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
-                    $params['previousImageUrl'] = array_key_exists('content',$previousChatImage) ? $previousChatImage['content'] : null;
+                    $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
