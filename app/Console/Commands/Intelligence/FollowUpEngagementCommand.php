@@ -9,15 +9,15 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 
 class FollowUpEngagementCommand extends Command
 {
