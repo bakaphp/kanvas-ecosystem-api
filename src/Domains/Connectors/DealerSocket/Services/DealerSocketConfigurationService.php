@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\DealerSocket\DataTransferObject\DealerSocket;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
 
 class DealerSocketConfigurationService
@@ -34,6 +36,16 @@ class DealerSocketConfigurationService
     public static function generateCredentialKey(CompanyInterface $company, AppInterface $app, Regions $region): string
     {
         return CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value . '-' . $app->getId() . '-' . $company->getId() . '-' . $region->getId();
+    }
+
+    public static function getLeadIdKey(Lead $lead, Regions $region): string
+    {
+        return self::getKey(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value, $lead->company, $lead->app, $region);
+    }
+
+    public static function getCustomerIdKey(People $people, Regions $region): string
+    {
+        return self::getKey(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value, $people->company, $people->app, $region);
     }
 
     public static function getKey(string $key, CompanyInterface $company, AppInterface $app, Regions $region): string
