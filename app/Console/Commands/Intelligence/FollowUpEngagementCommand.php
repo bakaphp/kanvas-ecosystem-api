@@ -52,6 +52,7 @@ class FollowUpEngagementCommand extends Command
                     ->where('leads_status_id', '<=', 2) // only open leads
                     ->where('is_deleted', '=', 0)
                     // ->whereIn('id', [525873,525867,509766,513064,513546])
+                    ->where('created_at', '>', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
                     ->cursor();
 
