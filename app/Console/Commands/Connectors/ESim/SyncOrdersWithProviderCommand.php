@@ -36,7 +36,6 @@ class SyncOrdersWithProviderCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -54,45 +53,47 @@ class SyncOrdersWithProviderCommand extends Command
         $airaloService = new AiraloService($app);
 
         foreach ($orders as $order) {
-            $iccid = $order->metadata['data']['iccid'] ?? null;
-            $bundle = $order->metadata['data']['plan'] ?? null;
-            $qr = $order->metadata['data']['qr_code'] ?? null;
-            $startDate = $order->metadata['data']['start_date'] ?? null;
+            foreach ($order->metadata['esims'] ?? [] as $esimData) {
+                $iccid = $esimData['data']['iccid'] ?? null;
+                $bundle = $esimData['data']['plan'] ?? null;
+                $qr = $esimData['data']['qr_code'] ?? null;
+                $startDate = $esimData['data']['start_date'] ?? null;
 
-            $cancelCounter = $order->get('cancel_counter', 0);
-            if ($cancelCounter < 3) {
-                $cancelCounter++;
-                $order->set('cancel_counter', $cancelCounter);
-            }
-
-            if ($iccid == null) {
-                $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
-                if ($cancelCounter >= 3) {
-                    $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
-                    $order->cancel();
-                    $order->fulfillCancelled();
+                $cancelCounter = $order->get('cancel_counter', 0);
+                if ($cancelCounter < 3) {
+                    $cancelCounter++;
+                    $order->set('cancel_counter', $cancelCounter);
                 }
 
-                continue;
+                if ($iccid == null) {
+                    $this->info("Order ID: {$order->id} does not have an ICCID. Check count: {$cancelCounter}");
+                    if ($cancelCounter >= 3) {
+                        $this->info("Order ID: {$order->id} checked 3 times without ICCID. Cancelling.");
+                        $order->cancel();
+                        $order->fulfillCancelled();
+                    }
+
+                    continue;
+                }
+
+                $item = $order->items()->first();
+                $variant = $item->variant;
+                $provider = $variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value) ?? $variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+
+                if ($provider == null) {
+                    $this->info("Order ID: {$order->id} does not have a provider.");
+
+                    continue;
+                }
+
+                match (strtolower($provider->value)) {
+                    strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
+                    strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
+                    strtolower(ProviderEnum::CMLINK->value) => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
+                    strtolower(ProviderEnum::AIRALO->value) => $this->airaloFulfillment($airaloService, $order, $iccid, $bundle),
+                    default => [],
+                };
             }
-
-            $item = $order->items()->first();
-            $variant = $item->variant;
-            $provider = $variant?->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value) ?? $variant?->product?->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
-
-            if ($provider == null) {
-                $this->info("Order ID: {$order->id} does not have a provider.");
-
-                continue;
-            }
-
-            match (strtolower($provider->value)) {
-                strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
-                strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
-                strtolower(ProviderEnum::CMLINK->value) => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
-                strtolower(ProviderEnum::AIRALO->value) => $this->airaloFulfillment($airaloService, $order, $iccid, $bundle),
-                default => [],
-            };
         }
 
         return;

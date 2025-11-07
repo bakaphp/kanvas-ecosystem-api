@@ -136,6 +136,34 @@ class CreateUserAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+
+        if ($this->hasSpamNamePattern($this->data->firstname) || $this->hasSpamNamePattern($this->data->lastname)) {
+            $validator = Validator::make(
+                ['firstname' => $this->data->firstname],
+                ['firstname' => 'required'],
+                ['firstname.required' => 'Registration information appears to be invalid.']
+            );
+
+            throw new ValidationException($validator);
+        }
+    }
+
+    /**
+     * Detects spam registration names with randomized character patterns.
+     */
+    private function hasSpamNamePattern(string $name): bool
+    {
+        if (empty($name)) {
+            return true;
+        }
+
+        $uppercaseCount = preg_match_all('/[A-Z]/', $name);
+
+        if ($uppercaseCount === false) {
+            return false;
+        }
+
+        return ($uppercaseCount / strlen($name)) > 0.4;
     }
 
     protected function validatePhoneNumber(): void

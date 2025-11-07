@@ -11,8 +11,9 @@ class EchoPayException extends ValidationException
 {
     protected array $errorBody;
 
-    public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null, array $errorBody = [])
+    public function __construct(string|array $message = "", int $code = 0, ?Throwable $previous = null, array $errorBody = [])
     {
+        $message = is_array($message) ? implode(', ', $message) : $message;
         parent::__construct($message, $code, $previous);
         $this->errorBody = $errorBody;
     }
