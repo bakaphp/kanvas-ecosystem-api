@@ -246,7 +246,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
-                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
@@ -264,7 +264,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             return [
-                'response' => $isNotSafeForWork ? 'Your prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try a different model.',
+                'response' => $isNotSafeForWork ? 'Your prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
                 'chat_history' => [],
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
@@ -406,7 +406,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
-                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'Your image prompt could not be processed. ' . $e->getMessage(),
+                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'Your image prompt could not be processed. Please try again.',
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
@@ -423,7 +423,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $message->user->notify($errorProcessingImageNotification);
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
-            $placeHolderText = urlencode('We could not process your prompt at this time') . '\n' . urlencode($e->getMessage());
+            $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
 
             return [
                 'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
@@ -551,6 +551,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             return $item['role'] === 'assistant';
         });
         array_pop($assistantMessages);
+
         return end($assistantMessages);
     }
 }
