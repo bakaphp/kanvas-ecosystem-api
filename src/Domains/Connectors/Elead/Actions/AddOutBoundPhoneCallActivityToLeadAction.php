@@ -54,7 +54,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
             ]
         );
 
-        if ($this->lead->get('ai_stop_the_clock_notifications_enabled')) {
+        if ($this->lead->company->get('ai_stop_the_clock_notifications_enabled')) {
             $this->notifyManagers();
         }
 
