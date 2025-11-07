@@ -404,7 +404,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
-                message: 'Your image prompt was flagged as not safe for work and could not be processed.',
+                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'Your image prompt could not be processed. ' . $e->getMessage(),
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
