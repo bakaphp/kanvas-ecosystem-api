@@ -40,7 +40,7 @@ class ImageFilterService
     protected ?string $openaiApiUrl = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
-    
+
     public $tries = 3;
 
     public function __construct(
