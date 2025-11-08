@@ -9,6 +9,8 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
+use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -27,11 +29,20 @@ class MatchPipelineByIntentActivity extends KanvasActivity
                 $leadIntent = new LeadIntentTool($lead)->execute();
 
                 $key = $leadIntent['lead_intent'];
+
                 $config = $params['match_pipeline'] ?? [];
+                $vehicleInterest = new VehicleInterestTool($lead)->execute();
+
+                if ($key == 'VALUE_MY_TRADE' && ! $vehicleInterest) {
+                    $key = 'VALUE_MY_TRADE';
+                } else {
+                    $key = 'default';
+                }
 
                 $channel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
 
                 $pipelineId = $config[$key][$channel] ?? $config['default'][$channel] ?? null;
+
                 $pipeline = Pipeline::getById($pipelineId);
 
                 $lead->pipeline_id = $pipelineId;
