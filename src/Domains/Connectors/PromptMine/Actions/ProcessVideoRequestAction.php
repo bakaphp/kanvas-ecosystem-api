@@ -41,7 +41,7 @@ class ProcessVideoRequestAction
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoKey = str_replace('fal-ai/image-to-video', 'google-v2', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
@@ -82,8 +82,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -216,9 +216,10 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
+
+        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -258,25 +259,7 @@ class ProcessVideoRequestAction
     protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
         if ($this->isGoogleService && $isVideo) {
-            // For Google services, use multipart form data
-            $httpRequest = Http::asMultipart();
-
-            // Add each field from payload as form data
-            foreach ($payload as $key => $value) {
-                if ($key === 'image_url') {
-                    // Download the image content and send as file
-                    $imageContent = Http::get(is_array($value) ? $value[0] : $value)->body();
-                    $httpRequest = $httpRequest->attach(
-                        'image',
-                        $imageContent,
-                        'image.png' // Default filename, could be extracted from URL if needed
-                    );
-                } else {
-                    $httpRequest = $httpRequest->attach((string) $key, (string) $value);
-                }
-            }
-
-            $response = $httpRequest->post($apiUrl);
+            $response = Http::post($apiUrl, $payload);
         } else {
             // For non-Google services, use JSON
             $response = Http::withHeaders([
@@ -318,8 +301,10 @@ class ProcessVideoRequestAction
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
                         // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['model']) &&
-                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
+                            if (
+                                isset($modelConfig['model']) &&
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))
+                            ) {
                                 if (isset($modelConfig['input_config'])) {
                                     return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
                                 }
@@ -355,5 +340,24 @@ class ProcessVideoRequestAction
         }
 
         return $defaults;
+    }
+
+    private function constructModelPayload(Model $entity, array $payload): array
+    {
+        $messageFiles = $this->getFilesWithRetry($this->entity);
+        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+
+        return match (true) {
+            count($imageUrlsArray) == 2 => array_merge($payload, [
+                'image_url' => $imageUrlsArray[0],
+                'lastFrameUrl' => $imageUrlsArray[1],
+            ]),
+            count($imageUrlsArray) > 2 => array_merge($payload, [
+                'referenceImageUrls' => $imageUrlsArray,
+            ]),
+            default => array_merge($payload, [
+                'image_url' => $imageUrlsArray[0],
+            ]),
+        };
     }
 }
