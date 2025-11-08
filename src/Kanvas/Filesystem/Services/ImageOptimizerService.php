@@ -15,6 +15,7 @@ class ImageOptimizerService
 {
     public static function optimizeImageFromUrl(string $imageUrl): string
     {
+        chdir(storage_path('app/temp'));
         $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
 
         if ($imagePath === null || ! file_exists($imagePath)) {
