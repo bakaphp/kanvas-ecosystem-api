@@ -25,13 +25,21 @@ class PushOrderToInvoiceActivity extends KanvasActivity
         $order->refresh();
         $orderCompany = $order->company;
 
+        $hasTag = $order->hasTag(['generate_quickbooks_invoice']);
+        $validateB2B = (bool) ($params['validate_b2b'] ?? true);
+
         /**
         * @todo for now we are not allowing to create an invoice for the same company as the B2B main company.
         */
-        if ($mainAppCompany->getId() === $orderCompany->getId()) {
+        if ($validateB2B && $mainAppCompany->getId() === $orderCompany->getId()) {
             return [
                 'result' => false,
                 'message' => 'Order company is the same as the B2B main company. No action taken.',
+            ];
+        } elseif (! $hasTag) {
+            return [
+                'result' => false,
+                'message' => 'Order does not have the required tag to generate QuickBooks invoice. No action taken.',
             ];
         }
 
