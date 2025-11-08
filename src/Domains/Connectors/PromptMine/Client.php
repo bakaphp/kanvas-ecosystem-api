@@ -90,13 +90,41 @@ class Client
     }
 
     /**
+     * Extract the response text from the chat API response.
+     *
+     * @param array $response The API response
+     * @return string|null The response text or null if not found
+     */
+    public function extractChatResponse(array $response): ?string
+    {
+        // The response should contain the assistant's message
+        if (isset($response['responseText'])) {
+            return $response['responseText'];
+        }
+
+        // Fallback: look for common response patterns
+        if (isset($response['response'])) {
+            return $response['response'];
+        }
+
+        if (isset($response['text'])) {
+            return $response['text'];
+        }
+
+        if (isset($response['image_url'])) {
+            return $response['image_url'];
+        }
+
+        return null;
+    }
+
+    /**
      * Extract the chat history from the response while excluding the latest response.
      *
      * @param array $messages The original messages sent
-     * @param array $response The API response
      * @return array Array of chat history messages
      */
-    public function extractChatHistory(array $messages, array $response): array
+    public function extractChatHistory(array $messages): array
     {
         $history = [];
 
@@ -119,15 +147,15 @@ class Client
      * @param array $response The API response
      * @return array Complete conversation array
      */
-    public function getFullConversation(array $messages, array $response): array
+    public function getFullConversation(array $messages, ?array $response = null): array
     {
-        $conversation = $this->extractChatHistory($messages, $response);
+        $conversation = $this->extractChatHistory($messages);
 
-        $responseText = $this->extractChatResponseText($response);
-        if ($responseText) {
+        $responseContent = $this->extractChatResponse($response);
+        if ($response) {
             $conversation[] = [
                 'role' => 'assistant',
-                'content' => $responseText,
+                'content' => $responseContent,
                 'timestamp' => time(),
             ];
         }
