@@ -49,6 +49,18 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     ];
                 }
 
+                //fix prompts with weird ai_image as array
+                if ($message->messageType->verb === 'prompt'
+                    && isset($messageContent['ai_image'])
+                    && is_array($messageContent['ai_image'])
+                    && isset($messageContent['ai_image']['nugget'])
+                    && ! isset($messageContent['ai_image']['image'])) {
+                    $messageContent = array_merge($messageContent, ['ai_image' => $messageContent['ai_image']['nugget']]);
+                    $message->message = $messageContent;
+                    $message->saveOrFail();
+                    $message->refresh();
+                }
+
                 // Safely retrieve the image URL based on message type
                 if ($message->parent_id) {
                     // For child messages, use 'image' key
