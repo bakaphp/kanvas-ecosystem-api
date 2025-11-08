@@ -40,11 +40,12 @@ class ImageFilterService
     protected ?string $openaiApiUrl = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
+    
     public $tries = 3;
 
     public function __construct(
-        protected ?AppInterface $app = null,
-        protected ?Message $entity = null,
+        protected AppInterface $app,
+        protected Message $entity,
         protected ?Collection $messageFiles = null,
         protected ?array $params = null,
     ) {
@@ -53,7 +54,6 @@ class ImageFilterService
     public function execute(): array
     {
         $messageFiles = $this->entity->getFiles();
-        Log::info(self::class . ": GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
@@ -457,7 +457,6 @@ class ImageFilterService
         }
 
         // Optimize and upload the processed image
-        Log::info("NANO URL", [$processedImageUrl, $responseData]);
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
         $fileName = basename($tempFilePath);
 
