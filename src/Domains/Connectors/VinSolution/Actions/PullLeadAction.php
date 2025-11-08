@@ -163,7 +163,7 @@ class PullLeadAction
         $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
 
         if ($leadGroupCategory !== null) {
-            $lead->addTag($leadGroupCategory);
+            $lead->addTag(strtolower($leadGroupCategory));
         }
         $leadTypeName = (string) $lead->type?->name;
 
