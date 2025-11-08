@@ -161,6 +161,10 @@ class PullLeadAction
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
         $leadStatus = $currentLead['LeadStatusType'] ?? null;
         $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+
+        if ($leadGroupCategory !== null) {
+            $lead->addTag($leadGroupCategory);
+        }
         $leadTypeName = (string) $lead->type?->name;
 
         if (empty($createdAt)
