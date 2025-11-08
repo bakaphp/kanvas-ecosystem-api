@@ -33,7 +33,6 @@ class ProductService
             $listPrice = $amazonPrice;
         }
         $asin = $this->getProductAsin($product);
-
         $mappedProduct = [
             'name' => $name,
             'description' => $this->getDescription($product),
@@ -113,6 +112,14 @@ class ProductService
                     'name' => 'total_reviews',
                     'data' => $product['total_reviews'] ?? '',
                 ],
+                [
+                    'name' => 'product_information',
+                    'data' => $product['product_information'] ?? [],
+                ],
+                [
+                    'name' => 'feature_bullets',
+                    'data' => $product['feature_bullets'] ?? [],
+                ]
             ],
         ];
 

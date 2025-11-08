@@ -92,7 +92,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         'users' => $lead->user,
                         'entity_id' => $lead->getId(),
                         'entity_namespace' => Lead::class,
-                        'name' => 'Lead ' . $lead->getId() . ' Session',
+                        'name' => ucwords($communicationChannel) . ' ' . $lead->getId(),
                         'slug' => SessionChannelService::createChannelSlug(
                             $communicationChannel,
                             $communicationChannelNumber
@@ -160,7 +160,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         );
 
                         try {
-                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead);
+                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                         } catch (Exception $e) {
                             report($e);
                         }
@@ -209,11 +209,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
      *  @todo this is not the right place to do this but for now its ok
      * we need to make sure we have the phone call activity
      */
-    private function leadExternalActivityDateIn(Lead $lead): mixed
+    private function leadExternalActivityDateIn(Lead $lead, Message $message): mixed
     {
         $outBoundPhoneCallActivity = null;
         if ($lead->get('downloaded_from_eleads')) {
-            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)
+            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead, $message)
             ->execute('Sally Take Over', 'Sally stop the clock');
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             // To do VinSolution Push Note to Lead
@@ -224,7 +224,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function isWithinOneDay(Lead $lead, string $dateString): bool
     {
-        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
+        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? $lead->company->timezone ?? 'America/New_York';
 
         $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
         $now = Carbon::now($leadTimezone);

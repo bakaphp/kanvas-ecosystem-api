@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
@@ -145,6 +146,8 @@ class CreateContentSessionAction
         ];
 
         $results = [];
+        $aiAgentUserId = (int) $this->entity->company->get('ai-agent-user-id');
+        $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $this->entity->user;
 
         foreach ($actions as $key => $action) {
             try {
@@ -152,7 +155,7 @@ class CreateContentSessionAction
                     Engagement::from(
                         $this->session->app,
                         $this->session->company,
-                        $this->entity->user,
+                        $user,
                         $this->entity,
                         [
                             'action' => $action,
@@ -217,7 +220,7 @@ class CreateContentSessionAction
         ];
     }
 
-    protected function getRelatedVehicles(array $vehicleInterest): array
+    public function getRelatedVehicles(array $vehicleInterest, int $limit = 10): array
     {
         if (empty($vehicleInterest['make']) || empty($vehicleInterest['model'])) {
             return [];
@@ -234,7 +237,7 @@ class CreateContentSessionAction
             user: null,
             company: $this->session->company,
         )->select('products_variants.uuid', 'products_variants.name')
-            ->limit(10)
+            ->limit($limit)
             ->orderBy('products_variants.name', 'desc')
             ->get();
 

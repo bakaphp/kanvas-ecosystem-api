@@ -56,6 +56,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
             // Prepare data to pass to the Blade template
 
+            /**
+             * @todo move to use the idverification action
+             */
             return $this->executeIntegration(
                 entity: $entity,
                 app: $app,
@@ -216,7 +219,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         //$entity->addFile($pdfReport, 'id-verification');
 
                         //since we are running 2 diff version of the api, we need to slow you down to get the last message
-                    })->delay(now()->addSeconds(30));
+                    })->delay(now()->addSeconds(30))->onQueue('notifications');
 
                     return [
                         'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],

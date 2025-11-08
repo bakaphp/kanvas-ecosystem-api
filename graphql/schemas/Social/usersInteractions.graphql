@@ -34,6 +34,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@like"
         )
+    userViewEntity(input: UserInteractionInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@view"
+        )
     userUnLikeEntity(input: UserInteractionInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@unlike"

@@ -270,7 +270,8 @@ class ImportOrderItemsCsvTest extends TestCase
         $responseData = $response->json();
         $message = $responseData['data']['importOrderCsv']['message'];
 
-        $this->assertStringContainsString('Not enough stock for product', $message);
+        $this->assertStringContainsString('You only have', $message);
+        $this->assertStringContainsString('in stock for', $message);
         $this->assertStringContainsString($variantResponse['name'], $message);
     }
 

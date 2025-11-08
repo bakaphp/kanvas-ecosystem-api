@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -29,9 +30,9 @@ class HandOffActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return ['Handoff was already processed for this lead'];
-                }
+                /*  if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                     return ['Handoff was already processed for this lead'];
+                 } */
 
                 if (! empty($params['rotation_id'])) {
                     try {
@@ -46,11 +47,12 @@ class HandOffActivity extends KanvasActivity
                 }
 
                 $leadOwner = $leadOwner ?? $lead->owner ?? $lead->user;
-                $handOffUserRole = $params['hand_off_user_role'] ?? 'Manager';
+                $handOffUserRole = $lead->company->get('ai_agent_handoff_user_role') ?? 'Manager';
 
-                $handOffType = $params['handoff_type'] ?? 'human';
+                $handOffType = strtolower($params['handoff_type'] ?? 'human');
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+                $companyHumanHandOffOnlySms = (bool) ($lead->company->get('ai_human_handoff_only_sms') ?? false);
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
@@ -65,7 +67,13 @@ class HandOffActivity extends KanvasActivity
                     ]
                 );
 
-                if (strtolower($handOffType) === 'compliance_internal') {
+                if ($companyHumanHandOffOnlySms && $handOffType === 'human') {
+                    $handOffNotification->channels = [
+                        TwilioSmsChannel::class,
+                    ];
+                }
+
+                if ($handOffType === 'compliance_internal') {
                     //$params['template_name'] = 'lead_compliance_handoff';
                     $handOffNotification->setTemplateName('lead_handoff_compliance_handoff');
                     $handOffNotification->setSubject('Lead Compliance Handoff Notification');

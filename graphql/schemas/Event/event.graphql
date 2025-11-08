@@ -187,6 +187,14 @@ input TimeSlotBookingInput {
     metadata: Mixed
 }
 
+input OrderItemInput {
+    variant_id: ID!
+    name: String!
+    quantity: Int!
+    price: Float!
+    metadata: Mixed
+}
+
 input ResourceBookingInput {
     resources_id: ID!
     resources_type: String
@@ -200,6 +208,7 @@ input ResourceBookingInput {
     payment_method_id: String
     metadata: Mixed
     resources: Mixed
+    order_items: [OrderItemInput!]
 }
 
 input ResourceBookingUpdateInput {
@@ -225,6 +234,20 @@ type ResourceHoldResult {
     hold_id: String!
     expires_at: String!
     message: String!
+}
+
+input ConfirmBookingInput {
+    event_version_id: ID!
+    payment_intent_id: String!
+    amount: Float
+}
+
+type ConfirmBookingResult {
+    success: Boolean!
+    message: String!
+    event_version: EventVersion!
+    payment: Mixed!
+    order: Mixed!
 }
 
 extend type Mutation @guard {
@@ -259,6 +282,11 @@ extend type Mutation @guard {
     deleteResourceBooking(event_version_id: ID!): ResourceBookingDeleteResult!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@delete"
+        )
+
+    confirmBooking(input: ConfirmBookingInput!): ConfirmBookingResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\EventPaymentMutation@confirmBooking"
         )
 }
 

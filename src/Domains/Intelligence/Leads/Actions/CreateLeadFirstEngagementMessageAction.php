@@ -69,6 +69,7 @@ class CreateLeadFirstEngagementMessageAction
             ],
             requiredFields: ['title', 'message']
         );
+
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
                    ->using(Provider::Gemini, 'gemini-2.5-flash')

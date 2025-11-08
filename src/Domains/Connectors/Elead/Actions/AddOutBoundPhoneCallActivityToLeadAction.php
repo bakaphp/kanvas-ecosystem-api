@@ -11,11 +11,15 @@ use InvalidArgumentException;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class AddOutBoundPhoneCallActivityToLeadAction
 {
     public function __construct(
-        protected Lead $lead
+        protected Lead $lead,
+        protected Message $message
     ) {
     }
 
@@ -51,6 +55,10 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'message' => [],
             ]
         );
+
+        if ($this->lead->company->get('ai_stop_the_clock_notifications_enabled')) {
+            $this->notifyManagers();
+        }
 
         return $activity->activityId;
         /* $leadActivities = SalesActivities::getOpenActivitiesByOpportunityId(
@@ -91,5 +99,40 @@ class AddOutBoundPhoneCallActivityToLeadAction
 
         return SalesActivities::addOutboundCallById($this->lead->app, $this->lead->company, $activityId, $outboundCallData);
  */
+    }
+
+    protected function notifyManagers(): void
+    {
+        $notification = new Blank(
+            templateName: 'agent-manager-notification',
+            data: [
+                //'message' => $message,
+                'company' => $this->lead->company,
+                'app' => $this->lead->app,
+                'user' => $this->lead->user,
+                'content' => 'Sally just stop the clock for lead ' . $this->lead->people->name,
+                'title' => 'Sally Stop the Clock',
+                'message' => $this->message
+            ],
+            via: ['sms', 'push', 'expo'],
+            entity: $this->lead
+        );
+
+        $notification->setSubject('Sally stop the clock for lead ' . $this->lead->people->name);
+        $notification->setPushTemplateName('agent_manager_push_notification');
+        $notification->setSmsTemplateName('agent_manager_sms_notification');
+
+        //managers
+        $managers = UsersRepository::getCompanyAppUserByRole(
+            $this->lead->company,
+            $this->lead->app,
+            'BDCManager'
+        )->get();
+
+        foreach ($managers as $manager) {
+            $manager->notify(
+                $notification
+            );
+        }
     }
 }

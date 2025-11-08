@@ -24,7 +24,7 @@ class EventVersion extends Data
         public readonly float $pricePerTicket = 0,
         public readonly ?string $agenda = null,
         public readonly ?string $description = null,
-        public readonly ?string $metadata = null,
+        public readonly mixed $metadata = null,
         public readonly ?string $slug = null,
     ) {
     }

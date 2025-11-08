@@ -142,12 +142,12 @@ class PaymentMethodMutation
         return $paymentMethod->delete();
     }
 
-    public function guessCardBrand($number): ?string
+    public function guessCardBrand(string $number): ?string
     {
         $number = preg_replace('/[^0-9]/', '', $number);
 
         if (! $this->isValidLuhn($number)) {
-            return null;
+            throw new ValidationException('The card number you entered is invalid. Please check and try again');
         }
 
         $firstDigit = substr($number, 0, 1);

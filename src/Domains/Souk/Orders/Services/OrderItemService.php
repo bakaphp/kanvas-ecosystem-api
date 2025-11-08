@@ -92,14 +92,15 @@ class OrderItemService
             /**
              * @todo validate overselling
              */
+            $barcode = "<b>($variant->barcode)</b>";
             if ($currentStock < $orderItem['quantity']) {
-                $errors[] = "Not enough stock for product $variant->name ($variant->sku)";
+                $errors[] = "$barcode: You only have $currentStock in stock for $variant->name.";
 
                 continue;
             }
 
             if ($minimumOrderQuantity > $orderItem['quantity']) {
-                $errors[] = "Minimum order quantity for product $variant->name ( $variant->sku) is $minimumOrderQuantity";
+                $errors[] = "$barcode: $variant->name requires a minimum order of $minimumOrderQuantity units.";
 
                 continue;
             }
