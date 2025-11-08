@@ -9,7 +9,6 @@ use Exception;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
@@ -17,6 +16,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Users\Models\Users;
+use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 
 class FilesystemServices
 {
@@ -110,7 +110,7 @@ class FilesystemServices
             'storage_api_uri' => $this->app->get('cloud-cdn'), // see: Public URLs below
             'apiEndpoint' => null, // set storageClient apiEndpoint
             'visibility' => 'public', // optional: public|private
-            'visibility_handler' => \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
+            'visibility_handler' => UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
             'metadata' => ['cacheControl' => 'public,max-age=86400'], // optional: default metadata
         ]);
     }
@@ -134,7 +134,7 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => (bool)$this->app->get('use_path_style_endpoint') ?? false,
+            'use_path_style_endpoint' => (bool) ($this->app->get('use_path_style_endpoint') ?? false),
             'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
@@ -201,6 +201,11 @@ class FilesystemServices
 
         $dirPath = storage_path('app/temp');
 
+        // Ensure directory exists
+        if (! is_dir($dirPath)) {
+            mkdir($dirPath, 0755, true);
+        }
+
         $tempFilePath = $dirPath . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
 
         try {
@@ -212,25 +217,12 @@ class FilesystemServices
             if ($response->successful()) {
                 $imageContent = $response->body();
 
-                Log::info('Downloaded the file', [
-                    'url' => $imageUrl,
-                    'size' => strlen($imageContent),
-                    'content_type' => $response->header('Content-Type'),
-                ]);
-
                 file_put_contents($tempFilePath, $imageContent);
+
                 return $tempFilePath;
             }
-
-            Log::error('File request failed', [
-                'url' => $imageUrl,
-                'status' => $response->status(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('File download exception', [
-                'url' => $imageUrl,
-                'error' => $e->getMessage(),
-            ]);
+        } catch (Exception $e) {
+            report($e);
         }
 
         return null;
