@@ -353,7 +353,8 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            if ($previousChatResponse instanceof Message && $previousChatResponse->isRoot()) {
+            //remix have a diff flow because its parent is not the main source
+            if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = $this->getLastAssistantResponse($chatHistory);
@@ -554,6 +555,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         });
         array_pop($assistantMessages);
         $assistantMessages[key($assistantMessages)]['original_index'] = key($assistantMessages);
+
         return end($assistantMessages);
     }
 }
