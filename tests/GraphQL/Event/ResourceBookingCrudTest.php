@@ -385,6 +385,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
     public function testConfirmBookingWithStripePayment(): void
     {
+        $this->setupStripeConfiguration($this->apps);
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
@@ -445,6 +446,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
     public function testConfirmBookingWithCustomAmount(): void
     {
+        $this->setupStripeConfiguration($this->apps);
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
@@ -489,6 +491,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
     public function testConfirmBookingFailsForAlreadyPaidOrder(): void
     {
+        $this->setupStripeConfiguration($this->apps);
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
