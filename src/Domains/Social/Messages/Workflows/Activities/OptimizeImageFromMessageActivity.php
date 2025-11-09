@@ -49,16 +49,30 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     ];
                 }
 
+                $updatedChildrenFixImage = false;
                 //fix prompts with weird ai_image as array
                 if ($message->messageType->verb === 'prompt'
                     && isset($messageContent['ai_image'])
                     && is_array($messageContent['ai_image'])
-                    && isset($messageContent['ai_image']['nugget'])
-                    && ! isset($messageContent['ai_image']['image'])) {
-                    $messageContent = array_merge($messageContent, ['ai_image' => $messageContent['ai_image']['nugget']]);
-                    $message->message = $messageContent;
-                    $message->saveOrFail();
-                    $message->refresh();
+                    && isset($messageContent['ai_image']['nugget'])) {
+                    foreach ($message->children as $childMessage) {
+                        if (! is_array($childMessage->message)) {
+                            continue;
+                        }
+                        $childMessageArray = $childMessage->message;
+
+                        if (isset($childMessageArray['image'])) {
+                            continue;
+                        }
+
+                        if (isset($childMessageArray['nugget'])) {
+                            $updatedChildrenFixImage = true;
+                            $tempChildMessageArray = $childMessageArray;
+                            $tempChildMessageArray['image'] = $childMessageArray['nugget'];
+                            $childMessage->message = $tempChildMessageArray;
+                            $childMessage->saveOrFail();
+                        }
+                    }
                 }
 
                 // Safely retrieve the image URL based on message type
@@ -68,6 +82,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                         return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Child message does not have an image url',
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
                         ]);
                     }
                     $imageUrl = $messageContent['image'];
@@ -78,6 +93,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                             'result' => false,
                             'message' => 'Parent message does not have a valid AI image url',
                             'content' => $messageContent,
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
                         ]);
                     }
                     $imageUrl = $messageContent['ai_image']['image'];
@@ -87,6 +103,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     return $this->failWorkflow([
                         'result' => false,
                         'message' => 'The provided image URL is not valid',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
                     ]);
                 }
 
@@ -161,6 +178,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     'message' => 'Image optimized and uploaded',
                     'data' => $fileSystemRecord,
                     'message_id' => $message->getId(),
+                    'updatedChildrenFixImage' => $updatedChildrenFixImage,
                 ];
             },
             company: $company,
