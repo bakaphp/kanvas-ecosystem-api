@@ -42,15 +42,8 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 //$messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
                 $messageContent = $message->message;
 
-                if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
-                    return [
-                        'result' => false,
-                        'message' => 'Message does not have an image url',
-                    ];
-                }
-
                 $updatedChildrenFixImage = false;
-                //fix prompts with weird ai_image as array
+                //fix prompts issue with images on mobile that it requires image on the children not nugget
                 if ($message->messageType->verb === 'prompt'
                     && isset($messageContent['ai_image'])
                     && is_array($messageContent['ai_image'])
@@ -73,6 +66,14 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                             $childMessage->saveOrFail();
                         }
                     }
+                }
+
+                if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
+                    return [
+                        'result' => false,
+                        'message' => 'Message does not have an image url',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                    ];
                 }
 
                 // Safely retrieve the image URL based on message type
