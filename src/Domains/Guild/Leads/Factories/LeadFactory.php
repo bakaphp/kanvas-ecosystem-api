@@ -79,8 +79,10 @@ class LeadFactory extends Factory
     public function withCompanyId(int $companyId)
     {
         return $this->state(function (array $attributes) use ($companyId) {
+            $branch = Companies::find($companyId)->defaultBranch();
             return [
                 'companies_id' => $companyId,
+                'companies_branches_id' => $branch->first()->getId(),
             ];
         });
     }

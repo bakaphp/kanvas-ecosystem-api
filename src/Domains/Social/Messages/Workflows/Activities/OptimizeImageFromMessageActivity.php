@@ -53,12 +53,29 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 if ($message->messageType->verb === 'prompt'
                     && isset($messageContent['ai_image'])
                     && is_array($messageContent['ai_image'])
-                    && isset($messageContent['ai_image']['nugget'])
-                    && ! isset($messageContent['ai_image']['image'])) {
-                    $messageContent = array_merge($messageContent, ['ai_image' => $messageContent['ai_image']['nugget']]);
-                    $message->message = $messageContent;
-                    $message->saveOrFail();
-                    $message->refresh();
+                    && isset($messageContent['ai_image']['nugget'])) {
+                    /*  $messageContent = array_merge($messageContent, ['ai_image' => $messageContent['ai_image']['nugget']]);
+                     $message->message = $messageContent;
+                     $message->saveOrFail();
+                     $message->refresh(); */
+
+                    foreach ($message->children as $childMessage) {
+                        if (! is_array($childMessage->message)) {
+                            continue;
+                        }
+                        $childMessageArray = $childMessage->message;
+
+                        if (isset($childMessageArray['image'])) {
+                            continue;
+                        }
+
+                        if (isset($childMessageArray['nugget'])) {
+                            $tempChildMessageArray = $childMessageArray;
+                            $tempChildMessageArray['image'] = $childMessageArray['nugget'];
+                            $childMessage->message = $tempChildMessageArray;
+                            $childMessage->saveOrFail();
+                        }
+                    }
                 }
 
                 // Safely retrieve the image URL based on message type
