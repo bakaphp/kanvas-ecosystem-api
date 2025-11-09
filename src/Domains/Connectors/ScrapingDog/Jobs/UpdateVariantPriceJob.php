@@ -23,6 +23,7 @@ use Override;
 use Throwable;
 
 use function Sentry\captureException;
+
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
