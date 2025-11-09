@@ -78,8 +78,8 @@ class ResourceBookingCrudTest extends ResourceBookingBase
             'end_at' => now()->addDay()->format('Y-m-d') . ' 16:00:00',
             'metadata' => [
                 'price' => 50.00,
-                'notes' => 'Updated booking with new time'
-            ]
+                'notes' => 'Updated booking with new time',
+            ],
         ];
 
         $response = $this->graphQL('
@@ -188,54 +188,54 @@ class ResourceBookingCrudTest extends ResourceBookingBase
             'end_at' => now()->addDay()->addHours(2)->format('Y-m-d H:i:s'),
             'participants' => [
                 [
-                    "firstname" => "Johna",
-                    "lastname" => "Doe",
-                    "contacts" => [
+                    'firstname' => 'Johna',
+                    'lastname' => 'Doe',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "jdoes@example.com",
-                            "weight" => 1
-                        ]
-                    ]
+                            'contacts_types_id' => 1,
+                            'value' => 'jdoes@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
                 ],
                 [
-                    "firstname" => "Alices",
-                    "lastname" => "Smith",
-                    "contacts" => [
+                    'firstname' => 'Alices',
+                    'lastname' => 'Smith',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "alices@example.com",
-                            "weight" => 1
-                        ]
-                    ]
+                            'contacts_types_id' => 1,
+                            'value' => 'alices@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
                 ],
                 [
-                    "firstname" => "Carlosa",
-                    "lastname" => "Martinez",
-                    "contacts" => [
+                    'firstname' => 'Carlosa',
+                    'lastname' => 'Martinez',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "carloss@example.com",
-                            "weight" => 1
-                        ]
-                    ]
-                ]
+                            'contacts_types_id' => 1,
+                            'value' => 'carloss@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
+                ],
             ],
             'event_name' => 'Multi-Resource Booking Test',
             'event_description' => 'Testing booking with multiple resources',
             'metadata' => [
                 'price' => 25.00,
-                'notes' => 'Test booking'
+                'notes' => 'Test booking',
             ],
             'resources' => [
                 [
                     'resources_id' => $this->variantId,
                     'resources_type' => 'variant',
                     'metadata' => [
-                        'notes' => 'Additional equipment needed'
-                    ]
-                ]
-            ]
+                        'notes' => 'Additional equipment needed',
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->graphQL('
@@ -388,20 +388,18 @@ class ResourceBookingCrudTest extends ResourceBookingBase
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
-        $this->mock(StripePaymentService::class, function ($mock) {
-            $mock->shouldReceive('processPaymentIntent')
-                ->once()
-                ->with('pi_test_payment_intent')
-                ->andReturn([
-                    'id' => 'pi_test_payment_intent',
-                    'status' => 'succeeded',
-                    'amount' => 2500,
-                ]);
-        });
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->with('pi_test_payment_intent')
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent',
+                            'status' => 'succeeded',
+                            'amount' => 2500,
+                        ]);
+                }); */
 
-
-        $paymentIntentId = $this->createTestPaymentIntent($bookingData["order_items"][0], $this->apps)->id;
-
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
 
         $confirmData = [
             'event_version_id' => $eventVersion['id'],
@@ -450,19 +448,20 @@ class ResourceBookingCrudTest extends ResourceBookingBase
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
-        $this->mock(StripePaymentService::class, function ($mock) {
-            $mock->shouldReceive('processPaymentIntent')
-                ->once()
-                ->andReturn([
-                    'id' => 'pi_test_payment_intent',
-                    'status' => 'succeeded',
-                    'amount' => 5000,
-                ]);
-        });
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent',
+                            'status' => 'succeeded',
+                            'amount' => 5000,
+                        ]);
+                }); */
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
 
         $confirmData = [
             'event_version_id' => $eventVersion['id'],
-            'payment_intent_id' => 'pi_test_payment_intent',
+            'payment_intent_id' => $paymentIntentId,
             'amount' => 50.00,
         ];
 
@@ -493,18 +492,20 @@ class ResourceBookingCrudTest extends ResourceBookingBase
         $bookingData = $this->getBasicBookingData();
         $eventVersion = $this->createBooking($bookingData);
 
-        $this->mock(StripePaymentService::class, function ($mock) {
-            $mock->shouldReceive('processPaymentIntent')
-                ->once()
-                ->andReturn([
-                    'id' => 'pi_test_payment_intent_1',
-                    'status' => 'succeeded',
-                ]);
-        });
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent_1',
+                            'status' => 'succeeded',
+                        ]);
+                }); */
+
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
 
         $confirmData = [
             'event_version_id' => $eventVersion['id'],
-            'payment_intent_id' => 'pi_test_payment_intent_1',
+            'payment_intent_id' => $paymentIntentId,
         ];
 
         $this->graphQL('
@@ -526,7 +527,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
         $confirmDataSecond = [
             'event_version_id' => $eventVersion['id'],
-            'payment_intent_id' => 'pi_test_payment_intent_2',
+            'payment_intent_id' => $paymentIntentId,
         ];
 
         $response = $this->graphQL('
