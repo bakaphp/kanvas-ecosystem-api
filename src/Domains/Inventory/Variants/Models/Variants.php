@@ -342,6 +342,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return $this->channels()->where('channels_id', $channel->getId())->firstOrFail();
     }
 
+    public function getChannelInfo(?Channels $channel = null): ?VariantsChannels
+    {
+        if ($channel === null) {
+            $channel = Channels::where('is_default', true)
+                ->where('apps_id', $this->apps_id)
+                ->notDeleted()
+                ->where('is_published', StateEnums::ON->getValue())
+                ->where('companies_id', $this->companies_id)
+                ->firstOrFail();
+        }
+
+        $result = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+
+        return $result instanceof VariantsChannels ? $result : null;
+    }
+
     /**
      * Add/create new attributes from a variant.
      * @psalm-suppress MixedAssignment
