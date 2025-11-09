@@ -43,13 +43,12 @@ enum NotificationChannelEnum: int
             'SMS' => TwilioSmsChannel::class,
         ];
 
-        $slug = strtoupper($slug);
-
         // Check if it's already a class name
         if (in_array($slug, $channelMap, true)) {
             return $slug;
         }
 
+        $slug = strtoupper($slug);
         // Check if it's a slug we know about
         if (isset($channelMap[$slug])) {
             return $channelMap[$slug];
