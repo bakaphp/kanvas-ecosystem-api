@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
@@ -28,16 +29,20 @@ class AddAttributeAction
         ->withTrashed()
         ->first();
 
-        if ($variantAttribute) {
-            $variantAttribute->value = $this->value;
-            $variantAttribute->is_deleted = 0;
-            $variantAttribute->update();
-        } else {
-            $variantAttribute = new VariantsAttributes();
-            $variantAttribute->products_variants_id = $this->variant->getId();
-            $variantAttribute->attributes_id = $this->attribute->getId();
-            $variantAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
-            $variantAttribute->save();
+        try {
+            if ($variantAttribute) {
+                $variantAttribute->value = $this->value;
+                $variantAttribute->is_deleted = 0;
+                $variantAttribute->update();
+            } else {
+                $variantAttribute = new VariantsAttributes();
+                $variantAttribute->products_variants_id = $this->variant->getId();
+                $variantAttribute->attributes_id = $this->attribute->getId();
+                $variantAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
+                $variantAttribute->save();
+            }
+        } catch (UniqueConstraintViolationException $e) {
+            // do nothing
         }
 
         return $this->variant;

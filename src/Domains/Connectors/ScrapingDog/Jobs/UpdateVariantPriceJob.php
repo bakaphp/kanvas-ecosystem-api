@@ -20,9 +20,10 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
@@ -51,10 +52,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $attempt = 0;
 
             while ($attempt < $maxAttempts) {
-                $result = $this->updateVariant($request['sku']);
+                try {
+                    $result = $this->updateVariant($request['sku']);
 
-                if (! empty($result)) {
-                    return $result;
+                    if (! empty($result)) {
+                        return $result;
+                    }
+                } catch (Throwable $e) {
                 }
 
                 $attempt++;

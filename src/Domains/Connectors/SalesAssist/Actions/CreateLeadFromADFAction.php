@@ -37,7 +37,7 @@ class CreateLeadFromADFAction
         $people = PeoplesRepository::getMatchingEmailPhone(
             $app,
             $company,
-            $data['adf']['prospect']['customer']['contact']['email'] ?? null,
+            $data['adf']['prospect']['customer']['contact']['email'] ?? $data['adf']['prospect']['customer']['contact']['email']['@content'] ?? null,
             $data['adf']['prospect']['customer']['contact']['phone']['@content'] ?? null,
         );
 
