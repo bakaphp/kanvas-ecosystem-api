@@ -44,28 +44,14 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
 
                 $updatedChildrenFixImage = false;
                 //fix prompts issue with images on mobile that it requires image on the children not nugget
-                if ($message->messageType->verb === 'prompt'
-                    && isset($messageContent['ai_image'])
-                    && is_array($messageContent['ai_image'])
-                    && isset($messageContent['ai_image']['nugget'])) {
-                    foreach ($message->children as $childMessage) {
-                        if (! is_array($childMessage->message)) {
-                            continue;
-                        }
-                        $childMessageArray = $childMessage->message;
+                if ($message->messageType->verb === 'memo'
+                    && ! isset($messageContent['image'])
+                    && isset($messageContent['nugget'])) {
+                    $updatedChildrenFixImage = true;
 
-                        if (isset($childMessageArray['image'])) {
-                            continue;
-                        }
-
-                        if (isset($childMessageArray['nugget'])) {
-                            $updatedChildrenFixImage = true;
-                            $tempChildMessageArray = $childMessageArray;
-                            $tempChildMessageArray['image'] = $childMessageArray['nugget'];
-                            $childMessage->message = $tempChildMessageArray;
-                            $childMessage->saveOrFail();
-                        }
-                    }
+                    $messageContent['image'] = $messageContent['nugget'];
+                    $message->message = $messageContent;
+                    $message->saveOrFail();
                 }
 
                 if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
