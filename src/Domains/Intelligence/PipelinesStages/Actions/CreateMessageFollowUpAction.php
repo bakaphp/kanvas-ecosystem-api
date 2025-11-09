@@ -123,7 +123,7 @@ class CreateMessageFollowUpAction
 
         $user = Users::getById($this->session->agent->user_id);
         $message = $responseText['message'];
-        
+
         $messageInput = MessageInput::from([
             'app' => $this->session->app,
             'company' => $this->session->company,

@@ -42,40 +42,24 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 //$messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
                 $messageContent = $message->message;
 
+                $updatedChildrenFixImage = false;
+                //fix prompts issue with images on mobile that it requires image on the children not nugget
+                if ($message->messageType->verb === 'memo'
+                    && ! isset($messageContent['image'])
+                    && isset($messageContent['nugget'])) {
+                    $updatedChildrenFixImage = true;
+
+                    $messageContent['image'] = $messageContent['nugget'];
+                    $message->message = $messageContent;
+                    $message->saveOrFail();
+                }
+
                 if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
                     return [
                         'result' => false,
                         'message' => 'Message does not have an image url',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
                     ];
-                }
-
-                //fix prompts with weird ai_image as array
-                if ($message->messageType->verb === 'prompt'
-                    && isset($messageContent['ai_image'])
-                    && is_array($messageContent['ai_image'])
-                    && isset($messageContent['ai_image']['nugget'])) {
-                    /*  $messageContent = array_merge($messageContent, ['ai_image' => $messageContent['ai_image']['nugget']]);
-                     $message->message = $messageContent;
-                     $message->saveOrFail();
-                     $message->refresh(); */
-
-                    foreach ($message->children as $childMessage) {
-                        if (! is_array($childMessage->message)) {
-                            continue;
-                        }
-                        $childMessageArray = $childMessage->message;
-
-                        if (isset($childMessageArray['image'])) {
-                            continue;
-                        }
-
-                        if (isset($childMessageArray['nugget'])) {
-                            $tempChildMessageArray = $childMessageArray;
-                            $tempChildMessageArray['image'] = $childMessageArray['nugget'];
-                            $childMessage->message = $tempChildMessageArray;
-                            $childMessage->saveOrFail();
-                        }
-                    }
                 }
 
                 // Safely retrieve the image URL based on message type
@@ -85,6 +69,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                         return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Child message does not have an image url',
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
                         ]);
                     }
                     $imageUrl = $messageContent['image'];
@@ -95,6 +80,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                             'result' => false,
                             'message' => 'Parent message does not have a valid AI image url',
                             'content' => $messageContent,
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
                         ]);
                     }
                     $imageUrl = $messageContent['ai_image']['image'];
@@ -104,6 +90,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     return $this->failWorkflow([
                         'result' => false,
                         'message' => 'The provided image URL is not valid',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
                     ]);
                 }
 
@@ -178,6 +165,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     'message' => 'Image optimized and uploaded',
                     'data' => $fileSystemRecord,
                     'message_id' => $message->getId(),
+                    'updatedChildrenFixImage' => $updatedChildrenFixImage,
                 ];
             },
             company: $company,
