@@ -20,11 +20,9 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
-
-use function Sentry\captureException;
-
 use Throwable;
 
+use function Sentry\captureException;
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
