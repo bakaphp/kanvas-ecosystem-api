@@ -45,8 +45,8 @@ class CreateLeadFromADFAction
             $requestDate = Carbon::parse($data['adf']['prospect']['requestdate']);
             $minutesForMatch = $company->get(ConfigurationEnum::MINUTES_FOR_MATCH_ADF_LEAD->value) ?? 30;
 
-            $lead = Lead::where('apps_id', $app->id)
-                ->where('companies_id', $company->id)
+            $lead = Lead::fromApp($app)
+                ->fromCompany($company)
                 ->where('people_id', $people->id)
                 ->whereBetween('created_at', [
                     $requestDate->toDateTimeString(),

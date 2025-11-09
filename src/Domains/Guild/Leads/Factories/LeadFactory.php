@@ -36,8 +36,8 @@ class LeadFactory extends Factory
             'people_id' => function (array $attributes) {
                 // We can't rely on $attributes here because other closures haven't been resolved yet
                 // So we'll create the dependencies directly
-                $appId = app(Apps::class)->getId();
-                $companyId = Companies::factory()->create()->getKey();
+                $appId = $attributes['apps_id'] ?? app(Apps::class)->getId();
+                $companyId = $attributes['companies_id'] ?? Companies::factory()->create()->getKey();
 
                 return People::factory()
                     ->withAppId($appId)
@@ -80,6 +80,7 @@ class LeadFactory extends Factory
     {
         return $this->state(function (array $attributes) use ($companyId) {
             $branch = Companies::find($companyId)->defaultBranch();
+
             return [
                 'companies_id' => $companyId,
                 'companies_branches_id' => $branch->first()->getId(),
