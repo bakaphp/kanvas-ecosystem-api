@@ -33,7 +33,7 @@ class VehicleInterestTool implements ContextToolInterface
                 ->where('apps_id', $this->entity->apps_id)
                 ->first();
 
-            $variantChannelInfo = $variant->getChannelInfo();
+            $variantChannelInfo = $variant?->getChannelInfo();
         }
 
         return [
