@@ -24,7 +24,7 @@ class VehicleInterestTool implements ContextToolInterface
         if (! $vehicleInterest) {
             return [];
         }
-        
+
         $variantChannelInfo = null;
         $variant = null;
         if (isset($vehicleInterest['vin'])) {
@@ -47,7 +47,7 @@ class VehicleInterestTool implements ContextToolInterface
             'in_stock' => (bool) $variantChannelInfo?->is_published, //false, //isset($vehicleInterest['stockNumber']) && ! empty($vehicleInterest['stockNumber']) ? true : false,
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
             'price' => $variant?->getPriceInfoFromDefaultChannel()->price ?? 0,
-            'uuid' =>  $variant?->product->uuid ?? '',
+            'uuid' => $variant?->product->uuid ?? '',
         ];
     }
 }
