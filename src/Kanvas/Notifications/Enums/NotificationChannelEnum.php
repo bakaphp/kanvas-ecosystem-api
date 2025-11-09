@@ -34,15 +34,28 @@ enum NotificationChannelEnum: int
 
     public static function getNotificationChannelBySlug(string $slug): ?string
     {
-        return match (strtoupper($slug)) {
+        $channelMap = [
             'EMAIL' => 'mail',
             'MAIL' => 'mail',
             'PUSH' => OneSignalNotificationChannel::class,
             'EXPO' => ExpoChannel::class,
             'DATABASE' => KanvasDatabase::class,
             'SMS' => TwilioSmsChannel::class,
-            default => throw new ValidationException('Invalid channel ' . $slug),
-        };
+        ];
+
+        $slug = strtoupper($slug);
+
+        // Check if it's already a class name
+        if (in_array($slug, $channelMap, true)) {
+            return $slug;
+        }
+
+        // Check if it's a slug we know about
+        if (isset($channelMap[$slug])) {
+            return $channelMap[$slug];
+        }
+
+        throw new ValidationException('Invalid channel ' . $slug);
     }
 
     public static function getChannelIdByClassReference(string $class): ?int
