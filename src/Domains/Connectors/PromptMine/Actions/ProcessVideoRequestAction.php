@@ -212,11 +212,16 @@ class ProcessVideoRequestAction
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('image-to-video');
 
+        /**
+         * @todo remove with multi image video support
+         */
+        $isFalAI = str_contains($videoModel, 'fal-ai/');
+
         // Submit the video generation request
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrlsArray,
+            'image_url' => $isFalAI ? current($imageUrlsArray) : $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
