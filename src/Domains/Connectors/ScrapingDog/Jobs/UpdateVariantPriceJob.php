@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
 use App\GraphQL\Inventory\Types\ChannelInfoType;
 use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
@@ -20,9 +21,10 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
@@ -202,6 +204,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'variant' => $variantData,
                 'variants' => $variants,
             ];
+        } catch (UniqueConstraintViolationException $e) {
         } catch (Throwable $e) {
             captureException($e);
         }
