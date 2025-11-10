@@ -198,6 +198,7 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     'error' => $error,
                 ];
             },
+            additionalParams: $params,
             company: $company,
         );
     }
