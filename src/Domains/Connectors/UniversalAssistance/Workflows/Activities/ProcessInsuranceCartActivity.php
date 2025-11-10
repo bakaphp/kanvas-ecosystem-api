@@ -64,7 +64,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 } else {
                     // Fallback to single eSIM processing (legacy support)
                     $service = new InsuranceWorkflowService($app, $order);
-                    $results = $service->processInsuranceWorkflow($data['insurance_data'] ?? []);
+
+                    try {
+                        $results = $service->processInsuranceWorkflow($data['insurance_data'] ?? []);
+                    } catch (ValidationException $e) {
+                        return $this->failWorkflow([
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
 
                     // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
                     $this->storeUniversalAssistanceData($results, $data['message_id']);
