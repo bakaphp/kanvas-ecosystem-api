@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
-use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
