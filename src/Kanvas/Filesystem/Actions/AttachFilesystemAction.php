@@ -149,12 +149,13 @@ class AttachFilesystemAction
     {
         try {
             // Try to create the entity
-            return FilesystemEntities::create([
+            return FilesystemEntities::firstOrCreate([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
                 'companies_id' => $this->filesystem->companies_id,
                 'filesystem_id' => $this->filesystem->getKey(),
                 'field_name' => $fieldName,
+            ], [
                 'weight' => $weight,
                 'is_deleted' => StateEnums::NO->getValue(),
             ]);
