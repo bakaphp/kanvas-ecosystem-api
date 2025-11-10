@@ -94,9 +94,9 @@ abstract class ResourceBookingBase extends TestCase
                             'contacts_types_id' => 1,
                             'value' => 'john@example.com',
                             'weight' => 1,
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ],
             'event_name' => 'Test Resource Booking',
             'event_description' => 'Test booking description',
@@ -107,13 +107,13 @@ abstract class ResourceBookingBase extends TestCase
                 'notes' => 'Test booking',
                 'create_order' => '1',
             ],
-            "order_items" => [
+            'order_items' => [
                 [
                     'variant_id' => $this->variantId,
-                    "name" => "Resource Booking Fee",
+                    'name' => 'Resource Booking Fee',
                     'quantity' => 1,
                     'price' => 25.00,
-                ]
+                ],
             ],
             'resources' => [
                 [
@@ -121,8 +121,8 @@ abstract class ResourceBookingBase extends TestCase
                     'resources_type' => 'variant',
                     'metadata' => [
                         'notes' => 'Additional equipment needed',
-                    ]
-                ]
+                    ],
+                ],
             ],
         ];
     }

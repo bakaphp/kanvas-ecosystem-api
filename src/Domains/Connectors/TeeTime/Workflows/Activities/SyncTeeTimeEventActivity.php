@@ -52,7 +52,7 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
                 return [
                     'event' => $event->getId(),
                     'status' => 'success',
-                    "event_name" => $eventName,
+                    'event_name' => $eventName,
                     'message' => 'Event synced correctly',
                     'data' => $event->toArray(),
                     'response' => $event->toArray(),

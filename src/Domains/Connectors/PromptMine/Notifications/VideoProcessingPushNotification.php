@@ -20,6 +20,10 @@ class VideoProcessingPushNotification extends CustomMessageNotification
         array $via,
         array $templates = []
     ) {
+        $metadata = $entity->getMessage();
+        unset($metadata['ai_image']);
+        unset($metadata['prompt']);
+
         $data = [
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
@@ -27,7 +31,7 @@ class VideoProcessingPushNotification extends CustomMessageNotification
             'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $entity->getMessage(),
+            'metadata' => $metadata,
             'via' => $via,
             'message_owner_id' => $entity->user->getId(),
             'message_id' => $entity->getId(),

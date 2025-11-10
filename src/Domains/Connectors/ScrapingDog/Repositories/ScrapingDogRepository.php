@@ -35,6 +35,7 @@ class ScrapingDogRepository
     public function makeRequestAsync(string $endpoint, array $params = []): PromiseInterface
     {
         $query = array_merge($this->defaultParams, $params);
+
         return $this->client->getAsync($endpoint, ['query' => $query])
             ->then(
                 fn ($response) => json_decode($response->getBody()->getContents(), true),

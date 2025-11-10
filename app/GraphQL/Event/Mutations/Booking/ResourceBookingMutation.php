@@ -137,7 +137,7 @@ class ResourceBookingMutation
             'users_id' => $user->getId(),
         ]);
 
-        $eventCategory =  EventCategory::firstOrCreate([
+        $eventCategory = EventCategory::firstOrCreate([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'event_type_id' => $eventType?->id,
@@ -185,7 +185,7 @@ class ResourceBookingMutation
                     'date' => $startAt->toDateString(),
                     'start_time' => $startAt->format('H:i'),
                     'end_time' => $endAt->format('H:i'),
-                ]
+                ],
             ],
             'theme_id' => (string) $theme?->id,
             'theme_area_id' => (string) $themeArea?->id,
@@ -199,6 +199,7 @@ class ResourceBookingMutation
     private function getResource(string $resourceType, int|string $resourceId)
     {
         $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceType);
+
         return $resourceClass::getById($resourceId);
     }
 
@@ -257,7 +258,7 @@ class ResourceBookingMutation
                     'date' => $startAt->toDateString(),
                     'start_time' => $startAt->format('H:i'),
                     'end_time' => $endAt->format('H:i'),
-                ]
+                ],
             ];
         }
 

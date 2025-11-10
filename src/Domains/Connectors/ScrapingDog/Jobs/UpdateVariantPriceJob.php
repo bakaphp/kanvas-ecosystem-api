@@ -51,10 +51,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $attempt = 0;
 
             while ($attempt < $maxAttempts) {
-                $result = $this->updateVariant($request['sku']);
+                try {
+                    $result = $this->updateVariant($request['sku']);
 
-                if (! empty($result)) {
-                    return $result;
+                    if (! empty($result)) {
+                        return $result;
+                    }
+                } catch (Throwable $e) {
                 }
 
                 $attempt++;
