@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
@@ -26,6 +27,7 @@ use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
@@ -88,8 +90,16 @@ class PullLeadAction
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
+                Log::info('Pulled Lead from VinSolution', [
+                    'lead_id' => $lead->id,
+                    'vin_lead_id' => $currentLead,
+                    'wtf' => $lead->company->get('ai', false),
+                ]);
                 //set communication channel
                 if ($lead->company->get('ai', false)) {
+                    Log::info('Setting communication channel for lead', [
+                        'lead_id' => $lead->id,
+                    ]);
                     $this->setCommunicationChannel(
                         $lead,
                         $currentLead ?? []
@@ -160,10 +170,13 @@ class PullLeadAction
         $createdAt = $currentLead['CreatedUtc'] ?? null;
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
         $leadStatus = $currentLead['LeadStatusType'] ?? null;
-        $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+        $leadGroupCategory = $currentLead['GroupCategory'] ?? null; //Waiting , Contacted
 
         if ($leadGroupCategory !== null) {
-            $lead->addTag(strtolower($leadGroupCategory));
+            $lead->set(
+                LeadsEnumsConfigurationEnum::CONTACTED->value,
+                LeadGroupStatusEnum::get($leadGroupCategory)->value
+            );
         }
         $leadTypeName = (string) $lead->type?->name;
 
