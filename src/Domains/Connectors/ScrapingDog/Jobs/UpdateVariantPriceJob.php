@@ -13,6 +13,7 @@ use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapingDog\Actions\CreateProductAction;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -22,8 +23,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
-
-use function Sentry\captureException;
 
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
@@ -204,8 +203,12 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'variants' => $variants,
             ];
         } catch (UniqueConstraintViolationException $e) {
+        } catch (ValidationException $e) {
+            if (! str_contains($e->getMessage(), 'already been taken')) {
+                report($e);
+            }
         } catch (Throwable $e) {
-            captureException($e);
+            report($e);
         }
 
         return [];
