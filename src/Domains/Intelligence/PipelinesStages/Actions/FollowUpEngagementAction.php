@@ -51,7 +51,7 @@ class FollowUpEngagementAction
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
-        $contacted = $this->lead->get(EnumsConfigurationEnum::CONTACTED->value) && $this->lead->get(EnumsConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+        $contacted = $this->lead->hasBeenContacted();
 
         if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
             $message = new CreateMessageFollowUpAction(

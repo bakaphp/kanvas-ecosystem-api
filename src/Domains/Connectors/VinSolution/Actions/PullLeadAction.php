@@ -164,10 +164,7 @@ class PullLeadAction
         $leadGroupCategory = $currentLead['GroupCategory'] ?? null; //Waiting , Contacted
 
         if ($leadGroupCategory !== null) {
-            $lead->set(
-                LeadsEnumsConfigurationEnum::CONTACTED->value,
-                LeadGroupStatusEnum::get($leadGroupCategory)->value
-            );
+            $lead->setContactStatus(LeadGroupStatusEnum::get($leadGroupCategory));
         }
         $leadTypeName = (string) $lead->type?->name;
 
