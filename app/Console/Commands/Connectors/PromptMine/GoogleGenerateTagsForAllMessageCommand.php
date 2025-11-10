@@ -12,6 +12,7 @@ use Kanvas\Connectors\Google\Actions\GenerateMessageTagAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Models\Tag;
+use Prism\Prism\Exceptions\PrismException;
 
 class GoogleGenerateTagsForAllMessageCommand extends Command
 {
@@ -33,9 +34,8 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
@@ -59,11 +59,19 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
             // Remove all tags from the message
             $message->removeTags($allTags);
             $generateMessageTagAction = new GenerateMessageTagAction($message);
-            $messageTags = $generateMessageTagAction->execute(
-                textLookupKey: 'ai_nugged.nugget',
-                totalTags: 3,
-                tags: $allTagsWithIgnore
-            );
+
+            try {
+                $messageTags = $generateMessageTagAction->execute(
+                    textLookupKey: 'ai_nugged.nugget',
+                    totalTags: 3,
+                    tags: $allTagsWithIgnore
+                );
+            } catch (PrismException $e) {
+                $this->error('Error generating tags for message ID ' . $message->getId() . ': ' . $e->getMessage());
+                $this->output->progressAdvance();
+
+                continue;
+            }
 
             //also from the features
             // if (! empty($featureTags)) {

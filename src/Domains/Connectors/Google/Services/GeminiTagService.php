@@ -19,7 +19,7 @@ class GeminiTagService
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($prompt)
-            ->generate();
+            ->asText();
 
         $generatedText = $response->text ?? '';
 
