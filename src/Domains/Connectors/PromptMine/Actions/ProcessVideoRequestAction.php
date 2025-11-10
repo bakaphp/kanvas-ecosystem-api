@@ -216,7 +216,7 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrlsArray,
+            'image_url' => current($imageUrlsArray),
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
