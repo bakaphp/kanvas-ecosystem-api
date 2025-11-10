@@ -23,6 +23,7 @@ class VideoProcessingPushNotification extends CustomMessageNotification
         $metadata = $entity->getMessage();
         unset($metadata['ai_image']);
         unset($metadata['prompt']);
+        unset($metadata['ai_nugget']['nugget']);
 
         $data = [
             'email_template' => $templates['email_template'] ?? null,
