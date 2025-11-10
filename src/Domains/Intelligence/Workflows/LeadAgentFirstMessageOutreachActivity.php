@@ -50,7 +50,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
+                try {
+                    $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
+                } catch (Exception $e) {
+                    return $this->failWorkflow([
+                        'error' => 'Error creating lead context: ' . $e->getMessage(),
+                    ]);
+                }
 
                 //get the first message
                 $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead)->execute();
@@ -68,11 +74,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
                 if (empty($communicationChannel)) {
-                    return [
+                    return $this->failWorkflow([
                         'error' => 'No communication channel selected , please set one to be able to send messages',
                         'context' => $createContext,
                         'first_message' => $firstLeadMessage,
-                    ];
+                    ]);
                 }
 
                 $communicationChannelNumber = match ($communicationChannel) {
@@ -82,7 +88,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 };
 
                 if (empty($communicationChannelNumber)) {
-                    throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
+                    //throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
+                    return $this->failWorkflow([
+                        'error' => 'Lead does not have a phone number or email for channel ' . $communicationChannel . ', wont be able to send message until we add email support',
+                        //'context' => $createContext,
+                        //'first_message' => $firstLeadMessage,
+                    ]);
                 }
 
                 if (isset($params['create_session'])) {
