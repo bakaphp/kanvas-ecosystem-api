@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
 use App\GraphQL\Inventory\Types\ChannelInfoType;
 use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
@@ -202,6 +203,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'variant' => $variantData,
                 'variants' => $variants,
             ];
+        } catch (UniqueConstraintViolationException $e) {
         } catch (Throwable $e) {
             captureException($e);
         }
