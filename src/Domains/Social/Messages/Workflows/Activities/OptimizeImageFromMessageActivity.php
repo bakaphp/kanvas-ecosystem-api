@@ -22,7 +22,7 @@ use Prism\Prism\Prism;
 
 /**
  * @todo move to prompt mine namespace
- * this as turn into a fix all image related issue , we need to 
+ * this as turn into a fix all image related issue , we need to
  * regroup to fix the root cause
  */
 class OptimizeImageFromMessageActivity extends KanvasActivity
