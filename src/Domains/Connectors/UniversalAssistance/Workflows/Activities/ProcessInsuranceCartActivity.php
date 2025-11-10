@@ -64,7 +64,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 } else {
                     // Fallback to single eSIM processing (legacy support)
                     $service = new InsuranceWorkflowService($app, $order);
-                    $results = $service->processInsuranceWorkflow($data['insurance_data']);
+                    $results = $service->processInsuranceWorkflow($data['insurance_data'] ?? []);
 
                     // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
                     $this->storeUniversalAssistanceData($results, $data['message_id']);
@@ -96,6 +96,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     ],
                 ];
             },
+            additionalParams: $params,
             company: $order->company,
         );
     }
@@ -262,7 +263,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
     /**
      * Convert objects (stdClass) to arrays recursively
      */
-    protected function convertObjectsToArrays($data)
+    protected function convertObjectsToArrays(mixed $data): mixed
     {
         if (is_object($data)) {
             $data = (array) $data;
