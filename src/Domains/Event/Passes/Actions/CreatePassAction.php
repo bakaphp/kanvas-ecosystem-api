@@ -48,13 +48,13 @@ class CreatePassAction
             'participant_id' => $this->participantId,
             'apps_id' => $this->event->apps_id,
             'companies_id' => $this->event->companies_id,
+            'code' => encrypt($plainCode),
+            'pin_hash' => Hash::make($plainCode),
+            'pin_lookup' => $lookup,
         ], [
             'participant_pass_motive_id' => $motive->getId(),
             'format' => $this->format->value,
             'users_id' => $this->eventVersion->users_id,
-            'code' => encrypt($plainCode),
-            'pin_hash' => Hash::make($plainCode),
-            'pin_lookup' => $lookup,
             'expiration_date' => $this->expirationDate ?? now()->addDays(30),
             'used_date' => null,
             'scope' => $this->participantId
