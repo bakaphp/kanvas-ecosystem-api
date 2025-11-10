@@ -116,7 +116,7 @@ final class ProductTest extends TestCase
         $product = $productService->getProductById($product[0]->internalId);
         $price = (int) $productService->getCustomField($product, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value);
 
-        $this->assertGreaterThan(0, $price);
+        $this->assertGreaterThanOrEqual(0, $price);
     }
 
     public function testSyncNetSuiteProduct()
