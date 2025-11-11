@@ -21,8 +21,6 @@ class VideoCreationService
 
     public function execute(): array
     {
-        $this->overwriteAppService($this->app);
-
         sleep($this->app->get('PROMPT_VIDEO_WAIT_TIME') ?? 10);
         $this->entity->refresh();
 
