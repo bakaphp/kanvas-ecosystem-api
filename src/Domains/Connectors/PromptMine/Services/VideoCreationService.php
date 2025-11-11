@@ -6,17 +6,10 @@ namespace Kanvas\Connectors\PromptMine\Services;
 
 use Baka\Contracts\AppInterface;
 use Exception;
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class VideoCreationService extends KanvasActivity
