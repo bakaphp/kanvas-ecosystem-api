@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
+use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -56,9 +57,15 @@ class PaymentMethodMutation
 
             return new CreatePaymentMethodAction($paymentMethod)->execute();
         } catch (RequestException $e) {
+            $errorMessage = 'An error occurred while processing your request try again';
+
             if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->message;
+                try {
+                    $decoded = json_decode((string) $e->getResponse()->getBody());
+                    $errorMessage = $decoded?->message ?? $errorMessage;
+                } catch (Exception) {
+                    // If JSON parsing fails, use default message
+                }
             } else {
                 $errorMessage = $e->getMessage();
             }
