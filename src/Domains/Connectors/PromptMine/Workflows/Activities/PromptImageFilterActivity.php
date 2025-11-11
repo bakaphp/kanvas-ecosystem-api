@@ -162,13 +162,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $imageFilter
                     );
                 } catch (Exception $e) {
-                    report($e);
+                    //report($e);
 
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Error processing image: ' . $e->getMessage(),
-                    ];
+                    ]);
                 }
             },
             company: $company,

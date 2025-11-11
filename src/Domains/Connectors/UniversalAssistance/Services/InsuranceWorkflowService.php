@@ -164,34 +164,27 @@ class InsuranceWorkflowService
             throw new ValidationException('Invalid titular data structure');
         }
 
-        // Extract origin and destination country codes from input data
-        $originCountryCode = $titularData['originCountryCode'] ?? 'AR'; // Default to Argentina
-        $destinationCountryCode = $titularData['destinationCountryCode'] ?? $titularData['destinyCountryCode'] ?? 'DO'; // Default to Dominican Republic
+        // Generate plan group key for single person
+        $planGroupKey = $this->generatePlanGroupKey($titularData);
 
-        // Perform dual quotation workflow - always get both inclusion and cross selling quotations
-        $dualQuotationResult = $this->performDualQuotationWorkflow($titularData, $originCountryCode, $destinationCountryCode);
+        // Use the group workflow with a single person (group of 1)
+        $groupResult = $this->processGroupedInsuranceWorkflow([$titularData], $planGroupKey);
 
-        // Find the best matching plan based on variant type and quotation results
-        $selectedQuotation = $this->selectBestQuotationForVoucher($titularData, $dualQuotationResult);
-
-        // Create voucher using the selected quotation's IdLead and plan information
-        $voucherResult = $this->createVoucherFromSelectedQuotation($titularData, $selectedQuotation, $originCountryCode, $destinationCountryCode, 'titular', $dualQuotationResult);
-
-        // Create simplified result with complete quotation data and product matching information
+        // Adapt the group result to individual result format for backward compatibility
         $result = [
-            'dual_quotation_results' => $this->simplifyDualQuotationResults($dualQuotationResult),
-            'selected_quotation' => $selectedQuotation,
-            'voucher_result' => $voucherResult,
-            'workflow_type' => 'dual_quotation_with_plan_matching',
+            'dual_quotation_results' => $groupResult['dual_quotation_results'] ?? [],
+            'selected_quotation' => $groupResult['selected_quotation'] ?? [],
+            'voucher_result' => $groupResult['group_voucher_result'] ?? [],
+            'workflow_type' => 'individual_using_group_workflow', // Updated to reflect new approach
             'person_type' => 'titular',
             'input_plan_requested' => $titularData['plan']['name'] ?? 'Unknown plan',
-            'selected_product_match' => $voucherResult['matched_product'] ?? null,
-            'quotation_summary' => [
-                'origin_country' => $originCountryCode,
-                'destination_country' => $destinationCountryCode,
-                'variant_type' => $this->extractVariantType($titularData),
-                'duration_days' => $this->getProductDuration($titularData),
-                'quotation_timestamp' => now()->toISOString(),
+            'selected_product_match' => $groupResult['selected_product_match'] ?? null,
+            'quotation_summary' => $groupResult['quotation_summary'] ?? [],
+            // Include group workflow metadata for debugging
+            'group_workflow_metadata' => [
+                'plan_group_key' => $groupResult['plan_group_key'] ?? $planGroupKey,
+                'group_size' => $groupResult['group_size'] ?? 1,
+                'workflow_type' => $groupResult['workflow_type'] ?? 'grouped_voucher_by_plan',
             ],
         ];
 
@@ -1274,7 +1267,7 @@ class InsuranceWorkflowService
     }
 
     /**
-     * Select the best quotation for voucher creation - simplified approach
+     * Select the best quotation for voucher creation - fixed convenio source
      */
     protected function selectBestQuotationForVoucher(array $personData, array $dualQuotationResult): array
     {
@@ -1282,15 +1275,13 @@ class InsuranceWorkflowService
         $inclusionResult = $dualQuotationResult['inclusion']['result'] ?? [];
         $crossSellingResult = $dualQuotationResult['cross_selling']['result'] ?? [];
 
-        // Simple priority: cross_selling first, then inclusion
-        // Return only essential data without duplicating the full quotation responses
+        // Simple priority: cross_selling first, then inclusion (keep original logic)
+        // FIXED: Use quotation_data convenio instead of original request convenio
         if ($crossSellingResult['success'] ?? false) {
             return [
                 'type' => 'cross_selling',
-                //'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['cross_selling']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['cross_selling']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1304,7 +1295,7 @@ class InsuranceWorkflowService
                         'destination_name' => $crossSellingResult['quotation_data']['destination_name'] ?? '',
                     ],
                 ],
-                'convenio' => $dualQuotationResult['cross_selling']['convenio'] ?? '',
+                'convenio' => $crossSellingResult['quotation_data']['convenio'] ?? $dualQuotationResult['cross_selling']['convenio'] ?? '',
                 'quotation_type' => 'cross_selling',
                 'group_size' => $dualQuotationResult['cross_selling']['group_size'] ?? 1,
             ];
@@ -1313,10 +1304,8 @@ class InsuranceWorkflowService
         if ($inclusionResult['success'] ?? false) {
             return [
                 'type' => 'inclusion',
-                //'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'target_plan' => $dualQuotationResult['inclusion']['target_plan'] ?? '',
                 'variant' => $dualQuotationResult['inclusion']['variant'] ?? '',
-                //'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
                 'result' => [
                     'success' => true,
                     'quotation_data' => [
@@ -1330,7 +1319,7 @@ class InsuranceWorkflowService
                         'destination_name' => $inclusionResult['quotation_data']['destination_name'] ?? '',
                     ],
                 ],
-                'convenio' => $dualQuotationResult['inclusion']['convenio'] ?? '',
+                'convenio' => $inclusionResult['quotation_data']['convenio'] ?? $dualQuotationResult['inclusion']['convenio'] ?? '',
                 'quotation_type' => 'inclusion',
                 'group_size' => $dualQuotationResult['inclusion']['group_size'] ?? 1,
             ];
@@ -1843,7 +1832,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
@@ -1851,6 +1840,63 @@ class InsuranceWorkflowService
                 'CorreoElectronicoSolicitante' => $personData['email'], // Email field for voucher delivery
             ],
         ];
+    }
+
+    public function countryCodeToName(string $countryCode): string
+    {
+        $codeToName = [
+            'AR' => 'ARGENTINA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'US' => 'USA',
+            'CO' => 'COLOMBIA',
+            'MX' => 'MEXICO',
+            'PE' => 'PERU',
+            'CL' => 'CHILE',
+            'VE' => 'VENEZUELA',
+            'EC' => 'ECUADOR',
+            'UY' => 'URUGUAY',
+            'PY' => 'PARAGUAY',
+            'BO' => 'BOLIVIA',
+            'BR' => 'BRASIL',
+            'CR' => 'COSTA RICA',
+            'PA' => 'PANAMA',
+            'GT' => 'GUATEMALA',
+            'HN' => 'HONDURAS',
+            'NI' => 'NICARAGUA',
+            'SV' => 'EL SALVADOR',
+            'BZ' => 'BELICE',
+            'JM' => 'JAMAICA',
+            'CU' => 'CUBA',
+            'HT' => 'HAITI',
+            'PR' => 'PUERTO RICO',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'BB' => 'BARBADOS',
+            'GD' => 'GRANADA',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'DM' => 'DOMINICA',
+            'KN' => 'SAN CRISTOBAL',
+            'AW' => 'ARUBA',
+            'CW' => 'CURACAO',
+            'BQ' => 'BONAIRE',
+            'SX' => 'SINT MAARTEN',
+            'MF' => 'SAN MARTIN',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'GF' => 'GUAYANA FRANCESA',
+            'SR' => 'SURINAM',
+            'GY' => 'GUYANA',
+            'ES' => 'ESPAÑA',
+            'FR' => 'FRANCIA',
+            'IT' => 'ITALIA',
+            'DE' => 'ALEMANIA',
+            'GB' => 'REINO UNIDO',
+            'PT' => 'PORTUGAL',
+            'TR' => 'TURQUIA',
+        ];
+
+        return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
     }
 
     /**
@@ -1904,7 +1950,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
@@ -2320,18 +2366,25 @@ class InsuranceWorkflowService
      */
     protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
     {
-        // CRITICAL FIX: Convert flat array to titular/dependents structure if needed
         if (! isset($groupedPersonsData['titular']) && ! isset($groupedPersonsData['dependents'])) {
             // This is a flat array - convert to titular/dependents structure
-            if (count($groupedPersonsData) < 2) {
-                throw new ValidationException('Group quotation requires at least 2 people, but only ' . count($groupedPersonsData) . ' provided');
+            if (count($groupedPersonsData) < 1) {
+                throw new ValidationException('Group quotation requires at least 1 person, but ' . count($groupedPersonsData) . ' provided');
             }
 
-            // Convert flat array to nested structure
-            $restructuredData = [
-                'titular' => $groupedPersonsData[0], // First person is titular
-                'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
-            ];
+            if (count($groupedPersonsData) === 1) {
+                // Single person - treat as titular only (group of 1)
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0],
+                    'dependents' => [] // No dependents for single person
+                ];
+            } else {
+                // Multiple people - first is titular, rest are dependents
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0], // First person is titular
+                    'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
+                ];
+            }
 
             $groupedPersonsData = $restructuredData;
         }
@@ -2536,14 +2589,9 @@ class InsuranceWorkflowService
             $debugInfo[] = "Person {$index}: {$firstName} {$lastName} (DOB: {$birthDate})";
         }
 
-        // If we only have 1 person but expecting a family group, this indicates the family grouping failed
-        if ($groupSize === 1) {
-            // Check if this person has family information that wasn't processed correctly
-            $person = $flatPersonsArray[0];
-            $errorMsg = 'Group quotation called with only 1 person - family grouping may have failed. ';
-            $errorMsg .= 'Person: ' . implode(', ', $debugInfo);
-
-            throw new ValidationException($errorMsg);
+        // Single person is valid for individual processing through group workflow
+        if ($groupSize === 0) {
+            throw new ValidationException('Group quotation called with no people. This indicates a data structure issue.');
         }
 
         // Log detailed group information for debugging
@@ -2584,11 +2632,11 @@ class InsuranceWorkflowService
         $activationDate = $primaryPerson['activationDate'] ?? null;
         $expirationDate = $primaryPerson['expirationDate'] ?? null;
 
-        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('d/m/Y') : '';
-        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('d/m/Y') : '';
+        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('m/d/Y') : '';
+        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('m/d/Y') : '';
 
         // Get destination info
-        $originCountryName = $this->getCountryName($originCountryCode);
+        $originCountryName = $this->countryCodeToName($originCountryCode);
         $destinationName = $this->getDestinationName($destinationCountryCode);
 
         // Build quotation data structure (UALeadCotizadorReq format)
@@ -2748,7 +2796,7 @@ class InsuranceWorkflowService
             'CantCotizaciones' => 1,
             'Convenio' => $convenio,
             'Folleto' => '',
-            'PaisOrigen' => $this->getCountryName($originCountryCode),
+            'PaisOrigen' => $this->countryCodeToName($originCountryCode),
             'Destino' => $destination,
             'TipoViaje' => 'Un viaje',
             'FechaInicio' => $activationDate->format('m/d/Y'),

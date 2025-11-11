@@ -104,7 +104,6 @@ class CreateEventAction
                     $this->event->user,
                     $participant,
                     $eventVersion,
-                    $participant
                 );
                 $createParticipant->execute();
             }
@@ -248,7 +247,7 @@ class CreateEventAction
         $dto = Order::from([
             'app' => $event->app,
             'region' => Regions::getDefault($event->company, $event->app),
-            'token'  => Str::random(32),
+            'token' => Str::random(32),
             'company' => $event->company,
             'people' => $people,
             'user' => $event->user,
@@ -266,8 +265,8 @@ class CreateEventAction
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
         $kanvasOrder = $action->execute();
-        $kanvasOrder->resources_id =  $event->id;
-        $kanvasOrder->resources_type =  $event->getMorphClass();
+        $kanvasOrder->resources_id = $event->id;
+        $kanvasOrder->resources_type = $event->getMorphClass();
         $kanvasOrder->saveQuietly();
     }
 

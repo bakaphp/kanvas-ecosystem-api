@@ -11,4 +11,6 @@ enum ConfigurationEnum: string
     case AGENT_COMMUNICATION_CHANNEL = 'guild_agent_communication_channel';
     case FIRST_MESSAGE = 'guild_first_message';
     case SENT_FIRST_MESSAGE_AT = 'guild_first_message_sent_at';
+    case IS_ENGAGEMENT = 'guild_is_engagement';
+    case CONTACTED = 'guild_lead_contacted';
 }

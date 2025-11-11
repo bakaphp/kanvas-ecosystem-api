@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\PipelineStages;
 
 use Carbon\Carbon;
+use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -28,18 +29,43 @@ class FollowUpEngagementActionTest extends TestCase
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
-        $company = $user->getCurrentCompany();
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1},"housing":{"type":"object","required":1},"financial":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ],[
+            'id' => 8,
+            'name' => 'view-vehicle',
+            'description' => 'View Vehicle',
+            'title' => 'View Vehicle',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'follow up message to lead',
+            'reasonEs' => 'follow up message to lead',
+            'form_fields' => '{}',
+            'form_config' => '{}',
+        ]];
+        new Setup($app, $user, $company, $actions)->run();
+
         $company->set('timezone', 'America/Los_Angeles');
         $workHours = [
-            'Monday' => '08:00 - 21:00',
-            'Tuesday' => '08:00 - 21:00',
-            'Wednesday' => '08:00 - 21:00',
-            'Thursday' => '08:00 - 21:00',
-            'Friday' => '08:00 - 21:00',
-            'Saturday' => '09:00 - 21:00',
-            'Sunday' => '09:00 - 21:00',
+            'Monday' => '00:00 - 23:59',
+            'Tuesday' => '00:00 - 23:59',
+            'Wednesday' => '00:00 - 23:59',
+            'Thursday' => '00:00 - 23:59',
+            'Friday' => '00:00 - 23:59',
+            'Saturday' => '00:00 - 23:59',
+            'Sunday' => '00:00 - 23:59',
         ];
         $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
+        $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $config = [
@@ -98,11 +124,16 @@ class FollowUpEngagementActionTest extends TestCase
             'apps_id' => $lead->apps_id,
             'companies_id' => $lead->companies_id,
             'role' => [
-                'background' => 'You are a helpful sales agent for a gaming store.',
+                'background' => [
+                    'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
+                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    ',
+                ],
                 'steps' => [
                     'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
-                    {!! json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
-
+                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
                     ',
                 ],
             ],
@@ -123,6 +154,7 @@ class FollowUpEngagementActionTest extends TestCase
         $session = new CreateSessionAction($sessionDto)->execute();
         $session->content = new CreateContentSessionAction($session)->execute();
         $session->saveOrFail();
+
         $message = new FollowUpEngagementAction($lead)->execute();
 
         $this->assertIsArray($message);

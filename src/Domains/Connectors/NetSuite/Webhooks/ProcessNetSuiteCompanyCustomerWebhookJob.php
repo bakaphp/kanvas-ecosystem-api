@@ -86,7 +86,12 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                 ];
             }
 
-            throw $e; // Re-throw non-rate-limit errors
+            //throw $e; // Re-throw non-rate-limit errors
+            return [
+                'message' => 'Error syncing NetSuite Company: ' . $e->getMessage(),
+                'status' => 'error',
+                'netSuiteCompanyId' => $netSuiteCompanyId,
+            ];
         }
     }
 

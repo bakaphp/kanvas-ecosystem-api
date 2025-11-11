@@ -55,7 +55,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $allVoucherData["esim_{$index}"] = [
                             'esim_index' => $index,
                             'message_id' => $esimInsuranceData['message_id'] ?? null,
-                            'voucher_data' => $this->extractVoucherDataFromResults($esimResults)
+                            'voucher_data' => $this->extractVoucherDataFromResults($esimResults),
                         ];
                     }
 
@@ -64,16 +64,23 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 } else {
                     // Fallback to single eSIM processing (legacy support)
                     $service = new InsuranceWorkflowService($app, $order);
-                    $results = $service->processInsuranceWorkflow($data['insurance_data']);
+
+                    try {
+                        $results = $service->processInsuranceWorkflow($data['insurance_data'] ?? []);
+                    } catch (ValidationException $e) {
+                        return $this->failWorkflow([
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
 
                     // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
                     $this->storeUniversalAssistanceData($results, $data['message_id']);
 
                     // For single eSIM, wrap in same structure for consistency
-                    $allVoucherData["esim_0"] = [
+                    $allVoucherData['esim_0'] = [
                         'esim_index' => 0,
                         'message_id' => $data['message_id'],
-                        'voucher_data' => $this->extractVoucherDataFromResults($results)
+                        'voucher_data' => $this->extractVoucherDataFromResults($results),
                     ];
                 }
 
@@ -93,9 +100,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         'is_multi_esim' => count($allVoucherData) > 1,
                         'vouchers_created' => $this->countVouchersCreatedFromMultiResults($results),
                         'total_cost' => $this->calculateTotalCostFromMultiResults($results),
-                    ]
+                    ],
                 ];
             },
+            additionalParams: $params,
             company: $order->company,
         );
     }
@@ -110,7 +118,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $messageIds = []; // For collecting all message IDs
 
         // Approach 1: Try params with Order class key (for single eSIM legacy structure)
-        $orderKey = "Kanvas\\Souk\\Orders\\Models\\Order";
+        $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
         if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
             foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
                 if (isset($esim['eSimDetails']['insurance'])) {
@@ -134,7 +142,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             'message_id' => $currentMessageId,
                             'esim_index' => count($allInsuranceData), // Track expanded index
                             'original_quantity' => $quantity,
-                            'quantity_index' => $i
+                            'quantity_index' => $i,
                         ];
 
                         if ($currentMessageId) {
@@ -175,7 +183,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 'message_id' => $currentMessageId,
                                 'esim_index' => count($allInsuranceData),
                                 'original_quantity' => $quantity,
-                                'quantity_index' => $i
+                                'quantity_index' => $i,
                             ];
 
                             if ($currentMessageId) {
@@ -202,14 +210,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
-            throw new ValidationException('Insurance data is required - not found in workflow params or order metadata');
+            //throw new ValidationException('Insurance data is required - not found in workflow params or order metadata');
+            return $this->failWorkflow([
+                'message' => 'Insurance data is required - not found in workflow params or order metadata',
+            ]);
         }
 
         // Convert any objects to arrays (in case data was JSON decoded as objects)
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
-            throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            //throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            return $this->failWorkflow([
+                'message' => 'Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)),
+            ]);
         }
 
         // Get primary message ID (fallback logic if no expanded data found)
@@ -227,6 +241,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
                         if (isset($esim['message_id'])) {
                             $primaryMessageId = $esim['message_id'];
+
                             break;
                         }
                     }
@@ -235,7 +250,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         if (! $primaryMessageId) {
-            throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+            //throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+            return $this->failWorkflow([
+                'message' => 'eSim Message ID not found in order - required for Universal Assistance processing',
+            ]);
         }
 
         // Return insurance data with multi-eSIM support and quantity expansion
@@ -245,14 +263,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'message_id' => $primaryMessageId, // Primary message ID for backward compatibility
             'all_message_ids' => $messageIds, // All message IDs for expanded processing
             'is_multi_esim' => count($allInsuranceData) > 1,
-            'total_expanded_count' => count($allInsuranceData) // Total after quantity expansion
+            'total_expanded_count' => count($allInsuranceData), // Total after quantity expansion
         ];
     }
 
     /**
      * Convert objects (stdClass) to arrays recursively
      */
-    protected function convertObjectsToArrays($data)
+    protected function convertObjectsToArrays(mixed $data): mixed
     {
         if (is_object($data)) {
             $data = (array) $data;
@@ -400,38 +418,54 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherRequestInput = $dependentVoucherResult['voucher_request_input'] ?? [];
                 $dependentSolicitante = $dependentVoucherRequestInput['DatosSolicitante'] ?? [];
 
+                $originalDependentData = $dependent['person_data'] ?? $dependent;
+
                 $dependentData = [
-                    // Extract key data we want to preserve from dependent with multiple fallbacks (same pattern as holder)
-                    'id' => $dependent['id'] ?? null,
-                    'firstName' => $dependent['firstName']
-                        ?? $dependentSolicitante['NombreSolicitante']
+                    // FIXED: Prioritize original dependent data over SOAP response (which contains titular info)
+                    'id' => $originalDependentData['id'] ?? $dependent['id'] ?? null,
+                    'firstName' => $originalDependentData['firstName']
+                        ?? $originalDependentData['firstname']
+                        ?? $dependent['firstName']
                         ?? $dependent['firstname']
+                        ?? $dependentSolicitante['NombreSolicitante'] // Last fallback
                         ?? null,
-                    'lastName' => $dependent['lastName']
-                        ?? $dependentSolicitante['ApellidoSolicitante']
+                    'lastName' => $originalDependentData['lastName']
+                        ?? $originalDependentData['lastname']
+                        ?? $dependent['lastName']
                         ?? $dependent['lastname']
+                        ?? $dependentSolicitante['ApellidoSolicitante'] // Last fallback
                         ?? null,
-                    'birthDate' => $dependent['birthDate']
-                        ?? $dependentSolicitante['FechaNacimientoSolicitante']
+                    'birthDate' => $originalDependentData['birthDate']
+                        ?? $originalDependentData['dob']
+                        ?? $dependent['birthDate']
+                        ?? $dependent['dob']
+                        ?? $dependentSolicitante['FechaNacimientoSolicitante'] // Last fallback
                         ?? null,
-                    'documentNumber' => $dependent['documentNumber']
-                        ?? $dependentSolicitante['NroDocumentoSolicitante']
+                    'documentNumber' => $originalDependentData['documentNumber']
+                        ?? $originalDependentData['idNumber']
+                        ?? $dependent['documentNumber']
                         ?? $dependent['idNumber']
+                        ?? $dependentSolicitante['NroDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'documentType' => $dependent['documentType']
-                        ?? $dependentSolicitante['TipoDocumentoSolicitante']
+                    'documentType' => $originalDependentData['documentType']
+                        ?? $originalDependentData['idType']
+                        ?? $dependent['documentType']
                         ?? $dependent['idType']
+                        ?? $dependentSolicitante['TipoDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'email' => $dependent['email']
-                        ?? $dependentSolicitante['CorreoElectronicoSolicitante']
+                    'email' => $originalDependentData['email']
+                        ?? $dependent['email']
+                        ?? $dependentSolicitante['CorreoElectronicoSolicitante'] // Last fallback
                         ?? null,
-                    'telephone' => $dependent['telephone']
-                        ?? $dependentSolicitante['TelefonoSolicitante']
+                    'telephone' => $originalDependentData['telephone']
+                        ?? $dependent['telephone']
+                        ?? $dependentSolicitante['TelefonoSolicitante'] // Last fallback
                         ?? null,
-                    'gender' => $dependent['gender']
-                        ?? $dependentSolicitante['SexoSolicitante']
+                    'gender' => $originalDependentData['gender']
+                        ?? $dependent['gender']
+                        ?? $dependentSolicitante['SexoSolicitante'] // Last fallback
                         ?? null,
-                    'relationship' => $dependent['relationship'] ?? null,
+                    'relationship' => $originalDependentData['relationship'] ?? $dependent['relationship'] ?? null,
                 ];
 
                 // Add the voucher fields directly at the top level of the dependent
@@ -505,7 +539,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         if (! isset($currentMessage['universalAssistanceData'])) {
             $currentMessage['universalAssistanceData'] = [
                 'holder' => [],
-                'dependents' => []
+                'dependents' => [],
             ];
         }
 
@@ -542,7 +576,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'total_validations' => 0,
             'product_matches' => 0,
             'price_matches' => 0,
-            'validation_details' => []
+            'validation_details' => [],
         ];
 
         // Validate titular
@@ -853,7 +887,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'results' => $results, // Full results for processing
                 'order_id' => $order->getId(),
                 'processing_timestamp' => time(),
-                'grouping_info' => $this->extractGroupingInfo($results) // Add grouping information
+                'grouping_info' => $this->extractGroupingInfo($results), // Add grouping information
             ];
 
             // Create a separate message with universal_assistance_data message type
@@ -925,7 +959,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
                     'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
                 ];
-            }, $results['dependents'] ?? [])
+            }, $results['dependents'] ?? []),
         ];
     }
 
@@ -942,6 +976,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             } else {
                 // Single eSIM fallback
                 $count += $this->countVouchersCreated($multiResults);
+
                 break;
             }
         }
@@ -962,6 +997,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             } else {
                 // Single eSIM fallback
                 $totalCost += $this->calculateTotalCost($multiResults);
+
                 break;
             }
         }
@@ -992,7 +1028,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'data' => $insuranceData['titular'],
                 'type' => 'titular',
                 'plan_key' => $familyGroupKey, // Use family group key instead of plan-based key
-                'person_id' => 'titular'
+                'person_id' => 'titular',
             ];
 
             // Initialize family group
@@ -1009,7 +1045,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'data' => $dependent,
                     'type' => 'dependent',
                     'plan_key' => $familyGroupKey, // Use same family group key
-                    'person_id' => "dependent_{$index}"
+                    'person_id' => "dependent_{$index}",
                 ];
 
                 // Add to same family group
@@ -1045,7 +1081,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'group_size' => count($groupPeople),
                     'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
                     'debug_people_info' => $peopleInfo, // Add debugging info
-                    'result' => $groupResult
+                    'result' => $groupResult,
                 ];
             } else {
                 // Individual: Only titular, no dependents - use individual processing
@@ -1056,7 +1092,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'plan_key' => $planKey,
                     'group_size' => 1,
                     'people_in_group' => ['titular'],
-                    'result' => ['titular' => $individualResult]
+                    'result' => ['titular' => $individualResult],
                 ];
             }
             $groupIndex++;
@@ -1077,6 +1113,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $lastName = $person['lastName'] ?? $person['lastname'] ?? 'Person';
             $identifiers[] = "{$firstName} {$lastName}";
         }
+
         return $identifiers;
     }
 
@@ -1136,8 +1173,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'grouping_metadata' => [
                 'groups_created' => count($groupResults),
                 'grouping_applied' => true,
-                'original_people_count' => 1 + count($originalInsuranceData['dependents'] ?? [])
-            ]
+                'original_people_count' => 1 + count($originalInsuranceData['dependents'] ?? []),
+            ],
         ];
 
         // Extract titular and dependents from group results
@@ -1158,8 +1195,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 'group_size' => $group['group_size'],
                                 'plan_key' => $group['plan_key'],
                                 'people_in_group' => $group['people_in_group'],
-                                'persons_in_group' => $group['result']['persons_in_group'] ?? []
-                            ]
+                                'persons_in_group' => $group['result']['persons_in_group'] ?? [],
+                            ],
                         ];
 
                         // For group vouchers, we also need to create dependent entries that reference the same voucher
@@ -1177,7 +1214,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                     'voucher_result' => $group['result']['group_voucher_result'], // Same voucher for all
                                     'person_data' => $person,
                                     'is_group_member' => true,
-                                    'group_voucher_reference' => true
+                                    'group_voucher_reference' => true,
                                 ];
                             }
                             $result['dependents'] = $dependentEntries;
@@ -1278,7 +1315,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         return implode('|', [
             $planName,
             strtoupper($originCountryCode),
-            strtoupper($destinationCountryCode)
+            strtoupper($destinationCountryCode),
         ]);
     }
 
@@ -1353,7 +1390,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             if (! isset($currentMessage['universalAssistanceData'])) {
                 $currentMessage['universalAssistanceData'] = [
                     'holder' => [],
-                    'dependents' => []
+                    'dependents' => [],
                 ];
             }
 
@@ -1366,7 +1403,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'is_group_voucher' => true,
                 'group_size' => $groupMetadata['group_size'] ?? 1,
                 'plan_key' => $groupMetadata['plan_key'] ?? '',
-                'group_people' => $groupMetadata['people_in_group'] ?? []
+                'group_people' => $groupMetadata['people_in_group'] ?? [],
             ];
 
             // Store in holder section (assuming this message represents someone in the group)
@@ -1389,7 +1426,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $groupingInfo = [
             'has_groups' => false,
             'groups' => [],
-            'total_groups' => 0
+            'total_groups' => 0,
         ];
 
         // Check if results have grouping metadata
@@ -1407,7 +1444,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'voucher_number' => $voucherNumber,
                 'group_size' => $results['titular']['group_metadata']['group_size'] ?? 1,
                 'plan_key' => $results['titular']['group_metadata']['plan_key'] ?? '',
-                'people_in_group' => $results['titular']['group_metadata']['people_in_group'] ?? []
+                'people_in_group' => $results['titular']['group_metadata']['people_in_group'] ?? [],
             ];
         }
 

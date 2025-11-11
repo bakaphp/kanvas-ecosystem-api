@@ -78,7 +78,7 @@ class Client
 
             throw new EchoPayException(
                 $errorMessage,
-                (int) $response->getStatusCode(),
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -105,7 +105,7 @@ class Client
 
             throw new EchoPayException(
                 $errorMessage,
-                (int) $response->getStatusCode(),
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -132,7 +132,7 @@ class Client
 
             throw new EchoPayException(
                 $errorMessage,
-                (int) $response->getStatusCode(),
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );
@@ -157,7 +157,7 @@ class Client
 
             throw new EchoPayException(
                 $errorMessage,
-                (int) $response->getStatusCode(),
+                $response->getStatusCode(),
                 $e,
                 $errorBody
             );

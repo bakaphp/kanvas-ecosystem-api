@@ -45,6 +45,7 @@ class LeadObserver
         if (! $lead->pipeline_id) {
             $pipeline = Pipeline::where('companies_id', $lead->companies_id)
                 ->where('is_deleted', 0)
+                ->where('apps_id', $lead->apps_id)
                 ->orderBy('is_default', 'desc')
                 ->first();
 
@@ -82,6 +83,25 @@ class LeadObserver
                     )
                 )
             )->execute();
+
+            $aiNotesChannel = $lead->company->get('enable_ai_notes_channel', false);
+
+            if ($aiNotesChannel) {
+                (
+                    new CreateChannelAction(
+                        new Channel(
+                            $lead->app,
+                            $lead->company,
+                            $lead->user,
+                            (string)$lead->getKey(),
+                            Lead::class,
+                            'Notes',
+                            'AI Notes Channel',
+                            Str::uuid()->toString()
+                        )
+                    )
+                )->execute();
+            }
         }
 
         //$lead->clearLightHouseCacheJob();

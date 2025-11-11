@@ -340,7 +340,7 @@ class PortalPaymentProcessor
             '05',
         ]);
 
-        if (isset($enrollmentData['paymentInformation'])) {
+        if (isset($enrollmentData['paymentInformation']['card']['type'])) {
             $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
             $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
             $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
@@ -376,9 +376,11 @@ class PortalPaymentProcessor
             'payment_status' => $paymentStatus,
         ]);
 
+        $errors = $this->extractErrorsFromEnrollment($enrollmentData);
+
         return [
             'status' => $paymentStatus,
-            'message' => $paymentStatus,
+            'message' => $paymentStatus . $errors['message'],
             'data' => ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']),
         ];
     }
@@ -661,5 +663,19 @@ class PortalPaymentProcessor
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    private function extractErrorsFromEnrollment(array $responseResult): array
+    {
+        $data = [
+            'message' => "",
+            'code' => "",
+        ];
+
+        if (isset($responseResult['errorInformation']) && is_array($responseResult['errorInformation'])) {
+            $data['message'] = " - " . $responseResult['errorInformation']['message'] ?? '';
+        }
+
+        return $data;
     }
 }

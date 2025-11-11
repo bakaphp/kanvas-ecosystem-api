@@ -25,7 +25,10 @@ class FollowUpEngagementAction
         $session = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
+                ->fromApp($this->lead->app)
+                ->fromCompany($this->lead->company)
                 ->first();
+
         if (! $session) {
             return null;
         }
@@ -38,6 +41,7 @@ class FollowUpEngagementAction
         $timezone = $this->lead->company->get('timezone') ?? 'UTC';
 
         $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
+
         if ($hoursTool['status'] !== 'work_hours') {
             return null;
         }
@@ -46,21 +50,26 @@ class FollowUpEngagementAction
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
+        $contacted = $this->lead->hasBeenContacted();
 
-        if (! $this->lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) && $timeDiff >= $rules['minutes_no_response']) {
+        if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
             $message = new CreateMessageFollowUpAction(
                 $this->lead,
                 $this->lead->stage,
                 $session
-            )
-            ->execute();
+            )->execute();
+
+            //if message is null, we should response
+            if ($message === null) {
+                return null;
+            }
 
             if (isset($rules['send_message']) && $rules['send_message']) {
-                new SendMessageToLeadAction($this->lead)->execute(
-                    $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                    $message,
-                    $this->lead->company->get('twilio_phone_number')
-                );
+                // new SendMessageToLeadAction($this->lead)->execute(
+                //     $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                //     $message,
+                //     $this->lead->company->get('twilio_phone_number')
+                // );
             }
 
             $intentNumber = (int) ($this->lead->get('intent_number') ?? 0);

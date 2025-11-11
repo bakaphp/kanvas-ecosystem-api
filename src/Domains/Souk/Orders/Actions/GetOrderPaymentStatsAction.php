@@ -68,6 +68,8 @@ class GetOrderPaymentStatsAction
             $amount = $item?->amount ?? 0;
             $card = $item?->card ?? 0;
             $transaction = $item?->transaction ?? 0;
+            $cardAmount = $item?->card_amount ?? 0;
+            $transactionAmount = $item?->transaction_amount ?? 0;
 
             return [
                 'date' => $date,
@@ -77,6 +79,8 @@ class GetOrderPaymentStatsAction
                     'card' => $card,
                     'amount' => $amount,
                     'transaction' => $transaction,
+                    'card_amount' => $cardAmount,
+                    'transaction_amount' => $transactionAmount,
                     'cardPercentage' => $total > 0 ? round(($card / $total) * 100, 2) : 0,
                     'transactionPercentage' => $total > 0 ? round(($transaction / $total) * 100, 2) : 0,
                 ],
@@ -97,6 +101,8 @@ class GetOrderPaymentStatsAction
             'byTransaction' => [
                 'card' => $byDates->sum(fn ($entry) => $entry['states']['card'] ?? 0),
                 'transfer' => $byDates->sum(fn ($entry) => $entry['states']['transaction'] ?? 0),
+                'cardAmount' => $byDates->sum(fn ($entry) => $entry['states']['card_amount'] ?? 0),
+                'transferAmount' => $byDates->sum(fn ($entry) => $entry['states']['transaction_amount'] ?? 0),
             ],
             'data' => $byDates->toArray(),
         ];

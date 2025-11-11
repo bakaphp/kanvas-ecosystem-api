@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Payments;
 
+use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -56,11 +57,26 @@ class PaymentMethodMutation
 
             return new CreatePaymentMethodAction($paymentMethod)->execute();
         } catch (RequestException $e) {
+            $errorMessage = 'An error occurred while processing your request try again';
+
             if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->message;
+                $statusCode = $e->getResponse()->getStatusCode();
+
+                // Report 5xx server errors
+                if ($statusCode >= 500) {
+                    report($e);
+                }
+
+                try {
+                    $decoded = json_decode((string) $e->getResponse()->getBody());
+                    $errorMessage = $decoded?->message ?? $errorMessage;
+                } catch (Exception $e) {
+                    // If JSON parsing fails, use default message
+                }
             } else {
                 $errorMessage = $e->getMessage();
+                // Also report if we can't get response details
+                report($e);
             }
 
             if (is_array($errorMessage)) {
@@ -142,12 +158,12 @@ class PaymentMethodMutation
         return $paymentMethod->delete();
     }
 
-    public function guessCardBrand($number): ?string
+    public function guessCardBrand(string $number): ?string
     {
         $number = preg_replace('/[^0-9]/', '', $number);
 
         if (! $this->isValidLuhn($number)) {
-            return null;
+            throw new ValidationException('The card number you entered is invalid. Please check and try again');
         }
 
         $firstDigit = substr($number, 0, 1);

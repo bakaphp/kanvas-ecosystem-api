@@ -28,6 +28,7 @@ use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -46,6 +47,9 @@ use Spatie\LaravelData\DataCollection;
  * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
+ * @property string|null $ip_address
+ * @property int|null $parent_id
+ * @property int $companies_id
  * @property string|null $user_email
  * @property string|null $user_phone
  * @property string|null $token
@@ -753,5 +757,11 @@ class Order extends BaseModel
         if ($autoSave) {
             $this->saveOrFail();
         }
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new OrderFactory();
     }
 }

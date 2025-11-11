@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Baka\Support\Str;
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Stripe\Actions\PushUserToStripeCustomerAction;
@@ -146,7 +147,9 @@ class PaymentManagementMutation
                     'currency' => $currencyCode,
                 ],
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            report($e);
+
             throw new ValidationException($e->getMessage());
         }
     }
