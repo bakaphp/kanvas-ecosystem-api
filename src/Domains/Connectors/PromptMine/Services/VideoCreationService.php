@@ -9,13 +9,9 @@ use Exception;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\KanvasActivity;
 
-class VideoCreationService extends KanvasActivity
+class VideoCreationService
 {
-    protected ?string $apiUrl = null;
-    public $tries = 3;
-
     public function __construct(
         protected AppInterface $app,
         protected Message $entity,
