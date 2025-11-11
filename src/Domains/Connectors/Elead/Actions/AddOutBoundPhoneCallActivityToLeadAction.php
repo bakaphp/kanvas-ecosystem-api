@@ -110,8 +110,8 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'company' => $this->lead->company,
                 'app' => $this->lead->app,
                 'user' => $this->lead->user,
-                'content' => 'Sally just stop the clock for lead ' . $this->lead->people->name,
-                'title' => 'Sally Stop the Clock',
+                'content' => 'Sally just stopped the clock for lead ' . $this->lead->people->name,
+                'title' => 'Sally Stopped the Clock',
                 'message' => $this->message
             ],
             via: ['sms', 'push', 'expo'],
