@@ -9,6 +9,7 @@ use Baka\Traits\KanvasJobsTrait;
 use DateTime;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -216,7 +217,7 @@ class MailAllAppUsersCommand extends Command
     /**
      * Build the user query with optional date filters
      */
-    private function buildUserQuery(int $appId, mixed $createdAfter = null, mixed $createdBefore = null): \Illuminate\Database\Query\Builder
+    private function buildUserQuery(int $appId, mixed $createdAfter = null, mixed $createdBefore = null): Builder
     {
         $query = DB::table('users_associated_apps')
             ->join('users', 'users_associated_apps.users_id', '=', 'users.id')
