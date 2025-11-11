@@ -10,7 +10,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
-use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
