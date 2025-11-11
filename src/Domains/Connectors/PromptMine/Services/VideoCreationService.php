@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
-use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -63,13 +62,12 @@ class VideoCreationService extends KanvasActivity
                 'result_data' => $result['result_data'],
             ];
         } catch (Exception $e) {
-            report($e);
-
-            // return $this->failWorkflow([
-            //     'result' => false,
-            //     'message_id' => $entity->getId(),
-            //     'message' => 'Error submitting video processing request: ' . $e->getMessage(),
-            // ]);
+            // report($e);
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Error submitting video processing request: ' . $e->getMessage(),
+            ];
         }
     }
 

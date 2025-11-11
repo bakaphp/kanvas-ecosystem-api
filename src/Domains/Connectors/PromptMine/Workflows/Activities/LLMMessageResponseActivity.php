@@ -81,7 +81,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $messageTypeKey = 'image';
                     $channel->is_deleted = 0;
                     $channel->save();
-                } elseif($isTypeVideo) {
+                } elseif ($isTypeVideo) {
                     $result = $this->generateVideoResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
@@ -330,7 +330,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         $result = $videoCreationService->execute();
 
         if (isset($result['result']) && $result['result'] === false) {
-            throw new Exception('Video creation failed: ' . ($result['result_data'] ?? 'Unknown error'));
+            throw new Exception('Video creation failed: ' . ($result['message'] ?? 'Unknown error'));
         }
 
         // Get existing chat history from parent message or create new conversation
