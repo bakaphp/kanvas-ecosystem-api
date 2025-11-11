@@ -1,0 +1,85 @@
+type ReferralCode {
+    id: ID!
+    uuid: String!
+    code: String!
+    loyalty_program: LoyaltyProgram! @belongsTo
+    user: User! @belongsTo
+    referrer_reward: Int!
+    referee_reward: Int!
+    referee_discount: Float!
+    max_uses: Int
+    current_uses: Int!
+    expires_at: DateTime
+    is_active: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ReferralRedemption {
+    id: ID!
+    uuid: String!
+    referral_codes_id: ID!
+    referrer_user_id: ID!
+    referee_user_id: ID!
+    referrer: User! @belongsTo
+    referee: User! @belongsTo
+    order: Order @belongsTo
+    referrer_points_awarded: Int!
+    referee_discount_amount: Float!
+    status: String!
+    redeemed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ReferredUser {
+    id: ID!
+    user_id: ID!
+    name: String!
+    email: String!
+    points_earned: Int!
+    discount_applied: Float!
+    referred_at: DateTime!
+}
+
+type UserReferralInfo {
+    referral_code: String!
+    total_points_earned: Int!
+    total_referrals: Int!
+    referred_users: [ReferredUser!]!
+}
+
+input UpdateReferralCodeInput {
+    code: String
+    is_active: Boolean
+    user_id: ID
+}
+
+extend type Query @guard {
+    myReferralInfo(user_id: ID): UserReferralInfo
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Referral\\MyReferralInfoQuery@handle"
+        )
+
+    referralCodeUsages(
+        code: String!
+        where: _
+            @whereConditions(
+                columns: ["id", "referrer_user_id", "referee_user_id", "status"]
+            )
+    ): [ReferralRedemption!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Builders\\Referral\\ReferralRedemptionBuilder@getReferralCodeUsagesBuilder"
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    updateReferralCode(
+        id: ID!
+        input: UpdateReferralCodeInput! @spread
+    ): ReferralCode!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Referral\\ReferralCodeMutation@update"
+        )
+}

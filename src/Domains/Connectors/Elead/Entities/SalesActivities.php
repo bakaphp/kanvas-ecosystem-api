@@ -195,6 +195,28 @@ class SalesActivities
     }
 
     /**
+     * Get activity history with search (includes both scheduled and completed activities).
+     * Retrieve activity history with comments by sales customer and opportunity identifier.
+     */
+    public static function getHistorySearch(
+        AppInterface $app,
+        Companies $company,
+        string $customerId,
+        string $opportunityId
+    ): array {
+        $client = new Client($app, $company);
+        $url = '/sales/v1/elead/activity-history/search';
+        $queryParams = [
+            'customerId' => $customerId,
+            'opportunityId' => $opportunityId,
+        ];
+
+        $url .= '?' . http_build_query($queryParams);
+
+        return $client->get($url);
+    }
+
+    /**
      * Update an existing activity.
      */
     public function update(array $updateData): array
