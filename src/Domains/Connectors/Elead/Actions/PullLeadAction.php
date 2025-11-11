@@ -248,7 +248,7 @@ class PullLeadAction
 
             $isSystem =
                 $createdByLower === 'system' ||
-                str_contains($createdByLower, 'fortellis');
+                str_contains($createdByLower, 'fortellis') || in_array($item['activityType'], ['Send Email','Phone Call']) || $item['name'] == 'Note';
 
             if (! $isSystem) {
                 $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
