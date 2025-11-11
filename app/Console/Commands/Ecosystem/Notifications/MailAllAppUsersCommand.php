@@ -6,7 +6,7 @@ namespace App\Console\Commands\Ecosystem\Notifications;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
-use DateTime;
+use Baka\Validations\Date;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\Query\Builder;
@@ -62,13 +62,13 @@ class MailAllAppUsersCommand extends Command
         $createdBefore = $this->option('created-before') ?? '';
 
         // Validate date format if provided
-        if ($createdAfter !== '' && ! $this->isValidDate($createdAfter)) {
+        if ($createdAfter !== '' && ! Date::isValid($createdAfter, 'Y-m-d H:i:s')) {
             $this->error('Invalid created-after date format. Use Y-m-d H:i:s format (e.g., 2024-01-01 00:00:00)');
 
             return;
         }
 
-        if ($createdBefore !== '' && ! $this->isValidDate($createdBefore)) {
+        if ($createdBefore !== '' && ! Date::isValid($createdBefore, 'Y-m-d H:i:s')) {
             $this->error('Invalid created-before date format. Use Y-m-d H:i:s format (e.g., 2024-12-31 23:59:59)');
 
             return;
@@ -217,8 +217,11 @@ class MailAllAppUsersCommand extends Command
     /**
      * Build the user query with optional date filters
      */
-    private function buildUserQuery(int $appId, mixed $createdAfter = null, mixed $createdBefore = null): Builder
-    {
+    private function buildUserQuery(
+        int $appId,
+        ?string $createdAfter = null,
+        ?string $createdBefore = null
+    ): Builder {
         $query = DB::table('users_associated_apps')
             ->join('users', 'users_associated_apps.users_id', '=', 'users.id')
             ->selectRaw('users_associated_apps.*, users.email')
@@ -228,32 +231,14 @@ class MailAllAppUsersCommand extends Command
             ->where('users.is_deleted', StateEnums::NO->getValue());
 
         // Apply created_at filters if provided
-        if (is_string($createdAfter) && ! empty($createdAfter)) {
+        if ($createdAfter !== null && ! empty($createdAfter)) {
             $query->where('users.created_at', '>=', $createdAfter);
         }
 
-        if (is_string($createdBefore) && ! empty($createdBefore)) {
+        if ($createdBefore !== null && ! empty($createdBefore)) {
             $query->where('users.created_at', '<=', $createdBefore);
         }
 
         return $query;
-    }
-
-    /**
-     * Validate if the given string is a valid date
-     */
-    private function isValidDate(mixed $date): bool
-    {
-        if (! is_string($date)) {
-            return false;
-        }
-
-        try {
-            $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', $date);
-
-            return $dateTime && $dateTime->format('Y-m-d H:i:s') === $date;
-        } catch (Exception $e) {
-            return false;
-        }
     }
 }
