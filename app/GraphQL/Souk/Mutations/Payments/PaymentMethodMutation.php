@@ -60,14 +60,23 @@ class PaymentMethodMutation
             $errorMessage = 'An error occurred while processing your request try again';
 
             if ($e->hasResponse()) {
+                $statusCode = $e->getResponse()->getStatusCode();
+
+                // Report 5xx server errors
+                if ($statusCode >= 500) {
+                    report($e);
+                }
+
                 try {
                     $decoded = json_decode((string) $e->getResponse()->getBody());
                     $errorMessage = $decoded?->message ?? $errorMessage;
-                } catch (Exception) {
+                } catch (Exception $e) {
                     // If JSON parsing fails, use default message
                 }
             } else {
                 $errorMessage = $e->getMessage();
+                // Also report if we can't get response details
+                report($e);
             }
 
             if (is_array($errorMessage)) {
