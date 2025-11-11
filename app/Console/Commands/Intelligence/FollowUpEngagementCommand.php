@@ -65,7 +65,7 @@ class FollowUpEngagementCommand extends Command
 
                     $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null
  || ($lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0) || $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null
-                                    || $lead->isActive() === false;
+                                    || $lead->isActive() === false || $lead->hasBeenContacted();
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
