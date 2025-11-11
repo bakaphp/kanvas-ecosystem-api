@@ -55,6 +55,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             ],
             $this->via
         );
+        $messageOfTheWeek->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->user->notify($messageOfTheWeek);
     }
 }
