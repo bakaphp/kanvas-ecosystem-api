@@ -227,6 +227,9 @@ class PullLeadAction
 
     public function setContactStatus(ModelsLead $lead): void
     {
+        if ($lead->hasBeenContacted()) {
+            return;
+        }
         $data = SalesActivities::getHistoryByOpportunityId(
             $lead->app,
             $lead->company,
