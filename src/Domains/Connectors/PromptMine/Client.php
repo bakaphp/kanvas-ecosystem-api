@@ -115,6 +115,10 @@ class Client
             return $response['image_url'];
         }
 
+        if (isset($response['video_url'])) {
+            return $response['video_url'];
+        }
+
         return null;
     }
 
