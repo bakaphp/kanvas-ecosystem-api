@@ -48,12 +48,12 @@ class SessionChannelService
         }
 
         return sprintf(
-            '%s/chat?channel=%s&lead=%s&location=%s&app=%s',
+            '%s/chats/%s?app=%s&location=%s&channel=%s',
             $baseUrl,
-            $agentSession->uuid,
             $entity->getId(),
+            $app->key,
             $locationId,
-            $app->key
+            $agentSession->uuid
         );
     }
 }
