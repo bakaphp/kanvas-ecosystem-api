@@ -76,6 +76,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                     $messageTypeKey = 'image';
                     $channel->is_deleted = 0;
                     $channel->save();
