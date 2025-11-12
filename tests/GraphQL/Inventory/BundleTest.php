@@ -56,7 +56,7 @@ class BundleTest extends TestCase
             'execution_mode' => 'manual',
             'expose_as_product' => false,
         ];
-       $response = $this->graphQL(
+        $response = $this->graphQL(
             '
             mutation($data: BundleInput!) {
                 createBundle(input: $data) {
@@ -78,23 +78,23 @@ class BundleTest extends TestCase
         dump($response->json());
 
         // ->assertJsonStructure([
-                    // 'data' => [
-                        // 'createBundle' => [
-                            // 'id',
-                            // 'name',
-                            // 'description',
-                            // 'execution_mode',
-                            // 'expose_as_product',
-                            // 'variants' => [
-                                // '*' => [
-                                    // 'id',
-                                    // 'quantity',
-                                    // 'unit',
-                                // ],
-                            // ],
-                        // ],
-                    // ],
-                // ])
-                // ->assertJsonPath('data.createBundle.name', $bundleData['name']);
+        // 'data' => [
+        // 'createBundle' => [
+        // 'id',
+        // 'name',
+        // 'description',
+        // 'execution_mode',
+        // 'expose_as_product',
+        // 'variants' => [
+        // '*' => [
+        // 'id',
+        // 'quantity',
+        // 'unit',
+        // ],
+        // ],
+        // ],
+        // ],
+        // ])
+        // ->assertJsonPath('data.createBundle.name', $bundleData['name']);
     }
 }
