@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('variant_id')->nullable();
             $table->unsignedBigInteger('bundle_id');
+            $table->integer('weight')->default(0);
             $table->float('quantity')->default(1);
             $table->string('unit')->default('unit');
+            $table->json('config')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->boolean('is_deleted')->default(0);

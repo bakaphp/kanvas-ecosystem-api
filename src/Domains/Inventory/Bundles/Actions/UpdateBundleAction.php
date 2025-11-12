@@ -18,6 +18,7 @@ class UpdateBundleAction
     {
         $this->bundleModel->update([
             'name' => $this->bundle->name,
+            'weight' => $this->bundle->weight,
             'variant_id' => $this->bundle->variant?->getId(),
             'description' => $this->bundle->description,
             'execution_mode' => $this->bundle->execution_mode,
@@ -32,6 +33,7 @@ class UpdateBundleAction
                         $variantModel->getId() => [
                             'quantity' => $variant['quantity'] ?? 1,
                             'unit' => $variant['unit'] ?? 'unit',
+                            'weight' => $variant["weight"] ?? $variantModel->weight
                         ]
                     ];
                 })->toArray()

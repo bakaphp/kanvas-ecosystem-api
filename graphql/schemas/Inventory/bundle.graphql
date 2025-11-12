@@ -1,9 +1,10 @@
 type Bundle {
     id: ID!
     company: Company! @belongsTo(relation: "company")
-    app: App! @belongsTo(relation: "app")
     variant: Variant @belongsTo(relation: "variant")
     name: String!
+    slug: String!
+    weight: Int!
     description: String
     execution_mode: String
     expose_as_product: Boolean
@@ -17,6 +18,8 @@ type BundleItem {
     unit: String
     created_at: DateTime
     updated_at: DateTime
+    bundle: Bundle! @belongsTo(relation: "bundle")
+    variant: Variant! @belongsTo(relation: "variant")
 }
 
 input BundleInput {
@@ -33,7 +36,7 @@ input BundleVariantInput {
     unit: String!
 }
 
-extend type Mutation {
+extend type Mutation @guard{
     createBundle(input: BundleInput!): Bundle!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@create"
@@ -43,4 +46,34 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@update"
         )
     deleteBundle(id: ID!): Boolean!
+}
+
+extend type Query @guard{
+    bundles(
+        where: _@whereConditions(
+            columns: [
+                "id",
+                "name",
+                "weight",
+                "variant_id",
+                "description",
+                "execution_mode",
+                "expose_as_product"
+            ]
+        )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "weight"
+                    "name"
+                ]
+            )
+    ): [Bundle!]! @paginate(
+            model: "Kanvas\\Inventory\\Bundles\\Models\\Bundle"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
 }

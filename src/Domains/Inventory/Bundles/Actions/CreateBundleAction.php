@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Bundles\Actions;
 use Kanvas\Inventory\Bundles\DataTransferObject\Bundle;
 use Kanvas\Inventory\Bundles\Models\Bundle as Bundles;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Baka\Support\Str;
 
 class CreateBundleAction
 {
@@ -26,6 +27,8 @@ class CreateBundleAction
             'description' => $this->bundle->description,
             'execution_mode' => $this->bundle->execution_mode,
             'expose_as_product' => $this->bundle->expose_as_product,
+            "weight" => $this->bundle->weight,
+            'slug' => $this->bundle->slug ?? Str::slug($this->bundle->name)
         ]);
         if (! empty($this->bundle->variants)) {
             $bundle->variants()->sync(
@@ -35,6 +38,7 @@ class CreateBundleAction
                         $variantModel->getId() => [
                             'quantity' => $variant['quantity'] ?? 1,
                             'unit' => $variant['unit'] ?? 'unit',
+                            "weight" => $variant["weight"] ?? 0
                         ]
                     ];
                 })->toArray()

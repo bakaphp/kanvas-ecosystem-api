@@ -16,10 +16,13 @@ return new class () extends Migration {
             $table->unsignedBigInteger('companies_id');
             $table->unsignedBigInteger('users_id');
             $table->unsignedBigInteger('variant_id')->nullable();
+            $table->string('slug');
             $table->string('name');
             $table->string('description')->nullable();
+            $table->integer('weight')->default(0);
             $table->string('execution_mode')->default('manual');
-            $table->boolean('expose_as_product')->default(false);
+            $table->tinyInteger('expose_as_product')->default(false);
+            $table->json('config')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->boolean('is_deleted')->default(0);
