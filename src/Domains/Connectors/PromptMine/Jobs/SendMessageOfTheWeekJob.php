@@ -55,7 +55,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             $this->via
         );
         $messageOfTheWeekNotification->setData([
-            'destination_id' => $messageOfTheWeek->parent->getId(),
+            'destination_id' => $messageOfTheWeek->parent->getId() ?? $messageOfTheWeek->getId(),
             'destination_type' => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ]);
