@@ -46,7 +46,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         }
 
         $title = html_entity_decode($messageOfTheWeek->message['title'], ENT_QUOTES, 'UTF-8');
-        $messageOfTheWeek = new MessageOfTheWeekNotification(
+        $messageOfTheWeekNotification = new MessageOfTheWeekNotification(
             $this->user,
             [
                 'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
@@ -55,7 +55,12 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             ],
             $this->via
         );
-        $messageOfTheWeek->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
-        $this->user->notify($messageOfTheWeek);
+        $messageOfTheWeekNotification->setData([
+            'destination_id' => $messageOfTheWeek->parent ? $messageOfTheWeek->parent->getId() : $messageOfTheWeek->getId(),
+            'destination_type' => 'MESSAGE',
+            'destination_event' => 'NEW_MESSAGE',
+        ]);
+        $messageOfTheWeekNotification->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
+        $this->user->notify($messageOfTheWeekNotification);
     }
 }
