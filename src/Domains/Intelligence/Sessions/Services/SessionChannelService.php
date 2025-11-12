@@ -48,7 +48,7 @@ class SessionChannelService
         }
 
         return sprintf(
-            '%s/login?channel=%s&lead=%s&location=%s&app=%s',
+            '%s/chat?channel=%s&lead=%s&location=%s&app=%s',
             $baseUrl,
             $agentSession->uuid,
             $entity->getId(),
