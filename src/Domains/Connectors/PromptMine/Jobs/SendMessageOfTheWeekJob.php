@@ -61,7 +61,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             'destination_type' => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ]);
-        
+
         $messageOfTheWeekNotification->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->user->notify($messageOfTheWeekNotification);
     }
