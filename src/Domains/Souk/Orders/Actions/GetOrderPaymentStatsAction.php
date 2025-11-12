@@ -35,29 +35,30 @@ class GetOrderPaymentStatsAction
         }
 
         $currentCount = 0;
-        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount, $timezone);
         $currentCount = $ordersInPeriod['count'] ?? 0;
 
         return [
             'period' => [
-                'start' => $start->format('Y-m-d H:i:s'),
-                'end' => $end->format('Y-m-d H:i:s'),
+                'start' => $start->copy()->timezone($timezone)->format('Y-m-d H:i:s'),
+                'end' => $end->copy()->timezone($timezone)->format('Y-m-d H:i:s'),
             ],
             'ordersInPeriod' => $ordersInPeriod,
             'currentCount' => $currentCount,
         ];
     }
 
-    private function getOrdersInPeriod(Carbon $start, Carbon $end, $currentCount = null): array
+    private function getOrdersInPeriod(Carbon $start, Carbon $end, $currentCount = null, string $timezone = 'UTC'): array
     {
         $results = $this->repository->getOrdersInPeriodWithPayments(
             $start,
             $end,
             $this->paidStates,
-            $this->variantId
+            $this->variantId,
+            $timezone
         );
 
-        $daysInRange = collect(DateHelper::generateDateList($start, $end))
+        $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
             ->map(fn ($date) => trim($date, "'"));
 
         $groupedResults = $results->keyBy('date');
