@@ -101,7 +101,7 @@ class GenerateTimeSlotsJobTest extends TestCase
         $this->assertDatabaseHas('time_slots', [
             'resources_id' => $this->variantId,
             'schedule_rules_id' => $scheduleRule->id,
-            'capacity' => 5,
+            'initial_capacity' => 5,
         ], 'event');
 
         // Check that multiple slots were created (7 days = 7 slots)
@@ -194,9 +194,11 @@ class GenerateTimeSlotsJobTest extends TestCase
         // Count should remain the same (no duplicates)
         $this->assertEquals($initialCount, $finalCount);
 
-        // Capacity should be updated to 20
+        // Initial capacity should be updated to 20
         $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();
         foreach ($slots as $slot) {
+            $this->assertEquals(20, $slot->initial_capacity);
+            // Capacity (available slots) should also be 20 since no bookings yet
             $this->assertEquals(20, $slot->capacity);
         }
     }

@@ -42,6 +42,7 @@ class CreateEventVersionAction
             'users_id' => $this->eventVersion->user->getId(),
             'event_id' => $this->eventVersion->event->getId(),
             'currency_id' => $this->eventVersion->currency->getId(),
+            'time_slot_id' => $this->eventVersion->timeSlotId,
             'name' => $this->eventVersion->name,
             'version' => $this->eventVersion->version,
             'description' => $this->eventVersion->description,

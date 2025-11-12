@@ -25,6 +25,17 @@ trait HasTagsTrait
         return $query;
     }
 
+    public function hasTag(array $tags): bool
+    {
+        if (empty($tags)) {
+            return false;
+        }
+
+        return $this->tags()
+            ->whereIn('name', $tags)
+            ->exists();
+    }
+
     public function addTag(
         string|int $tag,
         ?AppInterface $app = null,

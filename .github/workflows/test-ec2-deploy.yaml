@@ -31,7 +31,7 @@ jobs:
     environment: ${{ github.ref_name }}
     steps:
       - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@v1.2.3
         with:
           host: ${{ secrets.AWS_TEST_EC2_HOST }}
           username: ${{ secrets.AWS_TEST_EC2_USERNAME }}
