@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Illuminate\Support\Facades\App;
 use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -12,6 +11,8 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
+use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Discounts\Models\OrderDiscount;
 
 class CartManagementMutation
 {
@@ -74,99 +75,114 @@ class CartManagementMutation
         $user = auth()->user();
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
+        $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
 
-        /**
-         * @todo add https://github.com/wearepixel/laravel-cart#adding-a-condition-to-the-cart-cartcondition
-         */
-        $discountCodes = $request['discountCodes'];
-        $isDevelopment = App::environment('development');
+        $discountCodes = $request['discountCodes'] ?? [];
 
-        /**
-         * @todo FOR THE LOVE OF GOD!! MOVE this to a specific module
-         */
-        if (! empty($discountCodes) && $app->get('temp-use-discount-codes')) {
-            $validDiscountCodes = [
-                'aeroambupromoq2',
-                'pdlc10',
-                'pr10',
-                'ruben10',
-                'sl5',
-            ];
+        // Clear existing discount conditions
+        $cart->clearCartConditions('discount');
 
-            if (! in_array(strtolower($discountCodes[0]), $validDiscountCodes, true)) {
-                throw new ModelNotFoundException('Discount code not found');
-            }
+        if (empty($discountCodes)) {
+            $cartService = new CartService($cart);
 
-            if (strtolower($discountCodes[0]) === 'aeroambupromoq2') {
-                $discountVariantId = $app->get('temp-discount-variant-id') ?? [];
-                $discountVariant = null;
-                foreach ($cart->getContent() as $item) {
-                    if (in_array($item->id, $discountVariantId)) {
-                        $discountVariant = $item;
+            return $cartService->getCart();
+        }
 
-                        break;
+        // Process discount codes using the new discount system
+        foreach ($discountCodes as $discountCode) {
+            try {
+                // Find the discount by code
+                $discount = Discount::where('code', $discountCode)
+                    ->fromApp($app)
+                    ->fromCompany($company)
+                    ->where('is_active', true)
+                    ->first();
+
+                if (! $discount) {
+                    throw new ModelNotFoundException('Discount code not found: ' . $discountCode);
+                }
+
+                // Validate if discount can be used
+                if (! $discount->canBeUsed()) {
+                    throw new ModelNotFoundException('Discount code is not valid or has expired: ' . $discountCode);
+                }
+
+                // Check usage limits
+                if ($discount->isOverUsageLimit()) {
+                    throw new ModelNotFoundException('Discount code has reached its usage limit: ' . $discountCode);
+                }
+
+                // Check customer usage limit
+                if ($user && $discount->is_one_per_customer) {
+                    $hasUsed = OrderDiscount::where('discount_id', $discount->id)
+                        ->whereHas('order', function ($query) use ($user) {
+                            $query->where('users_id', $user->getId());
+                        })
+                        ->exists();
+
+                    if ($hasUsed) {
+                        throw new ModelNotFoundException('You have already used this discount code: ' . $discountCode);
                     }
                 }
 
-                if ($discountVariant !== null) {
-                    $itemPrice = $app->get('temp-discount-variant-price') ?? '1.00';
+                // Calculate cart subtotal for validation
+                $cartSubtotal = $cart->getSubTotal();
 
-                    $tenPercentOff = new CartCondition([
-                      'name' => 'aeroambupromoq2',
-                      'type' => 'discount',
-                      'target' => 'subtotal',
-                      'value' => '-' . $itemPrice,
-                      'minimum' => 1,
-                      'order' => 1,
-                    ]);
-
-                    $cart->condition($tenPercentOff);
+                // Check minimum order value
+                if ($discount->min_order_value && $cartSubtotal < $discount->min_order_value) {
+                    throw new ModelNotFoundException('Minimum order value of $' . $discount->min_order_value . ' required for discount: ' . $discountCode);
                 }
-            } elseif (strtolower($discountCodes[0]) === 'pdlc10') {
-                $fifteenPercentOff = new CartCondition([
-                  'name' => 'pdlc10',
-                  'type' => 'discount',
-                  'target' => 'subtotal',
-                  'value' => '-10%',
-                  'minimum' => 1,
-                  'order' => 1,
+
+                // Apply the discount as a cart condition
+                $discountValue = $discount->is_percentage
+                    ? '-' . $discount->value . '%'
+                    : '-' . $discount->value;
+
+                $cartCondition = new CartCondition([
+                    'name' => $discount->code,
+                    'type' => 'discount',
+                    'target' => 'subtotal',
+                    'value' => $discountValue,
+                    'minimum' => $discount->min_order_value ?? 0,
+                    'order' => 1,
+                    'attributes' => [
+                        'discount_code' => $discount->code,
+                        'discount_type' => $discount->discountType->name,
+                        'max_discount_amount' => $discount->max_discount_amount,
+                    ],
                 ]);
 
-                $cart->condition($fifteenPercentOff);
-            } elseif (strtolower($discountCodes[0]) === 'pr10') {
-                $fifteenPercentOff = new CartCondition([
-                  'name' => 'pr10',
-                  'type' => 'discount',
-                  'target' => 'subtotal',
-                  'value' => '-10%',
-                  'minimum' => 1,
-                  'order' => 1,
-                ]);
+                // Apply max discount amount if set
+                if ($discount->max_discount_amount && $discount->is_percentage) {
+                    $potentialDiscount = ($cartSubtotal * $discount->value) / 100;
+                    if ($potentialDiscount > $discount->max_discount_amount) {
+                        $cartCondition = new CartCondition([
+                            'name' => $discount->code,
+                            'type' => 'discount',
+                            'target' => 'subtotal',
+                            'value' => '-' . $discount->max_discount_amount,
+                            'minimum' => $discount->min_order_value ?? 0,
+                            'order' => 1,
+                            'attributes' => [
+                                'discount_code' => $discount->code,
+                                'discount_type' => $discount->discountType->name,
+                                'max_discount_applied' => true,
+                            ],
+                        ]);
+                    }
+                }
 
-                $cart->condition($fifteenPercentOff);
-            } elseif (strtolower($discountCodes[0]) === 'ruben10') {
-                $fifteenPercentOff = new CartCondition([
-                  'name' => 'ruben10',
-                  'type' => 'discount',
-                  'target' => 'subtotal',
-                  'value' => '-10%',
-                  'minimum' => 1,
-                  'order' => 1,
-                ]);
+                $cart->condition($cartCondition);
 
-                $cart->condition($fifteenPercentOff);
-            } elseif (strtolower($discountCodes[0]) === 'sl5' && ! $user->get('coupon-sl5')) {
-                $fifteenPercentOff = new CartCondition([
-                  'name' => 'sl5',
-                  'type' => 'discount',
-                  'target' => 'subtotal',
-                  'value' => '-5%',
-                  'minimum' => 1,
-                  'order' => 1,
-                ]);
+                // Only apply the first valid discount code
+                break;
+            } catch (ModelNotFoundException $e) {
+                // If we have multiple codes, try the next one
+                if (count($discountCodes) === 1) {
+                    throw $e;
+                }
 
-                $cart->condition($fifteenPercentOff);
-                //$user->set('coupon-sl5', 1);
+                continue;
             }
         }
 

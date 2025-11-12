@@ -26,7 +26,8 @@ class WaSenderHandler extends BaseIntegration
 
         // Save the configuration
         $this->app->set(ConfigurationEnum::BASE_URL->value, $this->data['base_url']);
-        $this->app->set(ConfigurationEnum::API_KEY->value, $this->data['api_key']);
+        $this->company->set(ConfigurationEnum::API_KEY->value, $this->data['api_key']);
+        //$this->app->set(ConfigurationEnum::API_KEY->value, $this->data['api_key']);
 
         return true;
     }

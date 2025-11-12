@@ -12,6 +12,9 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
+use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class AppleInAppPurchaseMutation
@@ -39,7 +42,6 @@ class AppleInAppPurchaseMutation
             $region,
             $request['input']
         );
-
         $createOrderFromInAppPurchase = new CreateOrderFromAppleReceiptAction($appleInAppPurchase);
 
         $order = $createOrderFromInAppPurchase->execute();
@@ -48,6 +50,8 @@ class AppleInAppPurchaseMutation
             $order->setCustomFields($appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
+
+        $this->processWalletTransaction($order);
 
         /**
          * @todo move this to the create order DTO
@@ -61,5 +65,33 @@ class AppleInAppPurchaseMutation
         );
 
         return $order;
+    }
+
+    protected function processWalletTransaction(Order $order): void
+    {
+        $walletTypes = [
+        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value,
+        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value,
+    ];
+
+        foreach ($order->items as $item) {
+            foreach ($walletTypes as $type) {
+                $attributeValue = $item->variant->getAttributeBySlug($type)?->value;
+
+                if ($attributeValue === null) {
+                    continue;
+                }
+
+                if (in_array($attributeValue, $walletTypes, true)) {
+                    match ($attributeValue) {
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(), //@todo also support company?
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
+                        default => null
+                    };
+
+                    return; // Exit the entire method after first wallet operation
+                }
+            }
+        }
     }
 }

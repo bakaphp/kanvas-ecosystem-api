@@ -6,7 +6,7 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -122,7 +122,7 @@ class AttachFilesystemAction
 
             // Flush cache if method exists
             if (method_exists($fileEntity, 'flushCache')) {
-                $fileEntity->flushCache();
+                //   $fileEntity->flushCache();
             }
 
             // Fire events after successful database operations
@@ -149,31 +149,30 @@ class AttachFilesystemAction
     {
         try {
             // Try to create the entity
-            return FilesystemEntities::create([
+            return FilesystemEntities::firstOrCreate([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
                 'companies_id' => $this->filesystem->companies_id,
                 'filesystem_id' => $this->filesystem->getKey(),
                 'field_name' => $fieldName,
+            ], [
                 'weight' => $weight,
                 'is_deleted' => StateEnums::NO->getValue(),
             ]);
-        } catch (QueryException $e) {
-            // Check if it's a duplicate key error (integrity constraint violation)
-            if ($e->getCode() == 23000) {
-                // Someone else created this record between our check and our insert
-                // Find the record that was created
-                $existingEntity = FilesystemEntities::where([
-                    'filesystem_id' => $this->filesystem->getKey(),
-                    'entity_id' => $this->entity->getKey(),
-                    'companies_id' => $this->filesystem->companies_id,
-                    'system_modules_id' => $systemModule->getKey(),
-                ])->first();
+        } catch (UniqueConstraintViolationException $e) {
+            // Someone else created this record between our check and our insert
+            // Find the record that was created
+            $existingEntity = FilesystemEntities::where([
+                'filesystem_id' => $this->filesystem->getKey(),
+                'entity_id' => $this->entity->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+                'field_name' => $fieldName,
+                'system_modules_id' => $systemModule->getKey(),
+            ])->first();
 
-                if ($existingEntity) {
-                    // Return the existing entity
-                    return $existingEntity;
-                }
+            if ($existingEntity) {
+                // Return the existing entity
+                return $existingEntity;
             }
 
             // If it's not a duplicate key error or we couldn't find the record, rethrow

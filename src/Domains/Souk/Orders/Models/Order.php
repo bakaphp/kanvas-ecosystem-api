@@ -13,13 +13,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -41,6 +46,9 @@ use Spatie\LaravelData\DataCollection;
  * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
+ * @property string|null $ip_address
+ * @property int|null $parent_id
+ * @property int $companies_id
  * @property string|null $user_email
  * @property string|null $user_phone
  * @property string|null $token
@@ -54,6 +62,7 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_gross_amount
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
+ * @property float|null $tax_amount
  * @property string|null $discount_name
  * @property int|null $voucher_id
  * @property string|null $language_code
@@ -82,10 +91,13 @@ use Spatie\LaravelData\DataCollection;
 class Order extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasMessagesTrait;
     use AsTree;
 
     protected $table = 'orders';
@@ -128,6 +140,12 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
+    public function orderDiscountCodes(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id')
+        ->with(['discount.discountType']);
+    }
+
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
@@ -136,6 +154,16 @@ class Order extends BaseModel
     public function payments(): MorphMany
     {
         return $this->morphMany(Payments::class, 'payable');
+    }
+
+    public function orderDiscounts(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
+    }
+
+    public function resource(): MorphTo
+    {
+        return $this->morphTo('resources');
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -228,6 +256,21 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function markAsPaid(UserInterface $user): void
+    {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+            new TransitionOrderStateAction(
+                $this,
+                $user,
+                $orderStatus
+            )->execute(true);
+        }
+
+        // to keep the legacy support
+        $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->completed();
+    }
+
     public function scopeWhereNotCompleted(Builder $query): Builder
     {
         return $query->where('status', '!=', 'completed');
@@ -276,9 +319,11 @@ class Order extends BaseModel
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the order with the highest order_number
-        $lastOrder = Order::where('companies_id', $this->companies_id)
-            ->where('apps_id', $this->apps_id)
+        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue());
+        $lastOrder = Order::where('apps_id', $this->apps_id)
+            ->when(! $isB2BMode, fn ($q) => $q->where('companies_id', $this->companies_id))
             ->lockForUpdate() // Ensure no race conditions
+            ->withTrashed()
             ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
@@ -578,6 +623,20 @@ class Order extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'orders');
     }
 
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
+
     public function setOrderType(string $orderType): void
     {
         $orderType = OrderTypes::firstOrCreate([
@@ -636,7 +695,51 @@ class Order extends BaseModel
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
-    public function calculateTotal(): void
+    /**
+     * Get the most recent transition history entry
+     */
+    public function getLastTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Get the first transition history entry
+     */
+    public function getFirstTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+    }
+
+    /**
+     * Get transition history by the to_status slug
+     */
+    public function getTransitionByStatus(string $statusSlug): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->whereHas('toStatus', function ($query) use ($statusSlug) {
+                $query->where('slug', $statusSlug);
+            })
+            ->first();
+    }
+
+    /**
+     * Get the current active transition (where is_current = true)
+     */
+    public function getCurrentTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->where('is_current', true)
+            ->first();
+    }
+
+    public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
         ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
@@ -649,6 +752,9 @@ class Order extends BaseModel
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
         $this->discount_amount = (float) $discount;
-        $this->saveOrFail();
+
+        if ($autoSave) {
+            $this->saveOrFail();
+        }
     }
 }

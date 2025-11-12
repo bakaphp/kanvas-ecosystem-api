@@ -74,11 +74,11 @@ class SendLeadEmailsTest extends TestCase
             'companies_id' => $company->getId(),
             'name' => 'Lead Rotation',
             'hits' => 1,
-            'leads_rotations_email' => '',
+            'leads_rotations_email' => 'johnd@example.com',
             'config' => [
                 'email_template' => 'new-lead',
-                'notification_mode' => 'notify_all',
-                'notification_user_mode' => 'notify_rotation_users',
+                'notification_mode' => 'NOTIFY_AGENTS',
+                'notification_user_mode' => 'NOTIFY_ROTATION_USERS',
             ]
         ]);
 
@@ -144,7 +144,7 @@ class SendLeadEmailsTest extends TestCase
         ];
 
         $sendRotationEmailsAction->execute($payload, 'user');
-        Notification::assertCount(2);
+        Notification::assertCount(3);
     }
 
     public function testSendLeadEmailsInDatabase(): void

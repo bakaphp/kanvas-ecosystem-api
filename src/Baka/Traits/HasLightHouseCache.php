@@ -57,9 +57,6 @@ trait HasLightHouseCache
     public function generateCustomFieldsLighthouseCache(int $items = 25): void
     {
         if (method_exists($this, 'reCacheCustomFields')) {
-            /**
-             * @todo maybe not needed
-             */
             $this->reCacheCustomFields($items);
         }
 

@@ -55,27 +55,34 @@ class SyncEsimWithProviderCommand extends Command
 
         Order::disableSearchSyncing();
 
-        $messages = Message::fromApp($app)
+        // Process messages in chunks to avoid memory exhaustion
+        $chunkSize = 100; // Adjust based on your server's memory capacity
+
+        Message::fromApp($app)
             ->fromCompany($company)
             ->notDeleted()
             ->whereIsPublic()
             ->orderBy('id', 'desc')
-            ->get();
+            ->whereHas('messageType', function ($q) {
+                $q->where('verb', 'esim');
+            })
+            ->chunk($chunkSize, function ($messages) use ($app, $company) {
+                // Initialize services once per chunk
+                $eSimService = new ESimService($app);
+                $easyActivationOrderService = new OrderService($app);
+                $cmLinkCustomerService = new CustomerService($app, $company);
+                $ventaMobileService = new VentaMobileESimService($app, $company);
 
-        $eSimService = new ESimService($app);
-        $easyActivationOrderService = new OrderService($app);
-        $cmLinkCustomerService = new CustomerService($app, $company);
-        $ventaMobileService = new VentaMobileESimService($app, $company);
-
-        foreach ($messages as $message) {
-            $this->processMessage(
-                $message,
-                $eSimService,
-                $easyActivationOrderService,
-                $cmLinkCustomerService,
-                $ventaMobileService
-            );
-        }
+                foreach ($messages as $message) {
+                    $this->processMessage(
+                        $message,
+                        $eSimService,
+                        $easyActivationOrderService,
+                        $cmLinkCustomerService,
+                        $ventaMobileService
+                    );
+                }
+            });
     }
 
     private function processMessage(
@@ -188,8 +195,16 @@ class SyncEsimWithProviderCommand extends Command
                     return null;
                 }
                 $balance = $ventaMobileService->getServiceBalance($serviceId);
-                return $this->formatVentaMobileResponse($message, $serviceInfo, $balance);
 
+                $extensionDetails = null;
+
+                try {
+                    $extensionDetails = $ventaMobileService->getServiceExtensions($serviceId);
+                } catch (Exception $e) {
+                    // Extension details are optional, continue without them
+                }
+
+                return $this->formatVentaMobileResponse($message, $serviceInfo, $balance, $extensionDetails);
             default:
                 return null;
         }
@@ -212,6 +227,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for EsimGo
         $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+
         return $esimStatus;
     }
 
@@ -229,6 +245,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for EasyActivation
         $isValidState = in_array(strtolower($esimStatus['bundleState']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatus, $isValidState);
+
         return $esimStatus;
     }
 
@@ -481,6 +498,7 @@ class SyncEsimWithProviderCommand extends Command
         if (! $expirationDate) {
             return;
         }
+
         try {
             $expirationDate = Carbon::parse($expirationDate);
         } catch (\Exception $e) {
@@ -598,21 +616,83 @@ class SyncEsimWithProviderCommand extends Command
         }
     }
 
-    private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance): array
+    private function formatVentaMobileResponse(Message $message, array $serviceInfo, array $balance, ?array $extensionDetails = null): array
     {
-        $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
-        $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+        $activationDate = null;
+        $activationTimestamp = null;
 
-        $variant = $message->appModuleMessage->entity->items()->first()->variant;
-        $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? $variant->getAttributeBySlug('esim_days')?->value ?? 0;
-        $expirationDate = $activationDate && $planDays > 0
-            ? Carbon::parse($activationDate)->addDays((int) $planDays)->format('Y-m-d H:i:s')
-            : '';
+        if (! empty($balance)) {
+            foreach ($balance as $balanceEntry) {
+                if (isset($balanceEntry['incomes']) && is_array($balanceEntry['incomes'])) {
+                    foreach ($balanceEntry['incomes'] as $income) {
+                        if (isset($income['dt_issue'])) {
+                            $activationTimestamp = $income['dt_issue'];
+                            $activationDate = Carbon::createFromTimestamp($activationTimestamp)->format('Y-m-d H:i:s');
 
-        $status = 'unknown';
-        if ($expirationDate) {
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (! $activationDate && ! empty($extensionDetails)) {
+            foreach ($extensionDetails as $extension) {
+                if (isset($extension['dt_start']) && is_numeric($extension['dt_start'])) {
+                    $activationDate = Carbon::createFromTimestamp($extension['dt_start'])->format('Y-m-d H:i:s');
+
+                    break;
+                } elseif (isset($extension['dt_create']) && is_numeric($extension['dt_create'])) {
+                    $activationDate = Carbon::createFromTimestamp($extension['dt_create'])->format('Y-m-d H:i:s');
+
+                    break;
+                }
+            }
+        }
+
+        if (! $activationDate) {
+            $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
+            $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+        }
+
+        $expirationDate = null;
+        if (! empty($balance)) {
+            foreach ($balance as $balanceEntry) {
+                if (isset($balanceEntry['dt_to']) && is_numeric($balanceEntry['dt_to'])) {
+                    $expirationDate = Carbon::createFromTimestamp($balanceEntry['dt_to'])->format('Y-m-d H:i:s');
+
+                    break;
+                }
+            }
+        }
+
+        if (! $expirationDate && ! empty($extensionDetails)) {
+            foreach ($extensionDetails as $extension) {
+                if (isset($extension['dt_end']) && is_numeric($extension['dt_end'])) {
+                    $expirationDate = Carbon::createFromTimestamp($extension['dt_end'])->format('Y-m-d H:i:s');
+
+                    break;
+                } elseif (isset($extension['dt_stop']) && is_numeric($extension['dt_stop'])) {
+                    $expirationDate = Carbon::createFromTimestamp($extension['dt_stop'])->format('Y-m-d H:i:s');
+
+                    break;
+                }
+            }
+        }
+
+        // Calculate expiration from activation + plan days if not found in API
+        if (! $expirationDate && $activationDate) {
+            $variant = $message->appModuleMessage->entity->items()->first()->variant;
+            $planDays = $variant->getAttributeBySlug('esim-days')?->value ?? $variant->getAttributeBySlug('esim_days')?->value ?? 0;
+            if ($planDays > 0) {
+                $expirationDate = Carbon::parse($activationDate)->addDays((int) $planDays)->format('Y-m-d H:i:s');
+            }
+        }
+
+        $status = IccidStatusEnum::RELEASED->value;
+        if ($expirationDate !== null && $expirationDate !== '') {
             $expiration = Carbon::parse($expirationDate);
-            $status = $expiration->isFuture() ? 'enable' : 'expired';
+            $status = $expiration->isFuture() ? IccidStatusEnum::ACTIVE->value : IccidStatusEnum::EXPIRED->value;
         }
 
         $phoneNumber = $serviceInfo['services_info']['msisdn'] ?? null;
@@ -627,6 +707,7 @@ class SyncEsimWithProviderCommand extends Command
                 // The 'value' field contains the remaining data in bytes
                 if (isset($bal['value']) && is_numeric($bal['value'])) {
                     $remainingData = (float)$bal['value'];
+
                     break;
                 }
             }
@@ -639,7 +720,7 @@ class SyncEsimWithProviderCommand extends Command
             remainingQuantity: $remainingData,
             assignmentDateTime: $activationDate,
             assignmentReference: (string) ($serviceInfo['services_info']['id_service_inst'] ?? ''),
-            bundleState: 'active', //$status,
+            bundleState: $status,
             unlimited: false,
             phoneNumber: $phoneNumber,
             expirationDate: $expirationDate,
@@ -655,6 +736,7 @@ class SyncEsimWithProviderCommand extends Command
         // Notifications for VentaMobile
         $isValidState = in_array(strtolower($esimStatusArray['esim_status']), ['released', 'installed', 'active', 'enabled', 'enable']);
         $this->checkAndSendNotifications($message, $esimStatusArray, $isValidState);
+
         return $esimStatusArray;
     }
 }

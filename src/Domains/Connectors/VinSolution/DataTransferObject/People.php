@@ -63,6 +63,7 @@ class People extends PeopleDTO
                         'county' => $address['County'] ?? ' ',
                         'country' => $country->name,
                         'country_id' => $country->id,
+                        'is_default' => $address['AddressType'] === 'Primary',
                     ],
                     $customer->information['Addresses'] ?? []
                 ),
@@ -70,6 +71,7 @@ class People extends PeopleDTO
             'custom_fields' => [
                 CustomFieldEnum::CONTACT->value => $customer->id,
             ],
+            'flushPreviousAddress' => true,
         ]);
     }
 }

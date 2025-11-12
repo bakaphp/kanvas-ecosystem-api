@@ -15,6 +15,7 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -362,5 +363,308 @@ final class ProcessPaymentTest extends TestCase
             Notification::route('mail', $user->email),
             PaymentReceiptNotification::class
         );
+    }
+
+    public function testMultiMerchantActivatedWithoutCredentials(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+        $region = Regions::getDefault($company ?? $company, $app);
+
+        $orderTypeName = 'subscription';
+
+        // Enable multi-merchant mode
+        $app->set('portal_multy_merchant', '1');
+
+        // Set default credentials only
+        $app->set('ECHO_PAY_MERCHANT_ID', env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set('ECHO_PAY_MERCHANT_KEY', env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set('ECHO_PAY_MERCHANT_SECRET', env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        // Do NOT set order-type-specific credentials
+        // subscription_ECHO_PAY_MERCHANT_ID, etc. are not set
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
+            $company,
+            $user
+        );
+
+        $this->setAllowNoPaymentStatus(true, $app);
+
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = ['id' => $warehouseResponse['id']];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $app->set('ECHO_PAY_MERCHANT_ID', 'default-merchant-id');
+        $app->set('ECHO_PAY_MERCHANT_KEY', 'default-merchant-key');
+        $app->set('ECHO_PAY_MERCHANT_SECRET', 'default-merchant-secret');
+
+        $data = [
+            'cartId' => 0,
+            'customer' => ['email' => fake()->email()],
+            'order_type' => $orderTypeName,
+            'metadata' => [
+                'data' => [
+                    'payment_methods_id' => $paymentMethod['id'],
+                    'payment_date' => now()->toDateTimeString(),
+                ],
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => 'Multi-merchant test without credentials',
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $orderData = $response->json('data.createOrderFromCart.order');
+        $order = Order::fromApp($app)->find($orderData['id']);
+        $payment = $order->payments()->first();
+
+        // Test that it throws exception when order-type-specific credentials don't exist
+        $portalProcessor = new \Kanvas\Souk\Payments\Providers\PortalPaymentProcessor($app, $company);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Missing merchant credentials for order type 'subscription'. Please configure subscription_ECHO_PAY_MERCHANT_ID, subscription_ECHO_PAY_MERCHANT_KEY, and subscription_ECHO_PAY_MERCHANT_SECRET.");
+
+        $this->callProtectedMethod($portalProcessor, 'setupMerchantAuthentication', [$payment, $order]);
+
+        // Clean up
+        $app->del('portal_multy_merchant');
+    }
+
+    public function testMultiMerchantActivatedWithCredentials(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+        $region = Regions::getDefault($company ?? $company, $app);
+
+        $orderTypeName = 'subscription';
+
+        // Enable multi-merchant mode
+        $app->set('portal_multy_merchant', '1');
+
+        // Set default credentials
+        // $app->set('ECHO_PAY_MERCHANT_ID', 'default-merchant-id');
+        // $app->set('ECHO_PAY_MERCHANT_KEY', 'default-merchant-key');
+        // $app->set('ECHO_PAY_MERCHANT_SECRET', 'default-merchant-secret');
+        $app->set('ECHO_PAY_MERCHANT_ID', env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set('ECHO_PAY_MERCHANT_KEY', env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set('ECHO_PAY_MERCHANT_SECRET', env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        // Set order-type-specific credentials
+        $app->set('subscription_ECHO_PAY_MERCHANT_ID', env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set('subscription_ECHO_PAY_MERCHANT_KEY', env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set('subscription_ECHO_PAY_MERCHANT_SECRET', env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
+            $company,
+            $user
+        );
+
+        $this->setAllowNoPaymentStatus(true, $app);
+
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = ['id' => $warehouseResponse['id']];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $data = [
+            'cartId' => 0,
+            'customer' => ['email' => fake()->email()],
+            'order_type' => $orderTypeName,
+            'metadata' => [
+                'data' => [
+                    'payment_methods_id' => $paymentMethod['id'],
+                    'payment_date' => now()->toDateTimeString(),
+                ],
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => 'Multi-merchant test with credentials',
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $orderData = $response->json('data.createOrderFromCart.order');
+        $order = Order::fromApp($app)->find($orderData['id']);
+        $payment = $order->payments()->first();
+
+        // Test that it uses order-type-specific credentials
+        $portalProcessor = new \Kanvas\Souk\Payments\Providers\PortalPaymentProcessor($app, $company);
+        $credentials = $this->callProtectedMethod($portalProcessor, 'getMerchantCredentials', [$order]);
+
+        // Should use order-type-specific credentials
+        $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_ID'), $credentials['id']);
+        $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_KEY'), $credentials['key']);
+        $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_SECRET'), $credentials['secretKey']);
+
+        // Test that setupMerchantAuthentication works without throwing exception
+        $merchantDetail = $this->callProtectedMethod($portalProcessor, 'setupMerchantAuthentication', [$payment, $order]);
+        $this->assertNotNull($merchantDetail);
+        $this->assertEquals(env('TEST_ECHO_PAY_MERCHANT_ID'), $merchantDetail->id);
+
+        // Clean up
+        $app->del('portal_multy_merchant');
+        $app->del('subscription_ECHO_PAY_MERCHANT_ID');
+        $app->del('subscription_ECHO_PAY_MERCHANT_KEY');
+        $app->del('subscription_ECHO_PAY_MERCHANT_SECRET');
+    }
+
+    public function testExtractErrorsFromEnrollment(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $paymentProcessor = new PortalPaymentProcessor(
+            $app,
+            $company,
+            []
+        );
+
+        // Test with error information present
+        $enrollmentDataWithError = [
+            'errorInformation' => [
+                'message' => 'Payment declined',
+                'code' => 'DECLINED',
+            ],
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithError]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('code', $result);
+        $this->assertEquals(' - Payment declined', $result['message']);
+
+        // Test without error information
+        $enrollmentDataWithoutError = [
+            'status' => 'success',
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithoutError]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
+
+        // Test with null errorInformation
+        $enrollmentDataWithNullError = [
+            'errorInformation' => null,
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithNullError]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
+
+        // Test with empty array
+        $emptyEnrollmentData = [];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$emptyEnrollmentData]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
+    }
+
+    /**
+     * Call protected/private method of a class.
+     */
+    protected function callProtectedMethod($obj, $name, array $args = [])
+    {
+        $class = new \ReflectionClass($obj);
+        $method = $class->getMethod($name);
+        $method->setAccessible(true);
+
+        return $method->invokeArgs($obj, $args);
     }
 }

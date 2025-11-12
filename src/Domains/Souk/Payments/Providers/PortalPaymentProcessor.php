@@ -23,6 +23,7 @@ use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
 use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EnumsPaymentStatusEnum;
+use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -50,16 +51,47 @@ class PortalPaymentProcessor
         $this->refId = 'ref' . time();        // Set the transaction's refId
     }
 
-    protected function setupMerchantAuthentication(Payments $payment, bool $includeDetails = false): MerchantDetail
+    protected function getMerchantCredentials(Order $order): array
     {
+        $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
+        $orderTypeName = $order->orderType?->name;
+
+        if ($isMultiMerchant && $orderTypeName) {
+            return [
+                'id' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_ID'),
+                'key' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_KEY'),
+                'secretKey' => $this->app->get($orderTypeName . '_ECHO_PAY_MERCHANT_SECRET'),
+            ];
+        }
+
+        return [
+            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID') ?? '',
+            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY') ?? '',
+            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? '',
+        ];
+    }
+
+    protected function setupMerchantAuthentication(Payments $payment, Order $order, bool $includeDetails = false): MerchantDetail
+    {
+        $credentials = $this->getMerchantCredentials($order);
+
+        if (! $credentials['id']) {
+            $orderTypeName = $order->orderType?->name;
+            $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;
+
+            if ($isMultiMerchant && $orderTypeName) {
+                throw new \Exception("Missing merchant credentials for order type '{$orderTypeName}'. Please configure {$orderTypeName}_ECHO_PAY_MERCHANT_ID, {$orderTypeName}_ECHO_PAY_MERCHANT_KEY, and {$orderTypeName}_ECHO_PAY_MERCHANT_SECRET.");
+            } else {
+                throw new \Exception('Missing default merchant credentials. Please configure ECHO_PAY_MERCHANT_ID, ECHO_PAY_MERCHANT_KEY, and ECHO_PAY_MERCHANT_SECRET.');
+            }
+        }
+
         return MerchantDetail::from([
-            'id' => $this->app->get('ECHO_PAY_MERCHANT_ID'),
-            'key' => $this->app->get('ECHO_PAY_MERCHANT_KEY'),
-            'secretKey' => $this->app->get('ECHO_PAY_MERCHANT_SECRET'),
+            ...$credentials,
             ...($includeDetails
                 ? ['merchantDefinedInformation' => new MerchantDefinedInformation(
                     category: MerchantCategoryEnum::RETAIL,
-                    cardIdentifier: $this->app->get(ConfigurationEnum::MERCHANT_ID->value) ?? '',
+                    cardIdentifier: $credentials['id'],
                     platform: MerchantPlatformEnum::MOBILE,
                     customerId: 'user_' . $payment->user->id,
                     tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
@@ -98,7 +130,7 @@ class PortalPaymentProcessor
 
     public function startPaymentIntent(Payments $payment): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $payment->order);
         $payerAuthentication = $this->client->setupPayer(
             $payment->order->id,
             $payment->paymentMethod->stripe_card_id,
@@ -111,7 +143,8 @@ class PortalPaymentProcessor
     public function checkEnrollment(Payments $payment, string $referenceId): array
     {
         $orderInput = $payment->order;
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $orderInput);
+        $enrollmentData = [];
 
         try {
             $enrollmentData = $this->client->checkPayerEnrollment(
@@ -153,6 +186,30 @@ class PortalPaymentProcessor
             } else {
                 return $this->requestUserValidation($payment, $enrollmentData, $referenceId);
             }
+        } catch (EchoPayException $e) {
+            report($e);
+            $errorMessage = $e->getMessage();
+
+            $payment->status = PaymentStatusEnum::FAILED;
+            $payment->addMetadata([
+                'enrollment_data' => $enrollmentData,
+                'error' => $errorMessage,
+                'echopay_error' => $e->getErrorBody(),
+                'echopay_error_timestamp' => now()->toIso8601String(),
+            ]);
+            $payment->save();
+
+            $payment->order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $errorMessage,
+                'response' => $e->getMessage(),
+                'data' => [],
+            ];
         } catch (Throwable $e) {
             report($e);
             if ($e instanceof RequestException && $e->hasResponse()) {
@@ -164,8 +221,8 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
-                'enrollment_data' => [],
-                'error' => $e->getMessage(),
+                'enrollment_data' => $enrollmentData,
+                'error' => $errorMessage,
             ]);
             $payment->save();
 
@@ -185,7 +242,8 @@ class PortalPaymentProcessor
 
     public function validatePayerAuthResult(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
+        $consumerData = [];
 
         try {
             $validatedData = $this->client->validatePayerAuthResult(
@@ -216,6 +274,30 @@ class PortalPaymentProcessor
             } else {
                 return $this->requestUserValidation($payment, $validatedData);
             }
+        } catch (EchoPayException $e) {
+            report($e);
+            $errorMessage = $e->getMessage();
+
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $payment->addMetadata([
+                'enrollment_data' => $consumerData,
+                'error' => $errorMessage,
+                'echopay_error' => $e->getErrorBody(),
+                'echopay_error_timestamp' => now()->toIso8601String(),
+            ]);
+            $payment->save();
+
+            $payment->order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $errorMessage,
+                'response' => $e->getMessage(),
+                'data' => [],
+            ];
         } catch (Throwable $e) {
             report($e);
             if ($e instanceof RequestException && $e->hasResponse()) {
@@ -227,8 +309,8 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $payment->addMetadata([
-                'enrollment_data' => [],
-                'error' => $e->getMessage(),
+                'enrollment_data' => $consumerData,
+                'error' => $errorMessage,
             ]);
             $payment->save();
 
@@ -258,7 +340,7 @@ class PortalPaymentProcessor
             '05',
         ]);
 
-        if (isset($enrollmentData['paymentInformation'])) {
+        if (isset($enrollmentData['paymentInformation']['card']['type'])) {
             $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
             $isEciMissing = $enrollmentData['status'] === EnumsPaymentStatusEnum::AUTHENTICATION_SUCCESSFUL->value && ! $consumerData->eci;
             $byPassEci = $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
@@ -294,9 +376,11 @@ class PortalPaymentProcessor
             'payment_status' => $paymentStatus,
         ]);
 
+        $errors = $this->extractErrorsFromEnrollment($enrollmentData);
+
         return [
             'status' => $paymentStatus,
-            'message' => $paymentStatus,
+            'message' => $paymentStatus . $errors['message'],
             'data' => ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']),
         ];
     }
@@ -339,7 +423,7 @@ class PortalPaymentProcessor
     private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
         $referenceId = $order->get('auth_session_id');
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, includeDetails: true);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order, includeDetails: true);
         $pamentData = PaymentDetail::from([
             'orderCode' => $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
@@ -370,6 +454,38 @@ class PortalPaymentProcessor
                 'status' => 'success',
                 'message' => 'Payment successful',
                 'data' => $result,
+            ];
+        } catch (EchoPayException $e) {
+            report($e);
+            $errorMessage = $e->getMessage();
+            $errorBody = $e->getErrorBody();
+
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $order->updateQuietly([
+                'payment_status' => PaymentStatusEnum::FAILED->value,
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
+
+            $payment->addMetadata([
+                'data' => [
+                    ...isset($payment->metadata['data']) ? $payment->metadata['data'] : [],
+                    'error' => $errorMessage,
+                    'echopay_error' => $errorBody,
+                    'echopay_error_timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+            $payment->save();
+
+            return [
+                'status' => 'error',
+                'message' => $errorMessage,
+                'data' => [
+                    'message_body' => $errorBody,
+                    'pamentData' => $pamentData,
+                    'consumerData' => $consumerData,
+                    'merchantAuthentication' => $merchantAuthentication,
+                ],
             ];
         } catch (Throwable $e) {
             report($e);
@@ -414,7 +530,7 @@ class PortalPaymentProcessor
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
         $capturePayment = $this->client->capturePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
@@ -447,7 +563,7 @@ class PortalPaymentProcessor
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment);
+        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
         $reversePayment = $this->client->reversePayment(
             PaymentCaptureInput::from([
                 'transactionId' => $transactionId,
@@ -503,6 +619,30 @@ class PortalPaymentProcessor
             }
 
             return $enrollmentResult;
+        } catch (EchoPayException $e) {
+            $order->updateQuietly([
+                'status' => OrderStatusEnum::FAILED->value,
+            ]);
+
+            $payment->addMetadata([
+                'echopay_error' => $e->getErrorBody(),
+                'echopay_error_message' => $e->getMessage(),
+                'echopay_error_timestamp' => now()->toIso8601String(),
+            ]);
+            $payment->updateQuietly([
+                'status' => PaymentStatusEnum::FAILED->value,
+            ]);
+
+            $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, $e->getMessage());
+
+            return [
+                'payment' => $payment->getId(),
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'report' => 'fail',
+                'data' => null,
+                'trace' => $e->getTraceAsString(),
+            ];
         } catch (Throwable $e) {
             $order->updateQuietly([
                 'status' => OrderStatusEnum::FAILED->value,
@@ -512,7 +652,7 @@ class PortalPaymentProcessor
                 'status' => PaymentStatusEnum::FAILED->value,
             ]);
 
-            $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($e->getMessage()));
+            $order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, $e->getMessage());
 
             return [
                 'payment' => $payment->getId(),
@@ -523,5 +663,19 @@ class PortalPaymentProcessor
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    private function extractErrorsFromEnrollment(array $responseResult): array
+    {
+        $data = [
+            'message' => "",
+            'code' => "",
+        ];
+
+        if (isset($responseResult['errorInformation']) && is_array($responseResult['errorInformation'])) {
+            $data['message'] = " - " . $responseResult['errorInformation']['message'] ?? '';
+        }
+
+        return $data;
     }
 }

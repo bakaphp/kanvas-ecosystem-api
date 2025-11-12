@@ -7,9 +7,12 @@ namespace App\Console\Commands\Connectors\NetSuite;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
@@ -60,6 +63,14 @@ class NetSuiteSyncAllProductsCommand extends Command
             }
             $this->output->progressAdvance();
         }
+
+        new SendUserNotificationAction(
+            $app,
+            $company,
+            $user,
+            RolesEnums::INVENTORY_MANAGER,
+        )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
+
         $this->output->progressFinish();
         if (count($missingProducts) > 0) {
             $this->error('Missing products: ' . implode(', ', $missingProducts));

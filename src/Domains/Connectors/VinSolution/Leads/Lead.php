@@ -21,6 +21,8 @@ class Lead
     public int $isOnShowroom = 0;
     public int $coBuyerContact = 0;
 
+    public string $createdAt;
+
     /**
      * Initialize.
      */
@@ -35,6 +37,7 @@ class Lead
         $this->isHot = isset($data['IsHot']) ? (int) $data['IsHot'] : 0;
         $this->coBuyerContact = isset($data['coBuyerContact']) && (int) $data['coBuyerContact'] > 0 ? (int) $data['coBuyerContact'] : 0;
         $this->isOnShowroom = isset($data['IsOnShowroom']) ? (int) $data['IsOnShowroom'] : 0;
+        $this->createdAt = $data['createdUtc'] ?? '';
     }
 
     /**

@@ -411,4 +411,126 @@ class OrderExpirableTest extends TestCase
         Artisan::call('kanvas:movipass-check-expiring-orders', ['app_id' => $this->apps->getId()]);
         Date::setTestNow();
     }
+
+    public function testDuplicateMetadataValidation(): void
+    {
+        $app = app(Apps::class);
+
+        // Configure duplicate metadata validation
+        $app->set('validate_metadata_duplicated_enabled', '1');
+        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
+        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
+        $app->set('validate_metadata_duplicated_error_message', 'Duplicate tracking ID not allowed within 2 hours');
+        $app->set('validate_metadata_duplicated_use_cache', '0'); // Disable cache to avoid Redis dependency
+
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'slots',
+                'value' => 100
+            ]
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $uniqueTrackingId = 'TRACK-' . uniqid();
+
+        // Create first order with tracking ID
+        $firstOrderData = [
+            "cartId" => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+            'metadata' => [
+                'data' => [
+                    'tracking_id' => $uniqueTrackingId,
+                    'start_at' => now()->addHour()->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
+                ]
+            ],
+        ];
+
+        $firstResponse = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                    message
+                }
+            }
+        ', [
+            'input' => $firstOrderData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertNull($firstResponse->json('errors'));
+
+        // Try to create second order with same tracking ID (should fail)
+        $duplicateOrderData = [
+            "cartId" => 0,
+            'customer' => [
+                'email' => fake()->email()
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+            'metadata' => [
+                'data' => [
+                    'tracking_id' => $uniqueTrackingId,
+                    'start_at' => now()->addHour()->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
+                ]
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                    message
+                }
+            }
+        ', [
+            'input' => $duplicateOrderData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        // Should return validation error
+        $this->assertArrayHasKey('errors', $response->json());
+        $this->assertStringContainsString("The metadata contains a duplicate value for field 'data.tracking_id'", $response->json('errors.0.message'));
+    }
 }

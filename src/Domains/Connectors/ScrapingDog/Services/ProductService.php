@@ -26,16 +26,18 @@ class ProductService
         $amazonPrice = $this->extractPrice($product);
         $name = Str::limit($product['title'] ?? '', 255);
         $listPrice = $this->extractListPrice($product);
-        $discountPrice = $amazonPrice;
-
-        // Usar parent_asin si existe, sino usar el asin del customization_options
+        if ($amazonPrice <= 0 && $listPrice > 0) {
+            $amazonPrice = $listPrice;
+        }
+        if ($listPrice == 0 && $amazonPrice > 0) {
+            $listPrice = $amazonPrice;
+        }
         $asin = $this->getProductAsin($product);
-
         $mappedProduct = [
             'name' => $name,
             'description' => $this->getDescription($product),
-            'price' => $listPrice,
-            'discountPrice' => $discountPrice,
+            'price' => $amazonPrice,
+            'discountPrice' => $listPrice,
             'slug' => Str::slug($asin),
             'sku' => $asin,
             'source' => 'amazon',
@@ -110,6 +112,14 @@ class ProductService
                     'name' => 'total_reviews',
                     'data' => $product['total_reviews'] ?? '',
                 ],
+                [
+                    'name' => 'product_information',
+                    'data' => $product['product_information'] ?? [],
+                ],
+                [
+                    'name' => 'feature_bullets',
+                    'data' => $product['feature_bullets'] ?? [],
+                ]
             ],
         ];
 
@@ -183,40 +193,45 @@ class ProductService
     {
         $weight = null;
 
-        if (isset($product['feature_bullets']) && is_array($product['feature_bullets'])) {
+        if (! empty($product['product_information']['Item Weight'])) {
+            $weight = $this->parseWeightString($product['product_information']['Item Weight']);
+        }
+
+        if ((! $weight || $weight <= 0) && ! empty($product['product_information']['Product Dimensions'])) {
+            $weight = $this->parseWeightString($product['product_information']['Product Dimensions']);
+        }
+
+        if ((! $weight || $weight <= 0) && ! empty($product['feature_bullets']) && is_array($product['feature_bullets'])) {
             foreach ($product['feature_bullets'] as $bullet) {
-                if (preg_match('/([\d.]+)\s*(pounds|ounces|lbs|oz|kg|g)\b/i', $bullet, $matches)) {
-                    $weight = (float) $matches[1];
-                    $unit = strtolower($matches[2]);
-                    switch ($unit) {
-                        case 'pounds':
-                        case 'lbs':
-                            $weight = $weight * 453.592;
-
-                            break;
-                        case 'ounces':
-                        case 'oz':
-                            $weight = $weight * 28.3495;
-
-                            break;
-                        case 'kg':
-                            $weight = $weight * 1000;
-
-                            break;
-                        case 'g':
-                            break;
-                    }
-
+                $weight = $this->parseWeightString($bullet);
+                if ($weight > 0) {
                     break;
                 }
             }
         }
-
         if (! $weight || $weight <= 0) {
             $weight = 453.592;
         }
 
         return (float) $weight;
+    }
+
+    private function parseWeightString(string $text): float
+    {
+        if (preg_match('/([\d.]+)\s*(pounds|ounces|lbs|oz|kg|g)\b/i', $text, $matches)) {
+            $value = (float) $matches[1];
+            $unit = strtolower($matches[2]);
+
+            return match ($unit) {
+                'pounds', 'lbs' => $value * 453.592,
+                'ounces', 'oz' => $value * 28.3495,
+                'kg' => $value * 1000,
+                'g' => $value,
+                default => 0,
+            };
+        }
+
+        return 0;
     }
 
     public function calcDiscountPrice(array $product): array
@@ -271,15 +286,15 @@ class ProductService
 
     protected function extractPrice(array $product): float
     {
-        if (isset($product['exact_price']) && ! empty($product['exact_price'])) {
-            return (float) str_replace(['$', ','], '', $product['exact_price']);
-        }
-
-        if (isset($product['list_price']) && ! empty($product['list_price'])) {
-            return (float) str_replace(['$', ','], '', $product['list_price']);
-        }
-
         if (isset($product['price']) && ! empty($product['price'])) {
+            if (preg_match('/\$?([\d,]+\.?\d*)\s+with\s+(\d+)\s+percent\s+savings/i', $product['price'], $matches)) {
+                $discountedPrice = (float) str_replace(',', '', $matches[1]);
+                $discountPercent = (int) $matches[2];
+                $originalPrice = ($discountedPrice * 100) / (100 - $discountPercent);
+
+                return $originalPrice;
+            }
+
             preg_match('/\$?([\d,]+\.?\d*)/', $product['price'], $matches);
             if (isset($matches[1])) {
                 return (float) str_replace(',', '', $matches[1]);
@@ -291,12 +306,9 @@ class ProductService
 
     protected function extractListPrice(array $product): float
     {
-        $price = $this->extractPrice($product);
-        if ($price == 0 && isset($product['previous_price']) && ! empty($product['previous_price'])) {
-            return (float) str_replace(['$', ','], '', $product['previous_price']);
-        }
+        $price = str_replace(['$', ','], '', $product['list_price'] ?? '');
 
-        return $price;
+        return (float) $price;
     }
 
     protected function getProductAsin(array $product): string

@@ -46,6 +46,7 @@ class Customer
     public static function convertPeopleToCustomerStructure(People $people): array
     {
         $name = $people->getFirstAndLastName();
+        $generateTempEmail = $people->company->get('eleads_generate_temp_email') ?? false;
 
         $words = explode(' ', $name['lastName']);
         $middleName = null;
@@ -58,7 +59,7 @@ class Customer
         $customerData = [
             'isBusiness' => false,
             'firstName' => $name['firstName'],
-            'lastName' => $name['lastName'],
+            'lastName' => $name['lastName'] ?? $people->lastname,
             'middleName' => $name['middleName'] ?? ($middleName ?? ''),
             'birthday' => Date::isValid($people->dob) ? $people->dob : null,
             'emails' => [],
@@ -77,6 +78,7 @@ class Customer
                     $customerData['emails'][] = [
                         'address' => filter_var($email->value, FILTER_VALIDATE_EMAIL) ? $email->value : preg_replace("/\s+/", '', Str::cleanup($name['firstName'] . $name['lastName']) . '@salesassist.io'),
                         'emailType' => 'Personal',
+                        'doNotEmail' => $email->is_opt_out === 1 ? true : false,
                     ];
                     $emailCount++;
                 }
@@ -115,6 +117,7 @@ class Customer
                             'number' => preg_replace('/\D+/', '', $phoneValue),
                             'phoneType' => 'Cellular',
                             'preferredTimeToContact' => 'Unspecified',
+                            'doNotText' => $phone->is_opt_out === 1 ? true : false,
                         ];
 
                         $phoneExist[] = $phoneValue;

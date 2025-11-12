@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Webhooks;
 
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -17,6 +18,17 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
+use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -33,6 +45,7 @@ use Spatie\LaravelData\DataCollection;
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
     protected int $timeThresholdInSeconds = 8;
+    protected bool $hijackSession = false;
 
     #[Override]
     public function execute(): array
@@ -51,6 +64,22 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         // Get event type from payload
         $eventType = $payload['event'] ?? 'unknown';
         $this->timeThresholdInSeconds = $this->receiver->configuration['time_threshold_in_seconds'] ?? $this->timeThresholdInSeconds;
+
+        //hijack session
+        if ($this->receiver->company->get('allow_session_hijack', false)
+            && $this->receiver->company->get('overwrite_phone_number') !== null
+            && isset($payload['data']['messages']['remoteJid'])) {
+            $overwriteConfig = $this->receiver->company->get('overwrite_phone_number');
+            $originalRemoteJid = $payload['data']['messages']['remoteJid'];
+
+            if (isset($overwriteConfig[$originalRemoteJid])) {
+                $newPhone = $overwriteConfig[$originalRemoteJid];
+                $this->hijackSession = true;
+                // Override phone number in both locations
+                $payload['data']['messages']['remoteJid'] = $newPhone;
+                $payload['data']['messages']['key']['remoteJid'] = $newPhone;
+            }
+        }
 
         // Process based on event type
         $result = match ($eventType) {
@@ -121,12 +150,33 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $chatJid = $key['remoteJid'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
+            $lead = null;
+
+            if ($chatJid === null) {
+                report('WaSender webhook message missing chat JID' . json_encode((array) $messageData));
+
+                continue; // Skip processing this message
+            }
+
+            // If the message is not from the user, process the contact
+            if (! $isFromMe) {
+                /**
+                 * @todo we need to create users for each user and associate with people
+                 */
+                $people = $this->processContactFromMessage($chatJid, $messageData);
+                $lead = $this->createLeadFromPeople($people);
+                $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
+                $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
+            }
 
             // Create the message slug
             $messageSlug = $this->createMessageSlug($messageId, $chatJid);
 
             // Get or create a channel for this conversation
-            $channel = $this->getOrCreateChannel($chatJid);
+            $channel = $this->getOrCreateChannel(
+                jid: $chatJid,
+                lead: $lead
+            );
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)
@@ -182,17 +232,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 }
             }
 
-            // If the message is not from the user, process the contact
-            if (! $isFromMe) {
-                /**
-                 * @todo we need to create users for each user and associate with people
-                 */
-                $people = $this->processContactFromMessage($chatJid, $messageData);
-            }
-
+            /*
             if (isset($people) && $people instanceof People) {
                 // Associate the message with the contact
                 $message->addEntity($people);
+            } */
+            if (isset($lead) && $lead instanceof Lead) {
+                // Associate the message with the lead
+                $message->addEntity($lead);
             }
 
             // Associate message with channel
@@ -236,6 +283,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         'app' => $message->app,
                         'company' => $message->company,
                         'process_document' => $processDocument,
+                        'communication_channel' => 'whatsapp',
                         'text' => $text,
                         'lastMessageParentDocument' => $lastUnprocessedImageParentMessage !== null ? $lastUnprocessedImageParentMessage : null,
                     ]
@@ -948,8 +996,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     /**
      * Create a unique slug for channels (both 1-to-1 and groups)
      */
-    protected function createChannelSlug(string $jid): string
+    protected function createChannelSlug(string $jid, ?Lead $lead = null): string
     {
+        //$leadId = ($lead ? '-' . (string) $lead->getId() : '');
         // Use different prefixes for groups and 1-to-1 channels for clarity
         if ($this->isGroupJid($jid)) {
             return 'wa-group-' . Str::slug($jid);
@@ -964,12 +1013,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      * Get an existing channel or create a new one (for any conversation type)
      * with database transaction locking to prevent race conditions
      */
-    protected function getOrCreateChannel(string $jid, ?string $name = null): Channel
+    protected function getOrCreateChannel(string $jid, ?string $name = null, ?Lead $lead = null): Channel
     {
-        $slug = $this->createChannelSlug($jid);
+        $slug = $this->createChannelSlug($jid, $lead);
 
         // Use a database transaction with locking
-        return DB::transaction(function () use ($slug, $jid, $name) {
+        return DB::transaction(function () use ($slug, $jid, $name, $lead) {
             // Attempt to find the channel with a lock for update
             $channel = Channel::where('slug', $slug)
                 ->where('companies_id', $this->receiver->company->getId())
@@ -997,10 +1046,39 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $channel->apps_id = $this->receiver->app->getId();
                 //$channel->users_id = $this->receiver->user->getId();
                 //$channel->uuid = Str::uuid()->toString();
-                $channel->save();
+
+                if ($lead) {
+                    $channel->entity_namespace = get_class($lead);
+                    $channel->entity_id = $lead->getId();
+
+                    $channel->save();
+
+                    $channel->addTags(
+                        [
+                            'whatsapp',
+                            'ai-agent',
+                        ],
+                        $lead->app,
+                        $lead->user,
+                        $lead->company
+                    );
+                }
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;
                 $channel->save();
+            }
+
+            if ($lead && empty($channel->entity_namespace)) {
+                $channel->entity_namespace = get_class($lead->people);
+                $channel->entity_id = $lead->people->getId();
+                $channel->update();
+            }
+
+            if ($channel->id) {
+                $channel->set(
+                    ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                    'WhatsApp'
+                );
             }
 
             return $channel;
@@ -1023,6 +1101,75 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         return $this->processContact($jid, $pushName);
     }
 
+    protected function createLeadFromPeople(People $people): Lead
+    {
+        $activeLead = LeadsRepository::getPeopleActiveLead($people);
+        if ($activeLead) {
+            return $activeLead;
+        }
+
+        $leadType = LeadType::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->where('name', 'Warm')
+                    ->firstOrFail();
+
+        $leadSource = new CreateLeadSourceAction(
+            new LeadSource(
+                $people->app,
+                $people->company,
+                $leadType->getId(),
+                'whatsapp',
+                true,
+                'whatsapp'
+            )
+        )->execute();
+
+        $leadReceiver = new CreateLeadReceiverAction(
+            new LeadReceiver(
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                agent: $people->user,
+                name: 'Agent',
+                source: 'AI Agent',
+                isDefault: false,
+                lead_sources_id: $leadSource->getId(),
+                lead_types_id: $leadType->getId()
+            )
+        )->execute();
+
+        $leadData = new DataTransferObjectLead(
+            app: $people->app,
+            branch: $people->company->defaultBranch,
+            user: $people->user,
+            title: $people->name . ' WhatsApp Opp',
+            pipeline_stage_id: 0,
+            people: new PeopleDTO(
+                $people->app,
+                $people->company->defaultBranch,
+                $people->user,
+                $people->firstname,
+                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                Address::collect([], DataCollection::class),
+                $people->lastname,
+                $people->id
+            ),
+            leads_owner_id: 0,
+            status_id: 0,
+            type_id: $leadType->getId(),
+            source_id: $leadSource->getId(),
+            receiver_id: $leadReceiver->getId()
+        );
+
+        $lead = new CreateLeadAction($leadData)->execute();
+        $lead->addTags([
+            'whatsapp',
+            'ai-agent',
+        ]);
+
+        return $lead;
+    }
+
     /**
      * Process a contact and create/update People record
      */
@@ -1033,8 +1180,28 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $existingCustomer = People::getByCustomField(
+            'whatsapp_jid',
+            $jid,
+            $this->receiver->company
+        );
+
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
+
+        // also find customer by phone number if not found by JID
+        if (! $existingCustomer) {
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneNumber) {
+                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
+                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+            })->fromCompany($this->receiver->company)
+                ->fromApp($this->receiver->app)
+                ->first();
+        }
+
+        if ($existingCustomer && $this->hijackSession) {
+            return $existingCustomer;
+        }
 
         // Prepare name parts
         $displayName = $name ?? $this->extractContactName($jid);
@@ -1067,6 +1234,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             ],
             tags: ['whatsapp', 'wa-contact']
         );
+
+        if ($existingCustomer) {
+            $peopleDto->id = $existingCustomer->getId();
+        }
 
         $createAction = new CreatePeopleAction($peopleDto);
 

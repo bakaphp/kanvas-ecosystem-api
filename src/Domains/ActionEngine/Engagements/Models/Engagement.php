@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Engagements\Models;
 
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -16,6 +17,7 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStageMessage;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Engagement.
@@ -37,9 +39,12 @@ use Kanvas\Social\Messages\Models\Message;
 class Engagement extends BaseModel
 {
     use UuidTrait;
+    use CanUseWorkflow;
+    use SoftDeletesTrait;
 
     protected $table = 'engagements';
     protected $guarded = [];
+    public const DELETED_AT = 'is_deleted';
 
     public function companyAction(): BelongsTo
     {
@@ -90,7 +95,7 @@ class Engagement extends BaseModel
 
     public function stageMessage(): BelongsTo
     {
-        return $this->belongsTo(PipelineStageMessage::class, 'pipelines_stages_id', 'id');
+        return $this->belongsTo(PipelineStageMessage::class, 'pipelines_stages_id', 'pipelines_stages_id');
     }
 
     public static function getByMessageId(int|string $messageId): self

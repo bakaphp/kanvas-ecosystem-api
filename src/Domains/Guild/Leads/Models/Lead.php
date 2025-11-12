@@ -15,9 +15,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Contracts\EventResourceInterface;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -31,6 +35,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
+use Throwable;
 
 /**
  * Class Leads.
@@ -61,7 +66,7 @@ use Override;
  * @property string $is_duplicate
  * @property string $third_party_sync_status @deprecated version 0.3
  */
-class Lead extends BaseModel
+class Lead extends BaseModel implements EventResourceInterface
 {
     use UuidTrait;
     use DynamicSearchableTrait {
@@ -71,6 +76,7 @@ class Lead extends BaseModel
     use FollowersTrait;
     use CanUseWorkflow;
     use HasLightHouseCache;
+    use EventResourceTrait;
 
     protected $table = 'leads';
     protected $guarded = [];
@@ -115,6 +121,15 @@ class Lead extends BaseModel
             return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
         }
 
+        if ($app->get(LeadFilterEnum::FILTER_BY_OWNER_AGENTS->value) && $user->get('ZOHO_USER_OWNER_ID')) {
+            try {
+                $query->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
+                    ->where('leads_owner_id', $user->getId());
+            } catch (Throwable $th) {
+                //do nothing
+            }
+        }
+
         if ($app->get(LeadFilterEnum::FILTER_BY_AGENTS->value)) {
             $company = $user->getCurrentCompany();
             $agent = Agent::fromCompany($company)->where('users_id', $user->getId())->first();
@@ -155,6 +170,10 @@ class Lead extends BaseModel
                                 ->where('is_deleted', 0);
                       });
             })->where('is_deleted', 0);
+        }
+
+        if ($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value) && is_array($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value))) {
+            $query->whereNotIn('leads_types_id', $app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value));
         }
 
         return $query;
@@ -533,6 +552,7 @@ class Lead extends BaseModel
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
@@ -545,7 +565,13 @@ class Lead extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+         } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
@@ -556,5 +582,47 @@ class Lead extends BaseModel
         }
 
         return $query;
+    }
+
+    public function getCurrentPipelineStage(): ?PipelineStage
+    {
+        if ($this->pipeline_stage_id) {
+            return PipelineStage::find($this->pipeline_stage_id);
+        }
+
+        return null;
+    }
+
+    public function getNextPipelineStage(): ?PipelineStage
+    {
+        $currentStage = $this->getCurrentPipelineStage();
+        if ($currentStage) {
+            return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
+                ->where('weight', '>', $currentStage->weight)
+                ->where('is_deleted', 0)
+                ->orderBy('weight', 'asc')
+                ->first();
+        }
+
+        return null;
+    }
+
+    public function moveToNextPipelineStage(): void
+    {
+        $nextStage = $this->getNextPipelineStage();
+        if ($nextStage) {
+            $this->pipeline_stage_id = $nextStage->id;
+            $this->saveOrFail();
+        }
+    }
+
+    public function hasBeenContacted(): bool
+    {
+        return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+    }
+
+    public function setContactStatus(LeadGroupStatusEnum $status): void
+    {
+        $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 }

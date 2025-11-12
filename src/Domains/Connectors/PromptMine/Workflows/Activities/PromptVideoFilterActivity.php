@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Actions\ProcessVideoRequestAction;
 use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
 use Kanvas\Enums\AppSettingsEnums;
@@ -28,7 +29,8 @@ class PromptVideoFilterActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 5);
+        sleep($app->get('PROMPT_VIDEO_WAIT_TIME') ?? 10);
+        $entity->refresh();
         $this->app = $app;
 
         $company = $this->getCompany($app, $entity);
@@ -41,9 +43,14 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
+                    $orderCredit = new MessageOrderFulfillmentAction($entity)->execute('video');
+
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
                     $result = $processVideoAction->execute();
+
+                    $params['video_url_key'] = isset($result['is_google_service']) && $result['is_google_service'] ? 'videoUri' : 'video_url';
+                    $params['videoKey'] = $result['videoKey'] ?? null;
 
                     if ($result['result'] && isset($result['request_id'])) {
                         // Schedule delayed processing using the service
@@ -56,15 +63,17 @@ class PromptVideoFilterActivity extends KanvasActivity
                         );
                     }
 
+                    $result['orderCredit'] = $orderCredit;
+
                     return $result;
                 } catch (Exception $e) {
-                    report($e);
+                    //report($e);
 
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Error submitting video processing request: ' . $e->getMessage(),
-                    ];
+                    ]);
                 }
             },
             company: $company,
@@ -82,9 +91,9 @@ class PromptVideoFilterActivity extends KanvasActivity
         array $params
     ): void {
         dispatch(function () use ($entity, $app, $requestId, $videoModel, $params) {
-            $service = new VideoProcessingService($entity, $app);
+            $service = new VideoProcessingService($entity, $app, $params);
             $service->checkVideoProcessingStatus($requestId, $videoModel, $params);
-        })->delay(now()->addMinutes(5)); // Wait 8 minutes before first check
+        })->delay(now()->addMinutes(5)); // Wait 5 minutes before first check
     }
 
     /**

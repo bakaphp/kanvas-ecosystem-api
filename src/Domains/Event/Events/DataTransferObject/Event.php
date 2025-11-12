@@ -14,6 +14,7 @@ use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -33,10 +34,14 @@ class Event extends Data
         public readonly EventClass $class,
         #[DataCollectionOf(EventDate::class)]
         public readonly DataCollection $dates,
+        public readonly ?Model $resource = null,
         public readonly ?string $description = null,
         public readonly ?string $slug = null,
         public readonly array $participants = [],
+        public readonly array $resources = [],
+        public readonly array $orderItems = [],
         public readonly ?string $meeting_link = null,
+        public readonly ?int $timeSlotId = null,
     ) {
     }
 
@@ -52,12 +57,16 @@ class Event extends Data
             status: self::getEntityByIdOrDefault(EventStatus::class, $app, $company, $data['status_id'] ?? null),
             type: EventType::getByIdFromCompanyApp($data['type_id'], $company, $app),
             category: EventCategory::getByIdFromCompanyApp($data['category_id'], $company, $app),
+            resource: isset($data["resources_id"]) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data["resources_id"] ?? null) : null,
             class: self::getEntityByIdOrDefault(EventClass::class, $app, $company, $data['class_id'] ?? null),
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
             slug: $data['slug'] ?? null,
             participants: $data['participants'] ?? [],
-            meeting_link: $data['meeting_link'] ?? null
+            resources: $data['resources'] ?? [],
+            orderItems: $data['order_items'] ?? [],
+            meeting_link: $data['meeting_link'] ?? null,
+            timeSlotId: $data['time_slot_id'] ?? null
         );
     }
 
@@ -65,7 +74,7 @@ class Event extends Data
         string $entityClass,
         $app,
         $company,
-        ?int $idField,
+        ?string $idField,
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {

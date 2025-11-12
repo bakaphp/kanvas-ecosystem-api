@@ -7,6 +7,7 @@ namespace Kanvas\Apps\Actions;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
+use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
 use Kanvas\Inventory\Products\Enums\EmailTemplateEnum as ProductsEnumsEmailTemplateEnum;
@@ -92,6 +93,9 @@ class SyncEmailTemplateAction
             ],[
                 'name' => ProductsEnumsEmailTemplateEnum::LOW_STOCK->value,
                 'template' => File::get(resource_path('views/emails/lowStock.blade.php')),
+            ],[
+                'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
+                'template' => File::get(resource_path('views/push/engagement-status-changed.blade.php')),
             ],
         ];
 

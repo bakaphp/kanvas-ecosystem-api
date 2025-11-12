@@ -25,7 +25,7 @@ class MessageNotificationTextAction
      */
     public function notificationText(): string
     {
-        return $this->get((string) $this->engagement->stageMessage()->first()->message_notification);
+        return $this->get((string) $this->engagement->stageMessage()->first()?->message_notification);
     }
 
     /**
@@ -33,7 +33,7 @@ class MessageNotificationTextAction
      */
     public function cardText(): string
     {
-        return $this->get((string) $this->engagement->stageMessage()->first()->message);
+        return $this->get((string) $this->engagement->stageMessage()->first()?->message);
     }
 
     /**

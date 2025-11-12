@@ -10,18 +10,41 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
+use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
+use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
+use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\SystemModules\Models\SystemModules;
+use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
 {
     public function __construct(
-        protected Event $event
+        protected Event $event,
+        protected array $metadata = []
     ) {
     }
 
     public function execute(): ModelsEvent
     {
+        // Validate time slot availability
+        $this->validateTimeSlotAvailability();
+
         $event = DB::connection('event')->transaction(function () {
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
@@ -39,6 +62,8 @@ class CreateEventAction
                 'event_category_id' => $this->event->category->getId(),
                 'event_class_id' => $this->event->class->getId(),
                 'description' => $this->event->description,
+                'resources_id' => $this->event->resource?->id ?? null,
+                'resources_type' => $this->event->resource?->getMorphClass() ?? null,
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
@@ -47,17 +72,21 @@ class CreateEventAction
             } else {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
+
+            $currencyCode = $this->metadata['currency'] ?? 'USD';
+
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
-                    currency: Currencies::getByCode('USD'),
+                    currency: Currencies::getByCode($currencyCode),
                     name: $this->event->name,
                     version: 1,
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
-                    slug: $eventVersionSlug
+                    slug: $eventVersionSlug,
+                    metadata: $this->metadata
                 )
             );
 
@@ -67,11 +96,33 @@ class CreateEventAction
                     $this->event->app,
                     $this->event->company->defaultBranch,
                     $this->event->user,
-                    $this->event->participants,
+                    $participant,
                     $eventVersion,
-                    $participant
                 );
                 $createParticipant->execute();
+            }
+
+            $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
+            if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
+                $this->createEventOrder($eventVersion, $this->event->orderItems);
+            }
+
+            // Store additional resources in pivot table
+            if (count($this->event->resources)) {
+                $this->storeEventResources($event, $this->event->resources);
+            }
+
+            $participants = $eventVersion->participants;
+
+            if ($eventVersion && ! $participants->isEmpty()) {
+                $codes = (new CreatePassAction(
+                    $eventVersion->event,
+                    $eventVersion
+                ))->forAllParticipants();
+
+                new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
+                    'codes' => $codes,
+                ])->execute();
             }
 
             return $event;
@@ -103,5 +154,160 @@ class CreateEventAction
                 ],
             ]
         )->validate();
+    }
+
+    protected function createEventOrder(ModelsEventVersion $eventVersion, array $orderItemsData = []): void
+    {
+        $variant = $eventVersion->event->resource;
+
+        if (! $variant) {
+            return;
+        }
+
+        $orderItemsCollection = [];
+        $total = 0;
+        $orderCurrency = $eventVersion->currency ?? Currencies::getByCode('USD');
+
+        // If order_items are provided, create OrderItem DTOs from them
+        if (count($orderItemsData)) {
+            foreach ($orderItemsData as $itemData) {
+                $itemVariant = Variants::getById($itemData['variant_id'], $eventVersion->event->app);
+                $currency = $eventVersion->currency ?? Currencies::getByCode($itemData['currency_code'] ?? 'USD');
+
+                $orderItem = new OrderItem(
+                    app: $eventVersion->event->app,
+                    variant: $itemVariant,
+                    name: $itemData['name'],
+                    sku: $itemVariant->sku,
+                    quantity: $itemData['quantity'],
+                    price: (float) ($itemData['price'] ?? 0.0),
+                    tax: 0,
+                    discount: 0.0,
+                    currency: $currency,
+                    quantityShipped: 0,
+                    metadata: $itemData['metadata'] ?? null
+                );
+
+                $orderItemsCollection[] = $orderItem;
+                $total += $orderItem->getTotal();
+            }
+        } else {
+            $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
+
+            $orderItem = new OrderItem(
+                app: $eventVersion->event->app,
+                variant: $variant,
+                name: $eventVersion->event->name,
+                sku: $variant->sku,
+                quantity: $eventVersion->metadata['quantity'] ?? 1,
+                price: $price,
+                tax: 0,
+                discount: 0.0,
+                currency: $orderCurrency,
+                quantityShipped: 0
+            );
+
+            $orderItemsCollection[] = $orderItem;
+            $total = $orderItem->getTotal();
+        }
+
+        $event = $eventVersion->event;
+
+        $people = PeoplesRepository::getByEmail($event->user->email, $event->company, $event->app);
+        if (! $people) {
+            $contacts = [
+                new Contact(
+                    value: $event->user->email,
+                    contacts_types_id: ContactTypeEnum::EMAIL->value,
+                    weight: 0
+                ),
+            ];
+            $peopleDto = new People(
+                app: $event->app,
+                branch: $event->company->defaultBranch,
+                user: $event->user,
+                firstname: $event->user->firstname,
+                lastname: $event->user->lastname,
+                contacts: Contact::collect($contacts, DataCollection::class),
+                address: Address::collect([], DataCollection::class)
+            );
+            $people = (new CreatePeopleAction(
+                $peopleDto
+            ))->execute();
+        }
+
+        $items = OrderItem::collect($orderItemsCollection, DataCollection::class);
+
+        $dto = Order::from([
+            'app' => $event->app,
+            'region' => Regions::getDefault($event->company, $event->app),
+            'token' => Str::random(32),
+            'company' => $event->company,
+            'people' => $people,
+            'user' => $event->user,
+            'orderNumber' => '',
+            'orderType' => 'event',
+            'total' => (float) $total,
+            'taxes' => 0.0,
+            'totalDiscount' => 0.0,
+            'totalShipping' => 0.0,
+            'status' => OrderStatusEnum::COMPLETED->value,
+            'checkoutToken' => '',
+            'currency' => $orderCurrency,
+            'items' => $items,
+        ]);
+        $action = new CreateOrderAction($dto);
+        $action->disableWorkflow();
+        $kanvasOrder = $action->execute();
+        $kanvasOrder->resources_id = $event->id;
+        $kanvasOrder->resources_type = $event->getMorphClass();
+        $kanvasOrder->saveQuietly();
+    }
+
+    protected function storeEventResources(ModelsEvent $event, array $resources): void
+    {
+        foreach ($resources as $resourceData) {
+            if (isset($resourceData['resources_id']) && isset($resourceData['resources_type'])) {
+                $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceData['resources_type']);
+                EventResource::create([
+                    'apps_id' => $event->apps_id,
+                    'companies_id' => $event->companies_id,
+                    'event_id' => $event->getId(),
+                    'resources_id' => $resourceData['resources_id'],
+                    'resources_type' => $resourceClass,
+                    'metadata' => $resourceData['metadata'] ?? null,
+                ]);
+            }
+        }
+    }
+
+    protected function validateTimeSlotAvailability(): void
+    {
+        if (! $this->event->dates->count()) {
+            return;
+        }
+
+        $dateData = $this->event->dates[0];
+        $resourcesId = $this->event->resource?->id;
+        $resourcesType = $this->event->resource?->getMorphClass();
+
+        if (! $resourcesId || ! $resourcesType) {
+            return;
+        }
+
+        $newDate = $dateData->date->format('Y-m-d');
+        $newStartTime = $dateData->start_time;
+        $newEndTime = $dateData->end_time;
+
+        EventTimeSlotValidator::validateForCreate(
+            $resourcesId,
+            $resourcesType,
+            $this->event->company->getId(),
+            $this->event->app->getId(),
+            $newDate,
+            $newStartTime,
+            $newEndTime,
+            $this->event->timeSlotId
+        );
     }
 }

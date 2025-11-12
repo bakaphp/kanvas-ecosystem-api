@@ -163,6 +163,7 @@ class CreateEsimOrderAction
 
             // Get balance information
             $this->balanceInfo = $this->eSimService->getServiceBalance($this->serviceId);
+            $this->order->addTag('reFuel');
         } catch (Exception $e) {
             throw new ValidationException('Failed to process refuel order: ' . $e->getMessage());
         }
@@ -353,7 +354,7 @@ class CreateEsimOrderAction
         return new ESim(
             $this->lpaCode,
             $this->iccid,
-            'ACTIVE', // State - assuming active after successful activation
+            'released',
             1, // Quantity
             (float) ($this->order->allItems()->first()->price ?? 0),
             'bundle',
@@ -376,7 +377,7 @@ class CreateEsimOrderAction
                 (int) ($dataRemaining ?: $dataAmount),
                 $formattedEst . ' EST',
                 $this->iccid, // Confirmation code
-                'ACTIVE',
+                'released',
                 $this->orderVariant->getAttributeBySlug('variant-type')?->value === PlanTypeEnum::UNLIMITED,
             ),
             $this->orderMetaData['esimLabels'][0]['label'] ?? null,

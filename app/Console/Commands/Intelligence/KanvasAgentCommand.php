@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
@@ -32,8 +33,10 @@ class KanvasAgentCommand extends Command
      * The name and signature of the console command.
      *
      * @var string
-     */
-    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id} {--interactive : Start an interactive chat session}';
+    */
+    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id} 
+                           {--clear-history= : Clear history - options: all, agent, entity, or specific external_reference_id} 
+                           {--interactive : Start an interactive chat session}';
 
     /**
      * The console command description.
@@ -56,7 +59,19 @@ class KanvasAgentCommand extends Command
         $this->overwriteAppService($app);
         $agentId = (int) $this->argument('agent_id');
         $agent = Agent::getById($agentId, $app);
+        $clearHistoryOption = $this->option('clear-history');
 
+        if ($clearHistoryOption) {
+            $this->info('Clearing chat history...');
+
+            // Get all keys matching the pattern
+            $keys = Redis::keys('agent_chat_history_v3:*');
+
+            if (! empty($keys)) {
+                // Delete all matching keys
+                Redis::del($keys);
+            }
+        }
         // Initialize the agent
         $crm = new $agent->type->handler();
         $inspector = new Inspector(
@@ -87,7 +102,7 @@ class KanvasAgentCommand extends Command
     /**
      * Start an interactive chat session with the agent.
      */
-    protected function startInteractiveChat(object $agent, Model $entity)
+    protected function startInteractiveChat(object $agent, Model $entity): void
     {
         $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
         $chatHistory = [];

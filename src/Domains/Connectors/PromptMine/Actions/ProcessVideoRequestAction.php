@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
 {
+    protected bool $isGoogleService = false;
+
     public function __construct(
         protected Message $entity,
         protected AppInterface $app,
@@ -31,6 +35,18 @@ class ProcessVideoRequestAction
         // Construct the API URL based on video type
         $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $isGoogleService = false;
+
+        /**
+         * if its google use the specific api route
+         */
+        if (Str::contains($videoModel, 'veo')) {
+            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoModel = str_replace('fal-ai/', '', $videoModel);
+            $isGoogleService = true;
+            $this->isGoogleService = true;
+        }
+
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
 
         if (empty($apiUrl) || empty($baseApiUrl)) {
@@ -57,7 +73,8 @@ class ProcessVideoRequestAction
 
             if ($isImageToVideo) {
                 // Process image-to-video
-                $messageFiles = $this->entity->getFiles();
+                //$messageFiles = $this->entity->getFiles();
+                $messageFiles = $this->getFilesWithRetry($this->entity);
                 if ($messageFiles->isEmpty()) {
                     return [
                         'result' => false,
@@ -65,8 +82,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrl = $messageFiles->first()->url;
-                $results = $this->submitImageToVideo($imageUrl, $videoModel, $apiUrl);
+                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -99,6 +116,8 @@ class ProcessVideoRequestAction
                 'status' => 'IN_QUEUE',
                 'api_url' => $apiUrl,
                 'video_type' => $isImageToVideo ? 'image-to-video' : 'text-to-video',
+                'is_google_service' => $isGoogleService,
+                'videoKey' => $videoKey,
             ];
         } catch (Exception $e) {
             return [
@@ -107,6 +126,27 @@ class ProcessVideoRequestAction
                 'message' => 'Error submitting video processing request: ' . $e->getMessage(),
             ];
         }
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
     }
 
     /**
@@ -167,7 +207,7 @@ class ProcessVideoRequestAction
     /**
      * Submit image-to-video request and return request ID
      */
-    protected function submitImageToVideo(string $imageUrl, string $videoModel, string $apiUrl): array
+    protected function submitImageToVideo(array $imageUrlsArray, string $videoModel, string $apiUrl): array
     {
         // Get default values from app settings
         $defaultValues = $this->getDefaultVideoValues('image-to-video');
@@ -176,7 +216,7 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrl,
+            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
@@ -203,7 +243,7 @@ class ProcessVideoRequestAction
             $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
         }
 
-        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
+        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
@@ -215,11 +255,34 @@ class ProcessVideoRequestAction
     /**
      * Submit a video generation request
      */
-    protected function submitVideoRequest(array $payload, string $apiUrl): array
+    protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($apiUrl, $payload);
+        if ($this->isGoogleService && $isVideo) {
+            // For Google services, use multipart form data
+            $httpRequest = Http::asMultipart();
+
+            // Add each field from payload as form data
+            foreach ($payload as $key => $value) {
+                if ($key === 'image_url') {
+                    // Download the image content and send as file
+                    $imageContent = Http::get(is_array($value) ? $value[0] : $value)->body();
+                    $httpRequest = $httpRequest->attach(
+                        'image',
+                        $imageContent,
+                        'image.png' // Default filename, could be extracted from URL if needed
+                    );
+                } else {
+                    $httpRequest = $httpRequest->attach((string) $key, (string) $value);
+                }
+            }
+
+            $response = $httpRequest->post($apiUrl);
+        } else {
+            // For non-Google services, use JSON
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($apiUrl, $payload);
+        }
 
         return $response->json();
     }

@@ -5,6 +5,8 @@ type Event {
     slug: String!
     description: String
     version_count: Int!
+    start_at: String
+    end_at: String
     user: User! @belongsTo(relation: "user")
     company: Company! @belongsTo(relation: "company")
     theme: EventTheme @belongsTo(relation: "theme")
@@ -13,11 +15,20 @@ type Event {
     type: EventType @belongsTo(relation: "eventType")
     class: EventClass @belongsTo(relation: "eventClass")
     category: EventCategory @belongsTo(relation: "eventCategory")
+    resources_id: ID
+    resources_type: String
+    resource: EventResourceUnion @morphTo(relation: "resource")
+    orders: [Order!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventOrderBuilder@getEventOrders"
+        )
     versions: [EventVersion!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getEventVersion"
         )
+    resources: [EventResource!]! @hasMany(relation: "resources")
     created_at: DateTime
     updated_at: DateTime
     files: [Filesystem!]!
@@ -57,6 +68,8 @@ type EventVersion {
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")
     total_attendees: Int!
+    start_at: String
+    end_at: String
     participants: [EventVersionParticipant!]!
         @paginate(
             defaultCount: 25
@@ -132,13 +145,29 @@ input EventInput {
     type_id: ID!
     class_id: ID
     category_id: ID!
+    resources: Mixed
+    participants: [String!]
     dates: [EventVersionDateInput!]!
 }
 
 input EventUpdateInput {
     name: String
     description: String
+    resources_id: ID
+    resources_type: String
 }
+
+type EventResource {
+    id: ID!
+    event_id: ID!
+    resources_id: ID!
+    resources_type: String!
+    metadata: Mixed
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+union EventResourceUnion = Variant
 
 input EventVersionDateInput {
     date: Date!
@@ -146,6 +175,79 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
     end_time: String!
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input TimeSlotBookingInput {
+    time_slot_id: ID
+    variant_id: ID
+    participants: Mixed
+    event_name: String!
+    event_description: String
+    hold_id: String
+    metadata: Mixed
+}
+
+input OrderItemInput {
+    variant_id: ID!
+    name: String!
+    quantity: Int!
+    price: Float!
+    metadata: Mixed
+}
+
+input ResourceBookingInput {
+    resources_id: ID!
+    resources_type: String
+    start_at: String!
+    end_at: String
+    participants: Mixed
+    event_name: String
+    event_description: String
+    hold_id: String
+    payment_intent_id: String
+    payment_method_id: String
+    metadata: Mixed
+    resources: Mixed
+    order_items: [OrderItemInput!]
+}
+
+input ResourceBookingUpdateInput {
+    event_version_id: ID!
+    resources_id: ID
+    resources_type: String
+    start_at: String
+    end_at: String
+    participants: Mixed
+    event_name: String
+    event_description: String
+    metadata: Mixed
+    resources: Mixed
+}
+
+type ResourceBookingDeleteResult {
+    success: Boolean!
+    message: String!
+    deleted_event: Mixed
+}
+
+type ResourceHoldResult {
+    hold_id: String!
+    expires_at: String!
+    message: String!
+}
+
+input ConfirmBookingInput {
+    event_version_id: ID!
+    payment_intent_id: String!
+    amount: Float
+}
+
+type ConfirmBookingResult {
+    success: Boolean!
+    message: String!
+    event_version: EventVersion!
+    payment: Mixed!
+    order: Mixed!
 }
 
 extend type Mutation @guard {
@@ -161,13 +263,43 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
         )
+    
+    bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
+        )
+
+    bookResource(input: ResourceBookingInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@book"
+        )
+
+    updateResourceBooking(input: ResourceBookingUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@update"
+        )
+
+    deleteResourceBooking(event_version_id: ID!): ResourceBookingDeleteResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@delete"
+        )
+
+    confirmBooking(input: ConfirmBookingInput!): ConfirmBookingResult!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\EventPaymentMutation@confirmBooking"
+        )
 }
 
 extend type Query @guard {
     events(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id"])
+            @whereConditions(columns: ["id", "name", "slug", "companies_id", "resources_id", "resources_type"])
+        status: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Event\\Handlers\\EventStatusHandler"
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Event!]!
         @paginate(
@@ -186,6 +318,8 @@ extend type Query @guard {
                     "event_id"
                     "companies_id"
                     "version_number"
+                    "start_at"
+                    "end_at"
                 ]
             )
         orderBy: _
@@ -197,6 +331,8 @@ extend type Query @guard {
                     "name"
                     "event_id"
                     "version_number"
+                    "start_at"
+                    "end_at"
                 ]
             )
     ): [EventVersion!]!

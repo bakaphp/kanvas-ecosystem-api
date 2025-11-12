@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Models\BaseModel;
@@ -35,6 +37,7 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  * @property int $is_searchable
  * @property int $is_visible
  * @property int $weight
+ * @property int $is_deleted
  */
 #[ObservedBy(AttributeObserver::class)]
 class Attributes extends BaseModel
@@ -42,8 +45,10 @@ class Attributes extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use CascadeSoftDeletes;
-    use DatabaseSearchableTrait;
     use HasTranslationsDefaultFallback;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     //use QueryCacheable;
 
     public $table = 'attributes';
@@ -128,6 +133,45 @@ class Attributes extends BaseModel
 
     public function addDefaultValue(mixed $value): void
     {
-        $this->addValues([$value]);
+        $this->addDefaultValues([$value]);
+    }
+
+    public function searchableAs(): string
+    {
+        // As for this stage, the code doesn't know in which app need to set the index.
+        $attribute = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $attribute->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_attribute_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'attribute_index');
+    }
+
+    public function isPublished(): bool
+    {
+        if (isset($this->app) && $this->app->get('allow_unpublished_attributes')) {
+            return ! $this->is_deleted;
+        }
+
+        return ! $this->is_deleted;
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                    $query->where('companies_id', $user->getCurrentCompany()->getId());
+                } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

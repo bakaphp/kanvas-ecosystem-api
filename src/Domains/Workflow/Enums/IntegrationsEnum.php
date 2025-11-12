@@ -24,6 +24,7 @@ enum IntegrationsEnum: string
     case STRIPE = 'stripe';
     case ESIM_VENTA_MOBILE = 'esim_ventamobile';
     case AERO_AMBULANCIA = 'aero_ambulancia';
+    case UNIVERSAL_ASSISTANCE = 'universal_assistance';
     case WASENDER = 'wa_sender';
     case DRIVE_CENTRIC = 'drive_centric';
     case PASO_RAPIDO = 'paso_rapido';
@@ -35,4 +36,7 @@ enum IntegrationsEnum: string
     case MOVIPASS = 'movipass';
     case QUICKBOOKS = 'quickbooks';
     case OFAC = 'ofac';
+    case TEE_TIME = 'teetime';
+    case TWILIO = 'twilio';
+    case MAILGUN = 'mailgun';
 }

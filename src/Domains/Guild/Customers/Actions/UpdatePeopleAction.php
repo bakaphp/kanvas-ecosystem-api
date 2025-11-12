@@ -42,11 +42,11 @@ class UpdatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
-            'licence_number' => $this->peopleData->licence_number,
+            'license_number' => $this->peopleData->license_number,
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?
-        $this->people->update($attributes);
+        $this->people->updateOrFail($attributes);
 
         $this->people->setCustomFields($this->peopleData->custom_fields);
         $this->people->saveCustomFields();
@@ -109,6 +109,10 @@ class UpdatePeopleAction
         }
 
         if ($this->peopleData->address->count()) {
+            if ($this->peopleData->flushPreviousAddress) {
+                $this->people->address()->delete();
+            }
+
             // Deduplicate incoming addresses and filter out empty/invalid addresses
             $deduplicatedAddresses = $this->peopleData->address
                 ->toCollection()
@@ -127,11 +131,13 @@ class UpdatePeopleAction
             $addresses = [];
 
             foreach ($deduplicatedAddresses as $address) {
-                $existingAddress = $this->people->address()->where('address', $address->address)
+                $hasId = isset($address->id) && $address->id > 0;
+                $existingAddress = ! $hasId ? $this->people->address()->where('address', $address->address)
                     ->where('city', $address->city)
                     ->where('state', $address->state)
                     ->where('zip', $address->zip)
-                    ->first();
+                    ->first()
+                    : $this->people->address()->where('id', $address->id)->first();
 
                 if (! $existingAddress) {
                     $addresses[] = new Address([
@@ -147,6 +153,17 @@ class UpdatePeopleAction
                         'countries_id' => $address->country_id ?? 0,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                         'duration' => $address->duration ?? 0.0,
+                    ]);
+                } else {
+                    $existingAddress->update([
+                        'address' => $address->address,
+                        'city' => $address->city,
+                        'state' => $address->state,
+                        'zip' => $address->zip,
+                        'address_2' => $address->address_2,
+                        'is_default' => $address->is_default,
+                        'countries_id' => $address->country_id ?? $existingAddress->countries_id,
+                        'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                     ]);
                 }
             }

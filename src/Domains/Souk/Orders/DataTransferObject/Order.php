@@ -32,7 +32,7 @@ class Order extends Data
         public readonly People $people,
         public readonly UserInterface $user,
         public readonly string $token,
-        public readonly string $orderNumber,
+        public int|float|string $orderNumber,
         public readonly ?Address $shippingAddress,
         public readonly ?Address $billingAddress,
         public float $total,
@@ -59,6 +59,7 @@ class Order extends Data
         public readonly ?PaymentMethod $paymentMethod = null,
         public readonly ?string $paymentStatus = null, // enums
         public readonly ?ModelsOrder $parent = null,
+        public readonly ?string $ipAddress = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }

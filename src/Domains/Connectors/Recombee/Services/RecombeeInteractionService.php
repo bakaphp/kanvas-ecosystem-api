@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use InvalidArgumentException;
 use Kanvas\Connectors\Recombee\Client;
 use Kanvas\Connectors\Recombee\Enums\CustomFieldEnum;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Recombee\RecommApi\Client as RecommApiClient;
@@ -78,19 +79,24 @@ class RecombeeInteractionService
             InteractionEnum::SHARE->getValue(),
             InteractionEnum::FOLLOW->getValue(),
         ];
+
+        //for now its global if we use variant we send to recombee the product id
+        $entity = $userInteraction->entityData();
+        $entityId = $entity instanceof Variants ? $entity->product->id : $userInteraction->entity_id;
+
         // Handle rating values
         if ($interactionClass === AddRating::class) {
             $value = in_array($interactionType, $likeStyleInteraction) ? 1 : -1;
             $request = new $interactionClass(
                 (string) $userInteraction->users_id,
-                $userInteraction->entity_id,
+                $entityId,
                 $value,
                 $parameters
             );
         } else {
             $request = new $interactionClass(
                 (string) $userInteraction->users_id,
-                $userInteraction->entity_id,
+                $entityId,
                 $parameters
             );
         }

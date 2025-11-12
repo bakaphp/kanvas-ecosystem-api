@@ -92,13 +92,13 @@ class ProcessMessageTaskUpdatesAction
         $data = $messageData['data'] ?? [];
 
         // Special handling for certain verbs
-        if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation'])) {
-            return $messageData['checklistId'] ?? $this->lead->company->get('default_checklist_id');
+        if (in_array($verb, ['sold-car-verification', 'payoff-verification', 'mileage-confirmation','bdc-needs-assessment'])) {
+            return $messageData['checkListId'] ?? $this->lead->company->get('default_checklist_id');
         }
 
         // Check parent message for checklist ID
         $parentData = $this->message->parent ? $this->message->parent->getMessage() : [];
-        $parentChecklistId = $parentData['checklistId'] ?? null;
+        $parentChecklistId = $parentData['checkListId'] ?? null;
 
         if ($parentChecklistId && (int) $parentChecklistId > 0) {
             return (int) $parentChecklistId;

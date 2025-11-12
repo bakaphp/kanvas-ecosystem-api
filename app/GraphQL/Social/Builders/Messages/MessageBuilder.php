@@ -67,6 +67,9 @@ class MessageBuilder
                 $query->cacheFor($messageCacheTime);
             }
         }
+        if (isset($args['random']) && $args['random'] === true) {
+            $query->inRandomOrder();
+        }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
@@ -214,7 +217,9 @@ class MessageBuilder
         }
 
         return Message::fromApp()
+            ->where('is_deleted', 0)
             ->whereHas('channels', function ($query) use ($args) {
+                $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
                 } elseif (isset($args['channel_slug'])) {
@@ -264,6 +269,7 @@ class MessageBuilder
         $results = $index->search($args['search'], [
             'hitsPerPage' => 15,
             'attributesToRetrieve' => ['name', 'description'],
+            'filters' => 'is_public = 1 AND is_deleted = 0',
         ]);
 
         return $results['hits'];

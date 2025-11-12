@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Enums;
 
+use InvalidArgumentException;
+
 enum ActionStatusEnum: string
 {
     case DOWNLOADED = 'downloaded';
@@ -21,5 +23,16 @@ enum ActionStatusEnum: string
             self::SENT->value,
             self::OPEN->value,
         ]);
+    }
+
+    public function getByName(string $name): ActionStatusEnum
+    {
+        return match ($name) {
+            'downloaded' => self::DOWNLOADED,
+            'submitted' => self::SUBMITTED,
+            'sent' => self::SENT,
+            'opened' => self::OPEN,
+            default => throw new InvalidArgumentException("Invalid status name: $name"),
+        };
     }
 }

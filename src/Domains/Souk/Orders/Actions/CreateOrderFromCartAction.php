@@ -16,7 +16,8 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
     #[Override]
     public function execute(): ModelsOrder
     {
-        if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value)) {
+        $isFullDiscountCartAmount = $this->cart->getTotal() === 0 && $this->cart->getSessionKey() === ($this->request['input']['metadata']['paymentIntent']['id'] ?? null);
+        if (! $this->app->get(ConfigurationEnum::ALLOW_NO_PAYMENT_ORDER->value) && ! $isFullDiscountCartAmount) {
             $paymentIntentId = $this->request['input']['metadata']['paymentIntent']['id']
                 ?? $this->request['input']['payment_intent_id']
                 ?? $this->request['input']['metadata']['paymentIntent']['client_secret'] //remove later

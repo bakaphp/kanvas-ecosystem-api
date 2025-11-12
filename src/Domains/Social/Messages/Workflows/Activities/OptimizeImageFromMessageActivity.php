@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
+use Exception;
 use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -15,9 +17,13 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Prism;
 
 /**
- * @todo move to promptmine namespace
+ * @todo move to prompt mine namespace
+ * this as turn into a fix all image related issue , we need to
+ * regroup to fix the root cause
  */
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
@@ -41,10 +47,40 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 //$messageContent = ! is_array($message->message) ? json_decode($message->message, true) : $message->message;
                 $messageContent = $message->message;
 
+                $updatedChildrenFixImage = false;
+                $generateTitle = false;
+                $error = null;
+                //fix prompts issue with images on mobile that it requires image on the children not nugget
+                if ($message->messageType->verb === 'memo'
+                    && ! isset($messageContent['image'])
+                    && isset($messageContent['nugget'])) {
+                    $updatedChildrenFixImage = true;
+
+                    $messageContent['image'] = $messageContent['nugget'];
+                    $message->message = $messageContent;
+                    $message->saveOrFail();
+                }
+
+                //fix issue with prompt and not title
+                if ($message->messageType->verb === 'prompt' && ! isset($messageContent['title']) && isset($messageContent['prompt'])) {
+                    try {
+                        $generateTitle = true;
+                        $messageContent['title'] = $this->generateTitleByPrompt($messageContent['prompt']);
+                        $message->message = $messageContent;
+                        $message->saveOrFail();
+                    } catch (Exception $e) {
+                        $error = $e->getMessage();
+                        //log error but continue
+                    }
+                }
+
                 if (! isset($messageContent['image']) && ! isset($messageContent['ai_image'])) {
                     return [
                         'result' => false,
                         'message' => 'Message does not have an image url',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                        'generatedTitle' => $generateTitle,
+                        'error' => $error,
                     ];
                 }
 
@@ -52,21 +88,38 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                 if ($message->parent_id) {
                     // For child messages, use 'image' key
                     if (! isset($messageContent['image'])) {
-                        return [
+                        return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Child message does not have an image url',
-                        ];
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                            'generatedTitle' => $generateTitle,
+                            'error' => $error,
+                        ]);
                     }
                     $imageUrl = $messageContent['image'];
                 } else {
                     // For parent messages, use 'ai_image.image' key
                     if (! isset($messageContent['ai_image']) || ! isset($messageContent['ai_image']['image'])) {
-                        return [
+                        return $this->failWorkflow([
                             'result' => false,
                             'message' => 'Parent message does not have a valid AI image url',
-                        ];
+                            'content' => $messageContent,
+                            'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                            'generatedTitle' => $generateTitle,
+                            'error' => $error,
+                        ]);
                     }
                     $imageUrl = $messageContent['ai_image']['image'];
+                }
+
+                if (! Str::isUrl($imageUrl)) {
+                    return $this->failWorkflow([
+                        'result' => false,
+                        'message' => 'The provided image URL is not valid',
+                        'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                        'generatedTitle' => $generateTitle,
+                        'error' => $error,
+                    ]);
                 }
 
                 $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
@@ -140,9 +193,23 @@ class OptimizeImageFromMessageActivity extends KanvasActivity
                     'message' => 'Image optimized and uploaded',
                     'data' => $fileSystemRecord,
                     'message_id' => $message->getId(),
+                    'updatedChildrenFixImage' => $updatedChildrenFixImage,
+                    'generatedTitle' => $generateTitle,
+                    'error' => $error,
                 ];
             },
+            additionalParams: $params,
             company: $company,
         );
+    }
+
+    private function generateTitleByPrompt(string $prompt): string
+    {
+        $response = Prism::text()
+            ->using(Provider::Gemini, 'gemini-2.0-flash')
+            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
+            ->asText();
+
+        return str_replace(['```', 'json'], '', $response->text);
     }
 }

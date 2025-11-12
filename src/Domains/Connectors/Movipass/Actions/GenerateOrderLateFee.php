@@ -62,12 +62,21 @@ class GenerateOrderLateFee
             }
 
             $lateFee = Variants::find($completeOrder->metadata["data"]["late-fee-variant-id"]);
-            $lateFeePrice = $lateFee->getPriceInfoFromDefaultChannel()->price;
+            $lateFeePrice = $lateFee?->getPriceInfoFromDefaultChannel()?->price;
+
+            if (! $lateFeePrice) {
+                return;
+            }
 
             $feeCount = max(1, ceil($order->days_late / 30));
 
+            $shouldCalculateTotal = false;
+
             if ($hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)?->first()) {
-                $hasLateFee->quantity = $feeCount;
+                if ($hasLateFee->quantity !== $feeCount) {
+                    $hasLateFee->quantity = $feeCount;
+                    $shouldCalculateTotal = true;
+                }
             } else {
                 $orderItem = OrderItem::viaRequest($this->apps, $completeOrder->company, $completeOrder->region, [
                     'variant_id' => $lateFee->id,
@@ -76,16 +85,25 @@ class GenerateOrderLateFee
                 ]);
 
                 $completeOrder->addItem($orderItem);
+                $shouldCalculateTotal = true;
             }
 
-            $completeOrder->metadata = [
-                "data" => [
-                    ...$completeOrder->metadata["data"],
-                    "late_fee_charged_at" => $timeZonedNow,
-                ]
-            ];
+            if ($shouldCalculateTotal) {
+                $completeOrder->metadata = [
+                    "data" => [
+                        ...$completeOrder->metadata["data"],
+                        "late_fee_charged_at" => $timeZonedNow,
+                    ]
+                ];
+                $completeOrder->calculateTotal(false);
 
-            $completeOrder->calculateTotal();
+                // Save without updating the updated_at timestamp
+                $originalUpdatedAt = $completeOrder->updated_at;
+                $completeOrder->timestamps = false;
+                $completeOrder->updated_at = $originalUpdatedAt;
+                $completeOrder->saveQuietly();
+                $completeOrder->timestamps = true;
+            }
         });
     }
 }

@@ -33,4 +33,13 @@ class AgentModelFactory extends Factory
             ];
         });
     }
+
+    public function withCompanyId(int $companyId)
+    {
+        return $this->state(function (array $attributes) use ($companyId) {
+            return [
+                'companies_id' => $companyId,
+            ];
+        });
+    }
 }

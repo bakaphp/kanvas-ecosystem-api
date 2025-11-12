@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\MorphEntityDataTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -26,13 +29,15 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
- *  @property int $entity_id
- *  @property int $entity_namespace
+ *  @property int|null $entity_id
+ *  @property string|null $entity_namespace
  */
 class Channel extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
+    use HasTagsTrait;
+    use MorphEntityDataTrait;
 
     protected $table = 'channels';
 
@@ -106,6 +111,8 @@ class Channel extends BaseModel
            'app' => $message->app,
            'company' => $message->company,
         ]);
+
+        ChannelMessageCreatedEvent::dispatch($this, $message);
     }
 
     /**

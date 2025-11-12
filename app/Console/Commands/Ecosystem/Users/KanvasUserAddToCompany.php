@@ -65,6 +65,8 @@ class KanvasUserAddToCompany extends Command
         //make sure it has the app profile
         try {
             $user->getAppProfile($app);
+            $company->searchable();
+            $user->searchable();
         } catch (Exception $e) {
             $this->error('User didn\'t exist in this app, we just created it , run it again  ' . $e->getMessage());
         }

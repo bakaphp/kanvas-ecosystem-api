@@ -44,7 +44,7 @@ class CompanyAction extends BaseModel
     use AsTree;
 
     protected $table = 'companies_actions';
-    protected $guarded = [
+    protected $fillable = [
         'apps_id',
         'companies_id',
         'companies_branches_id',
@@ -53,6 +53,11 @@ class CompanyAction extends BaseModel
         'users_id',
         'parent_id',
         'path',
+        'name',
+        'description' ,
+        'form_config',
+        'is_active' ,
+        'is_published',
     ];
 
     #[Override]

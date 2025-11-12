@@ -56,6 +56,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
             // Prepare data to pass to the Blade template
 
+            /**
+             * @todo move to use the idverification action
+             */
             return $this->executeIntegration(
                 entity: $entity,
                 app: $app,
@@ -98,9 +101,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             ],
                             'license' => $idCheck['dLIDNumberRaw'] ?? '',
                             'exp_date' => [
-                                'day' => isset($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
-                                'month' => isset($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
-                                'year' => isset($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
+                                'day' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
+                                'month' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
+                                'year' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
                             ],
                             'state_id' => 0,
                             'firstname' => $idCheck['firstName'] ?? '',
@@ -149,6 +152,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         }
 
                         $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
+                        $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
+
                         $notification = new Blank(
                             'id-verification-report',
                             [
@@ -167,6 +172,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $entity->set($key, true);
                         $notification->setSubject($name . ' - ID Verification Report');
                         Notification::send($usersToNotify, $notification);
+                        $entity->owner?->notify($notification);
+
+                        foreach ($managers as $manager) {
+                            if ($usersToNotify->contains($manager)) {
+                                continue;
+                            }
+                            $manager->notify($notification);
+                        }
 
                         // Generate PDF
                         /*                $pdfReport = PdfService::generatePdfFromTemplate(
@@ -206,7 +219,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         //$entity->addFile($pdfReport, 'id-verification');
 
                         //since we are running 2 diff version of the api, we need to slow you down to get the last message
-                    })->delay(now()->addSeconds(30));
+                    })->delay(now()->addSeconds(30))->onQueue('notifications');
 
                     return [
                         'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],

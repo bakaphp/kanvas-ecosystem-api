@@ -21,6 +21,7 @@ type LeadPipelineStage {
     description: String
     rotting_days: Int!
     weight: Int!
+    config: Mixed
 }
 
 input PipelineInput {
@@ -38,6 +39,7 @@ input PipelineStageInput {
     name: String!
     rotting_days: Int!
     weight: Int!
+    config: Mixed
 }
 
 extend type Mutation @guard {

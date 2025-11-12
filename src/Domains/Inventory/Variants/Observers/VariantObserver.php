@@ -11,6 +11,7 @@ class VariantObserver
 {
     public function saved(Variants $variant): void
     {
+        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
     }
 

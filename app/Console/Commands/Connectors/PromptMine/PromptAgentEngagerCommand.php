@@ -11,6 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Prism\Prism\Enums\Provider;
+use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Prism;
 
 class PromptAgentEngagerCommand extends Command
@@ -146,10 +147,16 @@ class PromptAgentEngagerCommand extends Command
                 '{"view": 1, "click": 0, "like": 1} // If relevant but no deep engagement expected' . "\n" .
                 '{"view": 1, "click": 0, "like": 0} // If not relevant' . "\n" ;
 
-                $response = Prism::text()
-                    ->using(Provider::Gemini, 'gemini-2.0-flash')
-                    ->withPrompt($prompt)
-                    ->generate();
+                try {
+                    $response = Prism::text()
+                        ->using(Provider::Gemini, 'gemini-2.0-flash')
+                        ->withPrompt($prompt)
+                        ->asText();
+                } catch (PrismException $e) {
+                    $this->error('Prism exception for message ID ' . $messageId . ': ' . $e->getMessage());
+
+                    continue;
+                }
 
                 $responseText = str_replace(['```', 'json'], '', $response->text);
 

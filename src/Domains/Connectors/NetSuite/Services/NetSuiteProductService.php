@@ -58,7 +58,7 @@ class NetSuiteProductService
 
         foreach ($product->locationsList->locations as $assignment) {
             if ($assignment->location == $locationId) {
-                return (int)$assignment->quantityOnHand;
+                return (int)$assignment->quantityAvailable;
             }
         }
 

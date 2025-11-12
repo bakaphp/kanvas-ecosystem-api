@@ -17,24 +17,35 @@ class LeadFactory extends Factory
     protected $model = Lead::class;
 
     #[Override]
-    public function definition()
+    public function definition(): array
     {
-        $app = app(Apps::class);
-        $appId = $this->states['apps_id'] ?? $app->getId(); // Use the provided app ID if set
-        $companyId = $this->states['companies_id'] ?? Companies::factory()->create()->getId(); // Use the provided company ID if set
-        $peopleId = $this->states['people_id'] ?? People::factory()->withAppId($appId)->withCompanyId($companyId)->withContacts()->create()->getId();
-
         return [
-            'firstname' => fake()->firstName,
-            'lastname' => fake()->lastName,
-            'title' => fake()->name,
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'title' => fake()->name(),
             'companies_branches_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'users_id' => 1,
             'leads_receivers_id' => 0,
             'leads_owner_id' => 1,
-            'apps_id' => $appId,
-            'companies_id' => $companyId,
-            'people_id' => $peopleId,
+            'apps_id' => function (array $attributes) {
+                return app(Apps::class)->getId();
+            },
+            'companies_id' => function (array $attributes) {
+                return Companies::factory()->create()->getKey();
+            },
+            'people_id' => function (array $attributes) {
+                // We can't rely on $attributes here because other closures haven't been resolved yet
+                // So we'll create the dependencies directly
+                $appId = $attributes['apps_id'] ?? app(Apps::class)->getId();
+                $companyId = $attributes['companies_id'] ?? Companies::factory()->create()->getKey();
+
+                return People::factory()
+                    ->withAppId($appId)
+                    ->withCompanyId($companyId)
+                    ->withContacts()
+                    ->create()
+                    ->getId();
+            },
         ];
     }
 
@@ -68,8 +79,11 @@ class LeadFactory extends Factory
     public function withCompanyId(int $companyId)
     {
         return $this->state(function (array $attributes) use ($companyId) {
+            $branch = Companies::find($companyId)->defaultBranch();
+
             return [
                 'companies_id' => $companyId,
+                'companies_branches_id' => $branch->first()->getId(),
             ];
         });
     }
@@ -79,6 +93,27 @@ class LeadFactory extends Factory
         return $this->state(function (array $attributes) use ($receiverId) {
             return [
                 'leads_receivers_id' => $receiverId,
+            ];
+        });
+    }
+
+    /**
+     * Create a lead with specified app and company, ensuring people is created with the same IDs
+     */
+    public function withAppAndCompany(int $appId, int $companyId)
+    {
+        return $this->state(function (array $attributes) use ($appId, $companyId) {
+            $peopleId = People::factory()
+                ->withAppId($appId)
+                ->withCompanyId($companyId)
+                ->withContacts()
+                ->create()
+                ->getId();
+
+            return [
+                'apps_id' => $appId,
+                'companies_id' => $companyId,
+                'people_id' => $peopleId,
             ];
         });
     }

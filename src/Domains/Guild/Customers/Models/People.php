@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -43,7 +44,7 @@ use Override;
  * @property string $firstname
  * @property string|null $middlename = null
  * @property string $lastname
- * @property string $licence_number
+ * @property string $license_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -57,7 +58,8 @@ class People extends BaseModel
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
-    }    use HasTagsTrait;
+    }
+    use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
@@ -193,6 +195,17 @@ class People extends BaseModel
                     'contacts_types_id',
                     ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId()
                 )
+                ->get();
+    }
+
+    public function getAllPhones(): Collection
+    {
+        $cellphoneTypeId = ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId();
+        $phoneTypeId = ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId();
+
+        return $this->contacts()
+                ->whereIn('contacts_types_id', [$phoneTypeId, $cellphoneTypeId])
+                ->orderByRaw("FIELD(contacts_types_id, {$cellphoneTypeId}, {$phoneTypeId})")
                 ->get();
     }
 
@@ -401,10 +414,8 @@ class People extends BaseModel
     /**
      * Get person by phone matching (strips non-numeric characters for comparison).
      */
-    public static function getByPhoneMatchingValue(string $phone, ?Apps $app = null): ?self
+    public static function getByPhoneMatchingValue(string $phone, Companies $company, Apps $app): ?self
     {
-        $app = $app ?? app(Apps::class);
-
         return self::whereHas('contacts', function ($query) use ($phone) {
             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
                   ->whereIn('contacts_types_id', [
@@ -412,8 +423,20 @@ class People extends BaseModel
                       ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
                   ]);
         })->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
           ->where('is_deleted', 0)
           ->first();
+    }
+
+    public static function getByMatchingValue(string $value, Companies $company, Apps $app): ?self
+    {
+        return self::whereHas('contacts', function ($query) use ($value) {
+            $query->where('value', $value);
+        })
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->first();
     }
 
     #[Override]
@@ -475,11 +498,11 @@ class People extends BaseModel
             'tags' => $this->tags->map(function ($tag) {
                 return $tag->name;
             }),
-            'custom_fields' => $this->customFields()->get()->map(function ($customField) {
+            'custom_fields' => []/* $this->customFields()->get()->map(function ($customField) {
                 return [
                     $customField->name => $customField->value,
                 ];
-            }),
+            }) */,
             'contacts' => $this->contacts()->get()->map(function ($contact) {
                 return [
                     'type' => $contact->type->name,
@@ -625,7 +648,13 @@ class People extends BaseModel
 
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
 
-        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+        /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                    $query->where('companies_id', $user->getCurrentCompany()->getId());
+                } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 

@@ -100,14 +100,20 @@ class PullPeopleAction
                                     'value' => $email['address'],
                                     'contacts_types_id' => ContactTypeEnum::EMAIL->value,
                                     'weight' => 0,
+                                    'is_opt_out' => (int) ($email['doNotEmail'] ?? 0),
                                 ],
                                 $customer['emails'] ?? []
                             ),
                             array_map(
                                 fn ($phone) => [
-                                    'value' => $phone['number'],
-                                    'contacts_types_id' => ContactTypeEnum::PHONE->value,
-                                    'weight' => 0,
+                                    'value' => $phone['number'] ?? '',
+                                    'contacts_types_id' => isset($phone['phoneType']) && strtolower($phone['phoneType']) === 'cellular'
+                                        ? ContactTypeEnum::CELLPHONE->value
+                                        : ContactTypeEnum::PHONE->value,
+                                    'weight' => isset($phone['phoneType']) && ((int)$phone['phoneType'] === 1 || strtolower($phone['phoneType']) === 'cellular')
+                                        ? 100
+                                        : 0,
+                                    'is_opt_out' => (int) ($phone['doNotText'] ?? 0),
                                 ],
                                 $customer['phones'] ?? []
                             )

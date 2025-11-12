@@ -66,4 +66,5 @@ enum ConfigurationEnum: string
     case FINANCE_AND_INSURANCE = 'finance-and-insurance';
     case MILEAGE_CONFIRMATION = 'mileage-confirmation';
     case SALES_ASSIST_LANDING_PAGE = 'sales-assist-landing-page';
+    case MINUTES_FOR_MATCH_ADF_LEAD = 'minutes-for-match-adf-lead';
 }

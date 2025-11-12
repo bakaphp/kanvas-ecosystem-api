@@ -6,9 +6,12 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\VinSolution\DataTransferObject\People;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -19,9 +22,13 @@ use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
+use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class PullLeadAction
@@ -39,8 +46,11 @@ class PullLeadAction
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
+            $vinLeadUserId = $lead !== null ? $lead->user->get(ConfigurationEnum::getUserKey($this->company, $lead->user)) : null;
+            $vinLeadOwnerUserId = $lead !== null ? $lead->owner?->get(ConfigurationEnum::getUserKey($this->company, $lead->owner)) : null;
 
-            if (! $vinUserId) {
+            if (empty($vinUserId) && empty($vinLeadUserId) && empty($vinLeadOwnerUserId)) {
                 throw new VinSolutionException(
                     'User not found in VinSolution',
                 );
@@ -48,7 +58,7 @@ class PullLeadAction
 
             $user = Dealer::getUser(
                 $vinCompany,
-                $vinUserId,
+                $vinUserId ?? $vinLeadUserId ?? $vinLeadOwnerUserId,
                 $this->app,
             );
 
@@ -63,6 +73,11 @@ class PullLeadAction
 
             if (! empty($vinLead['Leads'])) {
                 $currentLead = $vinLead['Leads'][0];
+                $createdAt = $currentLead['CreatedUtc'] ?? null;
+                $showIsShowRoom = $currentLead['IsOnShowroom'] ?? null;
+                $leadStatus = $currentLead['LeadStatusType'] ?? null;
+                $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+
                 $vinLead = DataTransferObjectLead::fromVinLeadArray(
                     $currentLead,
                     $vinCompany,
@@ -74,6 +89,14 @@ class PullLeadAction
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
+                //set communication channel
+                if ($lead->company->get('ai', false)) {
+                    $this->setCommunicationChannel(
+                        $lead,
+                        $currentLead ?? []
+                    );
+                }
+
                 //$lead->searchable();
                 $this->addCoBuyerParticipant(
                     $vinCompany,
@@ -83,6 +106,13 @@ class PullLeadAction
                 );
 
                 $this->setVehicleOfInterest(
+                    $vinCompany,
+                    $user,
+                    $lead,
+                    $currentLead
+                );
+
+                $this->setTradeInVehicle(
                     $vinCompany,
                     $user,
                     $lead,
@@ -113,6 +143,71 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    private function isWithin10Minutes(string $dateString): bool
+    {
+        $diffTime = $this->company->get(ConfigurationEnum::LEAD_TIME_DIFF_MINUTES->value, 5) ?? 5;
+        $leadTimezone = $this->company->get('timezone', 'America/New_York') ?? $this->company->timezone ?? 'America/New_York';
+
+        $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
+        $now = Carbon::now($leadTimezone);
+
+        return $leadDate->diffInMinutes($now) <= $diffTime && $leadDate->isPast();
+    }
+
+    private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
+    {
+        $createdAt = $currentLead['CreatedUtc'] ?? null;
+        $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
+        $leadStatus = $currentLead['LeadStatusType'] ?? null;
+        $leadGroupCategory = $currentLead['GroupCategory'] ?? null; //Waiting , Contacted
+
+        if ($leadGroupCategory !== null) {
+            $lead->setContactStatus(LeadGroupStatusEnum::get($leadGroupCategory));
+        }
+        $leadTypeName = (string) $lead->type?->name;
+
+        if (empty($createdAt)
+            || empty($lead->firstname)
+            || strtolower($lead->firstname) === 'name'
+            || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)
+            || $showIsShowRoom === true
+            || ! in_array(strtolower($leadTypeName), ['internet'])
+            || ! $this->isWithin10Minutes($createdAt)
+            || ! $lead->isActive()) {
+            return;
+        }
+
+        $lead->set('process_via_pull', true);
+        $lead->set('vin_solution_date_in', $createdAt);
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel === null) {
+            return;
+        }
+
+        $lead->set(
+            LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value,
+            $agentNotificationChannel
+        );
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
     }
 
     private function addCoBuyerParticipant(
@@ -198,7 +293,7 @@ class PullLeadAction
 
                 $activeTaskListId = $taskList && $canChangeStatus
                     ? $taskList->getId()
-                    : $lead->companies->get('default_checklist_id');
+                    : $lead->company->get('default_checklist_id');
 
                 $lead->set('check_list_status', [
                     'mode' => 'automatic',
@@ -207,6 +302,35 @@ class PullLeadAction
             }
         } catch (Throwable $e) {
             report($e);
+        }
+    }
+
+    private function setTradeInVehicle(
+        Dealer $vinCompany,
+        User $user,
+        ModelsLead $lead,
+        array $currentLead
+    ): void {
+        try {
+            $vehicleTradeIn = current(TradeIn::getByLeadId(
+                $vinCompany,
+                $user,
+                $currentLead['LeadId']
+            )->items);
+
+            if (is_array($vehicleTradeIn) && count($vehicleTradeIn)) {
+                $lead->set(LeadCustomFieldEnum::TRADE_IN->value, $vehicleTradeIn);
+            }
+        } catch (Throwable $e) {
+            $message = $e->getMessage();
+
+            $isIgnoredTradeInNotFound = $e instanceof ClientException
+                && str_starts_with($message, 'Client error: `GET https://api.vinsolutions.com/vehicles/trade?leadId=')
+                && str_contains($message, '`404 Not Found` response');
+
+            if (! $isIgnoredTradeInNotFound) {
+                report($e);
+            }
         }
     }
 }

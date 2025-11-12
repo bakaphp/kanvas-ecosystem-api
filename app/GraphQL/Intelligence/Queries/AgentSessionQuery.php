@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 
 class AgentSessionQuery
@@ -13,11 +16,13 @@ class AgentSessionQuery
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $session = Session::getByUuid($request['id'], $app);
+        $company = app(CompaniesBranches::class)->company;
 
-        if ($session->agent->role !== $session->content['background']) {
-            $content = $session->content;
-            $content['background'] = $session->agent->role;
+        $session = Session::getByUuidFromCompanyApp($request['id'], $company, $app);
+
+        if ($session->agent->role !== ($session->content['background'] ?? null)) {
+            $content = new CreateContentSessionAction($session)->execute();
+
             $session->content = $content;
             $session->update();
         }
@@ -29,6 +34,7 @@ class AgentSessionQuery
             'user' => $session->user,
             'company_config' => $session->agent->type->config,
             'content' => $session->content,
+            'channel' => $session->channel?->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
         ];
     }
 }

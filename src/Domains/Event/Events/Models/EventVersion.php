@@ -9,8 +9,9 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
@@ -35,21 +36,31 @@ class EventVersion extends BaseModel
         return $this->belongsTo(Event::class);
     }
 
+    public function timeSlot(): BelongsTo
+    {
+        return $this->belongsTo(TimeSlots::class, 'time_slot_id');
+    }
+
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
     public function dates(): HasMany
     {
         return $this->hasMany(EventVersionDate::class);
     }
 
-    public function participants(): HasManyThrough
+    public function participants(): BelongsToMany
     {
-        return $this->hasManyThrough(
-            Participant::class,
-            EventVersionParticipant::class,
-            'event_version_id',
-            'id',
-            'id',
-            'participant_id'
-        );
+        return $this->belongsToMany(Participant::class, 'event_version_participants')
+        ->withPivot(['ticket_price', 'discount', 'invoice_date', 'metadata', 'participant_type_id'])
+        ->withTimestamps();
+    }
+
+    public function eventVersionParticipants(): HasMany
+    {
+        return $this->hasMany(EventVersionParticipant::class, 'event_version_id');
     }
 
     protected function casts(): array
@@ -57,6 +68,8 @@ class EventVersion extends BaseModel
         return [
             'metadata' => Json::class,
             'agenda' => Json::class,
+            'start_at' => 'datetime',
+            'end_at' => 'datetime',
         ];
     }
 
@@ -79,9 +92,17 @@ class EventVersion extends BaseModel
 
     public function addParticipant(Participant $participant): EventVersionParticipant
     {
+        $defaultParticipantType = ParticipantType::fromApp($this->app)->first();
+
         $participantType = ParticipantType::fromApp($this->app)
             ->fromCompany($this->company)
-            ->where('name', 'Attendee')->firstOrFail();
+            ->firstOrCreate(
+                ['name' => 'Attendee'],
+                [
+                    'name' => 'Attendee',
+                    'users_id' => $defaultParticipantType->users_id
+                ]
+            );
 
         $eventVersionParticipant = EventVersionParticipant::withTrashed() // includes soft-deleted records
             ->where('event_version_id', $this->getId())

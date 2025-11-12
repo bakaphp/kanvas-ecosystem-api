@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
@@ -15,7 +14,7 @@ use RuntimeException;
 
 class Client
 {
-    protected PendingRequest $client;
+    protected GuzzleClient $client;
 
     protected string $authBaseUrl = 'https://identity.fortellis.io';
     protected string $baseUrl = 'https://api.fortellis.io/cdk-test';
@@ -43,13 +42,13 @@ class Client
 
         $this->authAuthorizationBasic = base64_encode($this->clientKey . ':' . $this->clientSecret);
 
-        // Initialize the HTTP client
-        $this->client = Http::baseUrl($this->baseUrl)
-            ->withOptions([
-                'curl' => [
-                    CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
-                ],
-            ]);
+        // Initialize the Guzzle client
+        $this->client = new GuzzleClient([
+            'base_uri' => $this->baseUrl,
+            'curl.options' => [
+                CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
+            ],
+        ]);
     }
 
     /**
@@ -58,15 +57,21 @@ class Client
     public function auth(): array
     {
         if (! $token = Redis::get($this->redisKey)) {
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/x-www-form-urlencoded',
-                'Authorization' => 'Basic ' . $this->authAuthorizationBasic,
-            ])->asForm()->post($this->authBaseUrl . '/oauth2/aus1p1ixy7YL8cMq02p7/v1/token', [
-                'grant_type' => $this->grantType,
-                'scope' => $this->scope,
-            ]);
+            $response = $this->client->post(
+                $this->authBaseUrl . '/oauth2/aus1p1ixy7YL8cMq02p7/v1/token',
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/x-www-form-urlencoded',
+                        'Authorization' => 'Basic ' . $this->authAuthorizationBasic,
+                    ],
+                    'form_params' => [
+                        'grant_type' => $this->grantType,
+                        'scope' => $this->scope,
+                    ],
+                ]
+            );
 
-            $token = $response->body();
+            $token = $response->getBody()->getContents();
 
             // Set the token in Redis with expiration
             Redis::setex($this->redisKey, 3300, $token);
@@ -78,13 +83,24 @@ class Client
     /**
      * Set this request headers.
      */
-    protected function setHeaders(PendingRequest $request): PendingRequest
+    protected function setHeaders(array $headers): array
     {
-        return $request->withHeaders([
-            'subscription-id' => $this->subscriptionId,
-            'Authorization' => 'Bearer ' . $this->auth()['access_token'],
-            'Content-Type' => 'application/json',
-        ]);
+        $headers['headers']['subscription-id'] = $this->subscriptionId;
+        $headers['headers']['Authorization'] = 'Bearer ' . $this->auth()['access_token'];
+
+        return $headers;
+    }
+
+    /**
+     * Prepare the API path based on the environment.
+     */
+    protected function preparePath(string $path): string
+    {
+        if (app()->runningUnitTests()) {
+            return 'cdk-test' . $path;
+        }
+
+        return $path;
     }
 
     /**
@@ -92,46 +108,63 @@ class Client
      */
     public function get(string $path, array $params = []): array
     {
-        $request = $this->setHeaders($this->client);
+        $response = $this->client->get(
+            $this->preparePath($path),
+            $this->setHeaders($params)
+        );
 
-        if (! empty($params)) {
-            $request = $request->withQueryParameters($params);
-        }
-
-        $response = $request->get($path);
-
-        return $response->json() ?? [];
+        return json_decode(
+            $response->getBody()->getContents(),
+            true
+        );
     }
 
     /**
      * Post to the api.
      */
-    public function post(string $path, array $data, array $headers = []): array
+    public function post(string $path, array $data, array $params = []): array
     {
-        $request = $this->setHeaders($this->client);
-
-        if (! empty($headers)) {
-            $request = $request->withHeaders($headers);
+        $params = $this->setHeaders($params);
+        if (! isset($params['headers']['Content-Type'])) {
+            $params['headers']['Content-Type'] = 'application/json';
         }
-        $response = $request->post($path, $data);
 
-        return $response->json() ?? [];
+        $params['body'] = json_encode($data);
+
+        $response = $this->client->post(
+            $this->preparePath($path),
+            $params
+        );
+
+        $returnData = $response->getBody()->getContents();
+
+        return $returnData ? json_decode(
+            $returnData,
+            true
+        ) : [];
     }
 
     /**
      * Put to the api.
      */
-    public function put(string $path, array $data, array $headers = []): array
+    public function put(string $path, array $data, array $params = []): array
     {
-        $request = $this->setHeaders($this->client);
-
-        if (! empty($headers)) {
-            $request = $request->withHeaders($headers);
+        $params = $this->setHeaders($params);
+        if (! isset($params['headers']['Content-Type'])) {
+            $params['headers']['Content-Type'] = 'application/json';
         }
 
-        $response = $request->put($path, $data);
+        $params['body'] = json_encode($data);
 
-        return $response->json() ?? [];
+        $response = $this->client->put(
+            $this->preparePath($path),
+            $params
+        );
+
+        return ! empty($response->getBody()->getContents()) ? json_decode(
+            $response->getBody()->getContents(),
+            true
+        ) : [];
     }
 
     /**
@@ -139,9 +172,19 @@ class Client
      */
     public function delete(string $path): array
     {
-        $request = $this->setHeaders($this->client);
-        $response = $request->delete($path);
+        $params = $this->setHeaders([]);
+        if (! isset($params['headers']['Content-Type'])) {
+            $params['headers']['Content-Type'] = 'application/json';
+        }
 
-        return $response->json() ?? [];
+        $response = $this->client->delete(
+            $this->preparePath($path),
+            $params
+        );
+
+        return ! empty($response->getBody()->getContents()) ? json_decode(
+            $response->getBody()->getContents(),
+            true
+        ) : [];
     }
 }

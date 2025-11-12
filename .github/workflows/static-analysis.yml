@@ -12,6 +12,7 @@ jobs:
       DB_HOST: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
+      REDIS_HOST_QUEUE: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
       DB_DATABASE: kanvas
@@ -97,11 +98,35 @@ jobs:
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
+      TEST_RECOMBEE_DATABASE_ECOM: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM }}
+      TEST_RECOMBEE_DATABASE_ECOM_KEY: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_KEY }}
+      TEST_RECOMBEE_DATABASE_ECOM_REGION: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_REGION }}
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
       TEST_ELEAD_SUBSCRIPION_ID: ${{ secrets.TEST_ELEAD_SUBSCRIPION_ID }}
       TEST_WAS_SENDER_BASE_URL: ${{ secrets.TEST_WAS_SENDER_BASE_URL }}
       TEST_WAS_SENDER_API_KEY: ${{ secrets.TEST_WAS_SENDER_API_KEY }}
+      TEST_DRIVECENTRIC_BASE_URL: ${{ secrets.TEST_DRIVECENTRIC_BASE_URL }}
+      TEST_DRIVECENTRIC_API_KEY: ${{ secrets.TEST_DRIVECENTRIC_API_KEY }}
+      TEST_DRIVECENTRIC_API_SECRET_KEY: ${{ secrets.TEST_DRIVECENTRIC_API_SECRET_KEY }}
+      TEST_DRIVECENTRIC_STORE_ID: ${{ secrets.TEST_DRIVECENTRIC_STORE_ID }}
+      TEST_PASO_RAPIDO_CLIENT_ID: ${{ secrets.TEST_PASO_RAPIDO_CLIENT_ID }}
+      TEST_PASO_RAPIDO_SECRET: ${{ secrets.TEST_PASO_RAPIDO_SECRET }}
+      TEST_PASO_RAPIDO_TAG: ${{ secrets.TEST_PASO_RAPIDO_TAG }}
+      TEST_ECHO_PAY_CLIENT_ID: ${{ secrets.TEST_ECHO_PAY_CLIENT_ID }}
+      TEST_ECHO_PAY_SECRET: ${{ secrets.TEST_ECHO_PAY_SECRET }}
+      TEST_ECHO_PAY_MERCHANT_ID: ${{ secrets.TEST_ECHO_PAY_MERCHANT_ID }}
+      TEST_ECHO_PAY_MERCHANT_KEY: ${{ secrets.TEST_ECHO_PAY_MERCHANT_KEY }}
+      TEST_ECHO_PAY_MERCHANT_SECRET: ${{ secrets.TEST_ECHO_PAY_MERCHANT_SECRET }}
+      TEST_ECHO_PAY_REFERENCE_ID: ${{ secrets.TEST_ECHO_PAY_REFERENCE_ID }}
+      TEST_ECHO_PAY_MERCHANT_SERVICE_KEY: ${{ secrets.TEST_ECHO_PAY_MERCHANT_SERVICE_KEY }}
+      TEST_ECHO_PAY_CHANNEL_CODE: ${{ secrets.TEST_ECHO_PAY_CHANNEL_CODE }}
+      TEST_ECHO_PAY_SERVICE_CODE: ${{ secrets.TEST_ECHO_PAY_SERVICE_CODE }}
+      TEST_ECHO_PAY_SERVICE_TYPE_ID: ${{ secrets.TEST_ECHO_PAY_SERVICE_TYPE_ID }}
+      TEST_ECHO_PAY_CONTRACT: ${{ secrets.TEST_ECHO_PAY_CONTRACT }}
+      TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
+      TEST_GOOGLE_PAYMENT_CLIENT_CONFIG: ${{ secrets.TEST_GOOGLE_PAYMENT_CLIENT_CONFIG }}
+      TEST_GOOGLE_PACKAGE_NAME: ${{ secrets.TEST_GOOGLE_PACKAGE_NAME }}
     strategy:
       fail-fast: false
       matrix:
@@ -131,7 +156,7 @@ jobs:
         ports:
           - 5672:5672
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -182,7 +207,7 @@ jobs:
       - name: Setup AI DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS intelligence;'
-          
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 

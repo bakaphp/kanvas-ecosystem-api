@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -31,6 +32,10 @@ class LeadObserver
             )->getId();
         }
 
+        if (empty($lead->title)) {
+            $lead->title = $lead->firstname . ' ' . $lead->lastname;
+        }
+
         // set the default status if not specified
         if (! $lead->leads_status_id) {
             $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
@@ -40,6 +45,8 @@ class LeadObserver
         if (! $lead->pipeline_id) {
             $pipeline = Pipeline::where('companies_id', $lead->companies_id)
                 ->where('is_deleted', 0)
+                ->where('apps_id', $lead->apps_id)
+                ->orderBy('is_default', 'desc')
                 ->first();
 
             if ($pipeline) {
@@ -50,15 +57,9 @@ class LeadObserver
 
         if (! $lead->leads_receivers_id) {
             $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
-                ->where('is_default', 1)
                 ->where('is_deleted', 0)
+                ->orderBy('is_default', 'desc')
                 ->first();
-
-            if (! $receiver) {
-                $receiver = LeadReceiver::where('companies_id', $lead->companies_id)
-                    ->where('is_deleted', 0)
-                    ->first();
-            }
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
@@ -82,6 +83,25 @@ class LeadObserver
                     )
                 )
             )->execute();
+
+            $aiNotesChannel = $lead->company->get('enable_ai_notes_channel', false);
+
+            if ($aiNotesChannel) {
+                (
+                    new CreateChannelAction(
+                        new Channel(
+                            $lead->app,
+                            $lead->company,
+                            $lead->user,
+                            (string)$lead->getKey(),
+                            Lead::class,
+                            'Notes',
+                            'AI Notes Channel',
+                            Str::uuid()->toString()
+                        )
+                    )
+                )->execute();
+            }
         }
 
         //$lead->clearLightHouseCacheJob();
@@ -90,7 +110,9 @@ class LeadObserver
     public function updated(Lead $lead): void
     {
         //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
-        Subscription::broadcast('leadUpdate', $lead, true);
+        //Subscription::broadcast('leadUpdate', $lead, true);
+        LeadUpdateEvent::dispatch($lead);
+
         //$lead->clearLightHouseCacheJob();
     }
 }

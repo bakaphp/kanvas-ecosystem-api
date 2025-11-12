@@ -49,6 +49,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -88,6 +89,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasShopifyCustomField;
     use HasTagsTrait;
     use IntegrationEntityTrait;
+    use HasMessagesTrait;
     use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -123,6 +125,13 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getActivityLogName(): string
     {
         return 'product-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function searchableOptions(): array
+    {
+        return [
+            'hitsPerPage' => 100,
+        ];
     }
 
     #[Override]
@@ -380,7 +389,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
+    /**
+     * productTypes.
+     * @deprecated
+     */
     public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    public function type(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
@@ -432,6 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
+            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -549,30 +568,43 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $model = new static();
+        $isTypesense = method_exists($model, 'isTypesense') ? $model->isTypesense() : false;
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        if (! $isTypesense) {
+            $searchQuery = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback) {
+                if ($callback) {
+                    return $callback($algolia, $searchTerm, $options);
+                }
+
+                return $algolia->search($searchTerm, $options);
+            })->where('apps_id', $app->getId());
+        } else {
+            $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        }
+
         $user = auth()->user();
 
         if (
             $user instanceof UserInterface &&
             (
                 ! auth()->user()->isAppOwner() ||
-            (
-                app()->bound(CompaniesBranches::class) &&
-                $app->get('enable_company_bound_search', false) // Only apply if this app setting is enabled
-            )
+                (
+                    app()->bound(CompaniesBranches::class) &&
+                    $app->get('enable_company_bound_search', false)
+                )
             )
         ) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+            $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
-        if ($query->model->isTypesense()) {
-            $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+        if ($isTypesense) {
+            $searchQuery->options([
+                'query_by' => 'name,description,translations',
             ]);
         }
 
-        return $query;
+        return $searchQuery;
     }
 
     public function isPublished(): bool
@@ -758,6 +790,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'status',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'categories_flat',
+                    'type' => 'auto',
                     'optional' => true,
                 ],
                 [

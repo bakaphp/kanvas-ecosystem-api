@@ -49,8 +49,12 @@ class AttributesValues extends BaseModel
     /**
      * Find or create for translatable models
      */
-    public static function firstOrNewTranslatable(array $attributes, string $translatableField, $translatableValue, $locale = null)
-    {
+    public static function firstOrNewTranslatable(
+        array $attributes,
+        string $translatableField,
+        mixed $translatableValue,
+        ?string $locale = null
+    ) {
         $locale = $locale ?? app()->getLocale();
 
         $query = static::where($attributes)

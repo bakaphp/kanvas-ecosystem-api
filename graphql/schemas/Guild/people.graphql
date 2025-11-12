@@ -9,7 +9,7 @@ type People {
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
-    licence_number: String
+    license_number: String
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -88,7 +88,7 @@ input PeopleInput {
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
-    licence_number: String
+    license_number: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
@@ -245,5 +245,9 @@ extend type Mutation @guard {
     attachFilesToPeople(files: [Upload!]!, id: ID!, params: Mixed): People!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
+        )
+    deletePeopleAddress(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deletePeopleAddress"
         )
 }

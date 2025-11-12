@@ -7,8 +7,11 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -44,20 +47,48 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) {
-                if (empty($entity->message['remix_parent_id'])) {
+            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($params) {
+                // Assign the remix_parent_id as the parent_id of the message, creating a remix.
+
+                if (! array_key_exists('remix_parent_id', $entity->message) || is_null($entity->message['remix_parent_id'])) {
                     return [
-                        'message' => 'Remix already created',
+                        'message' => 'Message does not have a remix parent ID, not a remix or no value for remix_parent_id',
+                        'message_id' => $entity->getId(),
                         'result' => false,
-                        'user_id' => $entity->user->getId(),
-                        'message_data' => $entity->message,
+                    ];
+                }
+                $entity->parent_id = $entity->message['remix_parent_id'];
+                $entity->save();
+                $entity->parent->increment('total_children');
+
+                //Send notification to the original message owner
+                $endViaList = array_map(
+                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                    $params['via'] ?? ['database']
+                );
+
+                try {
+                    $remixMessage = Message::find($entity->message['remix_parent_id']);
+                    $promptRemixTitle = $remixMessage->message['title'] ?? '';
+                    $newMessageNotification = new MessageOwnerPushNotification(
+                        user: $entity->user,
+                        entity: $entity,
+                        message: "Your AI creation {$promptRemixTitle} has been remixed!",
+                        title: 'AI creation remixed',
+                        via: $endViaList,
+                        templates: [
+                            'email_template' => $params['email_template'],
+                            'push_template' => $params['push_template'],
+                        ],
+                    );
+                    $remixMessage->user->notify($newMessageNotification);
+                } catch (\Throwable $th) {
+                    return [
+                        'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
+                        'result' => true,
                         'message_id' => $entity->getId(),
                     ];
                 }
-
-                // Assign the remix_parent_id as the parent_id of the message, creating a remix.
-                $entity->parent_id = $entity->messsage['remix_parent_id'];
-                $entity->save();
 
                 return [
                     'message' => 'Remix created successfully',

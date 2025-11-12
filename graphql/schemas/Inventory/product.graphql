@@ -24,6 +24,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         )
     is_published: Boolean
     created_at: DateTime
+    message: [Message] @hasMany(relation: "getIntegrationMessage")
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
@@ -31,6 +32,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @method(name: "visibleAttributes")
         @cacheRedis
     variants(includeUnpublished: Boolean = false, limit: Int): [Variant!]!
+        @cacheRedis
         @HasMany
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
@@ -241,7 +243,10 @@ extend type Query @guard {
         hasVariants: _
             @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
-            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         hasWarehouses: _
             @whereHasConditions(
                 relation: "warehouses"
@@ -292,5 +297,15 @@ extend type Query @guard {
     productSemanticSearch(query: String!): [Product!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
+        )
+    productRecommendations(
+        id: ID!
+        intent: String!
+        config: Mixed
+    ): [Product!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"
+            defaultCount: 25
         )
 }

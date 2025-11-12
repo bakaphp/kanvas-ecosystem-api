@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Connectors\Stripe\Utils\StripePaymentValidation;
 use Kanvas\Exceptions\ValidationException;
@@ -44,14 +45,14 @@ class StripePaymentService
                     'valid' => false,
                     'status' => $intent->status,
                     'error' => $statusValidation['message'],
-                    'payment_intent' => $intent
+                    'payment_intent' => $intent,
                 ];
             }
 
             return [
                 'valid' => true,
                 'status' => $intent->status,
-                'payment_intent' => $intent
+                'payment_intent' => $intent,
             ];
         } catch (Throwable $e) {
             throw new ValidationException($e->getMessage());
@@ -65,13 +66,30 @@ class StripePaymentService
         if ($validator->isValidPayment($status)) {
             return [
                 'can_process' => true,
-                'message' => 'Payment is valid and can be processed'
+                'message' => 'Payment is valid and can be processed',
             ];
         }
 
         return [
             'can_process' => false,
-            'message' => $validator->getStatusMessage($status)
+            'message' => $validator->getStatusMessage($status),
         ];
+    }
+
+    public function processPaymentIntent(string $paymentIntentId, ?string $paymentMethodId = null): void
+    {
+        if (Str::contains($paymentIntentId, '_secret_')) {
+            $paymentIntentId = explode('_secret_', $paymentIntentId ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+        }
+
+        if (! $paymentIntentId) {
+            throw new ValidationException('Payment Intent not provided');
+        }
+
+        $validation = $this->validatePaymentIntent($paymentIntentId, $paymentMethodId);
+
+        if (! $validation['valid']) {
+            throw new ValidationException($validation['error'], $validation['status']);
+        }
     }
 }

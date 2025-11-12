@@ -22,8 +22,10 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Traits\NotificationExpoTrait;
 use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
+use Kanvas\Notifications\Traits\NotificationSmsTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -36,6 +38,8 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     use NotificationStorageTrait;
     use NotificationRenderTrait;
     use NotificationOneSignalTrait;
+    use NotificationExpoTrait;
+    use NotificationSmsTrait;
 
     protected Model $entity;
     protected Apps $app;
@@ -189,7 +193,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         //disable the notification type channels for now, as we are not using them
         //return ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-        return $this->channels();
+        //return $this->channels();
+        return array_map(
+            fn ($via) => NotificationChannelEnum::getNotificationChannelBySlug($via),
+            $this->channels()
+        );
     }
 
     private function shouldFilterChannelsByUserSettings(object $notifiable): bool

@@ -1,7 +1,7 @@
 type Filesystem {
     id: ID!
     uuid: String!
-    filesystem_uuid: String!
+    filesystem_uuid: String
     name: String!
     url: String!
     type: String
@@ -17,6 +17,11 @@ input FilesystemInputUrl {
     name: String!
     file: Upload
     attributes: Mixed
+}
+
+input FilesystemEntityUpdateInput {
+    field_name: String!
+    weight: Float
 }
 
 input FilesystemAttachInput {
@@ -82,5 +87,9 @@ extend type Mutation @guard {
     renameFile(id: ID!, name: String!): Filesystem!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@renameFile"
+        )
+    editFile(uuid: String!, input: FilesystemEntityUpdateInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@editFile"
         )
 }

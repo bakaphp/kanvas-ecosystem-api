@@ -13,6 +13,7 @@ jobs:
       DB_HOST_READ: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
+      REDIS_HOST_QUEUE: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
       DB_DATABASE: kanvas
@@ -107,6 +108,9 @@ jobs:
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
+      TEST_RECOMBEE_DATABASE_ECOM: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM }}
+      TEST_RECOMBEE_DATABASE_ECOM_KEY: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_KEY }}
+      TEST_RECOMBEE_DATABASE_ECOM_REGION: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_REGION }}
       TEST_ELEAD_API_KEY: ${{ secrets.TEST_ELEAD_API_KEY }}
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
@@ -132,6 +136,8 @@ jobs:
       TEST_ECHO_PAY_SERVICE_TYPE_ID: ${{ secrets.TEST_ECHO_PAY_SERVICE_TYPE_ID }}
       TEST_ECHO_PAY_CONTRACT: ${{ secrets.TEST_ECHO_PAY_CONTRACT }}
       TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
+      TEST_GOOGLE_PAYMENT_CLIENT_CONFIG: ${{ secrets.TEST_GOOGLE_PAYMENT_CLIENT_CONFIG }}
+      TEST_GOOGLE_PACKAGE_NAME: ${{ secrets.TEST_GOOGLE_PACKAGE_NAME }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,7 +176,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

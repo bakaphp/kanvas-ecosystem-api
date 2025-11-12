@@ -8,7 +8,9 @@ use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
+use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
@@ -44,12 +46,12 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
-
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -122,12 +124,12 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
-
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -147,33 +149,49 @@ class PaymentMutation
             ];
         }
 
-        $paymentProcessor = new PortalPaymentProcessor(
-            $app,
-            $payment->company,
-            []
-        );
+        try {
+            $paymentProcessor = new PortalPaymentProcessor(
+                $app,
+                $payment->company,
+                []
+            );
 
-        $session = $paymentProcessor->startPaymentIntent($payment);
+            $session = $paymentProcessor->startPaymentIntent($payment);
 
-        $consumerAuthenticationInformation = $session['consumerAuthenticationInformation'];
+            $consumerAuthenticationInformation = $session['consumerAuthenticationInformation'];
 
-        $payment->order->set('auth_session_id', $consumerAuthenticationInformation['referenceId']);
-        $payment->order->set('device_data_url', $consumerAuthenticationInformation['deviceDataCollectionUrl']);
-        $payment->order->set('access_token', $consumerAuthenticationInformation['accessToken']);
-        $payment->order->set('payment_status', 'waiting_device_data');
+            $payment->order->set('auth_session_id', $consumerAuthenticationInformation['referenceId']);
+            $payment->order->set('device_data_url', $consumerAuthenticationInformation['deviceDataCollectionUrl']);
+            $payment->order->set('access_token', $consumerAuthenticationInformation['accessToken']);
+            $payment->order->set('payment_status', 'waiting_device_data');
 
-        $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
-        $payment->save();
+            $payment->status = PaymentStatusEnum::WAITING_DEVICE_DATA->value;
+            $payment->save();
 
-        return [
-            'message' => 'Waiting for device data',
-            'status' => 'waiting_device_data',
-            'data' => [
-                'deviceDataUrl' => $consumerAuthenticationInformation['deviceDataCollectionUrl'],
-                'accessToken' => $consumerAuthenticationInformation['accessToken'],
-                'referenceId' => $consumerAuthenticationInformation['referenceId'],
-            ],
-        ];
+            return [
+                'message' => 'Waiting for device data',
+                'status' => 'waiting_device_data',
+                'data' => [
+                    'deviceDataUrl' => $consumerAuthenticationInformation['deviceDataCollectionUrl'],
+                    'accessToken' => $consumerAuthenticationInformation['accessToken'],
+                    'referenceId' => $consumerAuthenticationInformation['referenceId'],
+                ],
+            ];
+        } catch (EchoPayException $e) {
+            // Save error body to payment metadata
+            $currentMetadata = $payment->metadata ?? [];
+            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error_message'] = $e->getMessage();
+            $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
+
+            $payment->metadata = $currentMetadata;
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $payment->save();
+
+            throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
+        } catch (Exception $e) {
+            throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
+        }
     }
 
     public function completeDeviceData(mixed $root, array $request): array
@@ -182,11 +200,12 @@ class PaymentMutation
         $orderId = (int) $request['orderId'];
         $user = auth()->user();
 
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -194,59 +213,86 @@ class PaymentMutation
 
         $order = $payment->order;
 
-        // If payment is already authorized, jump directly to ProcessPaymentAction
-        if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
-            $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
-            $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
-
-            return [
-                'status' => $result['status'],
-                'message' => $result['message'],
-                'data' => $result['data'],
-            ];
-        }
-
-        if (in_array($payment->status, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
-            $paymentProcessor = new PortalPaymentProcessor(
-                $app,
-                $payment->company,
-                []
-            );
-
-            $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
-
-            if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
-                $order->set('authorization_data', json_encode($enrollmentResult['data']));
+        try {
+            // If payment is already authorized, jump directly to ProcessPaymentAction
+            if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+                $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
+                $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
 
                 return [
-                    'status' => $enrollmentResult['status'],
-                    'message' => $enrollmentResult['message'],
-                    'data' => $enrollmentResult['data'],
+                    'status' => $result['status'],
+                    'message' => $result['message'],
+                    'data' => $result['data'],
                 ];
             }
 
-            if ($enrollmentResult['status'] != 'success') {
-                $order->set('payment_status', PaymentStatusEnum::FAILED->value);
-                $order->save();
+            if (in_array($payment->status, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
+                $paymentProcessor = new PortalPaymentProcessor(
+                    $app,
+                    $payment->company,
+                    []
+                );
+
+                $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
+
+                if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+                    $order->set('authorization_data', json_encode($enrollmentResult['data']));
+
+                    return [
+                        'status' => $enrollmentResult['status'],
+                        'message' => $enrollmentResult['message'],
+                        'data' => $enrollmentResult['data'],
+                    ];
+                }
+
+                if ($enrollmentResult['status'] != 'success') {
+                    $order->set('payment_status', PaymentStatusEnum::FAILED->value);
+                    $order->save();
+
+                    return [
+                        'status' => $enrollmentResult['status'],
+                        'message' => $enrollmentResult['message'],
+                        'data' => $enrollmentResult['data'],
+                    ];
+                }
+
+                $result = new ProcessPaymentAction($app, $payment, $order)->execute($enrollmentResult['data']);
 
                 return [
-                    'status' => $enrollmentResult['status'],
-                    'message' => $enrollmentResult['message'],
-                    'data' => $enrollmentResult['data'],
+                    'status' => $result['status'],
+                    'message' => $result['message'],
+                    'data' => $result['data'],
+                ];
+            } else {
+                return [
+                    'status' => 'error',
+                    'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                    'data' => [],
                 ];
             }
+        } catch (EchoPayException $e) {
+            // Save error body to payment metadata
+            $currentMetadata = $payment->metadata ?? [];
+            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error_message'] = $e->getMessage();
+            $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
-            $result = new ProcessPaymentAction($app, $payment, $order)->execute($enrollmentResult['data']);
+            $payment->metadata = $currentMetadata;
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $payment->save();
 
-            return [
-                'status' => $result['status'],
-                'message' => $result['message'],
-                'data' => $result['data'],
-            ];
-        } else {
+            $order->set('payment_status', PaymentStatusEnum::FAILED->value);
+            $order->save();
+
             return [
                 'status' => 'error',
-                'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                'message' => 'Error completing device data: ' . $e->getMessage(),
+                'data' => [],
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Error completing device data: ' . $e->getMessage(),
                 'data' => [],
             ];
         }
@@ -257,11 +303,12 @@ class PaymentMutation
         $app = app(Apps::class);
         $orderId = (int) $request['orderId'];
 
-        $payment = Payments::where([
+        $order = Order::where([
             'apps_id' => $app->getId(),
-            'payable_id' => $orderId,
-            'payable_type' => Order::class,
+            'id' => $orderId,
         ])->first();
+
+        $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
             throw new Exception('Payment not found');
@@ -278,41 +325,68 @@ class PaymentMutation
             ];
         }
 
-        if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
-            $paymentProcessor = new PortalPaymentProcessor(
-                $app,
-                $payment->company,
-                []
-            );
+        try {
+            if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+                $paymentProcessor = new PortalPaymentProcessor(
+                    $app,
+                    $payment->company,
+                    []
+                );
 
-            $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
-            $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $authTransactionId);
+                $authTransactionId = $order->get(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value);
+                $validationResult = $paymentProcessor->validatePayerAuthResult($payment, $order, $authTransactionId);
 
-            if (in_array($validationResult['status'], [PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
+                if (in_array($validationResult['status'], [PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
+                    return [
+                        'status' => $validationResult['status'],
+                        'message' => $validationResult['message'],
+                        'data' => $validationResult['data'],
+                    ];
+                } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+                    return [
+                        'status' => $validationResult['status'],
+                        'message' => $validationResult['message'],
+                        'data' => $validationResult['data'],
+                    ];
+                }
+
+                $result = new ProcessPaymentAction($app, $payment, $order)->execute($validationResult['data']);
+
                 return [
-                    'status' => $validationResult['status'],
-                    'message' => $validationResult['message'],
-                    'data' => $validationResult['data'],
+                    'status' => $result['status'],
+                    'message' => $result['message'],
+                    'data' => $result['data'],
                 ];
-            } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+            } else {
                 return [
-                    'status' => $validationResult['status'],
-                    'message' => $validationResult['message'],
-                    'data' => $validationResult['data'],
+                    'status' => 'error',
+                    'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                    'data' => [],
                 ];
             }
+        } catch (EchoPayException $e) {
+            // Save error body to payment metadata
+            $currentMetadata = $payment->metadata ?? [];
+            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error_message'] = $e->getMessage();
+            $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
-            $result = new ProcessPaymentAction($app, $payment, $order)->execute($validationResult['data']);
+            $payment->metadata = $currentMetadata;
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $payment->save();
 
-            return [
-                'status' => $result['status'],
-                'message' => $result['message'],
-                'data' => $result['data'],
-            ];
-        } else {
+            $order->set('payment_status', PaymentStatusEnum::FAILED->value);
+            $order->save();
+
             return [
                 'status' => 'error',
-                'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                'message' => 'Error validating payer authentication: ' . $e->getMessage(),
+                'data' => [],
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Error validating payer authentication: ' . $e->getMessage(),
                 'data' => [],
             ];
         }

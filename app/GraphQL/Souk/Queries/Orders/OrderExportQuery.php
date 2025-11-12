@@ -8,7 +8,6 @@ use App\GraphQL\Souk\Handlers\OrderStatusHandler;
 use App\GraphQL\Souk\Handlers\OrderTypeHandler;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrdersAction;
@@ -18,38 +17,60 @@ use Nuwave\Lighthouse\WhereConditions\SQLOperator;
 
 class OrderExportQuery
 {
-    public function export(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
-    {
+    public function export(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): array {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $format = $args['format'];
         $fieldMapper = $args['field_mapper'] ?? null;
         $metadata = $args['metadata'] ?? [];
+        $timezone = $args['timezone'] ?? $user->timezone ?? null;
 
         try {
             $user = auth()->user();
-            $orders = $this->getOrdersList($app, $company, $args);
+            $ordersQuery = $this->getOrdersQuery($app, $company, $args);
+
+            // Check if there are any orders first
+            if ($ordersQuery->count() === 0) {
+                return [
+                    'status' => 'warning',
+                    'download_url' => null,
+                    'file_name' => null,
+                    'message' => 'No orders found matching the specified criteria.',
+                ];
+            }
+
             $exportService = new ExportOrdersAction(
+                app: $app,
                 user: $user,
-                orderData: $orders,
+                orderData: $ordersQuery,
                 fieldMapper: $fieldMapper,
                 metadata: $metadata,
-                params: $args['where'] ?? []
+                params: $args['where'] ?? [],
+                timezone: $timezone
             );
+
             return $exportService->execute($format);
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'download_url' => null,
                 'file_name' => null,
-                'message' => 'Export failed: ' . $e->getMessage()
+                'message' => 'Export failed: ' . $e->getMessage(),
             ];
         }
     }
 
-    public function getOrdersList(Apps $app, Companies $company, array $args): Collection
-    {
+    public function getOrdersQuery(
+        Apps $app,
+        Companies $company,
+        array $args
+    ): Builder {
         // Build the query with the same filters as the orders query
         $query = Order::query()
             ->fromCompany($company)
@@ -85,7 +106,7 @@ class OrderExportQuery
         // Apply orderStatus filter using the handler
         if (isset($args['orderStatus']) && is_array($args['orderStatus'])) {
             $handler = new OrderStatusHandler(new SQLOperator());
-            $handler($query, $args["orderStatus"], null, 'and');
+            $handler($query, $args['orderStatus'], null, 'and');
         }
 
         // Apply order by
@@ -110,20 +131,10 @@ class OrderExportQuery
             $query->orderBy('created_at', 'DESC');
         }
 
-        // Get the orders with relationships needed for field mapping
-        $orders = $query->with([
-            'user',
-            'company',
-            'orderType',
-            'orderStatus',
-            'allItems',
-            'allItems.variant',
-        ])->get();
-
-        return $orders;
+        return $query;
     }
 
-    public function applyWhereConditions($query, array $conditions = []): Builder
+    public function applyWhereConditions(Builder $query, array $conditions = []): Builder
     {
         $operatorMap = [
             'EQ' => '=',
@@ -152,7 +163,7 @@ class OrderExportQuery
         return $query;
     }
 
-    private function applySingleCondition($query, array $condition, array $operatorMap): void
+    private function applySingleCondition(Builder $query, array $condition, array $operatorMap): void
     {
         $column = $condition['column'];
         $operator = strtoupper($condition['operator'] ?? 'EQ');

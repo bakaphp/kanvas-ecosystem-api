@@ -16,8 +16,10 @@ use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class DownloadAllLeadsCommand extends Command
@@ -80,6 +82,17 @@ class DownloadAllLeadsCommand extends Command
             return;
         }
 
+        // Get the percentage of leads to process communication channel for (default 100%)
+        $commChannelPercentage = (int) ($company->get('agent_communication_channel_percentage') ?? 100);
+
+        // Redis keys for tracking daily stats
+        $todayDate = now()->format('Y-m-d');
+        $redisDailyLeadsCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_count_' . $company->getId() . '_' . $todayDate;
+        $redisDailyCommChannelCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_comm_channel_' . $company->getId() . '_' . $todayDate;
+
+        // Redis key expiration time (48 hours in seconds)
+        $redisKeyExpirationSeconds = 48 * 60 * 60;
+
         // Sync duplicate active leads before downloading (if enabled)
         $syncDuplicates = (bool) $this->option('sync-duplicates');
         if ($syncDuplicates) {
@@ -108,9 +121,15 @@ class DownloadAllLeadsCommand extends Command
             $totalItems = $initialLeads['count'];
             $totalPages = $totalPageLimit ?? (int) ceil($totalItems / $itemsPerPage);
 
+            // Get daily counts from Redis
+            $dailyLeadsCount = (int) (Redis::get($redisDailyLeadsCountKey) ?? 0);
+            $dailyCommChannelCount = (int) (Redis::get($redisDailyCommChannelCountKey) ?? 0);
+
             $this->info("Total leads: {$totalItems}");
             $this->info("Total pages: {$totalPages}");
             $this->info('Starting from page: ' . ($lastLeadsPagination < 1 ? 1 : $lastLeadsPagination));
+            $this->info("Communication channel will be set for {$commChannelPercentage}% of leads (today)");
+            $this->info("Leads processed today: {$dailyLeadsCount}, Communication channels set: {$dailyCommChannelCount}");
 
             $successCount = 0;
             $errorCount = 0;
@@ -136,9 +155,31 @@ class DownloadAllLeadsCommand extends Command
                             // Transform the lead data to match the expected format
                             $transformedLead = $this->transformVinLeadData($vinLeadData);
 
+                            $existingLead = ModelsLead::getByCustomField(
+                                CustomFieldEnum::LEADS->value,
+                                $transformedLead['LeadId'],
+                                $company,
+                            );
+
                             // Use PullLeadAction to sync the lead
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
+
+                            if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
+                                // Check if this lead should have communication channel set based on percentage
+                                if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
+                                    $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
+                                    // Increment daily communication channel counter
+                                    Redis::incr($redisDailyCommChannelCountKey);
+                                    Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
+                                    $dailyCommChannelCount++;
+                                }
+                            }
+
+                            // Increment daily leads counter
+                            Redis::incr($redisDailyLeadsCountKey);
+                            Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
+                            $dailyLeadsCount++;
 
                             if (! empty($result)) {
                                 $successCount++;
@@ -174,6 +215,59 @@ class DownloadAllLeadsCommand extends Command
         } catch (Throwable $e) {
             $this->error('Failed to download leads: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Determine if a lead should have its communication channel set based on percentage.
+     * Uses a deterministic algorithm to ensure consistent distribution across leads processed today.
+     */
+    private function shouldProcessLeadByPercentage(int $dailyLeadsCount, int $percentage): bool
+    {
+        // If percentage is 100, always process
+        if ($percentage >= 100) {
+            return true;
+        }
+
+        // If percentage is 0 or less, never process
+        if ($percentage <= 0) {
+            return false;
+        }
+
+        // Calculate the interval: process every (100/percentage)th lead
+        $interval = (int) ceil(100 / $percentage);
+
+        // Process leads at regular intervals to maintain percentage across the entire day
+        return ($dailyLeadsCount % $interval) === 0;
+    }
+
+    private function setCommunicationChannel(string $leadId, string $vinSolutionDateIn): void
+    {
+        $lead = ModelsLead::getById($leadId);
+        $lead->set('downloaded_from_vin_solution', true);
+        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
+        $lead->refresh();
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel !== null) {
+            $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\GraphQL\Guild\Mutations\Pipelines;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Pipelines\Actions\CreateStagePipelineAction;
+use Kanvas\Guild\Pipelines\Actions\StageCounterAction;
 use Kanvas\Guild\Pipelines\Actions\UpdateStagePipelineAction;
 use Kanvas\Guild\Pipelines\DataTransferObject\Pipeline;
 use Kanvas\Guild\Pipelines\DataTransferObject\PipelineStage;
@@ -76,7 +77,9 @@ class PipelineStageManagementMutation
         if ($pipelineStage->leads()->count() > 0) {
             throw new ValidationException('Can\'t Delete pipeline stage is being used by a lead');
         }
-
+        new StageCounterAction(
+            $pipelineStage->pipeline
+        )->execute();
         return $pipelineStage->softDelete();
     }
 

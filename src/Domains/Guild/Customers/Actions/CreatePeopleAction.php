@@ -55,7 +55,7 @@ class CreatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
-            'licence_number' => $this->peopleData->licence_number,
+            'license_number' => $this->peopleData->license_number,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
@@ -65,7 +65,7 @@ class CreatePeopleAction
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
             $people = PeoplesRepository::getById($this->peopleData->id, $company);
-            $people->update($attributes);
+            $people->updateOrFail($attributes);
         } else {
             $attributes['companies_id'] = $company->getId();
             $people = People::create($attributes);

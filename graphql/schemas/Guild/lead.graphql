@@ -3,7 +3,7 @@ type Lead {
     uuid: String!
     company: Company! @belongsTo(relation: "company")
     branch: CompanyBranch! @belongsTo(relation: "branch")
-    title: String!
+    title: String
     people: People
     user: User @belongsTo(relation: "user")
     owner: User @belongsTo(relation: "owner")
@@ -23,6 +23,7 @@ type Lead {
     participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
+    events: [Event!]! @morphToMany(relation: "events")
     tags: [Tag!]
         @paginate(
             defaultCount: 25
