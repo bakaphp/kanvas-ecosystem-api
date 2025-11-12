@@ -288,8 +288,45 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         $imageFilterResult = $imageFilterService->execute();
 
-        if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
-            throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+        try {
+            if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
+                throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+            }
+        } catch (ClientException | ServerException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
+
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push', 'mail']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
+            $message->user->notify($errorProcessingImageNotification);
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            return [
+                'response' => $isNotSafeForWork ? 'Your prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
+                'chat_history' => [],
+                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
+                'nsfw_flag' => true,
+                'error' => ! $isNotSafeForWork,
+            ];
         }
 
         // Get existing chat history from parent message or create new conversation
