@@ -78,6 +78,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $result = $this->generateFilteredImageResponse($message, $params);
                     $response = $result['response'];
                     $chatHistory = $result['chat_history'];
+                    $isNotSafeForWork = $result['nsfw_flag'] ?? false;
                     $messageTypeKey = 'image';
                     $channel->is_deleted = 0;
                     $channel->save();
@@ -295,8 +296,49 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         $imageFilterResult = $imageFilterService->execute();
 
-        if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
-            throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+        try {
+            if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
+                throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
+            }
+        } catch (Exception $e) {
+            $errorBody = $e->getMessage();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked', 'flagged', 'content checker']);
+
+            $endViaList = array_map(
+                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+                ['push', 'mail']
+            );
+            $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                user: $message->user,
+                entity: $message,
+                message: $isNotSafeForWork ? 'Your image prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
+                title: 'Image Processing Error',
+                via: $endViaList,
+                templates: [
+                    'email_template' => 'email-new-message-nugget',
+                    'push_template' => 'push-new-message-nugget',
+                ],
+            );
+
+            $errorProcessingImageNotification->setData([
+                'destination_id' => $message->getId(),
+                'destination_type' => 'USER',
+                'destination_event' => 'FOLLOWING',
+            ]);
+            $message->user->notify($errorProcessingImageNotification);
+
+            //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
+
+            return [
+                'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
+                'image_url' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
+                'chat_history' => [],
+                'flag' => true,
+                'message' => 'You have reached your daily image generation limit.',
+                'nsfw_flag' => $isNotSafeForWork,
+                'error' => ! $isNotSafeForWork,
+            ];
         }
 
         // Get existing chat history from parent message or create new conversation
