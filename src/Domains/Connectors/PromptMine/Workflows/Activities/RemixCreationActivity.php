@@ -71,7 +71,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     $remixMessage = Message::find($entity->message['remix_parent_id']);
                     $promptRemixTitle = $remixMessage->message['title'] ?? '';
                     $newMessageNotification = new MessageOwnerPushNotification(
-                        user: $entity->user,
+                        user: $remixMessage->user,
                         entity: $entity,
                         message: "Your AI creation {$promptRemixTitle} has been remixed!",
                         title: 'AI creation remixed',
