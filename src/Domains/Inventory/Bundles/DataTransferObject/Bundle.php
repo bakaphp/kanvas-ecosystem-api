@@ -18,6 +18,8 @@ class Bundle extends Data
         public Users $user,
         public string $name,
         public ?Variants $variant = null,
+        public ?string $slug = null,
+        public int $weight = 0,
         public ?string $description = null,
         public string $execution_mode = 'manual',
         public bool $expose_as_product = false,
