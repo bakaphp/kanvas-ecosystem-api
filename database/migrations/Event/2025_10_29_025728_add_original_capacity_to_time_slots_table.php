@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('time_slots', function (Blueprint $table) {
             $table->integer('initial_capacity')->after('capacity');
+            $table->integer('capacity')->nullable()->change();
         });
     }
 
@@ -22,6 +23,7 @@ return new class () extends Migration {
     {
         Schema::table('time_slots', function (Blueprint $table) {
             $table->dropColumn('initial_capacity');
+            $table->integer('capacity')->nullable(false)->change();
         });
     }
 };
