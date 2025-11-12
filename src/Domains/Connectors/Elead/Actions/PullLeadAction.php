@@ -245,13 +245,9 @@ class PullLeadAction
                 continue;
             }
 
-            $createdBy = $item['createdBy'];
+            $status = strtolower($status);
 
-            $createdByLower = strtolower($createdBy);
-
-            $isSystem =
-                $createdByLower === 'system' ||
-                str_contains($createdByLower, 'fortellis') || in_array($item['activityType'], ['Send Email','Phone Call']) || $item['name'] == 'Note' || $status == "Appointment Set";
+            $isSystem = $item['name'] == 'Appointment' || $status == "appointment set";
 
             if (! $isSystem) {
                 $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
