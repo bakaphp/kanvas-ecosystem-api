@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Bundles\Actions;
+
 use Kanvas\Inventory\Bundles\DataTransferObject\Bundle;
 use Kanvas\Inventory\Bundles\Models\Bundle as Bundles;
 use Kanvas\Inventory\Variants\Models\Variants;
+
 class UpdateBundleAction
 {
     public function __construct(

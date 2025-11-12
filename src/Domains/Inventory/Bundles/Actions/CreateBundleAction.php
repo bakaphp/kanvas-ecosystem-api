@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Bundles\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Inventory\Bundles\DataTransferObject\Bundle;
 use Kanvas\Inventory\Bundles\Models\Bundle as Bundles;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Baka\Support\Str;
 
 class CreateBundleAction
 {
