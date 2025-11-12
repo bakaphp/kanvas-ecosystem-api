@@ -51,15 +51,17 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             [
                 'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
                 'title' => 'AI creation of the Week',
-                'message' => "$title — Try it now and keep the momentum going."
+                'message' => "$title — Try it now and keep the momentum going.",
             ],
             $this->via
         );
+
         $messageOfTheWeekNotification->setData([
             'destination_id' => $messageOfTheWeek->parent ? $messageOfTheWeek->parent->getId() : $messageOfTheWeek->getId(),
             'destination_type' => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ]);
+
         $messageOfTheWeekNotification->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
         $this->user->notify($messageOfTheWeekNotification);
     }
