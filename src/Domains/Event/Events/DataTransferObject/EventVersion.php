@@ -21,6 +21,7 @@ class EventVersion extends Data
         public readonly string|int $version,
         #[DataCollectionOf(EventDate::class)]
         public readonly DataCollection $dates,
+        public readonly ?int $timeSlotId = null,
         public readonly float $pricePerTicket = 0,
         public readonly ?string $agenda = null,
         public readonly ?string $description = null,
@@ -40,6 +41,7 @@ class EventVersion extends Data
             user: $user,
             currency: $currencies,
             name: $data['name'],
+            timeSlotId: $data['time_slot_id'] ?? null,
             version: $data['version'] ?? 1,
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             pricePerTicket: $data['price_per_ticket'] ?? 0,

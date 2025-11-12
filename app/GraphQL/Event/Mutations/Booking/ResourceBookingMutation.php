@@ -4,28 +4,21 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Booking;
 
-use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
 use Kanvas\Event\Events\Actions\CancelEventAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
-use Kanvas\Event\Events\Enums\EventStatusEnum;
-use Kanvas\Event\Events\Models\EventCategory;
-use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventHold;
 use Kanvas\Event\Events\Models\EventStatus;
-use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class ResourceBookingMutation
@@ -115,87 +108,6 @@ class ResourceBookingMutation
         return $eventVersion;
     }
 
-    private function buildEventData($resource, array $input, Apps $app, Users $user, Companies $company): array
-    {
-        $startAt = Carbon::parse($input['start_at']);
-        $endAt = Carbon::parse($input['end_at']);
-        $eventName = $input['event_name'] ?? $resource->name . $startAt->format('Y-m-d H:i');
-
-        $eventType = EventType::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        $eventClass = EventClass::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        $eventCategory = EventCategory::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'event_type_id' => $eventType?->id,
-            'event_class_id' => $eventClass?->id,
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        $theme = Theme::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        $themeArea = ThemeArea::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        $eventStatus = EventStatus::firstOrCreate([
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-            'name' => EventStatusEnum::DEFAULT->value,
-        ], [
-            'users_id' => $user->getId(),
-        ]);
-
-        return [
-            'name' => $eventName,
-            'description' => $input['event_description'] ?? $resource->description,
-            'slug' => Str::simpleSlug($eventName),
-            'resources_id' => (string) $resource->id,
-            'resources_type' => $resource->getMorphClass(),
-            'participants' => $input['participants'],
-            'resources' => $input['resources'],
-            'order_items' => $input['order_items'] ?? [],
-            'dates' => [
-                [
-                    'date' => $startAt->toDateString(),
-                    'start_time' => $startAt->format('H:i'),
-                    'end_time' => $endAt->format('H:i'),
-                ],
-            ],
-            'theme_id' => (string) $theme?->id,
-            'theme_area_id' => (string) $themeArea?->id,
-            'status_id' => (string) $eventStatus?->id,
-            'type_id' => $eventType?->id,
-            'class_id' => (string) $eventClass?->id,
-            'category_id' => $eventCategory?->id,
-        ];
-    }
-
     private function getResource(string $resourceType, int|string $resourceId)
     {
         $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceType);
@@ -217,8 +129,8 @@ class ResourceBookingMutation
 
         // Find the existing event version
         $eventVersion = EventVersion::where('id', $eventVersionId)
-            ->where('companies_id', $company->getId())
-            ->where('apps_id', $app->getId())
+            ->fromCompany($company)
+            ->fromApp($app)
             ->firstOrFail();
 
         // Prepare update data

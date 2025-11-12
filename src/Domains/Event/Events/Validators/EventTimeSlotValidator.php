@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Validators;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Exceptions\ValidationException;
 
 class EventTimeSlotValidator
@@ -53,36 +54,31 @@ class EventTimeSlotValidator
         int $appsId,
         ?int $excludeEventId = null
     ): void {
-        $query = DB::connection('event')
-            ->table('time_slots')
+        $timeSlot = TimeSlots::fromApp($appsId)
             ->where('id', $timeSlotId)
-            ->where('companies_id', $companiesId)
-            ->where('apps_id', $appsId);
-
-        $timeSlot = $query->first();
+            ->first();
 
         if (! $timeSlot) {
             throw new ValidationException('Time slot not found.');
         }
 
-        $existingBooking = DB::connection('event')
-            ->table('event_versions')
-            ->where('time_slot_id', $timeSlotId)
-            ->where('is_deleted', 0);
+        // For updates, we need to check if we're excluding the current event from capacity calculation
+        // This ensures we don't count the event being updated against available capacity
+        if ($excludeEventId && $timeSlot->isFullyBooked()) {
+            // If excluding an event, check if slot would be fully booked without counting that event
+            $bookingsCount = DB::connection('event')
+                ->table('event_versions')
+                ->where('time_slot_id', $timeSlotId)
+                ->where('event_id', '!=', $excludeEventId)
+                ->where('is_deleted', 0)
+                ->count();
 
-        if ($excludeEventId) {
-            $existingBooking->where('event_id', '!=', $excludeEventId);
-        }
-
-        $booking = $existingBooking->first();
-
-        if ($booking) {
-            throw new ValidationException(
-                "Time slot is already booked. Please select a different time slot."
-            );
-        }
-
-        if ($timeSlot->capacity <= 0) {
+            if ($bookingsCount >= $timeSlot->initial_capacity) {
+                throw new ValidationException(
+                    "Time slot is fully booked. No capacity remaining."
+                );
+            }
+        } elseif ($timeSlot->isFullyBooked()) {
             throw new ValidationException(
                 "Time slot is fully booked. No capacity remaining."
             );
