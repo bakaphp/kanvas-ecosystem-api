@@ -30,7 +30,8 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         protected Users $user,
         protected MessageType $messageType,
         protected array $via,
-    ) {}
+    ) {
+    }
 
     /**
      * Send message notifications to all followers of a user.
@@ -55,7 +56,7 @@ class SendMessageOfTheWeekJob implements ShouldQueue
             $this->via
         );
         $messageOfTheWeekNotification->setData([
-            'destination_id' => $messageOfTheWeek->parent->getId() ?? $messageOfTheWeek->getId(),
+            'destination_id' => $messageOfTheWeek->parent ? $messageOfTheWeek->parent->getId() : $messageOfTheWeek->getId(),
             'destination_type' => 'MESSAGE',
             'destination_event' => 'NEW_MESSAGE',
         ]);
