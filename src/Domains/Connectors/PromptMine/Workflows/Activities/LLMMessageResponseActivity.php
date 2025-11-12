@@ -292,9 +292,9 @@ class LLMMessageResponseActivity extends KanvasActivity
             if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
                 throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
             }
-        } catch (ClientException | ServerException $e) {
-            $errorBody = $e->getResponse()->getBody()->getContents();
-            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
+        } catch (Exception $e) {
+            $errorBody = $e->getMessage();
+            $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked', 'flagged', 'content checker']);
 
             $endViaList = array_map(
                 [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
@@ -320,11 +320,15 @@ class LLMMessageResponseActivity extends KanvasActivity
             $message->user->notify($errorProcessingImageNotification);
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
+            $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
+
             return [
-                'response' => $isNotSafeForWork ? 'Your prompt was flagged as not safe for work and could not be processed.' : 'We could not process your prompt at this time, please try again.',
+                'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
+                'image_url' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
                 'chat_history' => [],
-                'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
-                'nsfw_flag' => true,
+                'flag' => true,
+                'message' => 'You have reached your daily image generation limit.',
+                'nsfw_flag' => $isNotSafeForWork,
                 'error' => ! $isNotSafeForWork,
             ];
         }
