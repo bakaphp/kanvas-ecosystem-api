@@ -41,20 +41,28 @@ class SendMessageOfTheWeekJob implements ShouldQueue
         $this->overwriteAppService($this->app);
 
         $messageOfTheWeek = MessagesRepository::getMostPopularMessageByTotalLikes($this->app, $this->messageType);
-        if ($messageOfTheWeek === null) {
+        if ($messageOfTheWeek === null || ! array_key_exists('title', $messageOfTheWeek->message)) {
             return;
         }
 
         $title = html_entity_decode($messageOfTheWeek->message['title'], ENT_QUOTES, 'UTF-8');
-        $messageOfTheWeek = new MessageOfTheWeekNotification(
+        $messageOfTheWeekNotification = new MessageOfTheWeekNotification(
             $this->user,
             [
                 'push_template' => NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value,
                 'title' => 'AI creation of the Week',
-                'message' => "$title — Try it now and keep the momentum going."
+                'message' => "$title — Try it now and keep the momentum going.",
             ],
             $this->via
         );
-        $this->user->notify($messageOfTheWeek);
+
+        $messageOfTheWeekNotification->setData([
+            'destination_id' => $messageOfTheWeek->parent ? $messageOfTheWeek->parent->getId() : $messageOfTheWeek->getId(),
+            'destination_type' => 'MESSAGE',
+            'destination_event' => 'NEW_MESSAGE',
+        ]);
+
+        $messageOfTheWeekNotification->setPushTemplateName(NotificationTemplateEnum::PUSH_WEEKLY_FAVORITE_PROMPT->value);
+        $this->user->notify($messageOfTheWeekNotification);
     }
 }
