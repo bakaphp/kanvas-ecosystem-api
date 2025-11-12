@@ -91,14 +91,13 @@ class OneSignalService
             $params['url'] = $url;
         }
 
-        if (isset($data)) {
+        if (isset($data) && is_array($data) && ! empty($data)) {
             $params['data'] = $data;
         }
 
-        if (isset($buttons)) {
+        if (isset($buttons) && is_array($buttons) && ! empty($buttons)) {
             $params['buttons'] = $buttons;
         }
-
         if (isset($schedule)) {
             $params['send_after'] = $schedule;
         }
