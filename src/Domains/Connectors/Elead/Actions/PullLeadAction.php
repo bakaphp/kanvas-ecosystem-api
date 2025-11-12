@@ -11,9 +11,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Customer;
 use Kanvas\Connectors\Elead\Entities\Lead;
+use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -68,6 +70,8 @@ class PullLeadAction
 
             new SyncLeadAction($lead)->execute();
 
+            $this->setContactStatus($lead);
+
             return [
                 [
                     'id' => $lead->id,
@@ -84,7 +88,6 @@ class PullLeadAction
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
-
                 ],
             ];
         }
@@ -149,7 +152,7 @@ class PullLeadAction
                             continue; // Skip active when requesting inactive
                         }
                     }
-
+                    $this->setContactStatus($lead);
                     //$results[] = $lead;
                     $results[] = [
                         'id' => $lead->id,
@@ -220,5 +223,43 @@ class PullLeadAction
         }
 
         return $results;
+    }
+
+    public function setContactStatus(ModelsLead $lead): void
+    {
+        if ($lead->hasBeenContacted()) {
+            return;
+        }
+        $data = SalesActivities::getHistoryByOpportunityId(
+            $lead->app,
+            $lead->company,
+            $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+        );
+
+        if (! isset($data['items']) || ! is_array($data['items'])) {
+            $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
+        }
+
+        foreach ($data['items'] as $item) {
+            if (! isset($item['createdBy'])) {
+                continue;
+            }
+
+            $createdBy = $item['createdBy'];
+
+            $createdByLower = strtolower($createdBy);
+
+            $isSystem =
+                $createdByLower === 'system' ||
+                str_contains($createdByLower, 'fortellis') || in_array($item['activityType'], ['Send Email','Phone Call']) || $item['name'] == 'Note';
+
+            if (! $isSystem) {
+                $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
+
+                return ;
+            }
+        }
+
+        $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
     }
 }
