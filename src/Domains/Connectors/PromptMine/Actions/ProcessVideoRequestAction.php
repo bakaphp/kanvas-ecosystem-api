@@ -219,7 +219,7 @@ class ProcessVideoRequestAction
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
-        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
+        $submitPayload = $this->constructModelPayload($submitPayload);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -342,17 +342,21 @@ class ProcessVideoRequestAction
         return $defaults;
     }
 
-    private function constructModelPayload(Model $entity, array $payload): array
+    private function constructModelPayload(array $payload): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
+        $messageFiles = $this->entity->getFiles();
         $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
 
-        return match (true) {
-            count($imageUrlsArray) == 2 => array_merge($payload, [
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+        }
+
+        return match ($this->entity->message['attachment_type']) {
+            'start_end_frame' => array_merge($payload, [
                 'image_url' => $imageUrlsArray[0],
                 'lastFrameUrl' => $imageUrlsArray[1],
             ]),
-            count($imageUrlsArray) > 2 => array_merge($payload, [
+            'reference_to_video' => array_merge($payload, [
                 'referenceImageUrls' => $imageUrlsArray,
             ]),
             default => array_merge($payload, [
