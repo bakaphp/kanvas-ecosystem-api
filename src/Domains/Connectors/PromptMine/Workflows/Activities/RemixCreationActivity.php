@@ -17,6 +17,7 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class RemixCreationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -72,7 +73,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     $promptRemixTitle = $remixMessage->message['title'] ?? '';
                     $newMessageNotification = new MessageOwnerPushNotification(
                         user: $remixMessage->user,
-                        entity: $entity,
+                        entity: $remixMessage,
                         message: "Your AI creation {$promptRemixTitle} has been remixed!",
                         title: 'AI creation remixed',
                         via: $endViaList,
@@ -82,7 +83,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         ],
                     );
                     $remixMessage->user->notify($newMessageNotification);
-                } catch (\Throwable $th) {
+                } catch (Throwable $th) {
                     return [
                         'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
                         'result' => true,
