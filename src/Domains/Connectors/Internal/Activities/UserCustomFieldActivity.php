@@ -36,7 +36,7 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
         if ($user->lastname === null && $app->get('dont_force_lastname_default')) {
             $userAppProfile = $user->getAppProfile($app);
             $userAppProfile->lastname = '';
-            $userAppProfile->save();
+            $userAppProfile->update();
         }
 
         return [
