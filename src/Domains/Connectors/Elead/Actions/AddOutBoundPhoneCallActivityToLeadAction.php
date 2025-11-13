@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Support\Str;
 use DateTime;
 use DateTimeZone;
+use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -135,10 +136,6 @@ class AddOutBoundPhoneCallActivityToLeadAction
             'BDCManager'
         )->get();
 
-        foreach ($managers as $manager) {
-            $manager->notify(
-                $notification
-            );
-        }
+        Notification::send($managers, $notification);
     }
 }

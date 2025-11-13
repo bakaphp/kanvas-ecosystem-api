@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Workflow;
 
 use Baka\Support\Url;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
@@ -122,10 +123,6 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
             'BDCManager'
         )->get();
 
-        foreach ($managers as $manager) {
-            $manager->notify(
-                $notification
-            );
-        }
+        Notification::send($managers, $notification);
     }
 }
