@@ -30,6 +30,15 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
             $user->set($key, $value, $isPublic);
         }
 
+        /**
+         * @todo remove this, this is so stupid that I can't believe we have this
+         */
+        if ($user->lastname === null && $app->get('dont_force_lastname_default')) {
+            $userAppProfile = $user->getAppProfile($app);
+            $userAppProfile->lastname = '';
+            $userAppProfile->update();
+        }
+
         return [
             'user_id' => $user->getId(),
             'custom_field' => $customField,
