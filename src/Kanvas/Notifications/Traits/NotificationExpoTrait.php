@@ -44,10 +44,9 @@ trait NotificationExpoTrait
             $additionalData['company'],
             $additionalData['user']);
 
-        // More aggressive cleanup - remove ALL model instances
         $filtered = [];
         foreach ($additionalData as $key => $value) {
-            if (! is_object($value) || is_scalar($value)) {
+            if (is_scalar($value)) {
                 $filtered[$key] = $value;
             }
         }
