@@ -131,7 +131,7 @@ class FollowUpEngagementCommand extends Command
                 $app,
                 $company,
                 $user
-            )->execute([], $leadId);
+            )->execute([], $lead);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
                 $app,
