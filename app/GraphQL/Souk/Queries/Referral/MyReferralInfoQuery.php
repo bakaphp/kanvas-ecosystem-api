@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Queries\Referral;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Referrals\Models\ReferralCode;
 use Kanvas\Souk\Referrals\Models\ReferralRedemption;
 
@@ -25,12 +26,12 @@ class MyReferralInfoQuery
 
         // Determine which user's data to fetch
         $targetUserId = $args['user_id'] ?? null;
-        $isAdmin = $currentUser->is_admin || $currentUser->is_superuser;
+        $isAdmin = $currentUser->isAdmin();
 
-        if ($targetUserId) {
+        if ($targetUserId !== null && $targetUserId !== $currentUser->id) {
             // If user_id is provided, only admins can access
             if (! $isAdmin) {
-                throw new \Exception('Unauthorized: Only admins can view other users\' referral info');
+                throw new ValidationException('Unauthorized: Only admins can view other users\' referral info');
             }
             $userId = $targetUserId;
         } else {
