@@ -6652,16 +6652,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.0.3",
+            "version": "v2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "d23c647932c604de9707ecba265b03e19cd7d8f2"
+                "reference": "b09dd785c6a59366bd33fb968b1fc3f5f9f4179a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/d23c647932c604de9707ecba265b03e19cd7d8f2",
-                "reference": "d23c647932c604de9707ecba265b03e19cd7d8f2",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/b09dd785c6a59366bd33fb968b1fc3f5f9f4179a",
+                "reference": "b09dd785c6a59366bd33fb968b1fc3f5f9f4179a",
                 "shasum": ""
             },
             "require": {
@@ -6670,7 +6670,7 @@
                 "ext-json": "*",
                 "php": ">=8.1",
                 "setasign/fpdf": "^1.8",
-                "setasign/fpdi": "^2.6",
+                "setasign/fpdi": "^2.6.4",
                 "smalot/pdfparser": "^2.12",
                 "symfony/console": ">=6.0"
             },
@@ -6701,9 +6701,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.0.3"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.1.0"
             },
-            "time": "2025-10-14T10:53:42+00:00"
+            "time": "2025-11-13T14:57:16+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
