@@ -23,7 +23,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {message_type_id}';
+    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id}';
 
     /**
      * The console command description.
@@ -40,7 +40,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        // $company = Companies::getById((int) $this->argument('company_id'));
+        $company = Companies::getById((int) $this->argument('company_id'));
         $messageType = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageType, $app);
@@ -51,7 +51,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         $this->output->progressStart($totalMessages);
         // $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
-        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'text'];
+        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget'];
         $allTagsWithIgnore = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
         $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
 
