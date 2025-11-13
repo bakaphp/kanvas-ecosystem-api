@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
-
-use function Sentry\captureException;
-
 use Throwable;
 
 class DealerSocketCustomerService
@@ -50,8 +47,6 @@ class DealerSocketCustomerService
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            captureException($e);
-
             throw $e;
         }
     }
@@ -86,8 +81,6 @@ class DealerSocketCustomerService
 
             return $response;
         } catch (Throwable $e) {
-            captureException($e);
-
             throw $e;
         }
     }

@@ -12,9 +12,6 @@ use Kanvas\Connectors\DealerSocket\LeadClient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
-
-use function Sentry\captureException;
-
 use Throwable;
 
 class DealerSocketLeadService
@@ -58,8 +55,6 @@ class DealerSocketLeadService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            captureException($e);
 
             throw $e;
         }
@@ -586,8 +581,6 @@ class DealerSocketLeadService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            captureException($e);
 
             throw $e;
         }
