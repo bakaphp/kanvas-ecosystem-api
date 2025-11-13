@@ -54,11 +54,6 @@ class GenerateMessageTagAction
             };
         }
 
-        if ($this->message->total_liked >= $this->message->app('total_likes_min_for_trending') 
-            || $this->message->total_shared >= $this->message->app('total_shared_min_for_trending')) {
-            $tags[] = 'trending';
-        }
-
         if (! empty($tags)) {
             $this->message->addTags(
                 $tags
