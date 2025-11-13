@@ -112,6 +112,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $messageInput = [
                     'message' => [
+                        'title' => $this->generateTitleByPrompt($message->message['prompt']),
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
