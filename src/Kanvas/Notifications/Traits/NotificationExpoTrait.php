@@ -33,15 +33,28 @@ trait NotificationExpoTrait
         $messageContent = json_decode($messageContent, true);
         $additionalData = $this->getData();
 
-        unset($additionalData['entity'],
+        unset($additionalData['apps_id'],
+            $additionalData['entity'],
             $additionalData['app'],
             $additionalData['options'],
             $additionalData['fromUser'],
+            $additionalData['via'],
+            $additionalData['email_template'],
+            $additionalData['push_template'],
+            $additionalData['company'],
             $additionalData['user']);
+
+        // More aggressive cleanup - remove ALL model instances
+        $filtered = [];
+        foreach ($additionalData as $key => $value) {
+            if (! is_object($value) || is_scalar($value)) {
+                $filtered[$key] = $value;
+            }
+        }
 
         $expoMessage = ExpoMessage::create($messageContent['title'])
           ->body($messageContent['message'])
-          ->data($additionalData)
+          ->data($filtered)
           ->expiresAt(now()->addHour())
           ->priority('high')
           ->playSound();
