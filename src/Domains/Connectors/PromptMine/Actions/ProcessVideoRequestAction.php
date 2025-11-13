@@ -82,7 +82,7 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
                 $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
@@ -345,7 +345,7 @@ class ProcessVideoRequestAction
     private function constructModelPayload(array $payload): array
     {
         $messageFiles = $this->entity->getFiles();
-        $imageUrlsArray = $messageFiles->map(fn($file) => $file->url)->toArray();
+        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
 
         if (! array_key_exists('attachment_type', $this->entity->message)) {
             throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
@@ -353,12 +353,12 @@ class ProcessVideoRequestAction
 
         switch ($this->entity->message['attachment_type']) {
             case 'reference_to_video':
-                return  array_merge($payload, [
+                return array_merge($payload, [
                     'referenceImageUrls' => $imageUrlsArray,
                 ]);
                 break;
             case 'start_end_frame':
-                return  array_merge($payload, [
+                return array_merge($payload, [
                     'image_url' => $imageUrlsArray[0],
                     'lastFrameUrl' => $imageUrlsArray[1],
                 ]);
