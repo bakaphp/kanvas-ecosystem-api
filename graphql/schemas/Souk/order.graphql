@@ -530,6 +530,16 @@ extend type Query @guard {
                     "duration_in_seconds"
                 ]
             )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
     ): [OrderTransitionHistory!]!
         @paginate(
             defaultCount: 25
