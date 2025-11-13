@@ -9,7 +9,17 @@ type Bundle {
     execution_mode: String
     expose_as_product: Boolean
     bundleItems: [BundleItem!]!
-        @hasMany(relation: "bundleItems", type: PAGINATOR)
+        @hasMany(relation: "bundleItems")
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 type BundleItem {
@@ -54,6 +64,7 @@ extend type Query @guard{
             columns: [
                 "id",
                 "name",
+                "slug"
                 "weight",
                 "variant_id",
                 "description",

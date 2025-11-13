@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  * Class Bundle
@@ -26,6 +27,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 class Bundle extends BaseModel
 {
     use HasFilesystemTrait;
+    use HasTagsTrait;
     protected $table = 'bundles';
     protected $guarded = [];
 
