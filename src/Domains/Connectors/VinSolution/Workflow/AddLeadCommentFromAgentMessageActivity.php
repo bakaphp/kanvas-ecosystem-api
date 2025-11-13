@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use Baka\Support\Url;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -126,10 +127,6 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
             'BDCManager'
         )->get();
 
-        foreach ($managers as $manager) {
-            $manager->notify(
-                $notification
-            );
-        }
+        Notification::send($managers, $notification);
     }
 }

@@ -51,7 +51,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         $this->output->progressStart($totalMessages);
         // $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
-        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget'];
+        $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget', 'highlight'];
         $allTagsWithIgnore = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
         $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
 
