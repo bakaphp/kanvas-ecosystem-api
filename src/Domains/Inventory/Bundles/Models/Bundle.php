@@ -11,7 +11,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
-
+use Baka\Traits\SlugTrait;
 /**
  * Class Bundle
  * @property int $id
@@ -28,6 +28,8 @@ class Bundle extends BaseModel
 {
     use HasFilesystemTrait;
     use HasTagsTrait;
+    use SlugTrait;
+    
     protected $table = 'bundles';
     protected $guarded = [];
 
