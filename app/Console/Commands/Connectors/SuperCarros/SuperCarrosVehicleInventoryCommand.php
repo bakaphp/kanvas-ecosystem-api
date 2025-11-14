@@ -42,7 +42,6 @@ class SuperCarrosVehicleInventoryCommand extends Command
      */
     public function handle(): void
     {
-        // Validate and get required models
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
         $region = Regions::getById((int) $this->argument('region_id'));
@@ -155,7 +154,7 @@ class SuperCarrosVehicleInventoryCommand extends Command
                 $this->info('');
                 $this->info('Imported Products:');
                 foreach ($result['products'] as $product) {
-                    $this->info('• ' . $product->name . ' (SKU: ' . $product->sku . ')');
+                    $this->info('• ' . $product->name . ' (SKU: ' . $product->variants->first()->sku . ')');
                 }
             }
         } catch (Throwable $e) {
