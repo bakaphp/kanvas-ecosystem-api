@@ -91,6 +91,7 @@ class CreateEventAction
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
+                    timeSlotId: $this->event->timeSlotId,
                     slug: $eventVersionSlug,
                     metadata: $this->metadata
                 )

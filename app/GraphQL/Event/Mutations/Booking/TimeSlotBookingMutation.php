@@ -9,6 +9,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\BuildEventDataAction;
 use Kanvas\Event\Events\Actions\CreateEventAction;
+use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventDto;
 use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -79,5 +80,95 @@ class TimeSlotBookingMutation
         $timeSlot->update(['status' => $newStatus]);
 
         return $eventVersion;
+    }
+
+    /**
+     * Update a time slot booking by changing to a new time slot.
+     */
+    public function update(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): EventVersion
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $input = $args['input'];
+
+        // Get the existing event version
+        $eventVersion = EventVersion::fromApp($app)
+            ->fromCompany($company)
+            ->findOrFail($input['event_version_id']);
+
+        $oldTimeSlotId = $eventVersion->time_slot_id ?? null;
+
+        if (! $oldTimeSlotId) {
+            throw new ValidationException('This booking is not associated with a time slot.');
+        }
+
+        $oldTimeSlot = TimeSlots::fromApp($app)
+            ->fromCompany($company)
+            ->findOrFail($oldTimeSlotId);
+
+        // Get the new time slot
+        $newTimeSlot = TimeSlots::fromApp($app)
+            ->fromCompany($company)
+            ->findOrFail($input['new_time_slot_id']);
+
+        // Validate capacity for the new time slot
+        $participantCount = count($input['participants'] ?? $eventVersion->participants ?? []);
+        if (! $newTimeSlot->hasAvailableCapacity($participantCount)) {
+            throw new ValidationException('New time slot does not have enough available capacity. Available: ' . $newTimeSlot->getAvailableSlots() . ', Required: ' . $participantCount);
+        }
+
+        // Build update data for UpdateEventAction
+        $updateData = [
+            'dates' => [
+                [
+                    'date' => $newTimeSlot->start_at->toDateString(),
+                    'start_time' => $newTimeSlot->start_at->format('H:i'),
+                    'end_time' => $newTimeSlot->end_at->format('H:i'),
+                ]
+            ],
+        ];
+
+        if (isset($input['event_name'])) {
+            $updateData['name'] = $input['event_name'];
+        }
+
+        if (isset($input['event_description'])) {
+            $updateData['description'] = $input['event_description'];
+        }
+
+        if (isset($input['participants'])) {
+            $updateData['participants'] = $input['participants'];
+        }
+
+        if (isset($input['resources'])) {
+            $updateData['resources'] = $input['resources'];
+        }
+
+        // Prepare metadata to include time slot information
+        $metadata = [
+            'time_slot_id' => $newTimeSlot->id,
+            'resource_name' => $newTimeSlot->resource?->name ?? '',
+            'resource_type' => $newTimeSlot->resources_type,
+        ];
+
+        if (isset($input['metadata'])) {
+            $metadata = array_merge($metadata, $input['metadata']);
+        }
+
+        $updateData['time_slot_id'] = $newTimeSlot->id;
+
+        $updateData['metadata'] = $metadata;
+
+        // Use UpdateEventAction to handle the update
+        $updateAction = new UpdateEventAction($eventVersion, $updateData);
+        $updatedEventVersion = $updateAction->execute();
+
+        // Update time slot statuses
+        $oldTimeSlot->autoUpdateStatus();
+        $newTimeSlot->autoUpdateStatus();
+
+        return $updatedEventVersion;
     }
 }
