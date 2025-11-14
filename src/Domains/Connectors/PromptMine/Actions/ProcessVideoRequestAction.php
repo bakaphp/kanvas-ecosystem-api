@@ -352,20 +352,21 @@ class ProcessVideoRequestAction
         }
 
         switch ($this->entity->message['attachment_type']) {
-            case 'reference_to_video':
-                return array_merge($payload, [
-                    'referenceImageUrls' => $imageUrlsArray,
-                ]);
-                break;
             case 'start_end_frame':
                 return array_merge($payload, [
                     'image_url' => $imageUrlsArray[0],
                     'lastFrameUrl' => $imageUrlsArray[1],
                 ]);
                 break;
+            case 'reference_to_video':
             default:
+                if ($messageFiles->count() == 1) {
+                    return array_merge($payload, [
+                        'image_url' => $imageUrlsArray[0],
+                    ]);
+                }
                 return array_merge($payload, [
-                    'image_url' => $imageUrlsArray[0],
+                    'referenceImageUrls' => $imageUrlsArray,
                 ]);
                 break;
         }
