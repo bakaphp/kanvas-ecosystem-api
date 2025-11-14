@@ -65,7 +65,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $promptChannel = $message->channels->first();
                 $isNotSafeForWork = false;
 
-                if (! $isTypeImage) {
+                if (! $isTypeImage && ! $isTypeVideo) {
                     // Use the new chat functionality for text responses
                     $result = $this->generateChatResponse($message);
                     $response = $result['response'];
