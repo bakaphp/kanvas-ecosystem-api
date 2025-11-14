@@ -27,6 +27,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -158,6 +159,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $message->is_public = 1;
                 $message->save();
+
+                UpdateUserProfileEvent::dispatch($createMessage->user);
 
                 return [
                     'result' => true,
