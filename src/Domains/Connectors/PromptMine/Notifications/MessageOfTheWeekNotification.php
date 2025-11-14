@@ -13,7 +13,7 @@ use Kanvas\Users\Models\Users;
 class MessageOfTheWeekNotification extends CustomMessageNotification
 {
     public function __construct(
-         Users $user,
+        Users $user,
         Message $entity,
         string $message,
         string $title,
