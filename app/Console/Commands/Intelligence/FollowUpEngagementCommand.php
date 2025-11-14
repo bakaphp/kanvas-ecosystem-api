@@ -19,7 +19,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-
+use Carbon\Carbon;
 class FollowUpEngagementCommand extends Command
 {
     use KanvasJobsTrait;
@@ -104,7 +104,8 @@ class FollowUpEngagementCommand extends Command
                     if ($result === null || empty($result)) {
                         continue;
                     }
-                    $this->info('Processed lead ID: ' . $lead->id);
+                    $date = Carbon::now($lead->company->timezone)->format('Y-m-d H:i:s');
+                    $this->info('Processed lead ID: ' . $lead->id. "Date $date");
                 }
             }
         }
