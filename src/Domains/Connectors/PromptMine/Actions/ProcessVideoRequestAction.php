@@ -29,14 +29,15 @@ class ProcessVideoRequestAction
         $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
         $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
         $videoModel = $this->entity->message['ai_model']['value'];
-        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
-        $videoType = $this->entity->message['type'] ?? 'video-format';
+        $videoKey = 'fal-ai';
+        $videoType = $isImageToVideo ? '/image-to-video' : '/text-to-video';
+        $videoKey = $videoKey . $videoType;
 
         /**
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai', 'google-v2', $videoKey);
+            $videoKey = str_replace('fal-ai' . $videoType, 'google-v2', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
