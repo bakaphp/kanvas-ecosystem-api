@@ -293,6 +293,10 @@ class SuperCarrosVehicleInventoryImportAction
                 'value' => $vehicle->condition ?: '',
             ],
             [
+                'name' => 'new',
+                'value' => $vehicle->condition ?: '',
+            ],
+            [
                 'name' => 'body',
                 'value' => $vehicle->type ?: '',
             ],
