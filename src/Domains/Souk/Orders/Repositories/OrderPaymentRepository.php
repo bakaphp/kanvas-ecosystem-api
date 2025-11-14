@@ -24,7 +24,8 @@ class OrderPaymentRepository
         Carbon $start,
         Carbon $end,
         array $paidStates,
-        ?int $variantId = null
+        ?int $variantId = null,
+        string $timezone = 'UTC'
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -45,7 +46,7 @@ class OrderPaymentRepository
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
             ->selectRaw("
-                DATE(order_transitions_history.changed_at) AS date,
+                DATE(CONVERT_TZ(order_transitions_history.changed_at, 'UTC', ?)) AS date,
                 COUNT(DISTINCT orders.id) AS total,
                 SUM(orders.total_net_amount) AS amount,
                 COUNT(DISTINCT payments.id) AS card,
@@ -53,7 +54,7 @@ class OrderPaymentRepository
                 COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction,
                 SUM(CASE WHEN payments.id IS NULL THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
                 SUM(CASE WHEN payments.id IS NOT NULL THEN orders.total_net_amount ELSE 0 END) AS card_amount
-            ")
+            ", [$timezone])
             ->groupBy('date')
             ->orderBy('date')
             ->get();

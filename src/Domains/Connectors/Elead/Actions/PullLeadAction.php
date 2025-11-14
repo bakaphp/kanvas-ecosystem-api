@@ -68,9 +68,9 @@ class PullLeadAction
                 $entityId
             );
 
-            new SyncLeadAction($lead)->execute();
+            $eLead = new SyncLeadAction($lead)->execute();
 
-            $this->setContactStatus($lead);
+            $this->setContactStatus($lead, $eLead->subStatus);
 
             return [
                 [
@@ -152,7 +152,7 @@ class PullLeadAction
                             continue; // Skip active when requesting inactive
                         }
                     }
-                    $this->setContactStatus($lead);
+                    $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
                     $results[] = [
                         'id' => $lead->id,
@@ -225,7 +225,7 @@ class PullLeadAction
         return $results;
     }
 
-    public function setContactStatus(ModelsLead $lead): void
+    public function setContactStatus(ModelsLead $lead, string $status): void
     {
         if ($lead->hasBeenContacted()) {
             return;
@@ -245,15 +245,17 @@ class PullLeadAction
                 continue;
             }
 
-            $createdBy = $item['createdBy'];
+            $status = strtolower($status);
 
-            $createdByLower = strtolower($createdBy);
+            $createdBy = strtolower($item['createdBy']);
+            $isSystem = $createdBy === 'system' ||
+                str_contains($createdBy, 'fortellis') || $item['name'] == 'Appointment' || $status == 'appointment set';
 
-            $isSystem =
-                $createdByLower === 'system' ||
-                str_contains($createdByLower, 'fortellis') || in_array($item['activityType'], ['Send Email','Phone Call']) || $item['name'] == 'Note';
+            $isSystem = $createdBy === 'system' ||
+                            str_contains($createdBy, 'fortellis') ;
+            $onlyStatus = $item['name'] == 'Appointment' || $status == 'appointment set';
 
-            if (! $isSystem) {
+            if (! $isSystem && $onlyStatus) {
                 $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
 
                 return ;

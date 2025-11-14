@@ -7,10 +7,12 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Support\Str;
 use DateTime;
 use DateTimeZone;
+use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -103,6 +105,11 @@ class AddOutBoundPhoneCallActivityToLeadAction
 
     protected function notifyManagers(): void
     {
+        $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
+        if ($hoursTool['status'] !== 'work_hours') {
+            return;
+        }
+
         $notification = new Blank(
             templateName: 'agent-manager-notification',
             data: [
@@ -112,7 +119,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'user' => $this->lead->user,
                 'content' => 'Sally just stopped the clock for lead ' . $this->lead->people->name,
                 'title' => 'Sally Stopped the Clock',
-                'message' => $this->message
+                'message' => $this->message,
             ],
             via: ['sms', 'push', 'expo'],
             entity: $this->lead
@@ -129,10 +136,6 @@ class AddOutBoundPhoneCallActivityToLeadAction
             'BDCManager'
         )->get();
 
-        foreach ($managers as $manager) {
-            $manager->notify(
-                $notification
-            );
-        }
+        Notification::send($managers, $notification);
     }
 }
