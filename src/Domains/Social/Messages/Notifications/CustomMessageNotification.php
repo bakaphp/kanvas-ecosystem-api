@@ -20,7 +20,7 @@ class CustomMessageNotification extends Notification
             $this->setTemplateName($data['email_template']);
         }
 
-        if(isset($data['push_template'])) {
+        if (isset($data['push_template'])) {
             $this->setPushTemplateName($data['push_template']);
         }
         $this->setType(EmailTemplateEnum::BLANK->value);
