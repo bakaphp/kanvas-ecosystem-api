@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\Passes;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Event\Passes\Actions\ScanPassAction;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
@@ -64,15 +65,12 @@ class EventPassCodeMutation
 
         $input = $args['input'];
 
-        $participant = Participant::where('id', $input['participant_id'])
-            ->where('companies_id', $company->getId())
-            ->where('apps_id', $app->getId())
-            ->firstOrFail();
-
         $eventVersion = EventVersion::where('id', $input['event_version_id'])
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
+
+        $participant = $eventVersion->participants()->where('participants.id', $input['participant_id'])->firstOrFail();
 
         $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
@@ -166,6 +164,16 @@ class EventPassCodeMutation
 
         // Determine if this is an event-level or participant-level check-in
         $isEventLevel = is_null($pass->participant_id);
+
+        $validatedStatus = EventStatus::firstOrCreate([
+            'companies_id' => $pass->eventVersion->companies_id,
+            'apps_id' => $pass->eventVersion->apps_id,
+            'name' => EventStatusEnum::VALIDATED->value,
+        ], [
+            'users_id' => $pass->eventVersion->users_id,
+        ]);
+
+        $pass->eventVersion->event->update(['event_status_id' => $validatedStatus->id]);
 
         return [
             'success' => true,

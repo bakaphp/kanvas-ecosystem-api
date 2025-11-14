@@ -7,6 +7,7 @@ namespace Kanvas\Event\Events\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Kanvas\Event\Events\Enums\TimeSlotStatusEnum;
 use Kanvas\Event\Models\BaseModel;
 
 class TimeSlots extends BaseModel
@@ -118,5 +119,16 @@ class TimeSlots extends BaseModel
     public function isFullyBooked(): bool
     {
         return $this->getAvailableSlots() <= 0;
+    }
+
+    public function autoUpdateStatus(): void
+    {
+        $newStatus = $this->isFullyBooked()
+            ? TimeSlotStatusEnum::BOOKED->value
+            : TimeSlotStatusEnum::OPEN->value;
+
+        if ($this->status !== $newStatus) {
+            $this->update(['status' => $newStatus]);
+        }
     }
 }
