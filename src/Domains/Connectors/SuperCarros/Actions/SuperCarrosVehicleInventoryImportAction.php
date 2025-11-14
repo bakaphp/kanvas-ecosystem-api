@@ -198,7 +198,9 @@ class SuperCarrosVehicleInventoryImportAction
                 ],
             ],
             'attributes' => $this->getVehicleAttributes($vehicle),
-            'custom_fields' => [],
+            'custom_fields' => [
+                'supercarros_vehicle_id' => $vehicle->id,
+            ],
         ];
 
         // Create variant
