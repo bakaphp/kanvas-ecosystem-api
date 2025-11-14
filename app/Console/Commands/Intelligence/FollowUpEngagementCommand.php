@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -104,7 +105,8 @@ class FollowUpEngagementCommand extends Command
                     if ($result === null || empty($result)) {
                         continue;
                     }
-                    $this->info('Processed lead ID: ' . $lead->id);
+                    $date = Carbon::now($lead->company->timezone)->format('Y-m-d H:i:s');
+                    $this->info('Processed lead ID: ' . $lead->id . "Date $date");
                 }
             }
         }
