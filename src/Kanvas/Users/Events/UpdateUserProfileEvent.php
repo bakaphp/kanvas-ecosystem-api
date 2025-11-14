@@ -33,7 +33,7 @@ class UpdateUserProfileEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('Changes detected for user: ' . $this->user->getId());
+        return new Channel('user-profile-' . $this->user->getId());
     }
 
     public function broadcastAs(): string
