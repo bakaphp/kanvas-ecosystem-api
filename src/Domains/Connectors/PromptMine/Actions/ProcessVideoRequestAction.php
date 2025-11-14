@@ -283,7 +283,8 @@ class ProcessVideoRequestAction
             return [];
         }
 
-        $videoKey = $type === 'text-to-video' ? 'fal-ai/text-to-video' : 'fal-ai/image-to-video';
+        $videoProvider = Str::contains($messageModel, 'veo') ? "google-v2" : "fal-ai";
+        $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
