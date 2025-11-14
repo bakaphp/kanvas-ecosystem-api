@@ -521,7 +521,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
             return $closestVariant;
         } catch (Throwable $e) {
-            report($e);
+            //report($e);
 
             return null;
         }

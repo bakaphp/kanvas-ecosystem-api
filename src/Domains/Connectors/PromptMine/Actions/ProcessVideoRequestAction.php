@@ -10,7 +10,6 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
@@ -38,7 +37,6 @@ class ProcessVideoRequestAction
         $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
 
-        Log::info('Video Model:', [$videoModel]);
         /**
          * if its google use the specific api route
          */
@@ -50,8 +48,6 @@ class ProcessVideoRequestAction
         }
 
         $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
-
-        Log::info('SENDING DATA TO API:', [$apiUrl]);
 
         if (empty($apiUrl) || empty($baseApiUrl)) {
             return [
@@ -223,10 +219,7 @@ class ProcessVideoRequestAction
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
-        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
-
-
-        Log::info('DATA PAYLOAD:', [$submitPayload]);
+        $submitPayload = $this->constructModelPayload($submitPayload);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -349,22 +342,32 @@ class ProcessVideoRequestAction
         return $defaults;
     }
 
-    private function constructModelPayload(Model $entity, array $payload): array
+    private function constructModelPayload(array $payload): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
-        Log::info('MESSAGE FILES:', [$messageFiles]);
+        $messageFiles = $this->entity->getFiles();
         $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-        return match (true) {
-            count($imageUrlsArray) == 2 => array_merge($payload, [
-                'image_url' => $imageUrlsArray[0],
-                'lastFrameUrl' => $imageUrlsArray[1],
-            ]),
-            count($imageUrlsArray) > 2 => array_merge($payload, [
-                'referenceImageUrls' => $imageUrlsArray,
-            ]),
-            default => array_merge($payload, [
-                'image_url' => $imageUrlsArray[0],
-            ]),
-        };
+
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+        }
+
+        switch ($this->entity->message['attachment_type']) {
+            case 'reference_to_video':
+                return array_merge($payload, [
+                    'referenceImageUrls' => $imageUrlsArray,
+                ]);
+                break;
+            case 'start_end_frame':
+                return array_merge($payload, [
+                    'image_url' => $imageUrlsArray[0],
+                    'lastFrameUrl' => $imageUrlsArray[1],
+                ]);
+                break;
+            default:
+                return array_merge($payload, [
+                    'image_url' => $imageUrlsArray[0],
+                ]);
+                break;
+        }
     }
 }

@@ -19,7 +19,9 @@ use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -612,5 +614,15 @@ class Lead extends BaseModel implements EventResourceInterface
             $this->pipeline_stage_id = $nextStage->id;
             $this->saveOrFail();
         }
+    }
+
+    public function hasBeenContacted(): bool
+    {
+        return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+    }
+
+    public function setContactStatus(LeadGroupStatusEnum $status): void
+    {
+        $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 }

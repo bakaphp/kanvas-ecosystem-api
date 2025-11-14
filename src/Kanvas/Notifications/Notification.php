@@ -193,7 +193,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         //disable the notification type channels for now, as we are not using them
         //return ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-        return $this->channels();
+        //return $this->channels();
+        return array_map(
+            fn ($via) => NotificationChannelEnum::getNotificationChannelBySlug($via),
+            $this->channels()
+        );
     }
 
     private function shouldFilterChannelsByUserSettings(object $notifiable): bool

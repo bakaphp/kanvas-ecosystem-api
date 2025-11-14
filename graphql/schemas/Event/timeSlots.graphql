@@ -7,7 +7,11 @@ type TimeSlots {
     schedule_rules_id: ID
     start_at: DateTime!
     end_at: DateTime!
+    initial_capacity: Int!
     capacity: Int!
+    booked_slots: Int! @method(name: "getBookedSlotsCount")
+    available_slots: Int! @method(name: "getAvailableSlots")
+    is_fully_booked: Boolean! @method(name: "isFullyBooked")
     status: String
     price_snapshot: Float
     currency: String

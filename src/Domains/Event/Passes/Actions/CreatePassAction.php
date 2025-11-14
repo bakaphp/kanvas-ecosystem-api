@@ -35,7 +35,6 @@ class CreatePassAction
             $plainCode
         )->execute();
 
-
         $motive = $this->motive ?? PassMotiveService::getMotive(
             $this->event->company,
             $this->event->app,
@@ -43,18 +42,19 @@ class CreatePassAction
             $this->eventVersion->users_id
         );
 
-        $pass = ParticipantPass::create([
+        $pass = ParticipantPass::firstOrCreate([
             'event_id' => $this->event->getId(),
             'event_version_id' => $this->eventVersion->getId(),
             'participant_id' => $this->participantId,
-            'participant_pass_motive_id' => $motive->getId(),
             'apps_id' => $this->event->apps_id,
-            'format' => $this->format->value,
             'companies_id' => $this->event->companies_id,
-            'users_id' => $this->eventVersion->users_id,
             'code' => encrypt($plainCode),
             'pin_hash' => Hash::make($plainCode),
             'pin_lookup' => $lookup,
+        ], [
+            'participant_pass_motive_id' => $motive->getId(),
+            'format' => $this->format->value,
+            'users_id' => $this->eventVersion->users_id,
             'expiration_date' => $this->expirationDate ?? now()->addDays(30),
             'used_date' => null,
             'scope' => $this->participantId

@@ -101,8 +101,8 @@ final class SyncTeeTimeEventActivityTest extends TestCase
                             'contacts_types_id' => 1,
                             'value' => 'john@example.com',
                             'weight' => 1,
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 [
                     'firstname' => 'Jane',
@@ -112,8 +112,8 @@ final class SyncTeeTimeEventActivityTest extends TestCase
                             'contacts_types_id' => 1,
                             'value' => 'jane@example.com',
                             'weight' => 1,
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
             ],
             'event_name' => 'Tee Time Reservation',
@@ -128,10 +128,10 @@ final class SyncTeeTimeEventActivityTest extends TestCase
                     'resources_id' => $variantId,
                     'resources_type' => 'variant',
                     'metadata' => [
-                        'notes' => 'Golf course reservation'
-                    ]
-                ]
-            ]
+                        'notes' => 'Golf course reservation',
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->graphQL('

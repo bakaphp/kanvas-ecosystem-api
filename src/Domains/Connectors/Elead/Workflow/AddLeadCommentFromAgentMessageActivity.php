@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Workflow;
 
 use Baka\Support\Url;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
@@ -12,6 +13,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -93,6 +95,11 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
      */
     protected function notifyManagers(Message $message): void
     {
+        $hoursTool = new CompanyWorkHoursTool($message)->execute();
+        if ($hoursTool['status'] !== 'work_hours') {
+            return;
+        }
+
         $notification = new Blank(
             templateName: 'agent-manager-notification',
             data: [
@@ -116,10 +123,6 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
             'BDCManager'
         )->get();
 
-        foreach ($managers as $manager) {
-            $manager->notify(
-                $notification
-            );
-        }
+        Notification::send($managers, $notification);
     }
 }

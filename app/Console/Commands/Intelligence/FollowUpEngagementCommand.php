@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -21,12 +22,13 @@ use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 
 class FollowUpEngagementCommand extends Command
 {
+    use KanvasJobsTrait;
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--ignore-have-follow-up=0}';
+    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--ignore-have-follow-up=0}';
 
     protected $description = 'Refresh the content of a session by its ID';
 
@@ -37,7 +39,7 @@ class FollowUpEngagementCommand extends Command
             ->whereNotNull('pipelines_stages.config')
             ->whereIn('pipelines.apps_id', $apps)
             ->when($this->option('company_id'), function (Builder $query) {
-                return $query->where('pipelines.company_id', '=', $this->option('company_id'));
+                return $query->where('pipelines.companies_id', '=', $this->option('company_id'));
             })
             ->select('pipelines_stages.*')
             ->cursor();
@@ -51,18 +53,19 @@ class FollowUpEngagementCommand extends Command
                 $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
                     ->where('leads_status_id', '<=', 2) // only open leads
                     ->where('is_deleted', '=', 0)
-                    ->whereIn('id', [525873,525867,509766,513064,513546])
+                    // ->whereIn('id', [525873,525867,509766,513064,513546])
+                    ->where('created_at', '>=', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
                     ->cursor();
 
                 foreach ($leads as $lead) {
+                    $this->overwriteAppService($lead->app);
                     $this->reSyncLead($lead);
                     $lead->refresh();
 
                     $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null
-                                    || $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) == 0
-                                    || $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null
-                                    || $lead->isActive() === false;
+ || ($lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0) || $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null
+                                    || $lead->isActive() === false || $lead->hasBeenContacted();
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
@@ -128,7 +131,7 @@ class FollowUpEngagementCommand extends Command
                 $app,
                 $company,
                 $user
-            )->execute([], $leadId);
+            )->execute([], $lead);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
                 $app,

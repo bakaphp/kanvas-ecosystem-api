@@ -45,14 +45,14 @@ class StripePaymentService
                     'valid' => false,
                     'status' => $intent->status,
                     'error' => $statusValidation['message'],
-                    'payment_intent' => $intent
+                    'payment_intent' => $intent,
                 ];
             }
 
             return [
                 'valid' => true,
                 'status' => $intent->status,
-                'payment_intent' => $intent
+                'payment_intent' => $intent,
             ];
         } catch (Throwable $e) {
             throw new ValidationException($e->getMessage());
@@ -66,13 +66,13 @@ class StripePaymentService
         if ($validator->isValidPayment($status)) {
             return [
                 'can_process' => true,
-                'message' => 'Payment is valid and can be processed'
+                'message' => 'Payment is valid and can be processed',
             ];
         }
 
         return [
             'can_process' => false,
-            'message' => $validator->getStatusMessage($status)
+            'message' => $validator->getStatusMessage($status),
         ];
     }
 

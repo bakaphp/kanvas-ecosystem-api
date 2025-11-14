@@ -41,6 +41,7 @@ class FollowUpEngagementAction
         $timezone = $this->lead->company->get('timezone') ?? 'UTC';
 
         $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
+
         if ($hoursTool['status'] !== 'work_hours') {
             return null;
         }
@@ -49,8 +50,9 @@ class FollowUpEngagementAction
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
+        $contacted = $this->lead->hasBeenContacted();
 
-        if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
+        if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
             $message = new CreateMessageFollowUpAction(
                 $this->lead,
                 $this->lead->stage,
