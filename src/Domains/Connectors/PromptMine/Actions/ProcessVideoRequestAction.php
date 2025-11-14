@@ -25,17 +25,12 @@ class ProcessVideoRequestAction
 
     public function execute(): array
     {
-        // Extract video model dynamically from message - use the full value as is
-        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
-        $videoType = $this->entity->message['type'] ?? 'video-format';
-
-        // Determine if it's text-to-video or image-to-video based on hasFiles flag
-        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
-
-        // Construct the API URL based on video type
-        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
-        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
+        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $videoModel = $this->entity->message['ai_model']['value'];
+        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
+        $videoType = $this->entity->message['type'] ?? 'video-format';
 
         /**
          * if its google use the specific api route
