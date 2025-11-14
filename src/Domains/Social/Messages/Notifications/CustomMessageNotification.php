@@ -16,9 +16,14 @@ class CustomMessageNotification extends Notification
         array $via
     ) {
         parent::__construct($message, $data);
+        if (! empty($data['email_template'])) {
+            $this->setTemplateName($data['email_template']);
+        }
+
+        if(! empty($data['push_template'])) {
+            $this->setPushTemplateName($data['push_template']);
+        }
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setTemplateName($data['email_template']);
-        $this->setPushTemplateName($data['push_template']);
         $this->setData($data);
         $this->setFromUser($data['fromUser'] ?? $message->user);
         $this->channels = $via;
