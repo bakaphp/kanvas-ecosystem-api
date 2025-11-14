@@ -35,7 +35,7 @@ class SuperCarrosHandler extends BaseIntegration
         // Store configuration in the app
         $this->app->set(ConfigurationEnum::BASE_URL->value, $baseUrl);
         $this->app->set(ConfigurationEnum::ACCESS_KEY->value, $accessKey);
-        
+
         // Store customer ID in the company
         $this->company->set(ConfigurationEnum::CUSTOMER_ID->value, $customerId);
 
@@ -43,12 +43,11 @@ class SuperCarrosHandler extends BaseIntegration
             // Test the connection by attempting to get vehicle list
             $client = new Client($this->app, $this->company);
             $vehicles = $client->getVehicleList();
-            
+
             // Verify we get a valid response structure
-            if (!is_array($vehicles)) {
+            if (! is_array($vehicles)) {
                 throw new ValidationException('Invalid response from SuperCarros API');
             }
-
         } catch (Exception $e) {
             if (str_contains($e->getMessage(), 'Unauthorized') || str_contains($e->getMessage(), 'Invalid')) {
                 throw new ValidationException('Invalid SuperCarros API credentials.');
