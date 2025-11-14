@@ -2,43 +2,42 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Events;
+namespace Kanvas\Users\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Override;
 
-class MessageCreatedEvent implements ShouldBroadcast
+class UpdateUserProfileEvent implements ShouldBroadcast
 {
     use SerializesModels;
     use Dispatchable;
     use InteractsWithSockets;
 
     public function __construct(
-        protected Message $message
+        protected Users $user,
     ) {
     }
 
     public function broadcastWith(): array
     {
         return [
-            'id' => $this->message->id,
-            'slug' => $this->message->slug,
+            'id' => $this->user->id,
         ];
     }
 
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('new-message-' . $this->message->getId());
+        return new Channel('Changes detected for user: ' . $this->user->getId());
     }
 
     public function broadcastAs(): string
     {
-        return 'message.added';
+        return 'user.profile.updated';
     }
 }
