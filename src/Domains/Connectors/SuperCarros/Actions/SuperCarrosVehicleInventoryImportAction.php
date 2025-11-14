@@ -151,7 +151,7 @@ class SuperCarrosVehicleInventoryImportAction
             $imageIndex = 0;
             foreach ($vehicle->images->gallery as $image) {
                 $imageIndex++;
-                $imageUrl = $image->photoBig ?: $image->photo ?: '';
+                $imageUrl = $image['PhotoUrlBig'] ?? $image['PhotoUrl'] ?? '';
                 if (! empty($imageUrl)) {
                     $files[] = [
                         'url' => $imageUrl,

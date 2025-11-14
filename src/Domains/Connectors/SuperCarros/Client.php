@@ -15,7 +15,7 @@ class Client
 {
     protected string $baseUrl;
     protected string $accessKey;
-    protected string $customerId;
+    protected int|string $customerId;
     protected GuzzleClient $client;
 
     public function __construct(
