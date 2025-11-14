@@ -24,6 +24,7 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Events\MessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
@@ -158,6 +159,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $message->is_public = 1;
                 $message->save();
+
+                MessageCreatedEvent::dispatch($createMessage);
 
                 return [
                     'result' => true,
