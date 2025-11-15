@@ -51,4 +51,12 @@ class BundleManagementMutation
 
         return (new UpdateBundleAction($bundle, $dto))->execute();
     }
+
+    public function delete(mixed $root, array $request): bool
+    {
+        $id = $request['id'];
+        $bundle = Bundles::getByIdFromCompany($id, auth()->user()->getCurrentCompany());
+
+        return $bundle->delete();
+    }
 }
