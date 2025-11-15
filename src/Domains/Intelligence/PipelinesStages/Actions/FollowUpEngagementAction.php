@@ -34,6 +34,9 @@ class FollowUpEngagementAction
         }
 
         $lastMessage = $session->channel->getLastMessage();
+        if (! $lastMessage) {
+            return null;
+        }
         $content = $session->content;
 
         $rules = $config['notification_engagement_rules'];
