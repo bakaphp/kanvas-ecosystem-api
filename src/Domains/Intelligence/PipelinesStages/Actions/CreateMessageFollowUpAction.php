@@ -198,7 +198,7 @@ class CreateMessageFollowUpAction
     public function mapConversationHistory(): array
     {
         $conversationMessages = $this->session->channel->messages()->get()
-            ->map(fn(Message $message) => [
+            ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => $message->slug ? 'lead' : 'agent',
                 'message' => $message->message,
@@ -206,7 +206,7 @@ class CreateMessageFollowUpAction
             ]);
 
         $agentNotesMessages = $this->lead->notes->messages()->get()
-            ->map(fn(Message $message) => [
+            ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => 'agent',
                 'message' => $message->message,
@@ -216,7 +216,7 @@ class CreateMessageFollowUpAction
         return $conversationMessages
             ->concat($agentNotesMessages)
             ->sortBy('created_at')
-            ->map(fn(array $item): array => [
+            ->map(fn (array $item): array => [
                 'user' => $item['user'],
                 'message' => $item['message'],
             ])
