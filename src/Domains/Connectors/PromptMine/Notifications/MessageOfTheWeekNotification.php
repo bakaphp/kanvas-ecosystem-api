@@ -20,15 +20,10 @@ class MessageOfTheWeekNotification extends CustomMessageNotification
         array $via,
         array $templates = []
     ) {
-        $metadata = $entity->getMessage();
         $data = [
-            'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
-            'app' => $entity->app,
-            'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $metadata,
             'via' => $via,
             'message_owner_id' => $entity->user->getId(),
             'message_id' => $entity->getId(),
