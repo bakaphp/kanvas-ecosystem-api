@@ -13,7 +13,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
-use stdClass;
 use Symfony\Component\Console\Helper\ProgressBar;
 
 class MailAllAppUsersFromCsvCommand extends Command
@@ -257,6 +256,14 @@ class MailAllAppUsersFromCsvCommand extends Command
             try {
                 $email = trim($record['email'] ?? '');
 
+                if (empty($email)) {
+                    //$this->warn('Email is empty, skipping record.');
+                    $skippedCount++;
+                    $progressBar->advance();
+
+                    continue;
+                }
+
                 // Skip if already processed (check Redis, prevents duplicates even after crashes)
                 if ($this->isEmailProcessed($email)) {
                     $this->warn("Email already processed, skipping: {$email}");
@@ -319,14 +326,11 @@ class MailAllAppUsersFromCsvCommand extends Command
         Redis::expire($this->redisHashKey, $ttl);
     }
 
-    /**
-     * Send email to user using a custom template
-     *
-     * @param stdClass|Users $user User object (stdClass from CSV or Users model from DB)
-     * @throws Exception If email sending fails
-     */
-    private function sendEmailToUser(stdClass|Users $user, string $emailTemplateName, string $emailSubject): void
-    {
+    private function sendEmailToUser(
+        Users $user,
+        string $emailTemplateName,
+        string $emailSubject
+    ): void {
         $notification = new Blank(
             $emailTemplateName,
             [
@@ -334,10 +338,13 @@ class MailAllAppUsersFromCsvCommand extends Command
                 'name' => $user->firstname . ' ' . $user->lastname,
             ],
             ['mail'],
-            $user
+            $this->app
         );
 
         $notification->setSubject($emailSubject);
-        Notification::route('mail', $user->email)->notify($notification);
+        Notification::route(
+            'mail',
+            $user->email
+        )->notify($notification);
     }
 }
