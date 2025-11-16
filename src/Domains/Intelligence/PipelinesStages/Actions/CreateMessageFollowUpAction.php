@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -196,16 +197,30 @@ class CreateMessageFollowUpAction
 
     public function mapConversationHistory(): array
     {
-        $messages = $this->session->channel->messages()->orderBy('created_at', 'asc')->get();
-        $conversationHistory = [];
-
-        foreach ($messages as $message) {
-            $conversationHistory[] = [
+        $conversationMessages = $this->session->channel->messages()->get()
+            ->map(fn(Message $message) => [
+                'created_at' => $message->created_at,
                 'user' => $message->slug ? 'lead' : 'agent',
                 'message' => $message->message,
-            ];
-        }
+                'type' => 'conversation',
+            ]);
 
-        return $conversationHistory;
+        $agentNotesMessages = $this->lead->notes->messages()->get()
+            ->map(fn(Message $message) => [
+                'created_at' => $message->created_at,
+                'user' => 'agent',
+                'message' => $message->message,
+                'type' => 'note',
+            ]);
+
+        return $conversationMessages
+            ->concat($agentNotesMessages)
+            ->sortBy('created_at')
+            ->map(fn(array $item): array => [
+                'user' => $item['user'],
+                'message' => $item['message'],
+            ])
+            ->values()
+            ->toArray();
     }
 }
