@@ -133,7 +133,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $this->assertDatabaseHas('time_slots', [
@@ -202,7 +202,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $this->assertDatabaseHas('time_slots', [
@@ -301,7 +301,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->subDay(),
             'end_at' => now()->subDay()->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         // Create upcoming time slot (should be deleted)
@@ -313,7 +313,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $scheduleRule->deleteUpcomingTimeSlots();
@@ -352,7 +352,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $this->assertTrue($timeSlot->isFromScheduleRule());
@@ -370,7 +370,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => null,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $this->assertFalse($timeSlot->isFromScheduleRule());
@@ -401,7 +401,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $response = $this->graphQL('
@@ -453,7 +453,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => null,
             'start_at' => now()->addDays(2),
             'end_at' => now()->addDays(2)->addHour(),
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         $response = $this->graphQL('
@@ -512,8 +512,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(2)->setTime(10, 0),
             'end_at' => now()->addDays(2)->setTime(11, 0),
-            'capacity' => 10,
-            'is_default' => 0,
+            'initial_capacity' => 10,
         ]);
 
         $bookedSlot = TimeSlots::create([
@@ -524,8 +523,7 @@ class ScheduleRulesTest extends TestCase
             'schedule_rules_id' => $scheduleRule->id,
             'start_at' => now()->addDays(3)->setTime(10, 0),
             'end_at' => now()->addDays(3)->setTime(11, 0),
-            'is_default' => 0,
-            'capacity' => 10,
+            'initial_capacity' => 10,
         ]);
 
         // Create a booking for the second time slot using the timeSlotBooking mutation
