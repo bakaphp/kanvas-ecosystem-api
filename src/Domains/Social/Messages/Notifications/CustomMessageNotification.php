@@ -16,6 +16,7 @@ class CustomMessageNotification extends Notification
         array $via
     ) {
         parent::__construct($message, $data);
+
         if (isset($data['email_template'])) {
             $this->setTemplateName($data['email_template']);
         }
@@ -23,6 +24,7 @@ class CustomMessageNotification extends Notification
         if (isset($data['push_template'])) {
             $this->setPushTemplateName($data['push_template']);
         }
+
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setData($data);
         $this->setFromUser($data['fromUser'] ?? $message->user);
