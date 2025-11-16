@@ -38,7 +38,7 @@ class FollowUpEngagementAction
         if (! $lastMessage) {
             return null;
         }
-        
+
         $content = $session->content;
 
         $rules = $config['notification_engagement_rules'];
