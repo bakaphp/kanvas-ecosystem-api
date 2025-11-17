@@ -54,6 +54,7 @@ class RecombeeIndexService
             'total_share' => 'int',
             'total_save' => 'int',
             'total_purchase' => 'int',
+            'total_remix' => 'int',
             'created_at' => 'timestamp',
             'updated_at' => 'timestamp',
             'is_premium' => 'boolean',
@@ -116,6 +117,7 @@ class RecombeeIndexService
 
     public function indexPromptMessage(Message $message): mixed
     {
+        $remixCount = 0;
         $messageData = $message->message;
 
         if (empty($messageData['prompt'])) {
@@ -126,6 +128,10 @@ class RecombeeIndexService
 
         if ($messageData['type'] === 'image-format' && empty($imageUrl)) {
             $imageUrl = $message->children->first()->message['image'] ?? null;
+        }
+
+        if ($message->children()->count() > 1) {
+            $remixCount = $message->children()->count() - 1; // Minus 1 because we dont count the first child as a remix.
         }
 
         $request = new SetItemValues(
@@ -140,6 +146,7 @@ class RecombeeIndexService
                 'total_share' => $message->total_shared,
                 'total_save' => $message->total_saved,
                 'total_purchase' => $message->total_purchased,
+                'total_remix' => $remixCount,
                 'created_at' => (int) strtotime($message->created_at->toDateTimeString()),
                 'updated_at' => (int) strtotime($message->updated_at->toDateTimeString()),
                 'is_premium' => $message->is_premium,
