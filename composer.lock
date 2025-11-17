@@ -614,16 +614,16 @@
         },
         {
             "name": "bavix/laravel-wallet",
-            "version": "11.4.2",
+            "version": "11.4.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bavix/laravel-wallet.git",
-                "reference": "c0d4bb0ec958135fd65585b883e5460dd997e4d6"
+                "reference": "33d4e61318dc5c617fdfdc4dc1848655ce8a335e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bavix/laravel-wallet/zipball/c0d4bb0ec958135fd65585b883e5460dd997e4d6",
-                "reference": "c0d4bb0ec958135fd65585b883e5460dd997e4d6",
+                "url": "https://api.github.com/repos/bavix/laravel-wallet/zipball/33d4e61318dc5c617fdfdc4dc1848655ce8a335e",
+                "reference": "33d4e61318dc5c617fdfdc4dc1848655ce8a335e",
                 "shasum": ""
             },
             "require": {
@@ -632,10 +632,11 @@
                 "ext-pdo": "*",
                 "illuminate/contracts": "^11.0|^12.0",
                 "illuminate/database": "^11.0|^12.0",
-                "php": "^8.2",
+                "php": "^8.3",
                 "ramsey/uuid": "^4.0"
             },
             "require-dev": {
+                "deptrac/deptrac": "^4.2",
                 "driftingly/rector-laravel": "^2.0",
                 "ergebnis/phpstan-rules": "^2.1",
                 "infection/infection": "~0.27",
@@ -646,7 +647,7 @@
                 "phpstan/phpstan": "^2.1",
                 "phpunit/phpunit": "^11.0",
                 "rector/rector": "^2.0",
-                "symplify/easy-coding-standard": "^12.1"
+                "symplify/easy-coding-standard": "^13.0"
             },
             "suggest": {
                 "bavix/laravel-wallet-swap": "Addition to the laravel-wallet library for quick setting of exchange rates",
@@ -691,7 +692,7 @@
             ],
             "support": {
                 "issues": "https://github.com/bavix/laravel-wallet/issues",
-                "source": "https://github.com/bavix/laravel-wallet/tree/11.4.2"
+                "source": "https://github.com/bavix/laravel-wallet/tree/11.4.3"
             },
             "funding": [
                 {
@@ -703,7 +704,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2025-04-13T08:53:43+00:00"
+            "time": "2025-11-17T19:12:12+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
