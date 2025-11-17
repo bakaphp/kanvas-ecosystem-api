@@ -21,6 +21,20 @@ return new class () extends Migration {
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->boolean('is_deleted')->default(0);
+
+            // Indexes
+            $table->index('bundle_id');
+            $table->index('variant_id');
+            $table->index('weight');
+            $table->index('created_at');
+            $table->index('updated_at');
+            $table->index('is_deleted');
+            
+            // Composite indexes
+            $table->index(['bundle_id', 'is_deleted']);
+            $table->index(['variant_id', 'is_deleted']);
+            $table->index(['bundle_id', 'variant_id']);
+            $table->index(['bundle_id', 'variant_id', 'is_deleted']);
         });
     }
 

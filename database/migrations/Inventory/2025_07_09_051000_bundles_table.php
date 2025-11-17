@@ -26,6 +26,25 @@ return new class () extends Migration {
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->boolean('is_deleted')->default(0);
+
+            // Indexes
+            $table->index('apps_id');
+            $table->index('companies_id');
+            $table->index('users_id');
+            $table->index('variant_id');
+            $table->index('slug');
+            $table->index('weight');
+            $table->index('created_at');
+            $table->index('updated_at');
+            $table->index('is_deleted');
+            
+            // Composite indexes
+            $table->index(['apps_id', 'companies_id']);
+            $table->index(['companies_id', 'is_deleted']);
+            $table->index(['apps_id', 'is_deleted']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted']);
+            $table->index(['users_id', 'is_deleted']);
+            $table->index(['variant_id', 'is_deleted']);
         });
     }
 
