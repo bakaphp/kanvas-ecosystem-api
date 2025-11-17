@@ -12,6 +12,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -64,7 +65,7 @@ use Throwable;
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate
- * @property string $third_party_sync_status @deprecated version 0.3
+ * @property string $third_party_sync_status
  */
 class Lead extends BaseModel implements EventResourceInterface
 {
@@ -188,6 +189,13 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasMany(Channel::class, 'entity_id', 'id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'id')
+            ->where('entity_namespace', self::class)
+            ->where('name', 'Notes');
     }
 
     public function receiver(): BelongsTo
