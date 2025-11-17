@@ -46,17 +46,16 @@ class NetSuiteProductSearchService
         $searchBasic->itemId = new SearchStringField();
         $searchBasic->itemId->operator = 'is';
         $searchBasic->itemId->searchValue = (string) $itemNumber;
-        
+
         // Location join. If we not filter a new row would appear for every available location
         $locationBasic = new LocationSearchBasic();
         $internalIdField = new SearchMultiSelectField();
         $internalIdField->operator = 'anyOf';
-        $internalIdRef = New RecordRef();
+        $internalIdRef = new RecordRef();
         $internalIdRef->internalId = (string) $locationId;
         $internalIdField->searchValue = [$internalIdRef];
         $locationBasic->internalId = $internalIdField;
 
-        // 
         $pricingBasic = new PricingSearchBasic();
         $priceLevelField = new SearchMultiSelectField();
         $priceLevelField->operator = 'anyOf';
@@ -65,7 +64,7 @@ class NetSuiteProductSearchService
 
         $priceLevelField->searchValue = [$plRef];
         $pricingBasic->priceLevel = $priceLevelField;
-    
+
         $itemSearch = new ItemSearch();
         $itemSearch->basic = $searchBasic;
         $itemSearch->inventoryLocationJoin = $locationBasic;
