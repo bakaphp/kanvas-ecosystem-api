@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -30,9 +31,29 @@ class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivity
             $user->set($key, $value, $isPublic);
         }
 
+        /**
+         * @todo remove this, this is so stupid that I can't believe we have this
+         */
+        $updateUserLastName = false;
+
+        try {
+            $userAppProfile = $user->getAppProfile($app);
+            if ($userAppProfile->lastname === null && $app->get('dont_force_lastname_default')) {
+                $userAppProfile->lastname = '';
+                $userAppProfile->update();
+
+                $user->lastname = '';
+                $user->update();
+                $updateUserLastName = true;
+            }
+        } catch (Exception $e) {
+            //do nothing
+        }
+
         return [
             'user_id' => $user->getId(),
             'custom_field' => $customField,
+            'updated_lastname' => $updateUserLastName,
         ];
     }
 }

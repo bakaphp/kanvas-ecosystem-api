@@ -9,6 +9,9 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Services\RecombeeItemRecommendationService;
+use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Inventory\Products\Actions\ExportProductsAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Services\B2BConfigurationService;
@@ -100,5 +103,67 @@ class ProductBuilder
         return Products::whereIn('id', $ids)
             ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')')
             ->get();
+    }
+
+    public function getProductRecommendations(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $intent = $args['intent'] ?? 'product';
+        $productId = (int) $args['id'];
+        //$scenario = $args['scenario'] ?? ConfigurationEnum::FOR_YOU_SCENARIO->value;
+        $scenario = $intent;
+        $limit = $args['first'] ?? 25;
+
+        // Return all products if Recombee is not configured
+        if ($app->get(ConfigurationEnum::RECOMBEE_DATABASE->value) === null) {
+            return Products::fromApp($app)->fromCompany($company)->where('id', '!=', $productId);
+        }
+
+        // Get recommendations based on intent
+        if ($intent === 'user') {
+            $userRecommendationService = new RecombeeUserRecommendationService(
+                $app,
+            );
+
+            $recommendations = $userRecommendationService->getUserRecommendation(
+                $user,
+                count: $limit,
+                scenario: $scenario
+            );
+        } else {
+            // Product-to-product recommendations (default)
+            $product = Products::getById($productId, $app);
+
+            $itemRecommendationService = new RecombeeItemRecommendationService(
+                $app,
+            );
+
+            $recommendations = $itemRecommendationService->getItemRecommendation(
+                $user,
+                $product,
+                count: $limit,
+                scenario: $scenario
+            );
+        }
+
+        // Extract product IDs from recommendations and look them up in database
+        $recommendedIds = collect($recommendations['recomms'] ?? [])
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if (empty($recommendedIds)) {
+            return Products::fromApp($app)->fromCompany($company)->whereIn('id', [0]);
+        }
+
+        return Products::fromApp($app)->fromCompany($company)->whereIn('id', $recommendedIds)
+            ->orderByRaw('FIELD(id, ' . implode(',', $recommendedIds) . ')');
     }
 }

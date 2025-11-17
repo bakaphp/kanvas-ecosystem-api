@@ -25,14 +25,15 @@ class SearchJob extends ProcessWebhookJob
     public function execute(): array
     {
         $search = $this->webhookRequest->payload['search'] ?? '';
-
+        $page = $this->webhookRequest->payload['page'] ?? 1;
         $repository = new ScrapingDogRepository($this->receiver->app);
 
         $ttl = $this->receiver->app->get(ConfigEnum::TTL_SEARCH->value);
-        $key = $search . ':' . $this->receiver->app->getId();
+        $key = $search . ':' . $page . ':' . $this->receiver->app->getId();
 
-        return Cache::remember($key, $ttl, function () use ($repository, $search) {
-            return ['results' => $repository->getSearch($search)['results']];
+        return Cache::remember($key, $ttl, function () use ($repository, $search, $page) {
+            $results = $repository->getSearch($search, $page);
+            return ['results' => $results['results'], 'pagination' => $results['pagination'] ?? []];
         });
     }
 }

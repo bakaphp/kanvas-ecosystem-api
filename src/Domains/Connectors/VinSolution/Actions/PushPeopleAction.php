@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Helpers\DateHelper;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\OCR\DataTransferObjects\DriversLicense;
 use Kanvas\Connectors\SalesAssist\Enums\PeopleCustomFieldEnum;
@@ -37,48 +38,61 @@ class PushPeopleAction
      */
     public function execute(): Contact
     {
-        $contactId = CustomFieldEnum::CONTACT->value;
-        $exist = $this->people->get($contactId);
+        return DB::transaction(function () {
+            $this->people->lockForUpdate();
 
-        // Prepare contact data
-        $contactEmail = $this->prepareEmails($this->people, ! $exist);
-        $contactPhone = $this->preparePhones($this->people, ! $exist);
-        $contactAddress = $this->prepareAddresses($this->people, ! $exist);
+            $contactId = CustomFieldEnum::CONTACT->value;
+            $exist = $this->people->get($contactId);
 
-        if (! $exist) {
-            // Create new contact
-            $contact = [
-                'ContactInformation' => [
-                    'FirstName' => Str::of($this->people->firstname)->trim(),
-                    'LastName' => Str::of($this->people->lastname)->trim(),
-                    'MiddleName' => Str::of($this->people->middlename)->trim(),
-                    'Emails' => $contactEmail,
-                    'Phones' => $contactPhone,
-                    'Addresses' => $contactAddress,
-                ],
-                'LeadInformation' => [
-                    'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
-                    'SplitSalesRepUserId' => 0,
-                    'LeadSourceId' => 0,
-                    'LeadTypeId' => 0,
-                    'OnShowRoom' => false,
-                    'SaleNotes' => '',
-                ],
-            ];
+            // Prepare contact data
+            $contactEmail = $this->prepareEmails($this->people, ! $exist);
+            $contactPhone = $this->preparePhones($this->people, ! $exist);
+            $contactAddress = $this->prepareAddresses($this->people, ! $exist);
 
-            $contact = Contact::create(
-                $this->vinCredential->dealer,
-                $this->vinCredential->user,
-                $contact
-            );
+            if (! $exist) {
+                // Create new contact
+                $contact = [
+                    'ContactInformation' => [
+                        'FirstName' => Str::of($this->people->firstname)->trim(),
+                        'LastName' => Str::of($this->people->lastname)->trim(),
+                        'MiddleName' => Str::of($this->people->middlename)->trim(),
+                        'Emails' => $contactEmail,
+                        'Phones' => $contactPhone,
+                        'Addresses' => $contactAddress,
+                    ],
+                    'LeadInformation' => [
+                        'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
+                        'SplitSalesRepUserId' => 0,
+                        'LeadSourceId' => 0,
+                        'LeadTypeId' => 0,
+                        'OnShowRoom' => false,
+                        'SaleNotes' => '',
+                    ],
+                ];
 
-            $this->people->set(
-                $contactId,
-                $contact->id
-            );
+                $contact = Contact::create(
+                    $this->vinCredential->dealer,
+                    $this->vinCredential->user,
+                    $contact
+                );
 
-            // Update again if contact information is empty
-            if (empty($contact->information)) {
+                $this->people->set(
+                    $contactId,
+                    $contact->id
+                );
+
+                // Update again if contact information is empty
+                if (empty($contact->information)) {
+                    $contact = $this->updateContact(
+                        $contactEmail,
+                        $contactPhone,
+                        $contactAddress,
+                        (int) $this->people->get($contactId),
+                        $this->people
+                    );
+                }
+            } else {
+                // Update existing contact
                 $contact = $this->updateContact(
                     $contactEmail,
                     $contactPhone,
@@ -87,18 +101,9 @@ class PushPeopleAction
                     $this->people
                 );
             }
-        } else {
-            // Update existing contact
-            $contact = $this->updateContact(
-                $contactEmail,
-                $contactPhone,
-                $contactAddress,
-                (int) $this->people->get($contactId),
-                $this->people
-            );
-        }
 
-        return $contact;
+            return $contact;
+        });
     }
 
     /**
@@ -154,9 +159,11 @@ class PushPeopleAction
     {
         $contactAddress = [];
 
-        if ($people->address()->count() > 0) {
+        $addresses = $people->address()->latest('created_at')->get();
+
+        if ($addresses->count() > 0) {
             $i = 1;
-            foreach ($people->address as $address) {
+            foreach ($addresses as $address) {
                 $toAddress = new Address($isNew ? 0 : $i, $address);
                 $contactAddress[] = $toAddress->transform();
                 $i++;

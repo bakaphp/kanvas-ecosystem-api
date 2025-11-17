@@ -60,6 +60,7 @@ use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -318,6 +319,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'users_id',
             'id'
         )->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * User loyalty tier memberships relationship.
+     */
+    public function loyaltyTierMemberships(): HasMany
+    {
+        return $this->hasMany(LoyaltyTierMembership::class, 'users_id');
     }
 
     /**
@@ -920,7 +929,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_users';
+        $customIndex = $this->app ? $this->app->get('app_custom_users_index') : null;
+        return $customIndex ?: config('scout.prefix') . '_users';
     }
 
     public static function search($query = '', $callback = null)

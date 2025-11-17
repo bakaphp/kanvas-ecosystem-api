@@ -12,8 +12,8 @@ enum AllowedFileExtensionEnum
     public function getAllowedExtensions(): array
     {
         return match ($this) {
-            self::ONLY_IMAGES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'json', 'pdf', 'txt', 'text'],
-            self::WORK_FILES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'pdf', 'csv'],
+            self::ONLY_IMAGES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'json', 'pdf', 'txt', 'text', 'heic'],
+            self::WORK_FILES => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'pdf', 'csv', 'odt', 'ods', 'odp', 'json', 'heic'],
         };
     }
 }

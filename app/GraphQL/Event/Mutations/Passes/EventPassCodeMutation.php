@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\Passes;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
-use Kanvas\Event\Participants\Models\Participant;
-use Kanvas\Event\Participants\Models\ParticipantPassMotive;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Event\Passes\Actions\ScanPassAction;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
+use Kanvas\Event\Passes\Services\PassMotiveService;
 
 class EventPassCodeMutation
 {
@@ -30,7 +30,7 @@ class EventPassCodeMutation
         $event = Event::getByIdFromCompanyApp($input['event_id'], $company, $app);
         $eventVersion = $event->versions()->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -65,17 +65,14 @@ class EventPassCodeMutation
 
         $input = $args['input'];
 
-        $participant = Participant::where('id', $input['participant_id'])
-            ->where('companies_id', $company->getId())
-            ->where('apps_id', $app->getId())
-            ->firstOrFail();
-
         $eventVersion = EventVersion::where('id', $input['event_version_id'])
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $participant = $eventVersion->participants()->where('participants.id', $input['participant_id'])->firstOrFail();
+
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -116,7 +113,7 @@ class EventPassCodeMutation
             ->where('apps_id', $app->getId())
             ->firstOrFail();
 
-        $motive = $this->getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
+        $motive = PassMotiveService::getMotive($company, $app, $input['motive_id'] ?? null, $user->getId());
 
         $format = isset($input['format']) ? PassFormatEnum::from($input['format']) : PassFormatEnum::NUMERIC_PIN;
         $expirationDate = isset($input['expiration_date'])
@@ -168,6 +165,16 @@ class EventPassCodeMutation
         // Determine if this is an event-level or participant-level check-in
         $isEventLevel = is_null($pass->participant_id);
 
+        $validatedStatus = EventStatus::firstOrCreate([
+            'companies_id' => $pass->eventVersion->companies_id,
+            'apps_id' => $pass->eventVersion->apps_id,
+            'name' => EventStatusEnum::VALIDATED->value,
+        ], [
+            'users_id' => $pass->eventVersion->users_id,
+        ]);
+
+        $pass->eventVersion->event->update(['event_status_id' => $validatedStatus->id]);
+
         return [
             'success' => true,
             'message' => $isEventLevel
@@ -181,25 +188,5 @@ class EventPassCodeMutation
             'checked_in_at' => $pass->used_date->toDateTimeString(),
             'motive' => $pass->motive,
         ];
-    }
-
-
-    private function getMotive(Companies $company, Apps $app, $motiveId, $userId): ParticipantPassMotive
-    {
-        $motive = ParticipantPassMotive::fromCompany($company)
-            ->fromApp($app)
-            ->find($motiveId);
-
-        if (! $motive) {
-            $motive = ParticipantPassMotive::fromCompany($company)
-                ->fromApp($app)
-                ->firstOrCreate([
-                    'name' => 'Default',
-                ], [
-                    'users_id' => $userId,
-                ]);
-        }
-
-        return $motive;
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Plusval\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Connectors\Plusval\Client;
 use Kanvas\Connectors\Plusval\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Override;
@@ -37,7 +36,6 @@ class PlusvalHandler extends BaseIntegration
             throw new ValidationException('All Plusval configuration fields are required');
         }
 
-        //return Client::validateCredentials($baseUrl, $apiKey);
         return true;
     }
 }

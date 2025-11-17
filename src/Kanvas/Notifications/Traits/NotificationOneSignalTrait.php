@@ -23,6 +23,7 @@ trait NotificationOneSignalTrait
         }
 
         $messageContent = Str::cleanJsonString($this->getPushTemplate());
+        $messageContent = html_entity_decode($messageContent, ENT_QUOTES, 'UTF-8');
 
         if (! Str::isJson($messageContent)) {
             report('Message content for push notification is not a valid JSON ' . json_encode($messageContent));

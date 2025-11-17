@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -24,12 +25,20 @@ class FollowUpEngagementAction
         $session = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
+                ->fromApp($this->lead->app)
+                ->fromCompany($this->lead->company)
                 ->first();
+
         if (! $session) {
             return null;
         }
 
         $lastMessage = $session->channel->getLastMessage();
+
+        if (! $lastMessage) {
+            return null;
+        }
+
         $content = $session->content;
 
         $rules = $config['notification_engagement_rules'];
@@ -37,25 +46,32 @@ class FollowUpEngagementAction
         $timezone = $this->lead->company->get('timezone') ?? 'UTC';
 
         $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
+
         if ($hoursTool['status'] !== 'work_hours') {
             return null;
         }
+
         $now = Carbon::now($timezone);
 
         $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
         $timeDiff = $lastMessageTime->diffInMinutes($now);
+        $contacted = $this->lead->hasBeenContacted();
 
-        if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response']) {
+        if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
             $message = new CreateMessageFollowUpAction(
                 $this->lead,
                 $this->lead->stage,
                 $session
-            )
-            ->execute();
+            )->execute();
+
+            //if message is null, we should response
+            if ($message === null) {
+                return null;
+            }
 
             if (isset($rules['send_message']) && $rules['send_message']) {
                 new SendMessageToLeadAction($this->lead)->execute(
-                    $this->lead->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
+                    $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                     $message,
                     $this->lead->company->get('twilio_phone_number')
                 );

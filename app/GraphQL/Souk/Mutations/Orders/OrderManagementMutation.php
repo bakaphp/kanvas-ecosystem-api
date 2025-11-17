@@ -120,6 +120,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $ipAddress = request()->ip();
         $createOrder = new $actionClass(
             $cart,
             $company,
@@ -131,6 +132,8 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
+            null,
+            $ipAddress
         )->execute();
 
         $log->subject_type = get_class($createOrder);
@@ -161,7 +164,7 @@ class OrderManagementMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->fulfillment_status === 'fulfilled') {
+        if ($order->fulfillment_status === 'fulfilled' && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
         }
 
@@ -238,6 +241,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $ipAddress = request()->ip();
         $createOrder = new CreateOrderFromCartAction(
             $cart,
             $company,
@@ -249,7 +253,8 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
-            $parentOrder
+            $parentOrder,
+            $ipAddress
         )->execute();
 
         $log->subject_type = get_class($createOrder);
@@ -411,6 +416,7 @@ class OrderManagementMutation
 
         try {
             $date = $input['date'] ?? null;
+
             return new TransitionOrderStateAction(
                 $order,
                 $user,

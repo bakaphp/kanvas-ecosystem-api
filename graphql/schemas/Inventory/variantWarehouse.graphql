@@ -9,6 +9,7 @@ type WarehouseVariantRelationship {
     channels: [VariantChannelRelationship] @belongsToMany(relation: "channels")
     quantity: Float
     price: Money
+    cost: Money
     status: Status @belongsTo(relation: "status")
     sku: String
     position: Int

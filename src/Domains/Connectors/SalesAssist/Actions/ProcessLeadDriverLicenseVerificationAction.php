@@ -57,8 +57,6 @@ class ProcessLeadDriverLicenseVerificationAction
 
     public function execute(): array
     {
-        DB::beginTransaction();
-
         try {
             // Lock the lead to prevent concurrent processing
             $lockedLead = Lead::where('id', $this->lead->id)
@@ -161,11 +159,12 @@ class ProcessLeadDriverLicenseVerificationAction
             // Clean up temporary data
             $this->cleanupTemporaryData($this->lead);
 
-            DB::commit();
+            // DB::commit();
 
             return [
                 'success' => true,
                 'results' => $results,
+                'hasMainDriverLicense' => $hasMainDriverLicense,
                 'driverLicenseData' => $driverLicenseData,
                 'idVerificationData' => $idVerificationData,
                 'intellicheckResponse' => $this->intellicheckResponse ?? null,
@@ -173,7 +172,7 @@ class ProcessLeadDriverLicenseVerificationAction
                 'message' => 'Driver license verification completed',
             ];
         } catch (Exception $e) {
-            DB::rollBack();
+            // DB::rollBack();
             report($e);
             $this->cleanupTemporaryData($this->lead);
 
@@ -190,10 +189,11 @@ class ProcessLeadDriverLicenseVerificationAction
     ): array {
         $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
+        $updatePeopleData = null;
 
         // Update people information from driver license data
         if ($driverLicenseData) {
-            $this->updatePeopleFromDriverLicense($lead->people, $driverLicenseData);
+            $updatePeopleData = $this->updatePeopleFromDriverLicense($lead->people, $driverLicenseData);
         }
 
         // Create engagement and message
@@ -210,6 +210,8 @@ class ProcessLeadDriverLicenseVerificationAction
             'message_id' => $message->getId(),
             'id_valid' => $isIdValid,
             'id_expired' => $isExpired,
+            'driverLicenseData' => $driverLicenseData,
+            'updatePeopleData' => $updatePeopleData?->toArray(),
         ];
     }
 
@@ -298,7 +300,7 @@ class ProcessLeadDriverLicenseVerificationAction
             ->first();
     }
 
-    protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): void
+    protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): PeopleDataInput
     {
         // Parse address components
         $addressComponents = isset($driverLicenseData['address']) ?
@@ -346,6 +348,7 @@ class ProcessLeadDriverLicenseVerificationAction
             contacts: DataTransferObjectContact::collect([], DataCollection::class),
             address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
             id: $people->id,
+            license_number: $driverLicenseData['license'] ?? null,
             custom_fields: [],
             tags: []
         );
@@ -358,6 +361,8 @@ class ProcessLeadDriverLicenseVerificationAction
             // Set the driver's license number
             $people->set('drivers_license_number', $driverLicenseData['license']);
         }
+
+        return $peopleData;
     }
 
     protected function createEngagement(Lead $lead, People $people, Apps $app): Engagement
