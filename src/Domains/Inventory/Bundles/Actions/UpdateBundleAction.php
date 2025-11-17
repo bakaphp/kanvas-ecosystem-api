@@ -26,17 +26,24 @@ class UpdateBundleAction
             'execution_mode' => $this->bundle->execution_mode,
             'expose_as_product' => $this->bundle->expose_as_product,
         ]);
+
         $app = $this->bundleModel->app;
+
         if (! empty($this->bundle->variants)) {
             $this->bundleModel->variants()->sync(
                 collect($this->bundle->variants)->mapWithKeys(function ($variant) use ($app) {
-                    $variantModel = Variants::getById($variant['id'], $app);
+                    $variantModel = Variants::getByIdFromCompanyApp(
+                        $variant['id'],
+                        $this->bundleModel->company,
+                        $app
+                    );
+
                     return [
                         $variantModel->getId() => [
                             'quantity' => $variant['quantity'] ?? 1,
                             'unit' => $variant['unit'] ?? 'unit',
-                            'weight' => $variant["weight"] ?? $variantModel->weight
-                        ]
+                            'weight' => $variant['weight'] ?? $variantModel->weight,
+                        ],
                     ];
                 })->toArray()
             );

@@ -27,23 +27,30 @@ class CreateBundleAction
             'description' => $this->bundle->description,
             'execution_mode' => $this->bundle->execution_mode,
             'expose_as_product' => $this->bundle->expose_as_product,
-            "weight" => $this->bundle->weight,
-            'slug' => $this->bundle->slug ?? Str::slug($this->bundle->name)
+            'weight' => $this->bundle->weight,
+            'slug' => $this->bundle->slug ?? Str::slug($this->bundle->name),
         ]);
+
         if (! empty($this->bundle->variants)) {
             $bundle->variants()->sync(
                 collect($this->bundle->variants)->mapWithKeys(function ($variant) use ($bundle) {
-                    $variantModel = Variants::getById($variant['id'], $bundle->app);
+                    $variantModel = Variants::getByIdFromCompanyApp(
+                        $variant['id'],
+                        $bundle->company,
+                        $bundle->app
+                    );
+
                     return [
                         $variantModel->getId() => [
                             'quantity' => $variant['quantity'] ?? 1,
                             'unit' => $variant['unit'] ?? 'unit',
-                            "weight" => $variant["weight"] ?? 0
-                        ]
+                            'weight' => $variant['weight'] ?? 0,
+                        ],
                     ];
                 })->toArray()
             );
         }
+
         $bundle->refresh();
 
         return $bundle;

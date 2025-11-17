@@ -16,10 +16,13 @@ class BundleManagementMutation
     public function create(mixed $root, array $request): Bundles
     {
         $input = $request['input'];
-        $variant = isset($input['variant']) ? Variants::getById($input['variant_id'], app(Apps::class)) : null;
+        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+        $variant = isset($input['variant']) ? Variants::getByIdFromCompanyApp($input['variant_id'], $company, $app) : null;
+
         $dto = Bundle::from([
-            'app' => app(Apps::class),
-            'company' => auth()->user()->getCurrentCompany(),
+            'app' => $app,
+            'company' => $company,
             'user' => auth()->user(),
             'name' => $input['name'],
             'variant' => $variant,
@@ -29,17 +32,22 @@ class BundleManagementMutation
             'variants' => $input['variants'] ?? [],
         ]);
 
-        return (new CreateBundleAction($dto))->execute();
+        return new CreateBundleAction($dto)->execute();
     }
 
     public function update(mixed $root, array $request): Bundles
     {
+        $id = $request['id'];
         $input = $request['input'];
-        $bundle = Bundles::getById($input['id'], app(Apps::class));
-        $variant = isset($input['variant']) ? Variants::getById($input['variant_id'], app(Apps::class)) : null;
+        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $bundle = Bundles::getByIdFromCompanyApp($id, $company, $app);
+        $variant = isset($input['variant']) ? Variants::getByIdFromCompanyApp($input['variant_id'], $company, $app) : null;
+
         $dto = Bundle::from([
-            'app' => app(Apps::class),
-            'company' => auth()->user()->getCurrentCompany(),
+            'app' => $app,
+            'company' => $company,
             'user' => auth()->user(),
             'name' => $input['name'],
             'variant' => $variant,
@@ -49,14 +57,18 @@ class BundleManagementMutation
             'variants' => $input['variants'] ?? [],
         ]);
 
-        return (new UpdateBundleAction($bundle, $dto))->execute();
+        return new UpdateBundleAction($bundle, $dto)->execute();
     }
 
     public function delete(mixed $root, array $request): bool
     {
         $id = $request['id'];
-        $bundle = Bundles::getByIdFromCompany($id, auth()->user()->getCurrentCompany());
+        $bundle = Bundles::getByIdFromCompanyApp(
+            $id,
+            auth()->user()->getCurrentCompany(),
+            app(Apps::class)
+        );
 
-        return $bundle->delete();
+        return (bool) $bundle->delete();
     }
 }
