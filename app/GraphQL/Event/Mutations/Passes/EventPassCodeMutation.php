@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Passes;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
@@ -13,6 +14,7 @@ use Kanvas\Event\Passes\Actions\CreatePassAction;
 use Kanvas\Event\Passes\Actions\ScanPassAction;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
 use Kanvas\Event\Passes\Services\PassMotiveService;
+use Kanvas\Exceptions\ValidationException;
 
 class EventPassCodeMutation
 {
@@ -79,22 +81,27 @@ class EventPassCodeMutation
             ? $input['expiration_date']
             : null;
 
-        [$pass, $plainCode] = (new CreatePassAction(
-            $eventVersion->event,
-            $eventVersion,
-            $motive,
-            $participant->getId(),
-            $expirationDate,
-            $format
-        ))->execute();
+            try {
+                [$pass, $plainCode] = (new CreatePassAction(
+                    $eventVersion->event,
+                    $eventVersion,
+                    $motive,
+                    $participant->getId(),
+                    $expirationDate,
+                    $format
+                ))->execute();
 
-        return [
-            'success' => true,
-            'pass' => $pass,
-            'code' => $plainCode,
-            'participant' => $participant,
-            'message' => 'Participant code issued successfully',
-        ];
+                return [
+                    'success' => true,
+                    'pass' => $pass,
+                    'code' => $plainCode,
+                    'participant' => $participant,
+                    'message' => 'Participant code issued successfully',
+                ];
+            } catch (Exception $e) {
+                throw new ValidationException('Error issuing code: ' . $e->getMessage());
+            }
+        
     }
 
     /**

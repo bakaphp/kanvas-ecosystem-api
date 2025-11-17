@@ -6,8 +6,8 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleRules;
 
@@ -43,6 +43,9 @@ class CreateScheduleRulesFromOperationDaysAction
      */
     public function execute(): array
     {
+        // Delete all existing schedule rules for this resource first
+        $this->clearExistingRules();
+
         $createdRules = [];
 
         foreach ($this->operationDays as $dayName => $dayConfig) {
@@ -88,46 +91,39 @@ class CreateScheduleRulesFromOperationDaysAction
         string $openTime,
         string $closeTime
     ): ?ScheduleRules {
-        // Check if a schedule rule already exists for this day
-        $existingRule = ScheduleRules::where('resources_id', $this->resource->getId())
-            ->where('resources_type', $this->resource->getMorphClass())
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereJsonContains('metadata->operation_day', $dayName)
-            ->first();
-
-        // Create start_at and end_at datetimes
-        // Use today's date with the open/close times as a template
+        // Create start_at - use the opening time on the earliest occurrence of this day
         $startAt = Carbon::parse('today ' . $openTime);
 
         // Build RRULE for weekly recurrence on this specific day
-        // FREQ=WEEKLY;BYDAY=MO (for Monday, TU for Tuesday, etc.)
-        $rrule = "FREQ=WEEKLY;BYDAY={$dayCode}";
+        // This generates which days to create slots for
+        // Format: DTSTART:20240101T070000\nRRULE:FREQ=WEEKLY;BYDAY=MO
+        $dtstart = $startAt->format('Ymd\THis');
+        $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ=WEEKLY;BYDAY={$dayCode}";
 
-        // Build day_rrule with the operating hours
-        // This defines the time slots within each day
-        $dayRrule = "DTSTART:{$openTime}\nDTEND:{$closeTime}";
+        // Build day_rrule for time slots within each day
+        // This generates slots every X minutes between open and close times
+        // Format: DTSTART:20240101T070000\nRRULE:FREQ=MINUTELY;INTERVAL=15;...
+        $openCarbon = Carbon::parse('today ' . $openTime);
+        $closeCarbon = Carbon::parse('today ' . $closeTime);
 
-        if ($existingRule) {
-            // Update existing rule
-            $existingRule->update([
-                'start_at' => $startAt,
-                'rrule' => $rrule,
-                'day_rrule' => $dayRrule,
-                'slot_duration_min' => $this->slotDurationMinutes,
-                'lead_time_min' => $this->leadTimeMin,
-                'cutoff_time_min' => $this->cutoffTimeMin,
-                'capacity_override' => $this->capacityOverride,
-                'metadata' => array_merge($existingRule->metadata ?? [], [
-                    'operation_day' => $dayName,
-                    'created_from' => 'operation_days',
-                ]),
-            ]);
+        // Generate hour range
+        $startHour = (int)$openCarbon->format('H');
+        $endHour = (int)$closeCarbon->format('H');
+        $hours = range($startHour, $endHour);
+        $hoursString = implode(',', $hours);
 
-            return $existingRule;
+        // Generate minute intervals based on slot duration
+        $minutes = [];
+        for ($m = 0; $m < 60; $m += $this->slotDurationMinutes) {
+            $minutes[] = $m;
         }
+        $minutesString = implode(',', $minutes);
 
-        // Create new schedule rule
+        // Build the day RRULE with DTSTART
+        $dayDtstart = $openCarbon->format('Ymd\THis');
+        $dayRrule = "DTSTART:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
+
+        // Create new schedule rule (existing ones were already deleted)
         return ScheduleRules::create([
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
