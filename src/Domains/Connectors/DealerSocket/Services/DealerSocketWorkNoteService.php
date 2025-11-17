@@ -14,7 +14,7 @@ use Throwable;
 
 class DealerSocketWorkNoteService
 {
-    protected WorkNoteClient $workNoteClient;
+    public WorkNoteClient $workNoteClient;
 
     public function __construct(
         protected AppInterface $app,

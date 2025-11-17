@@ -15,7 +15,7 @@ use Throwable;
 
 class DealerSocketCustomerService
 {
-    protected CustomerClient $customerClient;
+    public CustomerClient $customerClient;
 
     public function __construct(
         protected AppInterface $app,

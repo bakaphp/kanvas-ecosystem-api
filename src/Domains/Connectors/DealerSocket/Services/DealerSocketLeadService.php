@@ -16,7 +16,7 @@ use Throwable;
 
 class DealerSocketLeadService
 {
-    protected LeadClient $leadClient;
+    public LeadClient $leadClient;
 
     public function __construct(
         protected AppInterface $app,
