@@ -37,7 +37,7 @@ return new class () extends Migration {
             $table->index('created_at');
             $table->index('updated_at');
             $table->index('is_deleted');
-            
+
             // Composite indexes
             $table->index(['apps_id', 'companies_id']);
             $table->index(['companies_id', 'is_deleted']);
