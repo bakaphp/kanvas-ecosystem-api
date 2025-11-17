@@ -133,7 +133,7 @@ class PullNetSuiteProductPriceAction
 
     private function legacySearchProductByItemNumber(
         InventoryItem $netsuiteProductInfo,
-        ?string $locationId = null
+        int|string|null $locationId = null
     ): array {
         $mapPrice = (float) $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value);
         $colorCode = $this->productService->getCustomField($netsuiteProductInfo, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value);
@@ -157,7 +157,7 @@ class PullNetSuiteProductPriceAction
     }
 
 
-    private function customSearchProductByItemNumber(string $itemNumber, ?string $locationId = null): array
+    private function customSearchProductByItemNumber(string $itemNumber, int|string|null $locationId = null): array
     {
         $searchProduct = $this->searchService->searchProductByItemNumber($itemNumber, $locationId);
 
