@@ -134,6 +134,7 @@ class NetSuiteProductSearchService
                 'minimumQuantity' => $product->minimumQuantity[0]->searchValue ?? null,
                 'mapPrice' => $this->getCustomFieldFromSearchRow($result, CustomFieldEnum::NET_SUITE_MAP_PRICE_CUSTOM_FIELD->value),
                 'colorCode' => $this->getCustomFieldFromSearchRow($result, CustomFieldEnum::NET_SUITE_COLOR_CODE_CUSTOM_FIELD->value),
+                'moq' => $this->getCustomFieldFromSearchRow($result, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value),
             ];
         }
         return $products;
