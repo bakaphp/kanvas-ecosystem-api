@@ -25,23 +25,19 @@ class ProcessVideoRequestAction
 
     public function execute(): array
     {
-        // Extract video model dynamically from message - use the full value as is
-        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
-        $videoType = $this->entity->message['type'] ?? 'video-format';
-
-        // Determine if it's text-to-video or image-to-video based on hasFiles flag
-        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
-
-        // Construct the API URL based on video type
-        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
-        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
+        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $videoModel = $this->entity->message['ai_model']['value'];
+        $videoKey = 'fal-ai';
+        $videoType = $isImageToVideo ? '/image-to-video' : '/text-to-video';
+        $videoKey = $videoKey . $videoType;
 
         /**
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai/image-to-video', 'google-v2', $videoKey);
+            $videoKey = str_replace('fal-ai' . $videoType, 'google-v2', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
@@ -219,7 +215,7 @@ class ProcessVideoRequestAction
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
-        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
+        $submitPayload = $this->constructModelPayload($submitPayload);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -288,7 +284,8 @@ class ProcessVideoRequestAction
             return [];
         }
 
-        $videoKey = $type === 'text-to-video' ? 'fal-ai/text-to-video' : 'fal-ai/image-to-video';
+        $videoProvider = Str::contains($messageModel, 'veo') ? "google-v2" : "fal-ai";
+        $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
@@ -342,22 +339,33 @@ class ProcessVideoRequestAction
         return $defaults;
     }
 
-    private function constructModelPayload(Model $entity, array $payload): array
+    private function constructModelPayload(array $payload): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
+        $messageFiles = $this->entity->getFiles();
         $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
 
-        return match (true) {
-            count($imageUrlsArray) == 2 => array_merge($payload, [
-                'image_url' => $imageUrlsArray[0],
-                'lastFrameUrl' => $imageUrlsArray[1],
-            ]),
-            count($imageUrlsArray) > 2 => array_merge($payload, [
-                'referenceImageUrls' => $imageUrlsArray,
-            ]),
-            default => array_merge($payload, [
-                'image_url' => $imageUrlsArray[0],
-            ]),
-        };
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+        }
+
+        switch ($this->entity->message['attachment_type']) {
+            case 'start_end_frame':
+                return array_merge($payload, [
+                    'image_url' => $imageUrlsArray[0],
+                    'lastFrameUrl' => $imageUrlsArray[1],
+                ]);
+                break;
+            case 'reference_to_video':
+            default:
+                if ($messageFiles->count() == 1) {
+                    return array_merge($payload, [
+                        'image_url' => $imageUrlsArray[0],
+                    ]);
+                }
+                return array_merge($payload, [
+                    'referenceImageUrls' => $imageUrlsArray,
+                ]);
+                break;
+        }
     }
 }

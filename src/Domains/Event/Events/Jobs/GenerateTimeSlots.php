@@ -56,13 +56,13 @@ class GenerateTimeSlots implements ShouldQueue
               'apps_id'             => $rule->apps_id,
               'companies_id'        => $rule->companies_id,
               'end_at'              => $localEnd->clone()->setTimezone('UTC'),
-              'capacity'            => $capacity,
+              'initial_capacity'    => $capacity,
               'price_snapshot'      => $price,
               'currency'            => 'USD',
               'updated_at'          => now(),
               'created_at'          => now(),
             ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
-              'schedule_rules_id','end_at','capacity','price_snapshot','currency','updated_at'
+              'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at'
             ]);
         }
     }

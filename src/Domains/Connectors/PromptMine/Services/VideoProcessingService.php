@@ -30,7 +30,7 @@ use Throwable;
 
 class VideoProcessingService
 {
-    private const THUMBNAIL_FRAME_SECONDS = 2;
+    private const THUMBNAIL_FRAME_SECONDS = 5;
 
     public function __construct(
         protected Message $entity,

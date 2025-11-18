@@ -301,6 +301,10 @@ class SuperCarrosVehicleInventoryImportAction
                 'value' => $vehicle->type ?: '',
             ],
             [
+                'name' => 'accessory',
+                'value' => collect($vehicle->components)->pluck('Name')->toArray(),
+            ],
+            [
                 'name' => 'transmission',
                 'value' => $vehicle->transmission ?: '',
             ],
@@ -341,8 +345,12 @@ class SuperCarrosVehicleInventoryImportAction
         // Remove attributes with empty values
         $filteredAttributes = [];
         foreach ($attributes as $attribute) {
-            $value = (string) $attribute['value'];
-            if (! empty(trim($value))) {
+            if (is_scalar($attribute['value'])) {
+                $value = (string) $attribute['value'];
+                if (! empty(trim($value))) {
+                    $filteredAttributes[] = $attribute;
+                }
+            } elseif (is_array($attribute['value']) && ! empty($attribute['value'])) {
                 $filteredAttributes[] = $attribute;
             }
         }
