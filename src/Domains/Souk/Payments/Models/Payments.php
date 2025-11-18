@@ -88,6 +88,7 @@ class Payments extends BaseModel
             'payable_type' => get_class($entity),
         ])
         ->whereIn('status', $statuses)
+        ->with('paymentMethod')
         ->latest()
         ->first();
     }

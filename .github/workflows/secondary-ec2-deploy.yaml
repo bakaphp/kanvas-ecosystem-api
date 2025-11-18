@@ -1,4 +1,4 @@
-name: Deploy to Test EC2
+name: Deploy to Secondary EC2
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  deploy-to-test-ec2:
+  deploy-to-ec2:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
     permissions:
@@ -27,11 +27,11 @@ jobs:
 
   docker-command:
     runs-on: ubuntu-latest
-    needs: deploy-to-test-ec2
+    needs: deploy-to-ec2
     environment: ${{ github.ref_name }}
     steps:
       - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@v1.2.3
         with:
           host: ${{ secrets.AWS_TEST_EC2_HOST }}
           username: ${{ secrets.AWS_TEST_EC2_USERNAME }}
@@ -46,36 +46,25 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
             docker restart queue-scrapper
-            docker stop queue-scrapper-worker-1
-            docker stop queue-scrapper-worker-2
-            docker stop queue-scrapper-worker-3
-            docker stop queue-scrapper-worker-4
+            docker stop queue-scrapper-worker-{1..4}
             docker restart queue
             docker restart queue-imports
             docker stop queue-notifications
             docker stop queue-social
             docker restart laravel-scheduler
             docker stop queue-sync-shopify-queue
-            docker stop queue-sync-shopify-queue-worker-1
-            docker stop queue-sync-shopify-queue-worker-1
-            docker stop queue-sync-shopify-queue-worker-2
+            docker stop queue-sync-shopify-queue-worker-{1..2}
             docker restart queue-scout-worker-1
             docker stop queue-scout-worker-2
             docker stop queue-scout-worker-3
-            docker restart queue-workflow-1
-            docker restart queue-workflow-2
+            docker restart queue-workflow-{1..2}
             docker stop queue-workflow-3
             docker stop batch-logger-queue
             docker stop queue-user-interactions
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
               docker stop queue-imports2
               docker restart queue2
-              docker stop queue3
-              docker stop queue4
-              docker stop queue5
-              docker stop queue6
-              docker stop queue7
-              docker stop queue8
+              docker stop queue{3..8}
               docker stop queue-workflow-4
             fi
 
