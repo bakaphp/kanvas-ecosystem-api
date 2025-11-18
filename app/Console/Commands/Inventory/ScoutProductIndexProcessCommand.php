@@ -59,10 +59,18 @@ class ScoutProductIndexProcessCommand extends Command
     protected function executeAction(int $option, Apps $app, ?string $companyId = null): void
     {
         $actions = [
-            1 => function () use ($app, $companyId): void { $this->delete($app, $companyId); },
-            2 => function () use ($app, $companyId): void { $this->reindex($app, $companyId); },
-            3 => function () use ($app, $companyId): void { $this->removeProductsWithAllVariantsUnpublished($app, $companyId); },
-            4 => function () use ($app, $companyId): void { $this->cleanAllInventoryFromIndex($app, $companyId); },
+            1 => function () use ($app, $companyId): void {
+                $this->delete($app, $companyId);
+            },
+            2 => function () use ($app, $companyId): void {
+                $this->reindex($app, $companyId);
+            },
+            3 => function () use ($app, $companyId): void {
+                $this->removeProductsWithAllVariantsUnpublished($app, $companyId);
+            },
+            4 => function () use ($app, $companyId): void {
+                $this->cleanAllInventoryFromIndex($app, $companyId);
+            },
         ];
 
         if (isset($actions[$option])) {
