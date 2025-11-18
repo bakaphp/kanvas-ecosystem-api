@@ -208,7 +208,7 @@ class SuperCarrosVehicleInventoryImportAction
             'name' => $name,
             'description' => $description,
             'slug' => Str::slug($name . '-' . $sku),
-            'sku' => $sku,
+            'sku' => 'S' . $sku,
             'price' => $price,
             'discountPrice' => null,
             'quantity' => 1,
