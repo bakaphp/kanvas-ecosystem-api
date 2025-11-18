@@ -1080,9 +1080,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'group_size' => count($groupPeople),
                 'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
                 'debug_people_info' => $peopleInfo, // Add debugging info
-                'result' => $groupResult
+                'result' => $groupResult,
             ];
-
             $groupIndex++;
         }
 
