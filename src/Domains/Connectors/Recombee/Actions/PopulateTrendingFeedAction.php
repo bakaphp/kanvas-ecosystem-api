@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -26,9 +27,14 @@ class PopulateTrendingFeedAction
 
     public function execute(int $pageSize = 350): int
     {
-        $recommendationService = new RecombeeUserRecommendationService($this->app);
+        $likesThreshold = $this->app->get('trending_feed_likes_threshold', 5);
+        $remixThreshold = $this->app->get('trending_feed_remix_threshold', 5);
+        $sharedThreshold = $this->app->get('trending_feed_shared_threshold', 5);
+        
+        // $recommendationService = new RecombeeUserRecommendationService($this->app);
         $trendingSlug = 'trending';
-        $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms'];
+        // $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms']; // This does not make sense to use for trending
+
 
         Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
             $query->where('slug', $trendingSlug)
@@ -38,21 +44,15 @@ class PopulateTrendingFeedAction
             $message->removeTag($trendingSlug);
         });
 
-        foreach ($userForYouFeed as $messageId) {
-            $message = Message::fromApp($this->app)
+        $trendingMessages = Message::fromApp($this->app)
                     ->where('is_public', 1)
                     ->where('is_deleted', 0)
-                    ->where('id', $messageId['id'])->first();
-
-            if (! $message) {
-                continue;
-            }
-
+                    ->where('total_liked', '>=', $likesThreshold)
+                    ->orWhere('total_shared', '>=', $sharedThreshold)
+                    ->orWhereRaw('total_children - 1 >= ?', [$remixThreshold])
+                    ->get();
+        foreach ($trendingMessages as $message) {
             try {
-                $message = Message::fromApp($this->app)
-                    ->where('is_public', 1)
-                    ->where('is_deleted', 0)
-                    ->where('id', $messageId)->first();
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
             } catch (Exception $e) {
@@ -60,6 +60,6 @@ class PopulateTrendingFeedAction
             }
         }
 
-        return count($userForYouFeed);
+        return count($trendingMessages);
     }
 }
