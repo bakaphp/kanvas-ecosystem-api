@@ -179,12 +179,24 @@ input EventVersionDateInput {
 
 input TimeSlotBookingInput {
     time_slot_id: ID
-    variant_id: ID
     participants: Mixed
-    event_name: String!
+    event_name: String
     event_description: String
     hold_id: String
     metadata: Mixed
+    payment_intent_id: String
+    resources: Mixed
+    order_items: [OrderItemInput!]
+}
+
+input TimeSlotBookingUpdateInput {
+    event_version_id: ID!
+    new_time_slot_id: ID!
+    participants: Mixed
+    event_name: String
+    event_description: String
+    metadata: Mixed
+    resources: Mixed
 }
 
 input OrderItemInput {
@@ -269,6 +281,11 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
         )
 
+    updateTimeSlotBooking(input: TimeSlotBookingUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@update"
+        )
+
     bookResource(input: ResourceBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@book"
@@ -321,6 +338,11 @@ extend type Query @guard {
                     "start_at"
                     "end_at"
                 ]
+            )
+        eventStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Event\\Handlers\\EventVersionStatusHandler"
             )
         orderBy: _
             @orderBy(

@@ -52,7 +52,7 @@ class GenerateRecommendForYourFeedAction
 
         $entityIds = collect($recommendation)
             ->pluck('id')
-            ->unique()
+            ->unique(['users_id'])
             ->filter()
             ->toArray();
 
