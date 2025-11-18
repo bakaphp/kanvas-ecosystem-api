@@ -56,16 +56,19 @@ trait PaymentCases
         $stripePaymentService = (new StripePaymentService($app))->getClient();
 
         $item = $order['variant_id'];
+        if (empty($order['amount'])) {
+            $order['amount'] = $order['price'] * $order['quantity'];
+        }
         $params = [
             'amount' => (int) ($order['amount'] * 100),
             'currency' => 'usd',
             'metadata' => [
-                'test_mode' => 'true'
+                'test_mode' => 'true',
             ],
             'payment_method' => 'pm_card_visa',
             'confirm' => true,
             'description' => "Test payment for order #{$item}",
-            'payment_method_types' => ['card']
+            'payment_method_types' => ['card'],
         ];
 
         return $stripePaymentService->paymentIntents->create($params);
@@ -76,17 +79,20 @@ trait PaymentCases
         $stripePaymentService = (new StripePaymentService($app))->getClient();
 
         $item = $order['variant_id'];
+        if (empty($order['amount'])) {
+            $order['amount'] = $order['price'] * $order['quantity'];
+        }
         $params = [
             'amount' => (int) ($order['amount'] * 100),
             'currency' => 'usd',
             'metadata' => [
                 'test_type' => 'failure',
-                'test_mode' => 'true'
+                'test_mode' => 'true',
             ],
             'description' => "Test payment for order #{$item}",
             'automatic_payment_methods' => [
             'enabled' => true,
-            'allow_redirects' => 'never'
+            'allow_redirects' => 'never',
         ],
         ];
 

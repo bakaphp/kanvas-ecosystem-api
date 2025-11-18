@@ -1244,7 +1244,7 @@ class Client
     /**
      * Convert country code to country name for Universal Assistance
      */
-    protected function countryCodeToName(string $countryCode): string
+    public function countryCodeToName(string $countryCode): string
     {
         $codeToName = [
             'AR' => 'ARGENTINA',

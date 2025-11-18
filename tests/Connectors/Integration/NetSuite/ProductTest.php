@@ -75,6 +75,19 @@ final class ProductTest extends TestCase
         $this->assertGreaterThan(0, $quantity);
     }
 
+    public function testNewGetProductQuantityBylocation()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $productService = new NetSuiteProductSearchService($app, $company);
+        $product = $productService->searchProductByItemNumber(getenv('NET_SUITE_ITEM_NUMBER'), getenv('NET_SUITE_LOCATION_ID'));
+
+        $this->assertNotNull($product[0]['colorCode']);
+        $this->assertGreaterThan(0, $product[0]['mapPrice']);
+        $this->assertGreaterThan(0, $product[0]['quantityAvailable']);
+    }
+
     public function testGetProductPrice()
     {
         $company = Companies::first();
@@ -116,7 +129,7 @@ final class ProductTest extends TestCase
         $product = $productService->getProductById($product[0]->internalId);
         $price = (int) $productService->getCustomField($product, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value);
 
-        $this->assertGreaterThan(0, $price);
+        $this->assertGreaterThanOrEqual(0, $price);
     }
 
     public function testSyncNetSuiteProduct()

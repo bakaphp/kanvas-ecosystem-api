@@ -217,7 +217,9 @@ class MessageBuilder
         }
 
         return Message::fromApp()
+            ->where('is_deleted', 0)
             ->whereHas('channels', function ($query) use ($args) {
+                $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
                 } elseif (isset($args['channel_slug'])) {

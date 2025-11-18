@@ -12,6 +12,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -19,7 +20,9 @@ use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -62,7 +65,7 @@ use Throwable;
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate
- * @property string $third_party_sync_status @deprecated version 0.3
+ * @property string $third_party_sync_status
  */
 class Lead extends BaseModel implements EventResourceInterface
 {
@@ -186,6 +189,13 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasMany(Channel::class, 'entity_id', 'id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'id')
+            ->where('entity_namespace', self::class)
+            ->where('name', 'Notes');
     }
 
     public function receiver(): BelongsTo
@@ -597,6 +607,7 @@ class Lead extends BaseModel implements EventResourceInterface
         if ($currentStage) {
             return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
                 ->where('weight', '>', $currentStage->weight)
+                ->where('is_deleted', 0)
                 ->orderBy('weight', 'asc')
                 ->first();
         }
@@ -611,5 +622,15 @@ class Lead extends BaseModel implements EventResourceInterface
             $this->pipeline_stage_id = $nextStage->id;
             $this->saveOrFail();
         }
+    }
+
+    public function hasBeenContacted(): bool
+    {
+        return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+    }
+
+    public function setContactStatus(LeadGroupStatusEnum $status): void
+    {
+        $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 }

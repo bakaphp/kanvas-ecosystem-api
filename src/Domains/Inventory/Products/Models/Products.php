@@ -794,7 +794,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'categories_flat',
-                    'type' => 'string[]',
+                    'type' => 'auto',
                     'optional' => true,
                 ],
                 [

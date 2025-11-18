@@ -56,6 +56,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
             // Prepare data to pass to the Blade template
 
+            /**
+             * @todo move to use the idverification action
+             */
             return $this->executeIntegration(
                 entity: $entity,
                 app: $app,

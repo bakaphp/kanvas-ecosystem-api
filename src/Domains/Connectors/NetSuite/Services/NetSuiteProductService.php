@@ -12,6 +12,7 @@ use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\InventoryItem;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchBasic;
+use NetSuite\Classes\ItemSearchRow;
 use NetSuite\Classes\RecordRef;
 use NetSuite\Classes\RecordType;
 use NetSuite\Classes\SearchRequest;
@@ -60,6 +61,28 @@ class NetSuiteProductService
             if ($assignment->location == $locationId) {
                 return (int)$assignment->quantityAvailable;
             }
+        }
+
+        throw new Exception('Inventory quantity not found for the specified location.');
+    }
+
+    public function getInventoryQuantityFromSearch(ItemSearchRow $product, int|string $locationId): int
+    {
+        if (! isset($product->basic->inventoryLocation)) {
+            throw new Exception('Inventory locations not found for the specified product.');
+        }
+
+        $inventoryIndex = null;
+
+        foreach ($product->basic->inventoryLocation as $index => $assignment) {
+            if ($assignment->searchValue->internalId == $locationId) {
+                $inventoryIndex = $index;
+                break;
+            }
+        }
+
+        if ($inventoryIndex !== null && isset($product->basic->locationQuantityAvailable[$inventoryIndex])) {
+            return (int)$product->basic->locationQuantityAvailable[$inventoryIndex]->searchValue;
         }
 
         throw new Exception('Inventory quantity not found for the specified location.');
@@ -130,6 +153,17 @@ class NetSuiteProductService
         $search->basic = $searchBasic;
 
         return $this->executeProductSearch($search);
+    }
+
+    /**
+     * Search for products by item number using saved search.
+     *
+     * @deprecated Use NetSuiteProductSearchService::searchProductByItemNumberFromSavedSearch instead
+     */
+    public function searchProductByItemNumberFromSearch(string|int $itemNumber): array
+    {
+        $searchService = new NetSuiteProductSearchService($this->app, $this->company);
+        return $searchService->searchProductByItemNumberFromSavedSearch($itemNumber);
     }
 
     /**

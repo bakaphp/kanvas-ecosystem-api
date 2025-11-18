@@ -24,7 +24,7 @@ class CreatePaymentAction
     {
         $paymentMethodId = $formData['payment_methods_id'] ?? $this->order->payment_method_id;
         $paymentMethod = PaymentMethods::fromApp($this->order->app)->where('id', $paymentMethodId)->first();
-        $paymentIntent = $formData['payment_intent_id'];
+        $paymentIntent = $formData['payment_intent_id'] ?? null;
 
         if (! $paymentMethod && ! $paymentIntent) {
             throw new \Exception('Payment method not found');
@@ -43,7 +43,7 @@ class CreatePaymentAction
             "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
             "payment_methods_id" => $paymentMethodId,
-            'payment_intent_id' => $formData['payment_intent_id'] ?? null,
+            'payment_intent_id' => $paymentIntent,
             'users_id' => $this->user->getId(),
             'companies_id' => $this->order->companies_id,
             'currency' => $this->order->currency,

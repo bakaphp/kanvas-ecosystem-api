@@ -30,7 +30,7 @@ use Throwable;
 
 class VideoProcessingService
 {
-    private const THUMBNAIL_FRAME_SECONDS = 2;
+    private const THUMBNAIL_FRAME_SECONDS = 5;
 
     public function __construct(
         protected Message $entity,
@@ -132,7 +132,7 @@ class VideoProcessingService
                     $this->processCompletedVideo($result['video_url'], $requestId, $params);
                 }
             } elseif ($result['status'] === 'FAILED') {
-                $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
+                $this->updateVideoProcessingStatus('FAILED', $result['error']['message'] ?? 'Video processing failed');
             }
         } catch (Exception $e) {
             report($e);

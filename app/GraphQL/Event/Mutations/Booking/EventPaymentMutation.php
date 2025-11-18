@@ -70,7 +70,7 @@ class EventPaymentMutation
                 'name' => EventStatusEnum::ACTIVE->value,
             ], [
                 'users_id' => $user->getId(),
-                'slug' =>  strtolower(Str::slug(EventStatusEnum::ACTIVE->value)),
+                'slug' => strtolower(Str::slug(EventStatusEnum::ACTIVE->value)),
             ]);
 
             $event->update([

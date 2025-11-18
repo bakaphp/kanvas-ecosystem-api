@@ -49,6 +49,11 @@ class CreateEventAction
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
             $slug = $slug . '-' . $this->event->type->getId();
+
+            // Append unique suffix if provided (for multiple bookings per time slot)
+            if (isset($this->metadata['slug_suffix'])) {
+                $slug = $slug . '-' . $this->metadata['slug_suffix'];
+            }
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
@@ -67,21 +72,26 @@ class CreateEventAction
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
+
             if ($this->event->dates->count()) {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
             } else {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
+
+            $currencyCode = $this->metadata['currency'] ?? 'USD';
+
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
-                    currency: Currencies::getByCode('USD'),
+                    currency: Currencies::getByCode($currencyCode),
                     name: $this->event->name,
                     version: 1,
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
+                    timeSlotId: $this->event->timeSlotId,
                     slug: $eventVersionSlug,
                     metadata: $this->metadata
                 )
@@ -95,7 +105,6 @@ class CreateEventAction
                     $this->event->user,
                     $participant,
                     $eventVersion,
-                    $participant
                 );
                 $createParticipant->execute();
             }
@@ -164,11 +173,13 @@ class CreateEventAction
 
         $orderItemsCollection = [];
         $total = 0;
+        $orderCurrency = $eventVersion->currency ?? Currencies::getByCode('USD');
 
         // If order_items are provided, create OrderItem DTOs from them
         if (count($orderItemsData)) {
             foreach ($orderItemsData as $itemData) {
                 $itemVariant = Variants::getById($itemData['variant_id'], $eventVersion->event->app);
+                $currency = $eventVersion->currency ?? Currencies::getByCode($itemData['currency_code'] ?? 'USD');
 
                 $orderItem = new OrderItem(
                     app: $eventVersion->event->app,
@@ -179,7 +190,7 @@ class CreateEventAction
                     price: (float) ($itemData['price'] ?? 0.0),
                     tax: 0,
                     discount: 0.0,
-                    currency: $itemData['currency_code'] ?? Currencies::getByCode('USD'),
+                    currency: $currency,
                     quantityShipped: 0,
                     metadata: $itemData['metadata'] ?? null
                 );
@@ -189,7 +200,7 @@ class CreateEventAction
             }
         } else {
             $price = $eventVersion->metadata['price'] ?? $eventVersion->event->resource->price;
-            // Default: create single order item for the main resource
+
             $orderItem = new OrderItem(
                 app: $eventVersion->event->app,
                 variant: $variant,
@@ -199,7 +210,7 @@ class CreateEventAction
                 price: $price,
                 tax: 0,
                 discount: 0.0,
-                currency: $eventVersion->metadata['currency'] ?? Currencies::getByCode('USD'),
+                currency: $orderCurrency,
                 quantityShipped: 0
             );
 
@@ -237,7 +248,7 @@ class CreateEventAction
         $dto = Order::from([
             'app' => $event->app,
             'region' => Regions::getDefault($event->company, $event->app),
-            'token'  => Str::random(32),
+            'token' => Str::random(32),
             'company' => $event->company,
             'people' => $people,
             'user' => $event->user,
@@ -249,14 +260,14 @@ class CreateEventAction
             'totalShipping' => 0.0,
             'status' => OrderStatusEnum::COMPLETED->value,
             'checkoutToken' => '',
-            'currency' => Currencies::getByCode('USD'),
+            'currency' => $orderCurrency,
             'items' => $items,
         ]);
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
         $kanvasOrder = $action->execute();
-        $kanvasOrder->resources_id =  $event->id;
-        $kanvasOrder->resources_type =  $event->getMorphClass();
+        $kanvasOrder->resources_id = $event->id;
+        $kanvasOrder->resources_type = $event->getMorphClass();
         $kanvasOrder->saveQuietly();
     }
 
