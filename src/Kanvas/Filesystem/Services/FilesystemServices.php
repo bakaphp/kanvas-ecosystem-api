@@ -202,9 +202,9 @@ class FilesystemServices
         $dirPath = storage_path('app/temp');
 
         // Ensure directory exists
-        if (! is_dir($dirPath)) {
-            mkdir($dirPath, 0755, true);
-        }
+        // if (! is_dir($dirPath)) {
+        //     mkdir($dirPath, 0755, true);
+        // }
 
         $tempFilePath = $dirPath . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
 

@@ -17,6 +17,7 @@ use Kanvas\Connectors\PromptMine\Client as PromptClient;
 use Kanvas\Connectors\PromptMine\Enums\MessageTypeEnum;
 use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
+use Kanvas\Connectors\PromptMine\Services\VideoCreationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -26,6 +27,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -58,11 +60,12 @@ class LLMMessageResponseActivity extends KanvasActivity
                 }
 
                 $isTypeImage = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value;
+                $isTypeVideo = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::VIDEO_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
                 $isNotSafeForWork = false;
 
-                if (! $isTypeImage) {
+                if (! $isTypeImage && ! $isTypeVideo) {
                     // Use the new chat functionality for text responses
                     $result = $this->generateChatResponse($message);
                     $response = $result['response'];
@@ -80,6 +83,11 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $messageTypeKey = 'image';
                     $channel->is_deleted = 0;
                     $channel->save();
+                } elseif ($isTypeVideo) {
+                    $result = $this->generateVideoResponse($message, $params);
+                    $response = $result['response'];
+                    $chatHistory = $result['chat_history'];
+                    $messageTypeKey = 'video';
                 } else {
                     $result = $this->generateImageResponse($message);
                     $response = $result['response'];
@@ -105,6 +113,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $messageInput = [
                     'message' => [
+                        'title' => $this->generateTitleByPrompt($message->message['prompt']),
                         $messageTypeKey => $response,
                         'type' => $isTypeImage ? MessageTypeEnum::IMAGE_FORMAT->value : MessageTypeEnum::TEXT_FORMAT->value,
                         'chat_history' => $chatHistory, // Include chat history
@@ -150,6 +159,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $message->is_public = 1;
                 $message->save();
+
+                UpdateUserProfileEvent::dispatch($createMessage->user);
 
                 return [
                     'result' => true,
@@ -349,6 +360,40 @@ class LLMMessageResponseActivity extends KanvasActivity
 
         return [
             'response' => $imageFilterResult['image_url'] ?? '',
+            'chat_history' => $fullConversation,
+        ];
+    }
+
+    private function generateVideoResponse(Message $message, array $params): array
+    {
+        $prompt = $message->message['prompt'] ?? null;
+        $videoCreationService = new VideoCreationService(
+            app: $this->app,
+            entity: $message,
+            params: $params,
+        );
+
+        $result = $videoCreationService->execute();
+
+        if (isset($result['result']) && $result['result'] === false) {
+            throw new Exception('Video creation failed: ' . ($result['message'] ?? 'Unknown error'));
+        }
+
+        // Get existing chat history from parent message or create new conversation
+        $chatHistory = $this->getChatHistory($message);
+
+        // Add the new user message to the conversation
+        $messages = $chatHistory;
+        $messages[] = [
+            'role' => 'user',
+            'content' => $prompt,
+        ];
+
+        $promptClient = new PromptClient($message->app);
+        $fullConversation = $promptClient->getFullConversation($messages, $result);
+
+        return [
+            'response' => $result['vide_url'] ?? '',
             'chat_history' => $fullConversation,
         ];
     }

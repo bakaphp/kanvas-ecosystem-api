@@ -20,6 +20,10 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getBalance"
         )
+    getUserWallet(tag: String!, userId: ID): WalletResult
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getUserWalletBalance"
+        )
     getWalletTransactions(
         tag: String!
         where: _
