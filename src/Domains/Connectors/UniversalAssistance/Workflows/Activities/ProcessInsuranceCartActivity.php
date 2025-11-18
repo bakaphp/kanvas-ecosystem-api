@@ -1051,30 +1051,17 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Check if this is a family group (has dependents in original data)
             $hasDependents = isset($insuranceData['dependents']) && ! empty($insuranceData['dependents']);
 
-            if ($hasDependents) {
-                // Family group: ALWAYS use processGroupedInsuranceWorkflow for families
-                // This ensures ONE voucher per family/group regardless of group size
-                $groupResult = $service->processGroupedInsuranceWorkflow($groupPeople, $planKey);
-                $groupResults["group_{$groupIndex}"] = [
-                    'type' => 'grouped_voucher',
-                    'plan_key' => $planKey,
-                    'group_size' => count($groupPeople),
-                    'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
-                    'debug_people_info' => $peopleInfo, // Add debugging info
-                    'result' => $groupResult
-                ];
-            } else {
-                // Individual: Only titular, no dependents - use individual processing
-                $person = $groupPeople[0];
-                $individualResult = $service->processTitular($person, false); // false = no dependents
-                $groupResults["group_{$groupIndex}"] = [
-                    'type' => 'individual_titular',
-                    'plan_key' => $planKey,
-                    'group_size' => 1,
-                    'people_in_group' => ['titular'],
-                    'result' => ['titular' => $individualResult]
-                ];
-            }
+            // All processing is now done via group workflow (even for single person)
+            // This ensures consistent processing whether there are dependents or not
+            $groupResult = $service->processGroupedInsuranceWorkflow($groupPeople, $planKey);
+            $groupResults["group_{$groupIndex}"] = [
+                'type' => 'grouped_voucher',
+                'plan_key' => $planKey,
+                'group_size' => count($groupPeople),
+                'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
+                'debug_people_info' => $peopleInfo, // Add debugging info
+                'result' => $groupResult
+            ];
             $groupIndex++;
         }
 
