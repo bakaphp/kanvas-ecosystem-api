@@ -41,7 +41,7 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
                         $leadTimeMin = $params['lead_time_min'] ?? 0;
                         $cutoffTimeMin = $params['cutoff_time_min'] ?? 0;
 
-                        if (!$variant) {
+                        if (! $variant) {
                             return [
                                 'event' => $product->getId(),
                                 'status' => 'failed',
@@ -85,7 +85,7 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
                     'response' => [
                         'product_id' => $product->getId(),
                         'schedule_rules_created' => count($createdRules),
-                        'rules' => array_map(fn($rule) => [
+                        'rules' => array_map(fn ($rule) => [
                             'id' => $rule->id,
                             'day' => $rule->metadata['operation_day'] ?? null,
                             'rrule' => $rule->rrule,

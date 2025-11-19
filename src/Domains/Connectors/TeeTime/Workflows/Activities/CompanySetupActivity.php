@@ -4,9 +4,9 @@ namespace Kanvas\Connectors\TeeTime\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -22,16 +22,26 @@ class CompanySetupActivity extends KanvasActivity implements WorkflowActivityInt
             app: $app,
             integration: IntegrationsEnum::TEE_TIME,
             additionalParams: $params,
-            integrationOperation: function ($event, $app, $integrationCompany, $additionalParams) use ($params) {
-                
+            integrationOperation: function ($company, $app, $integrationCompany, $additionalParams) use ($params) {
+                $eventName = $additionalParams['currentEventTypeName'] ?? null;
+
+                ProductsTypes::create([
+                    'name' => 'golf course',
+                    'apps_id' => $app->getId(),
+                    'companies_id' => $company->getId(),
+                    'users_id' => $company->users_id,
+                    'description' => 'TeeTime Golf Course Product Type',
+                    'is_published' => 1,
+                    'weight' => 0,
+                ]);
 
                 return [
-                    'event' => $event->getId(),
+                    'company' => $company->getId(),
                     'status' => 'success',
                     'event_name' => $eventName,
-                    'message' => 'Event synced correctly',
-                    'data' => $event->toArray(),
-                    'response' => $event->toArray(),
+                    'message' => 'TeeTime Company Setup completed successfully',
+                    'data' => $company->toArray(),
+                    'response' => $company->toArray(),
                 ];
             },
             company: $event->company,

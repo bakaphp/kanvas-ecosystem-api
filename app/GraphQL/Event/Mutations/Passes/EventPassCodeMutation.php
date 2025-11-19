@@ -7,6 +7,8 @@ namespace App\GraphQL\Event\Mutations\Passes;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
+use Kanvas\Event\Events\Actions\SendEventEmailsAction;
+use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -81,27 +83,30 @@ class EventPassCodeMutation
             ? $input['expiration_date']
             : null;
 
-            try {
-                [$pass, $plainCode] = (new CreatePassAction(
-                    $eventVersion->event,
-                    $eventVersion,
-                    $motive,
-                    $participant->getId(),
-                    $expirationDate,
-                    $format
-                ))->execute();
+        try {
+            [$pass, $plainCode] = (new CreatePassAction(
+                $eventVersion->event,
+                $eventVersion,
+                $motive,
+                $participant->getId(),
+                $expirationDate,
+                $format
+            ))->execute();
 
-                return [
-                    'success' => true,
-                    'pass' => $pass,
-                    'code' => $plainCode,
-                    'participant' => $participant,
-                    'message' => 'Participant code issued successfully',
-                ];
-            } catch (Exception $e) {
-                throw new ValidationException('Error issuing code: ' . $e->getMessage());
-            }
-        
+            (new SendEventEmailsAction($eventVersion, EmailTemplateEnum::PARTICIPANT_NOTIFICATION->value, [
+                'code' => $plainCode,
+            ]))->execute($participant);
+
+            return [
+                'success' => true,
+                'pass' => $pass,
+                'code' => $plainCode,
+                'participant' => $participant,
+                'message' => 'Participant code issued successfully',
+            ];
+        } catch (Exception $e) {
+            throw new ValidationException('Error issuing code: ' . $e->getMessage());
+        }
     }
 
     /**
