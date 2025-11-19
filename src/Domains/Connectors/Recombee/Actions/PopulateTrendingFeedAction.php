@@ -27,9 +27,11 @@ class PopulateTrendingFeedAction
 
     public function execute(int $pageSize = 350): int
     {
-        $likesThreshold = $this->app->get('trending_feed_likes_threshold', 5);
-        $remixThreshold = $this->app->get('trending_feed_remix_threshold', 5);
-        $sharedThreshold = $this->app->get('trending_feed_shared_threshold', 5);
+        $minTrendingScore = $this->app->get('trending_feed_min_score', 100);
+        $timePeriod = $this->app->get('trending_feed_days_time_period', 30);
+        $likesWeight = $this->app->get('trending_feed_likes_weight', 2);
+        $remixWeight = $this->app->get('trending_feed_remix_weight', 1.5);
+        $sharedWeight = $this->app->get('trending_feed_shared_weight', 1);
         
         // $recommendationService = new RecombeeUserRecommendationService($this->app);
         $trendingSlug = 'trending';
@@ -47,9 +49,11 @@ class PopulateTrendingFeedAction
         $trendingMessages = Message::fromApp($this->app)
                     ->where('is_public', 1)
                     ->where('is_deleted', 0)
-                    ->where('total_liked', '>=', $likesThreshold)
-                    ->orWhere('total_shared', '>=', $sharedThreshold)
-                    ->orWhereRaw('total_children - 1 >= ?', [$remixThreshold])
+                    ->where('created_at', '>=', now()->subDays($timePeriod))
+                    ->selectRaw('messages.*, 
+                        (total_liked * ' . $likesWeight . ') + (total_shared * ' . $sharedWeight . ') + ((total_children - 1) * ' . $remixWeight . ') as trending_score')
+                    ->orderBy('trending_score', 'desc')
+                    ->having('trending_score', '>=', $minTrendingScore)
                     ->get();
         foreach ($trendingMessages as $message) {
             try {
