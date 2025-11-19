@@ -65,7 +65,7 @@ class PromptVideoFilterActivity extends KanvasActivity
 
                     $result['orderCredit'] = $orderCredit;
 
-                    return $result;
+                    return isset($result['result']) && $result['result'] === true ? $result : $this->failWorkflow($result);
                 } catch (Exception $e) {
                     //report($e);
 
