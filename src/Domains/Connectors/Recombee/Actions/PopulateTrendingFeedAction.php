@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class PopulateTrendingFeedAction
@@ -18,6 +19,7 @@ class PopulateTrendingFeedAction
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
+        protected MessageType $messageType,
         protected bool $cleanUserFeed = false
     ) {
         $this->user = $this->company->user;
@@ -47,6 +49,7 @@ class PopulateTrendingFeedAction
                     ->where('is_public', 1)
                     ->where('is_deleted', 0)
                     ->where('created_at', '>=', now()->subDays($timePeriod))
+                    ->where('message_types_id', $this->messageType->getId())
                     ->selectRaw('messages.*, 
                         (total_liked * ' . $likesWeight . ') + (total_shared * ' . $sharedWeight . ') + ((total_children - 1) * ' . $remixWeight . ') as trending_score')
                     ->orderBy('trending_score', 'desc')
