@@ -8,8 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -32,7 +30,6 @@ class PopulateTrendingFeedAction
         $likesWeight = $this->app->get('trending_feed_likes_weight', 2);
         $remixWeight = $this->app->get('trending_feed_remix_weight', 1.5);
         $sharedWeight = $this->app->get('trending_feed_shared_weight', 1);
-        
         // $recommendationService = new RecombeeUserRecommendationService($this->app);
         $trendingSlug = 'trending';
         // $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms']; // This does not make sense to use for trending
@@ -59,6 +56,7 @@ class PopulateTrendingFeedAction
             try {
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
+                print_r('Added trending tag to message ID: ' . $message->getId() . PHP_EOL);
             } catch (Exception $e) {
                 continue;
             }
