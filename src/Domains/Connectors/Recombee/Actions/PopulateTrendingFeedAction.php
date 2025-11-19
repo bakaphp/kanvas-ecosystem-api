@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -26,9 +25,15 @@ class PopulateTrendingFeedAction
 
     public function execute(int $pageSize = 350): int
     {
-        $recommendationService = new RecombeeUserRecommendationService($this->app);
+        $minTrendingScore = $this->app->get('trending_feed_min_score', 100);
+        $timePeriod = $this->app->get('trending_feed_days_time_period', 30);
+        $likesWeight = $this->app->get('trending_feed_likes_weight', 2);
+        $remixWeight = $this->app->get('trending_feed_remix_weight', 1.5);
+        $sharedWeight = $this->app->get('trending_feed_shared_weight', 1);
+        // $recommendationService = new RecombeeUserRecommendationService($this->app);
         $trendingSlug = 'trending';
-        $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms'];
+        // $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms']; // This does not make sense to use for trending
+
 
         Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
             $query->where('slug', $trendingSlug)
@@ -38,28 +43,25 @@ class PopulateTrendingFeedAction
             $message->removeTag($trendingSlug);
         });
 
-        foreach ($userForYouFeed as $messageId) {
-            $message = Message::fromApp($this->app)
+        $trendingMessages = Message::fromApp($this->app)
                     ->where('is_public', 1)
                     ->where('is_deleted', 0)
-                    ->where('id', $messageId['id'])->first();
-
-            if (! $message) {
-                continue;
-            }
-
+                    ->where('created_at', '>=', now()->subDays($timePeriod))
+                    ->selectRaw('messages.*, 
+                        (total_liked * ' . $likesWeight . ') + (total_shared * ' . $sharedWeight . ') + ((total_children - 1) * ' . $remixWeight . ') as trending_score')
+                    ->orderBy('trending_score', 'desc')
+                    ->having('trending_score', '>=', $minTrendingScore)
+                    ->get();
+        foreach ($trendingMessages as $message) {
             try {
-                $message = Message::fromApp($this->app)
-                    ->where('is_public', 1)
-                    ->where('is_deleted', 0)
-                    ->where('id', $messageId)->first();
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
+                print_r('Added trending tag to message ID: ' . $message->getId() . PHP_EOL);
             } catch (Exception $e) {
                 continue;
             }
         }
 
-        return count($userForYouFeed);
+        return count($trendingMessages);
     }
 }
