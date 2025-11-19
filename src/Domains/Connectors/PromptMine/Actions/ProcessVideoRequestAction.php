@@ -284,7 +284,7 @@ class ProcessVideoRequestAction
             return [];
         }
 
-        $videoProvider = Str::contains($messageModel, 'veo') ? "google-v2" : "fal-ai";
+        $videoProvider = Str::contains($messageModel, 'veo') ? 'google-v2' : 'fal-ai';
         $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
 
         // Search through all categories for the video key
@@ -345,15 +345,16 @@ class ProcessVideoRequestAction
         $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
 
         if (! array_key_exists('attachment_type', $this->entity->message)) {
-            throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+            //throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
         }
 
-        switch ($this->entity->message['attachment_type']) {
+        switch ($this->entity->message['attachment_type'] ?? 'reference_to_video') {
             case 'start_end_frame':
                 return array_merge($payload, [
                     'image_url' => $imageUrlsArray[0],
                     'lastFrameUrl' => $imageUrlsArray[1],
                 ]);
+
                 break;
             case 'reference_to_video':
             default:
@@ -362,9 +363,11 @@ class ProcessVideoRequestAction
                         'image_url' => $imageUrlsArray[0],
                     ]);
                 }
+
                 return array_merge($payload, [
                     'referenceImageUrls' => $imageUrlsArray,
                 ]);
+
                 break;
         }
     }
