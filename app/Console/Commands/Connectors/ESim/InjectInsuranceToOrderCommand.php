@@ -16,7 +16,7 @@ class InjectInsuranceToOrderCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:inject-insurance-to-order {order_id}';
+    protected $signature = 'kanvas:inject-insurance-to-order {order_id} {--variant-id= : Optional: Manually specify the variant ID to use instead of automatic mapping}';
 
     /**
      * The console command description.
@@ -79,6 +79,12 @@ class InjectInsuranceToOrderCommand extends Command
         $processedCount = 0;
         $skippedCount = 0;
 
+        // Check if manual variant ID was provided
+        $manualVariantId = $this->option('variant-id');
+        if ($manualVariantId) {
+            $this->info("Using manually specified Variant ID: {$manualVariantId}");
+        }
+
         // Iterate over each eSIM in the esims array
         foreach ($metadata['esims'] as $index => $esimData) {
             $this->info("Processing eSIM #{$index}...");
@@ -91,29 +97,45 @@ class InjectInsuranceToOrderCommand extends Command
                 continue;
             }
 
-            // Extract duration from the eSIM data
-            $duration = $this->extractDuration($esimData);
+            // Determine variant ID and duration
+            if ($manualVariantId) {
+                // Use manual variant ID
+                $variantId = (int) $manualVariantId;
 
-            if ($duration === null) {
-                $this->warn("Could not extract duration for eSIM #{$index}. Skipping.");
-                $skippedCount++;
+                // Extract duration for the insurance structure
+                $duration = $this->extractDuration($esimData);
+                if ($duration === null) {
+                    $this->warn("Could not extract duration for eSIM #{$index}. Using variant ID {$variantId} anyway.");
+                    // Use a default duration or derive from variant if possible
+                    $duration = $this->getDurationFromVariantId($variantId) ?? 30;
+                }
 
-                continue;
+                $this->info("Using manual Variant ID: {$variantId} with duration: {$duration} days");
+            } else {
+                // Auto-detect duration and map to variant ID
+                $duration = $this->extractDuration($esimData);
+
+                if ($duration === null) {
+                    $this->warn("Could not extract duration for eSIM #{$index}. Skipping.");
+                    $skippedCount++;
+
+                    continue;
+                }
+
+                $this->info("Detected duration: {$duration} days");
+
+                // Map duration to variant ID
+                $variantId = $this->mapDurationToVariantId($duration);
+
+                if ($variantId === null) {
+                    $this->warn("No variant mapping found for {$duration} days. Skipping eSIM #{$index}.");
+                    $skippedCount++;
+
+                    continue;
+                }
+
+                $this->info("Mapped to Variant ID: {$variantId}");
             }
-
-            $this->info("Detected duration: {$duration} days");
-
-            // Map duration to variant ID
-            $variantId = $this->mapDurationToVariantId($duration);
-
-            if ($variantId === null) {
-                $this->warn("No variant mapping found for {$duration} days. Skipping eSIM #{$index}.");
-                $skippedCount++;
-
-                continue;
-            }
-
-            $this->info("Mapped to Variant ID: {$variantId}");
 
             // Fetch variant and product data
             $insuranceStructure = $this->buildInsuranceStructure($variantId, $duration);
@@ -198,6 +220,17 @@ class InjectInsuranceToOrderCommand extends Command
     protected function mapDurationToVariantId(int $duration): ?int
     {
         return self::DURATION_VARIANT_MAP[$duration] ?? null;
+    }
+
+    /**
+     * Get duration from variant ID using reverse mapping
+     * Used when variant ID is manually specified
+     */
+    protected function getDurationFromVariantId(int $variantId): ?int
+    {
+        $reversedMap = array_flip(self::DURATION_VARIANT_MAP);
+
+        return $reversedMap[$variantId] ?? null;
     }
 
     /**
