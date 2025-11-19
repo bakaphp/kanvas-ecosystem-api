@@ -43,7 +43,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // Create separate service instance for each eSIM with its specific message_id
                         $service = new InsuranceWorkflowService($app, $order, $esimInsuranceData['message_id'] ?? null);
 
-                        $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
+                        try {
+                            $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
+                        } catch (ValidationException $e) {
+                            return $this->failWorkflow([
+                                'message' => $e->getMessage(),
+                            ]);
+                        }
 
                         // Store results with eSIM index for tracking
                         $allResults["esim_{$index}"] = $esimResults;
@@ -86,6 +92,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                 // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
                 $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
+
+                // Mark order as processed successfully
+                $order->set('universal_assistance_processed', true);
 
                 // Return comprehensive results focusing on voucher data and SOAP inputs
                 return [
@@ -210,7 +219,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
-            //throw new ValidationException('Insurance data is required - not found in workflow params or order metadata');
             return $this->failWorkflow([
                 'message' => 'Insurance data is required - not found in workflow params or order metadata',
             ]);
@@ -220,10 +228,29 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
-            //throw new ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
             return $this->failWorkflow([
                 'message' => 'Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)),
             ]);
+        }
+
+        // Validate titular required fields
+        $titularValidation = $this->validatePersonData($insuranceData['titular'], 'Titular');
+        if ($titularValidation !== true) {
+            return $this->failWorkflow([
+                'message' => $titularValidation,
+            ]);
+        }
+
+        // Validate dependents required fields if present
+        if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                $dependentValidation = $this->validatePersonData($dependent, "Dependent #" . ($index + 1));
+                if ($dependentValidation !== true) {
+                    return $this->failWorkflow([
+                        'message' => $dependentValidation,
+                    ]);
+                }
+            }
         }
 
         // Get primary message ID (fallback logic if no expanded data found)
@@ -250,7 +277,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         if (! $primaryMessageId) {
-            //throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
             return $this->failWorkflow([
                 'message' => 'eSim Message ID not found in order - required for Universal Assistance processing',
             ]);
@@ -1436,5 +1462,58 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         return $groupingInfo;
+    }
+
+    /**
+     * Validate insurance person data structure
+     */
+    protected function validatePersonData(array $personData, string $personType): bool|string
+    {
+        // Core required fields that must exist based on actual input structure
+        $requiredFields = [
+            'firstname',
+            'lastname',
+            'idType',
+            'idNumber',
+            'dob',
+            'sex',
+            'email',
+            'phone',
+            'activationDate',
+            'originCountryCode',
+            'destinationCountryCode',
+        ];
+
+        foreach ($requiredFields as $field) {
+            if (! isset($personData[$field]) || empty($personData[$field])) {
+                return "{$personType} is missing required field: {$field}";
+            }
+        }
+
+        // Validate plan structure - based on real input structure
+        if (! isset($personData['plan']) || ! is_array($personData['plan'])) {
+            return "{$personType} is missing required plan structure";
+        }
+
+        // Plan should have at least id and name (based on real input)
+        if (! isset($personData['plan']['id']) || ! isset($personData['plan']['name'])) {
+            return "{$personType} plan is missing required fields (id or name)";
+        }
+
+        // Validate plan duration and price exist
+        if (! isset($personData['plan']['duration'])) {
+            return "{$personType} plan is missing required field: duration";
+        }
+
+        if (! isset($personData['plan']['price'])) {
+            return "{$personType} plan is missing required field: price";
+        }
+
+        // For dependents, relationship is required
+        if ($personType !== 'Titular' && (! isset($personData['relationship']) || empty($personData['relationship']))) {
+            return "{$personType} is missing required field: relationship";
+        }
+
+        return true;
     }
 }
