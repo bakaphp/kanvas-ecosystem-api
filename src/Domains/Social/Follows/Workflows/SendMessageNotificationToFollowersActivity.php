@@ -43,12 +43,13 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
                 );
 
                 $metaData = $message->getMessage();
-                $keysToUnset = ['ai_nugged', 'nugget'];
+                unset($metaData['ai_nugget']['nugget']);
+                $keysToUnset = $additionalParams['keys_to_unset'] ?? ['prompt','ai_image'];
                 foreach ($keysToUnset as $key) {
                     unset($metaData[$key]); // @todo move this to a customization
                 }
 
-                $keysToClear = ['prompt', 'image'];
+                $keysToClear = $additionalParams['keys_to_clear'] ?? [];
                 foreach ($keysToClear as $key) {
                     if (isset($metaData[$key])) {
                         $metaData[$key] = ''; // @todo move this to a customization
@@ -66,6 +67,8 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
                     'subject' => sprintf($subject, $message->user->displayname),
                     'via' => $endViaList,
                     'fromUser' => $message->user,
+                    'message_owner_id' => $message->user->getId(),
+                    'from_user_id' => $message->user->getId(),
                     'message_id' => $message->getId(),
                     'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
                     'destination_id' => $message->getId(),
