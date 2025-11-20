@@ -23,7 +23,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id} --clearAllTags=false';
+    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id} {--clearAllTags=false}';
 
     /**
      * The console command description.
