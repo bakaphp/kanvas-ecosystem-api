@@ -48,7 +48,7 @@ class PayFromWalletAction
             //$total += $item->getTotal();
             $cart = $cart->withItem(
                 product: $item->variant,
-                quantity: $item->quantity,
+                quantity: (int) $item->quantity,
                 pricePerItem: (string) ($item->getPrice() * 100)
             );
         }
