@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Connectors\TeeTime\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
@@ -25,10 +27,11 @@ class CompanySetupActivity extends KanvasActivity implements WorkflowActivityInt
             integrationOperation: function ($company, $app, $integrationCompany, $additionalParams) use ($params) {
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
 
-                ProductsTypes::create([
-                    'name' => 'golf course',
+                ProductsTypes::firstOrCreate([
                     'apps_id' => $app->getId(),
                     'companies_id' => $company->getId(),
+                    'name' => 'golf course'
+                ], [
                     'users_id' => $company->users_id,
                     'description' => 'TeeTime Golf Course Product Type',
                     'is_published' => 1,

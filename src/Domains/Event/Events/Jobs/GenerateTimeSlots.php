@@ -25,7 +25,7 @@ class GenerateTimeSlots implements ShouldQueue
     {
         $rule       = ScheduleRules::findOrFail($this->ruleId);
         $resource   = $rule->resource;
-        $tz         = $resource->tz ?? $resource->app->get('timezone')  ?? "America/Santo_Domingo";
+        $tz         = $resource->tz ?? $resource->company->timezone  ?? "America/Santo_Domingo";
 
         // 1) Expand RRULE in venue TZ to get the days
         $rrule = RRule::createFromRfcString($rule->rrule, $rule->start_at->setTimezone($tz));
