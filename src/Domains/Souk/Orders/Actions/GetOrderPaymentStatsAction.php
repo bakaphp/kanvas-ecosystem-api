@@ -35,28 +35,30 @@ class GetOrderPaymentStatsAction
         }
 
         $currentCount = 0;
-        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount, $timezone);
+        $currentCount = $ordersInPeriod['count'] ?? 0;
 
         return [
             'period' => [
-                'start' => $start->format('Y-m-d H:i:s'),
-                'end' => $end->format('Y-m-d H:i:s'),
+                'start' => $start->copy()->timezone($timezone)->format('Y-m-d H:i:s'),
+                'end' => $end->copy()->timezone($timezone)->format('Y-m-d H:i:s'),
             ],
             'ordersInPeriod' => $ordersInPeriod,
             'currentCount' => $currentCount,
         ];
     }
 
-    private function getOrdersInPeriod(Carbon $start, Carbon $end, $currentCount = null): array
+    private function getOrdersInPeriod(Carbon $start, Carbon $end, $currentCount = null, string $timezone = 'UTC'): array
     {
         $results = $this->repository->getOrdersInPeriodWithPayments(
             $start,
             $end,
             $this->paidStates,
-            $this->variantId
+            $this->variantId,
+            $timezone
         );
 
-        $daysInRange = collect(DateHelper::generateDateList($start, $end))
+        $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
             ->map(fn ($date) => trim($date, "'"));
 
         $groupedResults = $results->keyBy('date');
@@ -67,6 +69,8 @@ class GetOrderPaymentStatsAction
             $amount = $item?->amount ?? 0;
             $card = $item?->card ?? 0;
             $transaction = $item?->transaction ?? 0;
+            $cardAmount = $item?->card_amount ?? 0;
+            $transactionAmount = $item?->transaction_amount ?? 0;
 
             return [
                 'date' => $date,
@@ -76,6 +80,8 @@ class GetOrderPaymentStatsAction
                     'card' => $card,
                     'amount' => $amount,
                     'transaction' => $transaction,
+                    'card_amount' => $cardAmount,
+                    'transaction_amount' => $transactionAmount,
                     'cardPercentage' => $total > 0 ? round(($card / $total) * 100, 2) : 0,
                     'transactionPercentage' => $total > 0 ? round(($transaction / $total) * 100, 2) : 0,
                 ],
@@ -86,9 +92,7 @@ class GetOrderPaymentStatsAction
         $totalAmount = $byDates->sum(fn ($entry) => $entry['states']['amount'] ?? 0);
 
         // Get service stats from the already filtered orders
-        $byServices = $this->variantId === null
-            ? $this->getServiceStatsFromOrders($start, $end)
-            : [];
+        $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
 
         return [
             'orderAvg' => $daysInRange->count() > 0 ? $totalEntries / $daysInRange->count() : 0,
@@ -98,6 +102,8 @@ class GetOrderPaymentStatsAction
             'byTransaction' => [
                 'card' => $byDates->sum(fn ($entry) => $entry['states']['card'] ?? 0),
                 'transfer' => $byDates->sum(fn ($entry) => $entry['states']['transaction'] ?? 0),
+                'cardAmount' => $byDates->sum(fn ($entry) => $entry['states']['card_amount'] ?? 0),
+                'transferAmount' => $byDates->sum(fn ($entry) => $entry['states']['transaction_amount'] ?? 0),
             ],
             'data' => $byDates->toArray(),
         ];
@@ -109,7 +115,8 @@ class GetOrderPaymentStatsAction
         $orderIds = $this->repository->getOrderIdsByPaymentCriteria(
             $start,
             $end,
-            $this->paidStates
+            $this->paidStates,
+            $this->variantId
         );
 
         if ($orderIds->isEmpty()) {

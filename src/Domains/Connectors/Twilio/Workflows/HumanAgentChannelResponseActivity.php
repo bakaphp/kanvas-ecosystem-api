@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -19,9 +20,18 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
     public function execute(Channel $channel, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+        $message = $params['message'] ?? null;
 
-        $message = $params['content'] ?? null;
-        $fromHumanAgent = $params['from_human'] ?? false;
+        if (! $message instanceof Message) {
+            return $this->failWorkflow([
+                'message' => 'Message not found',
+                'entity' => null,
+            ]);
+        }
+
+        $messageData = $message->message;
+        $content = $messageData['content'] ?? [];
+        $fromHumanAgent = $messageData['from_human'] ?? false;
         $user = $params['user'] ?? null; //@todo fix this get the user from the message
 
         $fromPhone = $params['from'] ?? null;
@@ -30,8 +40,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $fromPhone, $fromHumanAgent, $params) {
-                if (empty($message)) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
+                if (empty($content)) {
                     return $this->failWorkflow([
                         'message' => 'Message or user not found',
                         'entity' => null,
@@ -52,18 +62,21 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     ]);
                 }
 
-                $lead = $channel->entityData();
+                $channelEntity = $channel->entityData();
+                $messageEntity = $message->entity();
 
-                if (! $lead instanceof Lead) {
+                if (! $messageEntity instanceof Lead && $channelEntity instanceof Lead) {
                     return $this->failWorkflow([
                         'message' => 'Channel entity is not a Lead',
                         'entity' => null,
                     ]);
                 }
 
+                $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
+
                 return new SendMessageToLeadAction($lead)->execute(
                     LeadCommunicationChannelEnum::SMS->value,
-                    $message,
+                    $content,
                     $fromPhone,
                     $params['title'] ?? null,
                 );

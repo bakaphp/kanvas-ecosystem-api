@@ -11,11 +11,11 @@ class DateHelper
     /**
      * Generate a list of dates between start and end dates
      */
-    public static function generateDateList(Carbon $start, Carbon $end): array
+    public static function generateDateList(Carbon $start, Carbon $end, string $timezone = 'UTC'): array
     {
         $dates = [];
-        $startDate = $start->copy();
-        $endDate = $end->copy();
+        $startDate = $start->copy()->timezone($timezone);
+        $endDate = $end->copy()->timezone($timezone);
 
         while ($startDate <= $endDate) {
             $dates[] = "'" . $startDate->format('Y-m-d') . "'";

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -12,7 +13,10 @@ use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentChannelResponderAction
@@ -82,6 +86,7 @@ class AgentChannelResponderAction
         ];
 
         $this->sendEmail($emailRequest, $emailData, $this->message);
+        $this->createMessage($responseText, $channelId, $this->message, $this->channel);
 
         return [
             'message' => $messageConversation,
@@ -119,5 +124,40 @@ class AgentChannelResponderAction
         $notification->setFromUser($message->user);
         $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
+    }
+
+    private function createMessage(string $text, string $to, Message $message, Channel $channel): Message
+    {
+        $user = $message->user;
+        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
+        if ($agentUser !== null) {
+            $user = Users::getById((int) $agentUser);
+        }
+
+        $messageInput = new MessageInput(
+            app: $message->app,
+            company: $message->company,
+            user: $user,
+            type: $message->messageType,
+            message: [
+                    'content' => $text,
+                    'raw_data' => $text,
+                    'message_id' => '--',
+                    'chat_jid' => $to,
+                    'from_me' => true,
+            ],
+            is_public: 1,
+            tags: [$to],
+            //slug: Str::slug($text) . '-' . microtime()
+        );
+
+        $newMessage = new CreateMessageAction($messageInput)->execute();
+        //$newMessage = $createMessageAction->execute();
+        if ($message->entity() instanceof Model) {
+            $newMessage->addEntity($message->entity());
+        }
+        $channel->addMessage($newMessage);
+
+        return $newMessage;
     }
 }

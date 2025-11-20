@@ -166,6 +166,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people = $this->processContactFromMessage($chatJid, $messageData);
                 $lead = $this->createLeadFromPeople($people);
                 $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
+                $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
             }
 
             // Create the message slug

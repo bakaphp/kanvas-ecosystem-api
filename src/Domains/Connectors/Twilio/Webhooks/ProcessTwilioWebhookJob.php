@@ -75,6 +75,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
             $lead = $this->createLeadFromPeople($people);
+            $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
@@ -145,7 +146,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $channel->addMessage($message);
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-
         $workflowJobKey = "workflow_job:{$batchKey}";
 
         // Clear any cancellation flag

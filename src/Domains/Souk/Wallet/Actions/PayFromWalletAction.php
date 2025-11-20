@@ -21,11 +21,11 @@ class PayFromWalletAction
 
     public function execute(): Wallet
     {
-        $userCompany = $this->order->getMetadata('user_company_id');
-        if (! $userCompany) {
-            throw new Exception('User company not found in order metadata.');
-        }
-
+        /*         $userCompany = $this->order->getMetadata('user_company_id');
+                if (! $userCompany) {
+                    throw new Exception('User company not found in order metadata.');
+                }
+         */
         //$company = Companies::getById($userCompany);
         $company = $this->order->user->getCurrentCompany();
 

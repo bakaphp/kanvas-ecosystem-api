@@ -144,12 +144,10 @@ class Client
 
     /**
      * Get organization code for specific quotation type
-     * According to PROD table, OrganizationRegistradora is always 1-FOT6XKT
      */
     public function getOrganizationForQuotationType(string $type): string
     {
-        // OrganizationRegistradora PROD is always the same for all quotation types
-        return '1-FOT6XKT';
+        return $this->app->get(ConfigurationEnum::ORGANIZATION->value);
     }
 
     /**
@@ -158,17 +156,21 @@ class Client
      */
     public function getConvenioForQuotationType(string $type): string
     {
-        // QA Environment credentials - specific convenios for each quotation type
-        $convenios = [
-            'inclusion' => '1-EO6M4QP',        // Inclusión quotations
-            'inclusion_ii' => '1-EO7PIQQ',     // Inclusión II quotations
-            'cross_selling' => '1-EO6M4QU',    // Cross Selling quotations
-            'cross_selling_ii' => '1-EO7PIQL', // Cross Selling II quotations
-            'stand_alone' => '1-EO6M4QZ',      // Stand Alone quotations
-            'default' => '1-EO6M4QP'           // Fallback to Inclusión convenio
-        ];
-
-        return $convenios[$type] ?? $convenios['default'];
+        // Obtener los convenios desde la configuración de la aplicación
+        switch ($type) {
+            case 'inclusion':
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            case 'inclusion_ii':
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
+            case 'cross_selling':
+                return $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+            case 'cross_selling_ii':
+                return $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value);
+            case 'stand_alone':
+                return $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value);
+            default:
+                return $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+        }
     }
 
     /**
@@ -189,18 +191,18 @@ class Client
         if ($isReceptivo) {
             // RECEPTIVO: Traveling TO Dominican Republic (Territorio Nacional)
             return match ($quotationType) {
-                'inclusion', 'inclusion_ii' => '1-EO7PJQQ',  // Inclusión RECEPTIVO
-                'cross_selling', 'cross_selling_ii' => '1-EO7PJQL',  // Cross Selling RECEPTIVO
-                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
-                default => '1-EO7PJQQ'  // Default to Inclusión RECEPTIVO
+                'inclusion', 'inclusion_ii' => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value) ?: '1-EO7PJQQ',
+                'cross_selling', 'cross_selling_ii' => $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_II->value) ?: '1-EO7PJQL',
+                'stand_alone' => $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value) ?: '1-EO6M4QZ',
+                default => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value) ?: '1-EO7PJQQ'
             };
         } else {
             // EMISIVO: Traveling FROM Dominican Republic OR international travel (default to EMISIVO)
             return match ($quotationType) {
-                'inclusion', 'inclusion_ii' => '1-EO6M4QP',  // Inclusión EMISIVO
-                'cross_selling', 'cross_selling_ii' => '1-EO6M4QU',  // Cross Selling EMISIVO
-                'stand_alone' => '1-EO6M4QZ',  // Stand Alone
-                default => '1-EO6M4QP'  // Default to Inclusión EMISIVO
+                'inclusion', 'inclusion_ii' => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value) ?: '1-EO6M4QP',
+                'cross_selling', 'cross_selling_ii' => $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value) ?: '1-EO6M4QU',
+                'stand_alone' => $this->app->get(ConfigurationEnum::CONVENIO_STAND_ALONE->value) ?: '1-EO6M4QZ',
+                default => $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value) ?: '1-EO6M4QP'
             };
         }
     }
@@ -224,123 +226,10 @@ class Client
     }
 
     /**
-     * Create dual quotations (Inclusión + Cross Selling) with sequential control numbers
-     */
-    public function createDualQuotations(array $inclusionData, array $crossSellingData, ?\Kanvas\Souk\Orders\Models\Order $order = null): array
-    {
-        $controlNumbers = $this->generateSequentialControlNumbers($order);
-
-        // Update control numbers and organizations for both quotations
-        $inclusionData['NroControl'] = $controlNumbers['inclusion'];
-        $crossSellingData['NroControl'] = $controlNumbers['cross_selling'];
-
-        // Respect convenios determined by workflow - only set if not already provided
-        if (! isset($inclusionData['Contrato']) || empty($inclusionData['Contrato'])) {
-            $inclusionData['Contrato'] = $this->getConvenioForQuotationType('inclusion');
-        }
-        if (! isset($crossSellingData['Contrato']) || empty($crossSellingData['Contrato'])) {
-            $crossSellingData['Contrato'] = $this->getConvenioForQuotationType('cross_selling');
-        }
-
-        // Set specific organizations for each quotation type
-        if (isset($inclusionData['DatosAgencia'])) {
-            $inclusionData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType('inclusion');
-        }
-        if (isset($crossSellingData['DatosAgencia'])) {
-            $crossSellingData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType('cross_selling');
-        }
-
-        $results = [];
-
-        try {
-            // Create Inclusión quotation first with specific organization
-            $results['inclusion'] = $this->createVoucher($inclusionData, true);
-
-            // Query Inclusión voucher to get complete insurance information
-            try {
-                if (isset($results['inclusion']['IdVoucher'])) {
-                    $inclusionQueryResponse = $this->queryVoucher([
-                        'VoucherNumber' => $results['inclusion']['IdVoucher'],
-                        'Organization' => $this->getOrganizationForQuotationType('inclusion')
-                    ]);
-
-                    // Filter and store essential query data
-                    $results['inclusion_query'] = $this->filterVoucherQueryResponse($inclusionQueryResponse);
-                }
-            } catch (Exception $queryException) {
-                $results['inclusion_query_error'] = $queryException->getMessage();
-            }
-
-            // Create Cross Selling quotation with specific organization
-            $results['cross_selling'] = $this->createVoucher($crossSellingData, true);
-
-            // Query Cross Selling voucher to get complete insurance information
-            try {
-                if (isset($results['cross_selling']['IdVoucher'])) {
-                    $crossSellingQueryResponse = $this->queryVoucher([
-                        'VoucherNumber' => $results['cross_selling']['IdVoucher'],
-                        'Organization' => $this->getOrganizationForQuotationType('cross_selling')
-                    ]);
-
-                    // Filter and store essential query data
-                    $results['cross_selling_query'] = $this->filterVoucherQueryResponse($crossSellingQueryResponse);
-                }
-            } catch (Exception $queryException) {
-                $results['cross_selling_query_error'] = $queryException->getMessage();
-            }
-
-            $results['control_numbers'] = $controlNumbers;
-            $results['organizations'] = [
-                'inclusion' => $this->getOrganizationForQuotationType('inclusion'),
-                'cross_selling' => $this->getOrganizationForQuotationType('cross_selling')
-            ];
-            $results['convenios'] = [
-                'inclusion' => $this->getConvenioForQuotationType('inclusion'),
-                'cross_selling' => $this->getConvenioForQuotationType('cross_selling')
-            ];
-        } catch (Exception $e) {
-            throw new ValidationException('Failed to create dual quotations: ' . $e->getMessage());
-        }
-
-        return $results;
-    }
-
-    /**
-     * Create a single quotation with specific organization type
-     */
-    public function createSingleQuotation(array $voucherData, string $quotationType, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
-    {
-        // Generate unique control number for each individual voucher
-        // Use combination of order ID, current timestamp and random component for maximum uniqueness
-        $baseSequential = $order ? $order->id : (int)(microtime(true) * 1000) % 10000;
-        $timestamp = (int)(microtime(true) * 10000) % 100000; // Get timestamp with more precision
-        $randomComponent = mt_rand(10, 99); // Add random component for extra uniqueness
-
-        // Create a unique 7-digit sequential number combining all components
-        $uniqueSequential = ($baseSequential * 100 + $randomComponent + $timestamp) % 9999999;
-        $paddedSequential = str_pad((string)$uniqueSequential, 7, '0', STR_PAD_LEFT);
-
-        $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
-        $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
-
-        // Set control number, organization and convenio using basic quotation type logic
-        $voucherData['NroControl'] = $controlNumber;
-        $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
-
-        if (isset($voucherData['DatosAgencia'])) {
-            $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
-        }
-
-        // DEPRECATED: This method should not extract countries from voucherData
-        // Countries should come from workflow INPUT data via createSingleQuotationWithCountries()
-        throw new ValidationException("createSingleQuotation is deprecated. Use createSingleQuotationWithCountries() with origin/destination country codes from workflow input data instead of extracting from voucherData.");
-    }
-
-    /**
      * Create a single quotation with specific country-based convenio logic
      * This method uses the origin and destination country codes from input data to determine the proper convenio
      */
-    public function createSingleQuotationWithCountries(array $voucherData, string $quotationType, string $originCountryCode, string $destinationCountryCode, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
+    public function createSingleQuotationWithCountries(array $quotationData, string $quotationType, string $originCountryCode, string $destinationCountryCode, ?\Kanvas\Souk\Orders\Models\Order $order = null, bool $quoteOnly = false): array
     {
         // Generate unique control number for each individual voucher
         // Use combination of order ID, current timestamp and random component for maximum uniqueness
@@ -355,40 +244,57 @@ class Client
         $baseControlNumber = 'UA-' . date('Ymd') . '-' . substr($paddedSequential, -7);
         $controlNumber = $baseControlNumber . '-' . $this->getControlNumberSuffixForQuotationType($quotationType);
 
-        // Set control number and organization
-        $voucherData['NroControl'] = $controlNumber;
-
-        // ALWAYS respect the convenio determined by the workflow
-        // Check both 'Contrato' and 'contrato' keys for consistency
-        $workflowConvenio = $voucherData['Contrato'] ?? $voucherData['contrato'] ?? null;
-
-        if ($workflowConvenio && ! empty($workflowConvenio)) {
-            // Use the convenio determined by workflow (variant logic)
-            $voucherData['Contrato'] = $workflowConvenio;
-            unset($voucherData['contrato']); // Remove lowercase version if it exists for consistency
+        // Handle both quotation data (new approach) and voucher data (legacy approach)
+        if (isset($quotationData['Edad1'])) {
+            // New approach: We received quotation data with ages already calculated
+            $leadData = $quotationData;
+            $convenio = $quotationData['Convenio'];
         } else {
-            // If no convenio from workflow, use basic quotation type logic as fallback
-            $voucherData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
-        }
+            // Legacy approach: We received voucher data and need to convert it
+            // Set control number and organization
+            $quotationData['NroControl'] = $controlNumber;
 
-        if (isset($voucherData['DatosAgencia'])) {
-            $voucherData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
-        }
+            // ALWAYS respect the convenio determined by the workflow
+            // Check both 'Contrato' and 'contrato' keys for consistency
+            $workflowConvenio = $quotationData['Contrato'] ?? $quotationData['contrato'] ?? null;
 
-        try {
+            if ($workflowConvenio && ! empty($workflowConvenio)) {
+                // Use the convenio determined by workflow (variant logic)
+                $quotationData['Contrato'] = $workflowConvenio;
+                unset($quotationData['contrato']); // Remove lowercase version if it exists for consistency
+            } else {
+                // If no convenio from workflow, use basic quotation type logic as fallback
+                $quotationData['Contrato'] = $this->getConvenioForQuotationType($quotationType);
+            }
+
+            if (isset($quotationData['DatosAgencia'])) {
+                $quotationData['DatosAgencia']['OrganizacionRegistradora'] = $this->getOrganizationForQuotationType($quotationType);
+            }
+
             // Convert country codes to country names for the quote request
             $originCountryName = $this->countryCodeToName($originCountryCode);
             $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
 
             // Create a quote to get detailed product/plan information using extracted countries
-            $leadData = $this->convertVoucherDataToLeadDataWithCountries($voucherData, $quotationType, $originCountryName, $destinationName);
-            $quoteResult = $this->createOrUpdateLead($leadData, true);
+            $leadData = $this->convertVoucherDataToLeadDataWithCountries($quotationData, $quotationType, $originCountryName, $destinationName);
+            $convenio = $quotationData['Contrato'];
+        }
+
+        try {
+            // Convert country codes to country names for the result
+            $originCountryName = $this->countryCodeToName($originCountryCode);
+            $destinationName = $this->getDestinationNameFromCountryCode($destinationCountryCode);
+
+            // Determine if we should use raw data based on the data structure
+            $useRawData = isset($quotationData['Edad1']);
+
+            $quoteResult = $this->createOrUpdateLead($leadData, $useRawData);
 
             $result = [
                 'quotation_type' => $quotationType,
                 'control_number' => $controlNumber,
                 'organization' => $this->getOrganizationForQuotationType($quotationType),
-                'convenio' => $voucherData['Contrato'], // Use the convenio that was actually used
+                'convenio' => $convenio, // Use the convenio that was actually used
                 'origin_country_code' => $originCountryCode,
                 'destination_country_code' => $destinationCountryCode,
                 'origin_country_name' => $originCountryName,
@@ -397,70 +303,23 @@ class Client
                 'response' => $quoteResult             // Main response with all details for Excel
             ];
 
-            // Only create voucher if not quote-only mode
+            // Note: Individual quotations in quote-only mode don't create vouchers
+            // Voucher creation will be handled separately with proper voucher data
             if (! $quoteOnly) {
-                $voucherResult = $this->createVoucher($voucherData, true);
-                $result['voucher_response'] = $voucherResult;  // Voucher confirmation
-
-                // Query voucher to get complete insurance information
-                try {
-                    if (isset($voucherResult['IdVoucher'])) {
-                        $voucherQueryResponse = $this->queryVoucher([
-                            'VoucherNumber' => $voucherResult['IdVoucher'],
-                            'Organization' => $this->getOrganizationForQuotationType($quotationType)
-                        ]);
-
-                        // Filter and store essential query data
-                        $result['voucher_query'] = $this->filterVoucherQueryResponse($voucherQueryResponse);
-                    }
-                } catch (Exception $queryException) {
-                    $result['voucher_query_error'] = $queryException->getMessage();
-                }
+                // For voucher creation, we need proper voucher data structure
+                // This would need to be handled differently for individual quotations
+                throw new ValidationException("Voucher creation from individual quotations not implemented in this context");
             }
 
             // Store in order metadata if provided
             if ($order) {
-                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $voucherData['Contrato']);
+                $this->storeSingleQuotationInOrder($order, $quotationType, $controlNumber, $quoteResult, $originCountryCode, $destinationCountryCode, $convenio);
             }
 
             return $result;
         } catch (Exception $e) {
             throw new ValidationException("Failed to create {$quotationType} quotation with countries {$originCountryCode}->{$destinationCountryCode}: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Convert voucher data to lead data format for quote generation
-     */
-    protected function convertVoucherDataToLeadData(array $voucherData, string $quotationType, string $countryOfOrigin = 'ARGENTINA'): array
-    {
-        // Use the provided country of origin (defaults to ARGENTINA from working request)
-
-        // Convert voucher data structure to lead data structure using exact working request format
-        return [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
-            'Convenio' => $this->getConvenioForQuotationType($quotationType),
-            'Folleto' => '', // Empty like working request
-            'PaisOrigen' => $countryOfOrigin, // Use provided country of origin
-            'Destino' => $voucherData['Destino'] ?? 'Centro america/Caribe', // Use voucher destination
-            'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
-            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
-            'CantidadPasajeros' => 4, // Match working request
-            'Edad1' => 27, // Match working request ages
-            'Edad2' => 38,
-            'Edad3' => 28,
-            'Edad4' => 65,
-            'Edad5' => '', 'Edad6' => '', 'Edad7' => '', 'Edad8' => '', 'Edad9' => '', 'Edad10' => '',
-            'ApellidoContacto' => '', // Empty like working request
-            'NombreContacto' => '', // Empty like working request
-            'TelefonoContacto' => '', // Empty like working request
-            'EmailContacto' => '', // Empty like working request
-            'Categoria' => '', // Empty like working request
-            'Precompras' => '', // Empty like working request
-            // Removed CantCotizaciones, PackFamiliar, NroDocumento, TipoDocumento - not in working request
-        ];
     }
 
     /**
@@ -769,12 +628,6 @@ class Client
         try {
             $client = $this->getQuoteClient();
 
-            // Debug: Get available functions
-            try {
-                $functions = $client->__getFunctions();
-            } catch (Exception $debugEx) {
-            }
-
             // Create the exact structure from your working QA SOAP request
             if ($useRawData) {
                 // Use raw QA data without transformation for testing
@@ -810,14 +663,8 @@ class Client
                             'Edad8' => $leadData['edad8'] ?? $leadData['Edad8'] ?? '',
                             'Edad9' => $leadData['edad9'] ?? $leadData['Edad9'] ?? '',
                             'Edad10' => $leadData['edad10'] ?? $leadData['Edad10'] ?? '',
-                            'ApellidoContacto' => $leadData['apellidoContacto'] ?? $leadData['ApellidoContacto'] ?? '',
-                            'NombreContacto' => $leadData['nombreContacto'] ?? $leadData['NombreContacto'] ?? '',
-                            'TelefonoContacto' => $leadData['telefonoContacto'] ?? $leadData['TelefonoContacto'] ?? '',
-                            'EmailContacto' => $leadData['emailContacto'] ?? $leadData['EmailContacto'] ?? '',
                             'Categoria' => $leadData['categoria'] ?? $leadData['Categoria'] ?? '',
                             'Precompras' => $leadData['precompras'] ?? $leadData['Precompras'] ?? '',
-                            'NroDocumento' => $leadData['nroDocumento'] ?? $leadData['NroDocumento'] ?? '',
-                            'TipoDocumento' => $leadData['tipoDocumento'] ?? $leadData['TipoDocumento'] ?? '',
                         ]
                     ]
                 ];
@@ -1397,58 +1244,222 @@ class Client
     /**
      * Convert country code to country name for Universal Assistance
      */
-    protected function countryCodeToName(string $countryCode): string
+    public function countryCodeToName(string $countryCode): string
     {
         $codeToName = [
+            // Americas
             'AR' => 'ARGENTINA',
-            'DO' => 'REPUBLICA DOMINICANA',
-            'US' => 'USA',
-            'CO' => 'COLOMBIA',
-            'MX' => 'MEXICO',
-            'PE' => 'PERU',
-            'CL' => 'CHILE',
-            'VE' => 'VENEZUELA',
-            'EC' => 'ECUADOR',
-            'UY' => 'URUGUAY',
-            'PY' => 'PARAGUAY',
             'BO' => 'BOLIVIA',
             'BR' => 'BRASIL',
+            'CA' => 'CANADA',
+            'CL' => 'CHILE',
+            'CO' => 'COLOMBIA',
             'CR' => 'COSTA RICA',
-            'PA' => 'PANAMA',
-            'GT' => 'GUATEMALA',
-            'HN' => 'HONDURAS',
-            'NI' => 'NICARAGUA',
-            'SV' => 'EL SALVADOR',
-            'BZ' => 'BELICE',
-            'JM' => 'JAMAICA',
             'CU' => 'CUBA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'EC' => 'ECUADOR',
+            'SV' => 'EL SALVADOR',
+            'GT' => 'GUATEMALA',
+            'GY' => 'GUYANA',
             'HT' => 'HAITI',
+            'HN' => 'HONDURAS',
+            'JM' => 'JAMAICA',
+            'MX' => 'MEXICO',
+            'NI' => 'NICARAGUA',
+            'PA' => 'PANAMA',
+            'PY' => 'PARAGUAY',
+            'PE' => 'PERU',
             'PR' => 'PUERTO RICO',
+            'SR' => 'SURINAM',
             'TT' => 'TRINIDAD Y TOBAGO',
-            'BB' => 'BARBADOS',
-            'GD' => 'GRANADA',
-            'LC' => 'SANTA LUCIA',
-            'VC' => 'SAN VICENTE',
+            'US' => 'USA',
+            'UY' => 'URUGUAY',
+            'VE' => 'VENEZUELA',
+
+            // Europe
+            'AD' => 'ANDORRA',
+            'AT' => 'AUSTRIA',
+            'BE' => 'BELGICA',
+            'BG' => 'BULGARIA',
+            'HR' => 'CROACIA',
+            'CY' => 'CHIPRE',
+            'CZ' => 'REPUBLICA CHECA',
+            'DK' => 'DINAMARCA',
+            'EE' => 'ESTONIA',
+            'FI' => 'FINLANDIA',
+            'FR' => 'FRANCIA',
+            'DE' => 'ALEMANIA',
+            'GR' => 'GRECIA',
+            'HU' => 'HUNGRIA',
+            'IS' => 'ISLANDIA',
+            'IE' => 'IRLANDA',
+            'IT' => 'ITALIA',
+            'LV' => 'LETONIA',
+            'LI' => 'LIECHTENSTEIN',
+            'LT' => 'LITUANIA',
+            'LU' => 'LUXEMBURGO',
+            'MT' => 'MALTA',
+            'MC' => 'MONACO',
+            'ME' => 'MONTENEGRO',
+            'NL' => 'HOLANDA',
+            'NO' => 'NORUEGA',
+            'PL' => 'POLONIA',
+            'PT' => 'PORTUGAL',
+            'RO' => 'RUMANIA',
+            'RU' => 'RUSIA',
+            'SM' => 'SAN MARINO',
+            'RS' => 'SERBIA',
+            'SK' => 'ESLOVAQUIA',
+            'SI' => 'ESLOVENIA',
+            'ES' => 'ESPAÑA',
+            'SE' => 'SUECIA',
+            'CH' => 'SUIZA',
+            'UA' => 'UCRANIA',
+            'GB' => 'INGLATERRA',
+            'VA' => 'CIUDAD VATICANO',
+
+            // Asia
+            'AF' => 'AFGHANISTAN',
+            'AM' => 'ARMENIA',
+            'AZ' => 'AZERBAIJAN',
+            'BH' => 'BAHREIN',
+            'BD' => 'BANGLADESH',
+            'BT' => 'BHUTAN',
+            'BN' => 'BRUNEI',
+            'KH' => 'CAMBOYA',
+            'CN' => 'CHINA',
+            'GE' => 'GEORGIA',
+            'IN' => 'INDIA',
+            'ID' => 'INDONESIA',
+            'IR' => 'IRAN',
+            'IQ' => 'IRAK',
+            'IL' => 'ISRAEL',
+            'JP' => 'JAPON',
+            'JO' => 'JORDANIA',
+            'KZ' => 'KAZAJISTAN',
+            'KP' => 'COREA DEL NORTE',
+            'KR' => 'COREA DEL SUR',
+            'KW' => 'KUWAIT',
+            'KG' => 'KIRGUISTAN',
+            'LA' => 'LAOS',
+            'LB' => 'LIBANO',
+            'MY' => 'MALASIA',
+            'MV' => 'MALDIVAS',
+            'MN' => 'MONGOLIA',
+            'MM' => 'MYANMAR',
+            'NP' => 'NEPAL',
+            'OM' => 'OMAN',
+            'PK' => 'PAKISTAN',
+            'PS' => 'PALESTINA',
+            'PH' => 'FILIPINAS',
+            'QA' => 'QATAR',
+            'SA' => 'ARABIA SAUDITA',
+            'SG' => 'SINGAPUR',
+            'LK' => 'SRI LANKA',
+            'SY' => 'SIRIA',
+            'TW' => 'TAIWAN',
+            'TJ' => 'TAYIKISTAN',
+            'TH' => 'TAILANDIA',
+            'TL' => 'TIMOR ORIENTAL',
+            'TR' => 'TURQUIA',
+            'TM' => 'TURKMENISTAN',
+            'AE' => 'EMIRATOS ARABES UNIDOS',
+            'UZ' => 'UZBEKISTAN',
+            'VN' => 'VIETNAM',
+            'YE' => 'YEMEN',
+
+            // Africa
+            'DZ' => 'ARGELIA',
+            'AO' => 'ANGOLA',
+            'BJ' => 'BENIN',
+            'BW' => 'BOTSWANA',
+            'BF' => 'BURKINA FASO',
+            'BI' => 'BURUNDI',
+            'CV' => 'CABO VERDE',
+            'CM' => 'CAMERUN',
+            'CF' => 'REPUBLICA CENTROAFRICANA',
+            'TD' => 'CHAD',
+            'KM' => 'COMORAS',
+            'CG' => 'CONGO',
+            'CI' => 'COSTA DE MARFIL',
+            'DJ' => 'YIBUTI',
+            'EG' => 'EGIPTO',
+            'GQ' => 'GUINEA ECUATORIAL',
+            'ER' => 'ERITREA',
+            'ET' => 'ETIOPIA',
+            'GA' => 'GABON',
+            'GM' => 'GAMBIA',
+            'GH' => 'GHANA',
+            'GN' => 'GUINEA',
+            'GW' => 'GUINEA BISSAU',
+            'KE' => 'KENIA',
+            'LS' => 'LESOTO',
+            'LR' => 'LIBERIA',
+            'LY' => 'LIBIA',
+            'MG' => 'MADAGASCAR',
+            'MW' => 'MALAWI',
+            'ML' => 'MALI',
+            'MR' => 'MAURITANIA',
+            'MU' => 'MAURICIO',
+            'MA' => 'MARRUECOS',
+            'MZ' => 'MOZAMBIQUE',
+            'NA' => 'NAMIBIA',
+            'NE' => 'NIGER',
+            'NG' => 'NIGERIA',
+            'RW' => 'RUANDA',
+            'ST' => 'SANTO TOME Y PRINCIPE',
+            'SN' => 'SENEGAL',
+            'SC' => 'SEYCHELLES',
+            'SL' => 'SIERRA LEONA',
+            'SO' => 'SOMALIA',
+            'ZA' => 'SUDAFRICA',
+            'SS' => 'SUDAN DEL SUR',
+            'SD' => 'SUDAN',
+            'SZ' => 'SUAZILANDIA',
+            'TZ' => 'TANZANIA',
+            'TG' => 'TOGO',
+            'TN' => 'TUNEZ',
+            'UG' => 'UGANDA',
+            'ZM' => 'ZAMBIA',
+            'ZW' => 'ZIMBABWE',
+
+            // Oceania
+            'AU' => 'AUSTRALIA',
+            'FJ' => 'FIYI',
+            'KI' => 'KIRIBATI',
+            'MH' => 'ISLAS MARSHALL',
+            'FM' => 'MICRONESIA',
+            'NR' => 'NAURU',
+            'NZ' => 'NUEVA ZELANDA',
+            'PW' => 'PALAOS',
+            'PG' => 'PAPUA NUEVA GUINEA',
+            'WS' => 'SAMOA',
+            'SB' => 'ISLAS SALOMON',
+            'TO' => 'TONGA',
+            'TV' => 'TUVALU',
+            'VU' => 'VANUATU',
+
+            // Caribbean/Other
+            'AI' => 'ANGUILA',
             'AG' => 'ANTIGUA Y BARBUDA',
-            'DM' => 'DOMINICA',
-            'KN' => 'SAN CRISTOBAL',
             'AW' => 'ARUBA',
-            'CW' => 'CURACAO',
-            'BQ' => 'BONAIRE',
-            'SX' => 'SINT MAARTEN',
-            'MF' => 'SAN MARTIN',
+            'BS' => 'BAHAMAS',
+            'BB' => 'BARBADOS',
+            'BZ' => 'BELICE',
+            'BM' => 'BERMUDAS',
+            'VG' => 'ISLAS VIRGENES BRITANICAS',
+            'KY' => 'ISLAS CAIMAN',
+            'CW' => 'CURAZAO',
+            'DM' => 'DOMINICA',
+            'GD' => 'GRANADA',
             'GP' => 'GUADALUPE',
             'MQ' => 'MARTINICA',
-            'GF' => 'GUAYANA FRANCESA',
-            'SR' => 'SURINAM',
-            'GY' => 'GUYANA',
-            'ES' => 'ESPAÑA',
-            'FR' => 'FRANCIA',
-            'IT' => 'ITALIA',
-            'DE' => 'ALEMANIA',
-            'GB' => 'REINO UNIDO',
-            'PT' => 'PORTUGAL',
-            'TR' => 'TURQUIA',
+            'MS' => 'ISLA DE MONTSERRAT',
+            'AN' => 'ANTILLAS HOLANDESAS',
+            'KN' => 'SAN CRISTOBAL Y NIEVES',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE Y GRANADINAS',
+            'TC' => 'ISLAS TURCAS Y CAICOS',
         ];
 
         return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
@@ -1487,11 +1498,16 @@ class Client
             'KN' => 'Centro america/Caribe',
             'AW' => 'Centro america/Caribe',
             'CW' => 'Centro america/Caribe',
-            'BQ' => 'Centro america/Caribe',
-            'SX' => 'Centro america/Caribe',
-            'MF' => 'Centro america/Caribe',
+            'AI' => 'Centro america/Caribe',
+            'BS' => 'Centro america/Caribe',
+            'BM' => 'Centro america/Caribe',
+            'VG' => 'Centro america/Caribe',
+            'KY' => 'Centro america/Caribe',
             'GP' => 'Centro america/Caribe',
             'MQ' => 'Centro america/Caribe',
+            'MS' => 'Centro america/Caribe',
+            'AN' => 'Centro america/Caribe',
+            'TC' => 'Centro america/Caribe',
 
             // America del norte
             'US' => 'America del norte',
@@ -1510,7 +1526,6 @@ class Client
             'BO' => 'América del Sur (salvo Vzla)',
             'GY' => 'América del Sur (salvo Vzla)',
             'SR' => 'América del Sur (salvo Vzla)',
-            'GF' => 'América del Sur (salvo Vzla)',
 
             // Europa
             'ES' => 'Europa',
@@ -1544,6 +1559,136 @@ class Client
             'MT' => 'Europa',
             'CY' => 'Europa',
             'LU' => 'Europa',
+            'AD' => 'Europa',
+            'IS' => 'Europa',
+            'LI' => 'Europa',
+            'MC' => 'Europa',
+            'ME' => 'Europa',
+            'RU' => 'Europa',
+            'SM' => 'Europa',
+            'RS' => 'Europa',
+            'UA' => 'Europa',
+            'VA' => 'Europa',
+
+            // Asia
+            'AF' => 'Asia',
+            'AM' => 'Asia',
+            'AZ' => 'Asia',
+            'BH' => 'Asia',
+            'BD' => 'Asia',
+            'BT' => 'Asia',
+            'BN' => 'Asia',
+            'KH' => 'Asia',
+            'CN' => 'Asia',
+            'GE' => 'Asia',
+            'IN' => 'Asia',
+            'ID' => 'Asia',
+            'IR' => 'Asia',
+            'IQ' => 'Asia',
+            'IL' => 'Asia',
+            'JP' => 'Asia',
+            'JO' => 'Asia',
+            'KZ' => 'Asia',
+            'KP' => 'Asia',
+            'KR' => 'Asia',
+            'KW' => 'Asia',
+            'KG' => 'Asia',
+            'LA' => 'Asia',
+            'LB' => 'Asia',
+            'MY' => 'Asia',
+            'MV' => 'Asia',
+            'MN' => 'Asia',
+            'MM' => 'Asia',
+            'NP' => 'Asia',
+            'OM' => 'Asia',
+            'PK' => 'Asia',
+            'PS' => 'Asia',
+            'PH' => 'Asia',
+            'QA' => 'Asia',
+            'SA' => 'Asia',
+            'SG' => 'Asia',
+            'LK' => 'Asia',
+            'SY' => 'Asia',
+            'TW' => 'Asia',
+            'TJ' => 'Asia',
+            'TH' => 'Asia',
+            'TL' => 'Asia',
+            'TM' => 'Asia',
+            'AE' => 'Asia',
+            'UZ' => 'Asia',
+            'VN' => 'Asia',
+            'YE' => 'Asia',
+
+            // Africa
+            'DZ' => 'Africa',
+            'AO' => 'Africa',
+            'BJ' => 'Africa',
+            'BW' => 'Africa',
+            'BF' => 'Africa',
+            'BI' => 'Africa',
+            'CV' => 'Africa',
+            'CM' => 'Africa',
+            'CF' => 'Africa',
+            'TD' => 'Africa',
+            'KM' => 'Africa',
+            'CG' => 'Africa',
+            'CI' => 'Africa',
+            'DJ' => 'Africa',
+            'EG' => 'Africa',
+            'GQ' => 'Africa',
+            'ER' => 'Africa',
+            'ET' => 'Africa',
+            'GA' => 'Africa',
+            'GM' => 'Africa',
+            'GH' => 'Africa',
+            'GN' => 'Africa',
+            'GW' => 'Africa',
+            'KE' => 'Africa',
+            'LS' => 'Africa',
+            'LR' => 'Africa',
+            'LY' => 'Africa',
+            'MG' => 'Africa',
+            'MW' => 'Africa',
+            'ML' => 'Africa',
+            'MR' => 'Africa',
+            'MU' => 'Africa',
+            'MA' => 'Africa',
+            'MZ' => 'Africa',
+            'NA' => 'Africa',
+            'NE' => 'Africa',
+            'NG' => 'Africa',
+            'RW' => 'Africa',
+            'ST' => 'Africa',
+            'SN' => 'Africa',
+            'SC' => 'Africa',
+            'SL' => 'Africa',
+            'SO' => 'Africa',
+            'ZA' => 'Africa',
+            'SS' => 'Africa',
+            'SD' => 'Africa',
+            'SZ' => 'Africa',
+            'TZ' => 'Africa',
+            'TG' => 'Africa',
+            'TN' => 'Africa',
+            'UG' => 'Africa',
+            'ZM' => 'Africa',
+            'ZW' => 'Africa',
+
+            // Oceania
+            'AU' => 'Oceanía',
+            'FJ' => 'Oceanía',
+            'KI' => 'Oceanía',
+            'MH' => 'Oceanía',
+            'FM' => 'Oceanía',
+            'NR' => 'Oceanía',
+            'NZ' => 'Oceanía',
+            'PW' => 'Oceanía',
+            'PG' => 'Oceanía',
+            'WS' => 'Oceanía',
+            'SB' => 'Oceanía',
+            'TO' => 'Oceanía',
+            'TV' => 'Oceanía',
+            'VU' => 'Oceanía',
         ];
 
         return $countryToDestination[strtoupper($countryCode)] ?? 'Centro america/Caribe'; // Default to Centro america/Caribe
@@ -1551,36 +1696,44 @@ class Client
 
     /**
      * Convert voucher data to lead data format with specific countries
+     * Always preserves the quotation data structure from buildGroupQuotationData
+     * CRITICAL: This method preserves ALL group data including CantidadPasajeros and all Edad1-Edad10 fields
      */
     protected function convertVoucherDataToLeadDataWithCountries(array $voucherData, string $quotationType, string $originCountryName, string $destinationName): array
     {
-        $edad = $voucherData['DatosSolicitante']['EdadSolicitante'] ?? '30';
+        // CRITICAL: Always preserve the quotation data structure that comes from buildGroupQuotationData
+        // This ensures family groups maintain ALL person data (ages, count) for proper Universal Assistance pricing
+        // Whether it's 1 person or 10 people, this structure must be preserved exactly as built
 
-        return [
-            'IdLead' => '',
-            'OrganizacionEmisora' => $this->getOrganizationForQuotationType($quotationType),
-            'CantCotizaciones' => 1, // Important: Request quotation data
-            'Convenio' => $voucherData['Contrato'], // Use the convenio already set based on countries
-            'Folleto' => '', // Empty like working request
-            'PaisOrigen' => $originCountryName, // Use provided origin country name
-            'Destino' => $destinationName, // Use provided destination name
-            'TipoViaje' => 'Un viaje', // Correct value from working example
-            'FechaInicio' => $voucherData['FechaVigencia'] ?? date('m/d/Y'), // Use voucher activation date
-            'FechaFin' => $voucherData['FechaFinal'] ?? date('m/d/Y', strtotime('+7 days')), // Use voucher expiration date
-            'CantidadPasajeros' => 1, // Single person quotation
-            'PackFamiliar' => '', // Empty for individual
-            'Edad1' => $edad, // Set primary age
-            'Edad2' => '', // Empty for additional passengers
-            'Edad3' => '',
-            'Edad4' => '',
-            'Edad5' => '',
-            'Edad6' => '',
-            'Edad7' => '',
-            'Edad8' => '',
-            'Edad9' => '',
-            'Edad10' => '',
-            'Categoria' => '', // Empty like working example
-            'Precompras' => '' // Empty like working example
+
+        $leadData = [
+            'IdLead' => $voucherData['IdLead'] ?? '',
+            'OrganizacionEmisora' => $voucherData['OrganizacionEmisora'] ?? $this->getOrganizationForQuotationType($quotationType),
+            'CantCotizaciones' => $voucherData['CantCotizaciones'] ?? 1,
+            'Convenio' => $voucherData['Convenio'] ?? $voucherData['Contrato'] ?? '',
+            'Folleto' => $voucherData['Folleto'] ?? '',
+            'PaisOrigen' => $voucherData['PaisOrigen'] ?? $originCountryName,
+            'Destino' => $voucherData['Destino'] ?? $destinationName,
+            'TipoViaje' => $voucherData['TipoViaje'] ?? 'Un viaje',
+            'FechaInicio' => $voucherData['FechaInicio'] ?? date('m/d/Y'),
+            'FechaFin' => $voucherData['FechaFin'] ?? date('m/d/Y', strtotime('+7 days')),
+            'CantidadPasajeros' => $voucherData['CantidadPasajeros'] ?? 1,
+            'PackFamiliar' => $voucherData['PackFamiliar'] ?? '',
+            // Preserve all ages from the quotation data
+            'Edad1' => $voucherData['Edad1'] ?? '',
+            'Edad2' => $voucherData['Edad2'] ?? '',
+            'Edad3' => $voucherData['Edad3'] ?? '',
+            'Edad4' => $voucherData['Edad4'] ?? '',
+            'Edad5' => $voucherData['Edad5'] ?? '',
+            'Edad6' => $voucherData['Edad6'] ?? '',
+            'Edad7' => $voucherData['Edad7'] ?? '',
+            'Edad8' => $voucherData['Edad8'] ?? '',
+            'Edad9' => $voucherData['Edad9'] ?? '',
+            'Edad10' => $voucherData['Edad10'] ?? '',
+            'Categoria' => $voucherData['Categoria'] ?? '',
+            'Precompras' => $voucherData['Precompras'] ?? '',
         ];
+
+        return $leadData;
     }
 }

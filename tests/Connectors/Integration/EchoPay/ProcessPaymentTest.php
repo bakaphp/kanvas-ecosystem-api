@@ -15,6 +15,7 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -594,6 +595,65 @@ final class ProcessPaymentTest extends TestCase
         $app->del('subscription_ECHO_PAY_MERCHANT_ID');
         $app->del('subscription_ECHO_PAY_MERCHANT_KEY');
         $app->del('subscription_ECHO_PAY_MERCHANT_SECRET');
+    }
+
+    public function testExtractErrorsFromEnrollment(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $paymentProcessor = new PortalPaymentProcessor(
+            $app,
+            $company,
+            []
+        );
+
+        // Test with error information present
+        $enrollmentDataWithError = [
+            'errorInformation' => [
+                'message' => 'Payment declined',
+                'code' => 'DECLINED',
+            ],
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithError]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('code', $result);
+        $this->assertEquals(' - Payment declined', $result['message']);
+
+        // Test without error information
+        $enrollmentDataWithoutError = [
+            'status' => 'success',
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithoutError]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
+
+        // Test with null errorInformation
+        $enrollmentDataWithNullError = [
+            'errorInformation' => null,
+        ];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$enrollmentDataWithNullError]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
+
+        // Test with empty array
+        $emptyEnrollmentData = [];
+
+        $result = $this->callProtectedMethod($paymentProcessor, 'extractErrorsFromEnrollment', [$emptyEnrollmentData]);
+
+        $this->assertIsArray($result);
+        $this->assertEquals('', $result['message']);
+        $this->assertEquals('', $result['code']);
     }
 
     /**

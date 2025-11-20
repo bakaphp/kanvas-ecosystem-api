@@ -26,13 +26,13 @@ class ReceiverController extends BaseController
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
         if (! $receiver) {
-            Sentry::withScope(function ($scope) use ($uuid, $request) {
+            /* Sentry::withScope(function ($scope) use ($uuid, $request) {
                 $scope->setContext('Request Data', [
                     'uuid' => $uuid,
                     'payload' => $request->all(),
                 ]);
                 Sentry::captureMessage("Receiver not found for UUID: {$uuid}");
-            });
+            }); */
 
             return response()->json(['message' => 'Receiver not found'], 404);
         }

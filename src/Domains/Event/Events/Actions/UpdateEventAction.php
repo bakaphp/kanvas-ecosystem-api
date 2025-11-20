@@ -72,24 +72,18 @@ class UpdateEventAction
                 $this->eventVersion->saveOrFail();
             }
 
-            // Update the EventVersion model
-            $versionUpdateData = [];
-            if (isset($this->updateData['name'])) {
-                $versionUpdateData['name'] = $this->updateData['name'];
-                $versionUpdateData['slug'] = Str::slug('events-versions-' . $this->updateData['name'] . '-' . now()->format('Y-m-d'));
-            }
-            if (isset($this->updateData['description'])) {
-                $versionUpdateData['description'] = $this->updateData['description'];
-            }
-            if (isset($this->updateData['participants'])) {
-                $versionUpdateData['participants'] = $this->updateData['participants'];
-            }
-            if (isset($this->updateData['resources'])) {
-                $versionUpdateData['resources'] = $this->updateData['resources'];
+            // Update the EventVersion model fields
+            if (isset($this->updateData['time_slot_id'])) {
+                $this->eventVersion->time_slot_id = $this->updateData['time_slot_id'];
             }
             if (isset($this->updateData['metadata'])) {
                 $existingMetadata = $this->eventVersion->metadata ?? [];
-                $versionUpdateData['metadata'] = array_merge($existingMetadata, $this->updateData['metadata']);
+                $this->eventVersion->metadata = array_merge($existingMetadata, $this->updateData['metadata']);
+            }
+
+            // Save event version if there are changes
+            if ($this->eventVersion->isDirty()) {
+                $this->eventVersion->saveOrFail();
             }
 
             // Update dates if provided
@@ -104,9 +98,9 @@ class UpdateEventAction
 
             // Handle participants update
             if (isset($this->updateData['participants'])) {
-                // For simplicity, we'll delete existing participants and recreate them
-                // In a production system, you might want to handle this more elegantly
-                $this->eventVersion->participants()->delete();
+                // Detach existing participants from this event version (only removes pivot records)
+                // The actual participant records are preserved and reused
+                $this->eventVersion->participants()->detach();
 
                 foreach ($this->updateData['participants'] as $participant) {
                     $createParticipant = new CreateParticipantAction(
@@ -114,8 +108,7 @@ class UpdateEventAction
                         $event->company->defaultBranch,
                         $event->user,
                         $participant,
-                        $this->eventVersion,
-                        $participant
+                        $this->eventVersion
                     );
                     $createParticipant->execute();
                 }
@@ -142,22 +135,20 @@ class UpdateEventAction
     protected function validateTimeSlotAvailability(): void
     {
         $event = $this->eventVersion->event;
-        $dateData = $this->updateData['dates'][0]; // Assuming single date for now
+        $dateData = $this->updateData['dates'][0];
 
-        // Get resource information
         $resourcesId = $this->updateData['resources_id'] ?? $event->resources_id;
         $resourcesType = $this->updateData['resources_type'] ?? $event->resources_type;
 
         if (! $resourcesId || ! $resourcesType) {
-            return; // No resource to validate against
+            return;
         }
 
-        // Parse the new time slot
         $newDate = $dateData['date'];
         $newStartTime = $dateData['start_time'];
         $newEndTime = $dateData['end_time'];
+        $timeSlotId = $this->eventVersion->time_slot_id;
 
-        // Use shared validator
         EventTimeSlotValidator::validateForUpdate(
             $resourcesId,
             $resourcesType,
@@ -166,7 +157,8 @@ class UpdateEventAction
             $newDate,
             $newStartTime,
             $newEndTime,
-            $event->id
+            $event->id,
+            $timeSlotId
         );
     }
 

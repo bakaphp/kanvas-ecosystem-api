@@ -11,6 +11,7 @@ use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use PHPShopify\Exception\ApiException;
 
 class PushOrderActivity extends KanvasActivity
 {
@@ -38,29 +39,36 @@ class PushOrderActivity extends KanvasActivity
                 $trackingNumber = $params['tracking_number'] ?? null;
                 $warehouse = Warehouses::getDefault($company, $app);
 
-                $shopifyOrderService = new ShopifyOrderService(
-                    $app,
-                    $company,
-                    $warehouse
-                );
+                try {
+                    $shopifyOrderService = new ShopifyOrderService(
+                        $app,
+                        $company,
+                        $warehouse
+                    );
 
-                $trackingNumberResult = $shopifyOrderService->addTrackingToOrder(
-                    orderId: $orderId,
-                    trackingNumber: $trackingNumber,
-                    // status: $status,
-                );
+                    $trackingNumberResult = $shopifyOrderService->addTrackingToOrder(
+                        orderId: $orderId,
+                        trackingNumber: $trackingNumber,
+                        // status: $status,
+                    );
 
-                $fulfillmentStatus = $shopifyOrderService->changeFulfillmentStatus(
-                    orderId: $orderId,
-                    status: $status,
-                );
+                    $fulfillmentStatus = $shopifyOrderService->changeFulfillmentStatus(
+                        orderId: $orderId,
+                        status: $status,
+                    );
 
-                return [
-                    'status' => 'success',
-                    'tracking_number' => $trackingNumberResult,
-                    'fulfillment_status' => $fulfillmentStatus,
-                    'order_id' => $orderId,
-                ];
+                    return [
+                        'status' => 'success',
+                        'tracking_number' => $trackingNumberResult,
+                        'fulfillment_status' => $fulfillmentStatus,
+                        'order_id' => $orderId,
+                    ];
+                } catch (ApiException $e) {
+                    return $this->failWorkflow([
+                        'status' => 'error',
+                        'message' => 'Error pushing order to Shopify: ' . $e->getMessage(),
+                    ]);
+                }
             },
             company: $company,
         );

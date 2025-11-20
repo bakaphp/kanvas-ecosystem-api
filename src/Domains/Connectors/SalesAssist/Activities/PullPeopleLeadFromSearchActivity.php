@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -41,10 +42,17 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
             return [];
         }
 
-        if ($isElead) {
-            return $this->searchEleadLeads($searchText, $user);
-        } elseif ($isVinSolutions) {
-            return $this->searchVinSolutionLeads($searchText, $user);
+        try {
+            if ($isElead) {
+                return $this->searchEleadLeads($searchText, $user);
+            } elseif ($isVinSolutions) {
+                return $this->searchVinSolutionLeads($searchText, $user);
+            }
+        } catch (ClientException $e) {
+            // its its not a 403 error we report it
+            if ($e->getResponse()?->getStatusCode() !== 403) {
+                report($e);
+            }
         }
 
         return [];

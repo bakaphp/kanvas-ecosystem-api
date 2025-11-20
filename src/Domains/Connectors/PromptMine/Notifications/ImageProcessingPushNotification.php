@@ -20,6 +20,11 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         array $via,
         array $templates = []
     ) {
+        $metadata = $entity->getMessage();
+        unset($metadata['ai_image']);
+        unset($metadata['prompt']);
+        unset($metadata['ai_nugget']['nugget']);
+
         $data = [
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
@@ -27,7 +32,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
             'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $entity->getMessage(),
+            'metadata' => $metadata,
             'via' => $via,
             'message_owner_id' => $entity->user->getId(),
             'message_id' => $entity->getId(),

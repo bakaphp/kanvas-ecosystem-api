@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Event;
 
+use Kanvas\Connectors\Stripe\Services\StripePaymentService;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventHold;
+use Tests\Connectors\Traits\HasStripeConfiguration;
+use Tests\GraphQL\Souk\Traits\PaymentCases;
 
 class ResourceBookingCrudTest extends ResourceBookingBase
 {
+    use PaymentCases;
+    use HasStripeConfiguration;
+
     public function testCreateResourceBooking(): void
     {
         $bookingData = $this->getBasicBookingData();
@@ -71,8 +78,8 @@ class ResourceBookingCrudTest extends ResourceBookingBase
             'end_at' => now()->addDay()->format('Y-m-d') . ' 16:00:00',
             'metadata' => [
                 'price' => 50.00,
-                'notes' => 'Updated booking with new time'
-            ]
+                'notes' => 'Updated booking with new time',
+            ],
         ];
 
         $response = $this->graphQL('
@@ -181,54 +188,54 @@ class ResourceBookingCrudTest extends ResourceBookingBase
             'end_at' => now()->addDay()->addHours(2)->format('Y-m-d H:i:s'),
             'participants' => [
                 [
-                    "firstname" => "Johna",
-                    "lastname" => "Doe",
-                    "contacts" => [
+                    'firstname' => 'Johna',
+                    'lastname' => 'Doe',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "jdoes@example.com",
-                            "weight" => 1
-                        ]
-                    ]
+                            'contacts_types_id' => 1,
+                            'value' => 'jdoes@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
                 ],
                 [
-                    "firstname" => "Alices",
-                    "lastname" => "Smith",
-                    "contacts" => [
+                    'firstname' => 'Alices',
+                    'lastname' => 'Smith',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "alices@example.com",
-                            "weight" => 1
-                        ]
-                    ]
+                            'contacts_types_id' => 1,
+                            'value' => 'alices@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
                 ],
                 [
-                    "firstname" => "Carlosa",
-                    "lastname" => "Martinez",
-                    "contacts" => [
+                    'firstname' => 'Carlosa',
+                    'lastname' => 'Martinez',
+                    'contacts' => [
                         [
-                            "contacts_types_id" => 1,
-                            "value" => "carloss@example.com",
-                            "weight" => 1
-                        ]
-                    ]
-                ]
+                            'contacts_types_id' => 1,
+                            'value' => 'carloss@example.com',
+                            'weight' => 1,
+                        ],
+                    ],
+                ],
             ],
             'event_name' => 'Multi-Resource Booking Test',
             'event_description' => 'Testing booking with multiple resources',
             'metadata' => [
                 'price' => 25.00,
-                'notes' => 'Test booking'
+                'notes' => 'Test booking',
             ],
             'resources' => [
                 [
                     'resources_id' => $this->variantId,
                     'resources_type' => 'variant',
                     'metadata' => [
-                        'notes' => 'Additional equipment needed'
-                    ]
-                ]
-            ]
+                        'notes' => 'Additional equipment needed',
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->graphQL('
@@ -374,5 +381,172 @@ class ResourceBookingCrudTest extends ResourceBookingBase
         // Should succeed since hold is expired
         $this->assertNull($response->json('errors'));
         $this->assertNotNull($response->json('data.bookResource.id'));
+    }
+
+    public function testConfirmBookingWithStripePayment(): void
+    {
+        $this->setupStripeConfiguration($this->apps);
+        $bookingData = $this->getBasicBookingData();
+        $eventVersion = $this->createBooking($bookingData);
+
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->with('pi_test_payment_intent')
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent',
+                            'status' => 'succeeded',
+                            'amount' => 2500,
+                        ]);
+                }); */
+
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
+
+        $confirmData = [
+            'event_version_id' => $eventVersion['id'],
+            'payment_intent_id' => $paymentIntentId,
+        ];
+
+        $response = $this->graphQL('
+            mutation confirmBooking($input: ConfirmBookingInput!) {
+                confirmBooking(input: $input) {
+                    success
+                    message
+                    event_version {
+                        id
+                        name
+                        event {
+                            id
+                            eventStatus {
+                                name
+                            }
+                        }
+                    }
+                    payment
+                    order
+                }
+            }
+        ', [
+            'input' => $confirmData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $this->assertNull($response->json('errors'));
+        $result = $response->json('data.confirmBooking');
+
+        $this->assertTrue($result['success']);
+        $this->assertEquals('Payment confirmed and booking activated successfully', $result['message']);
+        $this->assertEquals($eventVersion['id'], $result['event_version']['id']);
+        $this->assertEquals(EventStatusEnum::ACTIVE->value, $result['event_version']['event']['eventStatus']['name']);
+        $this->assertNotNull($result['payment']);
+        $this->assertNotNull($result['order']);
+    }
+
+    public function testConfirmBookingWithCustomAmount(): void
+    {
+        $this->setupStripeConfiguration($this->apps);
+        $bookingData = $this->getBasicBookingData();
+        $eventVersion = $this->createBooking($bookingData);
+
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent',
+                            'status' => 'succeeded',
+                            'amount' => 5000,
+                        ]);
+                }); */
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
+
+        $confirmData = [
+            'event_version_id' => $eventVersion['id'],
+            'payment_intent_id' => $paymentIntentId,
+            'amount' => 50.00,
+        ];
+
+        $response = $this->graphQL('
+            mutation confirmBooking($input: ConfirmBookingInput!) {
+                confirmBooking(input: $input) {
+                    success
+                    message
+                    payment
+                }
+            }
+        ', [
+            'input' => $confirmData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $this->assertNull($response->json('errors'));
+        $result = $response->json('data.confirmBooking');
+
+        $this->assertTrue($result['success']);
+        $this->assertNotNull($result['payment']);
+    }
+
+    public function testConfirmBookingFailsForAlreadyPaidOrder(): void
+    {
+        $this->setupStripeConfiguration($this->apps);
+        $bookingData = $this->getBasicBookingData();
+        $eventVersion = $this->createBooking($bookingData);
+
+        /*         $this->mock(StripePaymentService::class, function ($mock) {
+                    $mock->shouldReceive('processPaymentIntent')
+                        ->once()
+                        ->andReturn([
+                            'id' => 'pi_test_payment_intent_1',
+                            'status' => 'succeeded',
+                        ]);
+                }); */
+
+        $paymentIntentId = $this->createTestPaymentIntent($bookingData['order_items'][0], $this->apps)->id;
+
+        $confirmData = [
+            'event_version_id' => $eventVersion['id'],
+            'payment_intent_id' => $paymentIntentId,
+        ];
+
+        $this->graphQL('
+            mutation confirmBooking($input: ConfirmBookingInput!) {
+                confirmBooking(input: $input) {
+                    success
+                }
+            }
+        ', [
+            'input' => $confirmData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $this->mock(StripePaymentService::class, function ($mock) {
+            $mock->shouldReceive('processPaymentIntent')->never();
+        });
+
+        $confirmDataSecond = [
+            'event_version_id' => $eventVersion['id'],
+            'payment_intent_id' => $paymentIntentId,
+        ];
+
+        $response = $this->graphQL('
+            mutation confirmBooking($input: ConfirmBookingInput!) {
+                confirmBooking(input: $input) {
+                    success
+                }
+            }
+        ', [
+            'input' => $confirmDataSecond,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $this->assertNotNull($response->json('errors'));
+        $this->assertStringContainsString('already paid', $response->json('errors.0.message'));
     }
 }

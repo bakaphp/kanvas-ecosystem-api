@@ -13,6 +13,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
@@ -39,19 +40,20 @@ class ImageFilterService
     protected ?string $openaiApiUrl = null;
     protected const int MAX_STATUS_CHECKS = 30;
     protected const int STATUS_CHECK_DELAY = 2;
+
     public $tries = 3;
 
     public function __construct(
-        protected ?AppInterface $app = null,
-        protected ?Message $entity = null,
+        protected AppInterface $app,
+        protected Message $entity,
+        protected ?Collection $messageFiles = null,
         protected ?array $params = null,
     ) {
     }
 
     public function execute(): array
     {
-        $messageFiles = $this->getFilesFromFilesystem($this->entity);
-        \Illuminate\Support\Facades\Log::info("GOT FILES FROM FILESYSTEM: " . $messageFiles->count());
+        $messageFiles = $this->entity->getFiles();
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
@@ -160,49 +162,6 @@ class ImageFilterService
                 'message' => 'Error processing image: ' . $e->getMessage(),
             ];
         }
-    }
-
-    protected function getFilesFromFilesystem(Model $entity): Collection
-    {
-        if (! isset($entity->message['ai_image']) && count($entity->message['ai_image']) == 0) {
-            return collect([]);
-        }
-
-        $files = [];
-        foreach ($entity->message['ai_image'] as $fileInfo) {
-            $file = Filesystem::fromApp($entity->app)
-                ->where('companies_id', $entity->companies_id)
-                ->where('name', $fileInfo['name'])
-                ->where('is_deleted', 0)
-                ->first();
-            if (! $file) {
-                continue;
-            }
-            $files[] = $file;
-        }
-
-        return collect($files);
-    }
-
-    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
-    {
-        $attempts = 0;
-
-        while ($attempts < $maxAttempts) {
-            $entity->refresh();
-            $files = $entity->getFiles();
-
-            if ($files->isNotEmpty()) {
-                return $files;
-            }
-
-            $attempts++;
-            if ($attempts < $maxAttempts) {
-                sleep($delaySeconds);
-            }
-        }
-
-        return new Collection();
     }
 
     public function validateImageLimit(Message $message, array $params): array
@@ -498,7 +457,6 @@ class ImageFilterService
         }
 
         // Optimize and upload the processed image
-        \Illuminate\Support\Facades\Log::info("NANO URL", [$processedImageUrl, $responseData]);
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
         $fileName = basename($tempFilePath);
 

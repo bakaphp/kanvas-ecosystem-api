@@ -450,7 +450,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
-            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray(),
+            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -794,7 +794,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'categories_flat',
-                    'type' => 'string[]',
+                    'type' => 'auto',
                     'optional' => true,
                 ],
                 [

@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\NetSuite;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -24,7 +25,7 @@ class NetSuiteSyncAllProductsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:netsuite-sync-products {app_id} {company_id} {user_id} {filePath}';
+    protected $signature = 'kanvas:netsuite-sync-products {app_id} {company_id} {user_id} {filePath} {--delay=100 : Delay in milliseconds between each product sync} {--skip=0 : Number of products to skip from the start}';
 
     /**
      * The console command description.
@@ -51,22 +52,44 @@ class NetSuiteSyncAllProductsCommand extends Command
 
         $productList = $this->getProductList($csvFilePath);
         $barcodeList = array_keys($productList);
-        $this->output->progressStart(count($barcodeList));
+        $delayMs = (int) $this->option('delay');
+        $delayMicroseconds = $delayMs * 1000; // Convert milliseconds to microseconds
+        $skip = (int) $this->option('skip');
+
+        // Skip products if requested
+        if ($skip > 0) {
+            $barcodeList = array_slice($barcodeList, $skip);
+            $this->info("Skipping first {$skip} products...");
+        }
+
+        $totalProducts = count($barcodeList);
+        $this->info("Syncing {$totalProducts} products with {$delayMs}ms delay between each...");
+        $this->output->progressStart($totalProducts);
+
+        $currentIndex = $skip;
         foreach ($barcodeList as $barcode) {
             try {
                 $code = (string) $barcode;
+                $this->info("Processing product #{$currentIndex}: {$code}");
                 $syncNetSuiteProduct->execute($code);
+
+                // Add throttling to respect NetSuite API rate limits
+                if ($delayMicroseconds > 0) {
+                    usleep($delayMicroseconds);
+                }
             } catch (Exception $e) {
-                $this->error('Error syncing product ' . $code . ': ' . $e->getMessage());
+                $this->error("Error syncing product #{$currentIndex} ({$code}): " . $e->getMessage());
                 $missingProducts[] = $code;
             }
             $this->output->progressAdvance();
+            $currentIndex++;
         }
 
         new SendUserNotificationAction(
             $app,
             $company,
-            $user
+            $user,
+            RolesEnums::INVENTORY_MANAGER,
         )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
 
         $this->output->progressFinish();
