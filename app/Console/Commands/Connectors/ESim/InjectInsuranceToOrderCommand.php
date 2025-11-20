@@ -91,14 +91,6 @@ class InjectInsuranceToOrderCommand extends Command
         foreach ($metadata['esims'] as $index => $esimData) {
             $this->info("Processing eSIM #{$index}...");
 
-            // Check if this eSIM already has insurance
-            if (isset($esimData['eSimDetails']['insurance']) && ! empty($esimData['eSimDetails']['insurance'])) {
-                $this->comment("eSIM #{$index} already has insurance. Skipping.");
-                $skippedCount++;
-
-                continue;
-            }
-
             // Determine variant ID and duration
             if ($manualVariantId) {
                 // Use manual variant ID
@@ -152,22 +144,29 @@ class InjectInsuranceToOrderCommand extends Command
             $insuranceStructure = $result['structure'];
             $variant = $result['variant'];
 
-            // Inject insurance into the eSIM eSimDetails
-            if (! isset($metadata['esims'][$index]['eSimDetails'])) {
-                $metadata['esims'][$index]['eSimDetails'] = [];
+            // 1. Inject insurance into order metadata (independent check)
+            $alreadyInOrderMetadata = isset($metadata['esims'][$index]['eSimDetails']['insurance']) && ! empty($metadata['esims'][$index]['eSimDetails']['insurance']);
+
+            if (! $alreadyInOrderMetadata) {
+                if (! isset($metadata['esims'][$index]['eSimDetails'])) {
+                    $metadata['esims'][$index]['eSimDetails'] = [];
+                }
+
+                $metadata['esims'][$index]['eSimDetails']['insurance'] = $insuranceStructure;
+                $this->info("  ✓ Insurance injected into order metadata for eSIM #{$index}");
+            } else {
+                $this->comment("  Insurance already exists in order metadata for eSIM #{$index}. Skipping order metadata injection.");
             }
 
-            $metadata['esims'][$index]['eSimDetails']['insurance'] = $insuranceStructure;
-
-            // Create order item for Flight Plus insurance
+            // 2. Create order item for Flight Plus insurance (independent check)
             $this->createOrderItem($order, $variant, $duration);
 
-            // Inject insurance into the message (woocommerce_response)
+            // 3. Inject insurance into the message (woocommerce_response) (independent check)
             $this->injectInsuranceToMessage($order, $insuranceStructure, $index);
 
             $processedCount++;
 
-            $this->info("✓ Insurance structure injected successfully for eSIM #{$index}");
+            $this->info("✓ Insurance processing completed for eSIM #{$index}");
         }
 
         if ($processedCount === 0) {
