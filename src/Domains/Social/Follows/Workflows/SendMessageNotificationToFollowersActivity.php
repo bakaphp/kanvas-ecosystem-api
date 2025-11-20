@@ -70,7 +70,8 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
                     'message_owner_id' => $message->user->getId(),
                     'from_user_id' => $message->user->getId(),
                     'message_id' => $message->getId(),
-                    'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
+                    'parent_message_id' => $message->getId(), //for now we send the current message as parent because of a mobil bug
+                    'message_parent_id' => $message->parent ? $message->parent->getId() : $message->getId(),
                     'destination_id' => $message->getId(),
                     'destination_type' => $additionalParams['destination_type'] ?? 'MESSAGE',
                     'destination_event' => $additionalParams['destination_event'] ?? 'NEW_MESSAGE',
