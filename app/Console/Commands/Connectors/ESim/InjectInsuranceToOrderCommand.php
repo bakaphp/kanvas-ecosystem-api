@@ -7,7 +7,9 @@ namespace App\Console\Commands\Connectors\ESim;
 use Illuminate\Console\Command;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 
 class InjectInsuranceToOrderCommand extends Command
 {
@@ -89,14 +91,6 @@ class InjectInsuranceToOrderCommand extends Command
         foreach ($metadata['esims'] as $index => $esimData) {
             $this->info("Processing eSIM #{$index}...");
 
-            // Check if this eSIM already has insurance
-            if (isset($esimData['eSimDetails']['insurance']) && ! empty($esimData['eSimDetails']['insurance'])) {
-                $this->comment("eSIM #{$index} already has insurance. Skipping.");
-                $skippedCount++;
-
-                continue;
-            }
-
             // Determine variant ID and duration
             if ($manualVariantId) {
                 // Use manual variant ID
@@ -138,24 +132,41 @@ class InjectInsuranceToOrderCommand extends Command
             }
 
             // Fetch variant and product data
-            $insuranceStructure = $this->buildInsuranceStructure($variantId, $duration);
+            $result = $this->buildInsuranceStructure($variantId, $duration);
 
-            if ($insuranceStructure === null) {
+            if ($result === null) {
                 $this->error("Failed to build insurance structure for Variant ID {$variantId}. Skipping eSIM #{$index}.");
                 $skippedCount++;
 
                 continue;
             }
 
-            // Inject insurance into the eSIM eSimDetails
-            if (! isset($metadata['esims'][$index]['eSimDetails'])) {
-                $metadata['esims'][$index]['eSimDetails'] = [];
+            $insuranceStructure = $result['structure'];
+            $variant = $result['variant'];
+
+            // 1. Inject insurance into order metadata (independent check)
+            $alreadyInOrderMetadata = isset($metadata['esims'][$index]['eSimDetails']['insurance']) && ! empty($metadata['esims'][$index]['eSimDetails']['insurance']);
+
+            if (! $alreadyInOrderMetadata) {
+                if (! isset($metadata['esims'][$index]['eSimDetails'])) {
+                    $metadata['esims'][$index]['eSimDetails'] = [];
+                }
+
+                $metadata['esims'][$index]['eSimDetails']['insurance'] = $insuranceStructure;
+                $this->info("  ✓ Insurance injected into order metadata for eSIM #{$index}");
+            } else {
+                $this->comment("  Insurance already exists in order metadata for eSIM #{$index}. Skipping order metadata injection.");
             }
 
-            $metadata['esims'][$index]['eSimDetails']['insurance'] = $insuranceStructure;
+            // 2. Create order item for Flight Plus insurance (independent check)
+            $this->createOrderItem($order, $variant, $duration);
+
+            // 3. Inject insurance into the message (woocommerce_response) (independent check)
+            $this->injectInsuranceToMessage($order, $insuranceStructure, $index);
+
             $processedCount++;
 
-            $this->info("✓ Insurance structure injected successfully for eSIM #{$index}");
+            $this->info("✓ Insurance processing completed for eSIM #{$index}");
         }
 
         if ($processedCount === 0) {
@@ -235,6 +246,7 @@ class InjectInsuranceToOrderCommand extends Command
 
     /**
      * Build the insurance structure for injection
+     * Returns array with 'structure' and 'variant' keys
      */
     protected function buildInsuranceStructure(int $variantId, int $duration): ?array
     {
@@ -256,7 +268,7 @@ class InjectInsuranceToOrderCommand extends Command
         }
 
         // Build the insurance structure
-        return [
+        $structure = [
             'titular' => [
                 'plan' => [
                     'id' => (string) $variantId,
@@ -269,6 +281,11 @@ class InjectInsuranceToOrderCommand extends Command
                 'productName' => 'Flight Plus',
             ],
             'dependents' => [],
+        ];
+
+        return [
+            'structure' => $structure,
+            'variant' => $variant,
         ];
     }
 
@@ -320,5 +337,97 @@ class InjectInsuranceToOrderCommand extends Command
             'created_at' => $variant->created_at?->toIso8601String(),
             'updated_at' => $variant->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Create order item for Flight Plus insurance
+     */
+    protected function createOrderItem(Order $order, Variants $variant, int $duration): void
+    {
+        $product = $variant->product;
+
+        // Check if order item already exists for this variant
+        $existingItem = OrderItem::where('order_id', $order->getId())
+            ->where('variant_id', $variant->getId())
+            ->first();
+
+        if ($existingItem) {
+            $this->comment("  Order item for variant {$variant->getId()} already exists. Skipping creation.");
+            return;
+        }
+
+        // Create the order item
+        $orderItem = new OrderItem();
+        $orderItem->apps_id = $order->apps_id;
+        $orderItem->product_name = $product->name; // Flight Plus
+        $orderItem->product_sku = $variant->sku; // e.g., 1-EO7ZXOA-10DaysFree
+        $orderItem->quantity = 1.00;
+        $orderItem->unit_price_net_amount = 0.00;
+        $orderItem->unit_price_gross_amount = 0.00;
+        $orderItem->is_shipping_required = true;
+        $orderItem->order_id = $order->getId();
+        $orderItem->quantity_fulfilled = 0.00;
+        $orderItem->variant_id = $variant->getId();
+        $orderItem->tax_rate = 0.00;
+        $orderItem->currency = 'USD';
+        $orderItem->variant_name = $variant->name; // e.g., "10 Dias Gratis"
+        $orderItem->is_public = true;
+
+        $orderItem->saveOrFail();
+
+        $this->info("  ✓ Order item created for Flight Plus ({$variant->name})");
+    }
+
+    /**
+     * Inject insurance structure into the message at two locations
+     */
+    protected function injectInsuranceToMessage(Order $order, array $insuranceStructure, int $esimIndex): void
+    {
+        // Get the message_id from the esim metadata
+        $metadata = $order->metadata ?? [];
+
+        if (! isset($metadata['esims'][$esimIndex]['message_id'])) {
+            $this->warn("  No message_id found for eSIM #{$esimIndex}. Skipping message injection.");
+            return;
+        }
+
+        $messageId = $metadata['esims'][$esimIndex]['message_id'];
+
+        try {
+            $message = Message::getById($messageId);
+        } catch (\Exception $e) {
+            $this->warn("  Message {$messageId} not found. Skipping message injection.");
+            return;
+        }
+
+        $messageData = $message->message;
+
+        // Location 1: woocommerce_response.variant_info.eSimDetails.insurance
+        // Assume woocommerce_response.variant_info.eSimDetails already exists
+        if (isset($messageData['woocommerce_response']['variant_info']['eSimDetails']['insurance'])) {
+            $this->comment("  Insurance already exists in variant_info for message {$messageId}. Skipping variant_info injection.");
+        } else {
+            $messageData['woocommerce_response']['variant_info']['eSimDetails']['insurance'] = $insuranceStructure;
+            $this->info("  ✓ Insurance injected into variant_info.eSimDetails for message {$messageId}");
+        }
+
+        // Location 2: woocommerce_response.order.items[0].metadata.eSimDetails[0].insurance
+        // Assume woocommerce_response.order.items[0].metadata.eSimDetails already exists
+        if (! isset($messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0])) {
+            $messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0] = [];
+        }
+
+        if (isset($messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0]['insurance'])) {
+            $this->comment("  Insurance already exists in items metadata for message {$messageId}. Skipping items injection.");
+        } else {
+            $messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0]['insurance'] = $insuranceStructure;
+            $this->info("  ✓ Insurance injected into items[0].metadata.eSimDetails[0] for message {$messageId}");
+        }
+
+        // Save the updated message
+        $message->message = $messageData;
+        $message->saveOrFail();
+
+        $this->info("  ✓ Message {$messageId} updated successfully with insurance data");
     }
 }
