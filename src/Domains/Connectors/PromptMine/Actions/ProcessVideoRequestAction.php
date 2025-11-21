@@ -190,6 +190,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -243,6 +244,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
