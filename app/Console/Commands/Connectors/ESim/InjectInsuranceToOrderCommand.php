@@ -379,7 +379,7 @@ class InjectInsuranceToOrderCommand extends Command
     }
 
     /**
-     * Inject insurance structure into the message at two locations
+     * Inject insurance structure into the message
      */
     protected function injectInsuranceToMessage(Order $order, array $insuranceStructure, int $esimIndex): void
     {
@@ -402,32 +402,22 @@ class InjectInsuranceToOrderCommand extends Command
 
         $messageData = $message->message;
 
-        // Location 1: woocommerce_response.variant_info.eSimDetails.insurance
-        // Assume woocommerce_response.variant_info.eSimDetails already exists
-        if (isset($messageData['woocommerce_response']['variant_info']['eSimDetails']['insurance'])) {
-            $this->comment("  Insurance already exists in variant_info for message {$messageId}. Skipping variant_info injection.");
-        } else {
-            $messageData['woocommerce_response']['variant_info']['eSimDetails']['insurance'] = $insuranceStructure;
-            $this->info("  ✓ Insurance injected into variant_info.eSimDetails for message {$messageId}");
+        // Inject to eSimDetails.insurance (root level of message)
+        if (isset($messageData['eSimDetails']['insurance']) && ! is_null($messageData['eSimDetails']['insurance'])) {
+            $this->comment("  Insurance already exists in eSimDetails for message {$messageId}. Skipping message injection.");
+            return;
         }
 
-        // Location 2: woocommerce_response.order.items[0].metadata.eSimDetails[0].insurance
-        // Assume woocommerce_response.order.items[0].metadata.eSimDetails already exists
-        if (! isset($messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0])) {
-            $messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0] = [];
+        if (! isset($messageData['eSimDetails'])) {
+            $messageData['eSimDetails'] = [];
         }
 
-        if (isset($messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0]['insurance'])) {
-            $this->comment("  Insurance already exists in items metadata for message {$messageId}. Skipping items injection.");
-        } else {
-            $messageData['woocommerce_response']['order']['items'][0]['metadata']['eSimDetails'][0]['insurance'] = $insuranceStructure;
-            $this->info("  ✓ Insurance injected into items[0].metadata.eSimDetails[0] for message {$messageId}");
-        }
+        $messageData['eSimDetails']['insurance'] = $insuranceStructure;
 
         // Save the updated message
         $message->message = $messageData;
         $message->saveOrFail();
 
-        $this->info("  ✓ Message {$messageId} updated successfully with insurance data");
+        $this->info("  ✓ Insurance injected to eSimDetails for message {$messageId}");
     }
 }
