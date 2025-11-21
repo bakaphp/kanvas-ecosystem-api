@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "96e415015ee7800e194aeb1be43e39ab",
+    "content-hash": "3f6291afb6fff1dbf79cac70ceece162",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -16286,16 +16286,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.8.6",
+            "version": "8.8.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "130d9be431ff8184849bf9e9e47ae5e152246072"
+                "reference": "79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/130d9be431ff8184849bf9e9e47ae5e152246072",
-                "reference": "130d9be431ff8184849bf9e9e47ae5e152246072",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb",
+                "reference": "79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb",
                 "shasum": ""
             },
             "require": {
@@ -16332,7 +16332,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-11-11T07:50:54+00:00"
+            "time": "2025-11-20T04:31:00+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
