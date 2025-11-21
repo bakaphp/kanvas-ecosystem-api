@@ -356,7 +356,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $messageData = $message->message ?? [];
 
             // Check if universalAssistanceData exists and has a voucher number
-            if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) && 
+            if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) &&
                 ! empty($messageData['universalAssistanceData']['holder']['nro_voucher'])) {
                 return true;
             }
