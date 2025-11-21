@@ -88,7 +88,7 @@ class OrderItemService
             $warehouse = $channel?->productVariantWarehouse()->first() ?? $variant->variantWarehouses()->first();
             $minimumOrderQuantity = $warehouse?->config['minimum_quantity'] ?? 0;
             $currentStock = $warehouse?->quantity ?? 0;
-            $moq = $variant->getAttributeByName("minimum_order_quantity") ?? 0;
+            $moq = $variant->getAttributeByName('minimum_order_quantity') ?? 0;
             /**
              * @todo validate overselling
              */
@@ -100,7 +100,7 @@ class OrderItemService
             }
 
             if ($moq > $orderItem['quantity']) {
-                $errors[] = "$barcode: $variant->name requires a minimum order of $minimumOrderQuantity units.";
+                $errors[] = "$barcode: $variant->name requires a minimum order of $moq units.";
 
                 continue;
             }
