@@ -576,7 +576,8 @@ class ImageFilterService
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($apiUrl, [
+         ])->timeout(120)
+         ->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => $model . $imageFilter,
