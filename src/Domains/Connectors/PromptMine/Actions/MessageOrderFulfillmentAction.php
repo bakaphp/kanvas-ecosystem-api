@@ -11,16 +11,14 @@ use Kanvas\Users\Models\Users;
 class MessageOrderFulfillmentAction
 {
     protected Users $user;
-    protected bool $refundCredit;
 
-    public function __construct(protected Message $message, bool $refundCredit = false)
+    public function __construct(protected Message $message)
     {
         //why? dont know but the model cache causes issues
         $this->user = Users::getById($this->message->users_id);
-        $this->refundCredit = $refundCredit;
     }
 
-    public function execute(string $aiIndex): array
+    public function execute(string $aiIndex, bool $refundCredit = false): array
     {
         // Deduct user credit based on the selected video filter
         $modelIndex = $this->message->message['ai_model']['value'] ?? null;
@@ -44,7 +42,7 @@ class MessageOrderFulfillmentAction
                 && $orderCredit[$aiIndex][$relatedModelIndex] > 0) {
                 $orderCredit[$aiIndex][$relatedModelIndex] -= 1;
                 if ($orderCredit[$aiIndex][$relatedModelIndex] <= 0) {
-                    if (! $this->refundCredit) {
+                    if (! $refundCredit) {
                         unset($orderCredit[$aiIndex][$relatedModelIndex]);
                     } else {
                         $orderCredit[$aiIndex][$relatedModelIndex] += 1;
@@ -53,7 +51,7 @@ class MessageOrderFulfillmentAction
             }
 
             if ($orderCredit[$aiIndex][$modelIndex] <= 0) {
-                if (! $this->refundCredit) {
+                if (! $refundCredit) {
                     unset($orderCredit[$aiIndex][$modelIndex]);
                 } else {
                     $orderCredit[$aiIndex][$modelIndex] += 1;
