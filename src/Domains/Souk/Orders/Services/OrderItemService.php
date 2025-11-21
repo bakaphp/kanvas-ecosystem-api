@@ -86,9 +86,10 @@ class OrderItemService
             }
 
             $warehouse = $channel?->productVariantWarehouse()->first() ?? $variant->variantWarehouses()->first();
+            // @TODO: if we want to validate client minimun quantity the use this
             $minimumOrderQuantity = $warehouse?->config['minimum_quantity'] ?? 0;
             $currentStock = $warehouse?->quantity ?? 0;
-            $moq = $variant->getAttributeByName('minimum_order_quantity') ?? 0;
+            $moq = $variant->getAttributeByName('minimum_order_quantity')?->value ?? 0;
             /**
              * @todo validate overselling
              */
