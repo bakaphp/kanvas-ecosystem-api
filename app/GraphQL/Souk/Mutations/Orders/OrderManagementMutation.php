@@ -164,7 +164,7 @@ class OrderManagementMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->fulfillment_status === 'fulfilled' && ! $user->isAdmin()) {
+        if ($order->fulfillment_status === 'fulfilled' && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
         }
 
