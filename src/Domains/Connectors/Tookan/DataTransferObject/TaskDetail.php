@@ -10,7 +10,7 @@ class TaskDetail extends Data
 {
     public function __construct(
         public int $order_id,
-        public int $job_description,
+        public string $job_description,
         public CustomerDetail $customer,
         public ?string $job_delivery_datetime = null,
         public ?string $job_pickup_datetime = null,
@@ -43,13 +43,15 @@ class TaskDetail extends Data
             'team_id' => $this->team_id,
             'fleet_id' => $this->fleet_id,
             'timezone' => $this->timezone ?? 'UTC',
-            'has_pickup' => $this->has_pickup ? 1 : 0,
-            'has_delivery' => $this->has_delivery ? 1 : 0,
-            'layout_type' => $this->layout_type,
+            'has_pickup' => $this->has_pickup ? "1" : "0",
+            'has_delivery' => $this->has_delivery ? "1" : "0",
+            'layout_type' => $this->layout_type ?? "0",
             'meta_data' => $this->meta_data,
             'pickup_delivery_relationship' => $this->pickup_delivery_relationship,
-            'tags' => $this->tags,
-            'auto_assignment' => $this->auto_assignment ? 1 : 0,
+            'tags' => empty($this->tags) ? "" : implode(',', $this->tags),
+            "notify" => "1",
+            'auto_assignment' => $this->auto_assignment ? "1" : "0",
+            'geofence' => "0",
         ];
     }
 }

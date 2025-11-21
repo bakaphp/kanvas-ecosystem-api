@@ -43,6 +43,23 @@ class TookanService
     }
 
     /**
+     * Create multiple pickup and delivery tasks for fleets at once.
+     * This endpoint is used to create tasks with multiple pickup and delivery locations.
+     *
+     * @param TaskMultipleDetail $task Task with pickups and deliveries arrays populated
+     * @return array Response containing created job IDs and statuses
+     */
+    public function createMultipleTasks(\Kanvas\Connectors\Tookan\DataTransferObject\TaskMultipleDetail $task): array
+    {
+        $response = $this->client->post(
+            ConfigurationEnum::CREATE_MULTIPLE_TASKS_PATH->value,
+            $task->toArray()
+        );
+
+        return $response['data'] ?? [];
+    }
+
+    /**
      * Update an existing task.
      */
     public function updateTask(int $jobId, array $updateData): array

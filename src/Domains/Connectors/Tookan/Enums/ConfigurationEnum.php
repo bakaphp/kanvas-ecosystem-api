@@ -12,6 +12,7 @@ enum ConfigurationEnum: string
 
     // API Endpoints
     case CREATE_TASK_PATH = '/v2/create_task';
+    case CREATE_MULTIPLE_TASKS_PATH = '/v2/create_multiple_tasks';
     case UPDATE_TASK_PATH = '/v2/update_task';
     case GET_TASK_DETAILS_PATH = '/v2/get_task_details';
     case GET_JOB_DETAILS_PATH = '/v2/get_job_details';
