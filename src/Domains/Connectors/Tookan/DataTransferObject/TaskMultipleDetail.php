@@ -46,6 +46,6 @@ class TaskMultipleDetail extends Data
             "layout_type" => 0,
             "geofence" => 0,
             "tags" => "",
-        ], fn($value) => $value !== null && $value !== []);
+        ], fn ($value) => $value !== null && $value !== []);
     }
 }

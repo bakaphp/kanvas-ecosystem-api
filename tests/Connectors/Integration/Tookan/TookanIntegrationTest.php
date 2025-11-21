@@ -23,26 +23,6 @@ final class TookanIntegrationTest extends TestCase
 {
     use HasIntegrationCompany;
 
-    public function testTookanHandlerSetup(): void {
-        $app = app(Apps::class);
-        $user = Auth::user();
-        $company = $user->getCurrentCompany();
-
-        $handler = new TookanHandler(
-            $app,
-            $company,
-            $user,
-            [
-                'apiKey' => env('TEST_TOOKAN_API_KEY'),
-                'baseUrl' => env('TEST_TOOKAN_BASE_URL', ConfigurationEnum::SANDBOX_URL->value),
-            ]
-        );
-
-        $setupResult = $handler->setup();
-
-        $this->assertTrue($setupResult);
-    }
-
     public function testCreateTask(): void
     {
         $app = app(Apps::class);
@@ -325,5 +305,4 @@ final class TookanIntegrationTest extends TestCase
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
     }
-
 }

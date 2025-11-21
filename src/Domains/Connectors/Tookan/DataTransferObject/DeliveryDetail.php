@@ -39,6 +39,6 @@ class DeliveryDetail extends Data
             'template_name' => $this->template_name,
             'template_data' => $this->template_data,
             'ref_images' => $this->ref_images,
-        ], fn($value) => $value !== null);
+        ], fn ($value) => $value !== null);
     }
 }
