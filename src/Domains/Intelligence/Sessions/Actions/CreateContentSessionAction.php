@@ -128,6 +128,9 @@ class CreateContentSessionAction
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
+            'leadEmail' => $data['leadEmail'],
+            'leadOwnerName' => $data['leadOwnerName'],
+            'leadOwnerEmail' => $data['leadOwnerEmail']
         ];
     }
 
