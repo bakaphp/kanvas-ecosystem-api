@@ -11,11 +11,13 @@ use Kanvas\Users\Models\Users;
 class MessageOrderFulfillmentAction
 {
     protected Users $user;
+    protected bool $refundCredit;
 
-    public function __construct(protected Message $message)
+    public function __construct(protected Message $message, bool $refundCredit = false)
     {
         //why? dont know but the model cache causes issues
         $this->user = Users::getById($this->message->users_id);
+        $this->refundCredit = $refundCredit;
     }
 
     public function execute(string $aiIndex): array
@@ -42,12 +44,20 @@ class MessageOrderFulfillmentAction
                 && $orderCredit[$aiIndex][$relatedModelIndex] > 0) {
                 $orderCredit[$aiIndex][$relatedModelIndex] -= 1;
                 if ($orderCredit[$aiIndex][$relatedModelIndex] <= 0) {
-                    unset($orderCredit[$aiIndex][$relatedModelIndex]);
+                    if (! $this->refundCredit) {
+                        unset($orderCredit[$aiIndex][$relatedModelIndex]);
+                    } else {
+                        $orderCredit[$aiIndex][$relatedModelIndex] += 1;
+                    }
                 }
             }
 
             if ($orderCredit[$aiIndex][$modelIndex] <= 0) {
-                unset($orderCredit[$aiIndex][$modelIndex]);
+                if (! $this->refundCredit) {
+                    unset($orderCredit[$aiIndex][$modelIndex]);
+                } else {
+                    $orderCredit[$aiIndex][$modelIndex] += 1;
+                }
             }
 
             $this->user->set('order_credits', $orderCredit, true);
