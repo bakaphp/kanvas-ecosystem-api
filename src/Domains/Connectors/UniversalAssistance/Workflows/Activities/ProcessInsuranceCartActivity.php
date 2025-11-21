@@ -130,6 +130,12 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
         if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
             foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
+                // Check if message already has a voucher created to prevent duplicate processing
+                $messageId = $esim['message_id'] ?? null;
+                if ($messageId && $this->messageHasVoucher($messageId)) {
+                    continue; // Skip this eSIM as it already has a voucher
+                }
+
                 // Try eSimDetails.insurance first, but validate it has complete data
                 $insurance = null;
                 if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
@@ -140,9 +146,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     }
                 }
 
-                // Fallback to data.insurancePendingData[0].insurance if first location doesn't have complete data
-                if (! $insurance && isset($esim['data']['insurancePendingData'][0]['insurance']) && ! is_null($esim['data']['insurancePendingData'][0]['insurance'])) {
-                    $candidateInsurance = $esim['data']['insurancePendingData'][0]['insurance'];
+                // Fallback to new_data.data.insurancePendingData if first location doesn't have complete data
+                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && ! is_null($esim['new_data']['data']['insurancePendingData'])) {
+                    $candidateInsurance = $esim['new_data']['data']['insurancePendingData'];
                     if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
                         $insurance = $candidateInsurance;
                     }
@@ -192,6 +198,12 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Look in esims metadata (created by eSim workflow)
             if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
                 foreach ($orderMetadata['esims'] as $esim) {
+                    // Check if message already has a voucher created to prevent duplicate processing
+                    $messageId = $esim['message_id'] ?? null;
+                    if ($messageId && $this->messageHasVoucher($messageId)) {
+                        continue; // Skip this eSIM as it already has a voucher
+                    }
+
                     // Try eSimDetails.insurance first, but validate it has complete data
                     $insurance = null;
                     if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
@@ -202,9 +214,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         }
                     }
 
-                    // Fallback to data.insurancePendingData[0].insurance if first location doesn't have complete data
-                    if (! $insurance && isset($esim['data']['insurancePendingData'][0]['insurance']) && ! is_null($esim['data']['insurancePendingData'][0]['insurance'])) {
-                        $candidateInsurance = $esim['data']['insurancePendingData'][0]['insurance'];
+                    // Fallback to new_data.data.insurancePendingData if first location doesn't have complete data
+                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && ! is_null($esim['new_data']['data']['insurancePendingData'])) {
+                        $candidateInsurance = $esim['new_data']['data']['insurancePendingData'];
                         if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
                             $insurance = $candidateInsurance;
                         }
@@ -327,6 +339,39 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'is_multi_esim' => count($allInsuranceData) > 1,
             'total_expanded_count' => count($allInsuranceData), // Total after quantity expansion
         ];
+    }
+
+    /**
+     * Check if a message already has a voucher created
+     * Prevents duplicate processing when workflow triggers multiple times
+     */
+    protected function messageHasVoucher(int $messageId): bool
+    {
+        try {
+            $message = Message::getById($messageId);
+            if (! $message) {
+                return false;
+            }
+
+            $messageData = $message->message ?? [];
+
+            // Check if universalAssistanceData exists and has a voucher number
+            if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) && 
+                ! empty($messageData['universalAssistanceData']['holder']['nro_voucher'])) {
+                return true;
+            }
+
+            // Also check eSimDetails.insurance for voucher data
+            if (isset($messageData['eSimDetails']['insurance']['titular']['nro_voucher']) &&
+                ! empty($messageData['eSimDetails']['insurance']['titular']['nro_voucher'])) {
+                return true;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            // If message not found or any error, allow processing
+            return false;
+        }
     }
 
     /**
