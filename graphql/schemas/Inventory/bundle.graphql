@@ -10,6 +10,7 @@ type Bundle {
     expose_as_product: Boolean
     bundleItems: [BundleItem!]!
         @hasMany(relation: "bundleItems", type: PAGINATOR)
+        @orderBy(column: "created_at", direction: DESC)
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
