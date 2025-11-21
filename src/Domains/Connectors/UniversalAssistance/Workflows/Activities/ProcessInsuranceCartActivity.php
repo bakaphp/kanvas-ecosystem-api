@@ -130,13 +130,31 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
         if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
             foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
-                if (isset($esim['eSimDetails']['insurance'])) {
+                // Try eSimDetails.insurance first, but validate it has complete data
+                $insurance = null;
+                if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                    $candidateInsurance = $esim['eSimDetails']['insurance'];
+                    // Validate that titular has essential fields
+                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                        $insurance = $candidateInsurance;
+                    }
+                }
+
+                // Fallback to data.insurancePendingData[0].insurance if first location doesn't have complete data
+                if (! $insurance && isset($esim['data']['insurancePendingData'][0]['insurance']) && ! is_null($esim['data']['insurancePendingData'][0]['insurance'])) {
+                    $candidateInsurance = $esim['data']['insurancePendingData'][0]['insurance'];
+                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                        $insurance = $candidateInsurance;
+                    }
+                }
+
+                if ($insurance) {
                     $quantity = (int) ($esim['quantity'] ?? 1);
                     $baseMessageId = $esim['message_id'] ?? null;
 
                     // Expand insurance data by quantity (each quantity needs separate insurance processing)
                     for ($i = 0; $i < $quantity; $i++) {
-                        $expandedInsurance = $esim['eSimDetails']['insurance'];
+                        $expandedInsurance = $insurance;
 
                         // Calculate unique message_id for each expanded instance
                         $currentMessageId = $baseMessageId;
@@ -174,13 +192,31 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Look in esims metadata (created by eSim workflow)
             if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
                 foreach ($orderMetadata['esims'] as $esim) {
-                    if (isset($esim['eSimDetails']['insurance'])) {
+                    // Try eSimDetails.insurance first, but validate it has complete data
+                    $insurance = null;
+                    if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                        $candidateInsurance = $esim['eSimDetails']['insurance'];
+                        // Validate that titular has essential fields
+                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                            $insurance = $candidateInsurance;
+                        }
+                    }
+
+                    // Fallback to data.insurancePendingData[0].insurance if first location doesn't have complete data
+                    if (! $insurance && isset($esim['data']['insurancePendingData'][0]['insurance']) && ! is_null($esim['data']['insurancePendingData'][0]['insurance'])) {
+                        $candidateInsurance = $esim['data']['insurancePendingData'][0]['insurance'];
+                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                            $insurance = $candidateInsurance;
+                        }
+                    }
+
+                    if ($insurance) {
                         $quantity = (int) ($esim['quantity'] ?? 1);
                         $baseMessageId = $esim['message_id'] ?? null;
 
                         // Expand insurance data by quantity
                         for ($i = 0; $i < $quantity; $i++) {
-                            $expandedInsurance = $esim['eSimDetails']['insurance'];
+                            $expandedInsurance = $insurance;
 
                             $currentMessageId = $baseMessageId;
                             if ($quantity > 1 && $baseMessageId) {
@@ -291,6 +327,24 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'is_multi_esim' => count($allInsuranceData) > 1,
             'total_expanded_count' => count($allInsuranceData), // Total after quantity expansion
         ];
+    }
+
+    /**
+     * Check if insurance data has essential fields in titular
+     * Essential fields: firstName/firstname, dob/birthDate, and activation data
+     */
+    protected function hasEssentialInsuranceFields(array $insurance): bool
+    {
+        if (! isset($insurance['titular']) || ! is_array($insurance['titular'])) {
+            return false;
+        }
+
+        $titular = $insurance['titular'];
+
+        // Use validatePersonData to check if titular has all required fields
+        $validation = $this->validatePersonData($titular, 'Titular');
+
+        return $validation === true;
     }
 
     /**
