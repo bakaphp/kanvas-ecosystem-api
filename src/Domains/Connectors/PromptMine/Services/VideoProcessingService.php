@@ -27,6 +27,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Prism;
 use Throwable;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 
 class VideoProcessingService
 {
@@ -45,6 +46,7 @@ class VideoProcessingService
         array $params = []
     ): void {
         $key = IntegrationsEnum::PROMPT_MINE->value . '_video_processed_' . $requestId;
+        $orderCredit = new MessageOrderFulfillmentAction($this->entity);
 
         // Check if this video has already been processed
         if ($this->entity->get($key)) {
@@ -76,6 +78,7 @@ class VideoProcessingService
                 $this->processCompletedVideo($result['video_url'], $requestId, $params);
             } elseif ($result['status'] === 'FAILED') {
                 // Update status to failed
+                $orderCredit->execute('video', true); // Refund credit
                 $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
                 $this->failedNotification($result, $params);
             } else {
@@ -83,6 +86,7 @@ class VideoProcessingService
                 $this->scheduleVideoProcessingRetry($requestId, $videoModel, $params);
             }
         } catch (Exception $e) {
+            $orderCredit->execute('video', true); // Refund credit
             report($e);
             $this->updateVideoProcessingStatus('FAILED', $e->getMessage());
         }
