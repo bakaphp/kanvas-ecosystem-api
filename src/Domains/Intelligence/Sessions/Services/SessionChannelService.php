@@ -36,7 +36,7 @@ class SessionChannelService
 
     private static function normalizePhoneNumber(string $phone): string
     {
-        return preg_replace('/^\+?1/', '', $phone);
+        return (string) preg_replace('/^\+?1/', '', $phone);
     }
 
     private static function sanitizeEmail(string $email): string
