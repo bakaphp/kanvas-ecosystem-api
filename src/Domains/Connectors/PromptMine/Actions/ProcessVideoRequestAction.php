@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 
 class ProcessVideoRequestAction
 {
