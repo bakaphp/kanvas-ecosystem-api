@@ -136,24 +136,24 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     continue; // Skip this eSIM as it already has a voucher
                 }
 
-                // Try eSimDetails.insurance first, but validate it has complete data
+                // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
-                if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                    $candidateInsurance = $esim['eSimDetails']['insurance'];
-                    // Validate that titular has essential fields
-                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                        $insurance = $candidateInsurance;
-                    }
-                }
-
-                // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
-                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
+                if (isset($esim['new_data']['data']['insurancePendingData']) &&
                     is_array($esim['new_data']['data']['insurancePendingData']) &&
                     ! empty($esim['new_data']['data']['insurancePendingData'])) {
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                     if ($firstPendingData && isset($firstPendingData['insurance'])) {
                         $insurance = $firstPendingData['insurance'];
+                    }
+                }
+
+                // Fallback to eSimDetails.insurance only if insurancePendingData is not available
+                if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                    $candidateInsurance = $esim['eSimDetails']['insurance'];
+                    // Validate that titular has essential fields
+                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                        $insurance = $candidateInsurance;
                     }
                 }
 
@@ -207,24 +207,24 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         continue; // Skip this eSIM as it already has a voucher
                     }
 
-                    // Try eSimDetails.insurance first, but validate it has complete data
+                    // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                     $insurance = null;
-                    if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                        $candidateInsurance = $esim['eSimDetails']['insurance'];
-                        // Validate that titular has essential fields
-                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                            $insurance = $candidateInsurance;
-                        }
-                    }
-
-                    // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
-                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
+                    if (isset($esim['new_data']['data']['insurancePendingData']) &&
                         is_array($esim['new_data']['data']['insurancePendingData']) &&
                         ! empty($esim['new_data']['data']['insurancePendingData'])) {
                         // insurancePendingData is an array, get the first item's insurance
                         $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                         if ($firstPendingData && isset($firstPendingData['insurance'])) {
                             $insurance = $firstPendingData['insurance'];
+                        }
+                    }
+
+                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available
+                    if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                        $candidateInsurance = $esim['eSimDetails']['insurance'];
+                        // Validate that titular has essential fields
+                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                            $insurance = $candidateInsurance;
                         }
                     }
 
