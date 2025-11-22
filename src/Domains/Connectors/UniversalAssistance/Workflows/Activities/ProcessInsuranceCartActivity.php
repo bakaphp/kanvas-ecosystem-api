@@ -1589,7 +1589,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'dob',
             'sex',
             'email',
-            'phone',
             'activationDate',
             'originCountryCode',
             'destinationCountryCode',
