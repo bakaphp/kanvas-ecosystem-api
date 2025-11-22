@@ -221,6 +221,7 @@ input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
     metadata: Mixed
+    metadata_override: Boolean = false
 }
 
 input DraftOrderInput {
