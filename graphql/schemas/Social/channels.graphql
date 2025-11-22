@@ -16,6 +16,7 @@ type SocialChannel {
     users: [User!]! @belongsToMany
     systemModule: SystemModule! @belongsTo
     created_at: DateTime!
+    updated_at: DateTime
 }
 
 input SocialChannelInput {
