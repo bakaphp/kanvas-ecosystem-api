@@ -147,8 +147,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
 
                 // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
-                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && 
-                    is_array($esim['new_data']['data']['insurancePendingData']) && 
+                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
+                    is_array($esim['new_data']['data']['insurancePendingData']) &&
                     ! empty($esim['new_data']['data']['insurancePendingData'])) {
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
@@ -221,7 +221,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     }
 
                     // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
-                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && 
+                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
                         is_array($esim['new_data']['data']['insurancePendingData']) &&
                         ! empty($esim['new_data']['data']['insurancePendingData'])) {
                         // insurancePendingData is an array, get the first item's insurance
