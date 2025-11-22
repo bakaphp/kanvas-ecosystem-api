@@ -146,11 +146,17 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     }
                 }
 
-                // Fallback to new_data.data.insurancePendingData if first location doesn't have complete data
-                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && ! is_null($esim['new_data']['data']['insurancePendingData'])) {
-                    $candidateInsurance = $esim['new_data']['data']['insurancePendingData'];
-                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                        $insurance = $candidateInsurance;
+                // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
+                if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
+                    is_array($esim['new_data']['data']['insurancePendingData']) &&
+                    ! empty($esim['new_data']['data']['insurancePendingData'])) {
+                    // insurancePendingData is an array, get the first item's insurance
+                    $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
+                    if ($firstPendingData && isset($firstPendingData['insurance'])) {
+                        $candidateInsurance = $firstPendingData['insurance'];
+                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                            $insurance = $candidateInsurance;
+                        }
                     }
                 }
 
@@ -214,11 +220,17 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         }
                     }
 
-                    // Fallback to new_data.data.insurancePendingData if first location doesn't have complete data
-                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) && ! is_null($esim['new_data']['data']['insurancePendingData'])) {
-                        $candidateInsurance = $esim['new_data']['data']['insurancePendingData'];
-                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                            $insurance = $candidateInsurance;
+                    // Fallback to new_data.data.insurancePendingData[0].insurance if first location doesn't have complete data
+                    if (! $insurance && isset($esim['new_data']['data']['insurancePendingData']) &&
+                        is_array($esim['new_data']['data']['insurancePendingData']) &&
+                        ! empty($esim['new_data']['data']['insurancePendingData'])) {
+                        // insurancePendingData is an array, get the first item's insurance
+                        $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
+                        if ($firstPendingData && isset($firstPendingData['insurance'])) {
+                            $candidateInsurance = $firstPendingData['insurance'];
+                            if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                                $insurance = $candidateInsurance;
+                            }
                         }
                     }
 
