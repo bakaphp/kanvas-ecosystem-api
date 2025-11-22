@@ -153,10 +153,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                     if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                        $candidateInsurance = $firstPendingData['insurance'];
-                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                            $insurance = $candidateInsurance;
-                        }
+                        $insurance = $firstPendingData['insurance'];
                     }
                 }
 
@@ -227,10 +224,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // insurancePendingData is an array, get the first item's insurance
                         $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                         if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                            $candidateInsurance = $firstPendingData['insurance'];
-                            if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                                $insurance = $candidateInsurance;
-                            }
+                            $insurance = $firstPendingData['insurance'];
                         }
                     }
 
