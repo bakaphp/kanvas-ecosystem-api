@@ -221,7 +221,13 @@ input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
     metadata: Mixed
-    metadata_override: Boolean = false
+    metadata_action: MetadataAction = MERGE
+}
+
+enum MetadataAction {
+    MERGE    # Preserve old, add/update new
+    REPLACE  # Replace all with new
+    CLEAR    # Only keep new metadata
 }
 
 input DraftOrderInput {

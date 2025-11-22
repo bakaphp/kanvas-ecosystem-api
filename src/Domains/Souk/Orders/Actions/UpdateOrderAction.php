@@ -59,7 +59,7 @@ class UpdateOrderAction
             $this->order->metadata = $this->mergeMetadata(
                 $currentMetadata,
                 $newMetadata,
-                (bool) ($this->orderData['metadata_override'] ?? $this->order->get('ORDER_METADATA_OVERRIDE', false) ?? false)
+                $this->orderData['metadata_action'] ?? $this->order->get('ORDER_METADATA_ACTION', 'MERGE') ?? 'MERGE'
             );
 
             $this->order->fulfillment_status = $this->orderData['fulfillment_status'] ?? $this->order->fulfillment_status;
@@ -176,16 +176,18 @@ class UpdateOrderAction
     private function mergeMetadata(
         array $currentMetadata,
         array $newMetadata,
-        bool $replaceMode = false
+        string $metadataAction = 'MERGE'
     ): array {
         $currentMetadata = is_array($currentMetadata) ? $currentMetadata : [];
         $newMetadata = is_array($newMetadata) ? $newMetadata : [];
 
-        if ($replaceMode) {
+        if ($metadataAction === 'REPLACE') {
             return [
                 ...$currentMetadata,
                 ...$newMetadata,
             ];
+        } elseif ($metadataAction === 'CLEAR') {
+            return $newMetadata;
         }
 
         // Merge mode: preserve old, update existing (overwrite unless null), add new

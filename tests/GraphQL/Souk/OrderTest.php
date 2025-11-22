@@ -808,7 +808,7 @@ class OrderTest extends TestCase
         $createOrderResponse = $response->json()['data']['createDraftOrder'];
         $orderId = $createOrderResponse['id'];
 
-        // Update with metadata_override = true - should replace all metadata
+        // Update with metadata_action = true - should replace all metadata
         $overrideMetadata = [
             'data' => [
                 'warehouse_code' => 'WH-002',
@@ -830,7 +830,7 @@ class OrderTest extends TestCase
             'id' => $orderId,
             'input' => [
                 'metadata' => $overrideMetadata,
-                'metadata_override' => true,
+                'metadata_action' => 'REPLACE',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
