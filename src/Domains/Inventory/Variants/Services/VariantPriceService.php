@@ -69,7 +69,7 @@ class VariantPriceService
             // Try to get the discount price if available and greater than 0
             $discountedPrice = $variant->channels()
                 ->where('channels_id', $channelId)
-                ->value('discount_price');
+                ->value('discounted_price');
 
             if ($discountedPrice !== null && $discountedPrice > 0) {
                 return (float) $discountedPrice;
