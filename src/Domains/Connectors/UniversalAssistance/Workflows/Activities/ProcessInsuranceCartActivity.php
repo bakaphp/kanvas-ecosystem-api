@@ -121,6 +121,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Look in esims metadata (created by eSim workflow)
         if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
             foreach ($orderMetadata['esims'] as $esim) {
+                // Convert esim to array in case it contains nested objects from GraphQL
+                $esim = $this->convertObjectsToArrays($esim);
+
                 // Check if message already has a voucher created to prevent duplicate processing
                 $messageId = $esim['message_id'] ?? null;
                 if ($messageId && $this->messageHasVoucher($messageId)) {
@@ -188,8 +191,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Approach 2: FALLBACK - Try params with Order class key (for single eSIM legacy structure)
         // Only use this if Approach 1 didn't find any data
         if (empty($insuranceData)) {
-            $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
-            if (isset($params[$orderKey]['metadata']['esims'])) {
+            // Try both namespace key variations
+            $orderKeys = [
+                'Kanvas\\Souk\\Orders\\Models\\Order',  // Double backslash
+                'Kanvas\Souk\Orders\Models\Order'          // Single backslash
+            ];
+
+            foreach ($orderKeys as $orderKey) {
+                if (isset($params[$orderKey]['metadata']['esims'])) {
                 // Convert esims to array in case it's an object
                 $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
 
@@ -261,6 +270,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             }
                         }
                     }
+                    }
+                }
+                // If we found data with this orderKey, break out of the loop
+                if (!empty($insuranceData)) {
+                    break;
                 }
             }
         }
