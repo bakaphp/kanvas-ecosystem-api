@@ -62,6 +62,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 $entity->save();
                 $entity->parent->increment('total_children');
 
+
                 //Send notification to the original message owner
                 $endViaList = array_map(
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
@@ -82,6 +83,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                             'push_template' => $params['push_template'],
                         ],
                     );
+                    $remixMessage->set('remix_count', $remixMessage->children()->count() - 1); // Exclude the original message nugget.We will be using this custom field exclusively for remix counts.
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {
                     return [
