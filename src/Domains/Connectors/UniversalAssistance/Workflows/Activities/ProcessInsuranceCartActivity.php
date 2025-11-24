@@ -190,8 +190,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         if (empty($insuranceData)) {
             $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
             if (isset($params[$orderKey]['metadata']['esims'])) {
-            // Convert esims to array in case it's an object
-            $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
+                // Convert esims to array in case it's an object
+                $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
 
             if (is_array($esims)) {
                 foreach ($esims as $esim) {
