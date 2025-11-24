@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Movipass;
 
 use Baka\Traits\KanvasJobsTrait;
-use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
@@ -48,16 +47,24 @@ class GenerateOrderVoucherCommand extends Command
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.vehiclePlate')) is not null")
             ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.vehiclePlate')) = ?", [$plate])
+            ->latest()
             ->first();
 
         if (! $order) {
-            throw new Exception("No order found for vehicle plate {$plate}");
+            $this->error("No order found for vehicle plate {$plate}");
+            return;
+        }
+
+        $voucherUrl = $order->get("voucher_url") ?? '';
+
+        if ($voucherUrl) {
+            $this->info("Voucher already exists for order({$order->id}) {$order->order_number} : {$voucherUrl}");
+            return;
         }
 
         $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
         $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
         $serviceName = $order->orderType->name ?? '';
-        $paymentDate = $order->metadata["data"]["payment_date"] ?? "";
 
         $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
 
@@ -69,8 +76,8 @@ class GenerateOrderVoucherCommand extends Command
             []
         );
 
-        sleep(1);
-
-        $this->info("Voucher generated for order({$order->id}) {$order->order_number} and vehicle plate {$vehiclePlate}");
+        sleep(5);
+        $voucherUrl = $order->get("voucher_url") ?? '';
+        $this->info("Voucher generated for order({$order->id}) {$order->order_number} and vehicle plate {$vehiclePlate} : {$voucherUrl}");
     }
 }
