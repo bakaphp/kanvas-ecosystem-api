@@ -262,6 +262,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     }
                 }
             }
+            }
         }
 
         // Approach 3: Direct metadata fallback locations
