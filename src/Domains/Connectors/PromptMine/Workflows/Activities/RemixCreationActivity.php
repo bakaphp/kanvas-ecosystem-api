@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -61,7 +61,6 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 }
                 $entity->parent_id = $entity->message['remix_parent_id'];
                 $entity->save();
-                
                 if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
                     $entity->parent->increment('total_children');
                 }
