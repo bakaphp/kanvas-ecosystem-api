@@ -128,8 +128,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Approach 1: Try params with Order class key (for single eSIM legacy structure)
         $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
-        if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
-            foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
+        if (isset($params[$orderKey]['metadata']['esims'])) {
+            // Convert esims to array in case it's an object
+            $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
+
+            if (is_array($esims)) {
+                foreach ($esims as $esim) {
+
                 // Check if message already has a voucher created to prevent duplicate processing
                 $messageId = $esim['message_id'] ?? null;
                 if ($messageId && $this->messageHasVoucher($messageId)) {
@@ -144,11 +149,15 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                     if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                        $insurance = $firstPendingData['insurance'];
+                        $candidatePendingInsurance = $firstPendingData['insurance'];
+                        // Validate that pending insurance has essential fields
+                        if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
+                            $insurance = $candidatePendingInsurance;
+                        }
                     }
                 }
 
-                // Fallback to eSimDetails.insurance only if insurancePendingData is not available
+                // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
                 if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
                     $candidateInsurance = $esim['eSimDetails']['insurance'];
                     // Validate that titular has essential fields
@@ -193,10 +202,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 }
             }
         }
+    }
 
         // Approach 2: Extract from order metadata (multi-eSIM workflow pattern)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
+
+            // Convert metadata to array in case it's an object
+            $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
 
             // Look in esims metadata (created by eSim workflow)
             if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
@@ -215,11 +228,15 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // insurancePendingData is an array, get the first item's insurance
                         $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                         if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                            $insurance = $firstPendingData['insurance'];
+                            $candidatePendingInsurance = $firstPendingData['insurance'];
+                            // Validate that pending insurance has essential fields
+                            if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
+                                $insurance = $candidatePendingInsurance;
+                            }
                         }
                     }
 
-                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available
+                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
                     if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
                         $candidateInsurance = $esim['eSimDetails']['insurance'];
                         // Validate that titular has essential fields
