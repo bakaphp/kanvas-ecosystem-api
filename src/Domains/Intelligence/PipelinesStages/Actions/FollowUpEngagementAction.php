@@ -36,12 +36,7 @@ class FollowUpEngagementAction
                 return null;
             }
 
-            $emailChannel = str_contains($session->uuid, 'email');
-            $twilioChannel = str_contains($session->uuid, 'twilio');
-
-            $messageTemplateChannel = $emailChannel
-                ? 'email'
-                : ($twilioChannel ? 'sms' : null);
+            $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
 
             if (! $lastMessage) {
