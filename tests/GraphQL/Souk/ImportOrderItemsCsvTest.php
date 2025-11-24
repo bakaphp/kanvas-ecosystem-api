@@ -17,10 +17,10 @@ class ImportOrderItemsCsvTest extends TestCase
     private const IMPORT_ORDER_CSV_MUTATION = '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ';
 
@@ -222,10 +222,10 @@ class ImportOrderItemsCsvTest extends TestCase
             '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ',
             'variables' => [
@@ -317,10 +317,10 @@ class ImportOrderItemsCsvTest extends TestCase
             '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ',
             'variables' => [
@@ -456,7 +456,7 @@ class ImportOrderItemsCsvTest extends TestCase
         $message = $responseData['data']['importOrderCsv']['message'];
 
         $this->assertStringContainsString('NOTFOUND123', $message);
-        $this->assertStringContainsString('Item not found', $message);
+        $this->assertStringContainsString('Product does not exist in our inventory', $message);
     }
 
     private function getProductsCsvContent($qty = 0): string

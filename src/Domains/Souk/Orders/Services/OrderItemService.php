@@ -62,7 +62,7 @@ class OrderItemService
                 ->first();
 
             if (empty($variant)) {
-                $errors[] = "<b>({$orderItem['variant_ean']})</b>: Item not found.";
+                $errors[] = "<b>({$orderItem['variant_ean']})</b>: Product does not exist in our inventory.";
                 continue;
             }
 
