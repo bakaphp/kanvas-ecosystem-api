@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
@@ -60,8 +61,10 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 }
                 $entity->parent_id = $entity->message['remix_parent_id'];
                 $entity->save();
-                $entity->parent->increment('total_children');
-
+                
+                if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
+                    $entity->parent->increment('total_children');
+                }
 
                 //Send notification to the original message owner
                 $endViaList = array_map(
@@ -83,7 +86,6 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                             'push_template' => $params['push_template'],
                         ],
                     );
-                    $remixMessage->set('remix_count', $remixMessage->children()->count() - 1); // Exclude the original message nugget.We will be using this custom field exclusively for remix counts.
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {
                     return [

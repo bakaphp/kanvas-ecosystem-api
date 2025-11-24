@@ -32,6 +32,7 @@ use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
@@ -135,6 +136,13 @@ class Message extends BaseModel
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    #[Override]
+    public function children(): HasMany
+    {
+        return $this->hasMany(static::class, $this->getParentKeyName())
+        ->where('message_types_id', MessagesTypesRepository::getByVerb('memo', $this->app)->getId());
     }
 
     public function getMessage(): array
