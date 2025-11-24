@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
+use Exception;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+
+use function Sentry\captureException;
 
 class FollowUpEngagementAction
 {
@@ -47,7 +50,7 @@ class FollowUpEngagementAction
 
             $rules = $config['notification_engagement_rules'];
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
-            $timezone = $this->lead->company->get('timezone') ?? 'UTC';
+            $timezone = $this->lead->company->timezone ?? 'UTC';
 
             $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
 
@@ -62,12 +65,16 @@ class FollowUpEngagementAction
             $contacted = $this->lead->hasBeenContacted();
 
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
-                $message = new CreateMessageFollowUpAction(
-                    $this->lead,
-                    $this->lead->stage,
-                    $session,
-                    $messageTemplateChannel
-                )->execute();
+                try {
+                    $message = new CreateMessageFollowUpAction(
+                        $this->lead,
+                        $this->lead->stage,
+                        $session,
+                        $messageTemplateChannel
+                    )->execute();
+                } catch (Exception $e) {
+                    captureException($e);
+                }
 
                 //if message is null, we should response
                 if ($message === null) {

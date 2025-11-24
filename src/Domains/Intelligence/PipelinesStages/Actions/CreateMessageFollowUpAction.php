@@ -57,7 +57,7 @@ class CreateMessageFollowUpAction
         $rules = $config['notification_engagement_rules'];
         $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
         if (! $messageTemplate) {
-            return null;
+            throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
         }
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
@@ -209,7 +209,7 @@ class CreateMessageFollowUpAction
                 'type' => 'conversation',
             ]);
 
-        $agentNotesMessages = $this->lead->notes? $this->lead->notes->messages()->get()
+        $agentNotesMessages = $this->lead->notes ? $this->lead->notes->messages()->get()
             ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => 'agent',
