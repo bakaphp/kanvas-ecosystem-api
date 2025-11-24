@@ -42,6 +42,7 @@ class CreateMessageFollowUpAction
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
+        protected string $messageTemplateChannel
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -54,7 +55,10 @@ class CreateMessageFollowUpAction
     {
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
-
+        $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
+        if (! $messageTemplate) {
+            return null;
+        }
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
         $contentSession = new CreateContentSessionAction($this->session);
@@ -205,13 +209,13 @@ class CreateMessageFollowUpAction
                 'type' => 'conversation',
             ]);
 
-        $agentNotesMessages = $this->lead->notes->messages()->get()
+        $agentNotesMessages = $this->lead->notes? $this->lead->notes->messages()->get()
             ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => 'agent',
                 'message' => $message->message,
                 'type' => 'note',
-            ]);
+            ]) : [];
 
         return $conversationMessages
             ->concat($agentNotesMessages)
