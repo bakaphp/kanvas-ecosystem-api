@@ -22,8 +22,8 @@ class EventService
         private readonly Companies $company,
         private readonly UserInterface $user
     ) {
-        $dealerId = 0;//$this->getDealerIdFromCompany();
-        $userId = 0; //$this->getUserIdFromCompany();
+        $dealerId = $this->getDealerIdFromCompany();
+        $userId = $this->getUserIdFromCompany();
 
         $this->client = new EventClient($dealerId, $userId, $this->app);
     }
