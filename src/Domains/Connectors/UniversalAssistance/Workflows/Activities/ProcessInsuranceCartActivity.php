@@ -128,66 +128,75 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Approach 1: Try params with Order class key (for single eSIM legacy structure)
         $orderKey = 'Kanvas\\Souk\\Orders\\Models\\Order';
-        if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
-            foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
-                // Check if message already has a voucher created to prevent duplicate processing
-                $messageId = $esim['message_id'] ?? null;
-                if ($messageId && $this->messageHasVoucher($messageId)) {
-                    continue; // Skip this eSIM as it already has a voucher
-                }
+        if (isset($params[$orderKey]['metadata']['esims'])) {
+            // Convert esims to array in case it's an object
+            $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
 
-                // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
-                $insurance = null;
-                if (isset($esim['new_data']['data']['insurancePendingData']) &&
-                    is_array($esim['new_data']['data']['insurancePendingData']) &&
-                    ! empty($esim['new_data']['data']['insurancePendingData'])) {
-                    // insurancePendingData is an array, get the first item's insurance
-                    $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
-                    if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                        $insurance = $firstPendingData['insurance'];
+            if (is_array($esims)) {
+                foreach ($esims as $esim) {
+                    // Check if message already has a voucher created to prevent duplicate processing
+                    $messageId = $esim['message_id'] ?? null;
+                    if ($messageId && $this->messageHasVoucher($messageId)) {
+                        continue; // Skip this eSIM as it already has a voucher
                     }
-                }
 
-                // Fallback to eSimDetails.insurance only if insurancePendingData is not available
-                if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                    $candidateInsurance = $esim['eSimDetails']['insurance'];
-                    // Validate that titular has essential fields
-                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                        $insurance = $candidateInsurance;
+                    // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
+                    $insurance = null;
+                    if (isset($esim['new_data']['data']['insurancePendingData']) &&
+                        is_array($esim['new_data']['data']['insurancePendingData']) &&
+                        ! empty($esim['new_data']['data']['insurancePendingData'])) {
+                        // insurancePendingData is an array, get the first item's insurance
+                        $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
+                        if ($firstPendingData && isset($firstPendingData['insurance'])) {
+                            $candidatePendingInsurance = $firstPendingData['insurance'];
+                            // Validate that pending insurance has essential fields
+                            if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
+                                $insurance = $candidatePendingInsurance;
+                            }
+                        }
                     }
-                }
 
-                if ($insurance) {
-                    $quantity = (int) ($esim['quantity'] ?? 1);
-                    $baseMessageId = $esim['message_id'] ?? null;
-
-                    // Expand insurance data by quantity (each quantity needs separate insurance processing)
-                    for ($i = 0; $i < $quantity; $i++) {
-                        $expandedInsurance = $insurance;
-
-                        // Calculate unique message_id for each expanded instance
-                        $currentMessageId = $baseMessageId;
-                        if ($quantity > 1 && $baseMessageId) {
-                            // For multiple quantities, we need to handle message_id appropriately
-                            // This might need adjustment based on how message_ids are generated for quantities
-                            $currentMessageId = $baseMessageId + $i; // Simple increment, may need different logic
+                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
+                    if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                        $candidateInsurance = $esim['eSimDetails']['insurance'];
+                        // Validate that titular has essential fields
+                        if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
+                            $insurance = $candidateInsurance;
                         }
+                    }
 
-                        $allInsuranceData[] = [
-                            'insurance' => $expandedInsurance,
-                            'message_id' => $currentMessageId,
-                            'esim_index' => count($allInsuranceData), // Track expanded index
-                            'original_quantity' => $quantity,
-                            'quantity_index' => $i,
-                        ];
+                    if ($insurance) {
+                        $quantity = (int) ($esim['quantity'] ?? 1);
+                        $baseMessageId = $esim['message_id'] ?? null;
 
-                        if ($currentMessageId) {
-                            $messageIds[] = $currentMessageId;
-                        }
+                        // Expand insurance data by quantity (each quantity needs separate insurance processing)
+                        for ($i = 0; $i < $quantity; $i++) {
+                            $expandedInsurance = $insurance;
 
-                        // Use first expanded insurance as primary
-                        if (empty($insuranceData)) {
-                            $insuranceData = $expandedInsurance;
+                            // Calculate unique message_id for each expanded instance
+                            $currentMessageId = $baseMessageId;
+                            if ($quantity > 1 && $baseMessageId) {
+                                // For multiple quantities, we need to handle message_id appropriately
+                                // This might need adjustment based on how message_ids are generated for quantities
+                                $currentMessageId = $baseMessageId + $i; // Simple increment, may need different logic
+                            }
+
+                            $allInsuranceData[] = [
+                                'insurance' => $expandedInsurance,
+                                'message_id' => $currentMessageId,
+                                'esim_index' => count($allInsuranceData), // Track expanded index
+                                'original_quantity' => $quantity,
+                                'quantity_index' => $i,
+                            ];
+
+                            if ($currentMessageId) {
+                                $messageIds[] = $currentMessageId;
+                            }
+
+                            // Use first expanded insurance as primary
+                            if (empty($insuranceData)) {
+                                $insuranceData = $expandedInsurance;
+                            }
                         }
                     }
                 }
@@ -197,6 +206,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Approach 2: Extract from order metadata (multi-eSIM workflow pattern)
         if (empty($insuranceData)) {
             $orderMetadata = $order->metadata ?? [];
+
+            // Convert metadata to array in case it's an object
+            $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
 
             // Look in esims metadata (created by eSim workflow)
             if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
@@ -215,11 +227,15 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         // insurancePendingData is an array, get the first item's insurance
                         $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                         if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                            $insurance = $firstPendingData['insurance'];
+                            $candidatePendingInsurance = $firstPendingData['insurance'];
+                            // Validate that pending insurance has essential fields
+                            if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
+                                $insurance = $candidatePendingInsurance;
+                            }
                         }
                     }
 
-                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available
+                    // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
                     if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
                         $candidateInsurance = $esim['eSimDetails']['insurance'];
                         // Validate that titular has essential fields
