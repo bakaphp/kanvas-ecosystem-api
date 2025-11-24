@@ -38,7 +38,7 @@ class SyncNetSuiteCustomerWithCompanyAction
 
         $customerInfo = $this->service->getCustomerById($customerId);
         $companyName = $customerInfo->entityId ?? $customerInfo->companyName;
-        
+
         if ($linkCompany) {
             $linkCompany->name = $companyName;
             $linkCompany->email = $customerInfo->email;
