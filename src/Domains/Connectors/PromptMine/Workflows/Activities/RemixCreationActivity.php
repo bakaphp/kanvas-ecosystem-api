@@ -73,9 +73,9 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     $promptRemixTitle = $remixMessage->message['title'] ?? '';
                     $newMessageNotification = new MessageOwnerPushNotification(
                         user: $remixMessage->user,
-                        entity: $remixMessage,
-                        message: "Your AI creation {$promptRemixTitle} has been remixed!",
-                        title: 'AI creation remixed',
+                        entity: $entity,
+                        message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
+                        title: 'Your prompt has been remixed!',
                         via: $endViaList,
                         templates: [
                             'email_template' => $params['email_template'],
