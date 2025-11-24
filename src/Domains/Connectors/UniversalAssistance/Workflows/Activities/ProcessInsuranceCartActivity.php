@@ -68,26 +68,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // Use combined results
                     $results = $allResults;
                 } else {
-                    // Fallback to single eSIM processing (legacy support)
-                    $service = new InsuranceWorkflowService($app, $order);
-
-                    try {
-                        $results = $service->processInsuranceWorkflow($data['insurance_data'] ?? []);
-                    } catch (ValidationException $e) {
-                        return $this->failWorkflow([
-                            'message' => $e->getMessage(),
-                        ]);
-                    }
-
-                    // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                    $this->storeUniversalAssistanceData($results, $data['message_id']);
-
-                    // For single eSIM, wrap in same structure for consistency
-                    $allVoucherData['esim_0'] = [
-                        'esim_index' => 0,
-                        'message_id' => $data['message_id'],
-                        'voucher_data' => $this->extractVoucherDataFromResults($results),
-                    ];
+                    // No insurance data found - this should have been caught in getActivityData
+                    return $this->failWorkflow([
+                        'message' => 'No insurance data available to process',
+                    ]);
                 }
 
                 // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
@@ -286,6 +270,28 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                            $order->getMetadata('insurance') ??
                            [];
         }
+
+        // DEBUG: Throw exception with all collected data to debug the process
+        throw new ValidationException('DEBUG - Data Collection Status: ' . json_encode([
+            'insurance_data' => $insuranceData,
+            'insurance_data_empty' => empty($insuranceData),
+            'all_insurance_data' => $allInsuranceData,
+            'all_insurance_data_count' => count($allInsuranceData),
+            'message_id' => $primaryMessageId ?? null,
+            'all_message_ids' => $messageIds,
+            'is_multi_esim' => count($allInsuranceData) > 1,
+            'total_expanded_count' => count($allInsuranceData),
+            'params_structure' => [
+                'has_order_key' => isset($params[$orderKey]),
+                'has_esims' => isset($params[$orderKey]['metadata']['esims']),
+                'order_key' => $orderKey,
+            ],
+            'order_metadata_structure' => [
+                'has_metadata' => isset($order->metadata),
+                'has_esims' => isset($order->metadata['esims']),
+                'metadata_keys' => array_keys($order->metadata ?? []),
+            ],
+        ], JSON_PRETTY_PRINT));
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
