@@ -105,6 +105,7 @@ use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceVoucherActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\ProcessInsuranceCartActivity;
+use Kanvas\Connectors\VinSolution\Webhooks\VinSolutionLeadCreationWebhookJob;
 use Kanvas\Connectors\VinSolution\Workflow\AddLeadCommentFromAgentMessageActivity as VinSolutionAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PullUserInformationActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushCoBuyerActivity;
@@ -275,6 +276,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushParticipantActivity::class,
             HumanAgentChannelResponseActivity::class,
             PushProductToItemActivity::class,
+            VinSolutionLeadCreationWebhookJob::class,
         ];
 
         $createdActions = [];
