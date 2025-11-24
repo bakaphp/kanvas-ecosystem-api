@@ -25,46 +25,100 @@ class GenerateTimeSlots implements ShouldQueue
     {
         $rule       = ScheduleRules::findOrFail($this->ruleId);
         $resource   = $rule->resource;
-        $tz         = $resource->tz ?? $resource->app->get('timezone')  ?? "America/Santo_Domingo";
+        $tz         = $resource->tz ?? $resource->company->timezone  ?? "America/Santo_Domingo";
 
-        // 1) Expand RRULE in venue TZ
+        // 1) Expand RRULE in venue TZ to get the days
         $rrule = RRule::createFromRfcString($rule->rrule, $rule->start_at->setTimezone($tz));
         if ($rule->end_at) {
             $rrule->getOccurrencesBefore($rule->end_at->setTimezone($tz));
         }
         $occurrences = $rrule->getOccurrencesBetween($this->windowFrom->clone()->tz($tz), $this->windowTo->clone()->tz($tz));
 
-        // 2) Build intervals [start,end) per occurrence using slot_duration_min
-        foreach ($occurrences as $localStart) {
-            $localStart = Carbon::instance($localStart);
-            $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
+        // 2) For each day occurrence, generate time slots based on day_rrule
+        foreach ($occurrences as $dayOccurrence) {
+            $dayOccurrence = Carbon::instance($dayOccurrence);
 
-            // 2.a Skip outside exceptions (blackouts) or include extra_open
-            if ($this->isBlackedOut($resource->id, $localStart, $localEnd, $tz)) {
-                continue;
+            // If day_rrule exists, use it to generate slots within this day
+            if ($rule->day_rrule) {
+                $this->generateSlotsForDayWithRRule($rule, $resource, $dayOccurrence, $tz);
+            } else {
+                // Fallback to old behavior: single slot per occurrence
+                $localStart = $dayOccurrence;
+                $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
+
+                $this->createTimeSlot($rule, $resource, $localStart, $localEnd, $tz);
             }
-
-            // 3) Compute capacity & price
-            $capacity = $rule->capacity_override ?? $resource->default_capacity;
-            $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
-
-            TimeSlots::upsert([[
-              'resources_id'        => $resource->id,
-              'resources_type'      => $resource->getMorphClass(),
-              'schedule_rules_id'   => $rule->id,
-              'start_at'            => $localStart->clone()->setTimezone('UTC'),
-              'apps_id'             => $rule->apps_id,
-              'companies_id'        => $rule->companies_id,
-              'end_at'              => $localEnd->clone()->setTimezone('UTC'),
-              'initial_capacity'    => $capacity,
-              'price_snapshot'      => $price,
-              'currency'            => 'USD',
-              'updated_at'          => now(),
-              'created_at'          => now(),
-            ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
-              'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at'
-            ]);
         }
+    }
+
+    /**
+     * Generate time slots for a specific day using day_rrule.
+     */
+    protected function generateSlotsForDayWithRRule(
+        ScheduleRules $rule,
+        $resource,
+        Carbon $dayOccurrence,
+        string $tz
+    ): void {
+        // Parse day_rrule to get time slot occurrences within the day
+        $dayStart = $dayOccurrence->copy()->startOfDay();
+
+        try {
+            $dayRRule = RRule::createFromRfcString($rule->day_rrule, $dayStart->setTimezone($tz));
+            $dayEnd = $dayOccurrence->copy()->endOfDay();
+
+            $slotOccurrences = $dayRRule->getOccurrencesBetween(
+                $dayStart->setTimezone($tz),
+                $dayEnd->setTimezone($tz)
+            );
+
+            foreach ($slotOccurrences as $slotStart) {
+                $localStart = Carbon::instance($slotStart)->setTimezone($tz);
+                $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
+
+                $this->createTimeSlot($rule, $resource, $localStart, $localEnd, $tz);
+            }
+        } catch (\Exception $e) {
+            // If day_rrule parsing fails, skip this day
+            return;
+        }
+    }
+
+    /**
+     * Create a single time slot.
+     */
+    protected function createTimeSlot(
+        ScheduleRules $rule,
+        $resource,
+        Carbon $localStart,
+        Carbon $localEnd,
+        string $tz
+    ): void {
+        // Skip if blacked out
+        if ($this->isBlackedOut($resource->id, $localStart, $localEnd, $tz)) {
+            return;
+        }
+
+        // Compute capacity & price
+        $capacity = $rule->capacity_override ?? $resource->default_capacity;
+        $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
+
+        TimeSlots::upsert([[
+          'resources_id'        => $resource->id,
+          'resources_type'      => $resource->getMorphClass(),
+          'schedule_rules_id'   => $rule->id,
+          'start_at'            => $localStart->clone()->setTimezone('UTC'),
+          'apps_id'             => $rule->apps_id,
+          'companies_id'        => $rule->companies_id,
+          'end_at'              => $localEnd->clone()->setTimezone('UTC'),
+          'initial_capacity'    => $capacity,
+          'price_snapshot'      => $price,
+          'currency'            => 'USD',
+          'updated_at'          => now(),
+          'created_at'          => now(),
+        ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
+          'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at'
+        ]);
     }
 
     protected function isBlackedOut(int $resourceId, Carbon $start, Carbon $end, string $tz): bool
