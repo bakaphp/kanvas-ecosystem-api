@@ -106,7 +106,7 @@ class Channels extends BaseModel
     public function discountedPrice(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->discounted_price,
+            get: fn () => $this->pivot ? $this->pivot->discounted_price : ($this->attributes['discounted_price'] ?? null),
         );
     }
 
