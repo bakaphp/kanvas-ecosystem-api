@@ -271,7 +271,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             }
                         }
                     }
-                    
+
                     // If we found data with this orderKey, break out of the loop
                     if (! empty($insuranceData)) {
                         break;
