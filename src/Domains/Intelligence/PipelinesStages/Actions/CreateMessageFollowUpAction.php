@@ -209,7 +209,7 @@ class CreateMessageFollowUpAction
                 'type' => 'conversation',
             ]);
 
-        $agentNotesMessages = $this->lead->notes? $this->lead->notes->messages()->get()
+        $agentNotesMessages = $this->lead->notes ? $this->lead->notes->messages()->get()
             ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => 'agent',
