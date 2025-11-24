@@ -22,8 +22,8 @@ class EventService
         private readonly Companies $company,
         private readonly UserInterface $user
     ) {
-        $dealerId = $this->getDealerIdFromCompany();
-        $userId = $this->getUserIdFromCompany();
+        $dealerId = 0;//$this->getDealerIdFromCompany();
+        $userId = 0; //$this->getUserIdFromCompany();
 
         $this->client = new EventClient($dealerId, $userId, $this->app);
     }
@@ -74,7 +74,11 @@ class EventService
         if ($json === false) {
             throw new ValidationException('Failed to encode payload as JSON');
         }
-        $this->client->post('/vinsolutions/eventingapi/subscriber', $json);
+        $this->client->post('/vinsolutions/eventingapi/subscriber', $json, [
+            'headers' => [
+                'Accept' => 'application/vnd.coxauto.v1+json',
+            ],
+        ]);
 
         return true;
     }
@@ -110,7 +114,11 @@ class EventService
             throw new ValidationException('Failed to encode payload as JSON');
         }
 
-        $this->client->put('/subscriber', $json);
+        $this->client->put('/subscriber', $json, [
+            'headers' => [
+                'Accept' => 'application/vnd.coxauto.v1+json',
+            ],
+        ]);
 
         return true;
     }
@@ -123,6 +131,9 @@ class EventService
         return $this->client->get('/subscription', [
             'query' => [
                 'limit' => min($limit, 100), // Max 100 per spec
+            ],
+            'headers' => [
+                'Accept' => 'application/vnd.coxauto.v1+json',
             ],
         ]);
     }
@@ -150,7 +161,11 @@ class EventService
             throw new ValidationException('Failed to encode payload as JSON');
         }
 
-        $this->client->put("/subscription/dealerId/{$dealerId}", $json);
+        $this->client->put("/subscription/dealerId/{$dealerId}", $json, [
+            'headers' => [
+                'Accept' => 'application/vnd.coxauto.v1+json',
+            ],
+        ]);
 
         return true;
     }

@@ -9,6 +9,15 @@ use Override;
 
 class EventClient extends Client
 {
+    #[Override]
+    protected function setHeaders(array $headers): array
+    {
+        $headers['headers']['x-api-key'] = ! $this->useDigitalShowRoomKey ? $this->apiKey : $this->apiKeyDigitalShowRoom;
+        $headers['headers']['Authorization'] = 'Bearer ' . $this->auth()['access_token'];
+
+        return $headers;
+    }
+
     protected function overWriteClient(): void
     {
         $this->client = new GuzzleClient(

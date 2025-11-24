@@ -48,7 +48,7 @@ class Client
             throw new ValidationException('VinSolutions API keys not set');
         }
 
-        $this->redisKey .= '-vss-' . time() . $app->getId();
+        $this->redisKey .= '-v3-' . $app->getId();
         $this->client = new GuzzleClient(
             [
                 'base_uri' => $this->baseUrl,
