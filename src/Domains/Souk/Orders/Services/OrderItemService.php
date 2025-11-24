@@ -54,12 +54,15 @@ class OrderItemService
     public function getValidOrderItems(array $orderItems): array
     {
         $validOrderItems = [];
+        $errors = [];
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('ean', $orderItem['variant_ean'])
                 ->orWhere('barcode', $orderItem['variant_ean'])
                 ->first();
 
             if (empty($variant)) {
+                $errors[] = "<b>({$orderItem['variant_ean']})</b>: Item not found.";
                 continue;
             }
 
@@ -69,7 +72,10 @@ class OrderItemService
             ];
         }
 
-        return $validOrderItems;
+        return [
+            'validItems' => $validOrderItems,
+            'errors' => $errors,
+        ];
     }
 
     public function processOrderItems(array $orderItems, int $channelId): array
