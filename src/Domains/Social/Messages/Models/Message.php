@@ -138,11 +138,16 @@ class Message extends BaseModel
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
-    #[Override]
-    public function children(): HasMany
+    public function childrenByType(string $verb): HasMany
     {
+        $messageTypeId = MessagesTypesRepository::getByVerb($verb, $this->app)->getId();
+        if (! $messageTypeId) {
+            throw new Exception("Message type with verb {$verb} not found");
+        }
         return $this->hasMany(static::class, $this->getParentKeyName())
-        ->where('message_types_id', MessagesTypesRepository::getByVerb('memo', $this->app)->getId());
+        ->where('message_types_id', $messageTypeId)
+        ->where('is_public', 1)
+        ->where('is_deleted', 0);
     }
 
     public function getMessage(): array
