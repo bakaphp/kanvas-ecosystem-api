@@ -141,9 +141,6 @@ class Message extends BaseModel
     public function childrenByType(string $verb): HasMany
     {
         $messageTypeId = MessagesTypesRepository::getByVerb($verb, $this->app)->getId();
-        if (! $messageTypeId) {
-            throw new Exception("Message type with verb {$verb} not found");
-        }
         return $this->hasMany(static::class, $this->getParentKeyName())
         ->where('message_types_id', $messageTypeId)
         ->where('is_public', 1)
