@@ -271,28 +271,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                            [];
         }
 
-        // DEBUG: Throw exception with all collected data to debug the process
-        throw new ValidationException('DEBUG - Data Collection Status: ' . json_encode([
-            'insurance_data' => $insuranceData,
-            'insurance_data_empty' => empty($insuranceData),
-            'all_insurance_data' => $allInsuranceData,
-            'all_insurance_data_count' => count($allInsuranceData),
-            'message_id' => $primaryMessageId ?? null,
-            'all_message_ids' => $messageIds,
-            'is_multi_esim' => count($allInsuranceData) > 1,
-            'total_expanded_count' => count($allInsuranceData),
-            'params_structure' => [
-                'has_order_key' => isset($params[$orderKey]),
-                'has_esims' => isset($params[$orderKey]['metadata']['esims']),
-                'order_key' => $orderKey,
-            ],
-            'order_metadata_structure' => [
-                'has_metadata' => isset($order->metadata),
-                'has_esims' => isset($order->metadata['esims']),
-                'metadata_keys' => array_keys($order->metadata ?? []),
-            ],
-        ], JSON_PRETTY_PRINT));
-
         // Validate that we have insurance data
         if (empty($insuranceData)) {
             return $this->failWorkflow([
