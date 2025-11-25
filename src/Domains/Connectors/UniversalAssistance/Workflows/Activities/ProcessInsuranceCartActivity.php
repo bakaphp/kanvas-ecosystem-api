@@ -108,6 +108,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function getActivityData(Order $order, array $params): array
     {
+        // Refresh order to get latest metadata from database
+        $order->refresh();
+
         $insuranceData = [];
         $allInsuranceData = []; // For collecting multiple eSIM insurance data with expanded quantities
         $messageIds = []; // For collecting all message IDs
