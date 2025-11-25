@@ -71,6 +71,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // No insurance data found - this should have been caught in getActivityData
                     return $this->failWorkflow([
                         'message' => 'No insurance data available to process',
+                        'data' => $data,
                     ]);
                 }
 
@@ -325,6 +326,24 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
+        // If we have insurance data but no expanded data (Approach 3 scenario), create expanded entry
+        if (! empty($insuranceData) && empty($allInsuranceData)) {
+            // Get message ID for this single insurance data
+            $singleMessageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+
+            $allInsuranceData[] = [
+                'insurance' => $insuranceData,
+                'message_id' => $singleMessageId,
+                'esim_index' => 0,
+                'original_quantity' => 1,
+                'quantity_index' => 0,
+            ];
+
+            if ($singleMessageId) {
+                $messageIds[] = $singleMessageId;
+            }
+        }
+
         // Get primary message ID (fallback logic if no expanded data found)
         $primaryMessageId = null;
 
@@ -334,15 +353,12 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Fallback to order custom field
             $primaryMessageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
 
-            // Last resort fallbacks
-            if (! $primaryMessageId) {
-                if (isset($params[$orderKey]['metadata']['esims']) && is_array($params[$orderKey]['metadata']['esims'])) {
-                    foreach ($params[$orderKey]['metadata']['esims'] as $esim) {
-                        if (isset($esim['message_id'])) {
-                            $primaryMessageId = $esim['message_id'];
-
-                            break;
-                        }
+            // Last resort fallbacks - check order metadata esims directly
+            if (! $primaryMessageId && isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+                foreach ($orderMetadata['esims'] as $esim) {
+                    if (isset($esim['message_id'])) {
+                        $primaryMessageId = $esim['message_id'];
+                        break;
                     }
                 }
             }
@@ -382,12 +398,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Check if universalAssistanceData exists and has a voucher number
             if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) &&
                 ! empty($messageData['universalAssistanceData']['holder']['nro_voucher'])) {
-                return true;
-            }
-
-            // Also check eSimDetails.insurance for voucher data
-            if (isset($messageData['eSimDetails']['insurance']['titular']['nro_voucher']) &&
-                ! empty($messageData['eSimDetails']['insurance']['titular']['nro_voucher'])) {
                 return true;
             }
 
