@@ -134,7 +134,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
                 if (isset($esim['new_data']['data']['insurancePendingData']) &&
-                    is_array($esim['new_data']['data']['insurancePendingData']) &&
                     ! empty($esim['new_data']['data']['insurancePendingData'])) {
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
@@ -288,26 +287,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             return $this->failWorkflow([
                 'message' => 'Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)),
             ]);
-        }
-
-        // Validate titular required fields
-        $titularValidation = $this->validatePersonData($insuranceData['titular'], 'Titular');
-        if ($titularValidation !== true) {
-            return $this->failWorkflow([
-                'message' => $titularValidation,
-            ]);
-        }
-
-        // Validate dependents required fields if present
-        if (isset($insuranceData['dependents']) && is_array($insuranceData['dependents'])) {
-            foreach ($insuranceData['dependents'] as $index => $dependent) {
-                $dependentValidation = $this->validatePersonData($dependent, "Dependent #" . ($index + 1));
-                if ($dependentValidation !== true) {
-                    return $this->failWorkflow([
-                        'message' => $dependentValidation,
-                    ]);
-                }
-            }
         }
 
         // If we have insurance data but no expanded data (Approach 3 scenario), create expanded entry
