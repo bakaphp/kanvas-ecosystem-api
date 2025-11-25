@@ -125,7 +125,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Priority 1: Try new_data.data.insurancePendingData first (most reliable - at metadata level)
         if (isset($orderMetadata['new_data']['data']['insurancePendingData']) &&
             ! empty($orderMetadata['new_data']['data']['insurancePendingData'])) {
-
             $insurancePendingDataArray = $orderMetadata['new_data']['data']['insurancePendingData'];
 
             foreach ($insurancePendingDataArray as $pendingData) {
