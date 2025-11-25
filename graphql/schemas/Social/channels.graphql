@@ -15,7 +15,13 @@ type SocialChannel {
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
     systemModule: SystemModule! @belongsTo
+    category: SocialChannelCategory
     created_at: DateTime!
+}
+
+type SocialChannelCategory {
+    id: ID!
+    name: String!
 }
 
 input SocialChannelInput {
@@ -24,6 +30,7 @@ input SocialChannelInput {
     description: String!
     entity_namespace_uuid: String!
     entity_id: ID!
+    category_id: ID
 }
 
 enum UsersRolesChannel {
