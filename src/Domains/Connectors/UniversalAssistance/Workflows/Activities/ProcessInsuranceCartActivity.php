@@ -1135,7 +1135,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Add titular
         if (isset($insuranceData['titular'])) {
             $titular = $insuranceData['titular'];
-            
+
             // Normalize titular to only include fields needed by the service
             $normalizedTitular = [
                 'firstname' => $titular['firstname'] ?? null,
@@ -1153,7 +1153,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 'destinationCountryName' => $titular['destinationCountryName'] ?? null,
                 'plan' => $titular['plan'] ?? [],
             ];
-            
+
             $allPeople[] = [
                 'data' => $normalizedTitular,
                 'type' => 'titular',
@@ -1188,7 +1188,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     'destinationCountryName' => $dependent['destinationCountryName'] ?? null,
                     'plan' => $dependent['plan'] ?? [],
                 ];
-                
+
                 $allPeople[] = [
                     'data' => $normalizedDependent,
                     'type' => 'dependent',
