@@ -41,7 +41,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // Process each eSIM separately
                     foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
                         // Create separate service instance for each eSIM with its specific message_id
-                        $service = new InsuranceWorkflowService($app, $order, $esimInsuranceData['message_id'] ?? null);
+                        $messageId = $esimInsuranceData['message_id'] ?? null;
+                        $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
 
                         try {
                             $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
@@ -132,6 +133,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $insurance = $pendingData['insurance'];
                     $messageId = $pendingData['messageId'] ?? null;
 
+                    // Skip if this message already has a voucher
+                    if ($messageId && $this->messageHasVoucher($messageId)) {
+                        continue;
+                    }
+
                     $allInsuranceData[] = [
                         'insurance' => $insurance,
                         'message_id' => $messageId,
@@ -165,6 +171,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 if ($insurance) {
                     $quantity = (int) ($esim['quantity'] ?? 1);
                     $baseMessageId = $esim['message_id'] ?? null;
+
+                    // Skip if this message already has a voucher
+                    if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                        continue;
+                    }
 
                     // Expand insurance data by quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -231,6 +242,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             if ($insurance) {
                                 $quantity = (int) ($esim['quantity'] ?? 1);
                                 $baseMessageId = $esim['message_id'] ?? null;
+
+                                // Skip if this message already has a voucher
+                                if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                                    continue;
+                                }
 
                                 // Expand insurance data by quantity (each quantity needs separate insurance processing)
                                 for ($i = 0; $i < $quantity; $i++) {
