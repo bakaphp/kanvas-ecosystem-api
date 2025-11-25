@@ -1170,7 +1170,7 @@ class InsuranceWorkflowService
         $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
 
         // Determine convenios and quotation types based on destination and variant type
-        if (!$isTerritorioNacional) {
+        if (! $isTerritorioNacional) {
             // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
@@ -2416,7 +2416,7 @@ class InsuranceWorkflowService
 
         $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
 
-        if (!$isTerritorioNacional) {
+        if (! $isTerritorioNacional) {
             // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
