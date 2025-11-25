@@ -108,6 +108,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function getActivityData(Order $order, array $params): array
     {
+        // Refresh order to get latest metadata from database
+        $order->refresh();
+
         $insuranceData = [];
         $allInsuranceData = []; // For collecting multiple eSIM insurance data with expanded quantities
         $messageIds = []; // For collecting all message IDs
@@ -116,13 +119,14 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // This approach has the most up-to-date insurancePendingData
         $orderMetadata = $order->metadata ?? [];
 
-        // Convert metadata to array using json encode/decode (more reliable for deep GraphQL object structures)
-        $orderMetadata = json_decode(json_encode($orderMetadata), true);
+        // Convert metadata to array in case it's an object
+        $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
 
         // Look in esims metadata (created by eSim workflow)
         if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
             foreach ($orderMetadata['esims'] as $esim) {
-                // esim is already converted to array by parent json_decode
+                // Convert esim to array in case it contains nested objects from GraphQL
+                $esim = $this->convertObjectsToArrays($esim);
 
                 // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
@@ -184,8 +188,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             foreach ($orderKeys as $orderKey) {
                 if (isset($params[$orderKey]['metadata']['esims'])) {
-                    // Convert esims to array using json encode/decode (more reliable for deep GraphQL objects)
-                    $esims = json_decode(json_encode($params[$orderKey]['metadata']['esims']), true);
+                    // Convert esims to array in case it's an object
+                    $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
 
                     if (is_array($esims)) {
                         foreach ($esims as $esim) {
