@@ -56,12 +56,12 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $allResults["esim_{$index}"] = $esimResults;
 
                         // Store results in eSim message and order metadata - handle grouped vouchers
-                        $this->storeUniversalAssistanceDataWithGroupSupport($esimResults, $esimInsuranceData['message_id'] ?? $data['message_id'], $data);
+                        $this->storeUniversalAssistanceDataWithGroupSupport($esimResults, (int) ($esimInsuranceData['message_id'] ?? $data['message_id']), $data);
 
                         // Collect voucher data for this eSIM
                         $allVoucherData["esim_{$index}"] = [
                             'esim_index' => $index,
-                            'message_id' => $esimInsuranceData['message_id'] ?? null,
+                            'message_id' => $messageId,
                             'voucher_data' => $this->extractVoucherDataFromResults($esimResults),
                         ];
                     }
@@ -134,20 +134,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $messageId = $pendingData['messageId'] ?? null;
 
                     // Skip if this message already has a voucher
-                    if ($messageId && $this->messageHasVoucher($messageId)) {
+                    if ($messageId && $this->messageHasVoucher((int) $messageId)) {
                         continue;
                     }
 
                     $allInsuranceData[] = [
                         'insurance' => $insurance,
-                        'message_id' => $messageId,
+                        'message_id' => (int) $messageId,
                         'esim_index' => count($allInsuranceData),
                         'original_quantity' => 1,
                         'quantity_index' => 0,
                     ];
 
                     if ($messageId) {
-                        $messageIds[] = $messageId;
+                        $messageIds[] = (int) $messageId;
                     }
 
                     if (empty($insuranceData)) {
@@ -173,7 +173,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $baseMessageId = $esim['message_id'] ?? null;
 
                     // Skip if this message already has a voucher
-                    if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                    if ($baseMessageId && $this->messageHasVoucher((int) $baseMessageId)) {
                         continue;
                     }
 
@@ -188,7 +188,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                         $allInsuranceData[] = [
                             'insurance' => $expandedInsurance,
-                            'message_id' => $currentMessageId,
+                            'message_id' => (int) $currentMessageId,
                             'esim_index' => count($allInsuranceData),
                             'original_quantity' => $quantity,
                             'quantity_index' => $i,
@@ -244,7 +244,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 $baseMessageId = $esim['message_id'] ?? null;
 
                                 // Skip if this message already has a voucher
-                                if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                                if ($baseMessageId && $this->messageHasVoucher((int) $baseMessageId)) {
                                     continue;
                                 }
 
@@ -262,7 +262,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                                     $allInsuranceData[] = [
                                         'insurance' => $expandedInsurance,
-                                        'message_id' => $currentMessageId,
+                                        'message_id' => (int) $currentMessageId,
                                         'esim_index' => count($allInsuranceData), // Track expanded index
                                         'original_quantity' => $quantity,
                                         'quantity_index' => $i,
