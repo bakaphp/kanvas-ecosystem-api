@@ -132,6 +132,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $insurance = $pendingData['insurance'];
                     $messageId = $pendingData['messageId'] ?? null;
 
+                    // Skip if this message already has a voucher
+                    if ($messageId && $this->messageHasVoucher($messageId)) {
+                        continue;
+                    }
+
                     $allInsuranceData[] = [
                         'insurance' => $insurance,
                         'message_id' => $messageId,
@@ -165,6 +170,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 if ($insurance) {
                     $quantity = (int) ($esim['quantity'] ?? 1);
                     $baseMessageId = $esim['message_id'] ?? null;
+
+                    // Skip if this message already has a voucher
+                    if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                        continue;
+                    }
 
                     // Expand insurance data by quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -231,6 +241,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             if ($insurance) {
                                 $quantity = (int) ($esim['quantity'] ?? 1);
                                 $baseMessageId = $esim['message_id'] ?? null;
+
+                                // Skip if this message already has a voucher
+                                if ($baseMessageId && $this->messageHasVoucher($baseMessageId)) {
+                                    continue;
+                                }
 
                                 // Expand insurance data by quantity (each quantity needs separate insurance processing)
                                 for ($i = 0; $i < $quantity; $i++) {
