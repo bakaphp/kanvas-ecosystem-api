@@ -11,9 +11,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Channels\Models\ChannelCategories;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Laravel\Prompts\Exceptions\NonInteractiveValidationException;
-
-use function Laravel\Prompts\info;
-
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 
@@ -86,6 +83,6 @@ class CreateChannelCategoryCommand extends Command
             'companies_id' => $companyId,
         ]);
 
-        info('Channels Categories created successfully for app - ' . $appId);
+        echo('Channels Categories created successfully for app - ' . $appId);
     }
 }
