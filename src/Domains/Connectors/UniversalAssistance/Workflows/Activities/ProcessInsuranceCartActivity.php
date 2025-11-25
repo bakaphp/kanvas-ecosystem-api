@@ -122,25 +122,43 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Convert metadata to array in case it's an object
         $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
 
-        // Look in esims metadata (created by eSim workflow)
-        if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+        // Priority 1: Try new_data.data.insurancePendingData first (most reliable - at metadata level)
+        if (isset($orderMetadata['new_data']['data']['insurancePendingData']) &&
+            ! empty($orderMetadata['new_data']['data']['insurancePendingData'])) {
+            $insurancePendingDataArray = $orderMetadata['new_data']['data']['insurancePendingData'];
+
+            foreach ($insurancePendingDataArray as $pendingData) {
+                if (isset($pendingData['insurance'])) {
+                    $insurance = $pendingData['insurance'];
+                    $messageId = $pendingData['messageId'] ?? null;
+
+                    $allInsuranceData[] = [
+                        'insurance' => $insurance,
+                        'message_id' => $messageId,
+                        'esim_index' => count($allInsuranceData),
+                        'original_quantity' => 1,
+                        'quantity_index' => 0,
+                    ];
+
+                    if ($messageId) {
+                        $messageIds[] = $messageId;
+                    }
+
+                    if (empty($insuranceData)) {
+                        $insuranceData = $insurance;
+                    }
+                }
+            }
+        }
+
+        // Fallback: Look in esims metadata (for legacy structure)
+        if (empty($insuranceData) && isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
             foreach ($orderMetadata['esims'] as $esim) {
                 // Convert esim to array in case it contains nested objects from GraphQL
                 $esim = $this->convertObjectsToArrays($esim);
 
-                // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
-                if (isset($esim['new_data']['data']['insurancePendingData']) &&
-                    ! empty($esim['new_data']['data']['insurancePendingData'])) {
-                    // insurancePendingData is an array, get the first item's insurance
-                    $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
-                    if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                        $insurance = $firstPendingData['insurance'];
-                    }
-                }
-
-                // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
-                if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
                     $insurance = $esim['eSimDetails']['insurance'];
                 }
 
