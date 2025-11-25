@@ -22,7 +22,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
+use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
@@ -763,5 +765,15 @@ class Order extends BaseModel
     protected static function newFactory()
     {
         return new OrderFactory();
+    }
+
+    public function applyDiscountCode(string $code): ?Discount
+    {
+        $discountService = new DiscountService(
+            $this->app,
+            $this->company
+        );
+
+        return $discountService->applyDiscountCode($code, $this);
     }
 }
