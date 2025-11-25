@@ -157,15 +157,15 @@ class PullNetSuiteQuoteToOrderAction
         //$totalDiscount = (float) $netsuiteQuote->discountTotal;
         $discountRate = $netsuiteQuote->discountRate;
         //$discountTotal = $netsuiteQuote->discountTotal;
-        $discount = $netsuiteQuote->discountItem;
-        $discountCode = Str::cleanup($discount->name);
+        $netDiscount = $netsuiteQuote->discountItem;
+        $discountCode = Str::cleanup($netDiscount->name);
 
-        new CreateDiscountAction(
+        $discount = new CreateDiscountAction(
             $order->app,
             $order->company,
             new DiscountData(
-                name: $discount->name,
-                description: $discount->name,
+                name: $netDiscount->name,
+                description: $netDiscount->name,
                 discount_type_id: Discount::getByName('Percentage')->id,
                 value: abs((float) str_replace('%', '', $discountRate)),
                 is_percentage: true,
@@ -176,6 +176,10 @@ class PullNetSuiteQuoteToOrderAction
                 code: $discountCode,
             )
         )->execute();
+        $discount->set(
+            CustomFieldEnum::NET_SUITE_DISCOUNT_ID->value,
+            $netDiscount->internalId
+        );
 
         return $order->applyDiscountCode($discountCode);
     }
