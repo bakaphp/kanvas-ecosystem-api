@@ -33,14 +33,14 @@ class FollowUpEngagementAction
                 ->get();
         foreach ($sessions as $session) {
             if (! $session) {
-                return null;
+                continue;
             }
 
             $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
 
             if (! $lastMessage) {
-                return null;
+                continue;
             }
 
             $rules = $config['notification_engagement_rules'];
@@ -50,7 +50,7 @@ class FollowUpEngagementAction
             $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
 
             if ($hoursTool['status'] !== 'work_hours') {
-                return null;
+                continue;
             }
 
             $now = Carbon::now($timezone);
