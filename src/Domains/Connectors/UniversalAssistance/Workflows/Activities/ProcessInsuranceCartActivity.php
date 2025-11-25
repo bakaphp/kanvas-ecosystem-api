@@ -139,21 +139,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // insurancePendingData is an array, get the first item's insurance
                     $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                     if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                        $candidatePendingInsurance = $firstPendingData['insurance'];
-                        // Validate that pending insurance has essential fields
-                        if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
-                            $insurance = $candidatePendingInsurance;
-                        }
+                        $insurance = $firstPendingData['insurance'];
                     }
                 }
 
                 // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
                 if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                    $candidateInsurance = $esim['eSimDetails']['insurance'];
-                    // Validate that titular has essential fields
-                    if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                        $insurance = $candidateInsurance;
-                    }
+                    $insurance = $esim['eSimDetails']['insurance'];
                 }
 
                 if ($insurance) {
@@ -219,21 +211,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                 // insurancePendingData is an array, get the first item's insurance
                                 $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
                                 if ($firstPendingData && isset($firstPendingData['insurance'])) {
-                                    $candidatePendingInsurance = $firstPendingData['insurance'];
-                                    // Validate that pending insurance has essential fields
-                                    if ($this->hasEssentialInsuranceFields($candidatePendingInsurance)) {
-                                        $insurance = $candidatePendingInsurance;
-                                    }
+                                    $insurance = $firstPendingData['insurance'];
                                 }
                             }
 
                             // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
                             if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                                $candidateInsurance = $esim['eSimDetails']['insurance'];
-                                // Validate that titular has essential fields
-                                if ($this->hasEssentialInsuranceFields($candidateInsurance)) {
-                                    $insurance = $candidateInsurance;
-                                }
+                                $insurance = $esim['eSimDetails']['insurance'];
                             }
 
                             if ($insurance) {
