@@ -125,12 +125,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Convert esim to array in case it contains nested objects from GraphQL
                 $esim = $this->convertObjectsToArrays($esim);
 
-                // Check if message already has a voucher created to prevent duplicate processing
-                $messageId = $esim['message_id'] ?? null;
-                if ($messageId && $this->messageHasVoucher($messageId)) {
-                    continue; // Skip this eSIM as it already has a voucher
-                }
-
                 // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
                 if (isset($esim['new_data']['data']['insurancePendingData']) &&
@@ -196,12 +190,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                     if (is_array($esims)) {
                         foreach ($esims as $esim) {
-                            // Check if message already has a voucher created to prevent duplicate processing
-                            $messageId = $esim['message_id'] ?? null;
-                            if ($messageId && $this->messageHasVoucher($messageId)) {
-                                continue; // Skip this eSIM as it already has a voucher
-                            }
-
                             // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                             $insurance = null;
                             if (isset($esim['new_data']['data']['insurancePendingData']) &&
@@ -1146,32 +1134,69 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Add titular
         if (isset($insuranceData['titular'])) {
+            $titular = $insuranceData['titular'];
+
+            // Normalize titular to only include fields needed by the service
+            $normalizedTitular = [
+                'firstname' => $titular['firstname'] ?? null,
+                'lastname' => $titular['lastname'] ?? null,
+                'idType' => $titular['idType'] ?? null,
+                'idNumber' => $titular['idNumber'] ?? null,
+                'dob' => $titular['dob'] ?? null,
+                'sex' => $titular['sex'] ?? null,
+                'email' => $titular['email'] ?? null,
+                'activationDate' => $titular['activationDate'] ?? null,
+                'expirationDate' => $titular['expirationDate'] ?? null,
+                'originCountryCode' => $titular['originCountryCode'] ?? null,
+                'destinationCountryCode' => $titular['destinationCountryCode'] ?? null,
+                'originCountryName' => $titular['originCountryName'] ?? null,
+                'destinationCountryName' => $titular['destinationCountryName'] ?? null,
+                'plan' => $titular['plan'] ?? [],
+            ];
+
             $allPeople[] = [
-                'data' => $insuranceData['titular'],
+                'data' => $normalizedTitular,
                 'type' => 'titular',
-                'plan_key' => $familyGroupKey, // Use family group key instead of plan-based key
+                'plan_key' => $familyGroupKey,
                 'person_id' => 'titular',
             ];
 
-            // Initialize family group
             if (! isset($planGroups[$familyGroupKey])) {
                 $planGroups[$familyGroupKey] = [];
             }
-            $planGroups[$familyGroupKey][] = $insuranceData['titular'];
+            $planGroups[$familyGroupKey][] = $normalizedTitular;
         }
 
         // Add dependents to the same family group
         if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
             foreach ($insuranceData['dependents'] as $index => $dependent) {
+                // Normalize dependent data
+                $normalizedDependent = [
+                    'firstname' => $dependent['firstname'] ?? null,
+                    'lastname' => $dependent['lastname'] ?? null,
+                    'idType' => $dependent['idType'] ?? null,
+                    'idNumber' => $dependent['idNumber'] ?? null,
+                    'dob' => $dependent['dob'] ?? null,
+                    'sex' => $dependent['sex'] ?? null,
+                    'email' => $dependent['email'] ?? null,
+                    'relationship' => $dependent['relationship'] ?? null,
+                    'activationDate' => $dependent['activationDate'] ?? null,
+                    'expirationDate' => $dependent['expirationDate'] ?? null,
+                    'originCountryCode' => $dependent['originCountryCode'] ?? null,
+                    'destinationCountryCode' => $dependent['destinationCountryCode'] ?? null,
+                    'originCountryName' => $dependent['originCountryName'] ?? null,
+                    'destinationCountryName' => $dependent['destinationCountryName'] ?? null,
+                    'plan' => $dependent['plan'] ?? [],
+                ];
+
                 $allPeople[] = [
-                    'data' => $dependent,
+                    'data' => $normalizedDependent,
                     'type' => 'dependent',
-                    'plan_key' => $familyGroupKey, // Use same family group key
+                    'plan_key' => $familyGroupKey,
                     'person_id' => "dependent_{$index}",
                 ];
 
-                // Add to same family group
-                $planGroups[$familyGroupKey][] = $dependent;
+                $planGroups[$familyGroupKey][] = $normalizedDependent;
             }
         }
 
