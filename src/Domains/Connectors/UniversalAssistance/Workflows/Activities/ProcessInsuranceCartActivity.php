@@ -116,14 +116,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // This approach has the most up-to-date insurancePendingData
         $orderMetadata = $order->metadata ?? [];
 
-        // Convert metadata to array in case it's an object
-        $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
+        // Convert metadata to array using json encode/decode (more reliable for deep GraphQL object structures)
+        $orderMetadata = json_decode(json_encode($orderMetadata), true);
 
         // Look in esims metadata (created by eSim workflow)
         if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
             foreach ($orderMetadata['esims'] as $esim) {
-                // Convert esim to array in case it contains nested objects from GraphQL
-                $esim = $this->convertObjectsToArrays($esim);
+                // esim is already converted to array by parent json_decode
 
                 // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
                 $insurance = null;
@@ -185,8 +184,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             foreach ($orderKeys as $orderKey) {
                 if (isset($params[$orderKey]['metadata']['esims'])) {
-                    // Convert esims to array in case it's an object
-                    $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
+                    // Convert esims to array using json encode/decode (more reliable for deep GraphQL objects)
+                    $esims = json_decode(json_encode($params[$orderKey]['metadata']['esims']), true);
 
                     if (is_array($esims)) {
                         foreach ($esims as $esim) {
