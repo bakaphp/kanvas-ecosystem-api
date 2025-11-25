@@ -27,7 +27,8 @@ class CreateLeadFirstEngagementMessageAction
     protected Agent $agent;
 
     public function __construct(
-        protected Lead $lead
+        protected Lead $lead,
+        protected ?string $template = null
     ) {
         $agentName = 'firstMessageEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -52,6 +53,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['company' => $this->lead->company->toArray()],
                 ['lead' => $this->lead->toArray()]
             ),
+            'template' => $this->template
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;

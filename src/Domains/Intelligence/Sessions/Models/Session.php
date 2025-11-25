@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
+use Exception ;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -60,5 +61,18 @@ class Session extends BaseModel
         $legacyClassMap = SystemModules::convertLegacySystemModules($this->entity_namespace);
 
         return $legacyClassMap::getById($this->entity_id);
+    }
+
+    public function getChannel(): string
+    {
+        if (str_contains($this->uuid, 'email')) {
+            return 'email';
+        } elseif (
+            str_contains($this->uuid, 'twilio')
+        ) {
+            return 'sms';
+        } else {
+            throw new Exception('Channel unrecognized');
+        }
     }
 }
