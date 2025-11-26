@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
@@ -79,11 +80,21 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
-                $channel = ModelsChannel::getBySlug($this->messageInput->channel_slug, $message->app, $message->company);
-
+                $channel = ModelsChannel::getBySlug(
+                    $this->messageInput->channel_slug,
+                    $message->app,
+                    $message->company
+                );
                 if (! $channel) {
-                    $categoryEnum = ChannelCategoryEnum::validate($this->messageInput->category_name);
-                    $category = ChannelCategories::getByName($categoryEnum->value);
+                    $category = null;
+
+                    if ($this->messageInput->category_name) {
+                        try {
+                            $categoryEnum = ChannelCategoryEnum::validate($this->messageInput->category_name);
+                            $category = ChannelCategories::getByName($categoryEnum->value);
+                        } catch (InvalidArgumentException $e) {
+                        }
+                    }
 
                     $channel = (new CreateChannelAction(new Channel(
                         apps: $message->app,

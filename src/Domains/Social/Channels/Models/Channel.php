@@ -150,13 +150,13 @@ class Channel extends BaseModel
             ->first();
     }
 
-    public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): self
+    public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): ?self
     {
         return self::query()
             ->where('slug', $slug)
             ->where('companies_id', $company->getId())
             ->where('apps_id', $app->getId())
             ->notDeleted()
-            ->firstOrFail();
+            ->first();
     }
 }
