@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
 use Kanvas\Exceptions\ValidationException;
@@ -133,6 +134,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $insurance = $pendingData['insurance'];
                     $messageId = $pendingData['messageId'] ?? null;
 
+                    // If no messageId, try to find it using ICCID (webhook flow)
+                    if (! $messageId && isset($pendingData['iccid'])) {
+                        $messageId = $this->findMessageIdByIccid($pendingData['iccid'], $order->app);
+                    }
+
                     // Skip if this message already has a voucher
                     if ($messageId && $this->messageHasVoucher((int) $messageId)) {
                         continue;
@@ -140,7 +146,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                     $allInsuranceData[] = [
                         'insurance' => $insurance,
-                        'message_id' => (int) $messageId,
+                        'message_id' => $messageId ? (int) $messageId : null,
+                        'iccid' => $pendingData['iccid'] ?? null,
                         'esim_index' => count($allInsuranceData),
                         'original_quantity' => 1,
                         'quantity_index' => 0,
@@ -390,9 +397,37 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
 
             return false;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If message not found or any error, allow processing
             return false;
+        }
+    }
+
+    /**
+     * Find message ID by searching for ICCID in the message JSON data
+     * Used when webhook provides ICCID but not the message ID
+     *
+     * The ICCID is stored in Message.message JSON column at paths like:
+     * - message.data.iccid
+     * - message.iccid
+     */
+    protected function findMessageIdByIccid(string $iccid, AppInterface $app): ?int
+    {
+        try {
+            // Search for the ICCID in the message JSON column
+            // The message column stores JSON data where ICCID can be at message.data.iccid or message.iccid
+            $message = Message::where('apps_id', $app->getId())
+                ->where('message', 'LIKE', '%' . $iccid . '%')
+                ->first();
+
+            if ($message) {
+                return $message->id;
+            }
+
+            return null;
+        } catch (Exception $e) {
+            // If search fails, return null and let the workflow continue
+            return null;
         }
     }
 
@@ -1621,7 +1656,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             $message->message = $currentMessage;
             $message->saveOrFail();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
         }
     }
 
