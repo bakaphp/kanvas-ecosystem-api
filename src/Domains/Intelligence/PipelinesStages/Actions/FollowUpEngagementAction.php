@@ -65,6 +65,8 @@ class FollowUpEngagementAction
                 && $timeDiff >= $rules['minutes_no_response']
                 && $contacted === false
                 && $isActive) {
+                $message = null;
+
                 try {
                     $message = new CreateMessageFollowUpAction(
                         $this->lead,
