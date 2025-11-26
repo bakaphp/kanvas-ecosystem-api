@@ -31,6 +31,7 @@ class FollowUpEngagementAction
                 ->fromApp($this->lead->app)
                 ->fromCompany($this->lead->company)
                 ->get();
+
         foreach ($sessions as $session) {
             if (! $session) {
                 continue;
@@ -58,8 +59,12 @@ class FollowUpEngagementAction
             $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
             $timeDiff = $lastMessageTime->diffInMinutes($now);
             $contacted = $this->lead->hasBeenContacted();
+            $isActive = $this->lead->isActive();
 
-            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) && $timeDiff >= $rules['minutes_no_response'] && $contacted === false) {
+            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+                && $timeDiff >= $rules['minutes_no_response']
+                && $contacted === false
+                && $isActive) {
                 try {
                     $message = new CreateMessageFollowUpAction(
                         $this->lead,

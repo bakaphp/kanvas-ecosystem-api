@@ -1161,6 +1161,47 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // Convert any objects to arrays to prevent stdClass errors
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
+        // Validate required fields for titular
+        $requiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'email', 'activationDate', 'originCountryCode', 'destinationCountryCode'];
+        $missingFields = [];
+
+        if (! isset($insuranceData['titular'])) {
+            return $this->failWorkflow([
+                'message' => 'Titular data is required',
+                'data' => $insuranceData,
+            ]);
+        }
+
+        $titular = $insuranceData['titular'];
+
+        // Check required fields for titular
+        foreach ($requiredFields as $field) {
+            if (empty($titular[$field])) {
+                $missingFields[] = "titular.{$field}";
+            }
+        }
+
+        // Check required fields for dependents
+        if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
+            $dependentRequiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'relationship'];
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                foreach ($dependentRequiredFields as $field) {
+                    if (empty($dependent[$field])) {
+                        $missingFields[] = "dependents[{$index}].{$field}";
+                    }
+                }
+            }
+        }
+
+        // If any required fields are missing, fail the workflow
+        if (! empty($missingFields)) {
+            return $this->failWorkflow([
+                'message' => 'Missing required fields: ' . implode(', ', $missingFields),
+                'missing_fields' => $missingFields,
+                'data' => $insuranceData,
+            ]);
+        }
+
         // Collect all people (titular + dependents) with their plan keys
         $allPeople = [];
         $planGroups = [];
@@ -1169,58 +1210,53 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         // All people from the same eSIM will be grouped together for family voucher
         $familyGroupKey = 'family_group_esim_' . $esimIndex;
 
-        // Add titular
-        if (isset($insuranceData['titular'])) {
-            $titular = $insuranceData['titular'];
+        // Add titular - normalize to only include fields needed by the service
+        $normalizedTitular = [
+            'firstname' => $titular['firstname'],
+            'lastname' => $titular['lastname'],
+            'idType' => $titular['idType'],
+            'idNumber' => $titular['idNumber'],
+            'dob' => $titular['dob'],
+            'sex' => $titular['sex'],
+            'email' => $titular['email'],
+            'activationDate' => $titular['activationDate'],
+            'expirationDate' => $titular['expirationDate'],
+            'originCountryCode' => $titular['originCountryCode'],
+            'destinationCountryCode' => $titular['destinationCountryCode'],
+            'originCountryName' => $titular['originCountryName'] ?? null,
+            'destinationCountryName' => $titular['destinationCountryName'] ?? null,
+            'plan' => $titular['plan'] ?? [],
+        ];
 
-            // Normalize titular to only include fields needed by the service
-            $normalizedTitular = [
-                'firstname' => $titular['firstname'] ?? null,
-                'lastname' => $titular['lastname'] ?? null,
-                'idType' => $titular['idType'] ?? null,
-                'idNumber' => $titular['idNumber'] ?? null,
-                'dob' => $titular['dob'] ?? null,
-                'sex' => $titular['sex'] ?? null,
-                'email' => $titular['email'] ?? null,
-                'activationDate' => $titular['activationDate'] ?? null,
-                'expirationDate' => $titular['expirationDate'] ?? null,
-                'originCountryCode' => $titular['originCountryCode'] ?? null,
-                'destinationCountryCode' => $titular['destinationCountryCode'] ?? null,
-                'originCountryName' => $titular['originCountryName'] ?? null,
-                'destinationCountryName' => $titular['destinationCountryName'] ?? null,
-                'plan' => $titular['plan'] ?? [],
-            ];
+        $allPeople[] = [
+            'data' => $normalizedTitular,
+            'type' => 'titular',
+            'plan_key' => $familyGroupKey,
+            'person_id' => 'titular',
+        ];
 
-            $allPeople[] = [
-                'data' => $normalizedTitular,
-                'type' => 'titular',
-                'plan_key' => $familyGroupKey,
-                'person_id' => 'titular',
-            ];
-
-            if (! isset($planGroups[$familyGroupKey])) {
-                $planGroups[$familyGroupKey] = [];
-            }
-            $planGroups[$familyGroupKey][] = $normalizedTitular;
+        if (! isset($planGroups[$familyGroupKey])) {
+            $planGroups[$familyGroupKey] = [];
         }
+        $planGroups[$familyGroupKey][] = $normalizedTitular;
 
         // Add dependents to the same family group
         if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
             foreach ($insuranceData['dependents'] as $index => $dependent) {
                 // Normalize dependent data
                 $normalizedDependent = [
-                    'firstname' => $dependent['firstname'] ?? null,
-                    'lastname' => $dependent['lastname'] ?? null,
-                    'idType' => $dependent['idType'] ?? null,
-                    'idNumber' => $dependent['idNumber'] ?? null,
-                    'dob' => $dependent['dob'] ?? null,
-                    'sex' => $dependent['sex'] ?? null,
+                    'firstname' => $dependent['firstname'],
+                    'lastname' => $dependent['lastname'],
+                    'idType' => $dependent['idType'],
+                    'idNumber' => $dependent['idNumber'],
+                    'dob' => $dependent['dob'],
+                    'sex' => $dependent['sex'],
                     'email' => $dependent['email'] ?? null,
-                    'relationship' => $dependent['relationship'] ?? null,
-                    'activationDate' => $dependent['activationDate'] ?? null,
-                    'expirationDate' => $dependent['expirationDate'] ?? null,
-                    'originCountryCode' => $dependent['originCountryCode'] ?? null,
-                    'destinationCountryCode' => $dependent['destinationCountryCode'] ?? null,
+                    'relationship' => $dependent['relationship'],
+                    'activationDate' => $dependent['activationDate'] ?? $titular['activationDate'],
+                    'expirationDate' => $dependent['expirationDate'] ?? $titular['expirationDate'],
+                    'originCountryCode' => $dependent['originCountryCode'],
+                    'destinationCountryCode' => $dependent['destinationCountryCode'],
                     'originCountryName' => $dependent['originCountryName'] ?? null,
                     'destinationCountryName' => $dependent['destinationCountryName'] ?? null,
                     'plan' => $dependent['plan'] ?? [],
