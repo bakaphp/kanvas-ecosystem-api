@@ -58,6 +58,14 @@ extend type Mutation @guardByKanvasIdentifier {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@discountCodesUpdate"
         )
+    applyWalletCreditToCart(amount: Float, tag: String = "default"): Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@applyWalletCredit"
+        )
+    removeWalletCreditFromCart: Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@removeWalletCredit"
+        )
     clearCart: Boolean!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@clear"
