@@ -40,9 +40,12 @@ class PullLeadAction
     ) {
     }
 
-    public function execute(?ModelsLead $lead = null, ?int $leadId = null): array
-    {
-        return DB::transaction(function () use ($lead, $leadId) {
+    public function execute(
+        ?ModelsLead $lead = null,
+        ?int $leadId = null,
+        bool $triggerFirstMessage = false
+    ): array {
+        return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage) {
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
@@ -90,7 +93,7 @@ class PullLeadAction
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
                 //set communication channel
-                if ($lead->company->get('ai', false)) {
+                if ($lead->company->get('ai', false) || $triggerFirstMessage) {
                     $this->setCommunicationChannel(
                         $lead,
                         $currentLead ?? []
