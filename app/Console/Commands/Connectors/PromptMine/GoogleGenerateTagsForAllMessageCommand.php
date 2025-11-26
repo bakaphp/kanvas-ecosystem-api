@@ -23,7 +23,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id}';
+    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id} {--clearAllTags=false}';
 
     /**
      * The console command description.
@@ -42,6 +42,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $messageType = (int) $this->argument('message_type_id');
+        $clearAllTags = $this->option('clearAllTags') === 'true' ? true : false;
 
         $messageType = MessageType::getById($messageType, $app);
 
@@ -56,6 +57,13 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
 
         foreach ($cursor as $message) {
+            if ($message->hasTags() && ! $clearAllTags) {
+                $this->info('Message ID: ' . $message->getId() . ' already has tags, skipping...');
+                $this->output->progressAdvance();
+
+                continue;
+            }
+
             // Remove all tags from the message
             $message->removeTags($allTags);
             $generateMessageTagAction = new GenerateMessageTagAction($message);

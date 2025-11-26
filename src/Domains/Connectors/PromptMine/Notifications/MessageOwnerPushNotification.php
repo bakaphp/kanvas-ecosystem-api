@@ -43,7 +43,7 @@ class MessageOwnerPushNotification extends CustomMessageNotification
         ];
 
         parent::__construct($entity, $data, $via);
-        $this->setType(NotificationTypesEnum::IMAGE_PROCESSING->value);
+        $this->setType(NotificationTypesEnum::REMIX_CREATED->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
         $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());
