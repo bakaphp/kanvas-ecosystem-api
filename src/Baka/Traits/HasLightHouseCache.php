@@ -16,24 +16,53 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
+        $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
-        $keys = $redis->keys($key);
+
+        // SAFE key lookup using SCAN
+        $keys = $this->scanKeys($redis, $pattern);
+
+        // If no keys exist, regenerate basic cache
         if (empty($keys) && $withKanvasConfiguration) {
-            //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
             return;
         }
 
-        foreach ($keys as $key) {
-            $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
+        // Batch delete keys using PIPELINE
+        if (! empty($keys)) {
+            $redis->pipeline(function ($pipe) use ($keys) {
+                foreach ($keys as $key) {
+                    $pipe->del(
+                        str_replace(
+                            config('database.redis.options.prefix'),
+                            '',
+                            $key
+                        )
+                    );
+                }
+            });
         }
 
-        //$this->generateCustomFieldsLighthouseCache();
+        // Rebuild cache if needed
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
+    }
+
+    protected function scanKeys($redis, string $pattern): array
+    {
+        $cursor = 0;
+        $keys = [];
+
+        do {
+            [$cursor, $found] = $redis->scan($cursor, 'MATCH', $pattern, 'COUNT', 1000);
+            if (! empty($found)) {
+                $keys = array_merge($keys, $found);
+            }
+        } while ($cursor != 0);
+
+        return $keys;
     }
 
     public function clearLightHouseCacheJob(): void
@@ -49,8 +78,10 @@ trait HasLightHouseCache
     {
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
         $key = $this->generateLighthouseCacheKey() . $separator . $relationship . $separator . 'first' . $separator . $items;
+
         $redis = Redis::connection('graph-cache');
         $result = $this->getRelationshipQueryBuilder($relationship)->paginate($items);
+
         $redis->set($key, $result);
     }
 
