@@ -165,10 +165,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $messageType = match ($communicationChannel) {
                             'sms' => 'twilio-sms',
                             'email' => 'mailgun-email',
+                            'whatsapp' => 'whatsapp',
                             default => 'twilio-sms',
                         };
 
-                        if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
+                        if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn) && ! $params['skipLeadCurrentDatIn']) {
                             new SendMessageToLeadAction($lead)->execute(
                                 $communicationChannel,
                                 $firstLeadMessage['message'],
