@@ -36,7 +36,7 @@ class CreateMessageFollowUpAction
 {
     protected Agent $agent;
 
-    private const MAX_RETRY_ATTEMPTS = 3;
+    private const int MAX_RETRY_ATTEMPTS = 3;
 
     public function __construct(
         protected ModelsLead $lead,
@@ -56,9 +56,11 @@ class CreateMessageFollowUpAction
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
         $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
-        if (! $messageTemplate) {
+
+        if ($messageTemplate === null) {
             throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
         }
+
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
         $contentSession = new CreateContentSessionAction($this->session);

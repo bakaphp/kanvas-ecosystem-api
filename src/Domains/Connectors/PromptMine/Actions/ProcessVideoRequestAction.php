@@ -190,6 +190,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -243,6 +244,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
@@ -342,33 +344,24 @@ class ProcessVideoRequestAction
     private function constructModelPayload(array $payload): array
     {
         $messageFiles = $this->entity->getFiles();
-        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+        $imageUrls = $messageFiles->pluck('url')->toArray();
+        $attachmentType = $this->entity->message['attachment_type'] ?? 'reference_to_video';
+        $isSingleFile = $messageFiles->count() === 1;
 
         if (! array_key_exists('attachment_type', $this->entity->message)) {
             //throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
         }
 
-        switch ($this->entity->message['attachment_type'] ?? 'reference_to_video') {
-            case 'start_end_frame':
-                return array_merge($payload, [
-                    'image_url' => $imageUrlsArray[0],
-                    'lastFrameUrl' => $imageUrlsArray[1],
-                ]);
+        $attachmentData = match ($attachmentType) {
+            'start_end_frame' => [
+                'image_url' => $imageUrls[0],
+                'lastFrameUrl' => $imageUrls[1],
+            ],
+            default => $isSingleFile
+                ? ['image_url' => $imageUrls[0]]
+                : ['referenceImageUrls' => $imageUrls],
+        };
 
-                break;
-            case 'reference_to_video':
-            default:
-                if ($messageFiles->count() == 1) {
-                    return array_merge($payload, [
-                        'image_url' => $imageUrlsArray[0],
-                    ]);
-                }
-
-                return array_merge($payload, [
-                    'referenceImageUrls' => $imageUrlsArray,
-                ]);
-
-                break;
-        }
+        return array_merge($payload, $attachmentData);
     }
 }
