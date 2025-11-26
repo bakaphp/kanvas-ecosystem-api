@@ -390,7 +390,7 @@ class OrderWalletTest extends TestCase
         // Verify cart total is back to original amount
         $cartTotalAfterRemoval = $removeWalletResponse->json('data.removeWalletCreditFromCart.total');
         $subtotal = $removeWalletResponse->json('data.removeWalletCreditFromCart.subtotal');
-        
+
         $this->assertEquals(100, $cartTotalAfterRemoval, 'Cart total should be $100 after removing wallet credit');
         $this->assertEquals(100, $subtotal, 'Cart subtotal should be $100');
 
