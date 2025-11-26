@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
-use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
 use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -99,7 +98,7 @@ class VideoProcessingService
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
             $params['via'] ?? ['push']
         );
-        $errorProcessingImageNotification = new ImageProcessingPushNotification(
+        $errorProcessingVideoNotification = new VideoProcessingPushNotification(
             user: $this->entity->user,
             entity: $this->entity,
             message: html_entity_decode($result['error'] ?? 'Video processing failed', ENT_QUOTES, 'UTF-8'),
@@ -112,12 +111,12 @@ class VideoProcessingService
         );
 
         //send to the user profile when it fails
-        $errorProcessingImageNotification->setData([
+        $errorProcessingVideoNotification->setData([
             'destination_id' => $this->entity->getId(),
             'destination_type' => 'USER',
             'destination_event' => 'FOLLOWING',
         ]);
-        $this->entity->user->notify($errorProcessingImageNotification);
+        $this->entity->user->notify($errorProcessingVideoNotification);
     }
 
     public function retryVideoProcessingCheck(
@@ -492,7 +491,7 @@ class VideoProcessingService
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
                     $params['via'] ?? ['push']
                 );
-                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                $errorProcessingVideoNotification = new VideoProcessingPushNotification(
                     user: $message->user,
                     entity: $message,
                     message: 'You have reached your daily image generation limit.',
@@ -505,12 +504,12 @@ class VideoProcessingService
                 );
 
                 //send to the user profile when it fails
-                $errorProcessingImageNotification->setData([
+                $errorProcessingVideoNotification->setData([
                     'destination_id' => $message->getId(),
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
                 ]);
-                $message->user->notify($errorProcessingImageNotification);
+                $message->user->notify($errorProcessingVideoNotification);
             } catch (Throwable $e) {
                 report($e);
             }
