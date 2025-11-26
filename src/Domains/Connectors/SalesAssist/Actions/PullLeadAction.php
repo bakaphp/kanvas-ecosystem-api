@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
-use Kanvas\Connectors\Elead\Actions\PullLeadAction as ActionsPullLeadAction;
-use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
-use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as VinSolutionActionsPullLeadAction;
-use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Actions\PullLeadAction as EleadPullLeadAction;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EleadCustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as VinSolutionPullLeadAction;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as VinSolutionCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class PullLeadAction
@@ -19,25 +19,43 @@ class PullLeadAction
 
     public function execute(): array
     {
-        $isElead = $this->lead->company->get(CustomFieldEnum::COMPANY->value) !== null;
-        $isVinSolutions = $this->lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
+        $connector = $this->detectConnector();
 
-        //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
+        return match ($connector) {
+            'elead' => $this->executeElead(),
+            'vinsolution' => $this->executeVinSolution(),
+            default => [],
+        };
+    }
 
-        if ($isElead) {
-            return new ActionsPullLeadAction(
-                $this->lead->app,
-                $this->lead->company,
-                $this->lead->user
-            )->execute([], $this->lead);
-        } elseif ($isVinSolutions) {
-            return new VinSolutionActionsPullLeadAction(
-                $this->lead->app,
-                $this->lead->company,
-                $this->lead->user
-            )->execute(
-                lead: $this->lead
-            );
+    private function detectConnector(): string
+    {
+        if ($this->lead->company->get(EleadCustomFieldEnum::COMPANY->value) !== null) {
+            return 'elead';
         }
+
+        if ($this->lead->company->get(VinSolutionCustomFieldEnum::COMPANY->value) !== null) {
+            return 'vinsolution';
+        }
+
+        return 'unknown';
+    }
+
+    private function executeElead(): array
+    {
+        return (new EleadPullLeadAction(
+            $this->lead->app,
+            $this->lead->company,
+            $this->lead->user
+        ))->execute([], $this->lead);
+    }
+
+    private function executeVinSolution(): array
+    {
+        return (new VinSolutionPullLeadAction(
+            $this->lead->app,
+            $this->lead->company,
+            $this->lead->user
+        ))->execute(lead: $this->lead);
     }
 }
