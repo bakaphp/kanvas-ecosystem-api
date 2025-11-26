@@ -212,6 +212,8 @@ class PullLeadAction
                 'app' => $lead->app,
             ]
         );
+
+        $lead->set('lead_first_contacted_at', Carbon::now()->toDateTimeString());
     }
 
     private function addCoBuyerParticipant(
