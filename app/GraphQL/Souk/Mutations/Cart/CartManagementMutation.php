@@ -11,6 +11,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
+use Kanvas\Souk\Cart\Enums\CartConditionEnum;
 use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
@@ -226,11 +227,11 @@ class CartManagementMutation
         }
 
         // Remove existing wallet credit condition if any
-        $cart->removeCartCondition('Wallet Credit');
+        $cart->removeCartCondition(CartConditionEnum::WALLET_CREDIT->value);
 
         // Apply wallet credit as a cart condition
         $walletCondition = new CartCondition([
-            'name' => 'Wallet Credit',
+            'name' => CartConditionEnum::WALLET_CREDIT->value,
             'type' => 'wallet',
             'target' => 'total', // Apply to total (after discounts/shipping)
             'value' => '-' . (string) $walletCreditAmount,
@@ -252,7 +253,7 @@ class CartManagementMutation
     public function removeWalletCredit(mixed $root, array $request): array
     {
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
-        $cart->removeCartCondition('Wallet Credit');
+        $cart->removeCartCondition(CartConditionEnum::WALLET_CREDIT->value);
 
         $cartService = new CartService($cart);
 
