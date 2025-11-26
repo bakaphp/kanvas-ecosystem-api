@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Discounts\Models\Discount;
@@ -185,6 +186,73 @@ class CartManagementMutation
                 continue;
             }
         }
+
+        $cartService = new CartService($cart);
+
+        return $cartService->getCart();
+    }
+
+    public function applyWalletCredit(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
+        $app = app(Apps::class);
+        //$company = $user->getCurrentCompany();
+
+        $tag = $request['tag'] ?? 'default';
+        $requestedAmount = isset($request['amount']) ? (float) $request['amount'] : null;
+
+        $wallet = $user->createAppWallet($app, ['name' => $tag]);
+        $walletBalance = $wallet->balanceFloat;
+
+        if ($walletBalance <= 0) {
+            throw new ValidationException('Insufficient wallet balance');
+        }
+
+        // Calculate cart total (after other discounts and shipping)
+        $cartTotal = $cart->getTotal();
+
+        if ($cartTotal <= 0) {
+            throw new ValidationException('Cart is empty or total is zero');
+        }
+
+        // Determine amount to apply
+        $walletCreditAmount = $requestedAmount !== null
+            ? min($requestedAmount, $walletBalance, $cartTotal)
+            : min($walletBalance, $cartTotal);
+
+        if ($walletCreditAmount <= 0) {
+            throw new ValidationException('Unable to apply wallet credit');
+        }
+
+        // Remove existing wallet credit condition if any
+        $cart->removeCartCondition('Wallet Credit');
+
+        // Apply wallet credit as a cart condition
+        $walletCondition = new CartCondition([
+            'name' => 'Wallet Credit',
+            'type' => 'wallet',
+            'target' => 'total', // Apply to total (after discounts/shipping)
+            'value' => '-' . (string) $walletCreditAmount,
+            'order' => 999, // Apply last, after all other conditions
+            'attributes' => [
+                'wallet_tag' => $tag,
+                'wallet_balance' => $walletBalance,
+                'applied_amount' => $walletCreditAmount,
+            ],
+        ]);
+
+        $cart->condition($walletCondition);
+
+        $cartService = new CartService($cart);
+
+        return $cartService->getCart();
+    }
+
+    public function removeWalletCredit(mixed $root, array $request): array
+    {
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
+        $cart->removeCartCondition('Wallet Credit');
 
         $cartService = new CartService($cart);
 
