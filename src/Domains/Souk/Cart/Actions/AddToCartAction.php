@@ -26,13 +26,21 @@ class AddToCartAction
     {
         $company = B2BConfigurationService::getConfiguredB2BCompany($this->app, $this->company);
         $currentUserCompany = $this->company; //this has to be the current user company, not the global b2b one
+        $allowCrossCompanyVariants = $this->app->get(ConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value) ?? false;
 
         //@todo send warehouse via header
         //$useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
 
         $variantPriceService = new VariantPriceService($this->app, $currentUserCompany);
         foreach ($items as $item) {
-            $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
+            // Case 1: Global B2B variant from retailer company (default behavior when B2B is configured)
+            // Case 2: Variant from the same company (when B2B is not configured)
+            // Case 3: Variant from any company in the app (when ALLOW_CROSS_COMPANY_VARIANTS flag is enabled)
+            if ($allowCrossCompanyVariants) {
+                $variant = Variants::getById($item['variant_id'], $this->app);
+            } else {
+                $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
+            }
             $channelId = $item['channel_id'] ?? null;
 
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
