@@ -169,7 +169,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                             default => 'twilio-sms',
                         };
                         $skipLeadCurrentDatIn = isset($params['skipLeadCurrentDatIn']) && $params['skipLeadCurrentDatIn'];
-                        if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn) && ! $skipLeadCurrentDatIn) {
+                        if (($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) || ! $skipLeadCurrentDatIn) {
                             new SendMessageToLeadAction($lead)->execute(
                                 $communicationChannel,
                                 $firstLeadMessage['message'],
