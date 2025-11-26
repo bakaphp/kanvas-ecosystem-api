@@ -71,6 +71,8 @@ class Session extends BaseModel
             str_contains($this->uuid, 'twilio')
         ) {
             return 'sms';
+        } elseif (str_contains($this->uuid, 'wa-chat')) {
+            return 'whatsapp';
         } else {
             throw new Exception('Channel unrecognized');
         }
