@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
 use Kanvas\Exceptions\ValidationException;
@@ -396,7 +397,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
 
             return false;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If message not found or any error, allow processing
             return false;
         }
@@ -424,7 +425,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
 
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If search fails, return null and let the workflow continue
             return null;
         }
@@ -1655,7 +1656,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             $message->message = $currentMessage;
             $message->saveOrFail();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
         }
     }
 
