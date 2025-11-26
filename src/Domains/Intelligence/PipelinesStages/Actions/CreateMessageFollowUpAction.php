@@ -96,7 +96,7 @@ class CreateMessageFollowUpAction
 
         $data = [
             'day' => $rules['day'],
-            'templates' => $rules['templates'],
+            'templates' => $messageTemplate,
             'conversation_history' => $this->mapConversationHistory(),
             'context' => [
                 'company' => $this->lead->company,
