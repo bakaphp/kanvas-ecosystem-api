@@ -40,8 +40,11 @@ class PullLeadAction
     ) {
     }
 
-    public function execute(?ModelsLead $lead = null, ?int $leadId = null, bool $triggerFirstMessage = false): array
-    {
+    public function execute(
+        ?ModelsLead $lead = null,
+        ?int $leadId = null,
+        bool $triggerFirstMessage = false
+    ): array {
         return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage) {
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
