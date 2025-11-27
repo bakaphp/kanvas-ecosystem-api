@@ -21,6 +21,5 @@ class HolidaysMonthToolTest extends TestCase
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $tool = new HolidaysMonthTool($lead);
         $result = $tool->execute();
-        dump($result);
     }
 }
