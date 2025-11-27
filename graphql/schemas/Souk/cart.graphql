@@ -1,7 +1,7 @@
 type Cart {
     id: ID!
     items: [CartItem!]!
-    discounts: [CartDiscount!]!
+    discounts: [CartDiscount]
     total_discount: Money!
     total: Money!
     shipping: CartShipping
