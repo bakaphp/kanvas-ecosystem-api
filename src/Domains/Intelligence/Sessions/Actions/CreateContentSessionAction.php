@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjec
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\HolidaysMonthTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
@@ -198,6 +199,7 @@ class CreateContentSessionAction
         $additionalContext = $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value);
         $companyIsHoliday = (new CompanyIsHolidayTool($lead))->execute();
         $companyWorkHours = (new CompanyWorkHoursTool($lead))->execute();
+        $holidayMonth = (new HolidaysMonthTool($lead))->execute();
         $vehicleInterest = $additionalContext['vehicle_interest'] ?? null;
         $relatedVehiclesOfPotentialInterest = $this->getRelatedVehicles($vehicleInterest ?? []);
 
@@ -220,6 +222,7 @@ class CreateContentSessionAction
             'vehicle_interest' => $vehicleInterest ? $vehicleInterest['year'] . ' ' . $vehicleInterest['make'] . ' ' . $vehicleInterest['model'] : null,
             'has_potential_additional_vehicle_interest' => ! empty($relatedVehiclesOfPotentialInterest),
             'similar_recommended_vehicles' => $relatedVehiclesOfPotentialInterest,
+            'holidays' => $holidayMonth
         ];
     }
 
