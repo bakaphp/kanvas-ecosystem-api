@@ -106,7 +106,7 @@ class RecombeeUserRecommendationService
     public function getUserToUserRecommendation(
         UserInterface $user,
         int $count = 10,
-        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value,
+        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGESTION_SIMILAR_INTERESTS->value,
         array $additionalOptions = []
     ): array {
         $options = array_merge([
