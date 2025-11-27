@@ -28,7 +28,8 @@ class SuperCarrosVehicleInventoryImportAction
         protected ?Warehouses $warehouse = null,
         protected ?Channels $channel = null,
         protected bool $unpublishAllBeforeImport = false,
-        protected int|string|null $customerId = null
+        protected int|string|null $customerId = null,
+        protected ?float $weight = null,
     ) {
     }
 
@@ -187,6 +188,7 @@ class SuperCarrosVehicleInventoryImportAction
             'files' => $files,
             'quantity' => 1,
             'isPublished' => true,
+            'weight' => $this->weight ?? 0,
             'categories' => [],
             'warehouses' => [
                 [
