@@ -65,6 +65,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
+                    "whatsapp" => $cellPhone,
                 ];
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 foreach ($channels as $communicationChannel => $value) {
@@ -97,6 +98,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
                         'email' => $email,
+                        "whatsapp" => $cellPhone,
                         default => $cellPhone
                     };
 
@@ -171,23 +173,22 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         $skipLeadCurrentDatIn = isset($params['skipLeadCurrentDatIn']) && $params['skipLeadCurrentDatIn'];
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
-                            new SendMessageToLeadAction($lead)->execute(
-                                $communicationChannel,
-                                $firstLeadMessage['message'],
-                                $params['from'] ?? null,
-                                $firstLeadMessage['title'] ?? null,
-                            );
-                            $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
-
-                            $createMessage = $this->createMessage(
-                                $lead,
-                                $firstLeadMessage['message'],
-                                $communicationChannelNumber,
-                                $channel ?? null,
-                                $messageType
-                            );
-
                             try {
+                                new SendMessageToLeadAction($lead)->execute(
+                                    $communicationChannel,
+                                    $firstLeadMessage['message'],
+                                    $params['from'] ?? null,
+                                    $firstLeadMessage['title'] ?? null,
+                                );
+                                $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+
+                                $createMessage = $this->createMessage(
+                                    $lead,
+                                    $firstLeadMessage['message'],
+                                    $communicationChannelNumber,
+                                    $channel ?? null,
+                                    $messageType
+                                );
                                 $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                             } catch (Exception $e) {
                                 report($e);
