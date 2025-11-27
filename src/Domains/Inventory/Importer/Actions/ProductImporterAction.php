@@ -70,6 +70,7 @@ class ProductImporterAction
                 'status_id' => $status ? $status->getId() : null,
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
+                'weight' => $this->importedProduct->weight,
             ]);
 
             $createAction = new CreateProductAction($productDto, $this->user);

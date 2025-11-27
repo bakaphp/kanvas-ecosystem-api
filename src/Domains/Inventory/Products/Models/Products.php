@@ -76,6 +76,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?string $html_description
  * @property ?string $warranty_terms
  * @property ?string $upc
+ * @property ?float $weight
  * @property bool $is_published
  * @property string $published_at
  * @property bool $is_deleted
@@ -463,6 +464,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'short_description' => $this->short_description,
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
+            'weight' => $this->weight ?? 0,
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
