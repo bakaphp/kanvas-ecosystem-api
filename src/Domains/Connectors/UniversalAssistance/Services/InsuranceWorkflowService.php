@@ -1165,15 +1165,25 @@ class InsuranceWorkflowService
         // Get target plan from the actual plan name in the data
         $targetPlan = $personData['plan']['name'] ?? '';
 
-        // Determine convenios and quotation types based on variant type
-        if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
+        // Check if destination is NOT "Territorio Nacional" (DO)
+        // If destination is different from DO, always use inclusion type I
+        $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
+
+        // Determine convenios and quotation types based on destination and variant type
+        if (! $isTerritorioNacional) {
+            // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+        } elseif ($planVariant === 'basic') {
+            // DO destination + Basic → TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            // DO destination + Unlimited → ASISTENCIA 10K REC convenios (type II)
             $inclusionType = 'inclusion_ii';
             $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
@@ -2404,15 +2414,22 @@ class InsuranceWorkflowService
         $planVariant = $this->extractVariantType($firstPerson);
         $targetPlan = $firstPerson['plan']['name'] ?? '';
 
-        // Determine convenios and quotation types based on variant type
-        if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
+        $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
+
+        if (! $isTerritorioNacional) {
+            // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+        } elseif ($planVariant === 'basic') {
+            // DO destination + Basic → TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            // DO destination + Unlimited → ASISTENCIA 10K REC convenios (type II)
             $inclusionType = 'inclusion_ii';
             $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);

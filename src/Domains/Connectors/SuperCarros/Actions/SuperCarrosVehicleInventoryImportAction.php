@@ -27,7 +27,8 @@ class SuperCarrosVehicleInventoryImportAction
         protected Regions $region,
         protected ?Warehouses $warehouse = null,
         protected ?Channels $channel = null,
-        protected bool $unpublishAllBeforeImport = false
+        protected bool $unpublishAllBeforeImport = false,
+        protected int|string|null $customerId = null
     ) {
     }
 
@@ -41,6 +42,7 @@ class SuperCarrosVehicleInventoryImportAction
             $this->company,
             $this->region,
             $this->user,
+            $this->customerId
         );
 
         // Get warehouse

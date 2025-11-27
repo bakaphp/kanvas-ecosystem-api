@@ -20,7 +20,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
     public function __construct(
         protected Model $entity
     ) {
-        $tz = $this->entity->company->get('timezone') ?? 'UTC';
+        $tz = $this->entity->company->timezone ?? 'UTC';
         $this->now = Carbon::now($tz);
 
         $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;

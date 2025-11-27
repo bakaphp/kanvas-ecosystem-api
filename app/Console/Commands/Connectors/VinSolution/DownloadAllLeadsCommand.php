@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\VinSolution;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -166,21 +167,23 @@ class DownloadAllLeadsCommand extends Command
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
                             if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
+                                //$lead = ModelsLead::getById($transformedLead['LeadId']);
+                                //$lead->set('downloaded_from_vin_solution', true);
                                 // Check if this lead should have communication channel set based on percentage
-                                if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
-                                    $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
-                                    // Increment daily communication channel counter
-                                    Redis::incr($redisDailyCommChannelCountKey);
-                                    Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
-                                    $dailyCommChannelCount++;
-                                }
+                                //if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
+                                $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
+                                // Increment daily communication channel counter
+                                /*  Redis::incr($redisDailyCommChannelCountKey);
+                                 Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
+                                 $dailyCommChannelCount++; */
+                                //}
                             }
 
                             // Increment daily leads counter
-                            Redis::incr($redisDailyLeadsCountKey);
-                            Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
-                            $dailyLeadsCount++;
-
+                            /*     Redis::incr($redisDailyLeadsCountKey);
+                                Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
+                                $dailyLeadsCount++;
+ */
                             if (! empty($result)) {
                                 $successCount++;
                             }
@@ -268,6 +271,7 @@ class DownloadAllLeadsCommand extends Command
                 'app' => $lead->app,
             ]
         );
+        $lead->set('lead_first_contacted_cli_at', Carbon::now()->toDateTimeString());
     }
 
     /**

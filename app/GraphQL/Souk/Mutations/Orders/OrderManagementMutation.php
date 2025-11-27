@@ -168,6 +168,14 @@ class OrderManagementMutation
             throw new ValidationException('Order is already fulfilled');
         }
 
+        //remove it when we figure out wtf is going on with a app
+        if ($app->get('DONT_OVERWRITE_METADATA_ON_ORDER_UPDATE', false)) {
+            $newMetadata = is_array($orderData['metadata'] ?? null) ? $orderData['metadata'] : [];
+            $existingMetadata = is_array($order->metadata) ? $order->metadata : [];
+            $orderData['metadata'] = $existingMetadata;
+            $orderData['metadata']['new_data'] = $newMetadata;
+        }
+
         $updateOrder = new UpdateOrderAction(
             $order,
             $orderData,

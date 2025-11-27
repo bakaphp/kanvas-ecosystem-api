@@ -22,9 +22,12 @@ class GenerateWhoToFollowRecommendationsAction
     ) {
     }
 
-    public function execute(UserInterface $user, int $pageSize = 10, string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value): Builder
-    {
-        $usersSystemModule = SystemModulesRepository::getByModelName(Users::class, $this->app);
+    public function execute(
+        UserInterface $user,
+        int $pageSize = 10,
+        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGESTION_SIMILAR_INTERESTS->value
+    ): Builder {
+        //$usersSystemModule = SystemModulesRepository::getByModelName(Users::class, $this->app);
         $recommendationService = new RecombeeUserRecommendationService($this->app);
         $response = $recommendationService->getUserToUserRecommendation($user, $pageSize, $scenario);
 
@@ -35,25 +38,19 @@ class GenerateWhoToFollowRecommendationsAction
             ->toArray();
 
         $followedIds = UsersFollows::query()
+            ->select('entity_id')
             ->where('apps_id', $this->app->getId())
+            ->where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->where('entity_namespace', Users::class)
-            ->where('users_id', $user->getId())
+            ->limit(100)
             ->pluck('entity_id');
 
         return Users::query()
-            ->join(
-                "filesystem_entities",
-                "filesystem_entities.entity_id",
-                '=',
-                'users.id'
-            )
             ->whereNotIn('users.id', $followedIds)
             ->whereIn('users.id', $entityIds)
             ->where('users.id', '!=', $user->getId())
             ->where('users.is_deleted', 0)
-            ->where('filesystem_entities.system_modules_id', $usersSystemModule->getId())
-            ->where('filesystem_entities.field_name', 'photo')
             ->select('users.*');
     }
 }

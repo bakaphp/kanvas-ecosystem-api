@@ -20,9 +20,14 @@ class VehicleService
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected Regions $region,
-        protected ?UserInterface $user = null
+        protected ?UserInterface $user = null,
+        int|string|null $customerId = null
     ) {
         $this->client = new Client($this->app, $this->company);
+
+        if ($customerId !== null) {
+            $this->client->setCustomerId($customerId);
+        }
     }
 
     /**

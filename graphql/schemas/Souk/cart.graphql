@@ -1,7 +1,7 @@
 type Cart {
     id: ID!
     items: [CartItem!]!
-    discounts: [CartDiscount!]!
+    discounts: [CartDiscount]
     total_discount: Money!
     total: Money!
     shipping: CartShipping
@@ -57,6 +57,14 @@ extend type Mutation @guardByKanvasIdentifier {
     cartDiscountCodesUpdate(discountCodes: [String!]!): Cart!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@discountCodesUpdate"
+        )
+    applyWalletCreditToCart(amount: Float, tag: String = "default"): Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@applyWalletCredit"
+        )
+    removeWalletCreditFromCart: Cart!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@removeWalletCredit"
         )
     clearCart: Boolean!
         @field(
