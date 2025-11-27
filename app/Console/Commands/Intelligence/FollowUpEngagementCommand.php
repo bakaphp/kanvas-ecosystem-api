@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 
 class FollowUpEngagementCommand extends Command
@@ -60,6 +61,10 @@ class FollowUpEngagementCommand extends Command
                     ->cursor();
 
                 foreach ($leads as $lead) {
+                    $isHoliday = new CompanyIsHolidayTool($lead)->execute();
+                    if ($isHoliday['is_holiday']) {
+                        continue;
+                    }
                     $this->overwriteAppService($lead->app);
                     $this->reSyncLead($lead);
                     $lead->refresh();
