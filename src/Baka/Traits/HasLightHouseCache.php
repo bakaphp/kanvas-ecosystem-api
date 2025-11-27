@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Jobs\LightHouseCacheCleanUpJob;
+use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Redis;
 use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
@@ -50,14 +51,21 @@ trait HasLightHouseCache
         }
     }
 
-    protected function scanKeys($redis, string $pattern): array
+    protected function scanKeys(Connection $redis, string $pattern): array
     {
-        $cursor = 0;
         $keys = [];
+        $cursor = null;
+
+        $rawRedis = $redis->client();
+
+        // Add the prefix since we're using the raw client
+        $prefix = config('database.redis.options.prefix', '');
+        $fullPattern = $prefix . $pattern;
 
         do {
-            [$cursor, $found] = $redis->scan($cursor, 'MATCH', $pattern, 'COUNT', 1000);
-            if (! empty($found)) {
+            $found = $rawRedis->scan($cursor, $fullPattern, 1000);
+
+            if ($found !== false && ! empty($found)) {
                 $keys = array_merge($keys, $found);
             }
         } while ($cursor != 0);
