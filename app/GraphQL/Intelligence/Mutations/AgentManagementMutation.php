@@ -139,14 +139,15 @@ class AgentManagementMutation
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $input = $req['input'] ?? [];
         $agent = Agent::getByIdFromCompanyApp(
-            id: $req['agent_id'],
+            id: $input['agent_id'],
             app: $app,
             company: $company
         );
 
         $lead = Lead::getByIdFromCompanyApp(
-            id: $req['lead_id'],
+            id: $input['lead_id'],
             app: $app,
             company: $company
         );
@@ -174,7 +175,7 @@ class AgentManagementMutation
                 'channel' => $channel,
                 'entity_namespace' => Lead::class,
                 'entity_id' => $lead->getId(),
-                'canal_id' => $req['canal_id'],
+                'canal_id' => $input['canal_id'],
                 'user' => [
                     'name' => $lead->people->getName(),
                     'id' => $lead->people->getId(),
