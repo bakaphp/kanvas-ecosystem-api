@@ -59,7 +59,7 @@ class PopulateTrendingFeedAction
             try {
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
-                print_r('Added trending tag to message ID: ' . $message->getId() . PHP_EOL);
+                //print_r('Added trending tag to message ID: ' . $message->getId() . PHP_EOL);
             } catch (Exception $e) {
                 continue;
             }
