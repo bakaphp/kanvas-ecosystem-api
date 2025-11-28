@@ -210,6 +210,7 @@ class PullLeadAction
             true,
             [
                 'app' => $lead->app,
+                'company' => $lead->company,
             ]
         );
 
