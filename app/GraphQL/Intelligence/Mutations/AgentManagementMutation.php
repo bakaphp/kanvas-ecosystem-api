@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
@@ -19,6 +20,8 @@ use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -134,7 +137,8 @@ class AgentManagementMutation
     public function createSession(mixed $root, array $req): string
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
         $agent = Agent::getByIdFromCompanyApp(
             id: $req['agent_id'],
             app: $app,
@@ -146,6 +150,22 @@ class AgentManagementMutation
             app: $app,
             company: $company
         );
+
+        $channelName = 'Manual Channel for Lead ' . $lead->getId();
+        $slug = Str::simpleSlug($channelName);
+
+        $channel = new CreateChannelAction(
+            new ChannelDto(
+                apps: $app,
+                companies: $company,
+                users: $user,
+                name: $channelName,
+                description: 'Channel for lead ' . $lead->getId(),
+                entity_id: $lead->getId(),
+                entity_namespace: Lead::class,
+                slug: $slug,
+            )
+        )->execute();
 
         $chatSession = new CreateSessionAction(
             Session::from([
