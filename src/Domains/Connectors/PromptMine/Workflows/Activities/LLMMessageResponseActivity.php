@@ -53,7 +53,6 @@ class LLMMessageResponseActivity extends KanvasActivity
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
-
                 // use trim to avoid prompts with only spaces
                 if (empty(trim($prompt))) { 
                     return [
@@ -447,8 +446,8 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
             while (
-                $previousChatResponse !== null 
-                && (isset($previousChatResponse->message['nsfw_flag']) && $previousChatResponse->message['nsfw_flag']) 
+                $previousChatResponse !== null
+                && (isset($previousChatResponse->message['nsfw_flag']) && $previousChatResponse->message['nsfw_flag'])
                 && $messagesSkipped < 3
             ) {
                 $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
