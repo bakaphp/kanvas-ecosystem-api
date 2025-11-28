@@ -36,12 +36,13 @@ class CreateMessageFollowUpAction
 {
     protected Agent $agent;
 
-    private const MAX_RETRY_ATTEMPTS = 3;
+    private const int MAX_RETRY_ATTEMPTS = 3;
 
     public function __construct(
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
+        protected string $messageTemplateChannel
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -54,6 +55,11 @@ class CreateMessageFollowUpAction
     {
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
+        $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
+
+        if ($messageTemplate === null) {
+            throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
+        }
 
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
         $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
@@ -90,7 +96,7 @@ class CreateMessageFollowUpAction
 
         $data = [
             'day' => $rules['day'],
-            'templates' => $rules['templates'],
+            'templates' => $messageTemplate,
             'conversation_history' => $this->mapConversationHistory(),
             'context' => [
                 'company' => $this->lead->company,
@@ -205,13 +211,13 @@ class CreateMessageFollowUpAction
                 'type' => 'conversation',
             ]);
 
-        $agentNotesMessages = $this->lead->notes->messages()->get()
+        $agentNotesMessages = $this->lead->notes ? $this->lead->notes->messages()->get()
             ->map(fn (Message $message) => [
                 'created_at' => $message->created_at,
                 'user' => 'agent',
                 'message' => $message->message,
                 'type' => 'note',
-            ]);
+            ]) : [];
 
         return $conversationMessages
             ->concat($agentNotesMessages)

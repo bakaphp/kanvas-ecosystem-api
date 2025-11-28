@@ -68,13 +68,16 @@ class FollowUpEngagementActionTest extends TestCase
         $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $lead->people->addEmail(fake()->email);
+        $lead->people->addPhone(fake()->phoneNumber);
+
         $config = [
             'notification_engagement_rules' => [
                 'minutes_no_response' => 60,
                 'day' => 1,
                 'templates' => [
-                    1 => 'Hi [Customer Name], this is [Rep Name] from [Dealership Name]! 👋 Thanks for checking us out online. I’d love to help you find the perfect vehicle for your family and a payment that feels comfortable. When’s a good time to connect?',
-                    2 => 'Good morning [Customer Name]! We’d love to have you stop by this week 🚗💨. Our team will make the process simple and stress-free. Would [day/time] work for a quick visit?',
+                    'sms' => 'Hi [Customer Name], this is [Rep Name] from [Dealership Name]! 👋 Thanks for checking us out online. I’d love to help you find the perfect vehicle for your family and a payment that feels comfortable. When’s a good time to connect?',
+                    'email' => 'Good morning [Customer Name]! We’d love to have you stop by this week 🚗💨. Our team will make the process simple and stress-free. Would [day/time] work for a quick visit?',
                 ],
             ],
         ];
@@ -108,10 +111,14 @@ class FollowUpEngagementActionTest extends TestCase
             'slug' => 'lead_' . $lead->getId() . '_session',
         ]);
         $channel = (new CreateChannelAction($channel))->execute();
+        $emailChannel = $channel->replicate();
+        $emailChannel->save();
 
         $message->created_at = $now;
         $message->saveOrFail();
+
         $channel->addMessage($message);
+        $emailChannel->addMessage($message);
 
         $agent = Agent::factory()->create([
             'name' => 'firstMessageEngagerAgent',
@@ -153,7 +160,13 @@ class FollowUpEngagementActionTest extends TestCase
 
         $session = new CreateSessionAction($sessionDto)->execute();
         $session->content = new CreateContentSessionAction($session)->execute();
+        $session->uuid = 'twilio-' . fake()->phoneNumber();
         $session->saveOrFail();
+
+        $sessionEmail = $session->replicate();
+        $sessionEmail->uuid = 'email' . fake()->email();
+        $sessionEmail->channel_id = $emailChannel->id;
+        $sessionEmail->save();
 
         $message = new FollowUpEngagementAction($lead)->execute();
 
