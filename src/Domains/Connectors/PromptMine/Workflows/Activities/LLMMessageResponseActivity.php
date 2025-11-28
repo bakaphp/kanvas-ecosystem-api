@@ -54,7 +54,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
                 // use trim to avoid prompts with only spaces
-                if (empty(trim($prompt))) { 
+                if (empty(trim($prompt))) {
                     return [
                         'error' => 'Prompt is empty',
                     ];
