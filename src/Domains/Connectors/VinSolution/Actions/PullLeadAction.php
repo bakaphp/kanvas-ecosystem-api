@@ -184,6 +184,7 @@ class PullLeadAction
         }
 
         $lead->set('process_via_pull', true);
+        $lead->set('downloaded_from_vin_solution', true);
         $lead->set('vin_solution_date_in', $createdAt);
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;
