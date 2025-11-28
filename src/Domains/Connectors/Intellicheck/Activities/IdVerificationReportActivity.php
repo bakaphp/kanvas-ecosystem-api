@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intellicheck\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
@@ -145,10 +146,20 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     }
 
                     //dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
-                    $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
-                    if ($entity->get($key)) {
+                    sleep(5); // Delay to ensure previous processes are complete
+                    $entity->refresh();
+                    $legacyKey = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
+                    $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name);
+                    if ($entity->get($legacyKey) || $entity->get($key)) {
                         // If the report has already been sent, we skip the rest of the process
-                        return;
+                        return [
+                            'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
+                            'result' => true,
+                            'message' => 'IdVerificationReportActivity already executed',
+                            'data' => $reportData,
+                            'resultsFromIntellicheck' => $resultsFromIntellicheck,
+                            'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
+                        ];
                     }
 
                     $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
