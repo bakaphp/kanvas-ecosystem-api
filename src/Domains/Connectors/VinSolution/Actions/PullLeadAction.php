@@ -161,7 +161,7 @@ class PullLeadAction
 
     private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
     {
-        $lead->refresh();
+        $lead = ModelsLead::getById($lead->id);
         $createdAt = $currentLead['CreatedUtc'] ?? null;
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
         $leadStatus = $currentLead['LeadStatusType'] ?? null;
