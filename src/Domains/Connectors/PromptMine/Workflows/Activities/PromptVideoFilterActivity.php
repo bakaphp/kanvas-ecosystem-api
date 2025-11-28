@@ -43,7 +43,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
-                    $orderCredit = new MessageOrderFulfillmentAction($entity)->execute('video');
+                    $orderCredit = (new MessageOrderFulfillmentAction($entity))->execute('video', true);
 
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
@@ -64,15 +64,16 @@ class PromptVideoFilterActivity extends KanvasActivity
                     }
 
                     $result['orderCredit'] = $orderCredit;
-                    return $result;
-                } catch (Exception $e) {
-                    report($e);
 
-                    return [
+                    return isset($result['result']) && $result['result'] === true ? $result : $this->failWorkflow($result);
+                } catch (Exception $e) {
+                    //report($e);
+
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Error submitting video processing request: ' . $e->getMessage(),
-                    ];
+                    ]);
                 }
             },
             company: $company,

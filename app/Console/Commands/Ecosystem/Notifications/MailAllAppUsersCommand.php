@@ -6,8 +6,10 @@ namespace App\Console\Commands\Ecosystem\Notifications;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
+use Baka\Validations\Date;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -32,31 +34,48 @@ class MailAllAppUsersCommand extends Command
                             {subject : The subject of the email} 
                             {--test-email= : Email address to send a test email instead of sending to all users}
                             {--production : Flag to confirm sending to all users in production}
-                            {--delay=500 : Delay in milliseconds between each email}';
+                            {--delay=500 : Delay in milliseconds between each email}
+                            {--created-after= : Filter users created after this date (Y-m-d H:i:s format)}
+                            {--created-before= : Filter users created before this date (Y-m-d H:i:s format)}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Send specific email to all users of an app or to a test email address';
+    protected $description = 'Send specific email to all users of an app or to a test email address with optional date filtering';
 
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
         $this->app = $app;
         $this->overwriteAppService($app);
-        $emailTemplateName = $this->argument('email_template_name');
-        $emailSubject = $this->argument('subject');
+        $emailTemplateName = (string) $this->argument('email_template_name');
+        $emailSubject = (string) $this->argument('subject');
         $testEmail = $this->option('test-email');
         $isProduction = $this->option('production');
         $delayMs = (int) $this->option('delay');
+        $createdAfter = $this->option('created-after') ?? '';
+        $createdBefore = $this->option('created-before') ?? '';
+
+        // Validate date format if provided
+        if ($createdAfter !== '' && ! Date::isValid($createdAfter, 'Y-m-d H:i:s')) {
+            $this->error('Invalid created-after date format. Use Y-m-d H:i:s format (e.g., 2024-01-01 00:00:00)');
+
+            return;
+        }
+
+        if ($createdBefore !== '' && ! Date::isValid($createdBefore, 'Y-m-d H:i:s')) {
+            $this->error('Invalid created-before date format. Use Y-m-d H:i:s format (e.g., 2024-12-31 23:59:59)');
+
+            return;
+        }
 
         // Check if we're just testing to a single email
-        if ($testEmail) {
+        if (is_string($testEmail) && ! empty($testEmail)) {
             try {
                 $userModelEntity = Users::getByEmail($testEmail);
                 $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
@@ -64,10 +83,10 @@ class MailAllAppUsersCommand extends Command
             } catch (Exception $e) {
                 $this->error('Failed to send test email: ' . $e->getMessage());
 
-                return 1;
+                return;
             }
 
-            return 0;
+            return;
         }
 
         // Check if we're in production mode and have the production flag
@@ -75,23 +94,40 @@ class MailAllAppUsersCommand extends Command
             $this->error('This command can only send emails to all users in production with the --production flag.');
             $this->info('Use --test-email=email@example.com to send a test email instead.');
 
-            return 1;
+            return;
         }
 
+        // Build the base query for counting and processing users
+        $baseQuery = $this->buildUserQuery($app->getId(), $createdAfter, $createdBefore);
+
         // Count total users to process for progress bar
-        $totalUsers = DB::table('users_associated_apps')
-            ->where('apps_id', $app->id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->count();
+        $totalUsers = $baseQuery->count();
 
         if ($totalUsers === 0) {
-            $this->warn('No users found for this app.');
+            $this->warn('No users found for this app with the given criteria.');
+            if ($createdAfter !== '' || $createdBefore !== '') {
+                $this->info('Date filters applied:');
+                if ($createdAfter !== '') {
+                    $this->info('  - Created after: ' . $createdAfter);
+                }
+                if ($createdBefore !== '') {
+                    $this->info('  - Created before: ' . $createdBefore);
+                }
+            }
 
-            return 0;
+            return;
         }
 
         $this->info("Found {$totalUsers} users to process.");
+        if ($createdAfter !== '' || $createdBefore !== '') {
+            $this->info('Date filters applied:');
+            if ($createdAfter !== '') {
+                $this->info('  - Created after: ' . $createdAfter);
+            }
+            if ($createdBefore !== '') {
+                $this->info('  - Created before: ' . $createdBefore);
+            }
+        }
 
         // Initialize counters
         $successCount = 0;
@@ -103,10 +139,7 @@ class MailAllAppUsersCommand extends Command
         $progressBar->start();
 
         // Only runs if we're in production and have the production flag
-        DB::table('users_associated_apps')
-            ->where('apps_id', $app->id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+        $this->buildUserQuery($app->getId(), $createdAfter, $createdBefore)
             ->orderBy('users_id')
             ->chunk(100, function ($users) use (
                 $app,
@@ -154,12 +187,10 @@ class MailAllAppUsersCommand extends Command
         if ($failCount > 0) {
             $this->error("  - Failed: {$failCount}");
 
-            return 1;
+            return;
         }
 
         $this->info('All emails have been sent successfully.');
-
-        return 0;
     }
 
     /**
@@ -181,5 +212,33 @@ class MailAllAppUsersCommand extends Command
 
         $notification->setSubject($emailSubject);
         Notification::route('mail', $user->email)->notify($notification);
+    }
+
+    /**
+     * Build the user query with optional date filters
+     */
+    private function buildUserQuery(
+        int $appId,
+        ?string $createdAfter = null,
+        ?string $createdBefore = null
+    ): Builder {
+        $query = DB::table('users_associated_apps')
+            ->join('users', 'users_associated_apps.users_id', '=', 'users.id')
+            ->selectRaw('users_associated_apps.*, users.email')
+            ->where('users_associated_apps.apps_id', $appId)
+            ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
+            ->where('users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('users.is_deleted', StateEnums::NO->getValue());
+
+        // Apply created_at filters if provided
+        if ($createdAfter !== null && ! empty($createdAfter)) {
+            $query->where('users.created_at', '>=', $createdAfter);
+        }
+
+        if ($createdBefore !== null && ! empty($createdBefore)) {
+            $query->where('users.created_at', '<=', $createdBefore);
+        }
+
+        return $query;
     }
 }

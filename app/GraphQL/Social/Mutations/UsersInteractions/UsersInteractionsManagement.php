@@ -28,6 +28,27 @@ class UsersInteractionsManagement
         return $this->likeEntity($request)->softDelete();
     }
 
+    public function view($__, array $request): bool
+    {
+        $interactionType = (string) InteractionEnum::VIEW_ITEM->getValue();
+        $createInteractions = new CreateInteraction(
+            new Interaction(
+                $interactionType,
+                app(Apps::class),
+                ucfirst($interactionType),
+            )
+        );
+        $interaction = $createInteractions->execute();
+        $request['input']['interaction'] = $interaction;
+        $request['input']['user'] = auth()->user();
+
+        $data = UserInteraction::from($request['input']);
+        $createUserInteraction = new CreateUserInteractionAction($data);
+        $userInteraction = $createUserInteraction->execute();
+
+        return $userInteraction instanceof UsersInteractions;
+    }
+
     public function shareUser($__, array $request): string
     {
         $userId = $request['id'];

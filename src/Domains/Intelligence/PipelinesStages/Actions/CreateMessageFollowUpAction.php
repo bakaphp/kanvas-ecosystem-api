@@ -4,17 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -28,12 +36,13 @@ class CreateMessageFollowUpAction
 {
     protected Agent $agent;
 
-    private const MAX_RETRY_ATTEMPTS = 3;
+    private const int MAX_RETRY_ATTEMPTS = 3;
 
     public function __construct(
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
+        protected string $messageTemplateChannel
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -46,10 +55,48 @@ class CreateMessageFollowUpAction
     {
         $config = $this->pipelineStage->config;
         $rules = $config['notification_engagement_rules'];
+        $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
+
+        if ($messageTemplate === null) {
+            throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
+        }
+
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
+        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
+        $contentSession = new CreateContentSessionAction($this->session);
+
+        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
+        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
+
+        if (isset($vehicleInterest['uuid'])) {
+            $relatedUuid[] = $vehicleInterest['uuid'];
+        }
+
+        $channel = Channels::getDefault($this->lead->company);
+
+        $engagementDto = Engagement::from(
+            app: $this->lead->app,
+            company: $this->lead->company,
+            user: $this->lead->company->user,
+            lead: $this->lead,
+            request: [
+                        'action' => 'view-vehicle',
+                        'request_id' => (string) Str::uuid(),
+                        'source' => 'ai',
+                        'status' => ActionStatusEnum::SENT->value,
+                        'data' => [
+                            'product_id' => $relatedUuid,
+                            'channel_id' => $channel->uuid,
+                        ],
+                    ],
+            people: $this->lead->people,
+        );
+
+        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
+
         $data = [
             'day' => $rules['day'],
-            'templates' => $rules['templates'],
+            'templates' => $messageTemplate,
             'conversation_history' => $this->mapConversationHistory(),
             'context' => [
                 'company' => $this->lead->company,
@@ -59,13 +106,20 @@ class CreateMessageFollowUpAction
             'work_hours_status' => $companyWorkHour,
             'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
             'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
+            'agent' => $this->session->agent,
+            'vehicle_interest' => $vehicleInterest,
+            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
         ];
 
-        $prompt = Blade::render(implode(' ', $this->agent->role['background']), ['data' => $data]);
+        $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
+
         $responseText = $this->generateResponseWithRetry($prompt);
-        if (! $responseText['should_respond']) {
+
+        //if no response or should not respond
+        if ((bool) ($responseText['should_respond'] ?? false) === false) {
             return null;
         }
+
         $messageType = MessageType::firstOrCreate([
             'apps_id' => $this->session->apps_id,
             //'languages_id' => 1,
@@ -76,6 +130,7 @@ class CreateMessageFollowUpAction
 
         $user = Users::getById($this->session->agent->user_id);
         $message = $responseText['message'];
+
         $messageInput = MessageInput::from([
             'app' => $this->session->app,
             'company' => $this->session->company,
@@ -99,6 +154,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
+
         $this->session->channel->addMessage($message);
 
         return $responseText['message'];
@@ -124,6 +180,7 @@ class CreateMessageFollowUpAction
                     'should_respond',
                 ]
         );
+
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
             $response = Prism::structured()
                        ->using(Provider::Gemini, 'gemini-2.5-flash')
@@ -146,16 +203,30 @@ class CreateMessageFollowUpAction
 
     public function mapConversationHistory(): array
     {
-        $messages = $this->session->channel->messages()->orderBy('created_at', 'asc')->get();
-        $conversationHistory = [];
-
-        foreach ($messages as $message) {
-            $conversationHistory[] = [
+        $conversationMessages = $this->session->channel->messages()->get()
+            ->map(fn (Message $message) => [
+                'created_at' => $message->created_at,
                 'user' => $message->slug ? 'lead' : 'agent',
                 'message' => $message->message,
-            ];
-        }
+                'type' => 'conversation',
+            ]);
 
-        return $conversationHistory;
+        $agentNotesMessages = $this->lead->notes ? $this->lead->notes->messages()->get()
+            ->map(fn (Message $message) => [
+                'created_at' => $message->created_at,
+                'user' => 'agent',
+                'message' => $message->message,
+                'type' => 'note',
+            ]) : [];
+
+        return $conversationMessages
+            ->concat($agentNotesMessages)
+            ->sortBy('created_at')
+            ->map(fn (array $item): array => [
+                'user' => $item['user'],
+                'message' => $item['message'],
+            ])
+            ->values()
+            ->toArray();
     }
 }

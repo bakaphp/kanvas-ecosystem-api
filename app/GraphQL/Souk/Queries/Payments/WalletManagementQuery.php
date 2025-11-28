@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Queries\Payments;
 use Baka\Contracts\AppInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -42,6 +43,31 @@ class WalletManagementQuery
         ];
     }
 
+    public function getUserWalletBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): float|array
+    {
+        $tag = strtolower($args['tag']);
+        $app = app(Apps::class);
+        $userId = $args['userId'] ?? null;
+        $user = auth()->user();
+
+        if ($user->isAdmin() && $userId !== $user->getId()) {
+            $user = $user->getById($userId);
+        }
+
+        if (! $user->hasWallet($tag) && $tag !== 'default') {
+            throw new ModelNotFoundException(
+                'Wallet not found for the given tag.',
+            );
+        }
+
+        $wallet = $user->createAppWallet($app, ['name' => $tag]);
+
+        return [
+            'balance' => (float) $wallet->balanceFloatNum,
+            'message' => '',
+        ];
+    }
+
     public function getTransactions(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         $tag = strtolower($args['tag']);
@@ -71,10 +97,10 @@ class WalletManagementQuery
                 'message' => 'success',
                 'data' => $customer->toArray(),
             ];
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
+        } catch (RequestException $e) {
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->descripcionMensaje;
+                $errorMessage = json_decode((string) $response->getBody())?->descripcionMensaje;
             } else {
                 $errorMessage = $e->getMessage();
             }

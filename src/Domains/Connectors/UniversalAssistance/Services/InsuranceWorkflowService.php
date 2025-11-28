@@ -1165,15 +1165,25 @@ class InsuranceWorkflowService
         // Get target plan from the actual plan name in the data
         $targetPlan = $personData['plan']['name'] ?? '';
 
-        // Determine convenios and quotation types based on variant type
-        if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
+        // Check if destination is NOT "Territorio Nacional" (DO)
+        // If destination is different from DO, always use inclusion type I
+        $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
+
+        // Determine convenios and quotation types based on destination and variant type
+        if (! $isTerritorioNacional) {
+            // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+        } elseif ($planVariant === 'basic') {
+            // DO destination + Basic → TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            // DO destination + Unlimited → ASISTENCIA 10K REC convenios (type II)
             $inclusionType = 'inclusion_ii';
             $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
@@ -1832,7 +1842,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
@@ -1840,6 +1850,63 @@ class InsuranceWorkflowService
                 'CorreoElectronicoSolicitante' => $personData['email'], // Email field for voucher delivery
             ],
         ];
+    }
+
+    public function countryCodeToName(string $countryCode): string
+    {
+        $codeToName = [
+            'AR' => 'ARGENTINA',
+            'DO' => 'REPUBLICA DOMINICANA',
+            'US' => 'USA',
+            'CO' => 'COLOMBIA',
+            'MX' => 'MEXICO',
+            'PE' => 'PERU',
+            'CL' => 'CHILE',
+            'VE' => 'VENEZUELA',
+            'EC' => 'ECUADOR',
+            'UY' => 'URUGUAY',
+            'PY' => 'PARAGUAY',
+            'BO' => 'BOLIVIA',
+            'BR' => 'BRASIL',
+            'CR' => 'COSTA RICA',
+            'PA' => 'PANAMA',
+            'GT' => 'GUATEMALA',
+            'HN' => 'HONDURAS',
+            'NI' => 'NICARAGUA',
+            'SV' => 'EL SALVADOR',
+            'BZ' => 'BELICE',
+            'JM' => 'JAMAICA',
+            'CU' => 'CUBA',
+            'HT' => 'HAITI',
+            'PR' => 'PUERTO RICO',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'BB' => 'BARBADOS',
+            'GD' => 'GRANADA',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'DM' => 'DOMINICA',
+            'KN' => 'SAN CRISTOBAL',
+            'AW' => 'ARUBA',
+            'CW' => 'CURACAO',
+            'BQ' => 'BONAIRE',
+            'SX' => 'SINT MAARTEN',
+            'MF' => 'SAN MARTIN',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'GF' => 'GUAYANA FRANCESA',
+            'SR' => 'SURINAM',
+            'GY' => 'GUYANA',
+            'ES' => 'ESPAÑA',
+            'FR' => 'FRANCIA',
+            'IT' => 'ITALIA',
+            'DE' => 'ALEMANIA',
+            'GB' => 'REINO UNIDO',
+            'PT' => 'PORTUGAL',
+            'TR' => 'TURQUIA',
+        ];
+
+        return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
     }
 
     /**
@@ -1893,7 +1960,7 @@ class InsuranceWorkflowService
                 'ApellidoSolicitante' => $personData['lastname'],
                 'TipoDocumentoSolicitante' => $this->getDocumentType($personData['idType']),
                 'NroDocumentoSolicitante' => $personData['idNumber'],
-                'PaisResidenciaSolicitante' => $this->getCountryName($originCountryCode),
+                'PaisResidenciaSolicitante' => $this->countryCodeToName($originCountryCode),
                 'SexoSolicitante' => strtoupper($personData['sex'] ?? $personData['gender'] ?? 'M'), // Ensure uppercase for UA API
                 'FechaNacimientoSolicitante' => Carbon::parse($personData['dob'])->format('m/d/Y'),
                 'TituloCortesiaSolicitante' => 'Sr.', // Default courtesy title
@@ -2309,18 +2376,25 @@ class InsuranceWorkflowService
      */
     protected function performGroupDualQuotationWorkflow(array $groupedPersonsData, string $originCountryCode, string $destinationCountryCode): array
     {
-        // CRITICAL FIX: Convert flat array to titular/dependents structure if needed
         if (! isset($groupedPersonsData['titular']) && ! isset($groupedPersonsData['dependents'])) {
             // This is a flat array - convert to titular/dependents structure
-            if (count($groupedPersonsData) < 2) {
-                throw new ValidationException('Group quotation requires at least 2 people, but only ' . count($groupedPersonsData) . ' provided');
+            if (count($groupedPersonsData) < 1) {
+                throw new ValidationException('Group quotation requires at least 1 person, but ' . count($groupedPersonsData) . ' provided');
             }
 
-            // Convert flat array to nested structure
-            $restructuredData = [
-                'titular' => $groupedPersonsData[0], // First person is titular
-                'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
-            ];
+            if (count($groupedPersonsData) === 1) {
+                // Single person - treat as titular only (group of 1)
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0],
+                    'dependents' => [] // No dependents for single person
+                ];
+            } else {
+                // Multiple people - first is titular, rest are dependents
+                $restructuredData = [
+                    'titular' => $groupedPersonsData[0], // First person is titular
+                    'dependents' => array_slice($groupedPersonsData, 1) // Rest are dependents
+                ];
+            }
 
             $groupedPersonsData = $restructuredData;
         }
@@ -2340,15 +2414,22 @@ class InsuranceWorkflowService
         $planVariant = $this->extractVariantType($firstPerson);
         $targetPlan = $firstPerson['plan']['name'] ?? '';
 
-        // Determine convenios and quotation types based on variant type
-        if ($planVariant === 'basic') {
-            // Basic → TELEASISTENCIA convenios (type I)
+        $isTerritorioNacional = (strtoupper($destinationCountryCode) === 'DO');
+
+        if (! $isTerritorioNacional) {
+            // Non-DO destination → Always use TELEASISTENCIA convenios (type I)
+            $inclusionType = 'inclusion';
+            $crossSellingType = 'cross_selling';
+            $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
+            $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
+        } elseif ($planVariant === 'basic') {
+            // DO destination + Basic → TELEASISTENCIA convenios (type I)
             $inclusionType = 'inclusion';
             $crossSellingType = 'cross_selling';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_I->value);
             $crossSellingConvenio = $this->app->get(ConfigurationEnum::CONVENIO_CROSS_SELLING_I->value);
         } else {
-            // Unlimited → ASISTENCIA 10K REC convenios (type II)
+            // DO destination + Unlimited → ASISTENCIA 10K REC convenios (type II)
             $inclusionType = 'inclusion_ii';
             $crossSellingType = 'cross_selling_ii';
             $inclusionConvenio = $this->app->get(ConfigurationEnum::CONVENIO_INCLUSION_II->value);
@@ -2525,14 +2606,9 @@ class InsuranceWorkflowService
             $debugInfo[] = "Person {$index}: {$firstName} {$lastName} (DOB: {$birthDate})";
         }
 
-        // If we only have 1 person but expecting a family group, this indicates the family grouping failed
-        if ($groupSize === 1) {
-            // Check if this person has family information that wasn't processed correctly
-            $person = $flatPersonsArray[0];
-            $errorMsg = 'Group quotation called with only 1 person - family grouping may have failed. ';
-            $errorMsg .= 'Person: ' . implode(', ', $debugInfo);
-
-            throw new ValidationException($errorMsg);
+        // Single person is valid for individual processing through group workflow
+        if ($groupSize === 0) {
+            throw new ValidationException('Group quotation called with no people. This indicates a data structure issue.');
         }
 
         // Log detailed group information for debugging
@@ -2577,7 +2653,7 @@ class InsuranceWorkflowService
         $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('m/d/Y') : '';
 
         // Get destination info
-        $originCountryName = $this->getCountryName($originCountryCode);
+        $originCountryName = $this->countryCodeToName($originCountryCode);
         $destinationName = $this->getDestinationName($destinationCountryCode);
 
         // Build quotation data structure (UALeadCotizadorReq format)
@@ -2737,7 +2813,7 @@ class InsuranceWorkflowService
             'CantCotizaciones' => 1,
             'Convenio' => $convenio,
             'Folleto' => '',
-            'PaisOrigen' => $this->getCountryName($originCountryCode),
+            'PaisOrigen' => $this->countryCodeToName($originCountryCode),
             'Destino' => $destination,
             'TipoViaje' => 'Un viaje',
             'FechaInicio' => $activationDate->format('m/d/Y'),

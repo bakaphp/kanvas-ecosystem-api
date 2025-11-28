@@ -37,6 +37,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Ramsey\Uuid\Lazy\LazyUuidFromString;
 
 class CreateEngagementAction
 {
@@ -164,6 +165,7 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_5->value,
                 ActionEnum::CREDIT_APP_6->value,
                 ActionEnum::CREDIT_APP_7->value,
+                'business-all-cash'
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value,
@@ -375,15 +377,16 @@ class CreateEngagementAction
 
     protected function createOrGetChannel(): ModelsChannel
     {
+        $leadUuid = $this->lead->uuid instanceof LazyUuidFromString ? $this->lead->uuid->toString() : $this->lead->uuid;
         return (new CreateChannelAction(new Channel(
             apps: $this->app,
             companies: $this->lead->company,
             users: $this->lead->user,
             entity_id: $this->lead->getId(),
             entity_namespace: Lead::class,
-            name: $this->lead->uuid,
-            slug: $this->lead->uuid,
-            description: $this->lead->uuid,
+            name: $leadUuid,
+            slug: $leadUuid,
+            description: $leadUuid,
         )))->execute();
     }
 
@@ -508,6 +511,7 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_3->value => 'personal-check',
                 ActionEnum::CREDIT_APP_4->value => 'cashier-check',
                 ActionEnum::CREDIT_APP_5->value => 'all-cash',
+                'business-all-cash' => 'all-cash',
                 ActionEnum::CREDIT_APP_6->value => '5-liner',
                 ActionEnum::CREDIT_APP_7->value => 'finance',
             ],

@@ -120,6 +120,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $ipAddress = request()->ip();
         $createOrder = new $actionClass(
             $cart,
             $company,
@@ -131,6 +132,8 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
+            null,
+            $ipAddress
         )->execute();
 
         $log->subject_type = get_class($createOrder);
@@ -161,8 +164,16 @@ class OrderManagementMutation
             'id' => $orderId,
         ])->first();
 
-        if ($order->fulfillment_status === 'fulfilled' && ! $user->isAdmin()) {
+        if ($order->fulfillment_status === 'fulfilled' && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
+        }
+
+        //remove it when we figure out wtf is going on with a app
+        if ($app->get('DONT_OVERWRITE_METADATA_ON_ORDER_UPDATE', false)) {
+            $newMetadata = is_array($orderData['metadata'] ?? null) ? $orderData['metadata'] : [];
+            $existingMetadata = is_array($order->metadata) ? $order->metadata : [];
+            $orderData['metadata'] = $existingMetadata;
+            $orderData['metadata']['new_data'] = $newMetadata;
         }
 
         $updateOrder = new UpdateOrderAction(
@@ -238,6 +249,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $ipAddress = request()->ip();
         $createOrder = new CreateOrderFromCartAction(
             $cart,
             $company,
@@ -249,7 +261,8 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
-            $parentOrder
+            $parentOrder,
+            $ipAddress
         )->execute();
 
         $log->subject_type = get_class($createOrder);

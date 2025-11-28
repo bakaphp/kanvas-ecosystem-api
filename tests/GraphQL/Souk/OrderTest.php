@@ -109,7 +109,7 @@ class OrderTest extends TestCase
                 'variant_id' => $variant->getId(),
                 'amount' => 1,
                 'quantity' => 1,
-            ]
+            ],
         ];
 
         $paymentIntentId = $this->createTestPaymentIntent($items[0], $app)->id;
@@ -132,8 +132,8 @@ class OrderTest extends TestCase
             'metadata' => [
                 'user_company_id' => $company->getId(),
                 'paymentIntent' => [
-                    'client_secret' => $paymentIntentId
-                ]
+                    'client_secret' => $paymentIntentId,
+                ],
             ],
         ];
 
@@ -596,5 +596,267 @@ class OrderTest extends TestCase
         $order = Order::find($orderData['id']);
 
         $this->assertEquals(2.5, $order->items[0]->quantity);
+    }
+
+    public function testUpdateOrderMetadataMergesCorrectly()
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $region = Regions::find($regionResponse['id']);
+        $company = $region->company;
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        // Create order with initial metadata
+        $initialMetadata = [
+            'data' => [
+                'start_at' => now()->subDays(2)->toDateTimeString(),
+                'end_at' => now()->subDays(1)->toDateTimeString(),
+                'customer_notes' => 'Initial order notes',
+            ],
+            'tracking_id' => 'TRACK123',
+        ];
+
+        $data = [
+            'email' => fake()->email(),
+            'region_id' => $region->getId(),
+            'metadata' => $initialMetadata,
+            'customer' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createDraftOrder($input: DraftOrderInput!) {
+                createDraftOrder(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $createOrderResponse = $response->json()['data']['createDraftOrder'];
+        $orderId = $createOrderResponse['id'];
+
+        // Update with partial metadata - should merge, not replace
+        $updateMetadata = [
+            'data' => [
+                'end_at' => now()->addDays(5)->toDateTimeString(),
+                'warehouse_code' => 'WH-001',
+                'new_field' => 'New Value',
+            ],
+            'another_top_level_field' => 'Another Value',
+        ];
+
+        $response = $this->graphQL('
+            mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
+                updateOrder(id: $id, input: $input) {
+                    order { 
+                        id
+                        metadata
+                    }
+                }
+            }
+        ', [
+            'id' => $orderId,
+            'input' => [
+                'metadata' => $updateMetadata,
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $orderData = $response->json()['data']['updateOrder']['order'];
+        $order = Order::find($orderData['id']);
+
+        // Validate metadata merging
+        // Original 'data' fields should be preserved
+        $this->assertEquals($initialMetadata['data']['start_at'], $order->metadata['data']['start_at']);
+        $this->assertEquals($initialMetadata['data']['customer_notes'], $order->metadata['data']['customer_notes']);
+        $this->assertEquals($updateMetadata['data']['new_field'], $order->metadata['data']['new_field']);
+        $this->assertEquals($updateMetadata['another_top_level_field'], $order->metadata['another_top_level_field']);
+
+        // Updated 'data' fields should be changed
+        $this->assertEquals($updateMetadata['data']['end_at'], $order->metadata['data']['end_at']);
+        $this->assertEquals($updateMetadata['data']['warehouse_code'], $order->metadata['data']['warehouse_code']);
+
+        // Top-level metadata should be preserved
+        $this->assertEquals($initialMetadata['tracking_id'], $order->metadata['tracking_id']);
+
+        // Verify the complete structure
+        $this->assertIsArray($order->metadata);
+        $this->assertIsArray($order->metadata['data']);
+        $this->assertCount(5, $order->metadata['data']); // start_at, end_at, customer_notes, warehouse_code, new_field
+    }
+
+    public function testUpdateOrderMetadataWithOverrideFlag()
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $region = Regions::find($regionResponse['id']);
+        $company = $region->company;
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        // Create order with initial metadata
+        $initialMetadata = [
+            'data' => [
+                'start_at' => now()->subDays(2)->toDateTimeString(),
+                'end_at' => now()->subDays(1)->toDateTimeString(),
+                'customer_notes' => 'Initial order notes',
+            ],
+            'tracking_id' => 'TRACK123',
+            'old_field' => 'This should be removed',
+        ];
+
+        $data = [
+            'email' => fake()->email(),
+            'region_id' => $region->getId(),
+            'metadata' => $initialMetadata,
+            'customer' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createDraftOrder($input: DraftOrderInput!) {
+                createDraftOrder(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $createOrderResponse = $response->json()['data']['createDraftOrder'];
+        $orderId = $createOrderResponse['id'];
+
+        // Update with metadata_action = true - should replace all metadata
+        $overrideMetadata = [
+            'data' => [
+                'warehouse_code' => 'WH-002',
+                'new_data_field' => 'Brand new data',
+            ],
+            'new_top_level' => 'New top level value',
+        ];
+
+        $response = $this->graphQL('
+            mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
+                updateOrder(id: $id, input: $input) {
+                    order { 
+                        id
+                        metadata
+                    }
+                }
+            }
+        ', [
+            'id' => $orderId,
+            'input' => [
+                'metadata' => $overrideMetadata,
+                'metadata_action' => 'REPLACE',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $orderData = $response->json()['data']['updateOrder']['order'];
+
+        $order = Order::find($orderData['id']);
+
+        // Validate metadata override (replace mode)
+        // Old fields should be completely gone
+        $this->assertTrue(isset($order->metadata['tracking_id']));
+        $this->assertTrue(isset($order->metadata['old_field']));
+        $this->assertFalse(isset($order->metadata['data']['start_at']));
+        $this->assertFalse(isset($order->metadata['data']['end_at']));
+        $this->assertFalse(isset($order->metadata['data']['customer_notes']));
+
+        // Only new metadata should exist
+        $this->assertEquals($overrideMetadata['data']['warehouse_code'], $order->metadata['data']['warehouse_code']);
+        $this->assertEquals($overrideMetadata['data']['new_data_field'], $order->metadata['data']['new_data_field']);
+        $this->assertEquals($overrideMetadata['new_top_level'], $order->metadata['new_top_level']);
+
+        // Verify the complete structure - should only have new fields
+        $this->assertIsArray($order->metadata);
+        $this->assertIsArray($order->metadata['data']);
+        $this->assertCount(2, $order->metadata['data']); // warehouse_code, new_data_field
+        $this->assertCount(4, $order->metadata); // data, new_top_level, tracking_id, old_field
     }
 }

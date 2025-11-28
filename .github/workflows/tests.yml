@@ -176,7 +176,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -240,6 +240,9 @@ jobs:
 
       - name: Setup Kanvas Integrations
         run: php artisan kanvas:create-integration shopify --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
+
+      - name: Setup Kanvas Social Channel Categories
+        run: php artisan kanvas:create-social-channel-category
 
       - name: Setup Kanvas Workflow Actions
         run: php artisan kanvas:workflow-sync-actions

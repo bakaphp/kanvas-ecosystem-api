@@ -25,23 +25,19 @@ class ProcessVideoRequestAction
 
     public function execute(): array
     {
-        // Extract video model dynamically from message - use the full value as is
-        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
-        $videoType = $this->entity->message['type'] ?? 'video-format';
-
-        // Determine if it's text-to-video or image-to-video based on hasFiles flag
-        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
-
-        // Construct the API URL based on video type
-        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
-        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
+        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $videoModel = $this->entity->message['ai_model']['value'];
+        $videoKey = 'fal-ai';
+        $videoType = $isImageToVideo ? '/image-to-video' : '/text-to-video';
+        $videoKey = $videoKey . $videoType;
 
         /**
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoKey = str_replace('fal-ai' . $videoType, 'google-v2', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
@@ -194,6 +190,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -219,7 +216,7 @@ class ProcessVideoRequestAction
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
 
-        $submitPayload = $this->constructModelPayload($this->entity, $submitPayload, $videoModel);
+        $submitPayload = $this->constructModelPayload($submitPayload);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -247,6 +244,7 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
@@ -259,15 +257,7 @@ class ProcessVideoRequestAction
     protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
         if ($this->isGoogleService && $isVideo) {
-            // For Google services, use multipart form data
-            $httpRequest = Http::asMultipart();
-
-            // Add each field from payload as form data
-            foreach ($payload as $key => $value) {
-                $httpRequest = $httpRequest->attach((string) $key, (string) $value);
-            }
-
-            $response = $httpRequest->post($apiUrl);
+            $response = Http::post($apiUrl, $payload);
         } else {
             // For non-Google services, use JSON
             $response = Http::withHeaders([
@@ -296,7 +286,8 @@ class ProcessVideoRequestAction
             return [];
         }
 
-        $videoKey = $type === 'text-to-video' ? 'fal-ai/text-to-video' : 'fal-ai/image-to-video';
+        $videoProvider = Str::contains($messageModel, 'veo') ? 'google-v2' : 'fal-ai';
+        $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
@@ -309,8 +300,10 @@ class ProcessVideoRequestAction
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
                         // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['model']) &&
-                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
+                            if (
+                                isset($modelConfig['model']) &&
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))
+                            ) {
                                 if (isset($modelConfig['input_config'])) {
                                     return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
                                 }
@@ -348,26 +341,27 @@ class ProcessVideoRequestAction
         return $defaults;
     }
 
-    private function constructModelPayload(Model $entity, array $payload, string $model): array
+    private function constructModelPayload(array $payload): array
     {
-        $messageFiles = $this->getFilesWithRetry($this->entity);
-        $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-        switch ($model) {
-            case "fal-ai/vidu/q1/start-end-to-video":
-            case "fal-ai/minimax/hailuo-02/pro/image-to-video":
-            case "fal-ai/pixverse/v5/transition":
-                $payload['image_url'] = $imageUrlsArray[0];
-                $payload['lastFrameUrl'] = $imageUrlsArray[1];
-                return $payload;
-                break;
-            case "fal-ai/vidu/q1/reference-to-video":
-                $payload["referenceImageUrls"] = $messageFiles;
-                return $payload;
-                break;
-            default:
-                $payload['image_url'] = $imageUrlsArray[0];
-                return $payload;
-                break;
+        $messageFiles = $this->entity->getFiles();
+        $imageUrls = $messageFiles->pluck('url')->toArray();
+        $attachmentType = $this->entity->message['attachment_type'] ?? 'reference_to_video';
+        $isSingleFile = $messageFiles->count() === 1;
+
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            //throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
         }
+
+        $attachmentData = match ($attachmentType) {
+            'start_end_frame' => [
+                'image_url' => $imageUrls[0],
+                'lastFrameUrl' => $imageUrls[1],
+            ],
+            default => $isSingleFile
+                ? ['image_url' => $imageUrls[0]]
+                : ['referenceImageUrls' => $imageUrls],
+        };
+
+        return array_merge($payload, $attachmentData);
     }
 }

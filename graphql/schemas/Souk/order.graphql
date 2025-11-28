@@ -14,7 +14,7 @@ type Order {
     id: ID!
     uuid: String!
     tracking_client_id: String
-    ip: String
+    ip_address: String
     user_email: String
     user_phone: String
     token: String
@@ -221,6 +221,13 @@ input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
     metadata: Mixed
+    metadata_action: MetadataAction = MERGE
+}
+
+enum MetadataAction {
+    MERGE    # Preserve old, add/update new
+    REPLACE  # Replace all with new
+    CLEAR    # Only keep new metadata
 }
 
 input DraftOrderInput {
@@ -449,7 +456,7 @@ extend type Query @guard {
                     "created_at"
                     "updated_at"
                     "token"
-                    "ip"
+                    "ip_address"
                 ]
             )
         orderType: _
@@ -530,6 +537,16 @@ extend type Query @guard {
                     "duration_in_seconds"
                 ]
             )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
     ): [OrderTransitionHistory!]!
         @paginate(
             defaultCount: 25
@@ -559,7 +576,7 @@ extend type Query @guard {
                     "parent_id"
                     "created_at"
                     "updated_at"
-                    "ip"
+                    "ip_address"
                 ]
             )
         orderType: _

@@ -67,6 +67,23 @@ class MessageBuilder
                 $query->cacheFor($messageCacheTime);
             }
         }
+
+        if (! empty($args['hasChannelCategory'])) {
+            $query->whereHas('channels', function (Builder $channelQuery) use ($args) {
+                $channelQuery->whereHas('category', function (Builder $categoryQuery) use ($args) {
+                    $filter = $args['hasChannelCategory'];
+
+                    if (! empty($filter['ids'])) {
+                        $categoryQuery->whereIn('id', $filter['ids']);
+                    }
+
+                    if (! empty($filter['names'])) {
+                        $categoryQuery->whereIn('name', $filter['names']);
+                    }
+                });
+            });
+        }
+
         if (isset($args['random']) && $args['random'] === true) {
             $query->inRandomOrder();
         }
@@ -217,7 +234,9 @@ class MessageBuilder
         }
 
         return Message::fromApp()
+            ->where('is_deleted', 0)
             ->whereHas('channels', function ($query) use ($args) {
+                $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
                 } elseif (isset($args['channel_slug'])) {

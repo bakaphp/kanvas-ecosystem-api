@@ -19,15 +19,27 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
     {
         $regionId = $this->receiver->configuration['region_id'];
         $isB2BOrder = (bool) ($this->receiver->configuration['is_b2b_order'] ?? false);
+        $payload = $this->webhookRequest->payload;
+        $source = $payload['source_name'] ?? '';
+
+        //this order from pos with no customer info create a dummy customer
+        if (empty($payload['customer']) && (int) $payload['id'] > 0 && $source === 'pos') {
+            $payload['customer'] = [
+                'email' => 'post_customer@' . $this->receiver->company->getId() . '.shopify.pos',
+                'first_name' => 'POS',
+                'last_name' => 'Customer',
+                'default_address' => [],
+            ];
+        }
 
         $syncShopifyOrder = new SyncShopifyOrderAction(
             $this->receiver->app,
             $this->receiver->company,
             Regions::getById($regionId),
-            $this->webhookRequest->payload,
+            $payload,
         );
 
-        if ($isB2BOrder && ! $this->validateUserCompany($this->webhookRequest->payload)) {
+        if ($isB2BOrder && ! $this->validateUserCompany($payload)) {
             return [
                 'message' => 'Is not a B2B order',
                 'order' => null,
@@ -53,6 +65,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
             if (! $user) {
                 return false;
             }
+
             return (bool) UsersRepository::belongsToThisApp($user, $this->receiver->app, $this->receiver->company);
         } catch (Exception) {
             return false;

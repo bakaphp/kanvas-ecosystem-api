@@ -128,6 +128,9 @@ class CreateContentSessionAction
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
+            'leadEmail' => $data['leadEmail'],
+            'leadOwnerName' => $data['leadOwnerName'],
+            'leadOwnerEmail' => $data['leadOwnerEmail']
         ];
     }
 
@@ -220,7 +223,7 @@ class CreateContentSessionAction
         ];
     }
 
-    protected function getRelatedVehicles(array $vehicleInterest): array
+    public function getRelatedVehicles(array $vehicleInterest, int $limit = 10): array
     {
         if (empty($vehicleInterest['make']) || empty($vehicleInterest['model'])) {
             return [];
@@ -237,7 +240,7 @@ class CreateContentSessionAction
             user: null,
             company: $this->session->company,
         )->select('products_variants.uuid', 'products_variants.name')
-            ->limit(10)
+            ->limit($limit)
             ->orderBy('products_variants.name', 'desc')
             ->get();
 

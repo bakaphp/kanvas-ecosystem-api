@@ -24,7 +24,7 @@ use Override;
  * @property int $warehouses_id
  * @property int $channels_id
  * @property float $price
- * @property float $discount_price
+ * @property float $discounted_price
  * @property bool $is_published
  * @property ?string $config = null
  * @property string $created_at
@@ -51,7 +51,7 @@ class VariantsChannels extends BaseModel
     {
         return [
             'price' => 'decimal:2',
-            'discount_price' => 'decimal:2',
+            'discounted_price' => 'decimal:2',
             'config' => Json::class,
         ];
     }

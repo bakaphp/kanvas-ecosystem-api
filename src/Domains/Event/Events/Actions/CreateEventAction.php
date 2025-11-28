@@ -49,6 +49,11 @@ class CreateEventAction
             $slug = $this->event->slug ?? Str::slug($this->event->name);
             //Slug no attached to the event type id , idk why
             $slug = $slug . '-' . $this->event->type->getId();
+
+            // Append unique suffix if provided (for multiple bookings per time slot)
+            if (isset($this->metadata['slug_suffix'])) {
+                $slug = $slug . '-' . $this->metadata['slug_suffix'];
+            }
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
@@ -67,6 +72,7 @@ class CreateEventAction
                 'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
+
             if ($this->event->dates->count()) {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
             } else {
@@ -85,6 +91,7 @@ class CreateEventAction
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
+                    timeSlotId: $this->event->timeSlotId,
                     slug: $eventVersionSlug,
                     metadata: $this->metadata
                 )
@@ -98,7 +105,6 @@ class CreateEventAction
                     $this->event->user,
                     $participant,
                     $eventVersion,
-                    $participant
                 );
                 $createParticipant->execute();
             }
@@ -242,7 +248,7 @@ class CreateEventAction
         $dto = Order::from([
             'app' => $event->app,
             'region' => Regions::getDefault($event->company, $event->app),
-            'token'  => Str::random(32),
+            'token' => Str::random(32),
             'company' => $event->company,
             'people' => $people,
             'user' => $event->user,
@@ -260,8 +266,8 @@ class CreateEventAction
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
         $kanvasOrder = $action->execute();
-        $kanvasOrder->resources_id =  $event->id;
-        $kanvasOrder->resources_type =  $event->getMorphClass();
+        $kanvasOrder->resources_id = $event->id;
+        $kanvasOrder->resources_type = $event->getMorphClass();
         $kanvasOrder->saveQuietly();
     }
 
