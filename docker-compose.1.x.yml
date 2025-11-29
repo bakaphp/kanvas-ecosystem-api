@@ -118,7 +118,7 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=6750"
 
   queue-imports2:
     <<: *common-queue-settings
@@ -126,7 +126,23 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=6750"
+
+  queue-imports3:
+    <<: *common-queue-settings
+    container_name: queue-imports3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=6750"
+      
+  queue-imports4:
+    <<: *common-queue-settings
+    container_name: queue-imports4
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=6750"
 
   queue-scout-worker-1:
     <<: *common-queue-settings
@@ -295,14 +311,14 @@ services:
 #    image: browserless/chrome
 #    container_name: puppeteer${APP_CONTAINER_NAME}
 #    environment:
-      # Enable preloading to optimize performance
-      #- PREBOOT_CHROME=true
-      # Optional: Define the max concurrency if required
-      #- MAX_CONCURRENT_SESSIONS=10
-      # Optional: You can set a custom token for API security
-      # - TOKEN=your_secure_token
+# Enable preloading to optimize performance
+#- PREBOOT_CHROME=true
+# Optional: Define the max concurrency if required
+#- MAX_CONCURRENT_SESSIONS=10
+# Optional: You can set a custom token for API security
+# - TOKEN=your_secure_token
 #    ports:
-     # - "3000:3000" # Expose Puppeteer API on port 3000
+# - "3000:3000" # Expose Puppeteer API on port 3000
 #    restart: always
 #    networks:
 #      - sail
