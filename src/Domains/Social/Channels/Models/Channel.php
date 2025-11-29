@@ -136,7 +136,7 @@ class Channel extends BaseModel
         // Find the previous message in this channel
         return $this->messages()
             ->wherePivot('channel_id', $this->id)
-            ->where(function ($query) use ($currentMessageTimestamp, $currentMessage, $messageTypeId) {
+            ->where(function ($query) use ($currentMessageTimestamp, $currentMessage) {
                 // Either find messages created before the current one
                 $query->where('messages.created_at', '<', $currentMessageTimestamp)
                     // Or if they have the same timestamp, find ones with a lower ID
