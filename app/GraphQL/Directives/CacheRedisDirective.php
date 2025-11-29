@@ -8,6 +8,7 @@ use GraphQL\Deferred;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
 use Nuwave\Lighthouse\Cache\CacheDirective as CacheCacheDirective;
+use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 use Nuwave\Lighthouse\Execution\Resolved;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
@@ -71,9 +72,11 @@ GRAPHQL;
             );
 
             // We found a matching value in the cache, so we can just return early without actually running the query.
-            $value = $cache->get($cacheKey);
-            if ($value !== null) {
-                // Deferring the result will allow nested deferred resolves to be bundled together, see https://github.com/nuwave/lighthouse/pull/2270#discussion_r1072414584.
+            // Split into Redis Hash parts
+            [$hashKey, $hashField] = $this->extractHashParts($cacheKey, $parentName, $rootID);
+            $value = $cache->hGet($hashKey, $hashField);
+
+            if ($value !== false) {
                 return new Deferred(static fn () => $value);
             }
 
@@ -102,13 +105,36 @@ GRAPHQL;
 
             $resolved = $resolver($root, $args, $context, $resolveInfo);
 
-            $storeInCache = $maxAge
-                ? static fn ($result): bool => $cache->set($cacheKey, $result, $maxAge)
-                : static fn ($result): bool => $cache->set($cacheKey, $result);
+            $storeInCache = static function ($result) use ($cache, $hashKey, $hashField, $maxAge): void {
+                $cache->hSet($hashKey, $hashField, $result);
+                if ($maxAge) {
+                    $cache->expire($hashKey, $maxAge);
+                }
+            };
 
             Resolved::handle($resolved, $storeInCache);
 
             return $resolved;
         });
+    }
+
+    /**
+     * Split lighthouse key into:
+     * - Redis HASH Key
+     * - Redis HASH FIELD
+     */
+    private function extractHashParts(string $fullKey, string $parentName, string|int|null $rootID): array
+    {
+        // HASH KEY: kanvas_ecosystem_database_lighthouse:Variant:310478
+        $hashKey = CacheKeyAndTagsGenerator::PREFIX . ":{$parentName}:{$rootID}";
+
+        // HASH FIELD = everything unique about the field
+        // Example: "files:first:25", "tags:limit=10"
+        $hashField = substr($fullKey, strlen($hashKey) + 1) ?: $fullKey;
+
+        // Clean up edge cases
+        $hashField = trim($hashField, ':');
+
+        return [$hashKey, $hashField];
     }
 }
