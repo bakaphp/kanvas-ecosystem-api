@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Jobs\LightHouseCacheCleanUpJob;
-use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Redis;
 use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
@@ -17,60 +16,14 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $pattern = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
+        $hashKey = $this->generateLighthouseHashKey($cleanGlobalKey);
 
-        // SAFE key lookup using SCAN
-        $keys = $this->scanKeys($redis, $pattern);
+        $redis->del($hashKey);
 
-        // If no keys exist, regenerate basic cache
-        if (empty($keys) && $withKanvasConfiguration) {
-            $this->generateFilesLighthouseCache();
-
-            return;
-        }
-
-        // Batch delete keys using PIPELINE
-        if (! empty($keys)) {
-            $redis->pipeline(function ($pipe) use ($keys) {
-                foreach ($keys as $key) {
-                    $pipe->del(
-                        str_replace(
-                            config('database.redis.options.prefix'),
-                            '',
-                            $key
-                        )
-                    );
-                }
-            });
-        }
-
-        // Rebuild cache if needed
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
-    }
-
-    protected function scanKeys(Connection $redis, string $pattern): array
-    {
-        $keys = [];
-        $cursor = null;
-
-        $rawRedis = $redis->client();
-
-        // Add the prefix since we're using the raw client
-        $prefix = config('database.redis.options.prefix', '');
-        $fullPattern = $prefix . $pattern;
-
-        do {
-            $found = $rawRedis->scan($cursor, $fullPattern, 1000);
-
-            if ($found !== false && ! empty($found)) {
-                $keys = array_merge($keys, $found);
-            }
-        } while ($cursor != 0);
-
-        return $keys;
     }
 
     public function clearLightHouseCacheJob(): void
@@ -84,13 +37,16 @@ trait HasLightHouseCache
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void
     {
-        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = $this->generateLighthouseCacheKey() . $separator . $relationship . $separator . 'first' . $separator . $items;
-
         $redis = Redis::connection('graph-cache');
+        $hashKey = $this->generateLighthouseHashKey();
+        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
+
+        // Field key matches what directive expects
+        $fieldKey = $relationship . $separator . 'first' . $separator . $items;
+
         $result = $this->getRelationshipQueryBuilder($relationship)->paginate($items);
 
-        $redis->set($key, $result);
+        $redis->hSet($hashKey, $fieldKey, $result);
     }
 
     public function generateCustomFieldsLighthouseCache(int $items = 25): void
@@ -107,14 +63,18 @@ trait HasLightHouseCache
         $this->generateRelationshipLighthouseCache('files', $items);
     }
 
-    protected function generateLighthouseCacheKey(bool $globalModelKey = false): string
+    /**
+     * Generate the Redis hash key (matches directive's extractHashParts).
+     */
+    protected function generateLighthouseHashKey(bool $globalModelKey = false): string
     {
         $graphTypeName = $this->getGraphTypeName();
-        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
 
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName;
+        if ($globalModelKey) {
+            return CacheKeyAndTagsGenerator::PREFIX . ":{$graphTypeName}";
+        }
 
-        return $globalModelKey ? $key : $key . $separator . $this->getId();
+        return CacheKeyAndTagsGenerator::PREFIX . ":{$graphTypeName}:{$this->getId()}";
     }
 
     protected function getRelationshipQueryBuilder(string $relationship)
