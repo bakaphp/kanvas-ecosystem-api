@@ -103,14 +103,14 @@ class ProductImporterAction
             }
 
             // Fire workflow after transaction commits successfully
-            $this->product->fireWorkflow(
-                WorkflowEnum::SYNC_SHOPIFY->value,
-                true,
-                [
-                    'app' => $this->app,
-                ]
-            );
-
+            /*             $this->product->fireWorkflow(
+                            WorkflowEnum::SYNC_SHOPIFY->value,
+                            true,
+                            [
+                                'app' => $this->app,
+                            ]
+                        );
+             */
             return $this->product;
         });
     }
