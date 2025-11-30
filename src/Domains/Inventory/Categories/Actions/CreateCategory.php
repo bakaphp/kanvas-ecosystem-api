@@ -47,7 +47,7 @@ class CreateCategory
             'weight' => $this->dto->weight ?? null,
         ]);
 
-        if($this->dto->systemModule) {
+        if ($this->dto->systemModule) {
             (new AddResourceCategory($category, $this->dto->systemModule))->execute();
         }
 
