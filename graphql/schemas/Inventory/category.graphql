@@ -39,7 +39,7 @@ input CategoryInput {
     name: String!
     code: String
     position: Int
-    source_id: Mixed
+    system_module_id: ID!
     companies_id: Int
     is_published: Boolean!
     weight: Int
@@ -117,4 +117,12 @@ extend type Query @guard {
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
         )
+
+    availableCategories(
+        system_module_id: ID!
+    ): [Category!]! 
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetAvailableCategories@resolve"
+    )
 }
