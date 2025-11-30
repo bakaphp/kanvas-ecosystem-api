@@ -13,6 +13,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
@@ -86,7 +87,7 @@ class Channel extends BaseModel
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(ChannelCategories::class, 'category_id');
+        return $this->belongsTo(Categories::class, 'category_id');
     }
 
     public function getLastMessage(): ?Message
