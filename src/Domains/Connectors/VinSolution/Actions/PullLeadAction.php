@@ -161,6 +161,7 @@ class PullLeadAction
 
     private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
     {
+        //get a new fresh lead instance to avoid any issues with workflow state (disabled)
         $lead = ModelsLead::getById($lead->id);
         $createdAt = $currentLead['CreatedUtc'] ?? null;
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
