@@ -16,6 +16,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendCustomFeedAction;
 use Kanvas\Connectors\Recombee\Actions\GenerateRecommendForYourFeedAction;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
@@ -69,19 +71,33 @@ class MessageBuilder
         }
 
         if (! empty($args['hasChannelCategory'])) {
-            $query->whereHas('channels', function (Builder $channelQuery) use ($args) {
-                $channelQuery->whereHas('category', function (Builder $categoryQuery) use ($args) {
-                    $filter = $args['hasChannelCategory'];
+            $filter = $args['hasChannelCategory'];
 
-                    if (! empty($filter['ids'])) {
-                        $categoryQuery->whereIn('id', $filter['ids']);
-                    }
+            $channelsQuery = Channel::query();
 
-                    if (! empty($filter['names'])) {
-                        $categoryQuery->whereIn('name', $filter['names']);
-                    }
+            if (! empty($filter['ids'])) {
+                $channelsQuery->whereIn('category_id', $filter['ids']);
+            }
+
+            if (! empty($filter['names'])) {
+                $categoryIds = Categories::whereIn('name', $filter['names'])->pluck('id');
+                $channelsQuery->whereIn('category_id', $categoryIds);
+            }
+
+            if (! empty($filter['slugs'])) {
+                $categoryIds = Categories::whereIn('slug', $filter['slugs'])->pluck('id');
+                $channelsQuery->whereIn('category_id', $categoryIds);
+            }
+
+            $channelIds = $channelsQuery->pluck('id')->toArray();
+
+            if (empty($channelIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereHas('channels', function ($q) use ($channelIds) {
+                    $q->whereIn('id', $channelIds);
                 });
-            });
+            }
         }
 
         if (isset($args['random']) && $args['random'] === true) {
