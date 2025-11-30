@@ -66,6 +66,18 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    public function resources(): HasMany
+    {
+        return $this->hasMany(CategoryResources::class);
+    }
+
+    public function scopeFromResource($query, string $systemModuleId)
+    {
+        return $query->whereHas('resources', function ($q) use ($systemModuleId) {
+            $q->where('system_modules_id', $systemModuleId);
+        });
+    }
+
     public function getProductsByTags(string $tag): Collection
     {
         return $this->products()
@@ -75,6 +87,7 @@ class Categories extends BaseModel
              ->inRandomOrder()
              ->get();
     }
+
     /**
      * Get the total amount of products of a product type.
      */
