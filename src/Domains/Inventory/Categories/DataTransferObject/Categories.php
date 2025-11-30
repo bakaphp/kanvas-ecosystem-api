@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\SystemModules\Models\SystemModules;
 use Spatie\LaravelData\Data;
 
 class Categories extends Data
@@ -23,6 +23,7 @@ class Categories extends Data
         public AppInterface $app,
         public CompanyInterface $company,
         public UserInterface $user,
+        public SystemModules $systemModule,
         public string $name,
         public ?int $parent_id = null,
         public int|string $position = 0,
@@ -35,21 +36,21 @@ class Categories extends Data
 
     /**
      * fromArray.
-     *
      */
-    public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
+    public static function viaRequest(array $request, AppInterface $app, UserInterface $user, CompanyInterface $company, SystemModules $systemModule): self
     {
         return new self(
-            app(Apps::class),
-            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
-            $user,
-            $request['name'],
-            $request['parent_id'] ?? null,
-            $request['position'] ?? 0,
-            $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
-            $request['weight'] ?? 0,
-            $request['code'] ?? null,
-            $request['slug'] ?? null
+            app: $app,
+            company: isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
+            user: $user,
+            systemModule: $systemModule,
+            name: $request['name'],
+            parent_id: $request['parent_id'] ?? null,
+            position: $request['position'] ?? 0,
+            is_published: $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
+            weight: $request['weight'] ?? 0,
+            code: $request['code'] ?? null,
+            slug: $request['slug'] ?? null
         );
     }
 }
