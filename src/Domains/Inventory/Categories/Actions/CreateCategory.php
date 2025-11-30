@@ -33,7 +33,7 @@ class CreateCategory
             $this->user
         );
 
-        return Categories::firstOrCreate([
+        $category = Categories::firstOrCreate([
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
@@ -46,5 +46,11 @@ class CreateCategory
             'is_published' => $this->dto->is_published,
             'weight' => $this->dto->weight ?? null,
         ]);
+
+        if($this->dto->systemModule) {
+            (new AddResourceCategory($category, $this->dto->systemModule))->execute();
+        }
+
+        return $category;
     }
 }
