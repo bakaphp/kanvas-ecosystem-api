@@ -130,6 +130,7 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierA
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
 use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
+use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
@@ -277,6 +278,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushParticipantActivity::class,
             HumanAgentChannelResponseActivity::class,
             PushProductToItemActivity::class,
+            UserReferralCodeActivity::class,
         ];
 
         $createdActions = [];
