@@ -222,6 +222,8 @@ input ExtendOrderInput {
 input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
+    status: String
+    payment_status: String
     metadata: Mixed
     metadata_action: MetadataAction = MERGE
 }

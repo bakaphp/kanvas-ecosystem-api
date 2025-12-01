@@ -136,7 +136,11 @@ class ReferralCode extends BaseModel
 
     public function isExpired(): bool
     {
-        return $this->expires_at > Carbon::now();
+        if ($this->expires_at === null) {
+            return false;
+        }
+
+        return $this->expires_at < Carbon::now();
     }
 
     #[Override]
