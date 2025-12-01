@@ -17,9 +17,11 @@ use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
+use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderItem;
+use Kanvas\Souk\Orders\Models\Order as OrderModel;
+use Kanvas\Souk\Orders\Models\OrderItem as OrderItemModel;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -54,7 +56,7 @@ class SyncTookanOrderActivity extends KanvasActivity implements WorkflowActivity
                         return $item->variant->companies_id !== $order->companies_id;
                     });
 
-                    $externalOrder = $this->createExternalOrder($order, $externalItem);
+                    $this->createExternalOrder($order, $externalItem);
 
                     $order->status = OrderStatusEnum::PENDING->value;
                     $order->saveQuietly();
@@ -84,7 +86,7 @@ class SyncTookanOrderActivity extends KanvasActivity implements WorkflowActivity
         );
     }
 
-    protected function createExternalOrder(Order $order, OrderItem $orderItem): void
+    protected function createExternalOrder(OrderModel $order, OrderItemModel $orderItem): void
     {
         $orderItemsCollection = [];
         $total = 0;
@@ -151,6 +153,7 @@ class SyncTookanOrderActivity extends KanvasActivity implements WorkflowActivity
             'checkoutToken' => '',
             'currency' => $orderCurrency,
             'items' => $items,
+            'parentId' => $order->getId(),
         ]);
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
