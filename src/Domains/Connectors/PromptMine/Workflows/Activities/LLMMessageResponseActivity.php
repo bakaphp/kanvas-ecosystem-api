@@ -444,14 +444,17 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
-            while (
-                $previousChatResponse !== null
-                && (isset($previousChatResponse->message['nsfw_flag']) && $previousChatResponse->message['nsfw_flag'])
-                && $messagesSkipped < 3
-            ) {
-                $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
-                $messagesSkipped++;
+            if ($previousChatResponse !== null) {
+                $previousChatChildMessage = $previousChatResponse->children()?->first();
+                //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
+                while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
+                    && (isset($previousChatChildMessage->message['nsfw_reason']) && ! is_null($previousChatChildMessage->message['nsfw_reason']))
+                    && $messagesSkipped < 3
+                ) {
+                    $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
+                    $previousChatChildMessage = $previousChatResponse->children()?->first();
+                    $messagesSkipped++;
+                }
             }
 
             //remix have a diff flow because its parent is not the main source
@@ -549,8 +552,8 @@ class LLMMessageResponseActivity extends KanvasActivity
         $messages = $chatHistory;
         if (array_key_exists('is_regeneration', $message->message) && ! $message->message['is_regeneration']) {
             $messages[] = [
-            'role' => 'user',
-            'content' => $prompt,
+                'role' => 'user',
+                'content' => $prompt,
             ];
         }
 
@@ -610,13 +613,13 @@ class LLMMessageResponseActivity extends KanvasActivity
             //$useOnlyImageResponse = (bool) ($message->app->get('use_only_image_response') ?? false);
 
             return [
-              'response' => (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=You have reached your daily image generation limit.',
-              'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
-              'chat_history' => [],
-              'limit' => $message->app->get('message-post-limit') ?? 0,
-              'flag' => true,
-              'message' => 'You have reached your daily image generation limit.',
-              'nsfw_flag' => true,
+                'response' => (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=You have reached your daily image generation limit.',
+                'image_url' => $message->app->get('LIMIT_IMAGE_URL') ?? '',
+                'chat_history' => [],
+                'limit' => $message->app->get('message-post-limit') ?? 0,
+                'flag' => true,
+                'message' => 'You have reached your daily image generation limit.',
+                'nsfw_flag' => true,
             ];
         }
 
