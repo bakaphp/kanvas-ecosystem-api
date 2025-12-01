@@ -459,7 +459,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //remix have a diff flow because its parent is not the main source
             if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {
-                if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
+                if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration']) {
                     $previousChatResponseMessage = $message->message['prompt'];
                     $previousChatImage = null;
                     if (count($chatHistory) >= 3 && end($chatHistory)['role'] === 'assistant') {
