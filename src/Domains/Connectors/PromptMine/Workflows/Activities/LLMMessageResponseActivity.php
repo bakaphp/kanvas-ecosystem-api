@@ -444,7 +444,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            if ($previousChatResponse !== null) {
+            if ($previousChatResponse !== null && array_key_exists('is_regeneration', $message->message) && ! $message->message['is_regeneration']) {
                 $previousChatChildMessage = $previousChatResponse->children()?->first();
                 //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
                 while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
