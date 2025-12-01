@@ -506,6 +506,8 @@ class OrderTest extends TestCase
             'id' => $createOrderResponse['id'],
             'input' => [
                 'fulfillment_status' => 'fulfilled',
+                'statius' => 'completed',
+                'payment_status' => 'paid',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
@@ -515,6 +517,8 @@ class OrderTest extends TestCase
         $order = Order::find($orderData['id']);
 
         $this->assertEquals('fulfilled', $order->fulfillment_status);
+        $this->assertEquals('completed', $order->status);
+        $this->assertEquals('paid', $order->payment_status);
     }
 
     public function testCreateOrderWithDecimalQuantity()
