@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -169,7 +170,7 @@ class AgentManagementMutation
         )->execute();
 
         $chatSession = new CreateSessionAction(
-            Session::from([
+            DataTransferObjectSession::from([
                 'app' => $app,
                 'company' => $company,
                 'channel' => $channel,
