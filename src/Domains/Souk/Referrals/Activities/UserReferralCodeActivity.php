@@ -33,10 +33,14 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
             ->first();
 
         if (! $referralCode) {
+            $user->del('user_referral_code');
+
             throw new ValidationException('Referral code doesn\'t exist');
         }
 
         if ($referralCode->isExpired()) {
+            $user->del('user_referral_code');
+
             throw new ValidationException('Referral code has expired ');
         }
 
