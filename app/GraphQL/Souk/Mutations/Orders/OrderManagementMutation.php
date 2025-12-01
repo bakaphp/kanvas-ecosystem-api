@@ -159,12 +159,9 @@ class OrderManagementMutation
             throw new ValidationException('User is not authorized to update this order');
         }
 
-        $order = Order::where([
-            'apps_id' => $app->getId(),
-            'id' => $orderId,
-        ])->first();
+        $order = Order::getById($orderId, $app);
 
-        if ($order->fulfillment_status === 'fulfilled' && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
+        if ($order->isFulfilled() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
         }
 
