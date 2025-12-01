@@ -27,6 +27,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -52,8 +53,8 @@ class LLMMessageResponseActivity extends KanvasActivity
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
-
-                if (empty($prompt)) {
+                // use trim to avoid prompts with only spaces
+                if (empty(trim($prompt))) {
                     return [
                         'error' => 'Prompt is empty',
                     ];
@@ -319,7 +320,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
-                    'email_template' => 'email-new-message-nugget',
+                    'email_template' => 'a-message-nugget',
                     'push_template' => 'push-new-message-nugget',
                 ],
             );
@@ -422,6 +423,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function generateImageResponse(Message $message): array
     {
+        $messagesSkipped = 0; // To track how many messages we've skipped due to NSFW or errors in image creation for previous responses search.
         new MessageOrderFulfillmentAction($message)->execute('image');
 
         $promptClient = new PromptClient($message->app);
@@ -438,8 +440,19 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $params['enable_safety_checker'] = true;
             }
 
+            $chatResponseMessageType = MessagesTypesRepository::getByVerb('chat-response', $message->app);
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
+
+            //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
+            while (
+                $previousChatResponse !== null
+                && (isset($previousChatResponse->message['nsfw_flag']) && $previousChatResponse->message['nsfw_flag'])
+                && $messagesSkipped < 3
+            ) {
+                $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
+                $messagesSkipped++;
+            }
 
             //remix have a diff flow because its parent is not the main source
             if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {

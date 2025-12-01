@@ -144,6 +144,7 @@ class Channel extends BaseModel
                         $q->where('messages.created_at', '=', $currentMessageTimestamp)
                           ->where('messages.id', '<', $currentMessage->id);
                     });
+                $query->where('messages.message_types_id', $currentMessage->message_types_id);
             })
             ->orderBy('messages.created_at', 'desc')
             ->orderBy('messages.id', 'desc')
