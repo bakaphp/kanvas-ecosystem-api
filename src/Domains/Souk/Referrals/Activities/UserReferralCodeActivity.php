@@ -21,7 +21,7 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
 
         $referralCode = $user->get('user_referral_code') ?? null;
 
-        if (! $referralCode) {
+        if ($referralCode === null || empty($referralCode)) {
             return $this->failWorkflow([
                 'message' => 'User does not have a referral code set',
             ]);
