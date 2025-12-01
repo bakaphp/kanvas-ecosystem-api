@@ -63,6 +63,8 @@ class UpdateOrderAction
             );
 
             $this->order->fulfillment_status = $this->orderData['fulfillment_status'] ?? $this->order->fulfillment_status;
+            $this->order->status = $this->orderData['status'] ?? $this->order->status;
+            $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
 
             if ($hasItems) {
