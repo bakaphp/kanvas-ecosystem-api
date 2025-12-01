@@ -457,7 +457,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                 }
             }
 
-            //remix have a diff flow because its parent is not the main source
             if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && ! empty($chatHistory) && end($chatHistory)['role'] === 'assistant') {
                     $previousChatResponseMessage = $message->message['prompt'];
@@ -470,10 +469,6 @@ class LLMMessageResponseActivity extends KanvasActivity
                         array_pop($chatHistory); //remove current assistant message
                     }
                     $params['previousImageUrl'] = $previousChatImage && array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    \Illuminate\Support\Facades\Log::info('Previous Image for regeneration: ' . $params['previousImageUrl']);
-                    // $previousChatImage = $this->getLastAssistantResponse($chatHistory);
-                    // $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    // unset($chatHistory[$previousChatImage['original_index']]);
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
