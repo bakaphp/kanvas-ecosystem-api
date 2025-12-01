@@ -444,7 +444,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            if ($previousChatResponse !== null && ! array_key_exists('is_regeneration', $message->message)) {
+            if ($previousChatResponse !== null) {
                 $previousChatChildMessage = $previousChatResponse->children()?->first();
                 //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
                 while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
@@ -530,7 +530,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             return [
                 'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
-                'chat_history' => [],
+                'chat_history' => $chatHistory,
                 'message' => Str::isJson($errorBody) ? json_decode($errorBody, true) : $errorBody,
                 'nsfw_flag' => true,
             ];
