@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Referrals\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,8 +15,6 @@ use Kanvas\Souk\Loyalty\Models\LoyaltyProgram;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Referrals\Factories\ReferralCodeFactory;
 use Override;
-
-use function Symfony\Component\Clock\now;
 
 /**
  * @property int $apps_id
@@ -137,7 +136,7 @@ class ReferralCode extends BaseModel
 
     public function isExpired(): bool
     {
-        return $this->expires_at > now();
+        return $this->expires_at > Carbon::now();
     }
 
     #[Override]
