@@ -64,6 +64,7 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
                 ];
             },
             company: $company,
+            throwException: true,
         );
     }
 }

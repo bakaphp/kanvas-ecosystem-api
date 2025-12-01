@@ -93,7 +93,8 @@ trait ActivityIntegrationTrait
         callable $integrationOperation,
         array $additionalParams = [],
         ?Regions $region = null,
-        ?Companies $company = null
+        ?Companies $company = null,
+        bool $throwException = false
     ): array {
         $this->overwriteAppService($app);
         $activeStatus = $this->getStatus(StatusEnum::ACTIVE);
@@ -149,6 +150,10 @@ trait ActivityIntegrationTrait
             $exception,
             rule: $additionalParams['rule'] ?? null
         );
+
+        if ($throwException && $exception) {
+            throw $exception;
+        }
 
         if ($exception) {
             return [
