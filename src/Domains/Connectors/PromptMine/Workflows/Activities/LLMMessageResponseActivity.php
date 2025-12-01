@@ -465,7 +465,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     if (count($chatHistory) > 1) {
                         array_pop($chatHistory); //remove current assistant message
                         $previousChatImage = end($chatHistory);
-                    }else{
+                    } else{
                         $previousChatImage = end($chatHistory);
                         array_pop($chatHistory); //remove current assistant message
                     }
