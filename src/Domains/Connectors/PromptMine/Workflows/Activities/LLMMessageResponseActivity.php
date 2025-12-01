@@ -461,9 +461,16 @@ class LLMMessageResponseActivity extends KanvasActivity
             if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && $message->children()->count() > 0) {
                     $previousChatResponseMessage = $message->message['prompt'];
-                    $previousChatImage = $this->getLastAssistantResponse($chatHistory);
-                    $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
-                    unset($chatHistory[$previousChatImage['original_index']]);
+                    $previousChatImage = null;
+                    if (count($chatHistory) >= 3 && end($chatHistory)['role'] === 'assistant') {
+                        array_pop($chatHistory); //remove current assistant message
+                        array_pop($chatHistory); //remove current user message
+                        $previousChatImage = end($chatHistory);
+                    }
+                    $params['previousImageUrl'] = $previousChatImage && array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
+                    // $previousChatImage = $this->getLastAssistantResponse($chatHistory);
+                    // $params['previousImageUrl'] = array_key_exists('content', $previousChatImage) ? $previousChatImage['content'] : null;
+                    // unset($chatHistory[$previousChatImage['original_index']]);
                 } else {
                     $previousChatResponseMessage = $previousChatResponse->message['prompt'] ?? null;
                     $previousChatMessageChildren = $previousChatResponse->children()?->first();
