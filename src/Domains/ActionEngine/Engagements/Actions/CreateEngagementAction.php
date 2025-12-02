@@ -165,6 +165,7 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_5->value,
                 ActionEnum::CREDIT_APP_6->value,
                 ActionEnum::CREDIT_APP_7->value,
+                'business-credit-app-1',
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value,
@@ -377,6 +378,7 @@ class CreateEngagementAction
     protected function createOrGetChannel(): ModelsChannel
     {
         $leadUuid = $this->lead->uuid instanceof LazyUuidFromString ? $this->lead->uuid->toString() : $this->lead->uuid;
+
         return (new CreateChannelAction(new Channel(
             apps: $this->app,
             companies: $this->lead->company,
@@ -512,6 +514,7 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_5->value => 'all-cash',
                 ActionEnum::CREDIT_APP_6->value => '5-liner',
                 ActionEnum::CREDIT_APP_7->value => 'finance',
+                'business-credit-app-1' => 'all-cash',
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value => 'finance-lease',
