@@ -1,7 +1,7 @@
 type AffiliateConversion {
     id: ID!
     uuid: String!
-    affiliate: Affiliate @belongsTo(relation: "affiliate")
+    #affiliate: Affiliate @belongsTo(relation: "affiliate")
     order: Order @belongsTo(relation: "order")
     attribution_model: String!
     confirmed: Boolean!
