@@ -207,7 +207,7 @@ class ProcessPendingInsuranceCommand extends Command
             }
 
             $insurance = $pendingData['insurance'];
-            $messageId = $pendingData['messageId'] ?? null;
+            $messageId = isset($pendingData['messageId']) ? (int) $pendingData['messageId'] : null;
             $iccid = $pendingData['iccid'] ?? null;
 
             // Try to find messageId by ICCID if not present
