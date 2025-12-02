@@ -22,6 +22,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
@@ -163,6 +164,11 @@ class Order extends BaseModel
     public function orderDiscounts(): HasMany
     {
         return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
+    }
+
+    public function affiliateConversion(): HasMany
+    {
+        return $this->hasMany(AffiliateConversion::class, 'orders_id', 'id');
     }
 
     public function resource(): MorphTo
