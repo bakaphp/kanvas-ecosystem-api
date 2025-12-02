@@ -461,19 +461,35 @@ class ProcessPendingInsuranceCommand extends Command
 
     /**
      * Create voucher using InsuranceWorkflowService
+     * Mimics processeSIMWithPlanGrouping from ProcessInsuranceCartActivity
      */
     protected function createVoucher(Order $order, Apps $app, array $insurance, ?int $messageId, int $index, bool $silent): array
     {
         $service = new InsuranceWorkflowService($app, $order, $messageId);
 
-        // Validate required fields
+        // Convert any objects to arrays to prevent stdClass errors
+        $insurance = $this->convertObjectsToArrays($insurance);
+
+        // Validate required fields for titular
         $titular = $insurance['titular'] ?? [];
         $requiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'email', 'activationDate', 'originCountryCode', 'destinationCountryCode'];
         $missingFields = [];
 
         foreach ($requiredFields as $field) {
             if (empty($titular[$field])) {
-                $missingFields[] = $field;
+                $missingFields[] = "titular.{$field}";
+            }
+        }
+
+        // Check required fields for dependents
+        if (isset($insurance['dependents']) && ! empty($insurance['dependents'])) {
+            $dependentRequiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'relationship'];
+            foreach ($insurance['dependents'] as $depIndex => $dependent) {
+                foreach ($dependentRequiredFields as $field) {
+                    if (empty($dependent[$field])) {
+                        $missingFields[] = "dependents[{$depIndex}].{$field}";
+                    }
+                }
             }
         }
 
@@ -484,17 +500,71 @@ class ProcessPendingInsuranceCommand extends Command
             ];
         }
 
-        // Process the insurance using processInsuranceWorkflow
-        try {
-            $result = $service->processInsuranceWorkflow($insurance);
+        // Build grouped persons data like processeSIMWithPlanGrouping does
+        $familyGroupKey = 'family_group_command_' . $index;
+        $groupedPersonsData = [];
 
-            // Extract voucher ID from result
-            $voucherId = $this->extractVoucherId($result);
+        // Add titular - normalize to only include fields needed by the service
+        $normalizedTitular = [
+            'firstname' => $titular['firstname'],
+            'lastname' => $titular['lastname'],
+            'idType' => $titular['idType'],
+            'idNumber' => $titular['idNumber'],
+            'dob' => $titular['dob'],
+            'sex' => $titular['sex'],
+            'email' => $titular['email'],
+            'activationDate' => $titular['activationDate'],
+            'expirationDate' => $titular['expirationDate'] ?? null,
+            'originCountryCode' => $titular['originCountryCode'],
+            'destinationCountryCode' => $titular['destinationCountryCode'],
+            'originCountryName' => $titular['originCountryName'] ?? null,
+            'destinationCountryName' => $titular['destinationCountryName'] ?? null,
+            'plan' => $titular['plan'] ?? [],
+        ];
+
+        $groupedPersonsData[] = $normalizedTitular;
+
+        // Add dependents to the same family group
+        if (isset($insurance['dependents']) && ! empty($insurance['dependents'])) {
+            foreach ($insurance['dependents'] as $dependent) {
+                $normalizedDependent = [
+                    'firstname' => $dependent['firstname'],
+                    'lastname' => $dependent['lastname'],
+                    'idType' => $dependent['idType'],
+                    'idNumber' => $dependent['idNumber'],
+                    'dob' => $dependent['dob'],
+                    'sex' => $dependent['sex'],
+                    'email' => $dependent['email'] ?? null,
+                    'relationship' => $dependent['relationship'],
+                    'activationDate' => $dependent['activationDate'] ?? $titular['activationDate'],
+                    'expirationDate' => $dependent['expirationDate'] ?? $titular['expirationDate'] ?? null,
+                    'originCountryCode' => $dependent['originCountryCode'] ?? $titular['originCountryCode'],
+                    'destinationCountryCode' => $dependent['destinationCountryCode'] ?? $titular['destinationCountryCode'],
+                    'originCountryName' => $dependent['originCountryName'] ?? null,
+                    'destinationCountryName' => $dependent['destinationCountryName'] ?? null,
+                    'plan' => $dependent['plan'] ?? $titular['plan'] ?? [],
+                ];
+
+                $groupedPersonsData[] = $normalizedDependent;
+            }
+        }
+
+        // Process using processGroupedInsuranceWorkflow (same as activity does)
+        try {
+            $groupResult = $service->processGroupedInsuranceWorkflow($groupedPersonsData, $familyGroupKey);
+
+            // Extract voucher ID from group result
+            $voucherId = $this->extractVoucherId([
+                'titular' => [
+                    'voucher_result' => $groupResult['group_voucher_result'] ?? [],
+                ],
+            ]);
 
             return [
                 'success' => true,
                 'voucher_id' => $voucherId,
-                'result' => $result,
+                'result' => $groupResult,
+                'group_size' => count($groupedPersonsData),
             ];
         } catch (ValidationException $e) {
             return [
@@ -510,21 +580,55 @@ class ProcessPendingInsuranceCommand extends Command
     }
 
     /**
+     * Convert objects to arrays recursively
+     */
+    protected function convertObjectsToArrays(mixed $data): mixed
+    {
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $data[$key] = $this->convertObjectsToArrays($value);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Extract voucher ID from result
      */
     protected function extractVoucherId(array $result): ?string
     {
         // Try multiple paths to find voucher ID based on actual response structure
-        return $result['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $result['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $result['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $result['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-            ?? $result['titular']['voucher_result']['voucher_id']
-            ?? $result['titular']['voucher_result']['voucher_data']['voucher_id']
-            ?? $result['titular']['voucher_result']['voucher_data']['nro_voucher']
-            ?? $result['titular']['voucher_id']
-            ?? $result['voucher_id']
-            ?? null;
+        // Path 1: From group_voucher_result (processGroupedInsuranceWorkflow)
+        $paths = [
+            // Group voucher result paths
+            $result['group_voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['group_voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['group_voucher_result']['voucher_id'] ?? null,
+            $result['group_voucher_result']['voucher_data']['nro_voucher'] ?? null,
+            // Titular result paths (backward compatibility)
+            $result['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['titular']['voucher_result']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher'] ?? null,
+            $result['titular']['voucher_result']['voucher_id'] ?? null,
+            $result['titular']['voucher_result']['voucher_data']['voucher_id'] ?? null,
+            $result['titular']['voucher_result']['voucher_data']['nro_voucher'] ?? null,
+            $result['titular']['voucher_id'] ?? null,
+            $result['voucher_id'] ?? null,
+        ];
+
+        foreach ($paths as $voucherId) {
+            if ($voucherId !== null && $voucherId !== '') {
+                return (string) $voucherId;
+            }
+        }
+
+        return null;
     }
 
     /**
