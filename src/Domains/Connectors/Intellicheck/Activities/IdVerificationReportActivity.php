@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Intellicheck\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -148,9 +149,11 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     //dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
                     sleep(5); // Delay to ensure previous processes are complete
                     $entity->refresh();
-                    $legacyKey = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
-                    $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name);
-                    if ($entity->get($legacyKey) || $entity->get($key)) {
+
+                    // Use Redis cache to prevent duplicate execution within 3 minutes
+                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name), true);
+                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . Str::simpleSlug($name);
+                    if (Cache::has($cacheKey)) {
                         // If the report has already been sent, we skip the rest of the process
                         return [
                             'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
@@ -161,6 +164,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
                         ];
                     }
+
+                    // Set cache for 3 minutes
+                    Cache::put($cacheKey, true, now()->addMinutes(3));
 
                     $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
                     $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
@@ -180,7 +186,6 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $entity,
                     );
 
-                    $entity->set($key, true);
                     $notification->setSubject($name . ' - ID Verification Report');
                     Notification::send($usersToNotify, $notification);
                     $entity->owner?->notify($notification);
