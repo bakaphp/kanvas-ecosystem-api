@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Souk\Affiliates\Enums\AffiliateConversionStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
 use Override;
@@ -94,7 +95,7 @@ class AffiliateConversion extends BaseModel
      */
     public function isPaid(): bool
     {
-        return $this->status === 'paid';
+        return $this->status === AffiliateConversionStatusEnum::PAID->value;
     }
 
     /**
@@ -102,7 +103,7 @@ class AffiliateConversion extends BaseModel
      */
     public function isPending(): bool
     {
-        return $this->status === 'pending';
+        return $this->status === AffiliateConversionStatusEnum::PENDING->value;
     }
 
     /**
@@ -110,7 +111,7 @@ class AffiliateConversion extends BaseModel
      */
     public function isDisputed(): bool
     {
-        return $this->status === 'disputed';
+        return $this->status === AffiliateConversionStatusEnum::DISPUTED->value;
     }
 
     /**
@@ -120,7 +121,7 @@ class AffiliateConversion extends BaseModel
     {
         $this->confirmed = true;
         $this->confirmed_at = now();
-        $this->status = 'confirmed';
+        $this->status = AffiliateConversionStatusEnum::CONFIRMED->value;
         $this->saveOrFail();
     }
 
@@ -129,7 +130,7 @@ class AffiliateConversion extends BaseModel
      */
     public function markAsPaid(int $payoutId): void
     {
-        $this->status = 'paid';
+        $this->status = AffiliateConversionStatusEnum::PAID->value;
         $this->commission_payout_id = $payoutId;
         $this->saveOrFail();
     }
@@ -139,7 +140,7 @@ class AffiliateConversion extends BaseModel
      */
     public function reverse(string $reason): void
     {
-        $this->status = 'reversed';
+        $this->status = AffiliateConversionStatusEnum::REVERSED->value;
         $this->dispute_reason = $reason;
         $this->saveOrFail();
     }
@@ -149,7 +150,7 @@ class AffiliateConversion extends BaseModel
      */
     public function dispute(string $reason): void
     {
-        $this->status = 'disputed';
+        $this->status = AffiliateConversionStatusEnum::DISPUTED->value;
         $this->dispute_reason = $reason;
         $this->saveOrFail();
     }
@@ -159,7 +160,7 @@ class AffiliateConversion extends BaseModel
      */
     public function resolveDispute(): void
     {
-        $this->status = 'confirmed';
+        $this->status = AffiliateConversionStatusEnum::CONFIRMED->value;
         $this->dispute_resolved_at = now();
         $this->saveOrFail();
     }

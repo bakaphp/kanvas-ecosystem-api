@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Souk\Affiliates\Enums\AffiliateStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -127,7 +128,7 @@ class Affiliate extends BaseModel
      */
     public function isApproved(): bool
     {
-        return $this->status === 'approved';
+        return $this->status === AffiliateStatusEnum::APPROVED->value;
     }
 
     /**
@@ -135,7 +136,7 @@ class Affiliate extends BaseModel
      */
     public function isActive(): bool
     {
-        return $this->status === 'active';
+        return $this->status === AffiliateStatusEnum::ACTIVE->value;
     }
 
     /**
@@ -143,7 +144,7 @@ class Affiliate extends BaseModel
      */
     public function isSuspended(): bool
     {
-        return $this->status === 'suspended';
+        return $this->status === AffiliateStatusEnum::SUSPENDED->value;
     }
 
     /**
@@ -210,7 +211,7 @@ class Affiliate extends BaseModel
      */
     public function approve(int $approvedBy): void
     {
-        $this->status = 'approved';
+        $this->status = AffiliateStatusEnum::APPROVED->value;
         $this->approval_date = now();
         $this->approved_by = $approvedBy;
         $this->rejection_reason = null;
@@ -222,7 +223,7 @@ class Affiliate extends BaseModel
      */
     public function reject(string $reason): void
     {
-        $this->status = 'rejected';
+        $this->status = AffiliateStatusEnum::REJECTED->value;
         $this->rejection_reason = $reason;
         $this->saveOrFail();
     }
@@ -232,7 +233,7 @@ class Affiliate extends BaseModel
      */
     public function suspend(): void
     {
-        $this->status = 'suspended';
+        $this->status = AffiliateStatusEnum::SUSPENDED->value;
         $this->saveOrFail();
     }
 
@@ -241,7 +242,7 @@ class Affiliate extends BaseModel
      */
     public function activate(): void
     {
-        $this->status = 'active';
+        $this->status = AffiliateStatusEnum::ACTIVE->value;
         $this->saveOrFail();
     }
 }

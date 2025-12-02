@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Souk\Affiliates\Enums\AffiliatePayoutStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -82,7 +83,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function isPendingApproval(): bool
     {
-        return $this->payout_status === 'pending_approval';
+        return $this->payout_status === AffiliatePayoutStatusEnum::PENDING_APPROVAL->value;
     }
 
     /**
@@ -90,7 +91,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function isApproved(): bool
     {
-        return $this->payout_status === 'approved';
+        return $this->payout_status === AffiliatePayoutStatusEnum::APPROVED->value;
     }
 
     /**
@@ -98,7 +99,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function isProcessing(): bool
     {
-        return $this->payout_status === 'processing';
+        return $this->payout_status === AffiliatePayoutStatusEnum::PROCESSING->value;
     }
 
     /**
@@ -106,7 +107,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function isCompleted(): bool
     {
-        return $this->payout_status === 'completed';
+        return $this->payout_status === AffiliatePayoutStatusEnum::COMPLETED->value;
     }
 
     /**
@@ -114,7 +115,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function hasFailed(): bool
     {
-        return $this->payout_status === 'failed';
+        return $this->payout_status === AffiliatePayoutStatusEnum::FAILED->value;
     }
 
     /**
@@ -122,7 +123,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function approve(int $approvedBy, ?string $notes = null): void
     {
-        $this->payout_status = 'approved';
+        $this->payout_status = AffiliatePayoutStatusEnum::APPROVED->value;
         $this->approved_at = now();
         $this->approved_by = $approvedBy;
         $this->approval_notes = $notes;
@@ -134,7 +135,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function markAsProcessing(): void
     {
-        $this->payout_status = 'processing';
+        $this->payout_status = AffiliatePayoutStatusEnum::PROCESSING->value;
         $this->saveOrFail();
     }
 
@@ -143,7 +144,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function markAsCompleted(string $paymentReference): void
     {
-        $this->payout_status = 'completed';
+        $this->payout_status = AffiliatePayoutStatusEnum::COMPLETED->value;
         $this->payout_reference = $paymentReference;
         $this->payout_date = now();
         $this->saveOrFail();
@@ -154,7 +155,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function markAsFailed(string $reason): void
     {
-        $this->payout_status = 'failed';
+        $this->payout_status = AffiliatePayoutStatusEnum::FAILED->value;
         $this->failure_reason = $reason;
         $this->increment('retry_count');
         $this->saveOrFail();
@@ -165,7 +166,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function cancel(): void
     {
-        $this->payout_status = 'cancelled';
+        $this->payout_status = AffiliatePayoutStatusEnum::CANCELLED->value;
         $this->saveOrFail();
     }
 
