@@ -170,16 +170,6 @@ class ProcessPendingInsuranceCommand extends Command
             $this->info("═══════════════════════════════════════════════════════════");
         }
 
-        // Check if already processed
-        if ($order->get('universal_assistance_processed')) {
-            if (! $silent) {
-                $this->warn("[SKIP] Order #{$orderId} already processed");
-            }
-            $this->skippedCount++;
-
-            return;
-        }
-
         // Get metadata
         $metadata = $order->metadata ?? [];
         if (is_object($metadata)) {
@@ -228,8 +218,21 @@ class ProcessPendingInsuranceCommand extends Command
                 }
             }
 
-            // Check if message already has voucher
-            if ($messageId && $this->messageHasVoucher((int) $messageId)) {
+            $orderMarkedProcessed = (bool) $order->get('universal_assistance_processed');
+            $messageHasExistingVoucher = $messageId && $this->messageHasVoucher((int) $messageId);
+
+            if ($orderMarkedProcessed && $messageHasExistingVoucher) {
+                if (! $silent) {
+                    $this->warn("  [SKIP] Entry #{$entryIndex}: Order marked processed AND Message #{$messageId} has voucher");
+                }
+                $this->skippedCount++;
+                $entryIndex++;
+
+                continue;
+            }
+
+            // Skip if message already has voucher (regardless of order status)
+            if ($messageHasExistingVoucher) {
                 if (! $silent) {
                     $this->warn("  [SKIP] Entry #{$entryIndex}: Message #{$messageId} already has voucher");
                 }
@@ -237,6 +240,11 @@ class ProcessPendingInsuranceCommand extends Command
                 $entryIndex++;
 
                 continue;
+            }
+
+            // Log if order is marked processed but message has no voucher (we'll process)
+            if (! $silent && $orderMarkedProcessed) {
+                $this->info("  [INFO] Order marked processed but message has no voucher - will process");
             }
 
             // Validate and adjust dates
