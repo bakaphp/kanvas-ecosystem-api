@@ -481,7 +481,7 @@ return new class () extends Migration {
             $table->index('affiliates_id');
             $table->index('payout_status');
             $table->index('payout_date');
-            $table->index(['affiliates_id', 'period_start', 'period_end'],  'affiliates_period_idx');
+            $table->index(['affiliates_id', 'period_start', 'period_end'], 'affiliates_period_idx');
 
             // Foreign Keys
             $table->foreign('affiliates_id')
