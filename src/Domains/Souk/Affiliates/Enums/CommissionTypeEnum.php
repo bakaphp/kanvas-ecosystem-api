@@ -10,4 +10,6 @@ enum CommissionTypeEnum: string
     case FIXED = 'fixed';
     case HYBRID = 'hybrid';
     case TIERED = 'tiered';
+    case COMPANY_WALLET = 'company_wallet';
+    case USER_WALLET = 'user_wallet';
 }
