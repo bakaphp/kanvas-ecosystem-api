@@ -1,8 +1,7 @@
 type AffiliateConversion {
     id: ID!
     uuid: String!
-    affiliates_id: Int!
-    order_id: Int!
+    affiliate: Affiliate @belongsTo(relation: "affiliate")
     order: Order @belongsTo(relation: "order")
     attribution_model: String!
     confirmed: Boolean!
@@ -15,8 +14,8 @@ type AffiliateConversion {
     status: String!
     dispute_reason: String
     dispute_resolved_at: String
-    notes: String
+    notes: Mixed
     converted_at: String
-    created_at: String!
-    updated_at: String
+    created_at: DateTime!
+    updated_at: DateTime
 }
