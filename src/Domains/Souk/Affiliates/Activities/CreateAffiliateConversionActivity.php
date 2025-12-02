@@ -23,9 +23,7 @@ class CreateAffiliateConversionActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function (Order $order) {
-                // Check if order has affiliate information
-                $metadata = is_array($order->metadata) ? $order->metadata : [];
-                $affiliateId = $order->get('affiliate_id') ?? $metadata['affiliate_id'] ?? null;
+                $affiliateId = $order->get('affiliate_id') ?? $order->metadata['affiliate_id'] ?? null;
 
                 if ($affiliateId === null) {
                     return $this->failWorkflow([
