@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class OrderCustomerManagementMutation
 {
@@ -29,6 +30,13 @@ class OrderCustomerManagementMutation
         $order->people_id = $people->getKey();
         $order->user_email = $people->getEmails()->first()?->email ?? $order->user_email;
         $order->user_phone = $people->getPhones()->first()?->phone ?? $order->user_phone;
+
+        $getUserByPeople = UsersAssociatedApps::where('people_id', $people->getKey())
+            ->where('apps_id', $app->getKey())
+            ->where('companies_id', 0)
+            ->first();
+
+        $order->users_id = $getUserByPeople?->users_id ?? $order->users_id;
 
         return $order->saveOrFail();
     }
