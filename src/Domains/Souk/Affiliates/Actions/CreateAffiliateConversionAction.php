@@ -61,6 +61,15 @@ class CreateAffiliateConversionAction
             throw new ValidationException('Order must have affiliate_id in custom_fields or metadata');
         }
 
+        // Check if conversion already exists for this order
+        $existingConversion = AffiliateConversion::where('orders_id', $this->order->id)
+            ->where('affiliates_id', (int) $affiliateId)
+            ->first();
+
+        if ($existingConversion !== null) {
+            return $existingConversion;
+        }
+
         // Find the affiliate
         $affiliate = Affiliate::fromApp($this->order->app)
             ->where('id', (int) $affiliateId)
