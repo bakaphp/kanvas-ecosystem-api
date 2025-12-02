@@ -19,8 +19,9 @@ class CancelVoucherCommand extends Command
 {
     protected $signature = 'kanvas:ua-cancel-voucher
                             {voucher_id : The voucher number to cancel}
+                            {company_id : Company ID to use}
                             {--app-id=22 : App ID to use (default: 22)}
-                            {--company-id= : Company ID to use (defaults to first company of app)}
+                            {--revert-charge=N : Revert charge Y/N (default: N)}
                             {--dry-run : Show what would be done without actually canceling}';
 
     protected $description = 'Cancel a Universal Assistance voucher by its voucher number';
@@ -29,7 +30,8 @@ class CancelVoucherCommand extends Command
     {
         $voucherId = $this->argument('voucher_id');
         $appId = (int) $this->option('app-id');
-        $companyId = $this->option('company-id');
+        $companyId = (int) $this->argument('company_id');
+        $revertCharge = strtoupper($this->option('revert-charge') ?? 'N');
         $dryRun = $this->option('dry-run');
 
         $this->info('╔════════════════════════════════════════════════════════════════╗');
@@ -43,49 +45,23 @@ class CancelVoucherCommand extends Command
         }
 
         // Get app
-        $app = Apps::find($appId);
-        if (! $app) {
-            $this->error("App with ID {$appId} not found");
-
-            return self::FAILURE;
-        }
-
+        $app = Apps::getById($appId);
         $this->info("Using App: {$app->name} (ID: {$app->id})");
 
         // Get company
-        $company = null;
-        if ($companyId) {
-            $company = Companies::find($companyId);
-            if (! $company) {
-                $this->error("Company with ID {$companyId} not found");
-
-                return self::FAILURE;
-            }
-        } else {
-            // Get first company associated with the app
-            $company = Companies::where('apps_id', $app->id)->first();
-            if (! $company) {
-                // Try to get any company
-                $company = Companies::first();
-            }
-        }
-
-        if (! $company) {
-            $this->error('No company found');
-
-            return self::FAILURE;
-        }
-
+        $company = Companies::getById($companyId);
         $this->info("Using Company: {$company->name} (ID: {$company->id})");
         $this->line('');
 
         $this->info("Voucher to cancel: {$voucherId}");
+        $this->info("Revert charge (UARevertirCobro): {$revertCharge}");
         $this->line('');
 
         if ($dryRun) {
             $this->info('[DRY RUN] Would send cancellation request for voucher: ' . $voucherId);
             $this->line('');
             $this->info('Request parameters:');
+            $this->line("  UARevertirCobro: {$revertCharge}");
             $this->line('  AgenciaAnulacion: (organization from app settings)');
             $this->line("  NroVoucherSiebelAnulacion: {$voucherId}");
 
@@ -107,6 +83,7 @@ class CancelVoucherCommand extends Command
 
             $result = $client->anulaVoucher([
                 'voucherNumber' => $voucherId,
+                'revertirCobro' => $revertCharge,
             ]);
 
             $this->info('Response received:');
@@ -115,20 +92,19 @@ class CancelVoucherCommand extends Command
             // Display the response
             $this->displayResponse($result);
 
-            // Check for success/error in response
-            $errorCode = $result['UAAnulaVoucherResponse']['DatosAnulaVoucherResp']['ErrorCode']
-                ?? $result['DatosAnulaVoucherResp']['ErrorCode']
-                ?? $result['ErrorCode']
+            // Check for success/error in response (WSDL fields: ErrorCodeAnulacion, ErrorMsgAnulacion)
+            $errorCode = $result['ErrorCodeAnulacion']
+                ?? $result['Anula_Voucher_Operation_Output']['ErrorCodeAnulacion']
                 ?? null;
 
-            $errorMsg = $result['UAAnulaVoucherResponse']['DatosAnulaVoucherResp']['ErrorMsg']
-                ?? $result['DatosAnulaVoucherResp']['ErrorMsg']
-                ?? $result['ErrorMsg']
+            $errorMsg = $result['ErrorMsgAnulacion']
+                ?? $result['Anula_Voucher_Operation_Output']['ErrorMsgAnulacion']
                 ?? 'Unknown';
 
-            if ($errorCode === '00' || $errorCode === 0 || $errorCode === '0') {
+            if ($errorCode === '00' || $errorCode === 0 || $errorCode === '0' || $errorCode === '') {
                 $this->info('');
                 $this->info('[SUCCESS] Voucher canceled successfully');
+                $this->info("Response: {$errorCode} - {$errorMsg}");
 
                 return self::SUCCESS;
             } else {
