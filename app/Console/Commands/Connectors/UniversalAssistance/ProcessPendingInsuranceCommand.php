@@ -123,10 +123,16 @@ class ProcessPendingInsuranceCommand extends Command
         $this->info("Searching for orders with pending insurance data in App {$app->id}...");
         $this->line('');
 
-        // Find orders that have insurancePendingData in their metadata
+        // Find orders that have insurancePendingData OR esims with insurance in their metadata
+        // Check multiple possible paths: new_data.data.* or direct .*
         $orders = Order::where('apps_id', $app->id)
             ->where('is_deleted', false)
-            ->whereRaw("JSON_EXTRACT(metadata, '$.new_data.data.insurancePendingData') IS NOT NULL")
+            ->where(function ($query) {
+                $query->whereRaw("JSON_EXTRACT(metadata, '$.new_data.data.insurancePendingData') IS NOT NULL")
+                    ->orWhereRaw("JSON_EXTRACT(metadata, '$.insurancePendingData') IS NOT NULL")
+                    ->orWhereRaw("JSON_EXTRACT(metadata, '$.new_data.data.esims') IS NOT NULL")
+                    ->orWhereRaw("JSON_EXTRACT(metadata, '$.esims') IS NOT NULL");
+            })
             ->orderBy('id', 'desc')
             ->get();
 
@@ -176,12 +182,19 @@ class ProcessPendingInsuranceCommand extends Command
             $metadata = json_decode(json_encode($metadata), true);
         }
 
-        // Check for insurancePendingData
-        $insurancePendingData = $metadata['new_data']['data']['insurancePendingData'] ?? [];
+        // Check for insurancePendingData first (try both paths)
+        $insurancePendingData = $metadata['new_data']['data']['insurancePendingData'] 
+            ?? $metadata['insurancePendingData'] 
+            ?? [];
+
+        // Fallback: If no insurancePendingData, try to extract from esims
+        if (empty($insurancePendingData)) {
+            $insurancePendingData = $this->extractInsuranceFromEsims($metadata, $silent);
+        }
 
         if (empty($insurancePendingData)) {
             if (! $silent) {
-                $this->warn("[SKIP] No insurancePendingData found in Order #{$orderId}");
+                $this->warn("[SKIP] No insurance data found in Order #{$orderId} (checked insurancePendingData and esims)");
             }
             $this->skippedCount++;
 
@@ -388,17 +401,35 @@ class ProcessPendingInsuranceCommand extends Command
             // Calculate intended duration for recalculation if needed
             $intendedDuration = $planDuration ? (int) $planDuration : $activation->diffInDays($expiration) + 1;
 
-            // Case 1: Both dates in the past
+            // Case 1: Both dates in the past - recalculate from today using plan duration
             if ($expiration->lt($today)) {
+                // If we have a duration, we can recalculate from today
+                if ($intendedDuration > 0) {
+                    $newExpiration = $today->copy()->addDays($intendedDuration - 1);
+
+                    if (! $silent) {
+                        $this->warn("  [WARN] Entry #{$index}: Insurance period expired, regenerating from today with {$intendedDuration} days duration");
+                    }
+
+                    return [
+                        'skip' => false,
+                        'adjusted' => true,
+                        'activationDate' => $today->format('Y-m-d'),
+                        'expirationDate' => $newExpiration->format('Y-m-d'),
+                        'reason' => null,
+                    ];
+                }
+
+                // No duration available, cannot recalculate
                 return [
                     'skip' => true,
-                    'reason' => "Insurance period already expired (ended: {$expiration->format('Y-m-d')})",
+                    'reason' => "Insurance period already expired (ended: {$expiration->format('Y-m-d')}) and no plan duration to recalculate",
                     'adjusted' => false,
                 ];
             }
 
             // Case 2: Start date in the past but end date still valid
-            // Recalculate expiration based on today + intended duration
+            // Recalculate from today using full intended duration (not truncated to original end date)
             if ($activation->lt($today) && $expiration->gte($today)) {
                 $newExpiration = $today->copy()->addDays($intendedDuration - 1);
 
@@ -792,6 +823,51 @@ class ProcessPendingInsuranceCommand extends Command
         } catch (Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Extract insurance data from esims array as fallback
+     * Maps the esims[].eSimDetails.insurance structure to insurancePendingData format
+     */
+    protected function extractInsuranceFromEsims(array $metadata, bool $silent = false): array
+    {
+        // Try both paths: new_data.data.esims or direct esims
+        $esims = $metadata['new_data']['data']['esims'] ?? $metadata['esims'] ?? [];
+
+        if (empty($esims)) {
+            return [];
+        }
+
+        $insurancePendingData = [];
+
+        foreach ($esims as $esimIndex => $esim) {
+            // Get insurance from eSimDetails
+            $eSimDetails = $esim['eSimDetails'] ?? $esim['data']['eSimDetails'] ?? [];
+            $insurance = $eSimDetails['insurance'] ?? null;
+
+            if (empty($insurance) || empty($insurance['titular'])) {
+                continue;
+            }
+
+            // Get message_id from the esim data
+            $messageId = $esim['message_id'] ?? $eSimDetails['message_id'] ?? null;
+
+            // Get iccid for fallback message lookup
+            $iccid = $esim['data']['iccid'] ?? $esim['iccid'] ?? null;
+
+            if (! $silent) {
+                $this->info("  [FALLBACK] Extracted insurance from esims[{$esimIndex}]");
+            }
+
+            $insurancePendingData[] = [
+                'insurance' => $insurance,
+                'messageId' => $messageId,
+                'iccid' => $iccid,
+                'source' => 'esims_fallback',
+            ];
+        }
+
+        return $insurancePendingData;
     }
 
     /**
