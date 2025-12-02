@@ -151,6 +151,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     $entity->refresh();
 
                     // Use Redis cache to prevent duplicate execution within 3 minutes
+                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name), true);
                     $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . Str::simpleSlug($name);
                     if (Cache::has($cacheKey)) {
                         // If the report has already been sent, we skip the rest of the process
