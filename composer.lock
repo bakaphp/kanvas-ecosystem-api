@@ -3713,16 +3713,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.16.2",
+            "version": "3.16.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "4a7d9ec3e18d53f866213ba5c1bb7faae5b5747e"
+                "reference": "d3183dac9a333f85721b293862698cc9fed76834"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/4a7d9ec3e18d53f866213ba5c1bb7faae5b5747e",
-                "reference": "4a7d9ec3e18d53f866213ba5c1bb7faae5b5747e",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/d3183dac9a333f85721b293862698cc9fed76834",
+                "reference": "d3183dac9a333f85721b293862698cc9fed76834",
                 "shasum": ""
             },
             "require": {
@@ -3769,22 +3769,22 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.2"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.4"
             },
-            "time": "2025-11-27T22:04:10+00:00"
+            "time": "2025-11-28T13:00:39+00:00"
         },
         {
             "name": "inspector-apm/neuron-ai",
-            "version": "2.8.13",
+            "version": "2.8.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "bfa9bccf0f6445c6de2fc6798c8d1449fc3a25db"
+                "reference": "390742e5891d656768bbfc5402150e40f241d5aa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/bfa9bccf0f6445c6de2fc6798c8d1449fc3a25db",
-                "reference": "bfa9bccf0f6445c6de2fc6798c8d1449fc3a25db",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/390742e5891d656768bbfc5402150e40f241d5aa",
+                "reference": "390742e5891d656768bbfc5402150e40f241d5aa",
                 "shasum": ""
             },
             "require": {
@@ -3838,10 +3838,10 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.8.13"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.8.19"
             },
             "abandoned": "neuron-core/neuron-ai",
-            "time": "2025-11-25T09:21:41+00:00"
+            "time": "2025-11-28T18:25:31+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
