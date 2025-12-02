@@ -165,7 +165,6 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_5->value,
                 ActionEnum::CREDIT_APP_6->value,
                 ActionEnum::CREDIT_APP_7->value,
-                'business-all-cash'
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value,
@@ -511,7 +510,6 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_3->value => 'personal-check',
                 ActionEnum::CREDIT_APP_4->value => 'cashier-check',
                 ActionEnum::CREDIT_APP_5->value => 'all-cash',
-                'business-all-cash' => 'all-cash',
                 ActionEnum::CREDIT_APP_6->value => '5-liner',
                 ActionEnum::CREDIT_APP_7->value => 'finance',
             ],
