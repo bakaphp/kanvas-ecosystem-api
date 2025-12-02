@@ -9,7 +9,6 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 use Override;
 
 /**
@@ -82,7 +81,6 @@ class Affiliate extends BaseModel
             'last_activity_at' => 'datetime',
         ];
     }
-
 
     public function program(): BelongsTo
     {

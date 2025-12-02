@@ -41,7 +41,7 @@ class AffiliateClick extends BaseModel
 
     public $timestamps = false;
 
-    const CREATED_AT = 'clicked_at';
+    public const string CREATED_AT = 'clicked_at';
 
     #[Override]
     protected function casts(): array

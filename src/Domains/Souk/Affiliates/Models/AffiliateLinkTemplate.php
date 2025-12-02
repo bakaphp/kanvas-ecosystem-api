@@ -62,7 +62,7 @@ class AffiliateLinkTemplate extends BaseModel
     public function createLink(array $overrides = []): AffiliateLink
     {
         $affiliate = $this->affiliate;
-        
+
         $linkData = array_merge([
             'apps_id' => $this->apps_id,
             'companies_id' => $affiliate->companies_id,
