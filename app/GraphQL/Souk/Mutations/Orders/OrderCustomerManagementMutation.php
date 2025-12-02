@@ -27,15 +27,14 @@ class OrderCustomerManagementMutation
             throw new ValidationException('Order is already fulfilled');
         }
 
-        $order->people_id = $people->getKey();
-        $order->user_email = $people->getEmails()->first()?->email ?? $order->user_email;
-        $order->user_phone = $people->getPhones()->first()?->phone ?? $order->user_phone;
-
         $getUserByPeople = UsersAssociatedApps::where('people_id', $people->getKey())
             ->where('apps_id', $app->getKey())
             ->where('companies_id', 0)
             ->first();
 
+        $order->people_id = $people->getKey();
+        $order->user_email = $people->getEmails()->first()?->email ?? $order->user_email;
+        $order->user_phone = $people->getPhones()->first()?->phone ?? $order->user_phone;
         $order->users_id = $getUserByPeople?->users_id ?? $order->users_id;
 
         return $order->saveOrFail();
