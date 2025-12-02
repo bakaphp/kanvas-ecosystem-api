@@ -56,6 +56,12 @@ input ChatSimpleInput {
     message: String!
 }
 
+input AgentSessionInput {
+    agent_id: ID!
+    canal_id: String!
+    lead_id: ID!
+}
+
 extend type Mutation @guard {
     createAiAgent(input: AgentAiInput!): AgentAi!
         @field(
@@ -68,6 +74,10 @@ extend type Mutation @guard {
     deleteAiAgent(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@delete"
+        )
+    aiAgentCreateSession(input: AgentSessionInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@createSession"
         )
     aiAgentChat(input: ChatSimpleInput!): String!
         @field(

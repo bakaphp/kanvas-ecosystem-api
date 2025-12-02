@@ -70,6 +70,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $payment_status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property string|null $fulfillment_status
