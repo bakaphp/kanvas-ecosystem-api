@@ -1,0 +1,22 @@
+type AffiliateConversion {
+    id: ID!
+    uuid: String!
+    affiliates_id: Int!
+    order_id: Int!
+    order: Order @belongsTo(relation: "order")
+    attribution_model: String!
+    confirmed: Boolean!
+    confirmed_at: String
+    order_total: Money!
+    eligible_amount: Money!
+    commission_type: String!
+    commission_rate: Money!
+    commission_amount: Money!
+    status: String!
+    dispute_reason: String
+    dispute_resolved_at: String
+    notes: String
+    converted_at: String
+    created_at: String!
+    updated_at: String
+}

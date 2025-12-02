@@ -70,6 +70,8 @@ type Order {
             method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
         )
     shipping_address: Address @belongsTo(relation: "shippingAddress")
+    affiliate_conversion: [AffiliateConversion!]
+        @hasMany(relation: "affiliateConversion")
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
