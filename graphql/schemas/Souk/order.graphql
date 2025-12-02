@@ -509,6 +509,17 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+        hasAffiliateConversion: _
+            @whereHasConditions(
+                relation: "affiliateConversion"
+                columns: [
+                    "affiliates_id"
+                    "status"
+                    "confirmed"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
