@@ -183,8 +183,8 @@ class ProcessPendingInsuranceCommand extends Command
         }
 
         // Check for insurancePendingData first (try both paths)
-        $insurancePendingData = $metadata['new_data']['data']['insurancePendingData'] 
-            ?? $metadata['insurancePendingData'] 
+        $insurancePendingData = $metadata['new_data']['data']['insurancePendingData']
+            ?? $metadata['insurancePendingData']
             ?? [];
 
         // Fallback: If no insurancePendingData, try to extract from esims
