@@ -1107,7 +1107,9 @@ class Client
                 $parameters = $anulaData;
             } else {
                 // Standard field mapping for anula voucher
+                // UARevertirCobro: 'Y' to revert charge, 'N' to not revert (default 'N')
                 $parameters = [
+                    'UARevertirCobro' => $anulaData['UARevertirCobro'] ?? $anulaData['revertirCobro'] ?? 'N',
                     'AgenciaAnulacion' => $anulaData['AgenciaAnulacion'] ?? $anulaData['agencia'] ?? $this->organization,
                     'NroVoucherSiebelAnulacion' => $anulaData['NroVoucherSiebelAnulacion'] ?? $anulaData['voucherNumber'] ?? '',
                 ];
