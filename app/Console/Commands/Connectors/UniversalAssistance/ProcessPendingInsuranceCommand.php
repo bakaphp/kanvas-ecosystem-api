@@ -560,11 +560,25 @@ class ProcessPendingInsuranceCommand extends Command
                 ],
             ]);
 
+            // Store the voucher data in the Message (like the activity does)
+            $storageResult = null;
+            if ($messageId && $voucherId) {
+                $storageResult = $this->storeUniversalAssistanceData($groupResult, $messageId, $insurance, $silent);
+            } elseif (! $silent) {
+                if (! $messageId) {
+                    $this->warn("  [WARN] No message ID available - cannot save universalAssistanceData");
+                }
+                if (! $voucherId) {
+                    $this->warn("  [WARN] No voucher ID extracted - cannot save universalAssistanceData");
+                }
+            }
+
             return [
                 'success' => true,
                 'voucher_id' => $voucherId,
                 'result' => $groupResult,
                 'group_size' => count($groupedPersonsData),
+                'storage_result' => $storageResult,
             ];
         } catch (ValidationException $e) {
             return [
@@ -577,6 +591,139 @@ class ProcessPendingInsuranceCommand extends Command
                 'error' => 'Processing error: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Store Universal Assistance data in the Message
+     * Mimics storeUniversalAssistanceData from ProcessInsuranceCartActivity
+     */
+    protected function storeUniversalAssistanceData(array $groupResult, int $messageId, array $originalInsurance, bool $silent = false): array
+    {
+        $groupVoucherResult = $groupResult['group_voucher_result'] ?? [];
+        $personsInGroup = $groupResult['persons_in_group'] ?? [];
+
+        // Extract voucher number from group result
+        $voucherNumber = $groupVoucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $groupVoucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $groupVoucherResult['voucher_id']
+            ?? $groupVoucherResult['voucher_data']['nro_voucher']
+            ?? null;
+
+        $errorCode = $groupVoucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $groupVoucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? '00';
+
+        $errorMsg = $groupVoucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? $groupVoucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorMsg']
+            ?? 'OK';
+
+        $controlNumber = $groupVoucherResult['voucher_data']['control_number']
+            ?? $groupVoucherResult['control_number']
+            ?? null;
+
+        $organization = $groupVoucherResult['voucher_data']['organization']
+            ?? $groupVoucherResult['organization']
+            ?? null;
+
+        // Build holder data from the first person (titular)
+        $titular = $originalInsurance['titular'] ?? [];
+        $holderData = [
+            'firstName' => $titular['firstname'] ?? null,
+            'lastName' => $titular['lastname'] ?? null,
+            'birthDate' => $titular['dob'] ?? null,
+            'documentNumber' => $titular['idNumber'] ?? null,
+            'documentType' => $titular['idType'] ?? null,
+            'email' => $titular['email'] ?? null,
+            'gender' => $titular['sex'] ?? null,
+            'error_code' => $errorCode,
+            'error_msg' => $errorMsg,
+            'has_individual_voucher' => true,
+            'nro_control_ext' => $controlNumber,
+            'nro_voucher' => $voucherNumber,
+            'organization' => $organization,
+        ];
+
+        // Build dependents data
+        $dependentsData = [];
+        $originalDependents = $originalInsurance['dependents'] ?? [];
+        foreach ($originalDependents as $depIndex => $dependent) {
+            $dependentsData[] = [
+                'firstName' => $dependent['firstname'] ?? null,
+                'lastName' => $dependent['lastname'] ?? null,
+                'birthDate' => $dependent['dob'] ?? null,
+                'documentNumber' => $dependent['idNumber'] ?? null,
+                'documentType' => $dependent['idType'] ?? null,
+                'email' => $dependent['email'] ?? null,
+                'gender' => $dependent['sex'] ?? null,
+                'relationship' => $dependent['relationship'] ?? null,
+                'error_code' => $errorCode,
+                'error_msg' => $errorMsg,
+                'has_individual_voucher' => true,
+                'nro_control_ext' => $controlNumber,
+                'nro_voucher' => $voucherNumber, // Same voucher for family group
+                'organization' => $organization,
+            ];
+        }
+
+        $universalAssistanceData = [
+            'holder' => $holderData,
+            'dependents' => $dependentsData,
+        ];
+
+        // Get the message and update its message content
+        $saved = false;
+        try {
+            $message = Message::find($messageId);
+            if (! $message) {
+                if (! $silent) {
+                    $this->warn("  [WARN] Message ID {$messageId} not found - could not save universalAssistanceData");
+                }
+
+                return [
+                    'saved' => false,
+                    'message_id' => $messageId,
+                    'data' => $universalAssistanceData,
+                    'error' => 'Message not found',
+                ];
+            }
+
+            $currentMessage = $message->message ?? [];
+            if (! is_array($currentMessage)) {
+                $currentMessage = [];
+            }
+
+            // Update universalAssistanceData
+            $currentMessage['universalAssistanceData'] = $universalAssistanceData;
+
+            $message->message = $currentMessage;
+            $message->saveOrFail();
+            $saved = true;
+
+            if (! $silent) {
+                $this->info("  [SAVED] Message ID {$messageId} updated with universalAssistanceData");
+                $this->line("     ├─ Voucher: {$voucherNumber}");
+                $this->line("     ├─ Holder: {$holderData['firstName']} {$holderData['lastName']}");
+                $this->line("     ├─ Dependents: " . count($dependentsData));
+                $this->line("     └─ Error: {$errorCode} - {$errorMsg}");
+            }
+        } catch (Exception $e) {
+            if (! $silent) {
+                $this->warn("  [WARN] Failed to save to Message ID {$messageId}: " . $e->getMessage());
+            }
+
+            return [
+                'saved' => false,
+                'message_id' => $messageId,
+                'data' => $universalAssistanceData,
+                'error' => $e->getMessage(),
+            ];
+        }
+
+        return [
+            'saved' => $saved,
+            'message_id' => $messageId,
+            'data' => $universalAssistanceData,
+        ];
     }
 
     /**
