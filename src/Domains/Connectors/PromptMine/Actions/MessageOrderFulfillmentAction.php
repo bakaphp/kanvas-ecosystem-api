@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Actions;
 
-use Illuminate\Support\Facades\Log;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
