@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Observers\CategoryObserver;
@@ -72,7 +73,7 @@ class Categories extends BaseModel
         return $this->hasMany(CategoryResources::class);
     }
 
-    public function channels()
+    public function channels(): MorphToMany
     {
         return $this->morphedByMany(
             Channel::class,
@@ -83,7 +84,7 @@ class Categories extends BaseModel
         );
     }
 
-    public function products()
+    public function products(): MorphToMany
     {
         return $this->morphedByMany(
             Products::class,
