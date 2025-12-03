@@ -132,6 +132,7 @@ use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity
 use Kanvas\Souk\Affiliates\Activities\CreateAffiliateConversionActivity;
 use Kanvas\Souk\Loyalty\Activities\ProcessOrderLoyaltyActivity;
 use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
+use Kanvas\Souk\Referrals\Activities\ProcessReferralCodeRedemptionActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessUserSignupLoyaltyActivity;
 use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
@@ -285,6 +286,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateAffiliateConversionActivity::class,
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
+            ProcessReferralCodeRedemptionActivity::class,
         ];
 
         $createdActions = [];

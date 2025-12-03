@@ -19,6 +19,8 @@ use Override;
 
 class ProcessUserSignupLoyaltyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     #[Override]
     public function execute(Model $user, AppInterface $app, array $params): array
     {
