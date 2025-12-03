@@ -146,6 +146,8 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $people->del('get_docs_drivers_license');
                     }
 
+                    $sendEmailNotification = (bool) $entity->company->get('disable_id_verification_email', false) === false;
+
                     //dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
                     sleep(5); // Delay to ensure previous processes are complete
                     $entity->refresh();
@@ -186,53 +188,62 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $entity,
                     );
 
-                    $notification->setSubject($name . ' - ID Verification Report');
-                    Notification::send($usersToNotify, $notification);
-                    $entity->owner?->notify($notification);
+                    if ($sendEmailNotification) {
+                        $notification->setSubject($name . ' - ID Verification Report');
+                        Notification::send($usersToNotify, $notification);
 
-                    foreach ($managers as $manager) {
-                        if ($usersToNotify->contains($manager)) {
-                            continue;
+                        $entity->owner?->notify($notification);
+
+                        foreach ($managers as $manager) {
+                            if ($usersToNotify->contains($manager)) {
+                                continue;
+                            }
+                            $manager->notify($notification);
                         }
-                        $manager->notify($notification);
                     }
-
                     // Generate PDF
-                    /*                $pdfReport = PdfService::generatePdfFromTemplate(
-                                       $app,
-                                       $entity->user,
-                                       'id-verification-report',
-                                       $entity,
-                                       [
-                                           'message' => $reportData['message'],
-                                           'status' => $reportData['status'],
-                                           'flags' => $reportData['flags'],
-                                           'failures' => $reportData['failures'],
-                                           'results' => $reportData['results'],
-                                           'isShowRoom' => $isShowRoom,
-                                           'verificationData' => $verificationData,
-                                       ]
-                                   );
+                    $generatePdf = 'Generate PDF report for Intellicheck ID Verification';
 
-                                   if ($entity instanceof Lead) {
-                                       $engagement = EngagementRepository::findEngagementForLead(
-                                           $entity,
-                                           ConfigurationEnum::ID_VERIFICATION->value,
-                                           ActionStatusEnum::SUBMITTED->value,
-                                       );
+                    try {
+                        $pdfReport = PdfService::generatePdfFromTemplate(
+                            $app,
+                            $entity->user,
+                            'id-verification-report',
+                            $entity,
+                            [
+                               'message' => $reportData['message'],
+                               'status' => $reportData['status'],
+                               'flags' => $reportData['flags'],
+                               'failures' => $reportData['failures'],
+                               'results' => $reportData['results'],
+                               'isShowRoom' => $isShowRoom,
+                               'verificationData' => $verificationData,
+                                           ]
+                        );
 
-                                       if ($engagement) {
-                                           //update people name
-                                           // if ($engagement->people instanceof People) {
-                                           //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
-                                           //     }
+                        if ($entity instanceof Lead) {
+                            $engagement = EngagementRepository::findEngagementForLead(
+                                $entity,
+                                ConfigurationEnum::ID_VERIFICATION->value,
+                                ActionStatusEnum::SUBMITTED->value,
+                            );
 
-                                           $message = $engagement->message;
-                                           $message->addFile($pdfReport, 'id-verification');
-                                       }
-                                   } */
+                            if ($engagement) {
+                                //update people name
+                                // if ($engagement->people instanceof People) {
+                                //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
+                                //     }
 
-                    //$entity->addFile($pdfReport, 'id-verification');
+                                $message = $engagement->message;
+                                $message->addFile($pdfReport, 'id-verification');
+                            }
+                        }
+
+                        //$entity->addFile($pdfReport, 'id-verification');
+                    } catch (Throwable $e) {
+                        $generatePdf .= ' - Error generating PDF: ' . $e->getMessage();
+                        // Log PDF generation error but continue
+                    }
 
                     //since we are running 2 diff version of the api, we need to slow you down to get the last message
                     //})->delay(now()->addSeconds(30))->onQueue('notifications');
@@ -244,6 +255,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'data' => $reportData,
                         'resultsFromIntellicheck' => $resultsFromIntellicheck,
                         'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
+                        'generatePdf' => $generatePdf,
                     ];
                 },
                 company: $company,

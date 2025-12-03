@@ -37,7 +37,7 @@ class UsersRepository
                 $query->where('users_associated_apps.companies_id', $company->getKey());
             })
             ->whereIn('users.id', $users)
-            ->orWhereIn('users.email', $users)
+            //->orWhereIn('users.email', $users)
             ->groupBy('users.id')
             ->get();
     }
