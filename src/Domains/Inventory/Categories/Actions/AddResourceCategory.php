@@ -28,7 +28,7 @@ class AddResourceCategory
     {
         $categoryResource = CategoryResources::firstOrCreate([
             'system_modules_id' => $this->systemModule->getId(),
-            'category_id' => $this->category->getId(),
+            'categories_id' => $this->category->getId(),
         ]);
 
         return $categoryResource;
