@@ -34,8 +34,6 @@ class MessageOrderFulfillmentAction
 
         $orderCredit = $this->user->get('order_credits', []);
 
-         \Illuminate\Support\Facades\Log::info('Initial order credits', ['user_id' => $this->user->getId(), 'order_credits' => $orderCredit]);
-
         if (isset($orderCredit[$aiIndex][$modelIndex]) && $orderCredit[$aiIndex][$modelIndex] > 0) {
             $orderCredit[$aiIndex][$modelIndex] -= 1;
 
@@ -60,8 +58,6 @@ class MessageOrderFulfillmentAction
                     $orderCredit[$aiIndex][$modelIndex] += 1;
                 }
             }
-
-            \Illuminate\Support\Facades\Log::info('Updating user order credits', ['user_id' => $this->user->getId(), 'order_credits' => $orderCredit]);
 
             $this->user->set('order_credits', $orderCredit, true);
         }
