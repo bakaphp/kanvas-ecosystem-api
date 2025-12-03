@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\VinSolution;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -270,6 +271,7 @@ class DownloadAllLeadsCommand extends Command
                 'app' => $lead->app,
             ]
         );
+        $lead->set('lead_first_contacted_cli_at', Carbon::now()->toDateTimeString());
     }
 
     /**

@@ -17,6 +17,7 @@ class NewMessageNotification extends Notification
         array $data,
         array $via
     ) {
+        $message->refresh();
         parent::__construct($message, $data);
         $this->setType(EmailTemplateEnum::BLANK->value);
         $this->setTemplateName(! empty($data['email_template']) ? $data['email_template'] : NotificationTemplateEnum::EMAIL_NEW_MESSAGE->value);

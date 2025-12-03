@@ -25,7 +25,7 @@ class SendEventEmailsAction
     ) {
     }
 
-    public function execute(): void
+    public function execute(?Participant $participant = null): void
     {
         // Load necessary relations to ensure they're available in email templates
         $this->eventVersion->load([
@@ -42,6 +42,43 @@ class SendEventEmailsAction
         ]);
 
         $event = $this->eventVersion->event;
+
+        // If a specific participant is provided, send email only to that participant
+        if ($participant !== null) {
+            $participant->load('people');
+            $participantEmail = $participant->people->getEmails()->first()?->value;
+
+            if ($participantEmail) {
+                $payload = [
+                    'template' => $this->emailTemplate,
+                    'event' => $event,
+                    'event_version' => $this->eventVersion,
+                    'participant' => $participant,
+                    'event_name' => $this->eventVersion->name,
+                    'participant_name' => $participant->people->name ?? 'Participant',
+                    'participant_id' => $participant->id,
+                    'resource' => $event->resource,
+                    'resources' => $event->resources,
+                    'event_dates' => $this->eventVersion->dates,
+                    'start_date' => $this->eventVersion->dates->first()?->event_date?->format('Y-m-d'),
+                    'start_time' => $this->eventVersion->dates->first()?->start_time,
+                    'end_time' => $this->eventVersion->dates->first()?->end_time,
+                    ...$this->data,
+                ];
+
+                $this->sendEmail(
+                    $this->emailTemplate,
+                    $participantEmail,
+                    $payload,
+                    $event,
+                    $participant
+                );
+            }
+
+            return;
+        }
+
+        // Otherwise, send emails to all participants
         $participants = $this->eventVersion->participants;
 
         foreach ($participants as $participant) {

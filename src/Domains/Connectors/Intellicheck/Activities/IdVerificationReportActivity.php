@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intellicheck\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -144,82 +146,96 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $people->del('get_docs_drivers_license');
                     }
 
-                    dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
-                        $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
-                        if ($entity->get($key)) {
-                            // If the report has already been sent, we skip the rest of the process
-                            return;
+                    //dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
+                    sleep(5); // Delay to ensure previous processes are complete
+                    $entity->refresh();
+
+                    // Use Redis cache to prevent duplicate execution within 3 minutes
+                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name), true);
+                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . Str::simpleSlug($name);
+                    if (Cache::has($cacheKey)) {
+                        // If the report has already been sent, we skip the rest of the process
+                        return [
+                            'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
+                            'result' => true,
+                            'message' => 'IdVerificationReportActivity already executed',
+                            'data' => $reportData,
+                            'resultsFromIntellicheck' => $resultsFromIntellicheck,
+                            'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
+                        ];
+                    }
+
+                    // Set cache for 3 minutes
+                    Cache::put($cacheKey, true, now()->addMinutes(3));
+
+                    $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
+                    $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
+
+                    $notification = new Blank(
+                        'id-verification-report',
+                        [
+                            'message' => $reportData['message'],
+                            'status' => $reportData['status'],
+                            'flags' => $reportData['flags'],
+                            'failures' => $reportData['failures'],
+                            'results' => $reportData['results'],
+                            'isShowRoom' => $isShowRoom,
+                            'verificationData' => $verificationData,
+                        ],
+                        ['mail'],
+                        $entity,
+                    );
+
+                    $notification->setSubject($name . ' - ID Verification Report');
+                    Notification::send($usersToNotify, $notification);
+                    $entity->owner?->notify($notification);
+
+                    foreach ($managers as $manager) {
+                        if ($usersToNotify->contains($manager)) {
+                            continue;
                         }
+                        $manager->notify($notification);
+                    }
 
-                        $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
-                        $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
+                    // Generate PDF
+                    /*                $pdfReport = PdfService::generatePdfFromTemplate(
+                                       $app,
+                                       $entity->user,
+                                       'id-verification-report',
+                                       $entity,
+                                       [
+                                           'message' => $reportData['message'],
+                                           'status' => $reportData['status'],
+                                           'flags' => $reportData['flags'],
+                                           'failures' => $reportData['failures'],
+                                           'results' => $reportData['results'],
+                                           'isShowRoom' => $isShowRoom,
+                                           'verificationData' => $verificationData,
+                                       ]
+                                   );
 
-                        $notification = new Blank(
-                            'id-verification-report',
-                            [
-                                'message' => $reportData['message'],
-                                'status' => $reportData['status'],
-                                'flags' => $reportData['flags'],
-                                'failures' => $reportData['failures'],
-                                'results' => $reportData['results'],
-                                'isShowRoom' => $isShowRoom,
-                                'verificationData' => $verificationData,
-                            ],
-                            ['mail'],
-                            $entity,
-                        );
-
-                        $entity->set($key, true);
-                        $notification->setSubject($name . ' - ID Verification Report');
-                        Notification::send($usersToNotify, $notification);
-                        $entity->owner?->notify($notification);
-
-                        foreach ($managers as $manager) {
-                            if ($usersToNotify->contains($manager)) {
-                                continue;
-                            }
-                            $manager->notify($notification);
-                        }
-
-                        // Generate PDF
-                        /*                $pdfReport = PdfService::generatePdfFromTemplate(
-                                           $app,
-                                           $entity->user,
-                                           'id-verification-report',
+                                   if ($entity instanceof Lead) {
+                                       $engagement = EngagementRepository::findEngagementForLead(
                                            $entity,
-                                           [
-                                               'message' => $reportData['message'],
-                                               'status' => $reportData['status'],
-                                               'flags' => $reportData['flags'],
-                                               'failures' => $reportData['failures'],
-                                               'results' => $reportData['results'],
-                                               'isShowRoom' => $isShowRoom,
-                                               'verificationData' => $verificationData,
-                                           ]
+                                           ConfigurationEnum::ID_VERIFICATION->value,
+                                           ActionStatusEnum::SUBMITTED->value,
                                        );
 
-                                       if ($entity instanceof Lead) {
-                                           $engagement = EngagementRepository::findEngagementForLead(
-                                               $entity,
-                                               ConfigurationEnum::ID_VERIFICATION->value,
-                                               ActionStatusEnum::SUBMITTED->value,
-                                           );
+                                       if ($engagement) {
+                                           //update people name
+                                           // if ($engagement->people instanceof People) {
+                                           //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
+                                           //     }
 
-                                           if ($engagement) {
-                                               //update people name
-                                               // if ($engagement->people instanceof People) {
-                                               //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
-                                               //     }
+                                           $message = $engagement->message;
+                                           $message->addFile($pdfReport, 'id-verification');
+                                       }
+                                   } */
 
-                                               $message = $engagement->message;
-                                               $message->addFile($pdfReport, 'id-verification');
-                                           }
-                                       } */
+                    //$entity->addFile($pdfReport, 'id-verification');
 
-                        //$entity->addFile($pdfReport, 'id-verification');
-
-                        //since we are running 2 diff version of the api, we need to slow you down to get the last message
-                    })->delay(now()->addSeconds(30))->onQueue('notifications');
+                    //since we are running 2 diff version of the api, we need to slow you down to get the last message
+                    //})->delay(now()->addSeconds(30))->onQueue('notifications');
 
                     return [
                         'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],

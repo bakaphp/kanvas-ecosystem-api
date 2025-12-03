@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
@@ -504,6 +506,8 @@ class OrderTest extends TestCase
             'id' => $createOrderResponse['id'],
             'input' => [
                 'fulfillment_status' => 'fulfilled',
+                'statius' => 'completed',
+                'payment_status' => 'paid',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,
@@ -513,6 +517,8 @@ class OrderTest extends TestCase
         $order = Order::find($orderData['id']);
 
         $this->assertEquals('fulfilled', $order->fulfillment_status);
+        $this->assertEquals('completed', $order->status);
+        $this->assertEquals('paid', $order->payment_status);
     }
 
     public function testCreateOrderWithDecimalQuantity()
@@ -858,5 +864,110 @@ class OrderTest extends TestCase
         $this->assertIsArray($order->metadata['data']);
         $this->assertCount(2, $order->metadata['data']); // warehouse_code, new_data_field
         $this->assertCount(4, $order->metadata); // data, new_top_level, tracking_id, old_field
+    }
+
+    public function testUpdateOrderCustomer()
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $region = Regions::find($regionResponse['id']);
+        $company = $region->company;
+
+        $peopleId = People::factory()
+                ->withAppId($app->getId())
+                ->withCompanyId($company->getId())
+                ->withContacts()
+                ->create()
+                ->getId();
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        // Create order with initial metadata
+        $initialMetadata = [
+            'data' => [
+                'start_at' => now()->subDays(2)->toDateTimeString(),
+                'end_at' => now()->subDays(1)->toDateTimeString(),
+                'customer_notes' => 'Initial order notes',
+            ],
+            'tracking_id' => 'TRACK123',
+        ];
+
+        $data = [
+            'email' => fake()->email(),
+            'region_id' => $region->getId(),
+            'metadata' => $initialMetadata,
+            'customer' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createDraftOrder($input: DraftOrderInput!) {
+                createDraftOrder(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $createOrderResponse = $response->json()['data']['createDraftOrder'];
+        $orderId = $createOrderResponse['id'];
+
+        $response = $this->graphQL('
+            mutation orderChangeCustomer($order_id: ID!, $customer_id: ID!) {
+                orderChangeCustomer(order_id: $order_id, customer_id: $customer_id) 
+            }
+        ', [
+            'order_id' => $orderId,
+            'customer_id' => $peopleId,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+             AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+        ]);
+
+        $orderData = $response->json()['data']['orderChangeCustomer'];
+        $order = Order::find($orderId);
+
+        $this->assertTrue($order->people_id === $peopleId);
+        $this->assertTrue($orderData);
     }
 }

@@ -15,7 +15,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Copy folder content recursively to remote VM
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -31,7 +31,7 @@ jobs:
     environment: ${{ github.ref_name }}
     steps:
       - name: executing remote ssh commands using password
-        uses: appleboy/ssh-action@v1.2.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.AWS_TEST_EC2_HOST }}
           username: ${{ secrets.AWS_TEST_EC2_USERNAME }}

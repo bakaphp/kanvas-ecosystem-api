@@ -102,6 +102,7 @@ use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUse
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
+use Kanvas\Connectors\UniversalAssistance\Webhooks\ProcessUniversalAssistanceOrderWebhookJob;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceVoucherActivity;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\ProcessInsuranceCartActivity;
@@ -128,7 +129,9 @@ use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerChildNotificationAct
 use Kanvas\Social\Messages\Workflows\Activities\MessageOwnerInteractionNotifierActivity;
 use Kanvas\Social\Messages\Workflows\Activities\MessageReportNotificationActivity;
 use Kanvas\Social\Messages\Workflows\Activities\OptimizeImageFromMessageActivity;
+use Kanvas\Souk\Affiliates\Activities\CreateAffiliateConversionActivity;
 use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
+use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
@@ -251,6 +254,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateUniversalAssistanceQuoteActivity::class,
             CreateUniversalAssistanceVoucherActivity::class,
             ProcessInsuranceCartActivity::class,
+            ProcessUniversalAssistanceOrderWebhookJob::class,
             PullNetSuiteQuoteWebhookJob::class,
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
@@ -275,6 +279,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PushParticipantActivity::class,
             HumanAgentChannelResponseActivity::class,
             PushProductToItemActivity::class,
+            UserReferralCodeActivity::class,
+            CreateAffiliateConversionActivity::class,
         ];
 
         $createdActions = [];

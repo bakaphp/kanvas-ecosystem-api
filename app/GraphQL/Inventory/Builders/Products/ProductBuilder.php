@@ -126,7 +126,7 @@ class ProductBuilder
         }
 
         // Get recommendations based on intent
-        if ($intent === 'user') {
+        if (in_array($intent, ['user', 'for-you-feed', 'trending'])) {
             $userRecommendationService = new RecombeeUserRecommendationService(
                 $app,
             );

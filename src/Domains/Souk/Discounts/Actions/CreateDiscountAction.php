@@ -23,23 +23,23 @@ class CreateDiscountAction
     {
         $discount = Discount::firstOrCreate(
             [
-            'code' => $this->data->code,
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
+                'code' => $this->data->code,
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
             ],
             [
-            'name' => $this->data->name,
-            'description' => $this->data->description,
-            'discount_type_id' => $this->data->discount_type_id,
-            'value' => $this->data->value,
-            'is_percentage' => $this->data->is_percentage,
-            'min_order_value' => $this->data->min_order_value ?? null,
-            'max_discount_amount' => $this->data->max_discount_amount,
-            'start_date' => $this->data->start_date === null ? null : Carbon::instance($this->data->start_date),
-            'end_date' => $this->data->end_date === null ? null : Carbon::instance($this->data->end_date),
-            'is_active' => $this->data->is_active,
-            'usage_limit' => $this->data->usage_limit ?? null,
-            'is_one_per_customer' => $this->data->is_one_per_customer,
+                'name' => $this->data->name,
+                'description' => $this->data->description,
+                'discount_type_id' => $this->data->discount_type_id,
+                'value' => $this->data->value,
+                'is_percentage' => $this->data->is_percentage,
+                'min_order_value' => $this->data->min_order_value ?? null,
+                'max_discount_amount' => $this->data->max_discount_amount,
+                'start_date' => $this->data->start_date === null ? null : Carbon::instance($this->data->start_date),
+                'end_date' => $this->data->end_date === null ? null : Carbon::instance($this->data->end_date),
+                'is_active' => $this->data->is_active,
+                'usage_limit' => $this->data->usage_limit ?? null,
+                'is_one_per_customer' => $this->data->is_one_per_customer,
             ]
         );
 

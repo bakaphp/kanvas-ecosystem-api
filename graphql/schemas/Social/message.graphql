@@ -71,6 +71,7 @@ input MessageInput {
     is_public: Int
     entity_id: Mixed
     channel_slug: String
+    category_name: String
     distribution: DistributionInput
     tags: [TagInput!]
     slug: String
@@ -102,6 +103,11 @@ input DistributionInput {
     distributionType: DistributionType!
     channels: [ID!]!
     followers: [ID!]!
+}
+
+input ChannelCategoryFilter {
+    ids: [ID!]
+    names: [String!]
 }
 
 extend type Mutation @guard {
@@ -202,6 +208,7 @@ extend type Query @guard {
                 relation: "channels"
                 columns: ["id", "name", "slug"]
             )
+        hasChannelCategory: ChannelCategoryFilter
         hasTags: _
             @whereHasConditions(
                 relation: "tags"

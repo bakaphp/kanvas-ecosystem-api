@@ -77,7 +77,7 @@ class FilesystemServices
 
         return $createFileSystem->execute(
             $this->storage->url($uploadedFile),
-            $this->storage->path($uploadedFile)
+            $uploadedFile
         );
     }
 
