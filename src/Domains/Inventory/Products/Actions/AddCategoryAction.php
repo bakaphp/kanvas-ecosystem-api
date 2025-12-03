@@ -4,24 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Products\Models\ProductsCategories;
+use Kanvas\Inventory\Categories\Models\CategoryResourcesEntity;
 
 class AddCategoryAction
 {
     public function __construct(
-        protected Products $product,
+        protected Model $entity,
         protected Categories $category
     ) {
     }
 
     public function execute(): void
     {
-        ProductsCategories::firstOrCreate(
+        CategoryResourcesEntity::firstOrCreate(
             [
                 'categories_id' => $this->category->getId(),
-                'products_id' => $this->product->getId(),
+                'resource_id' => $this->entity->getId(),
+                'resource_type' => get_class($this->entity),
             ]
         );
     }
