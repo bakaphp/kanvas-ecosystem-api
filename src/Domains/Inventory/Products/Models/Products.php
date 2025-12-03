@@ -32,7 +32,6 @@ use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
@@ -43,6 +42,7 @@ use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasCategoriesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -100,6 +100,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use HasCategoriesTrait;
     use LogsActivity;
 
     protected $table = 'products';
@@ -153,18 +154,18 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ->get();
     }
 
-    /**
-     * categories.
-     */
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Categories::class,
-            ProductsCategories::class,
-            'products_id',
-            'categories_id'
-        );
-    }
+    // /**
+    //  * categories.
+    //  */
+    // public function categories(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(
+    //         Categories::class,
+    //         ProductsCategories::class,
+    //         'products_id',
+    //         'categories_id'
+    //     );
+    // }
 
     /**
      * warehouses.
