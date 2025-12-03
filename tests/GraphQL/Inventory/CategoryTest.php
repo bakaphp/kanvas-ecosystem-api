@@ -5,28 +5,31 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Inventory;
 
 use Kanvas\Languages\Models\Languages;
+use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 class CategoryTest extends TestCase
 {
     /**
      * testCreateCategory.
-     *
      */
     public function testCreateCategory(): void
     {
+        $systemModule = SystemModules::fromPublicApp()
+                ->firstOrFail();
+
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'system_module_id' => $systemModule->getId(),
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
                 {
-                    id
                     name
                     code,
                     is_published
@@ -34,37 +37,25 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => [
+                'createCategory' => [
+                    'name' => $data['name'],
+                    'code' => $data['code'],
+                    'is_published' => $data['is_published'],
+                    'position' => $data['position'],
+                    'weight' => $data['weight'],
+                ],
+            ],
         ]);
     }
 
     /**
      * testGetCategory.
-     *
      */
     public function testGetCategory(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'code' => fake()->name,
-            'position' => 1,
-            'is_published' => true,
-            'weight' => 0
-        ];
-        $this->graphQL('
-            mutation($data: CategoryInput!) {
-                createCategory(input: $data)
-                {
-                    id
-                    name,
-                    code,
-                    position,
-                    is_published
-                    weight
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
-        ]);
+        $response = $this->createCategory();
+
         $response = $this->graphQL('
             query {
                 categories {
@@ -82,16 +73,19 @@ class CategoryTest extends TestCase
 
     /**
      * testUpdateCategory.
-     *
      */
     public function testUpdateCategory(): void
     {
+        $systemModule = SystemModules::fromPublicApp()
+        ->firstOrFail();
+
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'system_module_id' => $systemModule->getId(),
+            'weight' => 0,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -105,7 +99,15 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => [
+                'createCategory' => [
+                    'name' => $data['name'],
+                    'code' => $data['code'],
+                    'is_published' => $data['is_published'],
+                    'position' => $data['position'],
+                    'weight' => $data['weight'],
+                ],
+            ],
         ]);
         $response = $this->graphQL('
             query {
@@ -127,13 +129,12 @@ class CategoryTest extends TestCase
                     name
                 }
             }', ['id' => $id, 'data' => $data])->assertJson([
-            'data' => ['updateCategory' => $data]
+            'data' => ['updateCategory' => $data],
         ]);
     }
 
     /**
      * testUpdateCategory.
-     *
      */
     public function testUpdateCategoryTranslation(): void
     {
@@ -142,7 +143,7 @@ class CategoryTest extends TestCase
         $id = $response['data']['createCategory']['id'];
 
         $dataUpdate = [
-            'name' => fake()->name . ' en'
+            'name' => fake()->name . ' en',
         ];
 
         $response = $this->graphQL('
@@ -162,7 +163,7 @@ class CategoryTest extends TestCase
             }', [
                 'dataUpdate' => $dataUpdate,
                 'id' => $id,
-                'code' => $language->code
+                'code' => $language->code,
             ]);
 
         $this->assertEquals(
@@ -173,7 +174,6 @@ class CategoryTest extends TestCase
 
     /**
      * testDeleteCategory.
-     *
      */
     public function testDeleteCategory(): void
     {
@@ -189,13 +189,13 @@ class CategoryTest extends TestCase
                     name
                 }
             }', ['id' => $id, 'data' => $data])->assertJson([
-            'data' => ['updateCategory' => $data]
+            'data' => ['updateCategory' => $data],
         ]);
         $this->graphQL('
             mutation($id: ID!) {
                 deleteCategory(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['deleteCategory' => true]
+            'data' => ['deleteCategory' => true],
         ]);
     }
 
@@ -209,16 +209,21 @@ class CategoryTest extends TestCase
         mutation($id: ID!) {
             deleteCategory(id: $id)
         }', ['id' => $id])->assertJson([
-        'data' => ['deleteCategory' => true]
+        'data' => ['deleteCategory' => true],
         ]);
+
+        $systemModule = SystemModules::fromPublicApp()
+        ->firstOrFail();
 
         $data = [
             'name' => $name,
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'system_module_id' => $systemModule->getId(),
+            'weight' => 0,
         ];
+
         $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
@@ -231,19 +236,32 @@ class CategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createCategory' => $data]
+            'data' => [
+                'createCategory' => [
+                    'name' => $data['name'],
+                    'code' => $data['code'],
+                    'is_published' => $data['is_published'],
+                    'position' => $data['position'],
+                    'weight' => $data['weight'],
+                ],
+            ],
         ]);
     }
 
     private function createCategory()
     {
+        $systemModule = SystemModules::fromPublicApp()
+        ->firstOrFail();
+
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'system_module_id' => $systemModule->getId(),
+            'weight' => 0,
         ];
+
         return $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
