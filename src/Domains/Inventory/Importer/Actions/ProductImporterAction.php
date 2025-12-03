@@ -204,8 +204,8 @@ class ProductImporterAction
                     'company' => $this->company,
                     'parent_id' => $category['parent_id'] ?? null,
                     'name' => $category['name'],
-                    'code' => $category['code'],
-                    'position' => $category['position'],
+                    'code' => $category['code'] ?? null,
+                    'position' => $category['position'] ?? 0,
                 ]);
                 $categoryModel = (new CreateCategory($categoryDto, $this->user))->execute();
                 if (isset($category['source_id']) && $this->importedProduct->isFromThirdParty()) {
