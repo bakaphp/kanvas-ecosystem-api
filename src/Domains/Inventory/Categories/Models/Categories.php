@@ -21,6 +21,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Kanvas\Social\Channels\Models\Channel;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -61,14 +62,36 @@ class Categories extends BaseModel
         return $this->hasMany(ProductsCategories::class, 'categories_id');
     }
 
-    public function products(): BelongsToMany
-    {
-        return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
-    }
+    // public function products(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
+    // }
 
     public function resources(): HasMany
     {
         return $this->hasMany(CategoryResources::class);
+    }
+
+    public function channels()
+    {
+        return $this->morphedByMany(
+            Channel::class,
+            'resource',
+            'category_resource_entity',
+            'categories_id',
+            'resource_id'
+        );
+    }
+
+    public function products()
+    {
+        return $this->morphedByMany(
+            Products::class,
+            'resource',
+            'category_resource_entity',
+            'categories_id',
+            'resource_id'
+        );
     }
 
     public function scopeFromResource($query, string $systemModuleId)
