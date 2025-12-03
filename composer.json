@@ -81,7 +81,7 @@
         "stripe/stripe-php": "^16.0",
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^8.0",
-        "symfony/http-client": "^7.0",
+        "symfony/http-client": "^8.0",
         "symfony/mailgun-mailer": "^8.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
         "twilio/sdk": "<8.8.8",
