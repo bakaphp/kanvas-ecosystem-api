@@ -43,6 +43,7 @@ enum AppSettingsEnums implements EnumsInterface
     case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
     case OPEN_AI_EMBEDDING_KEY;
+    case ENABLE_GLOBAL_MERGE_FILESYSTEM;
 
     #[Override]
     public function getValue(): mixed
@@ -82,6 +83,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE => 'default_filesystem_upload_file_size',
             self::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME => 'allow_reset_password_with_displayname',
             self::OPEN_AI_EMBEDDING_KEY => 'open_ai_embedding_key',
+            self::ENABLE_GLOBAL_MERGE_FILESYSTEM => 'enable_global_merge_filesystem',
         };
     }
 }
