@@ -202,7 +202,16 @@ class ProcessPendingInsuranceCommand extends Command
         }
 
         if (! $silent) {
-            $this->info("Found " . count($insurancePendingData) . " pending insurance entries");
+            $this->info("Found " . count($insurancePendingData) . " pending insurance entries (multi-eSIM order)");
+            
+            // Show summary of what will be processed
+            foreach ($insurancePendingData as $idx => $pd) {
+                $name = ($pd['insurance']['titular']['firstname'] ?? '') . ' ' . ($pd['insurance']['titular']['lastname'] ?? '');
+                $msgId = $pd['messageId'] ?? 'N/A';
+                $icc = $pd['iccid'] ?? 'N/A';
+                $this->line("  - Entry {$idx}: {$name} | Message: {$msgId} | ICCID: {$icc}");
+            }
+            $this->line('');
         }
 
         // Process each pending insurance
@@ -286,7 +295,7 @@ class ProcessPendingInsuranceCommand extends Command
 
             // Display insurance info
             if (! $silent) {
-                $this->displayInsuranceInfo($insurance, $entryIndex);
+                $this->displayInsuranceInfo($insurance, $entryIndex, $messageId, $iccid);
             }
 
             if ($dryRun) {
@@ -302,28 +311,33 @@ class ProcessPendingInsuranceCommand extends Command
             // Create voucher
             try {
                 $result = $this->createVoucher($order, $app, $insurance, $messageId, $entryIndex, $silent);
-                $orderResults["entry_{$entryIndex}"] = $result;
+                $orderResults["entry_{$entryIndex}"] = array_merge($result, [
+                    'message_id' => $messageId,
+                    'iccid' => $iccid,
+                ]);
 
                 if ($result['success']) {
                     $this->processedCount++;
                     if (! $silent) {
                         $voucherId = $result['voucher_id'] ?? 'N/A';
-                        $this->info("  [OK] Voucher created successfully: {$voucherId}");
+                        $this->info("  [OK] Voucher created for Message #{$messageId}: {$voucherId}");
                     }
                 } else {
                     $this->errorCount++;
                     if (! $silent) {
-                        $this->error("  [ERROR] Failed to create voucher: " . ($result['error'] ?? 'Unknown error'));
+                        $this->error("  [ERROR] Failed to create voucher for Message #{$messageId}: " . ($result['error'] ?? 'Unknown error'));
                     }
                 }
             } catch (Exception $e) {
                 $this->errorCount++;
                 if (! $silent) {
-                    $this->error("  [ERROR] Exception: " . $e->getMessage());
+                    $this->error("  [ERROR] Exception for Message #{$messageId}: " . $e->getMessage());
                 }
                 $orderResults["entry_{$entryIndex}"] = [
                     'success' => false,
                     'error' => $e->getMessage(),
+                    'message_id' => $messageId,
+                    'iccid' => $iccid,
                 ];
             }
 
@@ -335,6 +349,17 @@ class ProcessPendingInsuranceCommand extends Command
         if (! empty($successfulVouchers) && ! $dryRun) {
             $order->set('universal_assistance_processed', true);
             $this->processedOrders[] = $orderId;
+
+            if (! $silent) {
+                $this->line('');
+                $this->info("  Multi-eSIM Summary for Order #{$orderId}:");
+                $this->line("    - Total eSIMs processed: " . count($successfulVouchers));
+                foreach ($successfulVouchers as $key => $voucher) {
+                    $vId = $voucher['voucher_id'] ?? 'N/A';
+                    $mId = $voucher['message_id'] ?? 'N/A';
+                    $this->line("    - {$key}: Voucher={$vId}, Message={$mId}");
+                }
+            }
         }
 
         if (! empty($orderResults) && ! $dryRun) {
@@ -466,12 +491,18 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Display insurance information
      */
-    protected function displayInsuranceInfo(array $insurance, int $index): void
+    protected function displayInsuranceInfo(array $insurance, int $index, ?int $messageId = null, ?string $iccid = null): void
     {
         $titular = $insurance['titular'] ?? [];
 
         $this->line('');
         $this->info("  Entry #{$index} - Insurance Details:");
+        if ($iccid) {
+            $this->line("     ├─ ICCID: {$iccid}");
+        }
+        if ($messageId) {
+            $this->line("     ├─ Message ID: {$messageId}");
+        }
         $this->line("     ├─ Name: " . ($titular['firstname'] ?? 'N/A') . ' ' . ($titular['lastname'] ?? ''));
         $this->line("     ├─ Email: " . ($titular['email'] ?? 'N/A'));
         $this->line("     ├─ DOB: " . ($titular['dob'] ?? 'N/A'));
@@ -482,7 +513,7 @@ class ProcessPendingInsuranceCommand extends Command
         $this->line("     ├─ Expiration: " . ($titular['expirationDate'] ?? 'N/A'));
 
         $plan = $titular['plan'] ?? [];
-        $this->line("     └─ Plan: " . ($plan['name'] ?? 'N/A'));
+        $this->line("     └─ Plan: " . ($plan['name'] ?? 'N/A') . ' (' . ($plan['duration'] ?? '?') . ' days)');
 
         $dependents = $insurance['dependents'] ?? [];
         if (! empty($dependents)) {
@@ -828,6 +859,9 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Extract insurance data from esims array as fallback
      * Maps the esims[].eSimDetails.insurance structure to insurancePendingData format
+     * 
+     * This handles multi-eSIM orders where each eSIM has its own insurance data
+     * and message_id, allowing individual voucher creation per eSIM
      */
     protected function extractInsuranceFromEsims(array $metadata, bool $silent = false): array
     {
@@ -838,6 +872,10 @@ class ProcessPendingInsuranceCommand extends Command
             return [];
         }
 
+        if (! $silent) {
+            $this->info("  [FALLBACK] Found " . count($esims) . " eSIMs in order, extracting insurance data...");
+        }
+
         $insurancePendingData = [];
 
         foreach ($esims as $esimIndex => $esim) {
@@ -846,24 +884,32 @@ class ProcessPendingInsuranceCommand extends Command
             $insurance = $eSimDetails['insurance'] ?? null;
 
             if (empty($insurance) || empty($insurance['titular'])) {
+                if (! $silent) {
+                    $this->line("    - eSIM[{$esimIndex}]: No insurance data, skipping");
+                }
                 continue;
             }
 
-            // Get message_id from the esim data
-            $messageId = $esim['message_id'] ?? $eSimDetails['message_id'] ?? null;
+            // Get message_id from the esim data (can be at root level or inside data)
+            $messageId = $esim['message_id'] ?? $eSimDetails['message_id'] ?? $esim['data']['message_id'] ?? null;
 
-            // Get iccid for fallback message lookup
+            // Get iccid for fallback message lookup and identification
             $iccid = $esim['data']['iccid'] ?? $esim['iccid'] ?? null;
 
+            // Get label for display
+            $label = $eSimDetails['label'] ?? $esim['label'] ?? null;
+
             if (! $silent) {
-                $this->info("  [FALLBACK] Extracted insurance from esims[{$esimIndex}]");
+                $this->line("    - eSIM[{$esimIndex}]: ICCID={$iccid}, MessageID={$messageId}, Label={$label}");
             }
 
             $insurancePendingData[] = [
                 'insurance' => $insurance,
                 'messageId' => $messageId,
                 'iccid' => $iccid,
+                'label' => $label,
                 'source' => 'esims_fallback',
+                'esim_index' => $esimIndex,
             ];
         }
 
