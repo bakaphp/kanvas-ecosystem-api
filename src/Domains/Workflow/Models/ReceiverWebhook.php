@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Config;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
 use Override;
 
@@ -75,5 +76,10 @@ class ReceiverWebhook extends BaseModel
     public function runAsync(): bool
     {
         return $this->run_async;
+    }
+
+    public function getUrl(): string
+    {
+        return (string) Config::get('app.url') . '/v1/receiver/' . $this->uuid;
     }
 }
