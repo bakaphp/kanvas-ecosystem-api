@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -95,7 +96,7 @@ class Categories extends BaseModel
         );
     }
 
-    public function scopeFromResource($query, string $systemModuleId)
+    public function scopeFromResource($query, string $systemModuleId): Builder
     {
         return $query->whereHas('resources', function ($q) use ($systemModuleId) {
             $q->where('system_modules_id', $systemModuleId);

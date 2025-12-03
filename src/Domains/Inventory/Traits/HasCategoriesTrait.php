@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Traits;
 
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\Actions\AddCategoryAction;
 
 trait HasCategoriesTrait
 {
-    public function categories()
+    public function categories(): MorphToMany
     {
         return $this->morphToMany(
             Categories::class,
