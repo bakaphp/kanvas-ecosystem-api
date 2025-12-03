@@ -22,8 +22,8 @@ class EventService
         private readonly Companies $company,
         private readonly UserInterface $user
     ) {
-        $dealerId = $this->getDealerIdFromCompany();
-        $userId = $this->getUserIdFromCompany();
+        $dealerId = 0; // $this->getDealerIdFromCompany();
+        $userId = 0; //$this->getUserIdFromCompany();
 
         $this->client = new EventClient($dealerId, $userId, $this->app);
     }
@@ -114,7 +114,7 @@ class EventService
             throw new ValidationException('Failed to encode payload as JSON');
         }
 
-        $this->client->put('/subscriber', $json, [
+        $this->client->put('/vinsolutions/eventingapi/subscriber', $json, [
             'headers' => [
                 'Accept' => 'application/vnd.coxauto.v1+json',
             ],
