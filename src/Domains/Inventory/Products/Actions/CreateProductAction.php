@@ -10,7 +10,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
@@ -84,11 +83,7 @@ class CreateProductAction
 
             if ($this->productDto->categories) {
                 foreach ($this->productDto->categories as $category) {
-                    $category = CategoriesRepository::getById((int) $category['id'], $this->productDto->company);
-                    (new AddCategoryAction(
-                        $products,
-                        $category
-                    ))->execute();
+                    $products->addCategory($category['id']);
                 }
             }
 
