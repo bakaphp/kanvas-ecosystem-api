@@ -621,6 +621,20 @@ class SyncEsimWithProviderCommand extends Command
         $activationDate = null;
         $activationTimestamp = null;
 
+        // Check if the service is blocked due to data consumption (Autolock)
+        // ID_BLOCKING_REASON: 2000 means the service was blocked because data was fully consumed
+        $isBlockedDueToDataConsumption = false;
+        $blockingsInfo = $serviceInfo['services_info']['blockings_info'] ?? [];
+        if (! empty($blockingsInfo)) {
+            foreach ($blockingsInfo as $blocking) {
+                if (isset($blocking['ID_BLOCKING_REASON']) && $blocking['ID_BLOCKING_REASON'] == 2000) {
+                    $isBlockedDueToDataConsumption = true;
+
+                    break;
+                }
+            }
+        }
+
         if (! empty($balance)) {
             foreach ($balance as $balanceEntry) {
                 if (isset($balanceEntry['incomes']) && is_array($balanceEntry['incomes'])) {
@@ -652,7 +666,7 @@ class SyncEsimWithProviderCommand extends Command
 
         if (! $activationDate) {
             $orderCreationDate = $message->appModuleMessage->entity->created_at ?? null;
-            $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : '';
+            $activationDate = $orderCreationDate ? Carbon::parse($orderCreationDate)->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s');
         }
 
         $expirationDate = null;
@@ -702,7 +716,10 @@ class SyncEsimWithProviderCommand extends Command
         $totalBytesData = FileSizeConverter::toBytes($totalData);
         $remainingData = $totalBytesData;
 
-        if (! empty($balance)) {
+        // If blocked due to data consumption (ID_BLOCKING_REASON: 2000), set remaining to 0
+        if ($isBlockedDueToDataConsumption) {
+            $remainingData = 0;
+        } elseif (! empty($balance)) {
             foreach ($balance as $bal) {
                 // The 'value' field contains the remaining data in bytes
                 if (isset($bal['value']) && is_numeric($bal['value'])) {
@@ -711,6 +728,11 @@ class SyncEsimWithProviderCommand extends Command
                     break;
                 }
             }
+        }
+
+        // Ensure remaining doesn't exceed total
+        if ($remainingData > $totalBytesData) {
+            $remainingData = $totalBytesData;
         }
 
         $esimStatus = new ESimStatus(
