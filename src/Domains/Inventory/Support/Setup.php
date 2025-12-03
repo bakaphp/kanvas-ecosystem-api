@@ -51,18 +51,19 @@ class Setup
     public function run(): bool
     {
         $createSystemModule = new CreateInCurrentAppAction($this->app);
-        $createSystemModule->execute(Products::class);
         $createSystemModule->execute(Variants::class);
         $createSystemModule->execute(Warehouse::class);
         $createSystemModule->execute(Regions::class);
         $createSystemModule->execute(Attributes::class);
         $createSystemModule->execute(Categories::class);
+        $productSystemModule = $createSystemModule->execute(Products::class);
 
         $createCategory = new CreateCategory(
             new Category(
                 $this->app,
                 $this->company,
                 $this->user,
+                $productSystemModule,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_PARENT_ID->getValue() ?? null,
                 StateEnums::DEFAULT_POSITION->getValue(),
