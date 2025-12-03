@@ -44,6 +44,7 @@ input CategoryInput {
     is_published: Boolean!
     weight: Int
 }
+
 input CategoryUpdateInput {
     parent_id: Int
     name: String!
