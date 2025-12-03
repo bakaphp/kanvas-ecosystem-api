@@ -203,7 +203,7 @@ class ProcessPendingInsuranceCommand extends Command
 
         if (! $silent) {
             $this->info("Found " . count($insurancePendingData) . " pending insurance entries (multi-eSIM order)");
-            
+
             // Show summary of what will be processed
             foreach ($insurancePendingData as $idx => $pd) {
                 $name = ($pd['insurance']['titular']['firstname'] ?? '') . ' ' . ($pd['insurance']['titular']['lastname'] ?? '');
@@ -859,7 +859,6 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Extract insurance data from esims array as fallback
      * Maps the esims[].eSimDetails.insurance structure to insurancePendingData format
-     * 
      * This handles multi-eSIM orders where each eSIM has its own insurance data
      * and message_id, allowing individual voucher creation per eSIM
      */
