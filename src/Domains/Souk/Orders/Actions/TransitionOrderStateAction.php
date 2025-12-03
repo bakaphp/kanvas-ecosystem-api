@@ -5,11 +5,13 @@ namespace Kanvas\Souk\Orders\Actions;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Movipass\Workflows\Activities\TookanOrderStatusActivity;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
 
 class TransitionOrderStateAction
 {
@@ -91,6 +93,8 @@ class TransitionOrderStateAction
             });
 
             // Fire workflow after successful transaction
+
+
             $this->order->fireWorkflow(
                 WorkflowEnum::STATUS_TRANSITION->value,
                 true,
@@ -101,6 +105,23 @@ class TransitionOrderStateAction
                     'who' => $this->user,
                 ]
             );
+
+            $activity = new TookanOrderStatusActivity(
+                0,
+                now()->toDateTimeString(),
+                StoredWorkflow::make(),
+                []
+            );
+
+            $result = $activity->execute($this->order, $this->order->app, [
+                'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
+                'app' => $this->order->app,
+                'from_status' => $currentOrderStatus->slug,
+                'to_status' => $this->newOrderStatus->slug,
+                'who' => $this->user,
+            ]);
+
+            dump($result);
 
             return [
                 'status' => 'success',
