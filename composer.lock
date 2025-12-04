@@ -6667,16 +6667,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.2.1",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "cabc744a639025b270005dd1b0f7b387534db245"
+                "reference": "5c24473864d90331091b7ef2746e9edd7b2b45d9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/cabc744a639025b270005dd1b0f7b387534db245",
-                "reference": "cabc744a639025b270005dd1b0f7b387534db245",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/5c24473864d90331091b7ef2746e9edd7b2b45d9",
+                "reference": "5c24473864d90331091b7ef2746e9edd7b2b45d9",
                 "shasum": ""
             },
             "require": {
@@ -6716,9 +6716,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.2.1"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.3.0"
             },
-            "time": "2025-11-17T11:33:59+00:00"
+            "time": "2025-12-02T11:21:58+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -11108,16 +11108,16 @@
         },
         {
             "name": "smalot/pdfparser",
-            "version": "v2.12.1",
+            "version": "v2.12.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smalot/pdfparser.git",
-                "reference": "98d31ba34ef5b5a98897ef4b6c3925d502ea53b1"
+                "reference": "370b7e983fafecb787a9bcfd73baab8038212ad1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/98d31ba34ef5b5a98897ef4b6c3925d502ea53b1",
-                "reference": "98d31ba34ef5b5a98897ef4b6c3925d502ea53b1",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/370b7e983fafecb787a9bcfd73baab8038212ad1",
+                "reference": "370b7e983fafecb787a9bcfd73baab8038212ad1",
                 "shasum": ""
             },
             "require": {
@@ -11153,9 +11153,9 @@
             ],
             "support": {
                 "issues": "https://github.com/smalot/pdfparser/issues",
-                "source": "https://github.com/smalot/pdfparser/tree/v2.12.1"
+                "source": "https://github.com/smalot/pdfparser/tree/v2.12.2"
             },
-            "time": "2025-07-31T06:19:56+00:00"
+            "time": "2025-09-04T08:49:09+00:00"
         },
         {
             "name": "spatie/enum",
