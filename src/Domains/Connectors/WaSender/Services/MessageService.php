@@ -124,9 +124,9 @@ class MessageService
         ]);
     }
 
-    public function decryptMediaFile(array $payload): array {
-        
-return $this->client->post('/api/decrypt-media', $payload);
+    public function decryptMediaFile(array $payload): array
+    {
+        return $this->client->post('/api/decrypt-media', $payload);
     }
     /**
      * Send a contact card.
