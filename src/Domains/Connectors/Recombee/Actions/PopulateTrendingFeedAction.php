@@ -46,15 +46,19 @@ class PopulateTrendingFeedAction
         });
 
         $trendingMessages = Message::fromApp($this->app)
-                    ->where('is_public', 1)
-                    ->where('is_deleted', 0)
-                    ->where('created_at', '>=', now()->subDays($timePeriod))
-                    ->where('message_types_id', $this->messageType->getId())
-                    ->selectRaw('messages.*, 
-                        (total_liked * ' . $likesWeight . ') + (total_shared * ' . $sharedWeight . ') + ((total_children - 1) * ' . $remixWeight . ') as trending_score')
-                    ->orderBy('trending_score', 'desc')
-                    ->having('trending_score', '>=', $minTrendingScore)
-                    ->get();
+            ->where('is_public', 1)
+            ->where('is_deleted', 0)
+            ->where('created_at', '>=', now()->subDays($timePeriod))
+            ->where('message_types_id', $this->messageType->getId())
+            ->selectRaw(
+                'messages.*, 
+        (total_liked * ? + total_shared * ? + (total_children - 1) * ? 
+        + (? - DATEDIFF(NOW(), created_at)) * 0.5) as trending_score',
+                [$likesWeight, $sharedWeight, $remixWeight, $timePeriod]
+            )
+            ->having('trending_score', '>=', $minTrendingScore)
+            ->orderBy('trending_score', 'desc')
+            ->get();
         foreach ($trendingMessages as $message) {
             try {
                 $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
