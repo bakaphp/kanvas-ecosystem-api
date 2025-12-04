@@ -120,10 +120,8 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
         $start = $createdAt->copy()->timezone($tz)->startOfDay()->addDay();
         $dayOfWeek = (int) $createdAt->copy()->timezone($tz)->dayOfWeekIso;
 
-        // if friday move one extra day
-        if ($dayOfWeek === 5) {
-            $start = $start->addDay()->startOfDay();
-        } elseif ($dayOfWeek === 6 || $dayOfWeek === 7) {
+        // if friday, saturdays and sundays  move to monday
+        if (in_array($dayOfWeek, [5, 6, 7])) {
             $start = $start->next('Monday')->startOfDay();
         }
         return $start;

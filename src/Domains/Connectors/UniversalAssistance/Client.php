@@ -732,48 +732,47 @@ class Client
                         'DatosVoucher' => [
                             // Main voucher fields - following successful QA example order
                             'NroControl' => $voucherData['NroControl'] ?? $voucherData['nroControl'] ?? 'CTRL-PHP-' . substr((string)time(), -3),
-                            'Vendedor' => $voucherData['vendedor'] ?? $voucherData['Vendedor'] ?? 'WSSIMLIMITEDO', // Use working QA username as default
-                            'FechaEmision' => $voucherData['fechaEmision'] ?? date('m/d/Y'),
-                            'Destino' => $voucherData['destino'] ?? 'Centro america/Caribe', // Use valid destination
-                            'FechaVigencia' => $voucherData['fechaVigencia'] ?? date('m/d/Y', strtotime('+120 days')),
-                            'FechaFinal' => $voucherData['fechaFinal'] ?? date('m/d/Y', strtotime('+120 days')),
-                            'MonedaLista' => $voucherData['monedaLista'] ?? 'USD',
-                            'Precio' => '0.00',
-                            'NombreContactoVoucher' => $voucherData['nombreContactoVoucher'] ?? '',
-                            'NroTelContactoVoucher' => $voucherData['nroTelContactoVoucher'] ?? '',
-                            'Canal' => $voucherData['canal'] ?? 'Turismo', // Use 'Turismo' instead of 'WEB'
-                            'TipoVenta' => $voucherData['tipoVenta'] ?? 'Anual', // Annual sale type
-                            'Linea' => $voucherData['linea'] ?? 'Salud', // Health line for travel assistance
-                            'EstadoVoucher' => $voucherData['estadoVoucher'] ?? 'Activo', // Active status
-                            'MotivoVoucher' => $voucherData['motivoVoucher'] ?? 'Individual', // Individual voucher
-                            'Facturacion' => $voucherData['facturacion'] ?? 'Pendiente Facturación', // Pending billing
-                            'Contrato' => $voucherData['Contrato'] ?? '1-DEY2E2H',
-                            'LeadId' => $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
-                            'EnvioVoucherMail' => $voucherData['envioVoucherMail'] ?? 'Y',
-                            'Tarifa' => 'N', // Always N - no fallback needed
-                            'PostProcesoFlag' => 'N', // Always N - no fallback needed
+                            'Vendedor' => $voucherData['Vendedor'] ?? $voucherData['vendedor'] ?? 'WSSIMLIMITEDO',
+                            'FechaEmision' => $voucherData['FechaEmision'] ?? $voucherData['fechaEmision'] ?? date('m/d/Y'),
+                            'Destino' => $voucherData['Destino'] ?? $voucherData['destino'] ?? 'Centro america/Caribe',
+                            'FechaVigencia' => $voucherData['FechaVigencia'] ?? $voucherData['fechaVigencia'] ?? date('m/d/Y', strtotime('+120 days')),
+                            'FechaFinal' => $voucherData['FechaFinal'] ?? $voucherData['fechaFinal'] ?? date('m/d/Y', strtotime('+120 days')),
+                            'MonedaLista' => $voucherData['MonedaLista'] ?? $voucherData['monedaLista'] ?? 'USD',
+                            'Precio' => $voucherData['Precio'] ?? $voucherData['precio'] ?? '0.00',
+                            'NombreContactoVoucher' => $voucherData['NombreContactoVoucher'] ?? $voucherData['nombreContactoVoucher'] ?? '',
+                            'NroTelContactoVoucher' => $voucherData['NroTelContactoVoucher'] ?? $voucherData['nroTelContactoVoucher'] ?? '',
+                            'Canal' => $voucherData['Canal'] ?? $voucherData['canal'] ?? 'Turismo',
+                            'TipoVenta' => $voucherData['TipoVenta'] ?? $voucherData['tipoVenta'] ?? 'Anual',
+                            'Linea' => $voucherData['Linea'] ?? $voucherData['linea'] ?? 'Salud',
+                            'EstadoVoucher' => $voucherData['EstadoVoucher'] ?? $voucherData['estadoVoucher'] ?? 'Activo',
+                            'MotivoVoucher' => $voucherData['MotivoVoucher'] ?? $voucherData['motivoVoucher'] ?? 'Individual',
+                            'Facturacion' => $voucherData['Facturacion'] ?? $voucherData['facturacion'] ?? 'Pendiente Facturación',
+                            'Contrato' => $voucherData['Contrato'] ?? $voucherData['contrato'] ?? '1-DEY2E2H',
+                            'LeadId' => $voucherData['LeadId'] ?? $voucherData['leadId'] ?? $voucherData['idLead'] ?? '',
+                            'EnvioVoucherMail' => $voucherData['EnvioVoucherMail'] ?? $voucherData['envioVoucherMail'] ?? 'Y',
+                            'Tarifa' => $voucherData['Tarifa'] ?? 'N',
+                            'PostProcesoFlag' => $voucherData['PostProcesoFlag'] ?? 'N',
 
-                            // Sub-structures in successful order
-                            'DatosAgencia' => $voucherData['datosAgencia'] ?? [
+                            // Sub-structures - support both PascalCase and camelCase keys
+                            'DatosAgencia' => $voucherData['DatosAgencia'] ?? $voucherData['datosAgencia'] ?? [
                                 'OrganizacionRegistradora' => $this->organization,
                             ],
 
-                            'DatosProducto' => $voucherData['datosProducto'] ?? [
+                            'DatosProducto' => $voucherData['DatosProducto'] ?? $voucherData['datosProducto'] ?? [
                                 'NombreProducto' => $voucherData['nombreProducto'] ?? 'ARG MAXIMUM FOLL 2021 VP3',
                             ],
 
-                            'DatosSolicitante' => $voucherData['datosSolicitante'] ?? [
-                                // Add NroPolizaSeguro as required by WSDL but use empty value like working test
+                            'DatosSolicitante' => $voucherData['DatosSolicitante'] ?? $voucherData['datosSolicitante'] ?? [
                                 'NroPolizaSeguro' => $voucherData['nroPolizaSeguro'] ?? '',
                                 'NombreSolicitante' => $voucherData['nombreSolicitante'] ?? 'Test',
                                 'ApellidoSolicitante' => $voucherData['apellidoSolicitante'] ?? 'User',
                                 'TipoDocumentoSolicitante' => $voucherData['tipoDocumentoSolicitante'] ?? 'DNI',
                                 'NroDocumentoSolicitante' => $voucherData['nroDocumentoSolicitante'] ?? '12345678',
                                 'PaisResidenciaSolicitante' => $voucherData['paisResidenciaSolicitante'] ?? 'ARGENTINA',
-                                'SexoSolicitante' => $voucherData['sexoSolicitante'] ?? 'M', // M or F
+                                'SexoSolicitante' => $voucherData['sexoSolicitante'] ?? 'M',
                                 'FechaNacimientoSolicitante' => $voucherData['fechaNacimientoSolicitante'] ?? '01/01/1990',
                                 'CorreoElectronicoSolicitante' => $voucherData['correoElectronicoSolicitante'] ?? 'test@test.com',
-                                'TituloCortesiaSolicitante' => $voucherData['tituloCortesiaSolicitante'] ?? 'Sr.', // Courtesy title
+                                'TituloCortesiaSolicitante' => $voucherData['tituloCortesiaSolicitante'] ?? 'Sr.',
                             ],
                         ]
                     ]
@@ -1108,7 +1107,9 @@ class Client
                 $parameters = $anulaData;
             } else {
                 // Standard field mapping for anula voucher
+                // UARevertirCobro: 'Y' to revert charge, 'N' to not revert (default 'N')
                 $parameters = [
+                    'UARevertirCobro' => $anulaData['UARevertirCobro'] ?? $anulaData['revertirCobro'] ?? 'N',
                     'AgenciaAnulacion' => $anulaData['AgenciaAnulacion'] ?? $anulaData['agencia'] ?? $this->organization,
                     'NroVoucherSiebelAnulacion' => $anulaData['NroVoucherSiebelAnulacion'] ?? $anulaData['voucherNumber'] ?? '',
                 ];

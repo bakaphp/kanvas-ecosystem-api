@@ -27,7 +27,7 @@ class SendOrderEmailsAction
         // Load necessary relations to ensure they're available in email templates
         $this->order->load([
             'orderType',
-            'status',
+            'orderStatus',
             'people',
             'items.variant',
             'company',
@@ -72,13 +72,13 @@ class SendOrderEmailsAction
             });
 
             if ($externalItem && $externalItem->variant->company) {
-                return $externalItem->variant->company->getEmails()->first()?->value;
+                return $externalItem->variant->company->user->email;
             }
         }
 
         if (str_starts_with($this->emailTemplate, 'owner-')) {
             // Send to main company owner
-            return $this->order->company->getEmails()->first()?->value;
+            return $this->order->company->user->email;
         }
 
         return null;

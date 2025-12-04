@@ -29,6 +29,9 @@ class CartService
 
         $totalDiscount = 0;
         $discounts = array_map(function ($discount) use (&$totalDiscount) {
+            if ($discount['type'] === 'shipping') {
+                return null;
+            }
             $totalDiscount += $this->cart->getCalculatedValueForCondition($discount['name']);
 
             return [

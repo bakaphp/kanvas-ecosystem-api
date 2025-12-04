@@ -20,6 +20,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         array $via,
         array $templates = []
     ) {
+        $entity->refresh();
         $metadata = $entity->getMessage();
         unset($metadata['ai_image']);
         unset($metadata['prompt']);

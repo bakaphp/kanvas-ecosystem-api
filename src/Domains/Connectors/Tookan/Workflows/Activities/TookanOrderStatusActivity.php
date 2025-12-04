@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Connectors\Movipass\Workflows\Activities;
+namespace Kanvas\Connectors\Tookan\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;

@@ -28,7 +28,9 @@ class SuperCarrosVehicleInventoryCommand extends Command
                             {region_id : The region ID}
                             {--warehouse_id= : Optional warehouse ID to use instead of the region\'s default warehouse}
                             {--channel_id= : Optional channel ID to use instead of the company\'s default channel}
-                            {--unpublish-all : Unpublish all variants from the channel before importing}';
+                            {--unpublish-all : Unpublish all variants from the channel before importing}
+                            {--customer_id= : Optional customer ID to filter vehicles by customer}
+                            {--weight= : Optional weight to assign to imported products}';
 
     /**
      * The console command description.
@@ -74,6 +76,8 @@ class SuperCarrosVehicleInventoryCommand extends Command
 
         // Check if unpublish all flag is set
         $unpublishAll = $this->option('unpublish-all');
+        $customerId = $this->option('customer_id');
+        $weight = $this->option('weight') ? (float) $this->option('weight') : null;
 
         // Show configuration
         $this->info('Starting SuperCarros vehicle inventory import...');
@@ -81,6 +85,13 @@ class SuperCarrosVehicleInventoryCommand extends Command
         $this->info('Company: ' . $company->name . ' (ID: ' . $company->id . ')');
         $this->info('Region: ' . $region->name . ' (ID: ' . $region->id . ')');
         $this->info('User: ' . $user->displayname . ' (ID: ' . $user->id . ')');
+        if ($customerId) {
+            $this->info('Customer ID: ' . $customerId);
+        }
+
+        if ($weight !== null) {
+            $this->info('Weight: ' . $weight);
+        }
 
         if ($warehouse) {
             $this->info('Using warehouse: ' . $warehouse->name . ' (ID: ' . $warehouse->id . ')');
@@ -116,7 +127,9 @@ class SuperCarrosVehicleInventoryCommand extends Command
                 $region,
                 $warehouse,
                 $channel,
-                $unpublishAll
+                $unpublishAll,
+                $customerId,
+                $weight
             );
 
             $this->info('Fetching vehicles from SuperCarros API...');

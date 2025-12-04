@@ -76,7 +76,7 @@ class Address
      */
     public function getState(): ?string
     {
-        $defaultState = $this->address->people && $this->address->people->companies ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) : CustomFieldEnum::DEFAULT_STATE->value;
+        $defaultState = $this->address->people && $this->address->people->company ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) : CustomFieldEnum::DEFAULT_STATE->value;
 
         if ($this->address->state === null) {
             if (! empty($this->address->state) && strlen($this->address->state) > 3) {

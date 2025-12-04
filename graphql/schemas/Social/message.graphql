@@ -40,6 +40,12 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    categories: [Category!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -71,8 +77,10 @@ input MessageInput {
     is_public: Int
     entity_id: Mixed
     channel_slug: String
+    category_name: String
     distribution: DistributionInput
     tags: [TagInput!]
+    categories: [CategoryInput!]
     slug: String
     files: [Upload!]
 }
@@ -83,6 +91,7 @@ input MessageUpdateInput {
     is_public: Int
     is_deleted: Int
     tags: [TagInput!]
+    categories: [CategoryInput!]
 }
 
 enum DistributionType {
@@ -102,6 +111,11 @@ input DistributionInput {
     distributionType: DistributionType!
     channels: [ID!]!
     followers: [ID!]!
+}
+
+input ChannelCategoryFilter {
+    ids: [ID!]
+    names: [String!]
 }
 
 extend type Mutation @guard {
@@ -202,9 +216,15 @@ extend type Query @guard {
                 relation: "channels"
                 columns: ["id", "name", "slug"]
             )
+        hasChannelCategory: ChannelCategoryFilter
         hasTags: _
             @whereHasConditions(
                 relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasCategories: _
+            @whereHasConditions(
+                relation: "categories"
                 columns: ["id", "name", "slug"]
             )
         requiredTags: [String!]
@@ -213,6 +233,11 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "messageType"
                 columns: ["id", "name", "verb"]
+            )
+        hasChannelCategory: _
+            @whereHasConditions(
+                relation: "channels.categories"
+                columns: ["id", "name", "slug"]
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])

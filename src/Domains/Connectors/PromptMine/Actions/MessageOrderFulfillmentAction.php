@@ -18,7 +18,7 @@ class MessageOrderFulfillmentAction
         $this->user = Users::getById($this->message->users_id);
     }
 
-    public function execute(string $aiIndex): array
+    public function execute(string $aiIndex, bool $refundCredit = false): array
     {
         // Deduct user credit based on the selected video filter
         $modelIndex = $this->message->message['ai_model']['value'] ?? null;
@@ -42,12 +42,20 @@ class MessageOrderFulfillmentAction
                 && $orderCredit[$aiIndex][$relatedModelIndex] > 0) {
                 $orderCredit[$aiIndex][$relatedModelIndex] -= 1;
                 if ($orderCredit[$aiIndex][$relatedModelIndex] <= 0) {
-                    unset($orderCredit[$aiIndex][$relatedModelIndex]);
+                    if (! $refundCredit) {
+                        unset($orderCredit[$aiIndex][$relatedModelIndex]);
+                    } else {
+                        $orderCredit[$aiIndex][$relatedModelIndex] += 1;
+                    }
                 }
             }
 
             if ($orderCredit[$aiIndex][$modelIndex] <= 0) {
-                unset($orderCredit[$aiIndex][$modelIndex]);
+                if (! $refundCredit) {
+                    unset($orderCredit[$aiIndex][$modelIndex]);
+                } else {
+                    $orderCredit[$aiIndex][$modelIndex] += 1;
+                }
             }
 
             $this->user->set('order_credits', $orderCredit, true);

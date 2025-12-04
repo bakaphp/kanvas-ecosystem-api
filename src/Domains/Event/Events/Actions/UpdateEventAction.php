@@ -76,6 +76,12 @@ class UpdateEventAction
             if (isset($this->updateData['time_slot_id'])) {
                 $this->eventVersion->time_slot_id = $this->updateData['time_slot_id'];
             }
+            if (isset($this->updateData['start_at'])) {
+                $this->eventVersion->start_at = $this->updateData['start_at'];
+            }
+            if (isset($this->updateData['end_at'])) {
+                $this->eventVersion->end_at = $this->updateData['end_at'];
+            }
             if (isset($this->updateData['metadata'])) {
                 $existingMetadata = $this->eventVersion->metadata ?? [];
                 $this->eventVersion->metadata = array_merge($existingMetadata, $this->updateData['metadata']);

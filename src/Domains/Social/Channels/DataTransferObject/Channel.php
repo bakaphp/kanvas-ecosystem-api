@@ -6,6 +6,7 @@ namespace Kanvas\Social\Channels\DataTransferObject;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Channels\Models\ChannelCategories;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
 
@@ -19,7 +20,8 @@ class Channel extends Data
         public string $entity_namespace,
         public string $name = '',
         public string $description = '',
-        public ?string $slug = null
+        public ?string $slug = null,
+        public ?ChannelCategories $category = null,
     ) {
     }
 }
