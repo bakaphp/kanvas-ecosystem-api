@@ -51,6 +51,7 @@ class ModulesRepositories
                     'create',
                     'edit',
                     'delete',
+                    'is_published'
                 ],
                 ProductsTypes::class => [
                     'create',
