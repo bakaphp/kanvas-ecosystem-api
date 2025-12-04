@@ -69,6 +69,16 @@ extend type Query {
                     "entity_id"
                 ]
             )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasCategories: _
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         orderBy: _ @orderBy(columnsEnum: ChannelColumns)
     ): [SocialChannel!]!
         @paginate(

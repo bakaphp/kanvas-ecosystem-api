@@ -166,6 +166,10 @@ class MessageManagementMutation
             $message->syncTags($request['input']['tags']);
         }
 
+        if (array_key_exists('categories', $request['input']) && ! empty($request['input']['categories'])) {
+            $message->syncCategories($request['input']['categories']);
+        }
+
         return $message;
     }
 
