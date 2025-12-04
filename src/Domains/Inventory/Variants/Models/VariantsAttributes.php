@@ -8,9 +8,11 @@ use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Variants\Observers\VariantsAttributesObserver;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Override;
 
@@ -24,6 +26,7 @@ use Override;
  * @property string $updated_at
  * @property bool $is_deleted
  */
+#[ObservedBy(VariantsAttributesObserver::class)]
 class VariantsAttributes extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
