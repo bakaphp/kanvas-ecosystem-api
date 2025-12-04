@@ -43,7 +43,7 @@ class PromptVideoFilterActivity extends KanvasActivity
                 $entity->setPrivate();
 
                 try {
-                    $orderCredit = (new MessageOrderFulfillmentAction($entity))->execute('video', true);
+                    $orderCredit = (new MessageOrderFulfillmentAction($entity))->execute('video');
 
                     // Use the ProcessVideoRequestAction for the core logic
                     $processVideoAction = new ProcessVideoRequestAction($entity, $app, $params);
