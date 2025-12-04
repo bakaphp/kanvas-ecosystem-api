@@ -17,7 +17,6 @@ class CategoryEntity extends MorphPivot
     protected $fillable = [
         'categories_id',
         'entity_id',
-        'entity_namespace',
         'taggable_type',
         'companies_id',
         'apps_id',
@@ -39,6 +38,7 @@ class CategoryEntity extends MorphPivot
 
     public function systemModule(): BelongsTo
     {
-        return $this->belongsTo(SystemModules::class, 'taggable_type', 'model_name')->where('apps_id', $this->apps_id);
+        return $this->belongsTo(SystemModules::class, 'taggable_type', 'model_name')
+                ->where('apps_id', $this->apps_id);
     }
 }

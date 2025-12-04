@@ -16,7 +16,6 @@ return new class () extends Migration {
             $table->id();
             $table->integer('categories_id')->index();
             $table->integer('entity_id')->index();
-            $table->string('entity_namespace')->nullable()->index();
             $table->string('taggable_type')->index();
             $table->integer('companies_id')->index();
             $table->integer('apps_id')->index();
