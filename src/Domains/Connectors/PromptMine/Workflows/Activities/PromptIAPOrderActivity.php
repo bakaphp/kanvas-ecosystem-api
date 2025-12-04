@@ -41,6 +41,9 @@ class PromptIAPOrderActivity extends KanvasActivity
                         'texttoimage' => 'image',
                         'texttovideo' => 'video',
                         'imagetoimage' => 'image',
+                        'multiimagetoimage' => 'image',
+                        'framestovideo' => 'video',
+                        'referencestovideo' => 'video',
                         default => 'text',
                     };
 
