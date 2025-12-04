@@ -35,17 +35,40 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                     $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
                     $aiModelRelated = $variant->getAttributeBySlug('ai-model-related')?->value;
-                    $purchaseType = match (strtolower($variant->product->categories->first()->slug)) {
-                        'texttotext' => 'text',
-                        'imagetovideo' => 'video',
-                        'texttoimage' => 'image',
-                        'texttovideo' => 'video',
-                        'imagetoimage' => 'image',
-                        'multiimagetoimage' => 'image',
-                        'framestovideo' => 'video',
-                        'referencestovideo' => 'video',
-                        default => 'text',
-                    };
+                    // $purchaseType = match (strtolower($variant->product->categories->first()->slug)) {
+                    //     'texttotext' => 'text',
+                    //     'imagetovideo' => 'video',
+                    //     'texttoimage' => 'image',
+                    //     'texttovideo' => 'video',
+                    //     'imagetoimage' => 'image',
+                    //     'multiimagetoimage' => 'image',
+                    //     'framestovideo' => 'video',
+                    //     'referencestovideo' => 'video',
+                    //     default => 'text',
+                    // };
+
+
+                    $slug = strtolower($variant->product->categories->first()->slug);
+
+                    switch ($slug) {
+                        case 'texttotext':
+                            $purchaseType = 'text';
+                            break;
+                        case 'imagetovideo':
+                        case 'texttovideo':
+                        case 'framestovideo':
+                        case 'referencestovideo':
+                            $purchaseType = 'video';
+                            break;
+                        case 'texttoimage':
+                        case 'imagetoimage':
+                        case 'multiimagetoimage':
+                            $purchaseType = 'image';
+                            break;
+                        default:
+                            $purchaseType = 'text';
+                            break;
+                    }
 
                     $orderCredit[$purchaseType] ??= [];
 
