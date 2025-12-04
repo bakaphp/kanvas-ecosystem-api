@@ -51,6 +51,7 @@ class ImportProductFromFilesystemAction
 
                     if (is_string($price)) {
                         $cleaned = preg_replace('/[\$,\s]/', '', $price);
+
                         return (float) $cleaned;
                     }
 
@@ -78,6 +79,7 @@ class ImportProductFromFilesystemAction
 
                 $productTypeId = $this->filesystemImports->filesystemMapper->configuration['product_type_id'];
                 $productType = $productTypeId ? ProductsTypesRepository::getById((int) $productTypeId, $this->filesystemImports->company, $this->filesystemImports->app) : null;
+
                 $listOfProducts[] = [
                     'name' => $variants[0]['product_name'],
                     'description' => $variants[0]['product_description'] ?? '',
@@ -85,14 +87,15 @@ class ImportProductFromFilesystemAction
                     'sku' => $variants[0]['sku'],
                     'status' => $variants[0]['status'] ?? null,
                     'customFields' => [],
+                    'categories' => $variants[0]['categories'],
                     'variants' => $variants,
                     'attributes' => $productAttributes,
                     'price' => 0.0,
                     'productType' => $productType ? [
                         'id' => $productType->id,
                         'name' => $productType->name,
-                        'weight' => $productType->weight
-                    ] : null
+                        'weight' => $productType->weight,
+                    ] : null,
                 ];
             }
         }
@@ -117,11 +120,13 @@ class ImportProductFromFilesystemAction
 
             if ($key === 'attributes' && is_array($value)) {
                 $result[$targetKey] = $this->mapAttributes($value, $data);
+
                 continue;
             }
 
             if (is_array($value)) {
                 $result[$targetKey] = $this->mapper($value, $data);
+
                 continue;
             }
 
@@ -132,7 +137,9 @@ class ImportProductFromFilesystemAction
                 default => $value,
             };
 
-            if ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
+            if ($targetKey === 'categories' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
+                $result[$targetKey] = $this->mapCategories($result[$targetKey]);
+            } elseif ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
                 $result[$targetKey] = Date::explodeFileStringBasedOnDelimiter($result[$targetKey]);
             } elseif (is_string($result[$targetKey]) && Date::isValidDate($result[$targetKey])) {
                 $result[$targetKey] = Date::createFromFormat($result[$targetKey]);
@@ -145,6 +152,7 @@ class ImportProductFromFilesystemAction
     private function getFilePath(Filesystem $filesystem): string
     {
         $service = (new FilesystemServices($this->filesystemImports->app));
+
         return $service->getFileLocalPath($filesystem);
     }
 
@@ -165,11 +173,24 @@ class ImportProductFromFilesystemAction
                     $result[] = [
                         'fromProduct' => $fromProduct,
                         'name' => $key,
-                        'value' => $value
+                        'value' => $value,
                     ];
                 }
             }
         }
+
         return $result;
+    }
+
+    private function mapCategories(string $categoriesString): array
+    {
+        $categories = array_map('trim', explode(',', $categoriesString));
+
+        return array_map(function ($categoryName) {
+            return [
+                'name' => $categoryName,
+                'slug' => Str::slug($categoryName),
+            ];
+        }, array_filter($categories));
     }
 }
