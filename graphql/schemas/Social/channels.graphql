@@ -17,6 +17,12 @@ type SocialChannel {
     systemModule: SystemModule! @belongsTo
     created_at: DateTime!
     updated_at: DateTime
+    categories: [Category!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
 }
 
 input SocialChannelInput {
