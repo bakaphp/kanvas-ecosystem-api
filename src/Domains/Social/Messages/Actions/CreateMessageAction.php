@@ -70,6 +70,10 @@ class CreateMessageAction
                 $message->syncTags($this->messageInput->tags);
             }
 
+            if (count($this->messageInput->categories)) {
+                $message->syncCategories($this->messageInput->categories);
+            }
+
             if ($this->systemModule && $this->entityId !== null) {
                 $associateMessage = new AssociateMessageToSystemModule(
                     $message,
