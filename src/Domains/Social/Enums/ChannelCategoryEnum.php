@@ -6,6 +6,9 @@ namespace Kanvas\Social\Enums;
 
 use InvalidArgumentException;
 
+/**
+ * @todo move to agents?
+ */
 enum ChannelCategoryEnum: string
 {
     case EMAIL = 'email';
