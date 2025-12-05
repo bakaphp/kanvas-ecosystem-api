@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
@@ -26,6 +27,7 @@ use Override;
 class AffiliateLinkTemplate extends BaseModel
 {
     use UuidTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'affiliate_link_templates';
 
