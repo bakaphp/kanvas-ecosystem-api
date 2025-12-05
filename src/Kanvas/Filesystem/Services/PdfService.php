@@ -23,7 +23,6 @@ class PdfService
         array $options = []
     ): ModelsFilesystem {
         //$response = PdfGenerator::fromHtml($html, $options);
-
         // Define the file name
         //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
         //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
