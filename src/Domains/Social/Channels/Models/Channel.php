@@ -59,7 +59,6 @@ class Channel extends BaseModel
         'last_message_id',
         'metadata',
         'uuid',
-        'category_id',
     ];
 
     protected $casts = [
@@ -84,11 +83,6 @@ class Channel extends BaseModel
     {
         return $this->belongsToMany(Message::class, 'channel_messages', 'channel_id', 'messages_id')
                 ->withTimestamps();
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(ChannelCategories::class, 'category_id');
     }
 
     public function getLastMessage(): ?Message
