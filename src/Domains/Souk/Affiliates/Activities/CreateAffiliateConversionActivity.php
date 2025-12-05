@@ -32,8 +32,8 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                 $affiliateLink = AffiliateLink::fromApp($app)
                     ->where('companies_id', $order->companies_id)
                     ->where(function (Builder $query) use ($affiliateLink, $affiliateId) {
-                        $query->where('code', $affiliateLink)
-                            ->orWhere('code', $affiliateId);
+                        $query->where('short_code', $affiliateLink)
+                            ->orWhere('short_code', $affiliateId);
                     })
                     ->first();
 
