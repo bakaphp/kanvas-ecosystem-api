@@ -31,9 +31,6 @@ class ChannelsTest extends TestCase
                     description,
                     entity_id,
                     entity_namespace
-                    category{
-                    id
-                    name}
                 }
             }
         ', [
