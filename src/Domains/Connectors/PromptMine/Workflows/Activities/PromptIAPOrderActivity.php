@@ -35,7 +35,7 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                     $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
                     $aiModelRelated = $variant->getAttributeBySlug('ai-model-related')?->value;
-                    $purchaseType = match (strtolower($variant->product->categories->first()->name)) {
+                    $purchaseType = match (strtolower($variant->product->categories->first()->slug)) {
                         'texttotext' => 'text',
                         'imagetovideo' => 'video',
                         'texttoimage' => 'image',
