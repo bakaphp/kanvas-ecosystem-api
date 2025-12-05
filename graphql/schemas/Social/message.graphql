@@ -112,11 +112,6 @@ input DistributionInput {
     followers: [ID!]!
 }
 
-input ChannelCategoryFilter {
-    ids: [ID!]
-    names: [String!]
-}
-
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
@@ -215,7 +210,6 @@ extend type Query @guard {
                 relation: "channels"
                 columns: ["id", "name", "slug"]
             )
-        hasChannelCategory: ChannelCategoryFilter
         hasTags: _
             @whereHasConditions(
                 relation: "tags"
