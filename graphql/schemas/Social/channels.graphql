@@ -37,7 +37,6 @@ input SocialChannelInput {
     description: String!
     entity_namespace_uuid: String!
     entity_id: ID!
-    category_id: ID
 }
 
 enum UsersRolesChannel {
