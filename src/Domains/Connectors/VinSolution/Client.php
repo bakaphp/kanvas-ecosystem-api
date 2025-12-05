@@ -18,6 +18,7 @@ class Client
     public int $userId;
     protected string $authBaseUrl = 'https://authentication.vinsolutions.com';
     protected string $baseUrl = 'https://api.vinsolutions.com';
+    protected string $eventBaseUrl = 'https://api.coxautoinc.com';
     protected string $grantType = 'client_credentials';
     protected string $scope = 'PublicAPI';
     protected string $clientId;
@@ -27,9 +28,6 @@ class Client
     protected string $redisKey = 'vinSolutionAuthToken';
     protected bool $useDigitalShowRoomKey = false;
 
-    /**
-     * Constructor.
-     */
     public function __construct(int $dealerId, int $userId, ?AppInterface $app = null)
     {
         $app = $app ?? app(Apps::class);
@@ -38,6 +36,7 @@ class Client
 
         if (app()->environment() !== 'production') {
             $this->baseUrl = 'https://sandbox.api.vinsolutions.com';
+            $this->eventBaseUrl = 'https://sandbox.api.coxautoinc.com';
         }
 
         $this->clientId = $app->get(ConfigurationEnum::CLIENT_ID->value);

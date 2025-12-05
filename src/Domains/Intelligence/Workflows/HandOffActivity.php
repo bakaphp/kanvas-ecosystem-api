@@ -76,7 +76,7 @@ class HandOffActivity extends KanvasActivity
                 if ($handOffType === 'compliance_internal') {
                     //$params['template_name'] = 'lead_compliance_handoff';
                     $handOffNotification->setTemplateName('lead_handoff_compliance_handoff');
-                    $handOffNotification->setSubject('Lead Compliance Handoff Notification');
+                    $handOffNotification->setSubject('Lead Compliance Handoff Notification - ' . $lead->people->name);
                     $handOffNotification->setPushTemplateName('lead_handoff_compliance_push_notification');
                     $handOffNotification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
                     /*  $contactInfo = match (strtolower($communicationChannel)) {
@@ -120,6 +120,9 @@ class HandOffActivity extends KanvasActivity
                 $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, $handOffUserRole)->get();
 
                 foreach ($managers as $manager) {
+                    if ($leadOwner->getId() === $manager->getId()) {
+                        continue;
+                    }
                     $manager->notify(
                         $handOffNotification
                     );

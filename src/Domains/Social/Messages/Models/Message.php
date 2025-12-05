@@ -27,6 +27,7 @@ use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
@@ -84,6 +85,7 @@ class Message extends BaseModel
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
+    use HasCategoriesTrait;
     use QueryCacheable;
 
     protected $table = 'messages';
@@ -141,6 +143,7 @@ class Message extends BaseModel
     public function childrenByType(string $verb): HasMany
     {
         $messageTypeId = MessagesTypesRepository::getByVerb($verb, $this->app)->getId();
+
         return $this->hasMany(static::class, $this->getParentKeyName())
         ->where('message_types_id', $messageTypeId)
         ->where('is_public', 1)

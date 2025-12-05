@@ -56,12 +56,12 @@ class LoyaltyTier extends BaseModel
 
     public function loyaltyProgram(): BelongsTo
     {
-        return $this->belongsTo(LoyaltyProgram::class);
+        return $this->belongsTo(LoyaltyProgram::class, 'loyalty_programs_id');
     }
 
     public function memberships(): HasMany
     {
-        return $this->hasMany(LoyaltyTierMembership::class);
+        return $this->hasMany(LoyaltyTierMembership::class, 'loyalty_tiers_id');
     }
 
     /**

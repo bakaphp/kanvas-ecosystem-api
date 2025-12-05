@@ -23,10 +23,20 @@ class PdfService
         array $options = []
     ): ModelsFilesystem {
         //$response = PdfGenerator::fromHtml($html, $options);
+        // Define the file name
+        //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
+        //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
 
         // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
-        $tempFilePath = sys_get_temp_dir() . '/' . $fileName;
+
+        // Ensure temp directory exists
+        $tempDir = sys_get_temp_dir() ?: '/tmp';
+        if (! is_dir($tempDir) || ! is_writable($tempDir)) {
+            $tempDir = storage_path('app/temp');
+        }
+
+        $tempFilePath = $tempDir . '/' . $fileName;
 
         $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
 

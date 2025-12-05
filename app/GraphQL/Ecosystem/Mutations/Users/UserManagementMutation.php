@@ -38,6 +38,7 @@ use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserContactsService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UserManagementMutation
 {
@@ -75,6 +76,15 @@ class UserManagementMutation
 
         $userManagement = new UserManagementService($userToEdit, $app, $user);
         $userToEdit = $userManagement->update($request['data']);
+
+        $user->fireWorkflow(
+            WorkflowEnum::UPDATE_USER_PROFILE->value,
+            true,
+            [
+                'app' => $app,
+                'company' => $user->getCurrentCompany(),
+            ]
+        );
 
         return $userToEdit;
     }
