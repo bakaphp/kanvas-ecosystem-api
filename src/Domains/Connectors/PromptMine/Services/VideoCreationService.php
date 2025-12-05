@@ -56,6 +56,8 @@ class VideoCreationService
                 'result_data' => $result['result_data'],
             ];
         } catch (Exception $e) {
+
+             new MessageOrderFulfillmentAction($this->entity)->execute('video', true);
             // report($e);
             return [
                 'result' => false,
