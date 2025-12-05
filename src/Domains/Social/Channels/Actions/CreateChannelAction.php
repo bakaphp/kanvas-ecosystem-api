@@ -44,7 +44,6 @@ class CreateChannelAction
             'users_id' => $this->channelDto->users->id,
             'name' => $this->channelDto->name,
             'description' => $this->channelDto->description,
-            'category_id' => $this->channelDto->category?->getId(),
             ]);
         }
 
