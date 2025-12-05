@@ -154,6 +154,7 @@ class ImageFilterService
                 $imageFilter
             );
         } catch (Exception $e) {
+            new MessageOrderFulfillmentAction($this->entity)->execute('image', true);
             report($e);
 
             return [
@@ -205,6 +206,7 @@ class ImageFilterService
                 report($e);
             }
             $message->delete();
+            new MessageOrderFulfillmentAction($this->entity)->execute('image', true);
 
             return [
                 'result' => false,

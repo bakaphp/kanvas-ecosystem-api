@@ -69,6 +69,8 @@ class PromptVideoFilterActivity extends KanvasActivity
                 } catch (Exception $e) {
                     //report($e);
 
+                    new MessageOrderFulfillmentAction($entity)->execute('video', true);
+
                     return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
