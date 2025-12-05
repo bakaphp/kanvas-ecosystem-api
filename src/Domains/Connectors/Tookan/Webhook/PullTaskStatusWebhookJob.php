@@ -7,8 +7,9 @@ namespace Kanvas\Connectors\Tookan\Webhook;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Repositories\OrderRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -44,30 +45,76 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         }
 
         // Find the order
+
         $order = Order::fromApp($this->receiver->app)
             ->where('id', $orderId)
             ->firstOrFail();
 
-        // Map Tookan status to internal order status
+        $isGifteaOrder = $order->parent_id == null;
+
+        //  if it is a giftea order it means we neet to update the company order status as well
         $newStatus = $this->mapTookanStatusToOrderStatus($tookanJobStatus);
+        $orderRepository = new OrderRepository($order);
 
-        if ($newStatus) {
-            // Update the order status
-            $updateAction = new UpdateOrderAction(
-                $order,
-                [
-                    'status' => $newStatus,
-                    'metadata' => [
-                        'tookan' => [
-                            'last_webhook_status' => $tookanJobStatus,
-                            'last_webhook_received_at' => now()->toIso8601String(),
-                        ],
-                    ],
-                ],
-                $this->receiver->user
-            );
+        if (! $isGifteaOrder && $newStatus) {
+            $gifteaOrder = Order::fromApp($this->receiver->app)
+                ->where('id', $order->parent_id)
+                ->first();
 
-            $updateAction->execute();
+
+             switch ($newStatus) {
+                case OrderStatusEnum::DELIVERED->value:
+                    $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
+
+                    $transitionCompanyStatus = new TransitionOrderStateAction(
+                        $gifteaOrder,
+                        $this->receiver->user,
+                        $status
+                    );
+                    $transitionCompanyStatus->execute();
+                    break;
+                case OrderStatusEnum::DISPATCHED->value:
+                    $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                    $transitionCompanyStatus = new TransitionOrderStateAction(
+                        $order,
+                        $this->receiver->user
+                    );
+                    $transitionCompanyStatus->execute();
+                    break;
+                default:
+                    // for other statuses we do not update the company order
+                    return [
+                        'message' => 'Tookan webhook processed successfully - no status update for giftea order',
+                        'order_id' => $orderId,
+                        'tookan_status' => $tookanJobStatus,
+                        'mapped_status' => null,
+                    ];
+            };
+        } else if ($isGifteaOrder) {
+            // for giftea orders we need to update the company order
+            $companyOrder = Order::fromApp($this->receiver->app)
+                ->where('parent_id', $order->id)
+                ->first();
+
+            switch ($newStatus) {
+                case OrderStatusEnum::DELIVERED->value:
+                case OrderStatusEnum::DISPATCHED->value:
+                    $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                    $transitionCompanyStatus = new TransitionOrderStateAction(
+                        $companyOrder,
+                        $this->receiver->user
+                    );
+                    $transitionCompanyStatus->execute();
+                    break;
+                default:
+                    // for other statuses we do not update the company order
+                    return [
+                        'message' => 'Tookan webhook processed successfully - no status update for giftea order',
+                        'order_id' => $orderId,
+                        'tookan_status' => $tookanJobStatus,
+                        'mapped_status' => null,
+                    ];
+            };
         }
 
         return [

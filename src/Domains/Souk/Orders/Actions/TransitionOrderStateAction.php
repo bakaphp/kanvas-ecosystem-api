@@ -5,13 +5,11 @@ namespace Kanvas\Souk\Orders\Actions;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\Tookan\Workflows\Activities\TookanOrderStatusActivity;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Models\StoredWorkflow;
 
 class TransitionOrderStateAction
 {
