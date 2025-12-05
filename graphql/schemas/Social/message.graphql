@@ -77,7 +77,6 @@ input MessageInput {
     is_public: Int
     entity_id: Mixed
     channel_slug: String
-    category_name: String
     distribution: DistributionInput
     tags: [TagInput!]
     categories: [CategoryInput!]

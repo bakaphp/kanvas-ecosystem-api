@@ -6,13 +6,9 @@ namespace Kanvas\Social\Messages\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use InvalidArgumentException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
-use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
-use Kanvas\Social\Channels\Models\ChannelCategories;
-use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -84,38 +80,18 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
-                $channel = ModelsChannel::getBySlug(
-                    $this->messageInput->channel_slug,
-                    $message->app,
-                    $message->company
-                );
-                if (! $channel) {
-                    $category = null;
-
-                    if ($this->messageInput->category_name) {
-                        try {
-                            $categoryEnum = ChannelCategoryEnum::validate($this->messageInput->category_name);
-                            $category = ChannelCategories::getByName($categoryEnum->value);
-                        } catch (InvalidArgumentException $e) {
-                        }
-                    }
-
-                    $channel = (new CreateChannelAction(new Channel(
-                        apps: $message->app,
-                        companies: $message->company,
-                        users: $message->user,
-                        //entity_id: $this->entityId ?? $message->getId(),
-                        entity_id: $message->getId(),
-                        //entity_namespace: $this->systemModule?->model_name ?? Message::class,
-                        entity_namespace: Message::class,
-                        name: $this->messageInput->channel_slug,
-                        description: $this->messageInput->channel_slug,
-                        slug: $this->messageInput->channel_slug,
-                        category: $category
-                    )))->execute();
-                }
-
-                $channel->addMessage($message, $message->user);
+                new CreateChannelAction(new Channel(
+                    apps: $message->app,
+                    companies: $message->company,
+                    users: $message->user,
+                    //entity_id: $this->entityId ?? $message->getId(),
+                    entity_id: $message->getId(),
+                    //entity_namespace: $this->systemModule?->model_name ?? Message::class,
+                    entity_namespace: Message::class,
+                    name: $this->messageInput->channel_slug,
+                    description: $this->messageInput->channel_slug,
+                    slug: $this->messageInput->channel_slug,
+                ))->execute()->addMessage($message, $message->user);
             }
 
             if ($this->runWorkflow) {
