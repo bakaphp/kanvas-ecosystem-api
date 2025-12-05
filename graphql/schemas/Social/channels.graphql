@@ -15,7 +15,6 @@ type SocialChannel {
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
     systemModule: SystemModule! @belongsTo
-    category: SocialChannelCategory
     created_at: DateTime!
     updated_at: DateTime
     categories: [Category!]
@@ -24,11 +23,6 @@ type SocialChannel {
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
         )
-}
-
-type SocialChannelCategory {
-    id: ID!
-    name: String!
 }
 
 input SocialChannelInput {
