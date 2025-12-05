@@ -163,8 +163,15 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 UpdateUserProfileEvent::dispatch($createMessage->user);
 
+                $hasError = $isNotSafeForWork || $error || $errorReason !== null;
+
+                if ($hasError) {
+                    new MessageOrderFulfillmentAction($message)->execute($messageTypeKey, true);
+                }
+
                 return [
-                    'result' => true,
+                    'result' => ! $hasError,
+                    'message_type_key' => $messageTypeKey,
                     'child_message' => $createMessage->toArray(),
                     'child_message_id' => $createMessage->id,
                     'message' => $message->toArray(),
