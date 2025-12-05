@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
@@ -16,7 +18,11 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 
@@ -127,5 +133,59 @@ class AgentManagementMutation
         $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
 
         return $responseText;
+    }
+
+    public function createSession(mixed $root, array $req): string
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $input = $req['input'] ?? [];
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $input['agent_id'],
+            app: $app,
+            company: $company
+        );
+
+        $lead = Lead::getByIdFromCompanyApp(
+            id: $input['lead_id'],
+            app: $app,
+            company: $company
+        );
+
+        $channelName = 'Manual Channel for Lead ' . $lead->getId();
+        $slug = Str::simpleSlug($channelName);
+
+        $channel = new CreateChannelAction(
+            new ChannelDto(
+                apps: $app,
+                companies: $company,
+                users: $user,
+                name: $channelName,
+                description: 'Channel for lead ' . $lead->getId(),
+                entity_id: $lead->getId(),
+                entity_namespace: Lead::class,
+                slug: $slug,
+            )
+        )->execute();
+
+        $chatSession = new CreateSessionAction(
+            DataTransferObjectSession::from([
+                'app' => $app,
+                'company' => $company,
+                'channel' => $channel,
+                'entity_namespace' => Lead::class,
+                'entity_id' => $lead->getId(),
+                'canal_id' => $input['canal_id'],
+                'user' => [
+                    'name' => $lead->people->getName(),
+                    'id' => $lead->people->getId(),
+                    'email' => $lead->people->getEmails()->first()?->value,
+                ],
+                'agent' => $agent,
+            ])
+        )->execute();
+
+        return $chatSession->uuid;
     }
 }
