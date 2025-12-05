@@ -327,7 +327,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
-                    'email_template' => 'a-message-nugget',
+                    'email_template' => 'email-new-message-nugget',
                     'push_template' => 'push-new-message-nugget',
                 ],
             );
