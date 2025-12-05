@@ -26,6 +26,7 @@ class MessageOwnerPushNotification extends CustomMessageNotification
         unset($metadata['ai_nugget']['nugget']);
 
         $data = [
+            'slug' => $entity->slug,
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
             'app' => $entity->app,
