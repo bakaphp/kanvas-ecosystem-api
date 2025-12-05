@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Affiliates\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
@@ -22,6 +23,8 @@ use Override;
  */
 class AffiliatePerformanceMetric extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+
     protected $table = 'affiliate_performance_metrics';
 
     protected $guarded = [];
