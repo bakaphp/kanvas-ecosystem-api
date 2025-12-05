@@ -41,25 +41,10 @@ class SyncTookanOrderActivity extends KanvasActivity implements WorkflowActivity
                         return $item->variant->companies_id !== $order->companies_id;
                     });
 
-                    new CreateExternalOrderAction(
+                    $childOrder = new CreateExternalOrderAction(
                         order: $order,
                         orderItem: $externalItem
                     )->execute();
-
-                    $order->status = OrderStatusEnum::PENDING->value;
-                    $order->saveQuietly();
-                }
-
-                if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
-                    $toStatus = $params['to_status'] ?? null;
-
-                    if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
-                        // @TODO: to be defined in another ticket
-                    }
-
-                    if ($toStatus === MovipassOrderStatusEnum::RELEASED->value) {
-                        // @TODO: to be defined in another ticket
-                    }
                 }
 
                 return [

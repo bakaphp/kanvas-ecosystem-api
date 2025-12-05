@@ -33,11 +33,13 @@ class SendOrderEmailsAction
             'company',
         ]);
 
-        $recipientEmail = $this->getRecipientEmail();
+        $recipientData = $this->getRecipientData();
 
-        if (! $recipientEmail) {
+        if (! $recipientData || ! $recipientData['email']) {
             return;
         }
+
+        $externalCompany = $this->getExternalCompany();
 
         $payload = [
             'template' => $this->emailTemplate,
@@ -46,23 +48,29 @@ class SendOrderEmailsAction
             'order_status' => $this->order->status,
             'customer_name' => $this->order->people->name ?? 'Customer',
             'company_name' => $this->order->company->name ?? '',
+            'recipient_name' => $recipientData['name'] ?? '',
+            'external_company' => $externalCompany['name'] ?? null,
             ...$this->data,
         ];
 
         $this->sendEmail(
             $this->emailTemplate,
-            $recipientEmail,
+            $recipientData['email'],
+            $recipientData['name'] ?? '',
             $payload,
             $this->order
         );
     }
 
-    protected function getRecipientEmail(): ?string
+    protected function getRecipientData(): ?array
     {
         // Determine recipient based on template prefix
         if (str_starts_with($this->emailTemplate, 'user-')) {
             // Send to customer
-            return $this->order->people->getEmails()->first()?->value;
+            return [
+                'email' => $this->order->people->getEmails()->first()?->value,
+                'name' => $this->order->people->name ?? 'Customer',
+            ];
         }
 
         if (str_starts_with($this->emailTemplate, 'provider-')) {
@@ -72,13 +80,34 @@ class SendOrderEmailsAction
             });
 
             if ($externalItem && $externalItem->variant->company) {
-                return $externalItem->variant->company->user->email;
+                return [
+                    'email' => $externalItem->variant->company->user->email,
+                    'name' => $externalItem->variant->company->user->displayname ?? $externalItem->variant->company->name,
+                ];
             }
         }
 
         if (str_starts_with($this->emailTemplate, 'owner-')) {
             // Send to main company owner
-            return $this->order->company->user->email;
+            return [
+                'email' => $this->order->company->user->email,
+                'name' => $this->order->company->user->displayname ?? $this->order->company->name,
+            ];
+        }
+
+        return null;
+    }
+
+    private function getExternalCompany() {
+        $externalItem = $this->order->items->first(function ($item) {
+            return $item->variant->companies_id !== $this->order->companies_id;
+        });
+
+        if ($externalItem && $externalItem->variant->company) {
+            return [
+                'email' => $externalItem->variant->company->user->email,
+                'name' => $externalItem->variant->company->name,
+            ];
         }
 
         return null;
@@ -87,6 +116,7 @@ class SendOrderEmailsAction
     protected function sendEmail(
         string $emailTemplateName,
         string $email,
+        string $name,
         array $mailData,
         Order $order
     ): void {

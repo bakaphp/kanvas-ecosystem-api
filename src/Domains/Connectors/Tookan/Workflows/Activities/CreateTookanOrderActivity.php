@@ -42,9 +42,6 @@ class CreateTookanOrderActivity extends KanvasActivity implements WorkflowActivi
                     orderItem: $externalItem
                 )->execute();
 
-                $order->status = OrderStatusEnum::PENDING->value;
-                $order->saveQuietly();
-
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',

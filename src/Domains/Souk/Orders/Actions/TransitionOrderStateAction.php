@@ -5,7 +5,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\Movipass\Workflows\Activities\TookanOrderStatusActivity;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanOrderStatusActivity;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
@@ -93,35 +93,8 @@ class TransitionOrderStateAction
             });
 
             // Fire workflow after successful transaction
+            $this->fireWorkflow($currentOrderStatus);
 
-
-            $this->order->fireWorkflow(
-                WorkflowEnum::STATUS_TRANSITION->value,
-                true,
-                [
-                    'app' => $this->order->app,
-                    'from_status' => $currentOrderStatus->slug,
-                    'to_status' => $this->newOrderStatus->slug,
-                    'who' => $this->user,
-                ]
-            );
-
-            $activity = new TookanOrderStatusActivity(
-                0,
-                now()->toDateTimeString(),
-                StoredWorkflow::make(),
-                []
-            );
-
-            $result = $activity->execute($this->order, $this->order->app, [
-                'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
-                'app' => $this->order->app,
-                'from_status' => $currentOrderStatus->slug,
-                'to_status' => $this->newOrderStatus->slug,
-                'who' => $this->user,
-            ]);
-
-            dump($result);
 
             return [
                 'status' => 'success',
@@ -149,6 +122,7 @@ class TransitionOrderStateAction
 
         $this->order->order_status_id = $defaultStatus->id;
         $this->order->saveOrFail();
+        $this->newOrderStatus = $defaultStatus;
 
         OrderTransitionHistory::create([
             'apps_id' => $this->order->apps_id,
@@ -162,5 +136,37 @@ class TransitionOrderStateAction
             'changed_at' => now(),
             'changed_by' => $this->user->getId(),
         ]);
+
+        $this->fireWorkflow(null);
+    }
+
+    private function fireWorkflow($currentOrderStatus): void
+    {
+        $this->order->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            true,
+            [
+                'app' => $this->order->app,
+                'from_status' => $currentOrderStatus?->slug,
+                'to_status' => $this->newOrderStatus->slug,
+                'who' => $this->user,
+            ]
+        );
+
+
+        // $activity = new TookanOrderStatusActivity(
+        //     0,
+        //     now()->toDateTimeString(),
+        //     StoredWorkflow::make(),
+        //     []
+        // );
+
+        // $result = $activity->execute($this->order, $this->order->app, [
+        //     'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
+        //     'app' => $this->order->app,
+        //     'from_status' => $currentOrderStatus?->slug ?? null,
+        //     'to_status' => $this->newOrderStatus->slug,
+        //     'who' => $this->user,
+        // ]);
     }
 }

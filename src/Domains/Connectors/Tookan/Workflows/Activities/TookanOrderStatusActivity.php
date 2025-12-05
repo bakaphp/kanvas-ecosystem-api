@@ -4,6 +4,7 @@ namespace Kanvas\Connectors\Tookan\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\Tookan\Actions\CreateTookanTaskAction;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -47,6 +48,11 @@ class TookanOrderStatusActivity extends KanvasActivity implements WorkflowActivi
                     OrderStatusEnum::DELIVERED->value,
                     OrderStatusEnum::CANCELLED->value,
                 ];
+
+
+                if ($toStatus == OrderStatusEnum::READY_FOR_PICKUP->value) {
+                    (new CreateTookanTaskAction($order))->execute();
+                }
 
                 if (in_array($toStatus, $userNotificationsStatuses)) {
                     $template  = 'user-' . strtolower($toStatus);
