@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Affiliates\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -34,6 +35,7 @@ use Override;
 class AffiliateClick extends BaseModel
 {
     use UuidTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'affiliate_clicks';
 
