@@ -65,9 +65,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    "whatsapp" => $cellPhone,
+                    'whatsapp' => $cellPhone,
                 ];
+
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
+                $totalSentMessages = 0;
+
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
                     if (! $value) {
@@ -98,7 +101,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
                         'email' => $email,
-                        "whatsapp" => $cellPhone,
+                        'whatsapp' => $cellPhone,
                         default => $cellPhone
                     };
 
@@ -189,12 +192,17 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $channel ?? null,
                                     $messageType
                                 );
-                                $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+
+                                if ($totalSentMessages === 0) {
+                                    $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+                                }
                             } catch (Exception $e) {
                                 report($e);
                             }
                         }
                     }
+
+                    $totalSentMessages++;
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';

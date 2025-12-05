@@ -40,6 +40,12 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    categories: [Category!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -71,9 +77,9 @@ input MessageInput {
     is_public: Int
     entity_id: Mixed
     channel_slug: String
-    category_name: String
     distribution: DistributionInput
     tags: [TagInput!]
+    categories: [CategoryInput!]
     slug: String
     files: [Upload!]
 }
@@ -84,6 +90,7 @@ input MessageUpdateInput {
     is_public: Int
     is_deleted: Int
     tags: [TagInput!]
+    categories: [CategoryInput!]
 }
 
 enum DistributionType {
@@ -214,12 +221,22 @@ extend type Query @guard {
                 relation: "tags"
                 columns: ["id", "name", "slug"]
             )
+        hasCategories: _
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         requiredTags: [String!]
         customFilters: [String!]
         hasType: _
             @whereHasConditions(
                 relation: "messageType"
                 columns: ["id", "name", "verb"]
+            )
+        hasChannelCategory: _
+            @whereHasConditions(
+                relation: "channels.categories"
+                columns: ["id", "name", "slug"]
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])

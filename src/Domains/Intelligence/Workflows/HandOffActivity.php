@@ -120,6 +120,9 @@ class HandOffActivity extends KanvasActivity
                 $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, $handOffUserRole)->get();
 
                 foreach ($managers as $manager) {
+                    if ($leadOwner->getId() === $manager->getId()) {
+                        continue;
+                    }
                     $manager->notify(
                         $handOffNotification
                     );
