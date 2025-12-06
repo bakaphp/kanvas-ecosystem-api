@@ -58,7 +58,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                         'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
                     ]);
                 }
-                
+
                 $note = $message->message['content'] ?? '';
 
                 if (empty($note)) {
