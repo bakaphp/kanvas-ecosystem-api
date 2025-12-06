@@ -574,15 +574,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentCompanyId(): int
     {
         if (app()->bound(CompaniesBranches::class)) {
-            $companyId = app(CompaniesBranches::class)
-                ->company()
-                ->first()
-                ?->getId();
+            $companyId = app(CompaniesBranches::class)->company()->first()?->getId();
+
+            if ($companyId > 0) {
+                return $companyId;
+            }
         }
 
-        $companyId = (int) ($companyId ?? $this->get(Companies::cacheKey()));
-
-        return $companyId > 0 ? $companyId : $this->default_company;
+        return (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
     }
 
     /**

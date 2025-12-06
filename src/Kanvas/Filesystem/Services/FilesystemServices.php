@@ -21,7 +21,6 @@ use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 
 class FilesystemServices
 {
-    use Illuminate\Support\Facades\File;
     protected Filesystem $storage;
 
     /**
