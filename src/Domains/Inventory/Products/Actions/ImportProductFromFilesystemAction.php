@@ -87,7 +87,7 @@ class ImportProductFromFilesystemAction
                     'sku' => $variants[0]['sku'],
                     'status' => $variants[0]['status'] ?? null,
                     'customFields' => [],
-                    'categories' => $variants[0]['categories'],
+                    'categories' => $variants[0]['categories'] ?? [],
                     'variants' => $variants,
                     'attributes' => $productAttributes,
                     'price' => 0.0,
