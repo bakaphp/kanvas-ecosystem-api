@@ -8,6 +8,7 @@ use Baka\Contracts\CompanyInterface;
 use Exception;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -20,6 +21,7 @@ use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 
 class FilesystemServices
 {
+    use Illuminate\Support\Facades\File;
     protected Filesystem $storage;
 
     /**
@@ -154,10 +156,14 @@ class FilesystemServices
 
         $fileContent = $diskS3->get($path);
         $filename = basename($path);
-        $path = storage_path('app/csv/' . $filename);
-        file_put_contents($path, $fileContent);
 
-        return $path;
+        $directory = storage_path('app/csv');
+        File::ensureDirectoryExists($directory);
+
+        $localPath = $directory . '/' . $filename;
+        File::put($localPath, $fileContent);
+
+        return $localPath;
     }
 
     public function createFileSystemFromBase64(string $base64String, string $originalName, Users $user): ModelsFilesystem
