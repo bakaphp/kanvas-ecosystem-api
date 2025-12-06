@@ -323,6 +323,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         //$newMessage = $createMessageAction->execute();
         //$newMessage->addEntity($lead);
         if ($channel) {
+            $channel->addCategory(
+                'ai-agent',
+                $lead->app,
+                $lead->user,
+                $lead->company
+            );
             $channel->addMessage($newMessage);
         }
 
