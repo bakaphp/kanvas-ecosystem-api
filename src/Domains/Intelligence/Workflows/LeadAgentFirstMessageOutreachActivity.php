@@ -208,7 +208,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
                 $now = Carbon::now($timezone);
                 if (! isset($firstLeadMessage)) {
-                    $this->failWorkflow(['message' => 'First message no generate', 'channels' => $channels]);
+                    return $this->failWorkflow([
+                        'message' => 'First message no generate',
+                        'channels' => $channels,
+                    ]);
                 }
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE_TIME->value, $now->toDateTimeString());
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);

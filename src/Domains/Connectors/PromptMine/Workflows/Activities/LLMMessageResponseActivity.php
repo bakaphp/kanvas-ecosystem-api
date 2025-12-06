@@ -459,7 +459,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     && $messagesSkipped < 3
                 ) {
                     $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
-                    $previousChatChildMessage = $previousChatResponse->children()?->first();
+                    $previousChatChildMessage = $previousChatResponse?->children()?->first();
                     $messagesSkipped++;
                 }
 
