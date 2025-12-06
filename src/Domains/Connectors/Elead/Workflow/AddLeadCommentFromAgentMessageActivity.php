@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use Baka\Support\Str;
 use Baka\Support\Url;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -57,6 +59,14 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     return $this->failWorkflow([
                         'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
                     ]);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), '404')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
+                    ]);
                 }
 
                 $note = $message->message['content'] ?? '';
@@ -77,7 +87,19 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
-                $eLeadOpportunity->addComment($note);
+
+                try {
+                    $eLeadOpportunity->addComment($note);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), 'not active')
+                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity add comment error: ' . $e->getMessage(),
+                    ]);
+                }
 
                 // Notify managers
                 $sentManagerNotification = false;
