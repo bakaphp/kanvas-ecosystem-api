@@ -98,6 +98,13 @@ class CreateMessageFromEmailAction
         if ($channel !== null) {
             $channel->addMessage($newMessage);
 
+            $channel->addCategory(
+                'ai-agent',
+                $this->webhookRequest->app,
+                $this->webhookRequest->user,
+                $this->webhookRequest->company
+            );
+
             $channel->fireWorkflow(
                 WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                 true,

@@ -370,6 +370,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'twilio',
                 'ai-agent',
             ]);
+            $channel->addCategory(
+                'ai-agent',
+                $this->receiver->app,
+                $this->receiver->user,
+                $this->receiver->company
+            );
             $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SMS');
 
             return $channel;
