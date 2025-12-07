@@ -47,19 +47,38 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     ]);
                 }
 
+                // Get make/model/year from product attributes for better caching
+                $make = $product->getAttributeBySlug('make')?->value;
+                $model = $product->getAttributeBySlug('model')?->value;
+                $year = $product->getAttributeBySlug('year')?->value;
+
+                // Handle array values
+                if (is_array($make)) {
+                    $make = $make[0] ?? null;
+                }
+                if (is_array($model)) {
+                    $model = $model[0] ?? null;
+                }
+                if (is_array($year)) {
+                    $year = $year[0] ?? null;
+                }
+
                 // Initialize ChromeData service
                 $vehicleService = new VehicleService($app, $product->company);
 
-                // Get vehicle information from ChromeData
-                $vehicle = $vehicleService->getVehicleInfoByVin($vin, includeMediaGallery: false);
+                // Get stock image using new optimized method
+                $stockImage = $vehicleService->getStockImageByVin($vin, $make, $model, (int) $year);
 
-                if (! $vehicle || empty($vehicle->stockImage)) {
+                if (empty($stockImage)) {
                     return $this->failWorkflow([
                         'success' => false,
                         'message' => 'No stock image found for this VIN.',
                         'product_id' => $product->getId(),
                         'product_name' => $product->name,
                         'vin' => $vin,
+                        'make' => $make,
+                        'model' => $model,
+                        'year' => $year,
                     ]);
                 }
 
@@ -89,7 +108,7 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
 
                 // If product has no images, add stock image
                 if ($existingFiles->isEmpty()) {
-                    $product->addFileFromUrl($vehicle->stockImage, 'stock_image', $app);
+                    $product->addFileFromUrl($stockImage, 'stock_image', $app);
 
                     return [
                         'success' => true,
@@ -97,7 +116,10 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                         'product_id' => $product->getId(),
                         'product_name' => $product->name,
                         'vin' => $vin,
-                        'stock_image_url' => $vehicle->stockImage,
+                        'make' => $make,
+                        'model' => $model,
+                        'year' => $year,
+                        'stock_image_url' => $stockImage,
                         'action' => 'added_stock_image',
                     ];
                 }

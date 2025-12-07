@@ -15,6 +15,7 @@ class VehicleService
 {
     protected Client $client;
     protected string $cachePrefix = 'chromedata:vin:';
+    protected string $stockImageCachePrefix = 'chromedata2:stock:';
     protected int $cacheTtl = 259200; // 3 days in seconds
 
     public function __construct(
@@ -335,11 +336,56 @@ class VehicleService
     }
 
     /**
+     * Get stock image URL by VIN with optional make/model/year for shared caching.
+     * If make/model/year provided, checks their cache first to avoid duplicate API calls
+     * for same vehicle spec across multiple VINs.
+     */
+    public function getStockImageByVin(
+        string $vin,
+        ?string $make = null,
+        ?string $model = null,
+        ?int $year = null,
+        bool $skipCache = false
+    ): ?string {
+        // If make/model/year provided, check their shared cache first
+        if ($make && $model && $year) {
+            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($make) . ':' . strtolower($model) . ':' . $year;
+
+            if (! $skipCache) {
+                $cached = Redis::get($mmyCacheKey);
+                if ($cached !== null) {
+                    return $cached === 'null' ? null : $cached;
+                }
+            }
+        }
+
+        // Use getVehicleInfoByVin which has its own caching
+        $vehicleData = $this->getVehicleInfoByVin($vin, includeMediaGallery: false, skipCache: $skipCache);
+        $stockImage = $vehicleData?->stockImage;
+
+        // Also cache under make/model/year if provided (shared across same vehicles)
+        if ($make && $model && $year && $stockImage) {
+            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($make) . ':' . strtolower($model) . ':' . $year;
+            Redis::setex($mmyCacheKey, $this->cacheTtl, $stockImage ?? 'null');
+        }
+
+        return $stockImage;
+    }
+
+    /**
      * Clear cache for a specific VIN or style.
      */
     public function clearCache(string $identifier): void
     {
         Redis::del($this->cachePrefix . $identifier);
         Redis::del($this->cachePrefix . $identifier . ':gallery');
+    }
+
+    /**
+     * Clear stock image cache.
+     */
+    public function clearStockImageCache(string $identifier): void
+    {
+        Redis::del($this->stockImageCachePrefix . $identifier);
     }
 }
