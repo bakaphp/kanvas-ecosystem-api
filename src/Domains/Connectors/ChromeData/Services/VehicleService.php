@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\ChromeData\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ChromeData\Client;
 use Kanvas\Connectors\ChromeData\DataTransferObject\VehicleData;
@@ -43,24 +42,18 @@ class VehicleService
             }
         }
 
-        try {
-            $switches = [];
-            if ($includeMediaGallery) {
-                $switches['includeMediaGallery'] = 'Both'; // 'Multi-View', 'ColorMatch', or 'Both'
-            }
-
-            $response = $this->client->describeVehicleByVin($vin, $switches);
-            $parsedData = $this->parseVehicleDescription($response);
-
-            // Cache the result
-            $this->saveToCache($cacheKey, $parsedData);
-
-            return VehicleData::from($parsedData);
-        } catch (Exception $e) {
-            error_log("ChromeData VIN lookup failed for {$vin}: " . $e->getMessage());
-
-            return null;
+        $switches = [];
+        if ($includeMediaGallery) {
+            $switches['includeMediaGallery'] = 'Both'; // 'Multi-View', 'ColorMatch', or 'Both'
         }
+
+        $response = $this->client->describeVehicleByVin($vin, $switches);
+        $parsedData = $this->parseVehicleDescription($response);
+
+        // Cache the result
+        $this->saveToCache($cacheKey, $parsedData);
+
+        return VehicleData::from($parsedData);
     }
 
     /**
@@ -81,24 +74,18 @@ class VehicleService
             }
         }
 
-        try {
-            $switches = [];
-            if ($includeMediaGallery) {
-                $switches['includeMediaGallery'] = 'Both';
-            }
-
-            $response = $this->client->describeVehicleByStyleId($styleId, $switches);
-            $parsedData = $this->parseVehicleDescription($response);
-
-            // Cache the result
-            $this->saveToCache($cacheKey, $parsedData);
-
-            return VehicleData::from($parsedData);
-        } catch (Exception $e) {
-            error_log("ChromeData style lookup failed for style ID {$styleId}: " . $e->getMessage());
-
-            return null;
+        $switches = [];
+        if ($includeMediaGallery) {
+            $switches['includeMediaGallery'] = 'Both';
         }
+
+        $response = $this->client->describeVehicleByStyleId($styleId, $switches);
+        $parsedData = $this->parseVehicleDescription($response);
+
+        // Cache the result
+        $this->saveToCache($cacheKey, $parsedData);
+
+        return VehicleData::from($parsedData);
     }
 
     /**
@@ -106,15 +93,9 @@ class VehicleService
      */
     public function getModelYears(): array
     {
-        try {
-            $response = $this->client->getModelYears();
+        $response = $this->client->getModelYears();
 
-            return $response->modelYear ?? [];
-        } catch (Exception $e) {
-            error_log('ChromeData model years lookup failed: ' . $e->getMessage());
-
-            return [];
-        }
+        return $response->modelYear ?? [];
     }
 
     /**
@@ -122,15 +103,9 @@ class VehicleService
      */
     public function getDivisions(int $modelYear): array
     {
-        try {
-            $response = $this->client->getDivisions($modelYear);
+        $response = $this->client->getDivisions($modelYear);
 
-            return $this->parseIdentifiedStrings($response->division ?? []);
-        } catch (Exception $e) {
-            error_log("ChromeData divisions lookup failed for year {$modelYear}: " . $e->getMessage());
-
-            return [];
-        }
+        return $this->parseIdentifiedStrings($response->division ?? []);
     }
 
     /**
@@ -138,15 +113,9 @@ class VehicleService
      */
     public function getModels(int $modelYear, ?int $divisionId = null, ?int $subdivisionId = null): array
     {
-        try {
-            $response = $this->client->getModels($modelYear, $divisionId, $subdivisionId);
+        $response = $this->client->getModels($modelYear, $divisionId, $subdivisionId);
 
-            return $this->parseIdentifiedStrings($response->model ?? []);
-        } catch (Exception $e) {
-            error_log("ChromeData models lookup failed for year {$modelYear}: " . $e->getMessage());
-
-            return [];
-        }
+        return $this->parseIdentifiedStrings($response->model ?? []);
     }
 
     /**
@@ -154,15 +123,9 @@ class VehicleService
      */
     public function getStyles(int $modelId): array
     {
-        try {
-            $response = $this->client->getStyles($modelId);
+        $response = $this->client->getStyles($modelId);
 
-            return $this->parseIdentifiedStrings($response->style ?? []);
-        } catch (Exception $e) {
-            error_log("ChromeData styles lookup failed for model ID {$modelId}: " . $e->getMessage());
-
-            return [];
-        }
+        return $this->parseIdentifiedStrings($response->style ?? []);
     }
 
     /**
