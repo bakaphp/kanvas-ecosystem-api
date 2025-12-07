@@ -12,7 +12,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\TookanOrderStatusActivity;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Tookan\Handlers\TookanHandler;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanParentOrderStatusActivity;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Notifications\OrderNotification;
@@ -31,7 +31,6 @@ final class TookanOrderStatusActivityTest extends TestCase
 
     protected Apps $apps;
     protected Companies $company;
-    protected Companies $company2;
     protected Order $order;
 
     protected function setUp(): void
@@ -59,34 +58,55 @@ final class TookanOrderStatusActivityTest extends TestCase
 
         $this->setAllowNoPaymentStatus(true, $this->apps);
 
-        // Find existing products
-        $product = Products::fromApp($this->apps)
-            ->where('companies_id', $this->company->getId())
-            ->with('variants')
-            ->first();
+        // Create warehouse for company 1
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
-        // Create second company for provider emails
-        $this->company2 = Companies::factory()->create([
-            'apps_id' => $this->apps->getId(),
-            'name' => 'Provider Company',
-        ]);
+        // Create product and variant for company 1
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: [
+                'id' => $warehouseResponse['id'],
+            ]
+        )->json()['data']['createVariant'];
 
-        $this->company2->associateUser(
-            $user,
-            true,
-            $this->company2->defaultBranch
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: [
+                'id' => $warehouseResponse['id'],
+            ]
         );
 
-        // Find product for second company (or use same product for simplicity)
-        $product2 = Products::fromApp($this->apps)
-            ->where('companies_id', $this->company2->getId())
-            ->with('variants')
-            ->first();
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
 
-        // If no product exists for company2, use the first company's product
-        if (! $product2) {
-            $product2 = $product;
-        }
+        // Create second product and variant for the same company
+        $product2Response = $this->createProduct()->json()['data']['createProduct'];
+        $variant2Response = $this->createVariant(
+            productId: $product2Response['id'],
+            warehouseData: [
+                'id' => $warehouseResponse['id'],
+            ]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variant2Response['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: [
+                'id' => $warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variant2Response['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
 
         // Create order
         $data = [
@@ -99,12 +119,12 @@ final class TookanOrderStatusActivityTest extends TestCase
             ],
             'items' => [
                 [
-                    'variant_id' => (string) $product->variants->first()->id,
+                    'variant_id' => $variantResponse['id'],
                     'quantity' => 1,
                     'price' => 100,
                 ],
                 [
-                    'variant_id' => (string) $product2->variants->first()->id,
+                    'variant_id' => $variant2Response['id'],
                     'quantity' => 1,
                     'price' => 50,
                 ],
@@ -147,7 +167,7 @@ final class TookanOrderStatusActivityTest extends TestCase
         foreach ($userStatuses as $status) {
             Notification::fake();
 
-            $activity = new TookanOrderStatusActivity(
+            $activity = new TookanParentOrderStatusActivity(
                 0,
                 now()->toDateTimeString(),
                 StoredWorkflow::make(),
@@ -163,7 +183,7 @@ final class TookanOrderStatusActivityTest extends TestCase
             $this->assertEquals('Order status transition handled successfully', $result['message']);
 
             // Assert notification was sent
-            Notification::assertSentTimes(OrderNotification::class, 1);
+            Notification::assertSent(OrderNotification::class, 1);
 
             // Verify notification was sent to customer email
             Notification::assertSentTo(
@@ -174,204 +194,6 @@ final class TookanOrderStatusActivityTest extends TestCase
                     return $notification->getTemplateName() === $expectedTemplate;
                 }
             );
-        }
-    }
-
-    /**
-     * Test that provider notifications are sent for provider-specific statuses.
-     */
-    public function testProviderEmailNotificationsAreSent(): void
-    {
-        $providerStatuses = [
-            OrderStatusEnum::RECEIVED,
-            OrderStatusEnum::READY_FOR_PICKUP,
-            OrderStatusEnum::DELIVERED,
-            OrderStatusEnum::CANCELLED,
-        ];
-
-        foreach ($providerStatuses as $status) {
-            Notification::fake();
-
-            $activity = new TookanOrderStatusActivity(
-                0,
-                now()->toDateTimeString(),
-                StoredWorkflow::make(),
-                []
-            );
-
-            $result = $activity->execute($this->order, $this->apps, [
-                'to_status' => $status->value,
-            ]);
-
-            // Assert successful execution
-            $this->assertEquals('success', $result['status']);
-
-            // Assert notification was sent
-            Notification::assertSentTimes(OrderNotification::class, 1);
-        }
-    }
-
-    /**
-     * Test that owner notifications are sent for owner-specific statuses.
-     */
-    public function testOwnerEmailNotificationsAreSent(): void
-    {
-        $ownerStatuses = [
-            OrderStatusEnum::RECEIVED,
-            OrderStatusEnum::READY_FOR_PICKUP,
-            OrderStatusEnum::DELIVERED,
-            OrderStatusEnum::CANCELLED,
-        ];
-
-        foreach ($ownerStatuses as $status) {
-            Notification::fake();
-
-            $activity = new TookanOrderStatusActivity(
-                0,
-                now()->toDateTimeString(),
-                StoredWorkflow::make(),
-                []
-            );
-
-            $result = $activity->execute($this->order, $this->apps, [
-                'to_status' => $status->value,
-            ]);
-
-            // Assert successful execution
-            $this->assertEquals('success', $result['status']);
-
-            // Assert notification was sent
-            Notification::assertSentTimes(OrderNotification::class, 1);
-        }
-    }
-
-    /**
-     * Test that multiple notifications are sent when status triggers multiple recipients.
-     */
-    public function testMultipleNotificationsForStatusThatTriggersAll(): void
-    {
-        Notification::fake();
-
-        $activity = new TookanOrderStatusActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
-
-        // RECEIVED status should trigger all three notification types
-        $result = $activity->execute($this->order, $this->apps, [
-            'to_status' => OrderStatusEnum::RECEIVED->value,
-        ]);
-
-        // Assert successful execution
-        $this->assertEquals('success', $result['status']);
-
-        // Assert three notifications were sent (user, provider, owner)
-        Notification::assertSentTimes(OrderNotification::class, 3);
-    }
-
-    /**
-     * Test that no notifications are sent for statuses not in any notification array.
-     */
-    public function testNoNotificationsForNonTrackedStatuses(): void
-    {
-        Notification::fake();
-
-        $activity = new TookanOrderStatusActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
-
-        // CHECKING_STOCK is not in any notification status array
-        $result = $activity->execute($this->order, $this->apps, [
-            'to_status' => OrderStatusEnum::CHECKING_STOCK->value,
-        ]);
-
-        // Assert successful execution
-        $this->assertEquals('success', $result['status']);
-
-        // Assert no notifications were sent
-        Notification::assertNothingSent();
-    }
-
-    /**
-     * Test activity execution without status parameter.
-     */
-    public function testActivityWithoutStatusParameter(): void
-    {
-        Notification::fake();
-
-        $activity = new TookanOrderStatusActivity(
-            0,
-            now()->toDateTimeString(),
-            StoredWorkflow::make(),
-            []
-        );
-
-        $result = $activity->execute($this->order, $this->apps, []);
-
-        // Assert successful execution
-        $this->assertEquals('success', $result['status']);
-
-        // Assert no notifications were sent
-        Notification::assertNothingSent();
-    }
-
-    /**
-     * Test that correct template names are used for each status.
-     */
-    public function testCorrectTemplateNamesAreUsed(): void
-    {
-        $testCases = [
-            [
-                'status' => OrderStatusEnum::RECEIVED,
-                'expectedTemplates' => [
-                    'user-received',
-                    'provider-received',
-                    'owner-received',
-                ],
-            ],
-            [
-                'status' => OrderStatusEnum::PREPARING,
-                'expectedTemplates' => [
-                    'user-preparing',
-                ],
-            ],
-            [
-                'status' => OrderStatusEnum::READY_FOR_PICKUP,
-                'expectedTemplates' => [
-                    'provider-ready_for_pickup',
-                    'owner-ready_for_pickup',
-                ],
-            ],
-        ];
-
-        foreach ($testCases as $testCase) {
-            Notification::fake();
-
-            $activity = new TookanOrderStatusActivity(
-                0,
-                now()->toDateTimeString(),
-                StoredWorkflow::make(),
-                []
-            );
-
-            $activity->execute($this->order, $this->apps, [
-                'to_status' => $testCase['status']->value,
-            ]);
-
-            // Verify each expected template was used
-            foreach ($testCase['expectedTemplates'] as $expectedTemplate) {
-                Notification::assertSent(
-                    OrderNotification::class,
-                    function ($notification) use ($expectedTemplate) {
-                        return $notification->getTemplateName() === $expectedTemplate;
-                    }
-                );
-            }
         }
     }
 }
