@@ -32,7 +32,7 @@ final class VehicleServiceTest extends TestCase
 
         // Mock the Client
         $mockClient = Mockery::mock(Client::class);
-        
+
         $mockResponse = (object) [
             'vinDescription' => (object) [
                 'vin' => 'JA4ARUAU6TU001602',
@@ -159,7 +159,7 @@ final class VehicleServiceTest extends TestCase
         $app->set(ConfigurationEnum::ACCOUNT_SECRET->value, 'test_secret');
 
         $mockClient = Mockery::mock(Client::class);
-        
+
         $mockResponse = (object) [
             'modelYear' => [2026, 2025, 2024, 2023, 2022],
         ];
