@@ -1,12 +1,11 @@
 <?php
 
-namespace Kanvas\Connectors\Movipass\Workflows\Activities;
+namespace Kanvas\Connectors\Tookan\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Tookan\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Actions\CreateExternalOrderAction;
-use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
