@@ -180,4 +180,136 @@ final class VehicleServiceTest extends TestCase
         $this->assertContains(2026, $result);
         $this->assertContains(2025, $result);
     }
+
+    public function testGetStockImageByVinWithoutMakeModelYear(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::ACCOUNT_NUMBER->value, 'test_account');
+        $app->set(ConfigurationEnum::ACCOUNT_SECRET->value, 'test_secret');
+
+        // Clear cache
+        Redis::del('chromedata:vin:TESTVIN789');
+
+        $mockClient = Mockery::mock(Client::class);
+
+        $mockResponse = (object) [
+            'vinDescription' => (object) ['vin' => 'TESTVIN789', 'modelYear' => 2025],
+            'modelYear' => 2025,
+            'bestMakeName' => 'Honda',
+            'bestModelName' => 'Civic',
+            'style' => (object) [
+                'stockImage' => (object) ['url' => 'https://cdn.chromedata.com/civic.jpg'],
+            ],
+            'engine' => (object) [],
+            'exteriorColor' => [],
+            'interiorColor' => [],
+        ];
+
+        $mockClient->shouldReceive('describeVehicleByVin')
+            ->once()
+            ->with('TESTVIN789', [])
+            ->andReturn($mockResponse);
+
+        $service = new VehicleService($app);
+        $reflection = new \ReflectionClass($service);
+        $property = $reflection->getProperty('client');
+        $property->setAccessible(true);
+        $property->setValue($service, $mockClient);
+
+        $result = $service->getStockImageByVin('TESTVIN789', skipCache: true);
+
+        $this->assertEquals('https://cdn.chromedata.com/civic.jpg', $result);
+
+        // Cleanup
+        Redis::del('chromedata:vin:TESTVIN789');
+    }
+
+    public function testGetStockImageByVinWithMakeModelYear(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::ACCOUNT_NUMBER->value, 'test_account');
+        $app->set(ConfigurationEnum::ACCOUNT_SECRET->value, 'test_secret');
+
+        $vin = 'VIN123456';
+        $make = 'Toyota';
+        $model = 'Camry';
+        $year = 2024;
+
+        // Clear caches
+        Redis::del('chromedata:vin:' . $vin);
+        Redis::del('chromedata2:stock:mmy:toyota:camry:2024');
+
+        $mockClient = Mockery::mock(Client::class);
+
+        $mockResponse = (object) [
+            'vinDescription' => (object) ['vin' => $vin, 'modelYear' => $year],
+            'modelYear' => $year,
+            'bestMakeName' => $make,
+            'bestModelName' => $model,
+            'style' => (object) [
+                'stockImage' => (object) ['url' => 'https://cdn.chromedata.com/camry-2024.jpg'],
+            ],
+            'engine' => (object) [],
+            'exteriorColor' => [],
+            'interiorColor' => [],
+        ];
+
+        $mockClient->shouldReceive('describeVehicleByVin')
+            ->once()
+            ->with($vin, [])
+            ->andReturn($mockResponse);
+
+        $service = new VehicleService($app);
+        $reflection = new \ReflectionClass($service);
+        $property = $reflection->getProperty('client');
+        $property->setAccessible(true);
+        $property->setValue($service, $mockClient);
+
+        // First call - should hit API and cache both VIN and make/model/year
+        $result = $service->getStockImageByVin($vin, $make, $model, $year, skipCache: true);
+
+        $this->assertEquals('https://cdn.chromedata.com/camry-2024.jpg', $result);
+
+        // Verify make/model/year cache was set
+        $mmyCache = Redis::get('chromedata2:stock:mmy:toyota:camry:2024');
+        $this->assertNotNull($mmyCache);
+        $this->assertEquals('https://cdn.chromedata.com/camry-2024.jpg', $mmyCache);
+
+        // Cleanup
+        Redis::del('chromedata:vin:' . $vin);
+        Redis::del('chromedata2:stock:mmy:toyota:camry:2024');
+    }
+
+    public function testGetStockImageByVinUsesMakeModelYearCache(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::ACCOUNT_NUMBER->value, 'test_account');
+        $app->set(ConfigurationEnum::ACCOUNT_SECRET->value, 'test_secret');
+
+        $make = 'Ford';
+        $model = 'F-150';
+        $year = 2023;
+        $cachedUrl = 'https://cdn.chromedata.com/f150-cached.jpg';
+
+        // Set make/model/year cache
+        Redis::setex('chromedata2:stock:mmy:ford:f-150:2023', 259200, $cachedUrl);
+
+        // Mock should NOT be called since we have make/model/year cache
+        $mockClient = Mockery::mock(Client::class);
+        $mockClient->shouldNotReceive('describeVehicleByVin');
+
+        $service = new VehicleService($app);
+        $reflection = new \ReflectionClass($service);
+        $property = $reflection->getProperty('client');
+        $property->setAccessible(true);
+        $property->setValue($service, $mockClient);
+
+        // Should return cached result without API call
+        $result = $service->getStockImageByVin('ANYVIN123', $make, $model, $year);
+
+        $this->assertEquals($cachedUrl, $result);
+
+        // Cleanup
+        Redis::del('chromedata2:stock:mmy:ford:f-150:2023');
+    }
 }
