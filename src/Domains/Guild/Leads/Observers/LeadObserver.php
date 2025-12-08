@@ -87,20 +87,26 @@ class LeadObserver
             $aiNotesChannel = $lead->company->get('enable_ai_notes_channel', false);
 
             if ($aiNotesChannel) {
-                (
-                    new CreateChannelAction(
-                        new Channel(
-                            $lead->app,
-                            $lead->company,
-                            $lead->user,
-                            (string)$lead->getKey(),
-                            Lead::class,
-                            'Notes',
-                            'AI Notes Channel',
-                            Str::uuid()->toString()
-                        )
+                $channel = new CreateChannelAction(
+                    new Channel(
+                        $lead->app,
+                        $lead->company,
+                        $lead->user,
+                        (string)$lead->getKey(),
+                        Lead::class,
+                        'Notes',
+                        'AI Notes Channel',
+                        Str::uuid()->toString()
                     )
-                )->execute();
+                )
+                ->execute();
+
+                $channel->addCategory(
+                    'ai-agent',
+                    $lead->app,
+                    $lead->user,
+                    $lead->company
+                );
             }
         }
 
