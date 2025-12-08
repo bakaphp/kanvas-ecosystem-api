@@ -25,15 +25,20 @@ class CreateAffiliateConversionActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function (Order $order, $app, $integrationCompany, $additionalParams): array {
+            integrationOperation: function (Order $order, $app, $integrationCompany, $params): array {
                 $affiliateId = $order->get('affiliate_id') ?? $order->metadata['affiliate_id'] ?? null;
                 $affiliateLink = $order->get('affiliate_link_code') ?? $order->metadata['affiliate_link_code'] ?? null;
+                $affiliateShortCode = $order->get('affiliate_shortcode') ?? $order->metadata['affiliate_shortcode'] ?? null;
+                $useShortCode = $params['use_shortcode'] ?? false;
 
                 $affiliateLink = AffiliateLink::fromApp($app)
-                    ->where('companies_id', $order->companies_id)
+                    // ->where('companies_id', $order->companies_id)
                     ->where(function (Builder $query) use ($affiliateLink, $affiliateId) {
                         $query->where('short_code', $affiliateLink)
                             ->orWhere('short_code', $affiliateId);
+                    })
+                    ->when($useShortCode && $affiliateShortCode !== null, function (Builder $query) use ($affiliateShortCode) {
+                        $query->orWhere('custom_slug', $affiliateShortCode);
                     })
                     ->first();
 
