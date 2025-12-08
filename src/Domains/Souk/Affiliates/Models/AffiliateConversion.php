@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Affiliates\Enums\AffiliateConversionStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -39,6 +40,7 @@ class AffiliateConversion extends BaseModel
 {
     use UuidTrait;
     use NoCompanyRelationshipTrait;
+    use CanUseWorkflow;
 
     protected $table = 'affiliate_conversions';
 

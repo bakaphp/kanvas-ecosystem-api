@@ -15,6 +15,7 @@ use Kanvas\Souk\Affiliates\Models\AffiliateClick;
 use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateAffiliateConversionAction
 {
@@ -162,6 +163,15 @@ class CreateAffiliateConversionAction
             if ($affiliateClick !== null) {
                 $affiliateClick->markAsConverted($conversion->id);
             }
+
+            $conversion->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->order->app,
+                    'company' => $this->order->company,
+                ]
+            );
 
             return $conversion;
         });
