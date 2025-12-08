@@ -16,9 +16,8 @@ class OrderRepository
     public function getStatus(
         string $statusSlug,
     ): ?object {
-         $status = $this->order->orderType?->statuses()
+        $status = $this->order->orderType?->statuses()
                     ->where('slug', $statusSlug)->first();
         return $status;
     }
-
 }

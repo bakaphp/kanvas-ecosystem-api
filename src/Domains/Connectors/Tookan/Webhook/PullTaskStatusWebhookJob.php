@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Tookan\Webhook;
 
 use Exception;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
@@ -23,10 +22,6 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
 
         // Validate shared secret
         if (! isset($payload['tookan_shared_secret']) || $payload['tookan_shared_secret'] !== $tookanSharedSecret) {
-            Log::error('Invalid tookan_shared_secret', [
-                'received' => $payload['tookan_shared_secret'] ?? 'missing',
-                'expected' => $tookanSharedSecret,
-            ]);
             throw new Exception('Invalid shared secret');
         }
 
@@ -35,12 +30,10 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         $tookanJobStatus = $payload['job_status'] ?? null; // Tookan status code
 
         if (! $orderId) {
-            Log::error('Missing order_id in Tookan webhook', ['payload' => $payload]);
             throw new Exception('Missing order_id in payload');
         }
 
         if ($tookanJobStatus === null) {
-            Log::error('Missing job_status in Tookan webhook', ['payload' => $payload]);
             throw new Exception('Missing job_status in payload');
         }
 
@@ -62,7 +55,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 ->first();
 
 
-             switch ($newStatus) {
+            switch ($newStatus) {
                 case OrderStatusEnum::DELIVERED->value:
                     $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
 
@@ -90,7 +83,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                         'mapped_status' => null,
                     ];
             };
-        } else if ($isGifteaOrder) {
+        } elseif ($isGifteaOrder) {
             // for giftea orders we need to update the company order
             $companyOrder = Order::fromApp($this->receiver->app)
                 ->where('parent_id', $order->id)

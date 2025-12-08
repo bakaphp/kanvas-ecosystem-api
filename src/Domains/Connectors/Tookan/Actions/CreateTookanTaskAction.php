@@ -19,8 +19,8 @@ class CreateTookanTaskAction
     public function __construct(
         private Order $order,
         private Companies $company,
-        Private ?Companies $receiverCompany = null,
-        Private ?User $receiverUser = null,
+        private ?Companies $receiverCompany = null,
+        private ?User $receiverUser = null,
     ) {
     }
 
@@ -75,7 +75,7 @@ class CreateTookanTaskAction
             ),
         ];
 
-          $task = new TaskMultipleDetail(
+        $task = new TaskMultipleDetail(
             pickups: $pickups,
             deliveries: $deliveries,
             team_id: 0,
@@ -99,13 +99,6 @@ class CreateTookanTaskAction
             return $taskResponse;
         } catch (Exception $e) {
             report($e);
-            activity()
-                ->causedBy($this->order->user)
-                ->performedOn($this->order)
-                ->withProperties([
-                    'error' => $e->getMessage(),
-                ])
-                ->log('Tookan Create Task Error');
             throw new Exception('Failed to create Tookan Task: ' . $e->getMessage());
         }
     }

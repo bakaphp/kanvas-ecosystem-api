@@ -114,7 +114,6 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
 
         // If the child order status is in cascade list, update parent
         if (in_array($toStatus, $cascadeStatuses)) {
-
             // Update parent order status to match child order progress
             $orderRepository = new OrderRepository($order);
             $status = $orderRepository->getStatus($toStatus);

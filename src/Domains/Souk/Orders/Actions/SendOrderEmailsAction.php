@@ -98,7 +98,8 @@ class SendOrderEmailsAction
         return null;
     }
 
-    private function getExternalCompany() {
+    private function getExternalCompany()
+    {
         $externalItem = $this->order->items->first(function ($item) {
             return $item->variant->companies_id !== $this->order->companies_id;
         });

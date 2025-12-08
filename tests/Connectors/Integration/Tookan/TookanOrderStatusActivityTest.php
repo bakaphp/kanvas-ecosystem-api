@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Workflows\Activities\TookanOrderStatusActivity;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Connectors\Tookan\Handlers\TookanHandler;
