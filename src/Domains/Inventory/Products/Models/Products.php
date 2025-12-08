@@ -940,4 +940,23 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
     }
+
+    public function recalculateWeightByImageCount(): void
+    {
+        if (! $this->app->get('product_increase_weight_by_image_count')) {
+            return;
+        }
+
+        $totalImages = $this->variants()
+            ->with('files')
+            ->get()
+            ->sum(fn ($variant) => $variant->files->count());
+
+        // Boost products with 2+ images
+        $imageBoost = $totalImages >= 2 ? 1.0 : 0;
+
+        // Or gradual boost: $imageBoost = min($totalImages * 0.5, 2.0);
+        $this->weight = $imageBoost;
+        $this->saveQuietly();
+    }
 }

@@ -17,6 +17,8 @@ class ProductsObserver
 
         $product->clearLightHouseCache(withKanvasConfiguration: false);
         $product->setTotalVariants();
+        
+        $product->recalculateWeightByImageCount();
     }
 
     public function updating(Products $product): void
