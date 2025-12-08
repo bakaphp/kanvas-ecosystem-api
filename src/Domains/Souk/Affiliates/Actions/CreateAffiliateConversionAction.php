@@ -15,6 +15,7 @@ use Kanvas\Souk\Affiliates\Models\AffiliateClick;
 use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 
 class CreateAffiliateConversionAction
 {
@@ -163,6 +164,8 @@ class CreateAffiliateConversionAction
                 $affiliateClick->markAsConverted($conversion->id);
             }
 
+            $this->addCommissionFundsToWallet($conversion, $commissionAmount);
+
             return $conversion;
         });
     }
@@ -219,5 +222,27 @@ class CreateAffiliateConversionAction
 
         // Get the rate for this purchase number, or 0 if not defined
         return (float) ($decliningRates[$currentPurchaseNumber] ?? 0.0);
+    }
+
+    private function addCommissionFundsToWallet(AffiliateConversion $conversion, float $commissionAmount): void
+    {
+        /**
+         *  we only support company wallet for now
+         */
+        if ($conversion->commission_type !== CommissionTypeEnum::COMPANY_WALLET->value) {
+            return;
+        }
+
+        $walletHolder = $conversion->affiliate->company;
+        $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
+        $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
+
+        $transaction = $wallet->depositFloat($commissionAmount);
+        $transaction->meta = [
+            'affiliate_conversion_id' => $conversion->getId(),
+            'affiliate_id' => $conversion->affiliates_id,
+            'order_id' => $this->order->getId(),
+        ];
+        $transaction->saveOrFail();
     }
 }
