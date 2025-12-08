@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
@@ -94,13 +95,13 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         'message_id' => $entity->getId(),
                     ];
                 }
-
                 return [
                     'message' => 'Remix created successfully',
                     'result' => true,
                     'user_id' => $entity->user->getId(),
                     'message_data' => $entity->message,
                     'message_id' => $entity->getId(),
+                    'entity' => $entity->toArray(),
                 ];
             },
             company: $company,
