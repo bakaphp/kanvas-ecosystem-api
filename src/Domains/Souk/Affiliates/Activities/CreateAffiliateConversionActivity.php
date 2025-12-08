@@ -42,8 +42,6 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                     })
                     ->first();
 
-                
-
                 //$affiliateId = $affiliateLink?->affiliates_id ?? $affiliateId;
 
                 if ($affiliateLink === null) {
