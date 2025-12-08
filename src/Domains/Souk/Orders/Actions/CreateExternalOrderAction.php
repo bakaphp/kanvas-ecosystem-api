@@ -27,15 +27,15 @@ class CreateExternalOrderAction
 
     public function __construct(
         protected OrderModel $order,
-        protected OrderItemModel $orderItem
+        protected OrderItemModel $orderItem,
     ) {
     }
 
-    public function execute(): void
+    public function execute(): OrderModel
     {
         $orderItemsCollection = [];
         $total = 0;
-        $variant = Variants::findOrFail($this->orderItem->variants_id);
+        $variant = Variants::findOrFail($this->orderItem->variant_id);
         $orderCurrency = $eventVersion->currency ?? Currencies::getByCode('DOP');
         $order = $this->order;
         $orderItem = $this->orderItem;
@@ -46,7 +46,7 @@ class CreateExternalOrderAction
             name: $variant->name,
             sku: $variant->sku,
             quantity: $orderItem->quantity,
-            price: $orderItem->price,
+            price: $orderItem->unit_price_net_amount,
             tax: 0,
             discount: 0.0,
             currency: $orderCurrency,
@@ -90,7 +90,9 @@ class CreateExternalOrderAction
             'people' => $people,
             'user' => $order->user,
             'orderNumber' => '',
-            'orderType' => 'event',
+            'orderType' => $order->orderType?->name,
+            'user_email' => $order->user_email,
+            'user_phone' => $order->user_phone,
             'total' => (float) $total,
             'taxes' => 0.0,
             'totalDiscount' => 0.0,
@@ -99,7 +101,8 @@ class CreateExternalOrderAction
             'checkoutToken' => '',
             'currency' => $orderCurrency,
             'items' => $items,
-            'parentId' => $order->getId(),
+            'parent' => $order,
+            'ipAddress' => $order->ip_address,
         ]);
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
@@ -107,5 +110,7 @@ class CreateExternalOrderAction
         $kanvasOrder->resources_id = $order->id;
         $kanvasOrder->resources_type = $order->getMorphClass();
         $kanvasOrder->saveQuietly();
+
+        return $kanvasOrder;
     }
 }
