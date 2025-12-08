@@ -36,7 +36,6 @@ class PopulateTrendingFeedAction
         $trendingSlug = 'trending';
         // $userForYouFeed = $recommendationService->getUserRecommendation($this->user, $pageSize, $trendingSlug)['recomms']; // This does not make sense to use for trending
 
-
         Message::fromApp($this->app)->whereHas('tags', function ($query) use ($trendingSlug) {
             $query->where('slug', $trendingSlug)
                 ->where('messages.is_public', 1)
