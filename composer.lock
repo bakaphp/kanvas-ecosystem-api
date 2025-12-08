@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "91ee0ce003f7efc3049574ae02edbc2b",
+    "content-hash": "68252764ce281f82b2f3c5b0929fdc84",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4310,16 +4310,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.48",
+            "version": "1.0.50",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "fc9c8f60511345c62948ebed7b3d21cda0e85c1d"
+                "reference": "d7b0a1764e30f00eb09d5d4a0f80298d8e0b88ba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/fc9c8f60511345c62948ebed7b3d21cda0e85c1d",
-                "reference": "fc9c8f60511345c62948ebed7b3d21cda0e85c1d",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/d7b0a1764e30f00eb09d5d4a0f80298d8e0b88ba",
+                "reference": "d7b0a1764e30f00eb09d5d4a0f80298d8e0b88ba",
                 "shasum": ""
             },
             "require": {
@@ -4359,9 +4359,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.48"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.50"
             },
-            "time": "2025-12-04T21:05:17+00:00"
+            "time": "2025-12-05T02:17:19+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -16294,16 +16294,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.8.7",
+            "version": "8.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb"
+                "reference": "7bae72d9066055e714d8b20d0440149068490c43"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb",
-                "reference": "79a0d2a554fbd5baaa5f6d9bfeddaa48255c1ebb",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/7bae72d9066055e714d8b20d0440149068490c43",
+                "reference": "7bae72d9066055e714d8b20d0440149068490c43",
                 "shasum": ""
             },
             "require": {
@@ -16340,7 +16340,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2025-11-20T04:31:00+00:00"
+            "time": "2025-12-03T11:18:57+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -18145,11 +18145,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.32",
+            "version": "2.1.33",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e126cad1e30a99b137b8ed75a85a676450ebb227",
-                "reference": "e126cad1e30a99b137b8ed75a85a676450ebb227",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/9e800e6bee7d5bd02784d4c6069b48032d16224f",
+                "reference": "9e800e6bee7d5bd02784d4c6069b48032d16224f",
                 "shasum": ""
             },
             "require": {
@@ -18194,7 +18194,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-11-11T15:18:17+00:00"
+            "time": "2025-12-05T10:24:31+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
