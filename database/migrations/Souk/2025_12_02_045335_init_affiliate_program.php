@@ -30,7 +30,7 @@ return new class () extends Migration {
             $table->boolean('accepts_new_affiliates')->default(true);
 
             // Commission Structure
-            $table->enum('default_commission_type', ['percentage', 'fixed', 'hybrid', 'tiered'])->default('percentage');
+            $table->enum('default_commission_type', ['percentage', 'fixed', 'hybrid', 'tiered', 'user_wallet', 'company_wallet'])->default('percentage');
             $table->decimal('default_commission_rate', 5, 2)->default(10.00);
             $table->boolean('tier_based_commission')->default(false);
 
@@ -150,7 +150,7 @@ return new class () extends Migration {
             $table->bigInteger('approved_by')->unsigned()->nullable(); // User who approved
 
             // Financial Configuration
-            $table->enum('commission_type', ['percentage', 'fixed', 'hybrid', 'tiered'])->default('percentage');
+            $table->enum('commission_type', ['percentage', 'fixed', 'hybrid', 'tiered', 'user_wallet', 'company_wallet'])->default('percentage');
             $table->decimal('commission_rate', 5, 2)->default(10.00);
             $table->decimal('min_payout_threshold', 10, 2)->default(100.00);
             $table->enum('payout_method', ['wallet', 'bank_transfer', 'paypal', 'stripe'])->default('wallet');
@@ -269,7 +269,7 @@ return new class () extends Migration {
 
             // Commission Override (per-link specific)
             $table->boolean('override_commission')->default(false);
-            $table->enum('commission_type', ['percentage', 'fixed', 'tiered', 'hybrid'])->nullable();
+            $table->enum('commission_type', ['percentage', 'fixed', 'tiered', 'hybrid', 'user_wallet', 'company_wallet'])->nullable();
             $table->decimal('commission_rate', 5, 2)->nullable(); // Overrides affiliate's default
             $table->string('commission_note')->nullable(); // "50% off promo - higher commission"
 
@@ -381,7 +381,7 @@ return new class () extends Migration {
             // Order & Commission Details (locked at conversion time)
             $table->decimal('order_total', 10, 2);
             $table->decimal('eligible_amount', 10, 2); // After exclusions
-            $table->enum('commission_type', ['percentage', 'fixed', 'hybrid', 'tiered']);
+            $table->enum('commission_type', ['percentage', 'fixed', 'hybrid', 'tiered', 'user_wallet', 'company_wallet']);
             $table->decimal('commission_rate', 5, 2);
             $table->decimal('commission_amount', 12, 2);
 
