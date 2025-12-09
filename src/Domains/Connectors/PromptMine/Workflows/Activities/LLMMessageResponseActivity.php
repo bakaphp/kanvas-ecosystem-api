@@ -64,6 +64,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeVideo = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::VIDEO_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
+                $totalMessagesInChannel = $promptChannel ? $promptChannel->messages()->count() : 0;
                 $isNotSafeForWork = false;
 
                 if (! $isTypeImage && ! $isTypeVideo) {
@@ -165,7 +166,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $hasError = $isNotSafeForWork || $error || $errorReason !== null;
 
-                if ($hasError) {
+                if ($hasError && $totalMessagesInChannel <= 1) {
                     new MessageOrderFulfillmentAction($message)->execute($messageTypeKey, true);
                 }
 
