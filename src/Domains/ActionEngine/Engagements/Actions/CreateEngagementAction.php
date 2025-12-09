@@ -93,6 +93,15 @@ class CreateEngagementAction
             }
 
             $engagement = $this->createEngagement($message);
+            $newLink = $this->generateNewEngagementUrl($engagement);
+
+            //update msg new action page migration link
+            if ($newLink !== null) {
+                $messageData = $message->message ?? [];
+                $messageData['action_link'] = Url::getShortUrl($newLink, $this->app);
+                $message->message = $messageData;
+                $message->saveOrFail();
+            }
 
             if ($this->runWorkflow) {
                 $engagement->fireWorkflow(
@@ -165,7 +174,7 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_5->value,
                 ActionEnum::CREDIT_APP_6->value,
                 ActionEnum::CREDIT_APP_7->value,
-                'business-all-cash'
+                'business-credit-app-1',
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value,
@@ -215,6 +224,16 @@ class CreateEngagementAction
                 $this->lead->branch
             );
         }
+    }
+
+    protected function generateNewEngagementUrl(Engagement $engagement): ?string
+    {
+        $newActionPageUrlV3 = in_array($this->actionSlug, $this->app->get('new-action-slug-v3') ?? []);
+        if (! $newActionPageUrlV3) {
+            return null;
+        }
+
+        return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
     }
 
     /**
@@ -378,6 +397,7 @@ class CreateEngagementAction
     protected function createOrGetChannel(): ModelsChannel
     {
         $leadUuid = $this->lead->uuid instanceof LazyUuidFromString ? $this->lead->uuid->toString() : $this->lead->uuid;
+
         return (new CreateChannelAction(new Channel(
             apps: $this->app,
             companies: $this->lead->company,
@@ -511,9 +531,9 @@ class CreateEngagementAction
                 ActionEnum::CREDIT_APP_3->value => 'personal-check',
                 ActionEnum::CREDIT_APP_4->value => 'cashier-check',
                 ActionEnum::CREDIT_APP_5->value => 'all-cash',
-                'business-all-cash' => 'all-cash',
                 ActionEnum::CREDIT_APP_6->value => '5-liner',
                 ActionEnum::CREDIT_APP_7->value => 'finance',
+                'business-credit-app-1' => 'all-cash',
             ],
             'cosigner' => [
                 ActionEnum::CO_SIGNER_2->value => 'finance-lease',

@@ -62,37 +62,37 @@ class LoyaltyProgram extends BaseModel
 
     public function tiers(): HasMany
     {
-        return $this->hasMany(LoyaltyTier::class);
+        return $this->hasMany(LoyaltyTier::class, 'loyalty_programs_id');
     }
 
     public function offers(): HasMany
     {
-        return $this->hasMany(LoyaltyOffer::class);
+        return $this->hasMany(LoyaltyOffer::class, 'loyalty_programs_id');
     }
 
     public function eligibilityRules(): HasMany
     {
-        return $this->hasMany(LoyaltyProgramEligibility::class);
+        return $this->hasMany(LoyaltyProgramEligibility::class, 'loyalty_programs_id');
     }
 
     public function memberships(): HasMany
     {
-        return $this->hasMany(LoyaltyTierMembership::class);
+        return $this->hasMany(LoyaltyTierMembership::class, 'loyalty_programs_id');
     }
 
     public function referralCodes(): HasMany
     {
-        return $this->hasMany(ReferralCode::class);
+        return $this->hasMany(ReferralCode::class, 'loyalty_programs_id');
     }
 
     public function assignmentAudits(): HasMany
     {
-        return $this->hasMany(LoyaltyProgramAssignmentAudit::class);
+        return $this->hasMany(LoyaltyProgramAssignmentAudit::class, 'loyalty_programs_id');
     }
 
     public function orderLoyaltyPoints(): HasMany
     {
-        return $this->hasMany(OrderLoyaltyPoints::class);
+        return $this->hasMany(OrderLoyaltyPoints::class, 'loyalty_programs_id');
     }
 
     /**

@@ -33,7 +33,27 @@ class MessageOrderFulfillmentAction
 
         $orderCredit = $this->user->get('order_credits', []);
 
-        if (isset($orderCredit[$aiIndex][$modelIndex]) && $orderCredit[$aiIndex][$modelIndex] > 0) {
+        if ($refundCredit) {
+            // Refund: Add credits back
+            if (! isset($orderCredit[$aiIndex])) {
+                $orderCredit[$aiIndex] = [];
+            }
+
+            if (! isset($orderCredit[$aiIndex][$modelIndex])) {
+                $orderCredit[$aiIndex][$modelIndex] = 0;
+            }
+            $orderCredit[$aiIndex][$modelIndex] += 1;
+
+            if ($relatedModelIndex !== null && $relatedModelIndex !== $modelIndex) {
+                if (! isset($orderCredit[$aiIndex][$relatedModelIndex])) {
+                    $orderCredit[$aiIndex][$relatedModelIndex] = 0;
+                }
+                $orderCredit[$aiIndex][$relatedModelIndex] += 1;
+            }
+
+            $this->user->set('order_credits', $orderCredit, true);
+        } elseif (isset($orderCredit[$aiIndex][$modelIndex]) && $orderCredit[$aiIndex][$modelIndex] > 0) {
+            // Deduct: Remove credits
             $orderCredit[$aiIndex][$modelIndex] -= 1;
 
             if ($relatedModelIndex !== null
@@ -42,20 +62,12 @@ class MessageOrderFulfillmentAction
                 && $orderCredit[$aiIndex][$relatedModelIndex] > 0) {
                 $orderCredit[$aiIndex][$relatedModelIndex] -= 1;
                 if ($orderCredit[$aiIndex][$relatedModelIndex] <= 0) {
-                    if (! $refundCredit) {
-                        unset($orderCredit[$aiIndex][$relatedModelIndex]);
-                    } else {
-                        $orderCredit[$aiIndex][$relatedModelIndex] += 1;
-                    }
+                    unset($orderCredit[$aiIndex][$relatedModelIndex]);
                 }
             }
 
             if ($orderCredit[$aiIndex][$modelIndex] <= 0) {
-                if (! $refundCredit) {
-                    unset($orderCredit[$aiIndex][$modelIndex]);
-                } else {
-                    $orderCredit[$aiIndex][$modelIndex] += 1;
-                }
+                unset($orderCredit[$aiIndex][$modelIndex]);
             }
 
             $this->user->set('order_credits', $orderCredit, true);

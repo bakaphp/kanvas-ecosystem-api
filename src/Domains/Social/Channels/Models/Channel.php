@@ -13,6 +13,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
@@ -40,6 +41,7 @@ class Channel extends BaseModel
     use UuidTrait;
     use CanUseWorkflow;
     use HasTagsTrait;
+    use HasCategoriesTrait;
     use MorphEntityDataTrait;
     use SlugTrait;
 
@@ -57,7 +59,6 @@ class Channel extends BaseModel
         'last_message_id',
         'metadata',
         'uuid',
-        'category_id',
     ];
 
     protected $casts = [
@@ -82,11 +83,6 @@ class Channel extends BaseModel
     {
         return $this->belongsToMany(Message::class, 'channel_messages', 'channel_id', 'messages_id')
                 ->withTimestamps();
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(ChannelCategories::class, 'category_id');
     }
 
     public function getLastMessage(): ?Message

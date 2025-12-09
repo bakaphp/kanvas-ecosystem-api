@@ -6,6 +6,10 @@ namespace Kanvas\Souk\Referrals\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Str;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
+use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
+use Kanvas\Souk\Discounts\Models\DiscountType;
 use Kanvas\Souk\Loyalty\Models\LoyaltyProgram;
 use Kanvas\Souk\Referrals\Models\ReferralCode;
 use Kanvas\Users\Models\Users;
@@ -38,18 +42,48 @@ class GenerateReferralCodeAction
         // Generate unique code
         $code = $this->generateUniqueCode();
 
+        // Create discount for the referral code
+        $discount = $this->createDiscount($code);
+
         // Create referral code
-        return ReferralCode::create([
+        $referralCode = ReferralCode::create([
             'apps_id' => $this->app->getId(),
             'users_id' => $this->user->getId(),
             'code' => $code,
             'loyalty_programs_id' => $this->loyaltyProgram->getId(),
+            'discounts_id' => $discount->getId(),
             'referrer_reward' => $this->referrerReward,
             'referee_reward' => $this->refereeReward,
             'referee_discount' => $this->refereeDiscount,
             'is_active' => true,
             'strategy' => $this->loyaltyProgram->referral_strategy,
         ]);
+
+        return $referralCode;
+    }
+
+    /**
+     * Create a discount tied to the referral code.
+     */
+    private function createDiscount(string $code): mixed
+    {
+        $discountData = DiscountData::from([
+            'name' => "Referral Discount - {$code}",
+            'description' => "Discount for referral code {$code}",
+            'discount_type_id' => DiscountType::getByName('Fixed Amount')->getId(),
+            'value' => $this->refereeDiscount,
+            'conditions' => [],
+            'is_percentage' => false,
+            'is_one_per_customer' => true,
+            'code' => $code,
+            'is_active' => true,
+        ]);
+
+        $company = Companies::getById($this->user->currentCompanyId());
+        $app = $this->app instanceof \Kanvas\Apps\Models\Apps ? $this->app : \Kanvas\Apps\Models\Apps::findOrFail($this->app->getId());
+        $createDiscountAction = new CreateDiscountAction($app, $company, $discountData);
+
+        return $createDiscountAction->execute();
     }
 
     /**

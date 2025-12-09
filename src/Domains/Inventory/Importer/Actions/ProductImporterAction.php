@@ -103,14 +103,14 @@ class ProductImporterAction
             }
 
             // Fire workflow after transaction commits successfully
-            $this->product->fireWorkflow(
-                WorkflowEnum::SYNC_SHOPIFY->value,
-                true,
-                [
-                    'app' => $this->app,
-                ]
-            );
-
+            /*             $this->product->fireWorkflow(
+                            WorkflowEnum::SYNC_SHOPIFY->value,
+                            true,
+                            [
+                                'app' => $this->app,
+                            ]
+                        );
+             */
             return $this->product;
         });
     }
@@ -204,8 +204,8 @@ class ProductImporterAction
                     'company' => $this->company,
                     'parent_id' => $category['parent_id'] ?? null,
                     'name' => $category['name'],
-                    'code' => $category['code'],
-                    'position' => $category['position'],
+                    'code' => $category['code'] ?? null,
+                    'position' => $category['position'] ?? 0,
                 ]);
                 $categoryModel = (new CreateCategory($categoryDto, $this->user))->execute();
                 if (isset($category['source_id']) && $this->importedProduct->isFromThirdParty()) {

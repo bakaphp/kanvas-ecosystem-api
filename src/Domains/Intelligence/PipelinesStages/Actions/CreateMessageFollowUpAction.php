@@ -58,7 +58,9 @@ class CreateMessageFollowUpAction
         $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
 
         if ($messageTemplate === null) {
-            throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
+            // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
+
+            return null;
         }
 
         $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();

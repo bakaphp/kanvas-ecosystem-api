@@ -68,22 +68,6 @@ class MessageBuilder
             }
         }
 
-        if (! empty($args['hasChannelCategory'])) {
-            $query->whereHas('channels', function (Builder $channelQuery) use ($args) {
-                $channelQuery->whereHas('category', function (Builder $categoryQuery) use ($args) {
-                    $filter = $args['hasChannelCategory'];
-
-                    if (! empty($filter['ids'])) {
-                        $categoryQuery->whereIn('id', $filter['ids']);
-                    }
-
-                    if (! empty($filter['names'])) {
-                        $categoryQuery->whereIn('name', $filter['names']);
-                    }
-                });
-            });
-        }
-
         if (isset($args['random']) && $args['random'] === true) {
             $query->inRandomOrder();
         }

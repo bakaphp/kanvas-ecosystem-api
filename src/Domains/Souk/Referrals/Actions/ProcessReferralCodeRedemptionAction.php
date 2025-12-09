@@ -8,13 +8,15 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Referrals\Models\OrderReferralCode;
 use Kanvas\Souk\Referrals\Models\ReferralCode;
 use Kanvas\Souk\Referrals\Models\ReferralRedemption;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
 
 class ProcessReferralCodeRedemptionAction
 {
     public function __construct(
         private Order $order,
-        private Users $user
+        private Users $user,
+        private bool $userWallet = true
     ) {
     }
 
@@ -71,6 +73,9 @@ class ProcessReferralCodeRedemptionAction
 
             // Award points to referrer
             $this->awardPointsToReferrer($referralCode);
+
+            // Add funds to referrer's wallet
+            $this->addFundsReferrerWallet($referralCode);
 
             // Increment referral code usage
             $referralCode->incrementUsage();
@@ -147,5 +152,29 @@ class ProcessReferralCodeRedemptionAction
             // Award points to the referrer
             $membership->addPoints($referralCode->referrer_reward);
         }
+    }
+
+    private function addFundsReferrerWallet(ReferralCode $referralCode): void
+    {
+        if (! $this->userWallet) {
+            return;
+        }
+
+        $referrer = Users::find($referralCode->users_id);
+        if (! $referrer) {
+            return;
+        }
+
+        $walletHolder = $referrer;
+        $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
+        $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
+
+        $transaction = $wallet->depositFloat($referralCode->referrer_reward);
+        $transaction->meta = [
+            'referral_code_id' => $referralCode->getId(),
+            'referrer_user_id' => $referralCode->users_id,
+            'order_id' => $this->order->getId(),
+        ];
+        $transaction->saveOrFail();
     }
 }

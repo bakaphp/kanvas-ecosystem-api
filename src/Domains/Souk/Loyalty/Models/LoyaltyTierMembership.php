@@ -64,7 +64,7 @@ class LoyaltyTierMembership extends BaseModel
 
     public function orderLoyaltyPoints(): HasMany
     {
-        return $this->hasMany(OrderLoyaltyPoints::class);
+        return $this->hasMany(OrderLoyaltyPoints::class, 'loyalty_tier_memberships_id');
     }
 
     /**

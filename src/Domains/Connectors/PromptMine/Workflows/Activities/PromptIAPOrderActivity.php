@@ -35,7 +35,7 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                     $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
                     $aiModelRelated = $variant->getAttributeBySlug('ai-model-related')?->value;
-                    $purchaseType = match (strtolower($variant->product->categories->first()->name)) {
+                    $purchaseType = match (strtolower($variant->product->categories->first()->slug)) {
                         'texttotext' => 'text',
                         'imagetovideo' => 'video',
                         'texttoimage' => 'image',
@@ -78,6 +78,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                     'total_delivery' => 1,
                     'key' => $aiModelKey ?? null,
                     'related_key' => $aiModelRelated ?? null,
+                    'purchase_type' => $purchaseType ?? null,
                 ];
             },
             company: $order->company,

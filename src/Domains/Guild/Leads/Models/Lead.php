@@ -349,6 +349,42 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->save();
     }
 
+    public function toSearchableArray(): array
+    {
+        $lead = [
+            'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'email' => (string) $this->email,
+            'phone' => (string) $this->phone,
+            'title' => (string) $this->title,
+            'firstname' => (string) $this->firstname,
+            'lastname' => (string) $this->lastname,
+            'description' => (string) $this->description,
+            'reason_lost' => (string) $this->reason_lost,
+            'is_duplicate' => (bool) $this->is_duplicate,
+            'users_id' => $this->users_id,
+            'companies_id' => $this->companies_id,
+            'apps_id' => $this->apps_id,
+            'companies_branches_id' => $this->companies_branches_id,
+            'leads_receivers_id' => $this->leads_receivers_id,
+            'leads_owner_id' => $this->leads_owner_id,
+            'leads_status_id' => $this->leads_status_id,
+            'leads_sources_id' => $this->leads_sources_id,
+            'pipeline_id' => $this->pipeline_id,
+            'pipeline_stage_id' => $this->pipeline_stage_id,
+            'people_id' => $this->people_id,
+            'organization_id' => $this->organization_id,
+            'leads_types_id' => $this->leads_types_id,
+            'status' => $this->status,
+            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+            'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
+            'people' => $this->people ? $this->people->toSearchableArray() : null,
+        ];
+
+        return $lead;
+    }
+
     /**
      * The Typesense schema to be created for the Lead model.
      */

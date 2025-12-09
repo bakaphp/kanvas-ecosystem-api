@@ -161,6 +161,7 @@ class PullLeadAction
 
     private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
     {
+        //get a new fresh lead instance to avoid any issues with workflow state (disabled)
         $lead = ModelsLead::getById($lead->id);
         $createdAt = $currentLead['CreatedUtc'] ?? null;
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
@@ -184,6 +185,7 @@ class PullLeadAction
         }
 
         $lead->set('process_via_pull', true);
+        $lead->set('downloaded_from_vin_solution', true);
         $lead->set('vin_solution_date_in', $createdAt);
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;

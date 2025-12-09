@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Kanvas\Social\Channels\Models\ChannelCategories;
-use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
@@ -18,14 +16,11 @@ class ChannelsTest extends TestCase
                         ->notDeleted()
                         ->firstOrFail();
 
-        $channelCategory = ChannelCategories::getByName(ChannelCategoryEnum::EMAIL->value);
-
         $data = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'entity_id' => fake()->uuid(),
             'entity_namespace_uuid' => $systemModule->uuid,
-            'category_id' => $channelCategory->getId(),
         ];
         $response = $this->graphQL('
             mutation createSocialChannel(
@@ -36,9 +31,6 @@ class ChannelsTest extends TestCase
                     description,
                     entity_id,
                     entity_namespace
-                    category{
-                    id
-                    name}
                 }
             }
         ', [
@@ -50,9 +42,6 @@ class ChannelsTest extends TestCase
                     'description' => $data['description'],
                     'entity_id' => $data['entity_id'],
                     'entity_namespace' => $systemModule->model_name,
-                    'category' => [
-                        'id' => (string) $channelCategory->getId(),
-                    ],
                 ],
             ],
         ]);

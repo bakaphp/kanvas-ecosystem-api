@@ -163,6 +163,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     );
                 } catch (Exception $e) {
                     //report($e);
+                    new MessageOrderFulfillmentAction($entity)->execute('image', true);
 
                     return $this->failWorkflow([
                         'result' => false,

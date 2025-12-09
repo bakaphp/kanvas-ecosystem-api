@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use Baka\Support\Str;
 use Baka\Support\Url;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
@@ -50,7 +53,22 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 //$syncLeadAction = new SyncLeadAction($lead);
                 //$eLeadOpportunity = $syncLeadAction->execute();
-                $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                try {
+                    $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                } catch (ServerException $e) {
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
+                    ]);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), '404')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
+                    ]);
+                }
+
                 $note = $message->message['content'] ?? '';
 
                 if (empty($note)) {
@@ -69,7 +87,19 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
-                $eLeadOpportunity->addComment($note);
+
+                try {
+                    $eLeadOpportunity->addComment($note);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), 'not active')
+                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity add comment error: ' . $e->getMessage(),
+                    ]);
+                }
 
                 // Notify managers
                 $sentManagerNotification = false;
