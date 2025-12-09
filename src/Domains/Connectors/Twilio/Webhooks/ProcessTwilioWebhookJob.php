@@ -348,11 +348,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             if (! $channel) {
                 $channel = Channel::firstOrCreate(
                     [
-                                          'users_id' => $this->receiver->users_id,
-                      'apps_id' => $this->receiver->app->getId(),
-                      'companies_id' => $this->receiver->company->getId(),
-                      'slug' => $slug,
-                ],
+                        'users_id' => $this->receiver->users_id,
+                        'apps_id' => $this->receiver->app->getId(),
+                        'companies_id' => $this->receiver->company->getId(),
+                        'slug' => $slug,
+                    ],
                     [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
