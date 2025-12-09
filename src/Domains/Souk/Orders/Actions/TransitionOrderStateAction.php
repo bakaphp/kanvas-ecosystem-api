@@ -91,16 +91,8 @@ class TransitionOrderStateAction
             });
 
             // Fire workflow after successful transaction
-            $this->order->fireWorkflow(
-                WorkflowEnum::STATUS_TRANSITION->value,
-                true,
-                [
-                    'app' => $this->order->app,
-                    'from_status' => $currentOrderStatus->slug,
-                    'to_status' => $this->newOrderStatus->slug,
-                    'who' => $this->user,
-                ]
-            );
+            $this->fireWorkflow($currentOrderStatus);
+
 
             return [
                 'status' => 'success',
@@ -128,6 +120,7 @@ class TransitionOrderStateAction
 
         $this->order->order_status_id = $defaultStatus->id;
         $this->order->saveOrFail();
+        $this->newOrderStatus = $defaultStatus;
 
         OrderTransitionHistory::create([
             'apps_id' => $this->order->apps_id,
@@ -141,5 +134,37 @@ class TransitionOrderStateAction
             'changed_at' => now(),
             'changed_by' => $this->user->getId(),
         ]);
+
+        $this->fireWorkflow(null);
+    }
+
+    private function fireWorkflow($currentOrderStatus): void
+    {
+        $this->order->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            true,
+            [
+                'app' => $this->order->app,
+                'from_status' => $currentOrderStatus?->slug,
+                'to_status' => $this->newOrderStatus->slug,
+                'who' => $this->user,
+            ]
+        );
+
+
+        // $activity = new TookanOrderStatusActivity(
+        //     0,
+        //     now()->toDateTimeString(),
+        //     StoredWorkflow::make(),
+        //     []
+        // );
+
+        // $result = $activity->execute($this->order, $this->order->app, [
+        //     'currentEventTypeName' =>  WorkflowEnum::STATUS_TRANSITION->value,
+        //     'app' => $this->order->app,
+        //     'from_status' => $currentOrderStatus?->slug ?? null,
+        //     'to_status' => $this->newOrderStatus->slug,
+        //     'who' => $this->user,
+        // ]);
     }
 }

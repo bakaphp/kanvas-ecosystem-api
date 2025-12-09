@@ -35,6 +35,7 @@ class PdfService
         if (! is_dir($tempDir) || ! is_writable($tempDir)) {
             $tempDir = storage_path('app/temp');
         }
+        chdir($tempDir);
 
         $tempFilePath = $tempDir . '/' . $fileName;
 
