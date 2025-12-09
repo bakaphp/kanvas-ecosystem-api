@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ContactObserver
 {
@@ -30,5 +31,15 @@ class ContactObserver
         if (! empty($contact->value) && in_array($contact->contacts_types_id, $phoneTypes, true)) {
             $contact->value = preg_replace('/\D/', '', $contact->value);
         }
+    }
+
+    public function created(Contact $contact): void
+    {
+        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
+    }
+
+    public function updated(Contact $contact): void
+    {
+        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
     }
 }
