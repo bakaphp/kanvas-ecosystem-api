@@ -81,8 +81,6 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
-
-
                 $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
                     ->where('apps_id', $this->messageInput->app->getId())
                     ->where('companies_id', $this->messageInput->company->getId())
@@ -94,7 +92,7 @@ class CreateMessageAction
                     companies: $message->company,
                     users: $message->user,
                     //entity_id: $this->entityId ?? $message->getId(),
-                    entity_id: $channel?->entity_id ??$message->getId(),
+                    entity_id: $channel?->entity_id ?? $message->getId(),
                     //entity_namespace: $this->systemModule?->model_name ?? Message::class,
                     entity_namespace: $channel?->entity_namespace ?? Message::class,
                     name: $this->messageInput->channel_slug,
