@@ -28,7 +28,7 @@ class MyReferralInfoQuery
         $targetUserId = $args['user_id'] ?? null;
         $isAdmin = $currentUser->isAdmin();
 
-        if ($targetUserId !== null && $targetUserId !== $currentUser->id) {
+        if ($targetUserId !== null && (int) $targetUserId !== (int) $currentUser->id) {
             // If user_id is provided, only admins can access
             if (! $isAdmin) {
                 throw new ValidationException('Unauthorized: Only admins can view other users\' referral info');

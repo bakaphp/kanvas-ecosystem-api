@@ -23,14 +23,23 @@ class PdfService
         array $options = []
     ): ModelsFilesystem {
         //$response = PdfGenerator::fromHtml($html, $options);
+        // Define the file name
+        //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
+        //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
 
         // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
-        $tempFilePath = sys_get_temp_dir() . '/' . $fileName;
+
+        // Ensure temp directory exists
+        $tempDir = sys_get_temp_dir() ?: '/tmp';
+        if (! is_dir($tempDir) || ! is_writable($tempDir)) {
+            $tempDir = storage_path('app/temp');
+        }
+
+        $tempFilePath = $tempDir . '/' . $fileName;
 
         $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
 
-        $snappy->generateFromHtml($html, $tempFilePath);
         $snappy->setOption('encoding', 'UTF-8');
         $snappy->setOption('no-outline', true);
         $snappy->setOption('margin-right', 0);
@@ -38,6 +47,8 @@ class PdfService
         $snappy->setOption('disable-smart-shrinking', true);
         $snappy->setOption('enable-local-file-access', true);
         $snappy->setOption('page-size', 'A4');
+        $snappy->setTemporaryFolder($tempDir);
+        $snappy->generateFromHtml($html, $tempFilePath);
 
         // Create an UploadedFile instance from the temporary file
         $uploadedFile = new UploadedFile(

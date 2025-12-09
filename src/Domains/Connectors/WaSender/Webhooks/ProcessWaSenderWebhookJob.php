@@ -1062,6 +1062,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         $lead->user,
                         $lead->company
                     );
+
+                    $channel->addCategory(
+                        'ai-agent',
+                        $this->receiver->app,
+                        $this->receiver->user,
+                        $this->receiver->company
+                    );
                 }
             } elseif ($name && $channel->name !== $name) {
                 $channel->name = $name;

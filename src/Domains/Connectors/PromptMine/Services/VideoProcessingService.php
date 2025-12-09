@@ -382,6 +382,7 @@ class VideoProcessingService
         // Turn type to prompt
         $this->entity->message_types_id = MessageType::fromApp($this->entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
         $this->entity->update();
+
         return [
             'message' => 'Video processed successfully',
             'total_delivery' => $totalDelivery,
@@ -417,12 +418,18 @@ class VideoProcessingService
 
     private function generateTitleByPrompt(string $prompt): string
     {
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '. Choose just one title, dont give me suggestions')
-            ->generate();
+        try {
+            $response = Prism::text()
+                ->using(Provider::Gemini, 'gemini-2.0-flash')
+                ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '. Choose just one title, dont give me suggestions')
+                ->asText();
 
-        return str_replace(['```', 'json'], '', $response->text);
+            return str_replace(['```', 'json'], '', $response->text);
+        } catch (Throwable $e) {
+            report($e);
+
+            return 'Generated Video';
+        }
     }
 
     private function generateThumbnailFromVideo(string $videoUrl): ?Filesystem

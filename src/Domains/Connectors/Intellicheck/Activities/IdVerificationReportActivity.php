@@ -241,6 +241,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
                         //$entity->addFile($pdfReport, 'id-verification');
                     } catch (Throwable $e) {
+                        report($e);
                         $generatePdf .= ' - Error generating PDF: ' . $e->getMessage();
                         // Log PDF generation error but continue
                     }

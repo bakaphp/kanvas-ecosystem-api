@@ -15,6 +15,7 @@ class ChannelsTest extends TestCase
                         ->fromApp()
                         ->notDeleted()
                         ->firstOrFail();
+
         $data = [
             'name' => fake()->name(),
             'description' => fake()->text(),
@@ -40,7 +41,7 @@ class ChannelsTest extends TestCase
                     'name' => $data['name'],
                     'description' => $data['description'],
                     'entity_id' => $data['entity_id'],
-                    'entity_namespace' => $systemModule->model_name
+                    'entity_namespace' => $systemModule->model_name,
                 ],
             ],
         ]);

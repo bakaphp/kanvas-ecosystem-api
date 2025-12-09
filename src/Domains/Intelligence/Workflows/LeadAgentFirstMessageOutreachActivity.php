@@ -65,9 +65,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    "whatsapp" => $cellPhone,
+                    'whatsapp' => $cellPhone,
                 ];
+
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
+                $totalSentMessages = 0;
+
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
                     if (! $value) {
@@ -98,7 +101,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
                         'email' => $email,
-                        "whatsapp" => $cellPhone,
+                        'whatsapp' => $cellPhone,
                         default => $cellPhone
                     };
 
@@ -189,18 +192,26 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $channel ?? null,
                                     $messageType
                                 );
-                                $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+
+                                if ($totalSentMessages === 0) {
+                                    $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+                                }
                             } catch (Exception $e) {
                                 report($e);
                             }
                         }
                     }
+
+                    $totalSentMessages++;
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
                 $now = Carbon::now($timezone);
                 if (! isset($firstLeadMessage)) {
-                    $this->failWorkflow(['message' => 'First message no generate', 'channels' => $channels]);
+                    return $this->failWorkflow([
+                        'message' => 'First message no generate',
+                        'channels' => $channels,
+                    ]);
                 }
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE_TIME->value, $now->toDateTimeString());
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);
@@ -312,6 +323,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         //$newMessage = $createMessageAction->execute();
         //$newMessage->addEntity($lead);
         if ($channel) {
+            $channel->addCategory(
+                'ai-agent',
+                $lead->app,
+                $lead->user,
+                $lead->company
+            );
             $channel->addMessage($newMessage);
         }
 
