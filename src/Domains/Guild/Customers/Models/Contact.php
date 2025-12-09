@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
 use Kanvas\Guild\Customers\Observers\ContactObserver;
 use Kanvas\Guild\Models\BaseModel;
-use Override;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 /**
  * Class Contacts.
@@ -30,7 +30,7 @@ class Contact extends BaseModel
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
     use CanUseWorkflow;
-    
+
     protected $table = 'peoples_contacts';
     protected $guarded = [];
 
