@@ -54,7 +54,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
                 $prompt = $message->message['prompt'] ?? null;
                 // use trim to avoid prompts with only spaces
-                if (empty(trim($prompt))) {
+                if ($prompt === null || empty(trim($prompt))) {
                     return [
                         'error' => 'Prompt is empty',
                     ];
@@ -64,6 +64,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeVideo = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::VIDEO_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
+                $totalMessagesInChannel = $promptChannel ? $promptChannel->messages()->count() : 0;
                 $isNotSafeForWork = false;
 
                 if (! $isTypeImage && ! $isTypeVideo) {
@@ -165,7 +166,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $hasError = $isNotSafeForWork || $error || $errorReason !== null;
 
-                if ($hasError) {
+                if ($hasError && $totalMessagesInChannel <= 1) {
                     new MessageOrderFulfillmentAction($message)->execute($messageTypeKey, true);
                 }
 
@@ -327,7 +328,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 title: 'Image Processing Error',
                 via: $endViaList,
                 templates: [
-                    'email_template' => 'a-message-nugget',
+                    'email_template' => 'email-new-message-nugget',
                     'push_template' => 'push-new-message-nugget',
                 ],
             );
@@ -459,7 +460,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                     && $messagesSkipped < 3
                 ) {
                     $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
-                    $previousChatChildMessage = $previousChatResponse->children()?->first();
+                    $previousChatChildMessage = $previousChatResponse?->children()?->first();
                     $messagesSkipped++;
                 }
             }

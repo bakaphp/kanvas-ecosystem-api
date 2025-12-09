@@ -573,14 +573,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentCompanyId = $this->get(Companies::cacheKey());
-        } else {
-            //verify I have access to it
-            $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $companyId = app(CompaniesBranches::class)->company()->first()?->getId();
+
+            if ($companyId > 0) {
+                return $companyId;
+            }
         }
 
-        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
+        return (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
     }
 
     /**
@@ -589,13 +590,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
-        } else {
-            $currentBranchId = app(CompaniesBranches::class)->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $branchId = app(CompaniesBranches::class)->getId();
         }
 
-        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
+        $branchId = (int) ($branchId ?? $this->get($this->getCurrentCompany()->branchCacheKey()));
+
+        return $branchId > 0 ? $branchId : $this->default_company_branch;
     }
 
     /**
@@ -930,6 +931,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function searchableAs(): string
     {
         $customIndex = $this->app ? $this->app->get('app_custom_users_index') : null;
+
         return $customIndex ?: config('scout.prefix') . '_users';
     }
 

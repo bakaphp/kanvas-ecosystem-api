@@ -65,8 +65,7 @@ jobs:
 
             # Additional queues for 1.x branch
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker restart queue2
-              docker restart queue3
+              docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

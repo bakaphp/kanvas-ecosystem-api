@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -29,7 +30,13 @@ class PushPeopleActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::ELEAD,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
-                $syncPeople = new SyncPeopleAction($people)->execute();
+                try {
+                    $syncPeople = new SyncPeopleAction($people)->execute();
+                } catch (Exception $e) {
+                    return $this->failWorkflow([
+                        'error' => 'Error pushing people to Elead: ' . $e->getMessage(),
+                    ]);
+                }
 
                 return [
                     'message' => 'People pushed successfully',

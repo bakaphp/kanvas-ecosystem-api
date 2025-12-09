@@ -57,6 +57,12 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
 
         foreach ($cursor as $message) {
+            if (! $message instanceof Message) {
+                $this->output->progressAdvance();
+
+                continue;
+            }
+
             if ($message->hasTags() && ! $clearAllTags) {
                 $this->info('Message ID: ' . $message->getId() . ' already has tags, skipping...');
                 $this->output->progressAdvance();

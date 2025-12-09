@@ -237,6 +237,10 @@ class VerifyPeopleIdAction
     {
         $taskId = $this->lead->get('check_list_status') ?? $this->lead->company->get('default_checklist_id');
 
+        if (is_array($taskId)) {
+            $taskId = $taskId['activeTaskListId'] ?? $this->lead->company->get('default_checklist_id');
+        }
+
         $engagementData = new DataTransferObjectEngagement(
             app: $this->lead->app,
             company: $this->lead->company,

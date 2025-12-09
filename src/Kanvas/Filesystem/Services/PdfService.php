@@ -40,7 +40,6 @@ class PdfService
 
         $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
 
-        $snappy->generateFromHtml($html, $tempFilePath);
         $snappy->setOption('encoding', 'UTF-8');
         $snappy->setOption('no-outline', true);
         $snappy->setOption('margin-right', 0);
@@ -48,6 +47,8 @@ class PdfService
         $snappy->setOption('disable-smart-shrinking', true);
         $snappy->setOption('enable-local-file-access', true);
         $snappy->setOption('page-size', 'A4');
+        $snappy->setTemporaryFolder($tempDir);
+        $snappy->generateFromHtml($html, $tempFilePath);
 
         // Create an UploadedFile instance from the temporary file
         $uploadedFile = new UploadedFile(

@@ -60,8 +60,17 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         'result' => false,
                     ];
                 }
-                $entity->parent_id = $entity->message['remix_parent_id'];
-                $entity->save();
+
+                try {
+                    $entity->parent_id = $entity->message['remix_parent_id'];
+                    $entity->save();
+                } catch (Throwable $th) {
+                    return $this->failWorkflow([
+                        'message' => 'Remix creation failed: ' . $th->getMessage(),
+                        'result' => false,
+                        'message_id' => $entity->getId(),
+                    ]);
+                }
 
                 //Send notification to the original message owner
                 $endViaList = array_map(
@@ -89,11 +98,11 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     }
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {
-                    return [
+                    return $this->failWorkflow([
                         'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
                         'result' => true,
                         'message_id' => $entity->getId(),
-                    ];
+                    ]);
                 }
                 return [
                     'message' => 'Remix created successfully',
