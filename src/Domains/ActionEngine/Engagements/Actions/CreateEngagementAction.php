@@ -95,9 +95,8 @@ class CreateEngagementAction
             $engagement = $this->createEngagement($message);
             $newLink = $this->generateNewEngagementUrl($engagement);
 
+            //update msg new action page migration link
             if ($newLink !== null) {
-                //$engagement->update(['engagement_url' => $newLink]);
-                //update msg action_link
                 $messageData = $message->message ?? [];
                 $messageData['action_link'] = Url::getShortUrl($newLink, $this->app);
                 $message->message = $messageData;
