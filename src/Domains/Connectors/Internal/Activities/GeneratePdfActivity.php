@@ -31,13 +31,14 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
 
         $pdfTemplate = $params['template_pdf'] ?? null;
         $pdfFileName = $params['pdf_file_name'] ?? null;
-        $errorMessage = null;
 
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($buyerCompany, $app, $integrationCompany, $additionalParams) use ($pdfTemplate, $pdfFileName, $entity, $params): array {
+                $errorMessage = null;
+
                 if ($pdfTemplate === null) {
                     return [
                         'message' => 'No template configured to generate pdf',
