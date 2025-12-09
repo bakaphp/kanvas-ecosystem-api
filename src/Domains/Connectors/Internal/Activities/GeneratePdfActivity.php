@@ -22,6 +22,8 @@ use Override;
 
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public $tries = 3;
+
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
