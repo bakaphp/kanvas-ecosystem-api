@@ -53,7 +53,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
 
         if (! $company->get(ConfigurationEnum::COMPANY->value)) {
             return [
-                'error' => 'Company not found in VinSolution',
+                'error' => 'Company not found in Elead',
             ];
         }
 
@@ -75,7 +75,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
 
         if (! $match) {
             return [
-                'error' => 'User not found in VinSolution',
+                'error' => 'User not found in Elead',
                 'looking' => $user->email,
                 'ELeadEmployeeID' => $employee->id,
             ];
