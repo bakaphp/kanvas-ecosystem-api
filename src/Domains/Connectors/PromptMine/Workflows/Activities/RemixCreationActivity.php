@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
@@ -60,17 +59,8 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         'result' => false,
                     ];
                 }
-
-                try {
-                    $entity->parent_id = $entity->message['remix_parent_id'];
-                    $entity->save();
-                } catch (Throwable $th) {
-                    return $this->failWorkflow([
-                        'message' => 'Remix creation failed: ' . $th->getMessage(),
-                        'result' => false,
-                        'message_id' => $entity->getId(),
-                    ]);
-                }
+                $entity->parent_id = $entity->message['remix_parent_id'];
+                $entity->save();
 
                 //Send notification to the original message owner
                 $endViaList = array_map(
@@ -98,19 +88,19 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     }
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {
-                    return $this->failWorkflow([
+                    return [
                         'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
                         'result' => true,
                         'message_id' => $entity->getId(),
-                    ]);
+                    ];
                 }
+
                 return [
                     'message' => 'Remix created successfully',
                     'result' => true,
                     'user_id' => $entity->user->getId(),
                     'message_data' => $entity->message,
                     'message_id' => $entity->getId(),
-                    'entity' => $entity->toArray(),
                 ];
             },
             company: $company,
