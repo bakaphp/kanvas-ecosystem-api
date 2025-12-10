@@ -112,10 +112,7 @@ class CreateAffiliateConversionAction
 
         // Calculate commission based on type
         $commissionAmount = match ($commissionType) {
-            CommissionTypeEnum::PERCENTAGE->value => ($eligibleAmount * $commissionRate) / 100.0,
             CommissionTypeEnum::FIXED->value => $commissionRate,
-            CommissionTypeEnum::COMPANY_WALLET->value => $commissionRate,
-            CommissionTypeEnum::USER_WALLET->value => $commissionRate,
             default => ($eligibleAmount * $commissionRate) / 100.0,
         };
 
