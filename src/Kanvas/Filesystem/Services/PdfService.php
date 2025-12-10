@@ -35,6 +35,7 @@ class PdfService
             $tempDir = storage_path('app/temp');
         }
         chdir($tempDir);
+
         $tempFilePath = $tempDir . '/' . $fileName;
 
         $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);

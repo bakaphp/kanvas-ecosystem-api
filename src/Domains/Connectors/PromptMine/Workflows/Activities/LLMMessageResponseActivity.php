@@ -452,7 +452,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            if ($previousChatResponse !== null) {
+            if ($previousChatResponse !== null && ! $previousChatResponse->isRoot()) {
                 $previousChatChildMessage = $previousChatResponse->children()?->first();
                 //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
                 while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
@@ -462,6 +462,12 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
                     $previousChatChildMessage = $previousChatResponse?->children()?->first();
                     $messagesSkipped++;
+                }
+
+                if ($previousChatResponse->isRoot()
+                    && (isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
+                    && (isset($previousChatChildMessage->message['nsfw_reason']) && ! is_null($previousChatChildMessage->message['nsfw_reason']))) {
+                    $previousChatResponse = null;
                 }
             }
 

@@ -16,6 +16,7 @@ use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateAffiliateConversionAction
 {
@@ -165,6 +166,14 @@ class CreateAffiliateConversionAction
             }
 
             $this->addCommissionFundsToWallet($conversion, $commissionAmount);
+            $conversion->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->order->app,
+                    'company' => $this->order->company,
+                ]
+            );
 
             return $conversion;
         });
