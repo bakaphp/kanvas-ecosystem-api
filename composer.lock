@@ -4310,16 +4310,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.51",
+            "version": "1.0.53",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "efa4d032f24e1d1c1c56f476401ef63b29f14e7a"
+                "reference": "d8fd01aaa1c859fa658a01f6ffb52329e20c0213"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/efa4d032f24e1d1c1c56f476401ef63b29f14e7a",
-                "reference": "efa4d032f24e1d1c1c56f476401ef63b29f14e7a",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/d8fd01aaa1c859fa658a01f6ffb52329e20c0213",
+                "reference": "d8fd01aaa1c859fa658a01f6ffb52329e20c0213",
                 "shasum": ""
             },
             "require": {
@@ -4342,6 +4342,9 @@
                 }
             },
             "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
                 "psr-4": {
                     "Workflow\\": "src/"
                 }
@@ -4359,9 +4362,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.51"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.53"
             },
-            "time": "2025-12-07T01:59:32+00:00"
+            "time": "2025-12-09T12:05:13+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -11775,33 +11778,37 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.12.1",
+            "version": "2.12.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "13cccd3ecb4396c9a3360fb710d9dd40c0f1a1fe"
+                "reference": "516e66ab310a699f23f2e3e9181fdd55c2376491"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/13cccd3ecb4396c9a3360fb710d9dd40c0f1a1fe",
-                "reference": "13cccd3ecb4396c9a3360fb710d9dd40c0f1a1fe",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/516e66ab310a699f23f2e3e9181fdd55c2376491",
+                "reference": "516e66ab310a699f23f2e3e9181fdd55c2376491",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "facade/ignition-contracts": "^1.0",
-                "illuminate/contracts": "^10.0 | ^11.0 | ^12.0",
-                "illuminate/database": "^10.0 | ^11.0 | ^12.0",
-                "illuminate/support": "^10.0 | ^11.0 | ^12.0",
-                "php": "^7.4|^8.0",
-                "spatie/laravel-package-tools": "^1.9",
-                "spatie/php-structure-discoverer": "^2.2"
+                "facade/ignition-contracts": "^1.0.2|^2.0",
+                "illuminate/contracts": "^12.0",
+                "illuminate/database": "^12.0",
+                "illuminate/support": "^12.0",
+                "php": "^8.4",
+                "spatie/laravel-package-tools": "^1.19",
+                "spatie/php-structure-discoverer": "^2.3.1"
             },
             "require-dev": {
-                "orchestra/testbench": "^8.0 | ^9.0 | ^10.0",
-                "pestphp/pest": "^2.0|^3.0",
-                "phpunit/phpunit": "^10.0|^11.0|^12.0",
-                "symfony/var-dumper": "^6.0 | ^7.0"
+                "illuminate/contracts": "^12.0",
+                "illuminate/database": "^12.0",
+                "illuminate/support": "^12.0",
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^4.1.4",
+                "spatie/laravel-package-tools": "^1.9",
+                "spatie/php-structure-discoverer": "^2.2",
+                "symfony/var-dumper": "^7.3.5|^8.0"
             },
             "type": "library",
             "extra": {
@@ -11835,7 +11842,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.12.1"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.12.2"
             },
             "funding": [
                 {
@@ -11847,7 +11854,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-08-01T09:20:29+00:00"
+            "time": "2025-12-10T09:23:31+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
