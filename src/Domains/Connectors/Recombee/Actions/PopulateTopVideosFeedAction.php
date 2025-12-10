@@ -53,8 +53,6 @@ class PopulateTopVideosFeedAction
             ->orderByDesc('total_liked')
             ->get();
         foreach ($topVideosMessages as $message) {
-
-            print_r('Processing message ID: ' . $message->getId() . PHP_EOL);
             try {
                 $message->addTag($topVideosSlug, $this->app, $this->user, $this->company);
                 $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);

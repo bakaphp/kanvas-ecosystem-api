@@ -48,8 +48,6 @@ class PopulateTopVideosFeedCommand extends Command
         $populateTrendingFeedAction = new PopulateTopVideosFeedAction($app, $company, $messageType, true);
         $populateTrendingFeedAction->execute();
 
-
-        kanvas:prompt-generate-top-videos-feed 78 2626 588
         /*  $tag = (new CreateTagAction(
              new Tag(
                  $app,
