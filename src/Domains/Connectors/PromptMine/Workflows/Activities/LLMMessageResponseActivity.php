@@ -547,6 +547,11 @@ class LLMMessageResponseActivity extends KanvasActivity
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
 
+            if ($message->isRoot() && $isNotSafeForWork) {
+                $channel->is_deleted = 1;
+                $channel->save();
+            }
+
             return [
                 'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
                 'chat_history' => $chatHistory,
