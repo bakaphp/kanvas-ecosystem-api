@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Tookan\DataTransferObject\CustomerDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\DeliveryDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\PickupDetail;
+use Kanvas\Connectors\Tookan\DataTransferObject\TaskDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\TaskMultipleDetail;
 use Kanvas\Connectors\Tookan\Services\TookanService;
 use Kanvas\Connectors\VinSolution\Dealers\User;
@@ -24,21 +25,78 @@ class CreateTookanTaskAction
     ) {
     }
 
-    public function execute(): array
+    public function execute($isMulti = false): array
     {
-        $latitude = $this->order->shippingAddress->latitude ?? $this->order->metadata["data"]['latitude'];
-        $longitude = $this->order->shippingAddress->longitude ?? $this->order->metadata["data"]['longitude'];
+        if ($isMulti) {
+            return $this->createMulti();
+        }
+        return $this->createSingle();
+    }
 
-        // Create two pickup locations (restaurants)
+    public function createSingle(): array
+    {
+        $companyAddress = $this->company->defaultAddress;
+        $destinationAddress = $this->receiverCompany?->defaultAddress ?? $this->receiverUser?->defaultAddress;
+        $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
+        $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
+
+        $customer = new CustomerDetail(
+            name: $destinationName,
+            email: $this->receiverCompany?->email ?? $this->receiverUser?->email,
+            phone: $phoneNumber,
+            address: $destinationAddress->address . ' ' . $destinationAddress->address_2,
+            latitude: $destinationAddress?->latitude,
+            longitude: $destinationAddress?->longitude,
+        );
+        $task = new TaskDetail(
+            job_description: 'Pickup order from ' . $this->company->name,
+            team_id: 0,
+            timezone: '330',
+            customer: $customer,
+            order_id: $this->order->id,
+            job_pickup_address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
+            job_pickup_latitude: $companyAddress?->latitude,
+            job_pickup_longitude: $companyAddress?->longitude,
+            job_pickup_datetime: now()->addMinutes(30)->format('Y-m-d H:i:s'),
+            job_pickup_phone: $this->company->phone,
+            job_pickup_name: $this->company->name,
+            job_pickup_email: $this->company->email,
+            has_pickup: true,
+            has_delivery: true,
+            auto_assignment: false,
+            job_delivery_datetime: now()->addHours(1)->format('Y-m-d H:i:s'),
+        );
+
+        $tookanService = new TookanService($this->order->app, $this->order->company);
+        try {
+            $taskResponse = $tookanService->createTask($task);
+            $this->order->set("tookan_task_id", $taskResponse['job_id']);
+            $this->order->set("tookan_tracking_link", $taskResponse['tracking_link']);
+            activity()
+                ->causedBy($this->order->user)
+                ->performedOn($this->order)
+                ->withProperties([
+                    'tookan_response' => $taskResponse,
+                ])
+                ->log('Tookan Create Task Success');
+            return $taskResponse;
+        } catch (Exception $e) {
+            report($e);
+            throw new Exception('Failed to create Tookan Task: ' . $e->getMessage());
+        }
+    }
+
+    public function createMulti(): array
+    {
         $companyAddress = $this->company->defaultAddress;
 
         $pickups = [
             new PickupDetail(
-                address: $companyAddress?->address_line_1 . ' ' . $companyAddress?->address_line_2,
-                latitude: $companyAddress?->latitude,
-                longitude: $companyAddress?->longitude,
+                address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
+                latitude: (float) $companyAddress?->latitude,
+                longitude: (float) $companyAddress?->longitude,
                 time: now()->addHour()->format('Y-m-d H:i:s'),
-                phone: $this->company->phone_number,
+                phone: $this->company->phone,
                 job_description: 'Pick up order from ' . $this->company->name,
                 name: $this->company->name,
                 order_id: (string) $this->order->id,
@@ -47,12 +105,12 @@ class CreateTookanTaskAction
         ];
 
         $destinationAddress = $this->receiverCompany?->defaultAddress ?? $this->receiverUser?->defaultAddress;
-        $phoneNumber = $this->receiverCompany?->phone_number ?? $this->receiverUser?->phone_number;
+        $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
         $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
         // Create delivery location (customer)
         $deliveries = [
             new DeliveryDetail(
-                address: $destinationAddress?->address_line_1 . ' ' . $destinationAddress?->address_line_2,
+                address: $destinationAddress?->address . ' ' . $destinationAddress?->address_2,
                 latitude: $destinationAddress?->latitude,
                 longitude: $destinationAddress?->longitude,
                 time: now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -77,7 +135,7 @@ class CreateTookanTaskAction
         $tookanService = new TookanService($this->order->app, $this->order->company);
         try {
             $taskResponse = $tookanService->createMultipleTasks($task);
-            $this->order->set("tookan_task_id", $taskResponse['data'][0]['job_id']);
+            $this->order->set("tookan_task_id", $taskResponse['job_id']);
             activity()
                 ->causedBy($this->order->user)
                 ->performedOn($this->order)
