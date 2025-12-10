@@ -29,17 +29,6 @@ class CreateTookanTaskAction
         $latitude = $this->order->shippingAddress->latitude ?? $this->order->metadata["data"]['latitude'];
         $longitude = $this->order->shippingAddress->longitude ?? $this->order->metadata["data"]['longitude'];
 
-        $customerDetail = new CustomerDetail(
-            name: $this->order->people->name,
-            phone: $this->order->people->getPhones()->first()?->value,
-            email: $this->order->people->getEmails()->first()?->value,
-            address: $this->order->shippingAddress->address_line_1 . ' ' . $this->order->shippingAddress->address_line_2,
-            latitude: $latitude,
-            longitude: $longitude,
-        );
-
-        $deliveryTime = now()->addHours(2);
-
         // Create two pickup locations (restaurants)
         $companyAddress = $this->company->defaultAddress;
 
