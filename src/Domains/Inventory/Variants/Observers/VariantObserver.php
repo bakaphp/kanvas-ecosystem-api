@@ -31,4 +31,9 @@ class VariantObserver
             throw new ValidationException('There must be at least one variant for each product.');
         }
     }
+
+    public function deleted(Variants $variant): void
+    {
+        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
+    }
 }
