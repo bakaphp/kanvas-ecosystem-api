@@ -70,7 +70,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
-
+                $sentChannels = [];
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
                     if (! $value) {
@@ -196,6 +196,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 if ($totalSentMessages === 0) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
+                                $sentChannels[] = $communicationChannel;
                             } catch (Exception $e) {
                                 report($e);
                             }
@@ -229,6 +230,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
+                    'total_sent_messages' => $totalSentMessages,
+                    'sent_channels' => $sentChannels,
                     //'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
