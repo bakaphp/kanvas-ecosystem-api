@@ -11,14 +11,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Spatie\LaravelData\Data;
 
-/**
- * AppsData class.
- */
 class RegisterInput extends Data
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         public string $firstname,
         public string $lastname,
@@ -62,8 +56,11 @@ class RegisterInput extends Data
     /**
      * Generate new instance of DTO from array.
      */
-    public static function fromArray(array $request, ?CompaniesBranches $branch = null, ?Apps $app = null): self
-    {
+    public static function fromArray(
+        array $request,
+        ?CompaniesBranches $branch = null,
+        ?Apps $app = null
+    ): self {
         $app = $app ?? app(Apps::class);
         $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['role_ids'] ?? []);
 
