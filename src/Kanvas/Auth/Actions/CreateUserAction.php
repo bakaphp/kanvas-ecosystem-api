@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Actions;
 
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Random;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -193,7 +192,7 @@ class CreateUserAction
         $user = new Users();
         $user->firstname = $this->data->firstname;
         $user->lastname = $this->data->lastname;
-        $user->displayname = ! empty($this->data->displayname) ? Random::cleanUpDisplayNameForSlug($this->data->displayname) : Random::generateDisplayNameFromEmail($this->data->email, $this->app);
+        $user->displayname = $this->data->displayname;
         $user->email = $this->data->email;
         $user->password = $this->data->password;
         $user->phone_number = $this->data->phone_number;
