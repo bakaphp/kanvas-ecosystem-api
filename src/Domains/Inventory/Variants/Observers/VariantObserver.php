@@ -13,6 +13,11 @@ class VariantObserver
     {
         $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
+
+        if ($variant->app->get('product_increase_weight_by_image_count')) {
+            $variant->product->weight += 0.5;
+            $variant->product->save();
+        }
     }
 
     public function deleting(Variants $variant): void
