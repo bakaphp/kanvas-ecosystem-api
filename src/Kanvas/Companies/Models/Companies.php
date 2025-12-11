@@ -130,6 +130,14 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         return $this->hasMany(CompaniesAddress::class, 'companies_id');
     }
 
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            CompaniesAddress::class,
+            'companies_id'
+        )->where('is_default', StateEnums::YES->getValue());
+    }
+
     /**
      * Default Branch.
      * @psalm-suppress MixedReturnStatement
@@ -416,6 +424,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
         $array['created_at'] = $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString();
+        $array['is_active'] = (bool) $this->is_active;
+        $array['is_deleted'] = (bool) $this->is_deleted;
+        $array['zipcode'] = (string) ($this->zipcode ?? '');
 
         return $array;
     }

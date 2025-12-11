@@ -10,8 +10,8 @@ class DeliveryDetail extends Data
 {
     public function __construct(
         public string $address,
-        public float $latitude,
-        public float $longitude,
+        public float|string $latitude,
+        public float|string $longitude,
         public string $time,
         public string $phone,
         public string $job_description,
