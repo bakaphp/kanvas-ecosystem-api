@@ -228,7 +228,8 @@ class CreateEngagementAction
 
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
-        $newActionPageUrlV3 = in_array($this->actionSlug, $this->app->get('new-action-slug-v3') ?? []);
+        $newActionPages = $this->app->get('new-action-slug-v3') ?? [];
+        $newActionPageUrlV3 = is_array($newActionPages) ? in_array($this->actionSlug, $newActionPages) : false;
         if (! $newActionPageUrlV3) {
             return null;
         }

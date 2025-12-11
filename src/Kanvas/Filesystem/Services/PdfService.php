@@ -26,7 +26,6 @@ class PdfService
         // Define the file name
         //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
         //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
-
         // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
 
