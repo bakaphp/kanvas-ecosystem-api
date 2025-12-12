@@ -102,10 +102,10 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                         'parent_order' => $order->orderStatus?->name,
                         'order_id' => $order?->getId(),
                         'order_number' => $order?->order_number,
-                        'child_order' => $childOrder->orderStatus?->name ?? null,
+                        'child_order' => $childOrder?->orderStatus?->name ?? null,
                         'is_cascading' => $isCascading,
                     ],
-                    'response' => $childOrder->orderStatus->toArray(),
+                    'response' => $childOrder?->orderStatus->toArray(),
                 ];
             },
             company: $order->company,
