@@ -106,7 +106,7 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
 
         // Define statuses that should cascade to parent order
         $cascadeStatuses = [
-            ORderStatusEnum::CANCELLED->value,
+            OrderStatusEnum::CANCELLED->value,
             OrderStatusEnum::PREPARING->value,
             OrderStatusEnum::READY_FOR_PICKUP->value,
             OrderStatusEnum::DISPATCHED->value,
