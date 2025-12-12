@@ -413,7 +413,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function shouldBeSearchable(): bool
     {
         //has to have a price and be published
-        if ($this->app->get('index_product_must_have_price')) {
+        if ($this->company->get('index_product_must_have_price')) {
             foreach ($this->variants as $variant) {
                 if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
                     return $this->isPublished() && $channelInfo->price > 0;
