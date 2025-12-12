@@ -88,17 +88,24 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     return $file->field_name === 'stock_image';
                 });
 
-                // If product has images AND has more than just the stock image, remove stock image
+                // If product has images AND has more than just the stock image, remove stock image from both product and variant
                 if ($existingFiles->isNotEmpty() && $existingFiles->count() > 1 && $hasStockImage) {
                     $stockImageFile = $existingFiles->firstWhere('field_name', 'stock_image');
                     if ($stockImageFile) {
                         $stockImageFile->delete();
 
+                        // Also remove stock image from variant
+                        $variantStockImage = $variant->getFiles()->firstWhere('field_name', 'stock_image');
+                        if ($variantStockImage) {
+                            $variantStockImage->delete();
+                        }
+
                         return [
                             'success' => true,
-                            'message' => 'Stock image removed because product has other images.',
+                            'message' => 'Stock image removed from product and variant because product has other images.',
                             'product_id' => $product->getId(),
                             'product_name' => $product->name,
+                            'variant_id' => $variant->getId(),
                             'vin' => $vin,
                             'action' => 'removed_stock_image',
                             'remaining_images_count' => $product->getFiles()->count(),
@@ -106,15 +113,17 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     }
                 }
 
-                // If product has no images, add stock image
+                // If product has no images, add stock image to both product and variant
                 if ($existingFiles->isEmpty()) {
                     $product->addFileFromUrl($stockImage, 'stock_image', $app);
+                    $variant->addFileFromUrl($stockImage, 'stock_image', $app);
 
                     return [
                         'success' => true,
-                        'message' => 'Stock image added successfully.',
+                        'message' => 'Stock image added successfully to product and variant.',
                         'product_id' => $product->getId(),
                         'product_name' => $product->name,
+                        'variant_id' => $variant->getId(),
                         'vin' => $vin,
                         'make' => $make,
                         'model' => $model,
