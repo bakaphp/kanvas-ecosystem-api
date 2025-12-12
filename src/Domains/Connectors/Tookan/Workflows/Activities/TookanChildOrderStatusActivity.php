@@ -107,7 +107,7 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
     {
         $parentOrder = $order->parent;
         if (! $parentOrder) {
-            return;
+            return false;
         }
 
         // Define statuses that should cascade to parent order
