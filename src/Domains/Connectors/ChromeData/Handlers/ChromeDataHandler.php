@@ -20,6 +20,7 @@ class ChromeDataHandler extends BaseIntegration
         $accountSecret = $this->data['account_secret'] ?? null;
         $country = $this->data['country'] ?? 'US';
         $language = $this->data['language'] ?? 'en';
+        $useCompany = $this->data['use_company'] ?? false;
 
         if (empty($accountNumber) || empty($accountSecret)) {
             throw new ValidationException('ChromeData account number and secret are required');
@@ -33,7 +34,7 @@ class ChromeDataHandler extends BaseIntegration
 
         // Test the connection
         try {
-            $client = new Client($this->app, $this->company);
+            $client = new Client($this->app, $useCompany ? $this->company : null);
             $years = $client->getModelYears();
 
             return ! empty($years->modelYear);
