@@ -50,6 +50,7 @@ class DuplicatedMetadata implements ValidationRule
             'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
             'cooldown_hours' => (int) $this->app->get('validate_metadata_duplicated_cooldown_hours', 24),
             'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', true),
+            'exclude_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
         ];
     }
 
@@ -72,13 +73,23 @@ class DuplicatedMetadata implements ValidationRule
     private function queryDuplicate(mixed $value, array $settings): bool
     {
         // Convert dot notation to JSON path for whereJsonContains
-        $jsonPath = str_replace('.', '->', $settings['field']);
+        $jsonPath = $settings['field'];
 
-        // Use whereRaw for case-insensitive JSON comparison
-        return Order::where('apps_id', $this->app->id)
+        $query = Order::where('apps_id', $this->app->id)
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
-            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)])
-            ->exists();
+            ->whereNotNull('metadata')
+            ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
+
+        // Exclude certain order statuses if configured
+        if (! empty($settings['exclude_statuses'])) {
+            $excludeStatuses = array_map('trim', explode(',', $settings['exclude_statuses']));
+            $query->whereHas('orderStatus', function ($q) use ($excludeStatuses) {
+                $q->whereNotIn('slug', $excludeStatuses);
+            });
+        }
+
+        return $query->exists();
     }
 
     private function extractFieldValue(mixed $metadata, string $fieldPath): mixed
