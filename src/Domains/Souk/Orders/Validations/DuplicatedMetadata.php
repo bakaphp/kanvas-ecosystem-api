@@ -55,15 +55,18 @@ class DuplicatedMetadata implements ValidationRule
 
     private function isDuplicate(mixed $value, array $settings): bool
     {
-        if ($settings['use_cache']) {
-            $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$value}";
+        // Normalize to lowercase for case-insensitive comparison
+        $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-            return Cache::remember($cacheKey, 300, function () use ($value, $settings) {
-                return $this->queryDuplicate($value, $settings);
+        if ($settings['use_cache']) {
+            $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
+
+            return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
+                return $this->queryDuplicate($normalizedValue, $settings);
             });
         }
 
-        return $this->queryDuplicate($value, $settings);
+        return $this->queryDuplicate($normalizedValue, $settings);
     }
 
     private function queryDuplicate(mixed $value, array $settings): bool
@@ -71,9 +74,10 @@ class DuplicatedMetadata implements ValidationRule
         // Convert dot notation to JSON path for whereJsonContains
         $jsonPath = str_replace('.', '->', $settings['field']);
 
+        // Use whereRaw for case-insensitive JSON comparison
         return Order::where('apps_id', $this->app->id)
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
-            ->whereJsonContains("metadata->{$jsonPath}", $value)
+            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)])
             ->exists();
     }
 

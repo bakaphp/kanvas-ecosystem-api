@@ -451,9 +451,9 @@ class OrderExpirableTest extends TestCase
             amount: 100
         );
 
-        $uniqueTrackingId = 'TRACK-' . uniqid();
+        $uniqueTrackingId = 'TRACK-' . strtoupper(uniqid());
 
-        // Create first order with tracking ID
+        // Create first order with UPPERCASE tracking ID
         $firstOrderData = [
             "cartId" => 0,
             'customer' => [
@@ -467,7 +467,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => $uniqueTrackingId,
+                    'tracking_id' => $uniqueTrackingId, // UPPERCASE
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
@@ -492,7 +492,7 @@ class OrderExpirableTest extends TestCase
 
         $this->assertNull($firstResponse->json('errors'));
 
-        // Try to create second order with same tracking ID (should fail)
+        // Try to create second order with lowercase tracking ID (should fail - case-insensitive duplicate)
         $duplicateOrderData = [
             "cartId" => 0,
             'customer' => [
@@ -506,7 +506,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => $uniqueTrackingId,
+                    'tracking_id' => strtolower($uniqueTrackingId), // lowercase version - should be detected as duplicate
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
