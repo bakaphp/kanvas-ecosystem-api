@@ -306,7 +306,7 @@ class VehicleService
     public function getStockImageByVin(
         string $vin,
         ?string $make = null,
-        ?string $model = null,
+        string|int|null $model = null,
         ?int $year = null,
         bool $skipCache = false
     ): ?string {
