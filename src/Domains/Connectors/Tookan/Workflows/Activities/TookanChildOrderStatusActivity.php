@@ -77,15 +77,21 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
                 }
 
                 // Update parent order status based on child order progress
-                $this->updateParentOrderIfNeeded($order, $toStatus);
+                $isCascading = $this->updateParentOrderIfNeeded($order, $toStatus);
 
                 return [
                     'order' => $order->getId(),
                     'order_type' => 'child',
                     'parent_order_id' => $order->parent_id,
+                    'parent_order_number' => $order->parent?->order_number,
                     'status' => 'success',
                     'message' => 'Child order status transition handled successfully',
-                    'data' => $order->toArray(),
+                    'data' => [
+                        'child_order' => $order->orderStatus?->name,
+                        'parent_order' => $isCascading ? $order->parent->orderStatus?->name ?? null : null,
+                        'order_number' => $order?->order_number,
+                        'is_cascading' => $isCascading,
+                    ],
                     'response' => $order->toArray(),
                 ];
             },
@@ -97,7 +103,7 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
      * Update parent order status based on child order progress
      * This implements Phase 1: Provider updates OrderA -> cascades to ParentOrder
      */
-    private function updateParentOrderIfNeeded(Model $order, ?string $toStatus): void
+    private function updateParentOrderIfNeeded(Model $order, ?string $toStatus): bool
     {
         $parentOrder = $order->parent;
         if (! $parentOrder) {
@@ -114,15 +120,23 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
 
         // If the child order status is in cascade list, update parent
         if (in_array($toStatus, $cascadeStatuses)) {
-            // Update parent order status to match child order progress
-            $orderRepository = new OrderRepository($order);
-            $status = $orderRepository->getStatus($toStatus);
-            $transitionCompanyStatus = new TransitionOrderStateAction(
-                $parentOrder,
-                $parentOrder->user,
-                $status
-            );
-            $transitionCompanyStatus->execute();
+            // Only update parent if it's not already at the target status
+            $parentAlreadyAtStatus = $parentOrder->orderStatus->slug === $toStatus;
+
+            if (! $parentAlreadyAtStatus) {
+                // Update parent order status to match child order progress
+                $orderRepository = new OrderRepository($order);
+                $status = $orderRepository->getStatus($toStatus);
+                $transitionCompanyStatus = new TransitionOrderStateAction(
+                    $parentOrder,
+                    $parentOrder->user,
+                    $status
+                );
+                $transitionCompanyStatus->execute();
+                return true;
+            }
         }
+
+        return false;
     }
 }

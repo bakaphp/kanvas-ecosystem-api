@@ -79,6 +79,7 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
 
                 $childOrder = $order->children->first();
                 $isDelivered = $childOrder?->orderStatus->slug === OrderStatusEnum::DELIVERED->value;
+                $isCascading = false;
 
                 if ($toStatus == OrderStatusEnum::DELIVERED->value && $childOrder && ! $isDelivered) {
                     $orderRepository = new OrderRepository($order);
@@ -89,6 +90,7 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                         $status
                     );
                     $transitionCompanyStatus->execute();
+                    $isCascading = true;
                 }
 
                 return [
@@ -96,8 +98,14 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     'order_type' => 'parent',
                     'status' => 'success',
                     'message' => 'Parent order status transition handled successfully',
-                    'data' => $order->toArray(),
-                    'response' => $order->toArray(),
+                    'data' => [
+                        'parent_order' => $order->orderStatus?->name,
+                        'order_id' => $order?->getId(),
+                        'order_number' => $order?->order_number,
+                        'child_order' => $childOrder->orderStatus?->name ?? null,
+                        'is_cascading' => $isCascading,
+                    ],
+                    'response' => $childOrder->orderStatus->toArray(),
                 ];
             },
             company: $order->company,
