@@ -147,7 +147,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageType = $this->getMessageType($messageContent);
             $isDocument = MessageTypeEnum::isDocumentType($messageType);
             $text = $this->extractMessageText($messageContent, $messageType);
-            $chatJid = $key['remoteJid'] ?? null;
+            $chatJid = $key['remoteJidAlt'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
             $lead = null;
