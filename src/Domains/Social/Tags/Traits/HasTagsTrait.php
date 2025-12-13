@@ -36,6 +36,11 @@ trait HasTagsTrait
             ->exists();
     }
 
+    public function hasTags(): bool
+    {
+        return $this->tags()->exists();
+    }
+
     public function addTag(
         string|int $tag,
         ?AppInterface $app = null,

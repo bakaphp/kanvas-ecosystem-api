@@ -64,6 +64,7 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $isTypeVideo = isset($message->message['type']) && $message->message['type'] === MessageTypeEnum::VIDEO_FORMAT->value;
 
                 $promptChannel = $message->channels->first();
+                $totalMessagesInChannel = $promptChannel ? $promptChannel->messages()->count() : 0;
                 $isNotSafeForWork = false;
 
                 if (! $isTypeImage && ! $isTypeVideo) {
@@ -165,7 +166,7 @@ class LLMMessageResponseActivity extends KanvasActivity
 
                 $hasError = $isNotSafeForWork || $error || $errorReason !== null;
 
-                if ($hasError) {
+                if ($hasError && $totalMessagesInChannel <= 1) {
                     new MessageOrderFulfillmentAction($message)->execute($messageTypeKey, true);
                 }
 
@@ -451,7 +452,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $channel = $message->channels?->first();
             $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
 
-            if ($previousChatResponse !== null) {
+            if ($previousChatResponse !== null && ! $previousChatResponse->isRoot()) {
                 $previousChatChildMessage = $previousChatResponse->children()?->first();
                 //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
                 while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
@@ -461,6 +462,12 @@ class LLMMessageResponseActivity extends KanvasActivity
                     $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
                     $previousChatChildMessage = $previousChatResponse?->children()?->first();
                     $messagesSkipped++;
+                }
+
+                if ($previousChatResponse->isRoot()
+                    && (isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
+                    && (isset($previousChatChildMessage->message['nsfw_reason']) && ! is_null($previousChatChildMessage->message['nsfw_reason']))) {
+                    $previousChatResponse = null;
                 }
             }
 
@@ -539,6 +546,11 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
+
+            if ($message->isRoot() && $isNotSafeForWork) {
+                $channel->is_deleted = 1;
+                $channel->save();
+            }
 
             return [
                 'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,

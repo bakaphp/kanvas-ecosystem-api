@@ -248,6 +248,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function fulfillPending(): void
+    {
+        $this->fulfillment_status = 'pending';
+        $this->saveOrFail();
+    }
+
     public function completed(): void
     {
         $this->status = 'completed';

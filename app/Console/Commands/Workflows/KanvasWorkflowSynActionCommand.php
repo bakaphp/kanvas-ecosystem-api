@@ -11,6 +11,7 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
@@ -114,6 +115,7 @@ use Kanvas\Connectors\VinSolution\Workflow\PushLeadNotesActivity;
 use Kanvas\Connectors\VinSolution\Workflow\PushPeopleActivity;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
+use Kanvas\Connectors\WooCommerce\Webhooks\PullWooCommerceOrderWebhookJob;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
@@ -262,6 +264,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
             PullPeopleLeadFromSearchActivity::class,
+            PullWooCommerceOrderWebhookJob::class,
             GenerateLeadLinkedFieldActivity::class,
             OfacScreeningActivity::class,
             LeadProcessDriverLicenseImageActivity::class,
@@ -287,6 +290,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
+            AddStockImageToProductActivity::class,
         ];
 
         $createdActions = [];

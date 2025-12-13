@@ -14,6 +14,14 @@ class TaskDetail extends Data
         public CustomerDetail $customer,
         public ?string $job_delivery_datetime = null,
         public ?string $job_pickup_datetime = null,
+        public ?string $job_due_datetime = null,
+        public ?string $job_pickup_phone = null,
+        public ?string $job_pickup_name = null,
+        public ?string $job_pickup_email = null,
+        public ?string $job_pickup_address = null,
+        public ?string $job_pickup_latitude = null,
+        public ?string $job_pickup_longitude = null,
+        public ?string $pickup_custom_field_template = null,
         public ?int $team_id = null,
         public ?int $fleet_id = null,
         public ?string $timezone = null,
@@ -52,6 +60,7 @@ class TaskDetail extends Data
             "notify" => "1",
             'auto_assignment' => $this->auto_assignment ? "1" : "0",
             'geofence' => "0",
+            'tracking_link' => "1",
         ];
     }
 }

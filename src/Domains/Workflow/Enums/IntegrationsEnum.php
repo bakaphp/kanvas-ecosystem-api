@@ -41,4 +41,5 @@ enum IntegrationsEnum: string
     case MAILGUN = 'mailgun';
     case SUPERCARROS = 'supercarros';
     case TOOKAN = 'tookan';
+    case CHROMEDATA = 'chromedata';
 }

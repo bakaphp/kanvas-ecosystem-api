@@ -16,6 +16,7 @@ use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateAffiliateConversionAction
 {
@@ -112,10 +113,7 @@ class CreateAffiliateConversionAction
 
         // Calculate commission based on type
         $commissionAmount = match ($commissionType) {
-            CommissionTypeEnum::PERCENTAGE->value => ($eligibleAmount * $commissionRate) / 100.0,
             CommissionTypeEnum::FIXED->value => $commissionRate,
-            CommissionTypeEnum::COMPANY_WALLET->value => $commissionRate,
-            CommissionTypeEnum::USER_WALLET->value => $commissionRate,
             default => ($eligibleAmount * $commissionRate) / 100.0,
         };
 
@@ -165,6 +163,14 @@ class CreateAffiliateConversionAction
             }
 
             $this->addCommissionFundsToWallet($conversion, $commissionAmount);
+            $conversion->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->order->app,
+                    'company' => $this->order->company,
+                ]
+            );
 
             return $conversion;
         });

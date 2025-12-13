@@ -51,6 +51,11 @@ class PortalPaymentProcessor
         $this->refId = 'ref' . time();        // Set the transaction's refId
     }
 
+    public function setImmediateCapture(bool $immediateCapture): void
+    {
+        $this->params['immediate_capture'] = $immediateCapture;
+    }
+
     protected function getMerchantCredentials(Order $order): array
     {
         $isMultiMerchant = $this->app->get('portal_multy_merchant') === 1;

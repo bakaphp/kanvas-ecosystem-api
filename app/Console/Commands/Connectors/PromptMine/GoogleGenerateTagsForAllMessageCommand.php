@@ -54,7 +54,14 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         // $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
         $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget', 'highlight'];
         $allTagsWithIgnore = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
-        $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
+        $allTags = Tag::fromApp($app)
+            ->notDeleted()
+            ->where('is_feature', 1)
+            ->whereNotIn('name', ['Following', 'Top Videos', 'Trending'])
+            ->pluck('name')
+            ->toArray();
+
+        //$allTags = array_merge($allTags, ['image', 'video']);
 
         foreach ($cursor as $message) {
             if (! $message instanceof Message) {
@@ -78,7 +85,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
                 $messageTags = $generateMessageTagAction->execute(
                     textLookupKey: 'ai_nugged.nugget',
                     totalTags: 3,
-                    tags: $allTagsWithIgnore
+                    tags: $allTags
                 );
             } catch (PrismException $e) {
                 $this->error('Error generating tags for message ID ' . $message->getId() . ': ' . $e->getMessage());

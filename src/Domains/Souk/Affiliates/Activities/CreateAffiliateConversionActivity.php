@@ -26,22 +26,28 @@ class CreateAffiliateConversionActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function (Order $order, $app, $integrationCompany, $params): array {
-                $affiliateId = $order->get('affiliate_id') ?? $order->metadata['affiliate_id'] ?? null;
+                $affiliateId = $params['affiliate_id'] ?? $order->get('affiliate_id') ?? $order->metadata['affiliate_id'] ?? null;
                 $affiliateLink = $order->get('affiliate_link_code') ?? $order->metadata['affiliate_link_code'] ?? null;
                 $affiliateShortCode = $order->get('affiliate_shortcode') ?? $order->metadata['affiliate_shortcode'] ?? null;
                 $useShortCode = $params['use_shortcode'] ?? false;
+                $affiliateLinkMapping = $params['affiliate_link_mapping'] ?? [];
+
+                // Check hardcoded mapping first: ['link_code' => affiliate_id]
+                if (! empty($affiliateLinkMapping) && isset($affiliateLinkMapping[$affiliateLink])) {
+                    $affiliateId = $affiliateLinkMapping[$affiliateLink];
+                    $affiliateLink = $affiliateLinkMapping[$affiliateLink];
+                    $affiliateShortCode = $affiliateLink;
+                }
 
                 $affiliateLink = AffiliateLink::fromApp($app)
-                    // ->where('companies_id', $order->companies_id)
                     ->where(function (Builder $query) use ($affiliateLink, $affiliateId) {
                         $query->where('short_code', $affiliateLink)
                             ->orWhere('short_code', $affiliateId);
                     })
                     ->when($useShortCode && $affiliateShortCode !== null, function (Builder $query) use ($affiliateShortCode) {
-                        $query->orWhere('custom_slug', $affiliateShortCode);
+                        $query->where('custom_slug', $affiliateShortCode);
                     })
                     ->first();
-
                 //$affiliateId = $affiliateLink?->affiliates_id ?? $affiliateId;
 
                 if ($affiliateLink === null) {

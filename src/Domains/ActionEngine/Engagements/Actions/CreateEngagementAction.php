@@ -93,6 +93,15 @@ class CreateEngagementAction
             }
 
             $engagement = $this->createEngagement($message);
+            $newLink = $this->generateNewEngagementUrl($engagement);
+
+            //update msg new action page migration link
+            if ($newLink !== null) {
+                $messageData = $message->message ?? [];
+                $messageData['action_link'] = Url::getShortUrl($newLink, $this->app);
+                $message->message = $messageData;
+                $message->saveOrFail();
+            }
 
             if ($this->runWorkflow) {
                 $engagement->fireWorkflow(
@@ -215,6 +224,17 @@ class CreateEngagementAction
                 $this->lead->branch
             );
         }
+    }
+
+    protected function generateNewEngagementUrl(Engagement $engagement): ?string
+    {
+        $newActionPages = $this->app->get('new-action-slug-v3') ?? [];
+        $newActionPageUrlV3 = is_array($newActionPages) ? in_array($this->actionSlug, $newActionPages) : false;
+        if (! $newActionPageUrlV3) {
+            return null;
+        }
+
+        return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
     }
 
     /**
