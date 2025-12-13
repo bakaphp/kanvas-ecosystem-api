@@ -343,6 +343,9 @@ type OrderTransitionHistory {
     changed_at: String
     ended_at: String
     duration_in_seconds: Int
+    payment_type: String @method(name: "getPaymentType")
+    is_paid: Boolean! @method(name: "isPaid")
+    payment: Payment @hasOne(relation: "payment")
 }
 
 input ExportMetadataInput {
@@ -569,6 +572,8 @@ extend type Query @guard {
                 columns: ["name", "slug", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
             )
+        manualDeposit: Boolean @scope(name: "manualDeposit")
+        digitalPayment: Boolean @scope(name: "digitalPayment")
     ): [OrderTransitionHistory!]!
         @paginate(
             defaultCount: 25
