@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "85ed882ef46b7f967bde910faf970347",
+    "content-hash": "947671c5fdf524911b77698c737f2212",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1685,16 +1685,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.96.1",
+            "version": "v0.99.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "18d880c3b230d4acc45de605584e19abc520678a"
+                "reference": "80d3b6bab9deb6ad00e72e2e269a7725f59e75bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/18d880c3b230d4acc45de605584e19abc520678a",
-                "reference": "18d880c3b230d4acc45de605584e19abc520678a",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/80d3b6bab9deb6ad00e72e2e269a7725f59e75bf",
+                "reference": "80d3b6bab9deb6ad00e72e2e269a7725f59e75bf",
                 "shasum": ""
             },
             "require": {
@@ -1703,6 +1703,8 @@
                 "php": "^8.2"
             },
             "require-dev": {
+                "brianium/paratest": "^7.8.4",
+                "laravel/mcp": "^0.3.2",
                 "laravel/pint": "^1.14",
                 "mockery/mockery": "^1.6",
                 "orchestra/testbench": "^10",
@@ -1714,7 +1716,7 @@
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
                 "projektgopher/whisky": "^0.7.0",
-                "rector/rector": "^2.1",
+                "rector/rector": "2.2.7",
                 "spatie/laravel-ray": "^1.39",
                 "symplify/rule-doc-generator-contracts": "^11.2"
             },
@@ -1750,7 +1752,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.96.1"
+                "source": "https://github.com/prism-php/prism/tree/v0.99.2"
             },
             "funding": [
                 {
@@ -1758,7 +1760,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-10-23T13:41:27+00:00"
+            "time": "2025-12-14T22:40:11+00:00"
         },
         {
             "name": "egulias/email-validator",
