@@ -82,9 +82,9 @@ class Lead extends DataTransferObjectLead
         );
 
         $vinLeadsType = self::getLeadsType($company);
-        $vinLeadsTypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
+        $vinLeadsTypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? '') : $data['newLeadType'];
 
-        $localLeadType = LeadType::fromApp($app)->fromCompany($company)->where('name', strtoupper($vinLeadsTypeId))->first();
+        $localLeadType = $vinLeadsTypeId !== '' ? LeadType::fromApp($app)->fromCompany($company)->where('name', strtoupper($vinLeadsTypeId))->first() : null;
 
         $leadStatusId = $data['LeadStatusType']; //so we can look for it on the api response array
 
