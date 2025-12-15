@@ -55,6 +55,10 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                         'result' => false,
                         'message' => 'Order does not have affiliate_id in custom_fields or metadata',
                         'order_id' => $order->getId(),
+                        'affiliate_id' => $affiliateId,
+                        'affiliate_link' => $affiliateLink,
+                        'affiliate_shortcode' => $affiliateShortCode,
+                        'affiliate_link_mapping' => $affiliateLinkMapping,
                     ]);
                 }
 
