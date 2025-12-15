@@ -34,9 +34,9 @@ class CreateAffiliateConversionActivity extends KanvasActivity
 
                 // Check hardcoded mapping first: ['link_code' => affiliate_id]
                 if (! empty($affiliateLinkMapping) && isset($affiliateLinkMapping[$affiliateLink])) {
+                    $affiliateShortCode = $affiliateLink;
                     $affiliateId = $affiliateLinkMapping[$affiliateLink];
                     $affiliateLink = $affiliateLinkMapping[$affiliateLink];
-                    $affiliateShortCode = $affiliateLink;
                 }
 
                 $affiliateLink = AffiliateLink::fromApp($app)
