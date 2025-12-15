@@ -30,6 +30,14 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                 $affiliateLink = $order->get('affiliate_link_code') ?? $order->metadata['affiliate_link_code'] ?? null;
                 $affiliateShortCode = $order->get('affiliate_shortcode') ?? $order->metadata['affiliate_shortcode'] ?? null;
                 $useShortCode = $params['use_shortcode'] ?? false;
+                $affiliateLinkMapping = $params['affiliate_link_mapping'] ?? [];
+
+                // Check hardcoded mapping first: ['link_code' => affiliate_id]
+                if (! empty($affiliateLinkMapping) && isset($affiliateLinkMapping[$affiliateLink])) {
+                    $affiliateId = $affiliateLinkMapping[$affiliateLink];
+                    $affiliateLink = $affiliateLinkMapping[$affiliateLink];
+                    $affiliateShortCode = $affiliateLink;
+                }
 
                 $affiliateLink = AffiliateLink::fromApp($app)
                     ->where(function (Builder $query) use ($affiliateLink, $affiliateId) {

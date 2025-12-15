@@ -341,6 +341,26 @@ class SalesActivities
         ];
     }
 
+    public static function hasSalesAgentReachedOut(
+        AppInterface $app,
+        Companies $company,
+        string $customerId,
+        string $opportunityId,
+        string $salesAgentId
+    ): bool {
+        $activities = self::getHistorySearch($app, $company, $customerId, $opportunityId);
+
+        if (isset($activities['items'])) {
+            foreach ($activities['items'] as $activity) {
+                if ($activity['activityType'] === 'Phone Call' && $activity['outcome'] === 'Completed' && $activity['name'] === 'Outbound Call') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Get Lead.
      */

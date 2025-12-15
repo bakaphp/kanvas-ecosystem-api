@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ChromeData\Handlers;
 use Exception;
 use Kanvas\Connectors\ChromeData\Client;
 use Kanvas\Connectors\ChromeData\Enums\ConfigurationEnum;
+use Kanvas\Connectors\ChromeData\Services\VehicleService;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Override;
@@ -20,6 +21,7 @@ class ChromeDataHandler extends BaseIntegration
         $accountSecret = $this->data['account_secret'] ?? null;
         $country = $this->data['country'] ?? 'US';
         $language = $this->data['language'] ?? 'en';
+        $useCompany = $this->data['use_company'] ?? false;
 
         if (empty($accountNumber) || empty($accountSecret)) {
             throw new ValidationException('ChromeData account number and secret are required');
@@ -33,10 +35,12 @@ class ChromeDataHandler extends BaseIntegration
 
         // Test the connection
         try {
-            $client = new Client($this->app, $this->company);
-            $years = $client->getModelYears();
+            //$client = new Client($this->app, $useCompany ? $this->company : null);
+            //$years = $client->getV
+            $vehicleService = new VehicleService($this->app, $useCompany ? $this->company : null);
+            $vehicle = $vehicleService->getVehicleInfoByVin('JA4ARUAU6TU001602');
 
-            return ! empty($years->modelYear);
+            return $vehicle->vin === 'JA4ARUAU6TU001602';
         } catch (Exception $e) {
             throw new ValidationException('Failed to connect to ChromeData: ' . $e->getMessage());
         }

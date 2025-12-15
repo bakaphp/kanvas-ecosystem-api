@@ -290,6 +290,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
+            PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
         ];
 
