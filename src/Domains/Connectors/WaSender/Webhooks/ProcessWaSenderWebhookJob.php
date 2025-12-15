@@ -29,6 +29,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -1005,7 +1006,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         } elseif ($this->isChannelJid($jid)) {
             return 'wa-channel-' . Str::slug($jid);
         } else {
-            return 'wa-chat-' . Str::slug($jid);
+            return SessionChannelService::createChannelSlug('wa-chat', $jid);
         }
     }
 
