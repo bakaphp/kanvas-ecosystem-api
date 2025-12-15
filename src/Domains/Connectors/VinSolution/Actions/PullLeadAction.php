@@ -65,7 +65,6 @@ class PullLeadAction
                 $this->app,
             );
 
-            print_R(Lead::getById($vinCompany, $user, 1940709229)); die();
             $vinLead = Lead::getAll(
                 $vinCompany,
                 $user,
