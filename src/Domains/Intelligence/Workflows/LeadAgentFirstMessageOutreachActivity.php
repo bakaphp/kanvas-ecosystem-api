@@ -177,12 +177,16 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
-                                new SendMessageToLeadAction($lead)->execute(
-                                    $communicationChannel,
-                                    $firstLeadMessage['message'],
-                                    $params['from'] ?? null,
-                                    $firstLeadMessage['title'] ?? null,
-                                );
+                                if ($this->canSendMessageWithinWorkingHours($lead)) {
+                                    new SendMessageToLeadAction($lead)->execute(
+                                        $communicationChannel,
+                                        $firstLeadMessage['message'],
+                                        $params['from'] ?? null,
+                                        $firstLeadMessage['title'] ?? null,
+                                    );
+                                } else {
+                                    //send the msg to a QA to verify after configuration time if sales team can reach out, if they didn't ai agent can
+                                }
                                 $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
                                 $createMessage = $this->createMessage(
@@ -236,6 +240,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    private function canSendMessageWithinWorkingHours(Lead $lead): bool
+    {
+        if (! $lead->company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS->value, false)) {
+            return true;
+        }
+
+        return $lead->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
