@@ -1006,7 +1006,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         } elseif ($this->isChannelJid($jid)) {
             return 'wa-channel-' . Str::slug($jid);
         } else {
-            return SessionChannelService::createChannelSlug('wa-chat', $jid);
+            return SessionChannelService::createChannelSlug('whatsapp', $jid);
         }
     }
 
