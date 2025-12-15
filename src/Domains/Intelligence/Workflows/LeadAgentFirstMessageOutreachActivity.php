@@ -61,7 +61,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
-                if(!$cellPhone && !$email) {
+                if (! $cellPhone && ! $email) {
                     return $this->failWorkflow([
                         'error' => 'Lead does not have a phone number or email, wont be able to send message until we add email support',
                     ]);
