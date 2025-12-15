@@ -11,6 +11,7 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
@@ -289,6 +290,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
             PullWooCommerceOrderWebhookJob::class,
+            AddStockImageToProductActivity::class,
         ];
 
         $createdActions = [];
