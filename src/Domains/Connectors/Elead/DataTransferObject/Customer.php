@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\DataTransferObject;
 use Baka\Support\Str;
 use Baka\Validations\Date;
 use Baka\Validations\Phone;
+use Carbon\Carbon;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\Data;
@@ -34,12 +35,14 @@ class Customer extends Data
         $phones = self::buildPhones($people);
         $address = self::buildAddress($people);
 
+        $dob = Date::isValid($people->dob) ? $people->dob : null;
+
         return new self(
             isBusiness: false,
             firstName: $name['firstName'],
             lastName: $name['lastName'] ?: '-',
             middleName: $name['middleName'],
-            birthday: Date::isValid($people->dob) ? $people->dob : null,
+            birthday: $dob instanceof Carbon ? $dob->toDateString() : $dob,
             emails: $emails,
             phones: $phones,
             address: $address,
