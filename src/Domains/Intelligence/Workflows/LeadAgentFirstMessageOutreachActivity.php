@@ -193,17 +193,17 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $messageType
                                 );
 
+                                //only do the external activity once for the first message
                                 if ($totalSentMessages === 0) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
                                 $sentChannels[] = $communicationChannel;
+                                $totalSentMessages++;
                             } catch (Exception $e) {
                                 report($e);
                             }
                         }
                     }
-
-                    $totalSentMessages++;
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
