@@ -80,7 +80,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $payload['data']['messages']['key']['remoteJid'] = $newPhone;
             }
         }
-
         // Process based on event type
         $result = match ($eventType) {
             WebhookEventEnum::MESSAGES_UPSERT->value => $this->handleMessageUpsert($payload),
@@ -139,7 +138,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         if (isset($data['key'])) {
             $data = [$data];
         }
-
         foreach ($data as $messageData) {
             $key = $messageData['key'] ?? [];
             $messageContent = $messageData['message'] ?? [];
