@@ -34,12 +34,18 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
                             createCustomerIfNotExists: false
                         );
 
-                return [
+                $responseData = [
                     'order' => $order->getId(),
                     'status' => $result['success'],
                     'message' => $result['message'],
                     'result' => $result['data'],
                 ];
+
+                if ($result['success'] === false) {
+                    return $this->failWorkflow($responseData);
+                }
+
+                return $responseData;
             },
             company: $order->company,
         );
