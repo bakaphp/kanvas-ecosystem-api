@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
@@ -95,7 +96,7 @@ class OrderTransitionHistory extends BaseModel
     /**
      * Scope to filter transitions to "paid" status with digital payment (has paid payment record).
      */
-    public function scopeDigitalPayment(Builder $query): Builder
+    public function scopePayment(Builder $query): Builder
     {
         return $query->whereHas('toStatus', function ($q) {
             $q->where('slug', 'paid');
@@ -103,6 +104,21 @@ class OrderTransitionHistory extends BaseModel
         ->whereHas('order', function ($q) {
             $q->whereHas('payments', function ($pq) {
                 $pq->where('status', PaymentStatusEnum::PAID->value);
+            });
+        });
+    }
+    /**
+     * Scope to filter transitions to "paid" status with digital payment (has paid payment record).
+     */
+    public function scopePaymentMethod(Builder $query, string $paymentMethodType): Builder
+    {
+        return $query->whereHas('toStatus', function ($q) {
+            $q->where('slug', 'paid');
+        })
+        ->whereHas('order', function ($q) use ($paymentMethodType) {
+            $q->whereHas('payments', function ($pq) use ($paymentMethodType) {
+                $pq->where('status', PaymentStatusEnum::PAID->value)
+                   ->where('payment_method', $paymentMethodType);
             });
         });
     }
@@ -115,6 +131,33 @@ class OrderTransitionHistory extends BaseModel
         return $query->whereHas('toStatus', function ($q) {
             $q->where('slug', 'paid');
         });
+    }
+
+    /**
+     * Scope to filter by payment method type.
+     *
+     * @param string $type Payment method type from PaymentMethodTypesEnum
+     */
+    public function scopePaymentMethodType(Builder $query, string $type): Builder
+    {
+        $methodType = strtolower($type);
+
+        switch ($methodType) {
+            case PaymentMethodTypesEnum::MANUAL->value:
+                return $this->scopeManualDeposit($query);
+                break;
+            case PaymentMethodTypesEnum::PAYMENT->value:
+                return $this->scopePayment($query);
+                break;
+            case PaymentMethodTypesEnum::CARD->value:
+            case PaymentMethodTypesEnum::CASH->value:
+            case PaymentMethodTypesEnum::BANK_TRANSFER->value:
+            case PaymentMethodTypesEnum::WALLET->value:
+                return $this->scopePaymentMethod($query, $type);
+                break;
+            default:
+                return $query;
+        }
     }
 
     /**
