@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ChromeData\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\ChromeData\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ChromeData\Services\VehicleService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -18,6 +19,10 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
     public function execute(Model $product, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        if (empty($product->company->get(ConfigurationEnum::ACCOUNT_NUMBER->value))) {
+            return [];
+        }
 
         return $this->executeIntegration(
             entity: $product,
