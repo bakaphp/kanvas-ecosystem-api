@@ -40,6 +40,9 @@ class PromptIAPOrderActivity extends KanvasActivity
                         'texttotext' => 'text',
                         'imagetovideo' => 'video',
                         'texttoimage' => 'image',
+                        'bundleimagetоimage' => 'image',
+                        'bundlemultiimagetоimage' => 'image',
+                        'bundletexttoimage' => 'image',
                         'texttovideo' => 'video',
                         'imagetoimage' => 'image',
                         'multiimagetoimage' => 'image',
@@ -76,7 +79,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                 return [
                     'order_id' => $order->getId(),
                     'message' => 'User credits updated',
-                    'total_delivery' => 1,
+                    'total_delivery' => $totalCredits ?? 1,
                     'key' => $aiModelKey ?? null,
                     'related_key' => $aiModelRelated ?? null,
                     'purchase_type' => $purchaseType ?? null,
