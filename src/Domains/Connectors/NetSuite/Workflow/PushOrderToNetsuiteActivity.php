@@ -24,6 +24,7 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
                 $netsuiteCustomerId = $order->user->getCurrentCompany()->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value) ?? null;
 
