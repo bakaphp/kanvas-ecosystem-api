@@ -75,7 +75,7 @@ class DuplicatedMetadata implements ValidationRule
         // Convert dot notation to JSON path for whereJsonContains
         $jsonPath = $settings['field'];
 
-        $query = Order::where('apps_id', $this->app->id)
+        $query = Order::fromApp($this->app)
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
             ->whereNotNull('metadata')
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")

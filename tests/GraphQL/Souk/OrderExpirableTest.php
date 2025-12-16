@@ -579,6 +579,7 @@ class OrderExpirableTest extends TestCase
             'customer' => [
                 'email' => fake()->email(),
             ],
+            'order_type' => 'sales',
             'items' => [
                 [
                     'variant_id' => $variantResponse['id'],
@@ -614,7 +615,7 @@ class OrderExpirableTest extends TestCase
         $orderId = $firstResponse->json('data.createOrderFromCart.order.id');
 
         // Change first order status to 'cancelled'
-        $order = \Kanvas\Souk\Orders\Models\Order::findOrFail($orderId);
+        $order = Order::findOrFail($orderId);
         $cancelledStatus = $order->orderType->statuses()->where('slug', 'cancelled')->first();
 
         if ($cancelledStatus) {
