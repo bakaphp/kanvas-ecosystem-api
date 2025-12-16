@@ -22,10 +22,8 @@ class Client
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
-        $appOrCompany = $this->company ?? $this->app;
-
-        $accountNumber = $appOrCompany->get(ConfigurationEnum::ACCOUNT_NUMBER->value);
-        $accountSecret = $appOrCompany->get(ConfigurationEnum::ACCOUNT_SECRET->value);
+        $accountNumber = $this->company?->get(ConfigurationEnum::ACCOUNT_NUMBER->value) ?? $this->app->get(ConfigurationEnum::ACCOUNT_NUMBER->value);
+        $accountSecret = $this->company?->get(ConfigurationEnum::ACCOUNT_SECRET->value) ?? $this->app->get(ConfigurationEnum::ACCOUNT_SECRET->value);
 
         if (empty($accountNumber) || empty($accountSecret)) {
             throw new ValidationException('ChromeData account credentials are missing');
@@ -34,11 +32,11 @@ class Client
         $this->accountInfo = [
             'number' => $accountNumber,
             'secret' => $accountSecret,
-            'country' => $appOrCompany->get(ConfigurationEnum::COUNTRY->value) ?? 'US',
-            'language' => $appOrCompany->get(ConfigurationEnum::LANGUAGE->value) ?? 'en',
+            'country' => $this->company?->get(ConfigurationEnum::COUNTRY->value) ?? $this->app->get(ConfigurationEnum::COUNTRY->value) ?? 'US',
+            'language' => $this->company?->get(ConfigurationEnum::LANGUAGE->value) ?? $this->app->get(ConfigurationEnum::LANGUAGE->value) ?? 'en',
         ];
 
-        $wsdlUrl = $appOrCompany->get(ConfigurationEnum::WSDL_URL->value) ?? $this->wsdlUrl;
+        $wsdlUrl = $this->company?->get(ConfigurationEnum::WSDL_URL->value) ?? $this->app->get(ConfigurationEnum::WSDL_URL->value) ?? $this->wsdlUrl;
 
         try {
             $this->client = new SoapClient($wsdlUrl, [
