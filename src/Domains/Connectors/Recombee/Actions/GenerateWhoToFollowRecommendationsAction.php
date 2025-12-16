@@ -56,7 +56,8 @@ class GenerateWhoToFollowRecommendationsAction
                     ->whereNotNull('users_associated_apps.firstname')
                     ->where('users_associated_apps.firstname', '!=', '')
                     ->where('users_associated_apps.is_deleted', 0)
-                    ->where('users_associated_apps.status', 1);
+                    ->where('users_associated_apps.status', 1)
+                    ->where('users_associated_apps.total_messages_count', '>=', 1);
             })
             ->whereNotIn('users.id', $followedIds)
             ->whereIn('users.id', $entityIds)
