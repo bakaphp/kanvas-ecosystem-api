@@ -300,8 +300,9 @@ class KanvasWorkflowSynActionCommand extends Command
 
         foreach ($actions as $action) {
             $record = Action::firstOrCreate([
-                'name' => class_basename($action),
                 'model_name' => $action,
+            ], [
+                'name' => class_basename($action),
             ]);
 
             // Check if the record was newly created
