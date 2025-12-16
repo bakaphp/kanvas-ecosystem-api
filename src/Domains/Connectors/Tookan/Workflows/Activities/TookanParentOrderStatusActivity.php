@@ -56,9 +56,14 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                 ];
 
                 // Create Tookan task when parent order is ready for final delivery to customer
-                // if ($toStatus == OrderStatusEnum::READY_FOR_PICKUP->value) {
-                //     (new CreateTookanTaskAction($order, $order->company, ))->execute();
-                // }
+                if ($toStatus == OrderStatusEnum::PACKAGING_READY->value) {
+                    (new CreateTookanTaskAction(
+                        $order,
+                        $order->company,
+                        null, // assuming delivery to customer, so no specific user
+                        $order->user
+                    ))->execute();
+                }
 
                 // Send notifications to end customer
                 if (in_array($toStatus, $userNotificationsStatuses)) {
@@ -72,15 +77,20 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     (new SendOrderEmailsAction($order, $template, []))->execute();
                 }
 
-                if ($toStatus == OrderStatusEnum::DELIVERED->value) {
+                $childOrder = $order->children->first();
+                $isDelivered = $childOrder?->orderStatus->slug === OrderStatusEnum::DELIVERED->value;
+                $isCascading = false;
+
+                if ($toStatus == OrderStatusEnum::DELIVERED->value && $childOrder && ! $isDelivered) {
                     $orderRepository = new OrderRepository($order);
                     $status = $orderRepository->getStatus($toStatus);
                     $transitionCompanyStatus = new TransitionOrderStateAction(
-                        $order,
-                        $order->user,
+                        $childOrder,
+                        $childOrder->user,
                         $status
                     );
                     $transitionCompanyStatus->execute();
+                    $isCascading = true;
                 }
 
                 return [
@@ -88,8 +98,14 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     'order_type' => 'parent',
                     'status' => 'success',
                     'message' => 'Parent order status transition handled successfully',
-                    'data' => $order->toArray(),
-                    'response' => $order->toArray(),
+                    'data' => [
+                        'parent_order' => $order->orderStatus?->name,
+                        'order_id' => $order?->getId(),
+                        'order_number' => $order?->order_number,
+                        'child_order' => $childOrder?->orderStatus?->name ?? null,
+                        'is_cascading' => $isCascading,
+                    ],
+                    'response' => $childOrder?->orderStatus->toArray(),
                 ];
             },
             company: $order->company,

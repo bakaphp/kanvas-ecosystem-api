@@ -43,7 +43,6 @@ class CreateLeadContextInfoAction
             $pipelineStageConfig = $this->lead->stage->config;
         }
 
-
         if (empty($pipelineStageConfig)) {
             throw new Exception('No configuration found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
         }
@@ -78,7 +77,6 @@ class CreateLeadContextInfoAction
         if (empty($leadContext)) {
             return [];
         }
-
 
         return $leadContext;
     }

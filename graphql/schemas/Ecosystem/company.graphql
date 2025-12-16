@@ -326,6 +326,8 @@ input CompanyAddressInput {
     zip: String
     country: String
     country_id: ID
+    latitude: Float
+    longitude: Float
     is_default: Boolean
 }
 
@@ -340,6 +342,8 @@ type CompanyAddress {
     state: String
     zip: String
     country: Country
+    latitude: Float
+    longitude: Float
     is_default: Boolean!
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")
