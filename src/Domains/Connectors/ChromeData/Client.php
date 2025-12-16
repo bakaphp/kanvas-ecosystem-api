@@ -22,7 +22,6 @@ class Client
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
-
         $accountNumber = $this->company?->get(ConfigurationEnum::ACCOUNT_NUMBER->value) ?? $this->app->get(ConfigurationEnum::ACCOUNT_NUMBER->value);
         $accountSecret = $this->company?->get(ConfigurationEnum::ACCOUNT_SECRET->value) ?? $this->app->get(ConfigurationEnum::ACCOUNT_SECRET->value);
 
@@ -38,6 +37,7 @@ class Client
         ];
 
         $wsdlUrl = $this->company?->get(ConfigurationEnum::WSDL_URL->value) ?? $this->app->get(ConfigurationEnum::WSDL_URL->value) ?? $this->wsdlUrl;
+
         try {
             $this->client = new SoapClient($wsdlUrl, [
                 'trace' => true,
