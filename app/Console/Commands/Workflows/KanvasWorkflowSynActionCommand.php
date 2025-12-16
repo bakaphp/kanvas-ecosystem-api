@@ -265,6 +265,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
             PullPeopleLeadFromSearchActivity::class,
+            PullWooCommerceOrderWebhookJob::class,
             GenerateLeadLinkedFieldActivity::class,
             OfacScreeningActivity::class,
             LeadProcessDriverLicenseImageActivity::class,
