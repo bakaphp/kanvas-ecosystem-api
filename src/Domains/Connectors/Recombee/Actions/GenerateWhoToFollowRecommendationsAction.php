@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Recombee\Enums\ScenariosEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 class GenerateWhoToFollowRecommendationsAction
@@ -23,7 +22,8 @@ class GenerateWhoToFollowRecommendationsAction
     public function __construct(
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
-    ) {}
+    ) {
+    }
 
     public function execute(
         UserInterface $user,
