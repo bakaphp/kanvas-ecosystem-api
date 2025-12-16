@@ -119,6 +119,7 @@ use Kanvas\Connectors\WooCommerce\Webhooks\PullWooCommerceOrderWebhookJob;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
+use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
@@ -291,6 +292,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessReferralCodeRedemptionActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
+            UpdateLeadFromZohoDealWebhookJob::class,
         ];
 
         $createdActions = [];
