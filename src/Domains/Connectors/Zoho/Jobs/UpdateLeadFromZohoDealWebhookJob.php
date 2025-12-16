@@ -43,8 +43,11 @@ class UpdateLeadFromZohoDealWebhookJob extends ProcessWebhookJob
 
         $dealDescription = $zohoDealInfo['Description'] ?? 'No Description';
         $agentNotes = $zohoDealInfo['Agent_Notes'] ?? 'No Agent Notes';
-        $userWrittingNotes = $zohoDealInfo['Underwriter_Notes1'] ?? 'No User Writing Notes';
+        $userWritingNotes = $zohoDealInfo['Underwriter_Notes1'] ?? 'No User Writing Notes';
 
+        /**
+         * @todo  make this dynamic to find the lead by other custom fields
+         */
         $lead = Lead::getByCustomField(
             'SubID',
             (string) ($zohoDealInfo['SubID'] ?? ''),
@@ -53,7 +56,7 @@ class UpdateLeadFromZohoDealWebhookJob extends ProcessWebhookJob
 
         if ($lead) {
             $lead->set('agent_notes', $agentNotes);
-            $lead->set('uw_notes', $userWrittingNotes);
+            $lead->set('uw_notes', $userWritingNotes);
             $lead->set('description', $dealDescription);
         }
 
