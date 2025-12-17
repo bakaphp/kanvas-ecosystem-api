@@ -273,16 +273,16 @@
         },
         {
             "name": "awobaz/compoships",
-            "version": "2.5.2",
+            "version": "2.5.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/topclaudy/compoships.git",
-                "reference": "e953cad2a0a9d0e035784c1d24c6b97f8609c542"
+                "reference": "61beaab6dfbeb9a1c253e880804b63d45a6ba973"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/e953cad2a0a9d0e035784c1d24c6b97f8609c542",
-                "reference": "e953cad2a0a9d0e035784c1d24c6b97f8609c542",
+                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/61beaab6dfbeb9a1c253e880804b63d45a6ba973",
+                "reference": "61beaab6dfbeb9a1c253e880804b63d45a6ba973",
                 "shasum": ""
             },
             "require": {
@@ -323,7 +323,7 @@
             ],
             "support": {
                 "issues": "https://github.com/topclaudy/compoships/issues",
-                "source": "https://github.com/topclaudy/compoships/tree/2.5.2"
+                "source": "https://github.com/topclaudy/compoships/tree/2.5.3"
             },
             "funding": [
                 {
@@ -331,7 +331,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2025-11-04T21:05:57+00:00"
+            "time": "2025-12-17T13:24:30+00:00"
         },
         {
             "name": "aws/aws-crt-php",
@@ -19807,5 +19807,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
