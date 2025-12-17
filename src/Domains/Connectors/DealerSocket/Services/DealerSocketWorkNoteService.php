@@ -10,7 +10,6 @@ use Exception;
 use Kanvas\Connectors\DealerSocket\WorkNoteClient;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
-use Throwable;
 
 class DealerSocketWorkNoteService
 {
@@ -33,21 +32,17 @@ class DealerSocketWorkNoteService
      */
     public function addNoteToLead(Lead $lead, string $note): array
     {
-        try {
-            $workNoteData = $this->buildWorkNoteData($lead, $note);
+        $workNoteData = $this->buildWorkNoteData($lead, $note);
 
-            $response = $this->workNoteClient->insertWorkNote($workNoteData);
+        $response = $this->workNoteClient->insertWorkNote($workNoteData);
 
-            if (! $response['success']) {
-                throw new Exception(
-                    $response['errorMessage'] ?? $response['error'] ?? 'Failed to insert WorkNote'
-                );
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            throw $e;
+        if (! $response['success']) {
+            throw new Exception(
+                $response['errorMessage'] ?? $response['error'] ?? 'Failed to insert WorkNote'
+            );
         }
+
+        return $response;
     }
 
     /**

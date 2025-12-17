@@ -10,11 +10,6 @@ use Kanvas\Regions\Models\Regions;
 
 class DealerSocket
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,

@@ -28,7 +28,8 @@ class PushLeadActivity extends KanvasActivity
 
                 return [
                     'message' => 'Lead pushed successfully',
-                    'entity' => $pushLead,
+                    //'entity' => $pushLead,
+                    'data' => $data,
                 ];
             },
             company: $lead->company,

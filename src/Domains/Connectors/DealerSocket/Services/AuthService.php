@@ -6,22 +6,13 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 
 class AuthService
 {
-    private string $publicKey;
-    private string $privateKey;
-
-    private string $directPostUsername;
-    private string $directPostPassword;
-
-    private string $dealerId;
-    private string $vendorName;
-
     public function __construct(
-        ?string $publicKey = null,
-        ?string $privateKey = null,
-        ?string $directPostUsername = null,
-        ?string $directPostPassword = null,
-        ?string $dealerId = null,
-        ?string $vendorName = null
+        private ?string $publicKey = null,
+        private ?string $privateKey = null,
+        private ?string $directPostUsername = null,
+        private ?string $directPostPassword = null,
+        private ?string $dealerId = null,
+        private ?string $vendorName = null
     ) {
         $this->publicKey = $publicKey ?? '';
         $this->privateKey = $privateKey ?? '';

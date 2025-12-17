@@ -31,33 +31,30 @@ class DealerSocketLeadService
      */
     public function saveLead(Lead $lead): array
     {
-        try {
-            $leadData = $this->mapLeadToArray($lead);
+        $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
+        $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
 
-            $format = config('dealersocket.lead_format', 'star');
-
-            $response = $format === 'adf'
-                ? $this->leadClient->createSalesLeadADF($leadData)
-                : $this->leadClient->createSalesLead($leadData);
-
-            if (isset($response['leadId'])) {
-                $this->setLeadId($lead, $response['leadId']);
-            }
-
-            if (isset($response['customerId'])) {
-                $this->setCustomerId($lead->people, $response['customerId']);
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            Log::error('Failed to create DealerSocket lead', [
-                'lead_id' => $lead->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
+        if ($eventId && $entityId) {
+            return $this->updateLead($lead);
         }
+
+        $leadData = $this->mapLeadToArray($lead);
+
+        $format = config('dealersocket.lead_format', 'star');
+
+        $response = $format === 'adf'
+            ? $this->leadClient->createSalesLeadADF($leadData)
+            : $this->leadClient->createSalesLead($leadData);
+
+        if (isset($response['leadId'])) {
+            $this->setLeadId($lead, $response['leadId']);
+        }
+
+        if (isset($response['customerId'])) {
+            $this->setCustomerId($lead->people, $response['customerId']);
+        }
+
+        return $response;
     }
 
     /**
@@ -142,10 +139,7 @@ class DealerSocketLeadService
 
             return $this->formatPhone($phone);
         } catch (Throwable $e) {
-            Log::warning('Failed to get phone from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return '';
         }
@@ -218,10 +212,7 @@ class DealerSocketLeadService
 
             return ! empty($hasData) ? $addressData : null;
         } catch (Throwable $e) {
-            Log::debug('Failed to get address from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return null;
         }
@@ -495,10 +486,7 @@ class DealerSocketLeadService
 
             return $vehicle;
         } catch (Throwable $e) {
-            Log::debug('Failed to get interested vehicle from Lead', [
-                'lead_id' => $lead->id,
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
 
             return null;
         }
@@ -525,65 +513,47 @@ class DealerSocketLeadService
 
     public function setLeadId(Lead $lead, string $leadId): void
     {
-        $lead->set(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region), $leadId);
+        $lead->set(
+            DealerSocketConfigurationService::getLeadIdKey($lead, $this->region),
+            $leadId
+        );
     }
 
     public function setCustomerId(People $people, string $leadId): void
     {
-        $people->set(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region), $leadId);
+        $people->set(
+            DealerSocketConfigurationService::getCustomerIdKey($people, $this->region),
+            $leadId
+        );
     }
 
     public function updateLead(Lead $lead): array
     {
-        try {
-            $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
-            $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
+        $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
+        $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
 
-            if (! $eventId || ! $entityId) {
-                throw new Exception(
-                    'Lead is missing DealerSocket IDs. ' .
-                    'EventId: ' . ($eventId ?? 'missing') . ', ' .
-                    'EntityId: ' . ($entityId ?? 'missing') . '. ' .
-                    'Please create the lead in DealerSocket first.'
-                );
-            }
-
-            $updateData = $this->mapLeadToUpdateArray($lead);
-
-            $response = $this->leadClient->updateSalesEvent(
-                (int) $eventId,
-                (int) $entityId,
-                $updateData
+        if (! $eventId || ! $entityId) {
+            throw new Exception(
+                'Lead is missing DealerSocket IDs. ' .
+                'EventId: ' . ($eventId ?? 'missing') . ', ' .
+                'EntityId: ' . ($entityId ?? 'missing') . '. ' .
+                'Please create the lead in DealerSocket first.'
             );
-
-            if ($response['success']) {
-                Log::info('Successfully updated DealerSocket lead', [
-                    'lead_id' => $lead->id,
-                    'event_id' => $eventId,
-                    'entity_id' => $entityId,
-                ]);
-            } else {
-                Log::warning('DealerSocket rejected lead update', [
-                    'lead_id' => $lead->id,
-                    'event_id' => $eventId,
-                    'entity_id' => $entityId,
-                    'error_code' => $response['errorCode'] ?? null,
-                    'error_message' => $response['errorMessage'] ?? null,
-                ]);
-
-                throw new Exception($response['errorMessage'] ?? 'Update failed');
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            Log::error('Failed to update DealerSocket lead', [
-                'lead_id' => $lead->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
         }
+
+        $updateData = $this->mapLeadToUpdateArray($lead);
+
+        $response = $this->leadClient->updateSalesEvent(
+            (int) $eventId,
+            (int) $entityId,
+            $updateData
+        );
+
+        if (! isset($response['success'])) {
+            throw new Exception($response['errorMessage'] ?? 'Lead update failed');
+        }
+
+        return $response;
     }
 
     /**

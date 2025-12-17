@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
@@ -30,25 +29,15 @@ class DealerSocketCustomerService
      */
     public function saveCustomer(People $people): array
     {
-        try {
-            $customerData = $this->mapCustomerToArray($people);
+        $customerData = $this->mapCustomerToArray($people);
 
-            $response = $this->customerClient->createCustomer($customerData);
+        $response = $this->customerClient->createCustomer($customerData);
 
-            if (isset($response['entityId'])) {
-                $this->setCustomerId($people, $response['entityId']);
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            Log::error('Failed to create DealerSocket customer', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
+        if (isset($response['entityId'])) {
+            $this->setCustomerId($people, $response['entityId']);
         }
+
+        return $response;
     }
 
     /**
@@ -56,33 +45,24 @@ class DealerSocketCustomerService
      */
     public function updateCustomer(People $people): array
     {
-        try {
-            $entityId = $people->get(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region));
+        $entityId = $people->get(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region));
 
-            if (! $entityId) {
-                throw new Exception(
-                    'Customer does not have a DealerSocket Customer ID (Entity ID). ' .
-                    'Please create the customer in DealerSocket first.'
-                );
-            }
-
-            $customerData = $this->mapCustomerToArray($people);
-
-            $response = $this->customerClient->updateCustomer((int) $entityId, $customerData);
-
-            if ($response['success'] ?? false) {
-                Log::info('Successfully updated DealerSocket customer', [
-                    'people_id' => $people->id,
-                    'entity_id' => $entityId,
-                ]);
-            } else {
-                throw new Exception($response['errorMessage'] ?? 'Customer update failed');
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            throw $e;
+        if (! $entityId) {
+            throw new Exception(
+                'Customer does not have a DealerSocket Customer ID (Entity ID). ' .
+                'Please create the customer in DealerSocket first.'
+            );
         }
+
+        $customerData = $this->mapCustomerToArray($people);
+
+        $response = $this->customerClient->updateCustomer((int) $entityId, $customerData);
+
+        if (! isset($response['success'])) {
+            throw new Exception($response['errorMessage'] ?? 'Customer update failed');
+        }
+
+        return $response;
     }
 
     /**
@@ -121,20 +101,11 @@ class DealerSocketCustomerService
             $emails = $people->getEmails();
 
             if ($emails->isEmpty()) {
-                Log::warning('People has no email address', [
-                    'people_id' => $people->id,
-                ]);
-
                 return null;
             }
 
             return $emails->first()->value;
         } catch (Throwable $e) {
-            Log::warning('Failed to get email from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
-
             return null;
         }
     }
@@ -155,11 +126,6 @@ class DealerSocketCustomerService
 
             return $this->formatPhone($phone);
         } catch (Throwable $e) {
-            Log::warning('Failed to get phone from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
-
             return null;
         }
     }
@@ -185,16 +151,7 @@ class DealerSocketCustomerService
      */
     public function searchCustomerByEmail(string $email): array
     {
-        try {
-            return $this->customerClient->getCustomerByEmail($email);
-        } catch (Throwable $e) {
-            Log::error('Failed to search customer by email', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
+        return $this->customerClient->getCustomerByEmail($email);
     }
 
     /**
@@ -202,18 +159,9 @@ class DealerSocketCustomerService
      */
     public function searchCustomerByPhone(string $phone): array
     {
-        try {
-            $formattedPhone = $this->formatPhone($phone);
+        $formattedPhone = $this->formatPhone($phone);
 
-            return $this->customerClient->getCustomerByPhone($formattedPhone);
-        } catch (Throwable $e) {
-            Log::error('Failed to search customer by phone', [
-                'phone' => $phone,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
+        return $this->customerClient->getCustomerByPhone($formattedPhone);
     }
 
     /**
@@ -221,17 +169,7 @@ class DealerSocketCustomerService
      */
     public function searchCustomerByName(?string $firstName, ?string $lastName): array
     {
-        try {
-            return $this->customerClient->getCustomerByName($firstName, $lastName);
-        } catch (Throwable $e) {
-            Log::error('Failed to search customer by name', [
-                'firstName' => $firstName,
-                'lastName' => $lastName,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
+        return $this->customerClient->getCustomerByName($firstName, $lastName);
     }
 
     /**
@@ -239,16 +177,7 @@ class DealerSocketCustomerService
      */
     public function getCustomerById(int $entityId): array
     {
-        try {
-            return $this->customerClient->getCustomerById($entityId);
-        } catch (Throwable $e) {
-            Log::error('Failed to get customer by ID', [
-                'entity_id' => $entityId,
-                'error' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
+        return $this->customerClient->getCustomerById($entityId);
     }
 
     /**
@@ -266,18 +195,12 @@ class DealerSocketCustomerService
         // Try to find existing customer by email
         $email = $this->getEmailFromPeople($people);
         if ($email) {
-            try {
-                $searchResults = $this->searchCustomerByEmail($email);
+            $searchResults = $this->searchCustomerByEmail($email);
 
-                if (! empty($searchResults['entityId'])) {
-                    $this->setCustomerId($people, $searchResults['entityId']);
+            if (! empty($searchResults['entityId'])) {
+                $this->setCustomerId($people, $searchResults['entityId']);
 
-                    return $this->updateCustomer($people);
-                }
-            } catch (Throwable $e) {
-                Log::debug('Customer not found by email, will create new', [
-                    'email' => $email,
-                ]);
+                return $this->updateCustomer($people);
             }
         }
 
