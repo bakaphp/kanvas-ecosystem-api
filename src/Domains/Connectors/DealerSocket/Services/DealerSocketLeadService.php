@@ -69,6 +69,7 @@ class DealerSocketLeadService
             throw new Exception('Lead must have a People relationship to create in DealerSocket');
         }
 
+        //1 Sales, 2 Service lead type
         return [
             'senderNameCode' => $this->getVendorName(),
             'serviceId' => $this->getServiceId($lead),

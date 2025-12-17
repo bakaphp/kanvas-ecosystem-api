@@ -23,7 +23,11 @@ class PushLeadActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::DEALERSOCKET,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                $pushLead = new DealerSocketLeadService($app, $integrationCompany->company, $integrationCompany->region);
+                $pushLead = new DealerSocketLeadService(
+                    $app,
+                    $lead->company,
+                    $integrationCompany->region
+                );
                 $data = $pushLead->saveLead($lead);
 
                 return [

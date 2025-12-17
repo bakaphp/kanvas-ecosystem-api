@@ -9,35 +9,35 @@ use Illuminate\Support\Facades\Http;
 
 class LeadClient extends BaseClient
 {
-    public function createSalesLead(array $data)
+    public function createSalesLead(array $data): array
     {
         $xml = $this->buildSalesLeadXML($data);
 
         return $this->postLead($xml);
     }
 
-    public function createSalesLeadADF(array $data)
+    public function createSalesLeadADF(array $data): array
     {
         $xml = $this->buildADFLeadXML($data);
 
         return $this->postLead($xml);
     }
 
-    public function createServiceLead(array $data)
+    public function createServiceLead(array $data): array
     {
         $xml = $this->buildServiceLeadXML($data);
 
         return $this->postLead($xml);
     }
 
-    public function createPartsLead(array $data)
+    public function createPartsLead(array $data): array
     {
         $xml = $this->buildPartsLeadXML($data);
 
         return $this->postLead($xml);
     }
 
-    private function postLead(string $xml, string $format = 'star')
+    private function postLead(string $xml, string $format = 'star'): array
     {
         $url = $this->getDirectPostUrl($format);
 
@@ -50,7 +50,7 @@ class LeadClient extends BaseClient
         return $this->parseLeadResponse($response);
     }
 
-    private function parseLeadResponse($response)
+    private function parseLeadResponse($response): array
     {
         if ($response->failed()) {
             return [
