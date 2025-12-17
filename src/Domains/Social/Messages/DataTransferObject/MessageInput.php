@@ -41,6 +41,7 @@ class MessageInput extends Data
         public ?string $slug = null,
         public ?string $channel_slug = null,
         public array $files = [],
+        public array $categories = [],
     ) {
     }
 
@@ -85,6 +86,7 @@ class MessageInput extends Data
             $data['slug'] ?? null,
             $data['channel_slug'] ?? null,
             $data['files'] ?? [],
+            $data['categories'] ?? [],
         );
     }
 }

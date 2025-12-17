@@ -83,7 +83,7 @@ class Lead
             'source' => $leadSourceName,
             'status' => $lead->leads_status && strtolower($lead->leads_status->name) == 'inactive' ? 'Inactive' : 'Active', //$lead->leads_status->name,
             'subStatus' => 'Unknown', //change
-            'upType' => $leadUpType,
+            'upType' => $leadSourceName !== 'Lead Link' ? $leadUpType : 'Internet',
         ];
 
         if ($lead->owner

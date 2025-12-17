@@ -22,7 +22,10 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
+use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
@@ -68,6 +71,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $payment_status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property string|null $fulfillment_status
@@ -162,6 +166,11 @@ class Order extends BaseModel
         return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
     }
 
+    public function affiliateConversion(): HasMany
+    {
+        return $this->hasMany(AffiliateConversion::class, 'orders_id', 'id');
+    }
+
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
@@ -236,6 +245,12 @@ class Order extends BaseModel
     public function fulfillCancelled(): void
     {
         $this->fulfillment_status = 'canceled';
+        $this->saveOrFail();
+    }
+
+    public function fulfillPending(): void
+    {
+        $this->fulfillment_status = 'pending';
         $this->saveOrFail();
     }
 
@@ -763,5 +778,15 @@ class Order extends BaseModel
     protected static function newFactory()
     {
         return new OrderFactory();
+    }
+
+    public function applyDiscountCode(string $code): ?Discount
+    {
+        $discountService = new DiscountService(
+            $this->app,
+            $this->company
+        );
+
+        return $discountService->applyDiscountCode($code, $this);
     }
 }

@@ -54,12 +54,15 @@ class OrderItemService
     public function getValidOrderItems(array $orderItems): array
     {
         $validOrderItems = [];
+        $errors = [];
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('ean', $orderItem['variant_ean'])
                 ->orWhere('barcode', $orderItem['variant_ean'])
                 ->first();
 
             if (empty($variant)) {
+                $errors[] = "<b>({$orderItem['variant_ean']})</b>: Product does not exist in our inventory.";
                 continue;
             }
 
@@ -69,7 +72,10 @@ class OrderItemService
             ];
         }
 
-        return $validOrderItems;
+        return [
+            'validItems' => $validOrderItems,
+            'errors' => $errors,
+        ];
     }
 
     public function processOrderItems(array $orderItems, int $channelId): array
@@ -85,10 +91,11 @@ class OrderItemService
                 continue;
             }
 
-            $minimumOrderQuantity = $channel?->config['minimum_quantity'] ?? 0;
             $warehouse = $channel?->productVariantWarehouse()->first() ?? $variant->variantWarehouses()->first();
+            // @TODO: if we want to validate client minimun quantity the use this
+            $minimumOrderQuantity = $warehouse?->config['minimum_quantity'] ?? 0;
             $currentStock = $warehouse?->quantity ?? 0;
-
+            $moq = $variant->getAttributeByName('minimum_order_quantity')?->value ?? 0;
             /**
              * @todo validate overselling
              */
@@ -99,8 +106,8 @@ class OrderItemService
                 continue;
             }
 
-            if ($minimumOrderQuantity > $orderItem['quantity']) {
-                $errors[] = "$barcode: $variant->name requires a minimum order of $minimumOrderQuantity units.";
+            if ($moq > $orderItem['quantity']) {
+                $errors[] = "$barcode: $variant->name requires a minimum order of $moq units.";
 
                 continue;
             }

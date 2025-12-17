@@ -27,11 +27,13 @@ use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
@@ -83,6 +85,7 @@ class Message extends BaseModel
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
+    use HasCategoriesTrait;
     use QueryCacheable;
 
     protected $table = 'messages';
@@ -135,6 +138,16 @@ class Message extends BaseModel
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function childrenByType(string $verb): HasMany
+    {
+        $messageTypeId = MessagesTypesRepository::getByVerb($verb, $this->app)->getId();
+
+        return $this->hasMany(static::class, $this->getParentKeyName())
+        ->where('message_types_id', $messageTypeId)
+        ->where('is_public', 1)
+        ->where('is_deleted', 0);
     }
 
     public function getMessage(): array

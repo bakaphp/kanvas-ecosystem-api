@@ -20,7 +20,7 @@ class Client
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
         $this->accessKey = $this->app->get(ConfigurationEnum::ACCESS_KEY->value);
@@ -58,6 +58,11 @@ class Client
         }
 
         return $data;
+    }
+
+    public function setCustomerId(int|string $customerId): void
+    {
+        $this->customerId = $customerId;
     }
 
     /**

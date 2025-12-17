@@ -26,6 +26,7 @@ class MessageOwnerPushNotification extends CustomMessageNotification
         unset($metadata['ai_nugget']['nugget']);
 
         $data = [
+            'childMessageTitle' => $entity->children->first()->message['title'] ?? $entity->message['title'],
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
             'app' => $entity->app,
@@ -43,7 +44,7 @@ class MessageOwnerPushNotification extends CustomMessageNotification
         ];
 
         parent::__construct($entity, $data, $via);
-        $this->setType(NotificationTypesEnum::IMAGE_PROCESSING->value);
+        $this->setType(NotificationTypesEnum::REMIX_CREATED->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
         $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());

@@ -36,7 +36,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -163,6 +163,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     );
                 } catch (Exception $e) {
                     //report($e);
+                    new MessageOrderFulfillmentAction($entity)->execute('image', true);
 
                     return $this->failWorkflow([
                         'result' => false,
@@ -730,7 +731,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
-            ->generate();
+            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
     }

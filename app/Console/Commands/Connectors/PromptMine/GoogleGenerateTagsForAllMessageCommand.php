@@ -23,7 +23,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id}';
+    protected $signature = 'kanvas:prompt-google-generate-tags-message {app_id} {company_id} {message_type_id} {--clearAllTags=false}';
 
     /**
      * The console command description.
@@ -42,6 +42,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $messageType = (int) $this->argument('message_type_id');
+        $clearAllTags = $this->option('clearAllTags') === 'true' ? true : false;
 
         $messageType = MessageType::getById($messageType, $app);
 
@@ -53,9 +54,29 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
         // $featureTags = Tag::fromApp($app)->where('is_feature', 1)->get()->pluck('name')->toArray();
         $tagsToIgnore = ['openai', 'gemini', 'claude', 'xai', 'groq', 'flux', 'dalle3', 'deepseekai', 'trending', 'Trending', 'text', 'image', 'video', 'nugget', 'highlight'];
         $allTagsWithIgnore = Tag::fromApp($app)->notDeleted()->whereNotIn('slug', $tagsToIgnore)->get()->pluck('name')->toArray();
-        $allTags = Tag::fromApp($app)->notDeleted()->get()->pluck('name')->toArray();
+        $allTags = Tag::fromApp($app)
+            ->notDeleted()
+            ->where('is_feature', 1)
+            ->whereNotIn('name', ['Following', 'Top Videos', 'Trending'])
+            ->pluck('name')
+            ->toArray();
+
+        //$allTags = array_merge($allTags, ['image', 'video']);
 
         foreach ($cursor as $message) {
+            if (! $message instanceof Message) {
+                $this->output->progressAdvance();
+
+                continue;
+            }
+
+            if ($message->hasTags() && ! $clearAllTags) {
+                $this->info('Message ID: ' . $message->getId() . ' already has tags, skipping...');
+                $this->output->progressAdvance();
+
+                continue;
+            }
+
             // Remove all tags from the message
             $message->removeTags($allTags);
             $generateMessageTagAction = new GenerateMessageTagAction($message);
@@ -64,7 +85,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
                 $messageTags = $generateMessageTagAction->execute(
                     textLookupKey: 'ai_nugged.nugget',
                     totalTags: 3,
-                    tags: $allTagsWithIgnore
+                    tags: $allTags
                 );
             } catch (PrismException $e) {
                 $this->error('Error generating tags for message ID ' . $message->getId() . ': ' . $e->getMessage());

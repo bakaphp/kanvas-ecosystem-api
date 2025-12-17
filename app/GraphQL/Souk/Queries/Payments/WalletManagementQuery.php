@@ -63,7 +63,7 @@ class WalletManagementQuery
         $wallet = $user->createAppWallet($app, ['name' => $tag]);
 
         return [
-            'balance' => (float) $user->balanceFloatNum,
+            'balance' => (float) $wallet->balanceFloatNum,
             'message' => '',
         ];
     }

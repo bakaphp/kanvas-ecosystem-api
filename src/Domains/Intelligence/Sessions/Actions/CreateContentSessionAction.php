@@ -74,7 +74,7 @@ class CreateContentSessionAction
                 'last_message_time' => $lastMessageTime,
                 'last_message' => $lastMessage,
                 'intent_number' => $lead->get('intent_number') ?? 0,
-                'max_intent_number' => $lead->pipeline->stages->count() ?? 0,
+                'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -128,6 +128,9 @@ class CreateContentSessionAction
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
+            'leadEmail' => $data['leadEmail'],
+            'leadOwnerName' => $data['leadOwnerName'],
+            'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
     }
 

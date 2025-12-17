@@ -27,6 +27,8 @@ use Kanvas\Locations\Models\States;
  * @property int $state_id
  * @property string $zip
  * @property string $countries_id
+ * @property float $latitude
+ * @property float $longitude
  * @property int $is_default
  * @property int $address_type_id
  * @property float $duration

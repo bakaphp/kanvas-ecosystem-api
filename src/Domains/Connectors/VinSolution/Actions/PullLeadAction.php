@@ -40,9 +40,12 @@ class PullLeadAction
     ) {
     }
 
-    public function execute(?ModelsLead $lead = null, ?int $leadId = null): array
-    {
-        return DB::transaction(function () use ($lead, $leadId) {
+    public function execute(
+        ?ModelsLead $lead = null,
+        ?int $leadId = null,
+        bool $triggerFirstMessage = false
+    ): array {
+        return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage) {
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
@@ -90,7 +93,7 @@ class PullLeadAction
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
 
                 //set communication channel
-                if ($lead->company->get('ai', false)) {
+                if ($lead->company->get('ai', false) || $triggerFirstMessage) {
                     $this->setCommunicationChannel(
                         $lead,
                         $currentLead ?? []
@@ -158,7 +161,8 @@ class PullLeadAction
 
     private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
     {
-        $lead->refresh();
+        //get a new fresh lead instance to avoid any issues with workflow state (disabled)
+        $lead = ModelsLead::getById($lead->id);
         $createdAt = $currentLead['CreatedUtc'] ?? null;
         $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
         $leadStatus = $currentLead['LeadStatusType'] ?? null;
@@ -181,6 +185,7 @@ class PullLeadAction
         }
 
         $lead->set('process_via_pull', true);
+        $lead->set('downloaded_from_vin_solution', true);
         $lead->set('vin_solution_date_in', $createdAt);
 
         $hasEmail = $lead->people?->getEmails()->count() > 0;
@@ -207,8 +212,11 @@ class PullLeadAction
             true,
             [
                 'app' => $lead->app,
+                'company' => $lead->company,
             ]
         );
+
+        $lead->set('lead_first_contacted_at', Carbon::now()->toDateTimeString());
     }
 
     private function addCoBuyerParticipant(

@@ -37,9 +37,10 @@ class SyncNetSuiteCustomerWithCompanyAction
         );
 
         $customerInfo = $this->service->getCustomerById($customerId);
+        $companyName = $customerInfo->entityId ?? $customerInfo->companyName;
 
         if ($linkCompany) {
-            $linkCompany->name = $customerInfo->companyName;
+            $linkCompany->name = $companyName;
             $linkCompany->email = $customerInfo->email;
             $linkCompany->disableWorkflows();
             $linkCompany->saveOrFail();
@@ -48,7 +49,7 @@ class SyncNetSuiteCustomerWithCompanyAction
         }
 
         $company = CompaniesRepository::getCompanyByNameAndApp(
-            $customerInfo->companyName,
+            $companyName,
             $this->app
         );
 
@@ -63,7 +64,7 @@ class SyncNetSuiteCustomerWithCompanyAction
         $createCompany = new CreateCompaniesAction(
             new Company(
                 user: $adminUser,
-                name: $customerInfo->companyName,
+                name: $companyName,
                 email: $customerInfo->email
             )
         );

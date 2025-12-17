@@ -348,11 +348,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             if (! $channel) {
                 $channel = Channel::firstOrCreate(
                     [
-                                          'users_id' => $this->receiver->users_id,
-                      'apps_id' => $this->receiver->app->getId(),
-                      'companies_id' => $this->receiver->company->getId(),
-                      'slug' => $slug,
-                ],
+                        'users_id' => $this->receiver->users_id,
+                        'apps_id' => $this->receiver->app->getId(),
+                        'companies_id' => $this->receiver->company->getId(),
+                        'slug' => $slug,
+                    ],
                     [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
@@ -370,6 +370,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'twilio',
                 'ai-agent',
             ]);
+            $channel->addCategory(
+                'ai-agent',
+                $this->receiver->app,
+                $this->receiver->user,
+                $this->receiver->company
+            );
             $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SMS');
 
             return $channel;

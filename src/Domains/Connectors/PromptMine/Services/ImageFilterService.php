@@ -31,7 +31,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class ImageFilterService
@@ -154,6 +154,7 @@ class ImageFilterService
                 $imageFilter
             );
         } catch (Exception $e) {
+            new MessageOrderFulfillmentAction($this->entity)->execute('image', true);
             report($e);
 
             return [
@@ -205,6 +206,7 @@ class ImageFilterService
                 report($e);
             }
             $message->delete();
+            new MessageOrderFulfillmentAction($this->entity)->execute('image', true);
 
             return [
                 'result' => false,
@@ -576,7 +578,8 @@ class ImageFilterService
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($apiUrl, [
+         ])->timeout(120)
+         ->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => $model . $imageFilter,
@@ -670,7 +673,7 @@ class ImageFilterService
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
-            ->generate();
+            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
     }

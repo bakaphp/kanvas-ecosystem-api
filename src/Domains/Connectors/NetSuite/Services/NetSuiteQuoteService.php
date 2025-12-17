@@ -82,6 +82,8 @@ class NetSuiteQuoteService
             if ($customRate) {
                 $estimateItem->rate = $orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount;
             }
+
+            $estimateItem->quantity = $orderItem->quantity;
             $estimateItem->amount = $orderItem->quantity * ($orderItem->unit_price_gross_amount ?? $orderItem->unit_price_net_amount);
             $estimateItem->description = $orderItem->product_name;
 
