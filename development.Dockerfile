@@ -1,4 +1,4 @@
-FROM php:8.4.10-cli
+FROM php:8.4.15-cli
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
@@ -26,11 +26,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmemcached-dev \
     nginx \
     vim \
-    wkhtmltopdf \
     xvfb \
-    ffmpeg && \
+    ffmpeg \
+    fontconfig \
+    libxrender1 \
+    libxext6 \
+    xfonts-75dpi \
+    xfonts-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Install wkhtmltopdf from GitHub releases (not available in Debian Trixie repos)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+        curl -L -o /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_arm64.deb; \
+    else \
+        curl -L -o /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb; \
+    fi && \
+    dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y && \
+    rm /tmp/wkhtmltox.deb
 
 # Install Node.js and chokidar for file watching
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
