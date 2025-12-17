@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
@@ -391,20 +390,9 @@ trait HashTableTrait
 
         return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
             ->where($settingsTable . '.name', $name)
-            ->where($settingsTable . '.value', $value)
-            ->where($instance->getTable() . '.is_deleted', 0)
-            ->select($instance->getTable() . '.*')
-            ->first();
-    }
-
-    public static function getEntityWithSettings(string $name): Collection
-    {
-        $instance = new static();
-        $settingsTable = $instance->getSettingsTable();
-        $foreignKey = $instance->getSettingsForeignKey();
-
-        return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
-            ->where($settingsTable . '.name', $name)
+            ->when($value != null, function ($query) use ($settingsTable, $value) {
+                $query->where($settingsTable . '.value', $value);
+            })
             ->where($instance->getTable() . '.is_deleted', 0)
             ->select($instance->getTable() . '.*')
             ->first();
