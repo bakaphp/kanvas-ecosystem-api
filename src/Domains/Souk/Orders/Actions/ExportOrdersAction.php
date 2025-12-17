@@ -443,9 +443,15 @@ class ExportOrdersAction
             return 'No status available';
         }
 
-        // Now $orders is always a Collection (from prepareOrderData)
-        $statuses = $orders->pluck('orderStatus.name')->unique()->implode(', ');
+        // Group orders by status and count them
+        $statusCounts = $orders->groupBy('orderStatus.name')->map(function ($group) {
+            return $group->count();
+        });
 
-        return "Estados: {$statuses}";
+        $formattedStatuses = $statusCounts->map(function ($count, $statusName) {
+            return "{$statusName} {$count}";
+        })->implode(', ');
+
+        return "Estados: {$formattedStatuses}";
     }
 }
