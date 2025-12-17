@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Workflows\Activities\SyncTookanOrderActivity;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Handlers\TookanHandler;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanParentOrderStatusActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -170,7 +170,7 @@ final class SyncTookanOrderActivityTest extends TestCase
         $order = $response->json('data.createOrderFromCart.order');
         $order = Order::fromApp($app)->find($order['id']);
 
-        $activity = new SyncTookanOrderActivity(
+        $activity = new TookanParentOrderStatusActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -183,7 +183,7 @@ final class SyncTookanOrderActivityTest extends TestCase
 
         $order->refresh();
         $this->assertEquals($result['status'], 'success');
-        $this->assertEquals($result['message'], 'Order synced correctly');
+        $this->assertEquals($result['message'], 'Parent order status transition handled successfully');
         // $this->assertEquals($order->resource->companies_id, $company2->id);
     }
 }
