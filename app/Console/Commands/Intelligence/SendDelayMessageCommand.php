@@ -16,33 +16,38 @@ class SendDelayMessageCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:intelligence:send-delay-message {app_id} {company_id}';
+    protected $signature = 'kanvas:intelligence:send-delay-message {app_id}';
 
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
-        $company = Companies::getById((int) $this->argument('company_id'));
         $this->overwriteAppService($app);
-        $minutedMessages = $company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value) ?? 60;
 
-        $messages = Message::where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_locked', true)
-            ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
-            ->cursor();
+        $companies = Companies::getEntityWithSettings(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value);
 
-        foreach ($messages as $message) {
-            $communicationChannel = $message->get('communicationChannel');
-            $fromNumber = $message->get('from_number');
-            $title = $message->get('title');
-            new SendMessageToLeadAction($message->entity)->execute(
-                $communicationChannel,
-                $message->message,
-                $fromNumber,
-                $title,
-            );
-            $message->is_locked = false;
-            $message->save();
+        foreach ($companies as $company) {
+            $this->newLine();
+            $minutedMessages = $company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value) ?? 60;
+            $messages = Message::where('apps_id', $app->getId())
+                ->whereIn('companies_id', $company->getId())
+                ->where('is_locked', true)
+                ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
+                ->cursor();
+
+            foreach ($messages as $message) {
+                $communicationChannel = $message->get('communicationChannel');
+                $fromNumber = $message->get('from_number');
+                $title = $message->get('title');
+                new SendMessageToLeadAction($message->entity)->execute(
+                    $communicationChannel,
+                    $message->message,
+                    $fromNumber,
+                    $title,
+                );
+                $message->is_locked = false;
+                $message->save();
+            }
+            $this->info('Processed messages for company: ' . $company->name);
         }
     }
 }
