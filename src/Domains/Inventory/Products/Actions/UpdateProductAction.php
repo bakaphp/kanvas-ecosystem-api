@@ -84,7 +84,7 @@ class UpdateProductAction
             throw $e;
         }
 
-        if ($this->product->isPublished()) {
+        if ($this->product->shouldBeSearchable()) {
             $this->product->searchable();
         } else {
             $this->product->unsearchable();

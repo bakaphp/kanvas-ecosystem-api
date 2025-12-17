@@ -114,7 +114,7 @@ class CreateProductAction
             throw $e;
         }
 
-        if ($products->isPublished()) {
+        if ($products->shouldBeSearchable()) {
             $products->searchable();
         } else {
             $products->unsearchable();
