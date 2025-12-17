@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Override;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ArraySchema;
 use Prism\Prism\Schema\EnumSchema;
 use Prism\Prism\Schema\NumberSchema;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass;
+namespace Tests\Connectors\Integration\Tookan;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -50,7 +50,7 @@ final class SyncTookanOrderActivityTest extends TestCase
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [])->json();
-        dump("product response", $productResponse);
+        //dump('product response', $productResponse);
         $productResponse = $productResponse['data']['createProduct'];
 
         $warehouseData = [
