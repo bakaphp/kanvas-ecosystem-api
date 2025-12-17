@@ -416,8 +416,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         //has to have a price and be published
         if ($this->company->get('index_product_must_have_price')) {
             foreach ($this->variants as $variant) {
-                if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
-                    return $this->isPublished() && $channelInfo->price > 0;
+                try {
+                    if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
+                        return $this->isPublished() && $channelInfo->price > 0;
+                    }
+                } catch (Exception $e) {
+                    return false;
                 }
             }
         }
