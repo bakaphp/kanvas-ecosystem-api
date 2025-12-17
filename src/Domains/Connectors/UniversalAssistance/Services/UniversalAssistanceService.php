@@ -187,39 +187,61 @@ class UniversalAssistanceService
         }
     }
 
-    /**
-     * Convierte un código de país (ej: ARG) a nombre válido (ej: ARGENTINA), mayúsculas y sin acentos.
-     */
-    public static function countryCodeToName(string $code): string
+    public static function countryCodeToName(string $countryCode): string
     {
-        $map = [
-            'ARG' => 'ARGENTINA',
-            'BR' => 'BRASIL',
-            'US' => 'ESTADOS UNIDOS',
+        $codeToName = [
+            'AR' => 'ARGENTINA',
             'DO' => 'REPUBLICA DOMINICANA',
-            'MX' => 'MEXICO',
-            'CL' => 'CHILE',
+            'US' => 'USA',
             'CO' => 'COLOMBIA',
+            'MX' => 'MEXICO',
             'PE' => 'PERU',
+            'CL' => 'CHILE',
+            'VE' => 'VENEZUELA',
+            'EC' => 'ECUADOR',
             'UY' => 'URUGUAY',
             'PY' => 'PARAGUAY',
             'BO' => 'BOLIVIA',
-            'EC' => 'ECUADOR',
-            'VE' => 'VENEZUELA',
-            'ES' => 'ESPANA',
+            'BR' => 'BRASIL',
+            'CR' => 'COSTA RICA',
+            'PA' => 'PANAMA',
+            'GT' => 'GUATEMALA',
+            'HN' => 'HONDURAS',
+            'NI' => 'NICARAGUA',
+            'SV' => 'EL SALVADOR',
+            'BZ' => 'BELICE',
+            'JM' => 'JAMAICA',
+            'CU' => 'CUBA',
+            'HT' => 'HAITI',
+            'PR' => 'PUERTO RICO',
+            'TT' => 'TRINIDAD Y TOBAGO',
+            'BB' => 'BARBADOS',
+            'GD' => 'GRANADA',
+            'LC' => 'SANTA LUCIA',
+            'VC' => 'SAN VICENTE',
+            'AG' => 'ANTIGUA Y BARBUDA',
+            'DM' => 'DOMINICA',
+            'KN' => 'SAN CRISTOBAL',
+            'AW' => 'ARUBA',
+            'CW' => 'CURACAO',
+            'BQ' => 'BONAIRE',
+            'SX' => 'SINT MAARTEN',
+            'MF' => 'SAN MARTIN',
+            'GP' => 'GUADALUPE',
+            'MQ' => 'MARTINICA',
+            'GF' => 'GUAYANA FRANCESA',
+            'SR' => 'SURINAM',
+            'GY' => 'GUYANA',
+            'ES' => 'ESPAÑA',
             'FR' => 'FRANCIA',
             'IT' => 'ITALIA',
             'DE' => 'ALEMANIA',
+            'GB' => 'REINO UNIDO',
             'PT' => 'PORTUGAL',
-            // ...agrega más según necesidad
+            'TR' => 'TURQUIA',
         ];
-        $code = strtoupper($code);
-        $name = $map[$code] ?? $code;
-        $name = strtr($name, [
-            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
-            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U', 'ñ' => 'N', 'ü' => 'U'
-        ]);
-        return strtoupper($name);
+
+        return $codeToName[strtoupper($countryCode)] ?? 'ARGENTINA'; // Default to ARGENTINA
     }
 
     /**

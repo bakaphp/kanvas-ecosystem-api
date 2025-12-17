@@ -25,6 +25,8 @@ class Address extends Data
         public readonly ?int $country_id = null,
         public readonly ?int $address_type_id = null,
         public readonly ?float $duration = 0.0,
+        public readonly ?float $latitude = null,
+        public readonly ?float $longitude = null,
         public readonly ?int $id = null
     ) {
     }
@@ -110,6 +112,8 @@ class Address extends Data
             country_id: $countryId,
             address_type_id: $data['address_type_id'] ?? null,
             duration: isset($data['duration']) ? (float) $data['duration'] : 0.0,
+            latitude: isset($data['latitude']) ? (float) $data['latitude'] : null,
+            longitude: isset($data['longitude']) ? (float) $data['longitude'] : null,
             id: isset($data['id']) ? (int) $data['id'] : null
         );
     }
@@ -133,6 +137,8 @@ class Address extends Data
             'countries_id' => $this->country_id, // Note: using countries_id for model
             'address_type_id' => $this->address_type_id,
             'duration' => $this->duration,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
         ];
     }
 

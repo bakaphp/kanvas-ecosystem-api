@@ -27,6 +27,7 @@ input WarehouseReferenceInput {
     quantity: Float
     status: StatusReferenceInput
     price: Float
+    cost: Float
     sku: String
     position: Int
     serial_number: String

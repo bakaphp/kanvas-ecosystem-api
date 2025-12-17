@@ -33,8 +33,6 @@ trait HasTranslationsDefaultFallback
             return [];
         }
 
-        $fallbackLocale = $this->app?->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? 'en';
-
         $isJson = is_string($attributeValue) &&
             ($attributeValue[0] ?? '') === '{' &&
             (substr($attributeValue, -1) === '}');
@@ -68,7 +66,13 @@ trait HasTranslationsDefaultFallback
             $isJson = $hasLanguageKey;
         }
 
-        $decodedValue = $isJson && is_array($decodedValue)
+        $hasLocale = $isJson && is_array($decodedValue);
+
+        if (! $hasLocale) {
+            $fallbackLocale = $this->app?->get(AppEnums::DEFAULT_APP_LOCALE->getValue()) ?? 'en';
+        }
+
+        $decodedValue = $hasLocale
             ? $decodedValue
             : [$fallbackLocale => (Str::isJson($attributeValue) ? json_decode($attributeValue, true) : $attributeValue)];
 
@@ -114,6 +118,7 @@ trait HasTranslationsDefaultFallback
         foreach ($translatables as $field) {
             $attributes[$field] = $this->getTranslation($field, App::getLocale());
         }
+
         return array_merge($attributes, $this->relationsToArray());
     }
 }

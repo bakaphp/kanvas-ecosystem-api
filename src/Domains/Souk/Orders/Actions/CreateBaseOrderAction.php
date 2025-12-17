@@ -44,6 +44,7 @@ class CreateBaseOrderAction
         protected ?Address $shippingAddress,
         protected ?array $request,
         protected ?ModelsOrder $parent = null,
+        protected ?string $ipAddress = null,
     ) {
     }
 
@@ -138,6 +139,7 @@ class CreateBaseOrderAction
             reference: $this->request['input']['reference'] ?? '',
             paymentStatus: 'unpaid',
             parent: $this->parent,
+            ipAddress: $this->ipAddress,
         );
 
         $order = (new CreateOrderAction($order))->execute();
@@ -145,14 +147,25 @@ class CreateBaseOrderAction
         // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
-        //@todo remove this we already have it on create order action
-        new SendUserNotificationAction(
-            $order->app,
-            $this->company,
-            $order->user
-        )->execute('admin-new-order', [
-            'order' => $order,
-        ]);
+        // Process wallet credit if applied
+        $this->processWalletCreditFromCart($order);
+
+        try {
+            $userCompany = $order->user->getCurrentCompany();
+            $orderCompany = $order->company;
+
+            if ($userCompany->getId() == $orderCompany->getId()) {
+                new SendUserNotificationAction(
+                    $order->app,
+                    $this->company,
+                    $order->user
+                )->execute('admin-new-order', [
+                    'order' => $order,
+                ]);
+            }
+        } catch (Exception $e) {
+            report($e);
+        }
 
         $this->cart->clear();
 
@@ -253,6 +266,68 @@ class CreateBaseOrderAction
             } catch (Exception $e) {
                 report($e);
             }
+        }
+    }
+
+    /**
+     * Process wallet credit from cart conditions and deduct from wallet.
+     */
+    protected function processWalletCreditFromCart(ModelsOrder $order): void
+    {
+        // Get all conditions from the cart
+        $conditions = $this->cart->getConditions();
+
+        foreach ($conditions as $condition) {
+            // Only process wallet type conditions
+            if ($condition->getType() !== 'wallet') {
+                continue;
+            }
+
+            $attributes = $condition->getAttributes();
+            $walletTag = $attributes['wallet_tag'] ?? 'default';
+            $appliedAmount = $attributes['applied_amount'] ?? 0;
+
+            if ($appliedAmount <= 0) {
+                continue;
+            }
+
+            // Get the company wallet
+            $wallet = $order->user->createAppWallet($this->app, ['name' => $walletTag]);
+
+            // Verify sufficient balance
+            if ($wallet->balanceFloat < $appliedAmount) {
+                throw new Exception(
+                    'Insufficient wallet balance. Required: ' . $appliedAmount .
+                    ', Available: ' . $wallet->balanceFloat
+                );
+            }
+
+            // Withdraw the amount from the wallet
+            $wallet->withdrawFloat($appliedAmount, [
+                'order_id' => $order->getId(),
+                'order_number' => $order->number,
+                'type' => 'order_payment',
+                'description' => 'Wallet credit applied to order #' . $order->number,
+            ]);
+
+            // Store wallet transaction info in order metadata
+            $order->addMetadata('wallet_credit', [
+                'tag' => $walletTag,
+                'amount' => $appliedAmount,
+                'transaction_id' => $wallet->getKey(),
+                'applied_at' => now()->toIso8601String(),
+            ]);
+
+            $order->set('wallet_credit', [
+                'tag' => $walletTag,
+                'amount' => $appliedAmount,
+                'transaction_id' => $wallet->getKey(),
+                'applied_at' => now()->toIso8601String(),
+            ]);
+
+            $order->addTag('wallet_credit');
+
+            //@todo , need to add it to the order logs
         }
     }
 }

@@ -73,7 +73,7 @@ class CreateMessageFromEmailAction
                       'users' => $this->lead->user,
                       'entity_id' => $this->lead->getId(),
                       'entity_namespace' => Lead::class,
-                      'name' => 'Lead ' . $this->lead->getId() . ' Session',
+                      'name' => 'Email ' . $this->lead->getId(),
                       'slug' => SessionChannelService::createChannelSlug(
                           $this->lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                           $this->lead->email
@@ -97,6 +97,13 @@ class CreateMessageFromEmailAction
 
         if ($channel !== null) {
             $channel->addMessage($newMessage);
+
+            $channel->addCategory(
+                'ai-agent',
+                $this->webhookRequest->app,
+                $this->webhookRequest->user,
+                $this->webhookRequest->company
+            );
 
             $channel->fireWorkflow(
                 WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,

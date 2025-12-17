@@ -11,6 +11,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -76,6 +77,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property ?string $html_description
  * @property ?string $warranty_terms
  * @property ?string $upc
+ * @property ?float $weight
  * @property bool $is_published
  * @property string $published_at
  * @property bool $is_deleted
@@ -411,6 +413,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     #[Override]
     public function shouldBeSearchable(): bool
     {
+        //has to have a price and be published
+        if ($this->company->get('index_product_must_have_price')) {
+            foreach ($this->variants as $variant) {
+                try {
+                    if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
+                        return $this->isPublished() && $channelInfo->price > 0;
+                    }
+                } catch (Exception $e) {
+                    return false;
+                }
+            }
+        }
+
         return $this->isPublished();
     }
 
@@ -450,7 +465,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
-            'categories_flat' => $this->categories->pluck('slug')->toArray(),
+            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -463,6 +478,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'short_description' => $this->short_description,
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
+            'weight' => (int) ($this->weight ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
@@ -716,6 +732,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function publish(): void
     {
         $this->is_published = 1;
+        $this->published_at = Carbon::now();
         $this->save();
     }
 
@@ -794,7 +811,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'categories_flat',
-                    'type' => 'string[]',
+                    'type' => 'auto',
                     'optional' => true,
                 ],
                 [
@@ -928,5 +945,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public static function getImportHandler(FilesystemImports $filesystemImport): mixed
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
+    }
+
+    public function recalculateWeightByImageCount(): void
+    {
+        if (! $this->app->get('product_increase_weight_by_image_count')) {
+            return;
+        }
+
+        $totalImages = $this->variants()
+            ->with('files')
+            ->get()
+            ->sum(fn ($variant) => $variant->files->count());
+
+        // Boost products with 2+ images
+        $imageBoost = $totalImages >= 2 ? 1.0 : 0;
+
+        // Or gradual boost: $imageBoost = min($totalImages * 0.5, 2.0);
+        $this->weight = $imageBoost;
+        $this->saveQuietly();
     }
 }

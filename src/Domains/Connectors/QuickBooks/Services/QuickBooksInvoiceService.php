@@ -40,7 +40,7 @@ class QuickBooksInvoiceService
     /**
      * Create a QuickBooks invoice from an Order
      */
-    public function createInvoiceFromOrder(Order $order): ?IPPInvoice
+    public function createInvoiceFromOrder(Order $order, bool $isCompanyInvoice = true): ?IPPInvoice
     {
         if ($order->get(CustomFieldEnum::QUICKBOOKS_INVOICE_ID->value)) {
             // Invoice already exists, no need to create again
@@ -48,7 +48,7 @@ class QuickBooksInvoiceService
         }
 
         // Get or create customer
-        $customer = $this->getOrCreateCustomerFromCompany($order); //$this->getOrCreateCustomer($order);
+        $customer = $isCompanyInvoice ? $this->getOrCreateCustomerFromCompany($order) : $this->getOrCreateCustomer($order);
 
         if (! $customer) {
             throw new Exception('Failed to create or find customer');

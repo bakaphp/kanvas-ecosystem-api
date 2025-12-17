@@ -13,7 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\CreateNuggetMessageAction;
-use Kanvas\Connectors\PromptMine\Notifications\ImageProcessingPushNotification;
+use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
 use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -25,12 +25,12 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class VideoProcessingService
 {
-    private const THUMBNAIL_FRAME_SECONDS = 2;
+    private const THUMBNAIL_FRAME_SECONDS = 5;
 
     public function __construct(
         protected Message $entity,
@@ -45,6 +45,7 @@ class VideoProcessingService
         array $params = []
     ): void {
         $key = IntegrationsEnum::PROMPT_MINE->value . '_video_processed_' . $requestId;
+        $orderCredit = new MessageOrderFulfillmentAction($this->entity);
 
         // Check if this video has already been processed
         if ($this->entity->get($key)) {
@@ -76,6 +77,7 @@ class VideoProcessingService
                 $this->processCompletedVideo($result['video_url'], $requestId, $params);
             } elseif ($result['status'] === 'FAILED') {
                 // Update status to failed
+                $orderCredit->execute('video', true); // Refund credit
                 $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
                 $this->failedNotification($result, $params);
             } else {
@@ -83,6 +85,7 @@ class VideoProcessingService
                 $this->scheduleVideoProcessingRetry($requestId, $videoModel, $params);
             }
         } catch (Exception $e) {
+            $orderCredit->execute('video', true); // Refund credit
             report($e);
             $this->updateVideoProcessingStatus('FAILED', $e->getMessage());
         }
@@ -95,7 +98,7 @@ class VideoProcessingService
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
             $params['via'] ?? ['push']
         );
-        $errorProcessingImageNotification = new ImageProcessingPushNotification(
+        $errorProcessingVideoNotification = new VideoProcessingPushNotification(
             user: $this->entity->user,
             entity: $this->entity,
             message: html_entity_decode($result['error'] ?? 'Video processing failed', ENT_QUOTES, 'UTF-8'),
@@ -108,12 +111,12 @@ class VideoProcessingService
         );
 
         //send to the user profile when it fails
-        $errorProcessingImageNotification->setData([
+        $errorProcessingVideoNotification->setData([
             'destination_id' => $this->entity->getId(),
             'destination_type' => 'USER',
             'destination_event' => 'FOLLOWING',
         ]);
-        $this->entity->user->notify($errorProcessingImageNotification);
+        $this->entity->user->notify($errorProcessingVideoNotification);
     }
 
     public function retryVideoProcessingCheck(
@@ -132,7 +135,7 @@ class VideoProcessingService
                     $this->processCompletedVideo($result['video_url'], $requestId, $params);
                 }
             } elseif ($result['status'] === 'FAILED') {
-                $this->updateVideoProcessingStatus('FAILED', $result['error'] ?? 'Video processing failed');
+                $this->updateVideoProcessingStatus('FAILED', $result['error']['message'] ?? 'Video processing failed');
             }
         } catch (Exception $e) {
             report($e);
@@ -379,6 +382,7 @@ class VideoProcessingService
         // Turn type to prompt
         $this->entity->message_types_id = MessageType::fromApp($this->entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
         $this->entity->update();
+
         return [
             'message' => 'Video processed successfully',
             'total_delivery' => $totalDelivery,
@@ -414,12 +418,18 @@ class VideoProcessingService
 
     private function generateTitleByPrompt(string $prompt): string
     {
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '. Choose just one title, dont give me suggestions')
-            ->generate();
+        try {
+            $response = Prism::text()
+                ->using(Provider::Gemini, 'gemini-2.0-flash')
+                ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '. Choose just one title, dont give me suggestions')
+                ->asText();
 
-        return str_replace(['```', 'json'], '', $response->text);
+            return str_replace(['```', 'json'], '', $response->text);
+        } catch (Throwable $e) {
+            report($e);
+
+            return 'Generated Video';
+        }
     }
 
     private function generateThumbnailFromVideo(string $videoUrl): ?Filesystem
@@ -488,7 +498,7 @@ class VideoProcessingService
                     [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
                     $params['via'] ?? ['push']
                 );
-                $errorProcessingImageNotification = new ImageProcessingPushNotification(
+                $errorProcessingVideoNotification = new VideoProcessingPushNotification(
                     user: $message->user,
                     entity: $message,
                     message: 'You have reached your daily image generation limit.',
@@ -501,12 +511,12 @@ class VideoProcessingService
                 );
 
                 //send to the user profile when it fails
-                $errorProcessingImageNotification->setData([
+                $errorProcessingVideoNotification->setData([
                     'destination_id' => $message->getId(),
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
                 ]);
-                $message->user->notify($errorProcessingImageNotification);
+                $message->user->notify($errorProcessingVideoNotification);
             } catch (Throwable $e) {
                 report($e);
             }

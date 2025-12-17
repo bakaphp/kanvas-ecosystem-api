@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Passes\Actions;
 
+use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Event\Events\Enums\EventPassScopeEnum;
@@ -12,14 +13,14 @@ use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Models\ParticipantPass;
 use Kanvas\Event\Participants\Models\ParticipantPassMotive;
 use Kanvas\Event\Passes\Enums\PassFormatEnum;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Event\Passes\Services\PassMotiveService;
 
 class CreatePassAction
 {
     public function __construct(
         private Event $event,
         private EventVersion $eventVersion,
-        private ParticipantPassMotive $motive,
+        private ?ParticipantPassMotive $motive = null,
         private ?int $participantId = null,
         private ?Carbon $expirationDate = null,
         private PassFormatEnum $format = PassFormatEnum::NUMERIC_PIN
@@ -28,6 +29,24 @@ class CreatePassAction
 
     public function execute(): array
     {
+        // Check if the event has already finished
+        if ($this->eventVersion->end_at && $this->eventVersion->end_at->isPast()) {
+            throw new Exception('Cannot issue a pass for an event that has already finished.');
+        }
+
+        // Check if a pass already exists for this participant/event and has been used
+        $existingPass = ParticipantPass::where('event_id', $this->event->getId())
+            ->where('event_version_id', $this->eventVersion->getId())
+            ->when($this->participantId, fn ($q) => $q->where('participant_id', $this->participantId))
+            ->where('apps_id', $this->event->apps_id)
+            ->where('companies_id', $this->event->companies_id)
+            ->whereNotNull('used_date')
+            ->first();
+
+        if ($existingPass) {
+            throw new Exception('A pass for this participant has already been used. Cannot reissue a code for a used pass.');
+        }
+
         $plainCode = $this->generatePlainCode();
         $lookup = new GenerateLookupAction(
             $this->event->app,
@@ -35,19 +54,27 @@ class CreatePassAction
             $plainCode
         )->execute();
 
-        $pass = ParticipantPass::create([
+        $motive = $this->motive ?? PassMotiveService::getMotive(
+            $this->event->company,
+            $this->event->app,
+            'default',
+            $this->eventVersion->users_id
+        );
+
+        $pass = ParticipantPass::firstOrCreate([
             'event_id' => $this->event->getId(),
             'event_version_id' => $this->eventVersion->getId(),
             'participant_id' => $this->participantId,
-            'participant_pass_motive_id' => $this->motive->getId(),
             'apps_id' => $this->event->apps_id,
-            'format' => $this->format->value,
             'companies_id' => $this->event->companies_id,
-            'users_id' => $this->eventVersion->users_id,
             'code' => encrypt($plainCode),
             'pin_hash' => Hash::make($plainCode),
             'pin_lookup' => $lookup,
-            'expiration_date' => $this->expirationDate ?? now()->addDays(30),
+        ], [
+            'participant_pass_motive_id' => $motive->getId(),
+            'format' => $this->format->value,
+            'users_id' => $this->eventVersion->users_id,
+            'expiration_date' => $this->expirationDate ?? $this->eventVersion->end_at ?? now()->addDays(30),
             'used_date' => null,
             'scope' => $this->participantId
                 ? EventPassScopeEnum::PARTICIPANT->value
@@ -63,14 +90,21 @@ class CreatePassAction
         $participants = $this->eventVersion->participants;
 
         if ($participants->isEmpty()) {
-            throw new ValidationException('No participants found for this event version.');
+            return [];
         }
+
+        $motive = $this->motive ?? PassMotiveService::getMotive(
+            $this->event->company,
+            $this->event->app,
+            'default',
+            $this->eventVersion->users_id
+        );
 
         foreach ($participants as $participant) {
             [$pass, $plainCode] = (new self(
                 $this->event,
                 $this->eventVersion,
-                $this->motive,
+                $motive,
                 $participant->getId(),
                 $this->expirationDate,
                 $this->format
@@ -83,7 +117,7 @@ class CreatePassAction
         [$pass, $plainCode] = (new self(
             $this->event,
             $this->eventVersion,
-            $this->motive,
+            $motive,
             null,
             $this->expirationDate,
             $this->format

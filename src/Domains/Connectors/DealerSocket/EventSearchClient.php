@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 
 class EventSearchClient extends BaseClient
 {
-    public function searchEvents(int $entityId, string $category = 'Sales')
+    public function searchEvents(int $entityId, string $category = 'Sales'): mixed
     {
         $body = json_encode([
             'vendor' => config('dealersocket.vendor_name'),

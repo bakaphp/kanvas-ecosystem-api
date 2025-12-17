@@ -6,12 +6,14 @@ namespace Kanvas\Connectors\ScrapingDog\Jobs;
 
 use App\GraphQL\Inventory\Types\ChannelInfoType;
 use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Gemini\Actions\TranslateToSpanishAction;
 use Kanvas\Connectors\ScrapingDog\Actions\CreateProductAction;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -21,8 +23,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
-
-use function Sentry\captureException;
 
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
@@ -51,10 +51,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $attempt = 0;
 
             while ($attempt < $maxAttempts) {
-                $result = $this->updateVariant($request['sku']);
+                try {
+                    $result = $this->updateVariant($request['sku']);
 
-                if (! empty($result)) {
-                    return $result;
+                    if (! empty($result)) {
+                        return $result;
+                    }
+                } catch (Throwable $e) {
                 }
 
                 $attempt++;
@@ -147,6 +150,14 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 );
             }
 
+            $customDict = collect($mappedProduct['custom_fields'])
+                ->pluck('data', 'name')
+                ->only(['product_information', 'feature_bullets'])
+                ->all();
+
+            $variant->set('product_information', $customDict['product_information']);
+            $variant->set('feature_bullets', $customDict['feature_bullets']);
+
             if (! empty($mappedProduct['files'])) {
                 $variant->deleteFiles();
                 // $files = $mappedProduct['files'];
@@ -177,6 +188,8 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             ];
 
             $variantData['customization_options'] = $product['customization_options'];
+            $variantData['product_information'] = $customDict['product_information'] ?? [];
+            $variantData['feature_bullets'] = $customDict['feature_bullets'] ?? [];
 
             $variants = Variants::with(['files', 'attributes'])
                 ->where('products_id', $productModel->getId())
@@ -189,8 +202,13 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'variant' => $variantData,
                 'variants' => $variants,
             ];
+        } catch (UniqueConstraintViolationException $e) {
+        } catch (ValidationException $e) {
+            if (! str_contains($e->getMessage(), 'already been taken')) {
+                report($e);
+            }
         } catch (Throwable $e) {
-            captureException($e);
+            report($e);
         }
 
         return [];

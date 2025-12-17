@@ -9,7 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use RuntimeException;
@@ -27,7 +27,8 @@ class CreateLeadFirstEngagementMessageAction
     protected Agent $agent;
 
     public function __construct(
-        protected Lead $lead
+        protected Lead $lead,
+        protected ?string $template = null
     ) {
         $agentName = 'firstMessageEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -52,6 +53,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['company' => $this->lead->company->toArray()],
                 ['lead' => $this->lead->toArray()]
             ),
+            'template' => $this->template
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
@@ -69,6 +71,7 @@ class CreateLeadFirstEngagementMessageAction
             ],
             requiredFields: ['title', 'message']
         );
+
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
                    ->using(Provider::Gemini, 'gemini-2.5-flash')

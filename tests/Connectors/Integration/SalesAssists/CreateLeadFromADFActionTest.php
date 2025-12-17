@@ -20,6 +20,7 @@ class CreateLeadFromADFActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
         $ReceiverWebhook = ReceiverWebhook::create([
             'name' => 'ADF Webhook',
             'url' => 'https://example.com/webhook',
@@ -30,11 +31,14 @@ class CreateLeadFromADFActionTest extends TestCase
             'users_id' => $user->getId(),
         ]);
         $xml = $this->getXmlAsString();
+
         $email = $lead->people->getEmails()->first()->value;
         $phone = $lead->people->getCellPhones()->first()->value;
-        $xml = str_replace('frederickpeal@mctekk.com', $email, $xml);
-        $xml = str_replace('8098843010', $phone, $xml);
+
+        $xml = str_replace('example@kanvas.dev', $email, $xml);
+        $xml = str_replace('8093505555', $phone, $xml);
         $xml = str_replace('2025-09-19T17:00:01.045-07:00', $lead->created_at->format('Y-m-d\TH:i:s.vP'), $xml);
+
         $webhookCall = ReceiverWebhookCall::create([
             'receiver_webhooks_id' => $ReceiverWebhook->id,
             'url' => 'https://example.com/webhook',
@@ -43,7 +47,9 @@ class CreateLeadFromADFActionTest extends TestCase
                 'stripped-text' => strip_tags($xml),
             ],
         ]);
+
         $data = (new CreateLeadFromADFAction($webhookCall))->execute();
+
         $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
         $this->assertTrue(true);
     }
@@ -75,8 +81,8 @@ class CreateLeadFromADFActionTest extends TestCase
                   <contact>
                     <name part="first">vanessa</name>
                     <name part="last">garcia-moreno</name>
-                    <email>frederickpeal@mctekk.com</email>
-                    <phone type="voice">8098843010</phone>
+                    <email>example@kanvas.dev</email>
+                    <phone type="voice">8093505555</phone>
                     <address>
                       <street line="1"></street>
                       <city>Fontana</city>

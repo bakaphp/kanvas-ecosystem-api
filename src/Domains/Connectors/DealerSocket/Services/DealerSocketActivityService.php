@@ -33,22 +33,18 @@ class DealerSocketActivityService
      */
     public function saveActivity(array $activityData): array
     {
-        try {
-            // Validate required fields
-            $this->validateActivityData($activityData);
+        // Validate required fields
+        $this->validateActivityData($activityData);
 
-            $response = $this->activityClient->saveActivity($activityData);
+        $response = $this->activityClient->saveActivity($activityData);
 
-            if (! $response['success']) {
-                throw new Exception(
-                    $response['errorMessage'] ?? $response['error'] ?? 'Failed to save activity'
-                );
-            }
-
-            return $response;
-        } catch (Throwable $e) {
-            throw $e;
+        if (! $response['success']) {
+            throw new Exception(
+                $response['errorMessage'] ?? $response['error'] ?? 'Failed to save activity'
+            );
         }
+
+        return $response;
     }
 
     /**

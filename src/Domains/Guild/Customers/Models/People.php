@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -647,7 +648,13 @@ class People extends BaseModel
 
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
 
-        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+        /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                    $query->where('companies_id', $user->getCurrentCompany()->getId());
+                } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 

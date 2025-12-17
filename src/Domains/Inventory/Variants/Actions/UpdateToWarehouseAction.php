@@ -36,6 +36,7 @@ class UpdateToWarehouseAction
             [
                 'quantity' => $this->variantsWarehousesDto->quantity,
                 'price' => $this->variantsWarehousesDto->price,
+                'cost' => $this->variantsWarehousesDto->cost,
                 'sku' => $this->variantsWarehousesDto->sku,
                 'position' => $this->variantsWarehousesDto->position,
                 'serial_number' => $this->variantsWarehousesDto->serial_number,

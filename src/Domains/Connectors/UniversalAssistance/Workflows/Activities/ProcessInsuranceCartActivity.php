@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -15,7 +20,7 @@ use Kanvas\Workflow\KanvasActivity;
 class ProcessInsuranceCartActivity extends KanvasActivity
 {
     /**
-     * Process insurance data from order metadata (same pattern as AeroAmbulancia)
+     * Process insurance data from order
      */
     public function execute(Order $order, AppInterface $app, array $params): array
     {
@@ -28,94 +33,264 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
                 $data = $this->getActivityData($order, $params);
 
-                // Create service
-                $service = new InsuranceWorkflowService($app, $order);
+                // Process each eSIM separately to create individual vouchers OR grouped vouchers by plan
+                $allResults = [];
+                $allVoucherData = [];
 
-                // Process insurance workflow with insurance data directly
-                $results = $service->processInsuranceWorkflow($data['insurance_data']);
+                // Check if we have multiple eSIMs to process
+                if (! empty($data['all_insurance_data'])) {
+                    // Process each eSIM separately
+                    foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
+                        // Create separate service instance for each eSIM with its specific message_id
+                        $messageId = $esimInsuranceData['message_id'] ?? null;
+                        $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
 
-                // Store results in eSim message and order metadata (same pattern as AeroAmbulancia)
-                $this->storeUniversalAssistanceData($results, $data['message_id']);
+                        try {
+                            $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
+                        } catch (ValidationException $e) {
+                            return $this->failWorkflow([
+                                'message' => $e->getMessage(),
+                            ]);
+                        }
+
+                        // Store results with eSIM index for tracking
+                        $allResults["esim_{$index}"] = $esimResults;
+
+                        // Store results in eSim message and order metadata - handle grouped vouchers
+                        $this->storeUniversalAssistanceDataWithGroupSupport($esimResults, (int) ($esimInsuranceData['message_id'] ?? $data['message_id']), $data);
+
+                        // Collect voucher data for this eSIM
+                        $allVoucherData["esim_{$index}"] = [
+                            'esim_index' => $index,
+                            'message_id' => $messageId,
+                            'voucher_data' => $this->extractVoucherDataFromResults($esimResults),
+                        ];
+                    }
+
+                    // Use combined results
+                    $results = $allResults;
+                } else {
+                    // No insurance data found - this should have been caught in getActivityData
+                    return $this->failWorkflow([
+                        'message' => 'No insurance data available to process',
+                        'data' => $data,
+                    ]);
+                }
+
+                // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
+                $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
+
+                // Mark order as processed successfully
+                $order->set('universal_assistance_processed', true);
 
                 // Return comprehensive results focusing on voucher data and SOAP inputs
                 return [
                     'workflow_results' => $results,
-                    'voucher_data' => [
-                        'holder' => [
-                            // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                            'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
-                                // Fallback paths for other possible structures
-                                ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
-                                ?? null,
-                            'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
-                            'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
-                        ],
-                        'dependents' => array_map(function ($dependent) {
-                            return [
-                                // Same structure for dependents
-                                'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
-                                    // Fallback paths for other possible structures
-                                    ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
-                                    ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
-                                    ?? null,
-                                'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
-                                'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
-                            ];
-                        }, $results['dependents'] ?? [])
-                    ],
+                    'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
                     'original_insurance_data' => $data['insurance_data'],
+                    'all_insurance_data' => $data['all_insurance_data'] ?? [], // Include all processed data
                     'message_id' => $data['message_id'],
                     'order_id' => $order->getId(),
                     'processing_summary' => [
-                        'holder_processed' => ! empty($results['titular']),
-                        'dependents_processed' => count($results['dependents'] ?? []),
-                        'vouchers_created' => $this->countVouchersCreated($results),
-                        'total_cost' => $this->calculateTotalCost($results),
-                    ]
+                        'esims_processed' => count($allVoucherData),
+                        'is_multi_esim' => count($allVoucherData) > 1,
+                        'vouchers_created' => $this->countVouchersCreatedFromMultiResults($results),
+                        'total_cost' => $this->calculateTotalCostFromMultiResults($results),
+                    ],
                 ];
             },
+            additionalParams: $params,
             company: $order->company,
         );
     }
 
     /**
-     * Get all required data for the activity (try both workflow params and order metadata)
+     * Get all required data for the activity (supports both multi-eSIM and single eSIM structures)
+     * PRIORITY: Always extract from order.metadata.esims first (has most recent insurancePendingData)
      */
     protected function getActivityData(Order $order, array $params): array
     {
-        $insuranceData = [];
+        // Refresh order to get latest metadata from database
+        $order->refresh();
 
-        // Approach 1: Try workflow input params directly (for direct workflow calls)
-        if (isset($params['titular']) || isset($params['insurance'])) {
-            // If params has titular directly, use params as insurance data
-            if (isset($params['titular'])) {
-                $insuranceData = $params;
-            }
-            // If params has insurance key, extract from there
-            elseif (isset($params['insurance'])) {
-                $insuranceData = $params['insurance'];
+        $insuranceData = [];
+        $allInsuranceData = []; // For collecting multiple eSIM insurance data with expanded quantities
+        $messageIds = []; // For collecting all message IDs
+
+        // Approach 1: Extract from order metadata FIRST (multi-eSIM workflow pattern - HIGHEST PRIORITY)
+        // This approach has the most up-to-date insurancePendingData
+        $orderMetadata = $order->metadata ?? [];
+
+        // Convert metadata to array in case it's an object
+        $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
+
+        // Priority 1: Try new_data.data.insurancePendingData first (most reliable - at metadata level)
+        if (isset($orderMetadata['new_data']['data']['insurancePendingData']) &&
+            ! empty($orderMetadata['new_data']['data']['insurancePendingData'])) {
+            $insurancePendingDataArray = $orderMetadata['new_data']['data']['insurancePendingData'];
+
+            foreach ($insurancePendingDataArray as $pendingData) {
+                if (isset($pendingData['insurance'])) {
+                    $insurance = $pendingData['insurance'];
+                    $messageId = $pendingData['messageId'] ?? null;
+
+                    // If no messageId, try to find it using ICCID (webhook flow)
+                    if (! $messageId && isset($pendingData['iccid'])) {
+                        $messageId = $this->findMessageIdByIccid($pendingData['iccid'], $order->app);
+                    }
+
+                    // Skip if this message already has a voucher
+                    if ($messageId && $this->messageHasVoucher((int) $messageId)) {
+                        continue;
+                    }
+
+                    $allInsuranceData[] = [
+                        'insurance' => $insurance,
+                        'message_id' => $messageId ? (int) $messageId : null,
+                        'iccid' => $pendingData['iccid'] ?? null,
+                        'esim_index' => count($allInsuranceData),
+                        'original_quantity' => 1,
+                        'quantity_index' => 0,
+                    ];
+
+                    if ($messageId) {
+                        $messageIds[] = (int) $messageId;
+                    }
+
+                    if (empty($insuranceData)) {
+                        $insuranceData = $insurance;
+                    }
+                }
             }
         }
 
-        // Approach 2: Extract from order metadata (eSim workflow pattern)
-        if (empty($insuranceData)) {
-            $orderMetadata = $order->metadata ?? [];
+        // Fallback: Look in esims metadata (for legacy structure)
+        if (empty($insuranceData) && isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+            foreach ($orderMetadata['esims'] as $esim) {
+                // Convert esim to array in case it contains nested objects from GraphQL
+                $esim = $this->convertObjectsToArrays($esim);
 
-            // Look in esims metadata (created by eSim workflow)
-            if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
-                foreach ($orderMetadata['esims'] as $esim) {
-                    if (isset($esim['eSimDetails']['insurance'])) {
-                        $insuranceData = $esim['eSimDetails']['insurance'];
-                        break; // Use first insurance data found
+                $insurance = null;
+                if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                    $insurance = $esim['eSimDetails']['insurance'];
+                }
+
+                if ($insurance) {
+                    $quantity = (int) ($esim['quantity'] ?? 1);
+                    $baseMessageId = $esim['message_id'] ?? null;
+
+                    // Skip if this message already has a voucher
+                    if ($baseMessageId && $this->messageHasVoucher((int) $baseMessageId)) {
+                        continue;
+                    }
+
+                    // Expand insurance data by quantity
+                    for ($i = 0; $i < $quantity; $i++) {
+                        $expandedInsurance = $insurance;
+
+                        $currentMessageId = $baseMessageId;
+                        if ($quantity > 1 && $baseMessageId) {
+                            $currentMessageId = $baseMessageId + $i;
+                        }
+
+                        $allInsuranceData[] = [
+                            'insurance' => $expandedInsurance,
+                            'message_id' => (int) $currentMessageId,
+                            'esim_index' => count($allInsuranceData),
+                            'original_quantity' => $quantity,
+                            'quantity_index' => $i,
+                        ];
+
+                        if ($currentMessageId) {
+                            $messageIds[] = $currentMessageId;
+                        }
+
+                        if (empty($insuranceData)) {
+                            $insuranceData = $expandedInsurance;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Approach 2: FALLBACK - Try params with Order class key (for single eSIM legacy structure)
+        // Only use this if Approach 1 didn't find any data
+        if (empty($insuranceData)) {
+            // Try both namespace key variations
+            $orderKeys = [
+                'Kanvas\\Souk\\Orders\\Models\\Order',  // Double backslash
+                'Kanvas\Souk\Orders\Models\Order'          // Single backslash
+            ];
+
+            foreach ($orderKeys as $orderKey) {
+                if (isset($params[$orderKey]['metadata']['esims'])) {
+                    // Convert esims to array in case it's an object
+                    $esims = $this->convertObjectsToArrays($params[$orderKey]['metadata']['esims']);
+
+                    if (is_array($esims)) {
+                        foreach ($esims as $esim) {
+                            // Priority 1: Try new_data.data.insurancePendingData[0].insurance first (most reliable)
+                            $insurance = null;
+                            if (isset($esim['new_data']['data']['insurancePendingData']) &&
+                                is_array($esim['new_data']['data']['insurancePendingData']) &&
+                                ! empty($esim['new_data']['data']['insurancePendingData'])) {
+                                // insurancePendingData is an array, get the first item's insurance
+                                $firstPendingData = $esim['new_data']['data']['insurancePendingData'][0] ?? null;
+                                if ($firstPendingData && isset($firstPendingData['insurance'])) {
+                                    $insurance = $firstPendingData['insurance'];
+                                }
+                            }
+
+                            // Fallback to eSimDetails.insurance only if insurancePendingData is not available or invalid
+                            if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                                $insurance = $esim['eSimDetails']['insurance'];
+                            }
+
+                            if ($insurance) {
+                                $quantity = (int) ($esim['quantity'] ?? 1);
+                                $baseMessageId = $esim['message_id'] ?? null;
+
+                                // Skip if this message already has a voucher
+                                if ($baseMessageId && $this->messageHasVoucher((int) $baseMessageId)) {
+                                    continue;
+                                }
+
+                                // Expand insurance data by quantity (each quantity needs separate insurance processing)
+                                for ($i = 0; $i < $quantity; $i++) {
+                                    $expandedInsurance = $insurance;
+
+                                    // Calculate unique message_id for each expanded instance
+                                    $currentMessageId = $baseMessageId;
+                                    if ($quantity > 1 && $baseMessageId) {
+                                        // For multiple quantities, we need to handle message_id appropriately
+                                        // This might need adjustment based on how message_ids are generated for quantities
+                                        $currentMessageId = $baseMessageId + $i; // Simple increment, may need different logic
+                                    }
+
+                                    $allInsuranceData[] = [
+                                        'insurance' => $expandedInsurance,
+                                        'message_id' => (int) $currentMessageId,
+                                        'esim_index' => count($allInsuranceData), // Track expanded index
+                                        'original_quantity' => $quantity,
+                                        'quantity_index' => $i,
+                                    ];
+
+                                    if ($currentMessageId) {
+                                        $messageIds[] = $currentMessageId;
+                                    }
+
+                                    // Use first expanded insurance as primary
+                                    if (empty($insuranceData)) {
+                                        $insuranceData = $expandedInsurance;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // If we found data with this orderKey, break out of the loop
+                    if (! empty($insuranceData)) {
+                        break;
                     }
                 }
             }
@@ -132,33 +307,152 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Validate that we have insurance data
         if (empty($insuranceData)) {
-            throw new \Kanvas\Exceptions\ValidationException('Insurance data is required - not found in workflow params or order metadata');
+            return $this->failWorkflow([
+                'message' => 'Insurance data is required - not found in workflow params or order metadata',
+            ]);
         }
 
         // Convert any objects to arrays (in case data was JSON decoded as objects)
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
 
         if (! isset($insuranceData['titular'])) {
-            throw new \Kanvas\Exceptions\ValidationException('Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)));
+            return $this->failWorkflow([
+                'message' => 'Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)),
+            ]);
         }
 
-        // Get eSim message ID from order (same way as AeroAmbulancia)
-        $messageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
-        if (! $messageId) {
-            throw new \Kanvas\Exceptions\ValidationException('eSim Message ID not found in order - required for Universal Assistance processing');
+        // If we have insurance data but no expanded data (Approach 3 scenario), create expanded entry
+        if (! empty($insuranceData) && empty($allInsuranceData)) {
+            // Get message ID for this single insurance data
+            $singleMessageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+
+            $allInsuranceData[] = [
+                'insurance' => $insuranceData,
+                'message_id' => $singleMessageId,
+                'esim_index' => 0,
+                'original_quantity' => 1,
+                'quantity_index' => 0,
+            ];
+
+            if ($singleMessageId) {
+                $messageIds[] = $singleMessageId;
+            }
         }
 
-        // Return insurance data directly (no cart wrapper needed)
+        // Get primary message ID (fallback logic if no expanded data found)
+        $primaryMessageId = null;
+
+        if (! empty($messageIds)) {
+            $primaryMessageId = $messageIds[0]; // Use first message ID
+        } else {
+            // Fallback to order custom field
+            $primaryMessageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+
+            // Last resort fallbacks - check order metadata esims directly
+            if (! $primaryMessageId && isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+                foreach ($orderMetadata['esims'] as $esim) {
+                    if (isset($esim['message_id'])) {
+                        $primaryMessageId = $esim['message_id'];
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (! $primaryMessageId) {
+            return $this->failWorkflow([
+                'message' => 'eSim Message ID not found in order - required for Universal Assistance processing',
+            ]);
+        }
+
+        // Return insurance data with multi-eSIM support and quantity expansion
         return [
             'insurance_data' => $insuranceData,
-            'message_id' => $messageId,
+            'all_insurance_data' => $allInsuranceData, // Expanded by quantity with message_ids
+            'message_id' => $primaryMessageId, // Primary message ID for backward compatibility
+            'all_message_ids' => $messageIds, // All message IDs for expanded processing
+            'is_multi_esim' => count($allInsuranceData) > 1,
+            'total_expanded_count' => count($allInsuranceData), // Total after quantity expansion
         ];
+    }
+
+    /**
+     * Check if a message already has a voucher created
+     * Prevents duplicate processing when workflow triggers multiple times
+     */
+    protected function messageHasVoucher(int $messageId): bool
+    {
+        try {
+            $message = Message::getById($messageId);
+            if (! $message) {
+                return false;
+            }
+
+            $messageData = $message->message ?? [];
+
+            // Check if universalAssistanceData exists and has a voucher number
+            if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) &&
+                ! empty($messageData['universalAssistanceData']['holder']['nro_voucher'])) {
+                return true;
+            }
+
+            return false;
+        } catch (Exception $e) {
+            // If message not found or any error, allow processing
+            return false;
+        }
+    }
+
+    /**
+     * Find message ID by searching for ICCID in the message JSON data
+     * Used when webhook provides ICCID but not the message ID
+     *
+     * The ICCID is stored in Message.message JSON column at paths like:
+     * - message.data.iccid
+     * - message.iccid
+     */
+    protected function findMessageIdByIccid(string $iccid, AppInterface $app): ?int
+    {
+        try {
+            // Search for the ICCID in the message JSON column
+            // The message column stores JSON data where ICCID can be at message.data.iccid or message.iccid
+            $message = Message::where('apps_id', $app->getId())
+                ->where('message', 'LIKE', '%' . $iccid . '%')
+                ->first();
+
+            if ($message) {
+                return $message->id;
+            }
+
+            return null;
+        } catch (Exception $e) {
+            // If search fails, return null and let the workflow continue
+            return null;
+        }
+    }
+
+    /**
+     * Check if insurance data has essential fields in titular
+     * Essential fields: firstName/firstname, dob/birthDate, and activation data
+     */
+    protected function hasEssentialInsuranceFields(array $insurance): bool
+    {
+        if (! isset($insurance['titular']) || ! is_array($insurance['titular'])) {
+            return false;
+        }
+
+        $titular = $insurance['titular'];
+
+        // Use validatePersonData to check if titular has all required fields
+        $validation = $this->validatePersonData($titular, 'Titular');
+
+        return $validation === true;
     }
 
     /**
      * Convert objects (stdClass) to arrays recursively
      */
-    protected function convertObjectsToArrays($data)
+    protected function convertObjectsToArrays(mixed $data): mixed
     {
         if (is_object($data)) {
             $data = (array) $data;
@@ -306,38 +600,54 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 $dependentVoucherRequestInput = $dependentVoucherResult['voucher_request_input'] ?? [];
                 $dependentSolicitante = $dependentVoucherRequestInput['DatosSolicitante'] ?? [];
 
+                $originalDependentData = $dependent['person_data'] ?? $dependent;
+
                 $dependentData = [
-                    // Extract key data we want to preserve from dependent with multiple fallbacks (same pattern as holder)
-                    'id' => $dependent['id'] ?? null,
-                    'firstName' => $dependent['firstName']
-                        ?? $dependentSolicitante['NombreSolicitante']
+                    // FIXED: Prioritize original dependent data over SOAP response (which contains titular info)
+                    'id' => $originalDependentData['id'] ?? $dependent['id'] ?? null,
+                    'firstName' => $originalDependentData['firstName']
+                        ?? $originalDependentData['firstname']
+                        ?? $dependent['firstName']
                         ?? $dependent['firstname']
+                        ?? $dependentSolicitante['NombreSolicitante'] // Last fallback
                         ?? null,
-                    'lastName' => $dependent['lastName']
-                        ?? $dependentSolicitante['ApellidoSolicitante']
+                    'lastName' => $originalDependentData['lastName']
+                        ?? $originalDependentData['lastname']
+                        ?? $dependent['lastName']
                         ?? $dependent['lastname']
+                        ?? $dependentSolicitante['ApellidoSolicitante'] // Last fallback
                         ?? null,
-                    'birthDate' => $dependent['birthDate']
-                        ?? $dependentSolicitante['FechaNacimientoSolicitante']
+                    'birthDate' => $originalDependentData['birthDate']
+                        ?? $originalDependentData['dob']
+                        ?? $dependent['birthDate']
+                        ?? $dependent['dob']
+                        ?? $dependentSolicitante['FechaNacimientoSolicitante'] // Last fallback
                         ?? null,
-                    'documentNumber' => $dependent['documentNumber']
-                        ?? $dependentSolicitante['NroDocumentoSolicitante']
+                    'documentNumber' => $originalDependentData['documentNumber']
+                        ?? $originalDependentData['idNumber']
+                        ?? $dependent['documentNumber']
                         ?? $dependent['idNumber']
+                        ?? $dependentSolicitante['NroDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'documentType' => $dependent['documentType']
-                        ?? $dependentSolicitante['TipoDocumentoSolicitante']
+                    'documentType' => $originalDependentData['documentType']
+                        ?? $originalDependentData['idType']
+                        ?? $dependent['documentType']
                         ?? $dependent['idType']
+                        ?? $dependentSolicitante['TipoDocumentoSolicitante'] // Last fallback
                         ?? null,
-                    'email' => $dependent['email']
-                        ?? $dependentSolicitante['CorreoElectronicoSolicitante']
+                    'email' => $originalDependentData['email']
+                        ?? $dependent['email']
+                        ?? $dependentSolicitante['CorreoElectronicoSolicitante'] // Last fallback
                         ?? null,
-                    'telephone' => $dependent['telephone']
-                        ?? $dependentSolicitante['TelefonoSolicitante']
+                    'telephone' => $originalDependentData['telephone']
+                        ?? $dependent['telephone']
+                        ?? $dependentSolicitante['TelefonoSolicitante'] // Last fallback
                         ?? null,
-                    'gender' => $dependent['gender']
-                        ?? $dependentSolicitante['SexoSolicitante']
+                    'gender' => $originalDependentData['gender']
+                        ?? $dependent['gender']
+                        ?? $dependentSolicitante['SexoSolicitante'] // Last fallback
                         ?? null,
-                    'relationship' => $dependent['relationship'] ?? null,
+                    'relationship' => $originalDependentData['relationship'] ?? $dependent['relationship'] ?? null,
                 ];
 
                 // Add the voucher fields directly at the top level of the dependent
@@ -411,7 +721,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         if (! isset($currentMessage['universalAssistanceData'])) {
             $currentMessage['universalAssistanceData'] = [
                 'holder' => [],
-                'dependents' => []
+                'dependents' => [],
             ];
         }
 
@@ -433,6 +743,9 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         $message->message = $currentMessage;
         $message->saveOrFail();
+
+        // Create a separate message with universal_assistance_data message type (ORIGINAL FUNCTIONALITY)
+        $this->createUniversalAssistanceDataMessage($message, $universalAssistanceData);
     }
 
     /**
@@ -445,7 +758,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             'total_validations' => 0,
             'product_matches' => 0,
             'price_matches' => 0,
-            'validation_details' => []
+            'validation_details' => [],
         ];
 
         // Validate titular
@@ -715,5 +1028,720 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             ?? $data['dual_quotation_results']['inclusion']['result']['voucher_data']['voucher_id']
             ?? $data['dual_quotation_results']['inclusion']['result']['quotation_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
             ?? null;
+    }
+
+    /**
+     * Create separate messages for each eSIM with universal_assistance_data message type
+     * This is ADDITIONAL to the existing storeUniversalAssistanceData logic
+     */
+    protected function createSeparateMessagesForEachESim(array $data, array $results, Order $order, AppInterface $app): void
+    {
+        // Check if we have expanded eSIM data
+        if (empty($data['all_insurance_data'])) {
+            return;
+        }
+
+        // Get the original message for reference
+        $originalMessage = Message::getById($data['message_id']);
+        if (! $originalMessage) {
+            return;
+        }
+
+        // Create a separate message for each expanded eSIM insurance
+        foreach ($data['all_insurance_data'] as $index => $esimData) {
+            $messageId = $esimData['message_id'] ?? null;
+            if (! $messageId) {
+                continue;
+            }
+
+            // Get the specific message for this eSIM
+            $esimMessage = Message::getById($messageId);
+            if (! $esimMessage) {
+                continue;
+            }
+
+            // Prepare universal assistance data for this specific eSIM
+            $universalAssistanceData = [
+                'esim_index' => $esimData['esim_index'],
+                'quantity_index' => $esimData['quantity_index'],
+                'original_quantity' => $esimData['original_quantity'],
+                'insurance_data' => $esimData['insurance'],
+                'results' => $results, // Full results for processing
+                'order_id' => $order->getId(),
+                'processing_timestamp' => time(),
+                'grouping_info' => $this->extractGroupingInfo($results), // Add grouping information
+            ];
+
+            // Create a separate message with universal_assistance_data message type
+            $this->createUniversalAssistanceDataMessage($esimMessage, $universalAssistanceData);
+        }
+    }
+
+    /**
+     * Create a separate message with universal_assistance_data message type
+     */
+    protected function createUniversalAssistanceDataMessage(Message $originalMessage, array $universalAssistanceData): void
+    {
+        // Get the universal_assistance_data message type
+        $messageType = MessagesTypesRepository::getByVerb(
+            'universal_assistance_data',
+            $originalMessage->app
+        );
+
+        // Create message input DTO
+        $messageInput = new MessageInput(
+            app: $originalMessage->app,
+            company: $originalMessage->company,
+            user: $originalMessage->user,
+            type: $messageType,
+            message: $universalAssistanceData,
+            parent_id: $originalMessage->getId(), // Set original message as parent
+            is_public: 1, // Keep it public
+            slug: null
+        );
+
+        // Create the message
+        $createMessageAction = new CreateMessageAction($messageInput);
+        $createMessageAction->runWorkflow = false; // Prevent triggering workflows for this internal message
+        $newMessage = $createMessageAction->execute();
+    }
+
+    /**
+     * Extract voucher data from insurance workflow results for a single eSIM
+     */
+    protected function extractVoucherDataFromResults(array $results): array
+    {
+        return [
+            'holder' => [
+                // The correct structure is: $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                'voucher_id' => $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                    // Fallback paths for other possible structures
+                    ?? $results['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $results['titular']['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                    ?? $this->extractVoucherId($results['titular']['voucher_result']['voucher_data'] ?? [])
+                    ?? null,
+                'voucher_request_input' => $results['titular']['voucher_result']['voucher_request_input'] ?? null,
+                'soap_response' => $results['titular']['voucher_result']['voucher_data'] ?? null,
+            ],
+            'dependents' => array_map(function ($dependent) {
+                return [
+                    // Same structure for dependents
+                    'voucher_id' => $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['IdVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['voucher_response']['NroVoucher']
+                        // Fallback paths for other possible structures
+                        ?? $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $dependent['voucher_result']['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+                        ?? $this->extractVoucherId($dependent['voucher_result']['voucher_data'] ?? [])
+                        ?? null,
+                    'voucher_request_input' => $dependent['voucher_result']['voucher_request_input'] ?? null,
+                    'soap_response' => $dependent['voucher_result']['voucher_data'] ?? null,
+                ];
+            }, $results['dependents'] ?? []),
+        ];
+    }
+
+    /**
+     * Count vouchers created from multi-eSIM results
+     */
+    protected function countVouchersCreatedFromMultiResults(array $multiResults): int
+    {
+        $count = 0;
+
+        foreach ($multiResults as $esimKey => $results) {
+            if (str_starts_with($esimKey, 'esim_')) {
+                $count += $this->countVouchersCreated($results);
+            } else {
+                // Single eSIM fallback
+                $count += $this->countVouchersCreated($multiResults);
+
+                break;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Calculate total cost from multi-eSIM results
+     */
+    protected function calculateTotalCostFromMultiResults(array $multiResults): float
+    {
+        $totalCost = 0.0;
+
+        foreach ($multiResults as $esimKey => $results) {
+            if (str_starts_with($esimKey, 'esim_')) {
+                $totalCost += $this->calculateTotalCost($results);
+            } else {
+                // Single eSIM fallback
+                $totalCost += $this->calculateTotalCost($multiResults);
+
+                break;
+            }
+        }
+
+        return $totalCost;
+    }
+
+    /**
+     * Process a single eSIM with plan grouping logic
+     * Groups titular and dependents by same plan/convenio to create fewer vouchers
+     */
+    protected function processeSIMWithPlanGrouping(InsuranceWorkflowService $service, array $insuranceData, int $esimIndex): array
+    {
+        // Convert any objects to arrays to prevent stdClass errors
+        $insuranceData = $this->convertObjectsToArrays($insuranceData);
+
+        // Validate required fields for titular
+        $requiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'email', 'activationDate', 'originCountryCode', 'destinationCountryCode'];
+        $missingFields = [];
+
+        if (! isset($insuranceData['titular'])) {
+            return $this->failWorkflow([
+                'message' => 'Titular data is required',
+                'data' => $insuranceData,
+            ]);
+        }
+
+        $titular = $insuranceData['titular'];
+
+        // Check required fields for titular
+        foreach ($requiredFields as $field) {
+            if (empty($titular[$field])) {
+                $missingFields[] = "titular.{$field}";
+            }
+        }
+
+        // Check required fields for dependents
+        if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
+            $dependentRequiredFields = ['firstname', 'lastname', 'idType', 'idNumber', 'dob', 'sex', 'relationship'];
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                foreach ($dependentRequiredFields as $field) {
+                    if (empty($dependent[$field])) {
+                        $missingFields[] = "dependents[{$index}].{$field}";
+                    }
+                }
+            }
+        }
+
+        // If any required fields are missing, fail the workflow
+        if (! empty($missingFields)) {
+            return $this->failWorkflow([
+                'message' => 'Missing required fields: ' . implode(', ', $missingFields),
+                'missing_fields' => $missingFields,
+                'data' => $insuranceData,
+            ]);
+        }
+
+        // Collect all people (titular + dependents) with their plan keys
+        $allPeople = [];
+        $planGroups = [];
+
+        // For family grouping, we prioritize keeping families together over plan optimization
+        // All people from the same eSIM will be grouped together for family voucher
+        $familyGroupKey = 'family_group_esim_' . $esimIndex;
+
+        // Add titular - normalize to only include fields needed by the service
+        $normalizedTitular = [
+            'firstname' => $titular['firstname'],
+            'lastname' => $titular['lastname'],
+            'idType' => $titular['idType'],
+            'idNumber' => $titular['idNumber'],
+            'dob' => $titular['dob'],
+            'sex' => $titular['sex'],
+            'email' => $titular['email'],
+            'activationDate' => $titular['activationDate'],
+            'expirationDate' => $titular['expirationDate'],
+            'originCountryCode' => $titular['originCountryCode'],
+            'destinationCountryCode' => $titular['destinationCountryCode'],
+            'originCountryName' => $titular['originCountryName'] ?? null,
+            'destinationCountryName' => $titular['destinationCountryName'] ?? null,
+            'plan' => $titular['plan'] ?? [],
+        ];
+
+        $allPeople[] = [
+            'data' => $normalizedTitular,
+            'type' => 'titular',
+            'plan_key' => $familyGroupKey,
+            'person_id' => 'titular',
+        ];
+
+        if (! isset($planGroups[$familyGroupKey])) {
+            $planGroups[$familyGroupKey] = [];
+        }
+        $planGroups[$familyGroupKey][] = $normalizedTitular;
+
+        // Add dependents to the same family group
+        if (isset($insuranceData['dependents']) && ! empty($insuranceData['dependents'])) {
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                // Normalize dependent data
+                $normalizedDependent = [
+                    'firstname' => $dependent['firstname'],
+                    'lastname' => $dependent['lastname'],
+                    'idType' => $dependent['idType'],
+                    'idNumber' => $dependent['idNumber'],
+                    'dob' => $dependent['dob'],
+                    'sex' => $dependent['sex'],
+                    'email' => $dependent['email'] ?? null,
+                    'relationship' => $dependent['relationship'],
+                    'activationDate' => $dependent['activationDate'] ?? $titular['activationDate'],
+                    'expirationDate' => $dependent['expirationDate'] ?? $titular['expirationDate'],
+                    'originCountryCode' => $dependent['originCountryCode'],
+                    'destinationCountryCode' => $dependent['destinationCountryCode'],
+                    'originCountryName' => $dependent['originCountryName'] ?? null,
+                    'destinationCountryName' => $dependent['destinationCountryName'] ?? null,
+                    'plan' => $dependent['plan'] ?? [],
+                ];
+
+                $allPeople[] = [
+                    'data' => $normalizedDependent,
+                    'type' => 'dependent',
+                    'plan_key' => $familyGroupKey,
+                    'person_id' => "dependent_{$index}",
+                ];
+
+                $planGroups[$familyGroupKey][] = $normalizedDependent;
+            }
+        }
+
+        // Process each plan group separately
+        $groupResults = [];
+        $groupIndex = 0;
+
+        foreach ($planGroups as $planKey => $groupPeople) {
+            $groupSize = count($groupPeople);
+            $peopleInfo = [];
+            foreach ($groupPeople as $person) {
+                $firstName = $person['firstname'] ?? $person['firstName'] ?? 'Unknown';
+                $lastName = $person['lastname'] ?? $person['lastName'] ?? 'Person';
+                $dob = $person['dob'] ?? $person['birthDate'] ?? 'Unknown';
+                $planName = $person['plan']['name'] ?? 'Unknown Plan';
+                $peopleInfo[] = "{$firstName} {$lastName} (DOB: {$dob}, Plan: {$planName})";
+            }
+
+            // Check if this is a family group (has dependents in original data)
+            $hasDependents = isset($insuranceData['dependents']) && ! empty($insuranceData['dependents']);
+
+            // All processing is now done via group workflow (even for single person)
+            // This ensures consistent processing whether there are dependents or not
+            $groupResult = $service->processGroupedInsuranceWorkflow($groupPeople, $planKey);
+            $groupResults["group_{$groupIndex}"] = [
+                'type' => 'grouped_voucher',
+                'plan_key' => $planKey,
+                'group_size' => count($groupPeople),
+                'people_in_group' => $this->extractPeopleIdentifiers($groupPeople),
+                'debug_people_info' => $peopleInfo, // Add debugging info
+                'result' => $groupResult,
+            ];
+            $groupIndex++;
+        }
+
+        // Convert group results back to the expected format for compatibility
+        return $this->convertGroupResultsToExpectedFormat($groupResults, $insuranceData);
+    }
+
+    /**
+     * Extract identifiers for people in a group
+     */
+    protected function extractPeopleIdentifiers(array $groupPeople): array
+    {
+        $identifiers = [];
+        foreach ($groupPeople as $index => $person) {
+            $firstName = $person['firstName'] ?? $person['firstname'] ?? 'Unknown';
+            $lastName = $person['lastName'] ?? $person['lastname'] ?? 'Person';
+            $identifiers[] = "{$firstName} {$lastName}";
+        }
+
+        return $identifiers;
+    }
+
+    /**
+     * Find person type (titular or dependent) within insurance data
+     */
+    protected function findPersonType(array $person, array $insuranceData): string
+    {
+        // Compare by document number or email to identify if it's titular
+        $personDoc = $person['documentNumber'] ?? $person['idNumber'] ?? '';
+        $personEmail = $person['email'] ?? '';
+
+        $titularDoc = $insuranceData['titular']['documentNumber'] ?? $insuranceData['titular']['idNumber'] ?? '';
+        $titularEmail = $insuranceData['titular']['email'] ?? '';
+
+        if (($personDoc && $personDoc === $titularDoc) || ($personEmail && $personEmail === $titularEmail)) {
+            return 'titular';
+        }
+
+        return 'dependent';
+    }
+
+    /**
+     * Find specific person identifier within insurance data
+     */
+    protected function findPersonIdentifier(array $person, array $insuranceData): string
+    {
+        $personType = $this->findPersonType($person, $insuranceData);
+
+        if ($personType === 'titular') {
+            return 'titular';
+        }
+
+        // For dependents, find index
+        if (isset($insuranceData['dependents'])) {
+            foreach ($insuranceData['dependents'] as $index => $dependent) {
+                $dependentDoc = $dependent['documentNumber'] ?? $dependent['idNumber'] ?? '';
+                $personDoc = $person['documentNumber'] ?? $person['idNumber'] ?? '';
+
+                if ($dependentDoc && $personDoc && $dependentDoc === $personDoc) {
+                    return "dependent_{$index}";
+                }
+            }
+        }
+
+        return 'unknown_person';
+    }
+
+    /**
+     * Convert group results back to the expected format for compatibility
+     */
+    protected function convertGroupResultsToExpectedFormat(array $groupResults, array $originalInsuranceData): array
+    {
+        $result = [
+            'titular' => null,
+            'dependents' => [],
+            'grouping_metadata' => [
+                'groups_created' => count($groupResults),
+                'grouping_applied' => true,
+                'original_people_count' => 1 + count($originalInsuranceData['dependents'] ?? []),
+            ],
+        ];
+
+        // Extract titular and dependents from group results
+        foreach ($groupResults as $groupKey => $group) {
+            if ($group['type'] === 'individual_titular' || $group['type'] === 'grouped_voucher') {
+                // Check if titular is in this group
+                if (in_array('titular', $group['people_in_group']) ||
+                    $group['type'] === 'grouped_voucher') {
+                    if ($group['type'] === 'grouped_voucher') {
+                        // For grouped vouchers, create a special result structure
+                        // The result from processGroupedInsuranceWorkflow has the structure directly
+                        $result['titular'] = [
+                            'voucher_result' => $group['result']['group_voucher_result'],
+                            'dual_quotation_results' => $group['result']['dual_quotation_results'] ?? null,
+                            'selected_quotation' => $group['result']['selected_quotation'] ?? null,
+                            'group_metadata' => [
+                                'is_grouped' => true,
+                                'group_size' => $group['group_size'],
+                                'plan_key' => $group['plan_key'],
+                                'people_in_group' => $group['people_in_group'],
+                                'persons_in_group' => $group['result']['persons_in_group'] ?? [],
+                            ],
+                        ];
+
+                        // For group vouchers, we also need to create dependent entries that reference the same voucher
+                        // This ensures compatibility with the existing storage logic
+                        if (isset($group['result']['persons_in_group'])) {
+                            $dependentEntries = [];
+                            foreach ($group['result']['persons_in_group'] as $index => $person) {
+                                // Skip the titular (first person typically)
+                                if ($index === 0) {
+                                    continue;
+                                }
+
+                                // Create a dependent entry that references the group voucher
+                                $dependentEntries[] = [
+                                    'voucher_result' => $group['result']['group_voucher_result'], // Same voucher for all
+                                    'person_data' => $person,
+                                    'is_group_member' => true,
+                                    'group_voucher_reference' => true,
+                                ];
+                            }
+                            $result['dependents'] = $dependentEntries;
+                        }
+                    } else {
+                        $result['titular'] = $group['result']['titular'];
+                    }
+                }
+            }
+
+            if ($group['type'] === 'individual_dependent') {
+                // Add individual dependents
+                $result['dependents'] = array_merge($result['dependents'], $group['result']['dependents']);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Store Universal Assistance data with support for grouped vouchers
+     * When vouchers are grouped, all people in the group share the same voucher number
+     */
+    protected function storeUniversalAssistanceDataWithGroupSupport(array $results, int $messageId, array $allData): void
+    {
+        // Check if we have grouping metadata (indicates grouped voucher processing)
+        if (isset($results['grouping_metadata']['grouping_applied']) && $results['grouping_metadata']['grouping_applied']) {
+            // Handle grouped vouchers - need to store same voucher number for all group members
+            $this->storeGroupedVoucherData($results, $messageId, $allData);
+        } else {
+            // Standard individual voucher storage
+            $this->storeUniversalAssistanceData($results, $messageId);
+        }
+    }
+
+    /**
+     * Store grouped voucher data - handle grouping within the same eSIM message
+     * All people from the same eSIM share the same message_id
+     */
+    protected function storeGroupedVoucherData(array $results, int $messageId, array $allData): void
+    {
+        // For grouped vouchers, we need to modify the results structure to properly
+        // represent the grouping within the same message (same eSIM)
+        $modifiedResults = $this->adjustResultsForGroupedVouchers($results);
+
+        // Store using the standard method with the modified results
+        $this->storeUniversalAssistanceData($modifiedResults, $messageId);
+    }
+
+    /**
+     * Adjust results structure to properly represent grouped vouchers
+     * This ensures that when multiple people share a voucher, it's properly reflected in the message
+     */
+    protected function adjustResultsForGroupedVouchers(array $results): array
+    {
+        // If titular has group metadata, it means there's a group voucher
+        if (isset($results['titular']['group_metadata']['is_grouped']) && $results['titular']['group_metadata']['is_grouped']) {
+            $groupMetadata = $results['titular']['group_metadata'];
+            $groupVoucherResult = $results['titular']['voucher_result'] ?? [];
+            $groupVoucherNumber = $this->extractVoucherNumberFromGroupResult($groupVoucherResult);
+
+            // Mark the titular as having a group voucher
+            $results['titular']['voucher_result']['is_group_voucher'] = true;
+            $results['titular']['voucher_result']['group_size'] = $groupMetadata['group_size'] ?? 1;
+            $results['titular']['voucher_result']['group_people'] = $groupMetadata['people_in_group'] ?? [];
+            $results['titular']['voucher_result']['shared_voucher_number'] = $groupVoucherNumber;
+
+            // For dependents in the same group, mark them as sharing the group voucher
+            if (! empty($results['dependents'])) {
+                foreach ($results['dependents'] as &$dependent) {
+                    // Check if this dependent is part of the group by comparing plan information
+                    $dependentPlanKey = $this->generateDependentPlanKey($dependent);
+                    $titularPlanKey = $groupMetadata['plan_key'] ?? '';
+
+                    if ($dependentPlanKey === $titularPlanKey) {
+                        // This dependent is part of the group
+                        $dependent['voucher_result']['is_group_voucher'] = true;
+                        $dependent['voucher_result']['shares_voucher_with_titular'] = true;
+                        $dependent['voucher_result']['shared_voucher_number'] = $groupVoucherNumber;
+                        $dependent['voucher_result']['group_size'] = $groupMetadata['group_size'] ?? 1;
+                    }
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Generate plan key for a dependent to check if they're in the same group
+     */
+    protected function generateDependentPlanKey(array $dependent): string
+    {
+        $planName = $dependent['plan']['name'] ?? 'unknown';
+        $originCountryCode = $dependent['originCountryCode'] ?? 'unknown';
+        $destinationCountryCode = $dependent['destinationCountryCode'] ?? $dependent['destinyCountryCode'] ?? 'unknown';
+
+        return implode('|', [
+            $planName,
+            strtoupper($originCountryCode),
+            strtoupper($destinationCountryCode),
+        ]);
+    }
+
+    /**
+     * Extract voucher number from group voucher result
+     */
+    protected function extractVoucherNumberFromGroupResult(array $groupVoucherResult): ?string
+    {
+        // Try multiple paths to find the voucher number
+        return $groupVoucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $groupVoucherResult['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['IdVoucher']
+            ?? $groupVoucherResult['voucher_data']['voucher_response']['IdVoucher']
+            ?? $groupVoucherResult['voucher_data']['voucher_response']['NroVoucher']
+            ?? $groupVoucherResult['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $groupVoucherResult['voucher_data']['response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['NroVoucher']
+            ?? $this->extractVoucherId($groupVoucherResult['voucher_data'] ?? [])
+            ?? null;
+    }
+
+    /**
+     * Find all message IDs for people in the same group
+     */
+    protected function findGroupMessageIds(array $groupMetadata, array $allData): array
+    {
+        $messageIds = [];
+        $peopleInGroup = $groupMetadata['people_in_group'] ?? [];
+
+        // Search through all insurance data to find matching people and their message IDs
+        if (isset($allData['all_insurance_data'])) {
+            foreach ($allData['all_insurance_data'] as $esimData) {
+                $insuranceData = $esimData['insurance'] ?? [];
+
+                // Check if titular is in the group
+                if (isset($insuranceData['titular']) && in_array('titular', $peopleInGroup)) {
+                    $messageIds[] = $esimData['message_id'];
+                }
+
+                // Check dependents
+                if (isset($insuranceData['dependents'])) {
+                    foreach ($insuranceData['dependents'] as $index => $dependent) {
+                        $dependentName = ($dependent['firstName'] ?? $dependent['firstname'] ?? 'Unknown') . ' ' .
+                                       ($dependent['lastName'] ?? $dependent['lastname'] ?? 'Person');
+
+                        if (in_array($dependentName, $peopleInGroup)) {
+                            $messageIds[] = $esimData['message_id'];
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_unique(array_filter($messageIds));
+    }
+
+    /**
+     * Store voucher data for a single person with group voucher number
+     */
+    protected function storeSinglePersonVoucherData(string $voucherNumber, array $voucherResult, array $groupMetadata, int $messageId): void
+    {
+        try {
+            $message = Message::getById($messageId);
+            if (! $message) {
+                return;
+            }
+
+            $currentMessage = $message->message ?? [];
+            if (! is_array($currentMessage)) {
+                $currentMessage = [];
+            }
+
+            // Ensure universal assistance data structure exists
+            if (! isset($currentMessage['universalAssistanceData'])) {
+                $currentMessage['universalAssistanceData'] = [
+                    'holder' => [],
+                    'dependents' => [],
+                ];
+            }
+
+            // Create basic voucher data with group information
+            $voucherData = [
+                'nro_voucher' => $voucherNumber,
+                'error_code' => '00',
+                'error_msg' => 'OK',
+                'has_individual_voucher' => false, // This is a group voucher
+                'is_group_voucher' => true,
+                'group_size' => $groupMetadata['group_size'] ?? 1,
+                'plan_key' => $groupMetadata['plan_key'] ?? '',
+                'group_people' => $groupMetadata['people_in_group'] ?? [],
+            ];
+
+            // Store in holder section (assuming this message represents someone in the group)
+            $currentMessage['universalAssistanceData']['holder'] = array_merge(
+                $currentMessage['universalAssistanceData']['holder'] ?? [],
+                $voucherData
+            );
+
+            $message->message = $currentMessage;
+            $message->saveOrFail();
+        } catch (Exception $e) {
+        }
+    }
+
+    /**
+     * Extract grouping information from results for message storage
+     */
+    protected function extractGroupingInfo(array $results): array
+    {
+        $groupingInfo = [
+            'has_groups' => false,
+            'groups' => [],
+            'total_groups' => 0,
+        ];
+
+        // Check if results have grouping metadata
+        if (isset($results['grouping_metadata']['grouping_applied']) && $results['grouping_metadata']['grouping_applied']) {
+            $groupingInfo['has_groups'] = true;
+            $groupingInfo['total_groups'] = $results['grouping_metadata']['groups_created'] ?? 0;
+        }
+
+        // Extract group voucher numbers and metadata
+        if (isset($results['titular']['group_metadata']['is_grouped']) && $results['titular']['group_metadata']['is_grouped']) {
+            $groupVoucherResult = $results['titular']['voucher_result'] ?? [];
+            $voucherNumber = $this->extractVoucherNumberFromGroupResult($groupVoucherResult);
+
+            $groupingInfo['groups'][] = [
+                'voucher_number' => $voucherNumber,
+                'group_size' => $results['titular']['group_metadata']['group_size'] ?? 1,
+                'plan_key' => $results['titular']['group_metadata']['plan_key'] ?? '',
+                'people_in_group' => $results['titular']['group_metadata']['people_in_group'] ?? [],
+            ];
+        }
+
+        return $groupingInfo;
+    }
+
+    /**
+     * Validate insurance person data structure
+     */
+    protected function validatePersonData(array $personData, string $personType): bool|string
+    {
+        // Core required fields that must exist based on actual input structure
+        $requiredFields = [
+            'firstname',
+            'lastname',
+            'idType',
+            'idNumber',
+            'dob',
+            'sex',
+            'email',
+            'activationDate',
+            'originCountryCode',
+            'destinationCountryCode',
+        ];
+
+        foreach ($requiredFields as $field) {
+            if (! isset($personData[$field]) || empty($personData[$field])) {
+                return "{$personType} is missing required field: {$field}";
+            }
+        }
+
+        // Validate plan structure - based on real input structure
+        if (! isset($personData['plan']) || ! is_array($personData['plan'])) {
+            return "{$personType} is missing required plan structure";
+        }
+
+        // Plan should have at least id and name (based on real input)
+        if (! isset($personData['plan']['id']) || ! isset($personData['plan']['name'])) {
+            return "{$personType} plan is missing required fields (id or name)";
+        }
+
+        // Validate plan duration and price exist
+        if (! isset($personData['plan']['duration'])) {
+            return "{$personType} plan is missing required field: duration";
+        }
+
+        if (! isset($personData['plan']['price'])) {
+            return "{$personType} plan is missing required field: price";
+        }
+
+        // For dependents, relationship is required
+        if ($personType !== 'Titular' && (! isset($personData['relationship']) || empty($personData['relationship']))) {
+            return "{$personType} is missing required field: relationship";
+        }
+
+        return true;
     }
 }

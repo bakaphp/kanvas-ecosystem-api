@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
@@ -54,8 +53,6 @@ class UpdateProductAction
                     'warranty_terms' => $this->productDto->warranty_terms ?? $this->product->warranty_terms,
                     'upc' => $this->productDto->upc ?? $this->product->upc,
                     'status_id' => $this->productDto->status_id ?? $this->product->status_id,
-                    'is_published' => $this->productDto->is_published,
-                    'published_at' => $this->productDto->is_published ? Carbon::now() : null,
                     'weight' => $this->productDto->weight ?? $this->product->weight ?? 0,
                 ]
             );
@@ -87,7 +84,7 @@ class UpdateProductAction
             throw $e;
         }
 
-        if ($this->product->isPublished()) {
+        if ($this->product->shouldBeSearchable()) {
             $this->product->searchable();
         } else {
             $this->product->unsearchable();

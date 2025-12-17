@@ -15,6 +15,7 @@ use Kanvas\Connectors\DealerSocket\Services\AuthService;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketConfigurationService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
+use SimpleXMLElement;
 
 abstract class BaseClient
 {
@@ -35,7 +36,7 @@ abstract class BaseClient
         $this->baseUrl = 'https://api.dealersocket.com/api/DealerSocket';
     }
 
-    protected function post(string $endpoint, string $xmlBody)
+    protected function post(string $endpoint, string $xmlBody): SimpleXMLElement|false
     {
         $headers = $this->authService->getHMACHeaders($xmlBody);
 
@@ -46,7 +47,7 @@ abstract class BaseClient
         return $this->parseResponse($response);
     }
 
-    protected function parseResponse($response)
+    protected function parseResponse($response): SimpleXMLElement|false
     {
         if ($response->failed()) {
             throw new Exception('DealerSocket API Error: ' . $response->body());

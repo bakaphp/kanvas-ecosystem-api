@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
+use Kanvas\Connectors\Elead\DataTransferObject\Customer;
 use Kanvas\Connectors\Elead\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -18,7 +19,7 @@ class SyncPeopleAction
 
     public function execute(): CustomerEntity
     {
-        $eLeadCustomerData = CustomerEntity::convertPeopleToCustomerStructure($this->people);
+        $eLeadCustomerData = Customer::fromPeople($this->people)->toArray();
 
         try {
             $peopleCustomField = $this->people->getCustomField(CustomFieldEnum::CUSTOMER_ID->value);

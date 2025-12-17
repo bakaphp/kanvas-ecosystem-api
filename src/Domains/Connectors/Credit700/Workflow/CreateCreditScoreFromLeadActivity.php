@@ -12,6 +12,10 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
+use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
@@ -25,6 +29,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Services\DistributionMessageService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -91,10 +96,6 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
                     array_merge($leadPullCreditHistory, [$history])
                 );
 
-                if (empty($creditApplicant['iframe_url'])) {
-                    // return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
-                }
-
                 $parentMessage = $this->createParentMessage(
                     $creditApplicant,
                     $lead,
@@ -111,6 +112,10 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
 
                 $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
                 $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
+
+                if (! empty($creditApplicant['iframe_url']) && $lead->get('checklist_upload')) {
+                    //$this->changeCheckListStatus();
+                }
                 //pull_credit_pass
 
                 //pull-credit?leadId=<Lead ID>&bcid=<Branch ID>
@@ -281,12 +286,48 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
             ->firstOrFail();
 
         $this->createEngagement($parentMessage, $lead, $app, $message, $sentStage, $companyAction);
-        $this->createEngagement($childMessage, $lead, $app, $message, $submittedStage, $companyAction);
+        $submittedEngagement = $this->createEngagement($childMessage, $lead, $app, $message, $submittedStage, $companyAction);
+        $this->changeCheckListStatus($lead, $submittedEngagement);
     }
 
-    protected function createEngagement($message, Lead $lead, Apps $app, $originalMessage, $stage, $companyAction): void
+    protected function changeCheckListStatus(Lead $lead, Engagement $engagement): void
     {
-        Engagement::firstOrCreate([
+        $taskItemId = $lead->get('checklist_upload');
+
+        if (! $taskItemId) {
+            return;
+        }
+
+        $action = Action::getBySlug(ConfigurationEnum::ACTION_VERB->value, $lead->company);
+        $companyAction = CompanyAction::getByAction($action, $lead->company, $lead->app);
+
+        $companyTaskList = TaskListItem::query()->where('companies_action_id', $companyAction->getId())
+            ->where('task_list_id', $taskItemId)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($companyTaskList) {
+            new ChangeTaskEngagementItemStatusAction(
+                taskListItem: $companyTaskList,
+                lead: $engagement->lead,
+                status: TaskStatusEnum::COMPLETED->value,
+                user: $engagement->user,
+                app: $lead->app,
+                company: $engagement->company,
+                message: $engagement->message
+            )->execute();
+        }
+    }
+
+    protected function createEngagement(
+        Message $message,
+        Lead $lead,
+        Apps $app,
+        Message $originalMessage,
+        PipelineStage $stage,
+        CompanyAction $companyAction
+    ): Engagement {
+        return Engagement::firstOrCreate([
             'companies_id' => $message->company->getId(),
             'apps_id' => $app->getId(),
             'users_id' => $message->user->getId(),

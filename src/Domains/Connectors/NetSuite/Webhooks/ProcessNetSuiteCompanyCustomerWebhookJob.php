@@ -41,7 +41,11 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             if (isset($payload['sublists']['addressbook']['line 1'])) {
                 $addAddressAction = new AddAddressToCompanyAction($company, $user, $this->receiver->app);
                 $addressData = $payload['sublists']['addressbook']['line 1'];
-                $addAddressAction->fromNetSuite($addressData);
+                $address = $addressData['addrtext_initialvalue'] ?? null;
+
+                if (! empty($address)) {
+                    $addAddressAction->fromNetSuite($addressData);
+                }
             }
 
             $this->setCompanyDocuments($company, $this->receiver->app);
@@ -86,7 +90,12 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
                 ];
             }
 
-            throw $e; // Re-throw non-rate-limit errors
+            //throw $e; // Re-throw non-rate-limit errors
+            return [
+                'message' => 'Error syncing NetSuite Company: ' . $e->getMessage(),
+                'status' => 'error',
+                'netSuiteCompanyId' => $netSuiteCompanyId,
+            ];
         }
     }
 

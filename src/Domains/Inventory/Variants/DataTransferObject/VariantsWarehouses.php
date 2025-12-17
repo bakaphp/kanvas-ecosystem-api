@@ -27,7 +27,8 @@ class VariantsWarehouses extends Data
         public bool $can_pre_order = false,
         public bool $is_coming_son = false,
         public bool $is_new = false,
-        public ?array $config = null
+        public ?array $config = null,
+        public float $cost = 0.00
     ) {
     }
 
@@ -50,7 +51,8 @@ class VariantsWarehouses extends Data
             $request['can_pre_order'] ?? false,
             $request['is_coming_son'] ?? false,
             $request['is_new'] ?? false,
-            $request['config'] ?? null
+            $request['config'] ?? null,
+            isset($request['cost']) ? (float) $request['cost'] : 0.00,
         );
     }
 }

@@ -48,6 +48,14 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
+                MovipassRolesEnum::TRUCK_DRIVER,
+            ],
+            "view-order" => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::AGENT,
             ],
             "update-orders" => [
                 RolesEnums::OWNER,
@@ -66,6 +74,7 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::TRUCK_DRIVER,
             ],
             "order-reports" => [
                 RolesEnums::OWNER,

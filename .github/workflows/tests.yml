@@ -108,6 +108,9 @@ jobs:
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
+      TEST_RECOMBEE_DATABASE_ECOM: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM }}
+      TEST_RECOMBEE_DATABASE_ECOM_KEY: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_KEY }}
+      TEST_RECOMBEE_DATABASE_ECOM_REGION: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_REGION }}
       TEST_ELEAD_API_KEY: ${{ secrets.TEST_ELEAD_API_KEY }}
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
@@ -173,7 +176,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -187,7 +190,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
