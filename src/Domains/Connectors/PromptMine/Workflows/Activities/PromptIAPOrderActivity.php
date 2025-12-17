@@ -51,6 +51,8 @@ class PromptIAPOrderActivity extends KanvasActivity
                         'bundleimagetovideo' => 'video',
                         'framestovideo' => 'video',
                         'referencestovideo' => 'video',
+                        'bundleframestovideo' => 'video',
+                        'bundlereferencestovideo' => 'video',
                         default => 'text',
                     };
 
