@@ -177,6 +177,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
+                                $createMessage = $this->createMessage(
+                                    $lead,
+                                    $firstLeadMessage['message'],
+                                    $communicationChannelNumber,
+                                    $channel ?? null,
+                                    $messageType
+                                );
+
                                 if ($this->canSendMessageWithinWorkingHours($lead)) {
                                     new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
@@ -185,17 +193,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $firstLeadMessage['title'] ?? null,
                                     );
                                 } else {
-                                    //send the msg to a QA to verify after configuration time if sales team can reach out, if they didn't ai agent can
+                                    $createMessage->is_locked = true;
+                                    $createMessage->set('communicationChannel', $communicationChannel);
+                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+                                    $createMessage->save();
                                 }
                                 $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
-
-                                $createMessage = $this->createMessage(
-                                    $lead,
-                                    $firstLeadMessage['message'],
-                                    $communicationChannelNumber,
-                                    $channel ?? null,
-                                    $messageType
-                                );
 
                                 if ($totalSentMessages === 0) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
