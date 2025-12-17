@@ -118,6 +118,7 @@ class NetSuiteSyncAllProductStockCommand extends Command
                     'name' => $variant->name,
                     'error' => $e->getMessage(),
                 ];
+                usleep($delayMicroseconds);
             }
 
             $this->output->progressAdvance();
