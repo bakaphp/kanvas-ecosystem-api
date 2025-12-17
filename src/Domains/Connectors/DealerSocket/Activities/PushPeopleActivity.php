@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\DealerSocket\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -14,7 +14,7 @@ class PushPeopleActivity extends KanvasActivity
 {
     public $tries = 3;
 
-    public function execute(Lead $lead, Apps $app, array $params): array
+    public function execute(People $lead, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
 
