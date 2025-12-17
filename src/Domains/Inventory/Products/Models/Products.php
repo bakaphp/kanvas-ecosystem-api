@@ -473,7 +473,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'short_description' => $this->short_description,
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
-            'weight' => $this->weight ?? 0,
+            'weight' => (int) ($this->weight ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
