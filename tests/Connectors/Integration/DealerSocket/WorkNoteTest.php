@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\DealerSocket;
 
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
-use Kanvas\Connectors\DealerSocket\Services\DealerSocketConfigurationService;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
 use Kanvas\Guild\Leads\Models\Lead;
