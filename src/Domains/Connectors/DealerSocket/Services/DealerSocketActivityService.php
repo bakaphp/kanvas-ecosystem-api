@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\DealerSocket\ActivityClient;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Regions\Models\Regions;
 use Throwable;
 
 class DealerSocketActivityService
@@ -19,9 +19,11 @@ class DealerSocketActivityService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Regions $region,
     ) {
-        $this->activityClient = new ActivityClient(app: $app, company: $company, region: $region);
+        $this->activityClient = new ActivityClient(
+            app: $app,
+            company: $company,
+        );
     }
 
     /**
@@ -78,10 +80,10 @@ class DealerSocketActivityService
     {
         // Get required IDs
         $entityId = $lead->people->get(
-            DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value
         );
         $eventId = $lead->get(
-            DealerSocketConfigurationService::getLeadIdKey($lead, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value
         );
 
         if (! $entityId || ! $eventId) {
@@ -164,7 +166,7 @@ class DealerSocketActivityService
         array $additionalData = []
     ): array {
         $entityId = $lead->people->get(
-            DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value
         );
 
         if (! $entityId) {
@@ -172,7 +174,7 @@ class DealerSocketActivityService
         }
 
         $eventId = $lead->get(
-            DealerSocketConfigurationService::getLeadIdKey($lead, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value
         );
 
         if (! $eventId) {

@@ -12,9 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\AuthService;
-use Kanvas\Connectors\DealerSocket\Services\DealerSocketConfigurationService;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Regions\Models\Regions;
 use SimpleXMLElement;
 
 abstract class BaseClient
@@ -22,9 +20,11 @@ abstract class BaseClient
     protected AuthService $authService;
     protected string $baseUrl;
 
-    public function __construct(Companies $company, Apps $app, Regions $region)
-    {
-        [$publicKey, $privateKey, $username, $password, $dealerId, $vendorName] = self::getKeys($company, $app, $region);
+    public function __construct(
+        Companies $company,
+        Apps $app,
+    ) {
+        [$publicKey, $privateKey, $username, $password, $dealerId, $vendorName] = self::getKeys($company, $app);
         $this->authService = new AuthService(
             publicKey: $publicKey,
             privateKey: $privateKey,
@@ -64,10 +64,9 @@ abstract class BaseClient
 
     public static function getKeys(
         CompanyInterface $company,
-        AppInterface $app,
-        Regions $region
+        AppInterface $app
     ): array {
-        $credentialKey = DealerSocketConfigurationService::generateCredentialKey($company, $app, $region);
+        $credentialKey = CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value;
         $credential = $company->get($credentialKey);
 
         if (empty($credential) || ! is_array($credential)) {
@@ -76,7 +75,6 @@ abstract class BaseClient
                     'DealerSocket keys are not set for company %s (ID: %d) on region %s',
                     $company->name,
                     $company->id,
-                    $region->name
                 )
             );
         }

@@ -8,10 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\LeadClient;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Regions\Models\Regions;
 use Throwable;
 
 class DealerSocketLeadService
@@ -21,9 +21,8 @@ class DealerSocketLeadService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Regions $region,
     ) {
-        $this->leadClient = new LeadClient(app: $app, company: $company, region: $region);
+        $this->leadClient = new LeadClient(app: $app, company: $company);
     }
 
     /**
@@ -31,8 +30,8 @@ class DealerSocketLeadService
      */
     public function saveLead(Lead $lead): array
     {
-        $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
-        $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
+        $eventId = $lead->get(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value);
+        $entityId = $lead->people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
 
         if ($eventId && $entityId) {
             return $this->updateLead($lead);
@@ -247,7 +246,7 @@ class DealerSocketLeadService
      */
     protected function generateBodId(Lead $lead): string
     {
-        return $lead->uuid;
+        return (string) $lead->uuid;
     }
 
     /**
@@ -256,7 +255,7 @@ class DealerSocketLeadService
      */
     protected function generateDocumentId(Lead $lead): string
     {
-        return 'DOC_' . $lead->uuid;
+        return 'DOC_' . (string) $lead->uuid;
     }
 
     /**
@@ -515,7 +514,7 @@ class DealerSocketLeadService
     public function setLeadId(Lead $lead, string $leadId): void
     {
         $lead->set(
-            DealerSocketConfigurationService::getLeadIdKey($lead, $this->region),
+            CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value,
             $leadId
         );
     }
@@ -523,15 +522,15 @@ class DealerSocketLeadService
     public function setCustomerId(People $people, string $leadId): void
     {
         $people->set(
-            DealerSocketConfigurationService::getCustomerIdKey($people, $this->region),
+            CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value,
             $leadId
         );
     }
 
     public function updateLead(Lead $lead): array
     {
-        $eventId = $lead->get(DealerSocketConfigurationService::getLeadIdKey($lead, $this->region));
-        $entityId = $lead->people->get(DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region));
+        $eventId = $lead->get(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value);
+        $entityId = $lead->people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
 
         if (! $eventId || ! $entityId) {
             throw new Exception(

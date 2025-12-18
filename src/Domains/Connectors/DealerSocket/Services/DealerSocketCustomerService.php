@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Regions\Models\Regions;
 use Throwable;
 
 class DealerSocketCustomerService
@@ -19,9 +19,11 @@ class DealerSocketCustomerService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Regions $region,
     ) {
-        $this->customerClient = new CustomerClient(app: $app, company: $company, region: $region);
+        $this->customerClient = new CustomerClient(
+            app: $app,
+            company: $company,
+        );
     }
 
     /**
@@ -45,7 +47,7 @@ class DealerSocketCustomerService
      */
     public function updateCustomer(People $people): array
     {
-        $entityId = $people->get(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region));
+        $entityId = $people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
 
         if (! $entityId) {
             throw new Exception(
@@ -143,7 +145,7 @@ class DealerSocketCustomerService
      */
     public function setCustomerId(People $people, string $customerId): void
     {
-        $people->set(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region), $customerId);
+        $people->set(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value, $customerId);
     }
 
     /**
@@ -186,7 +188,7 @@ class DealerSocketCustomerService
     public function saveOrUpdateCustomer(People $people): array
     {
         // Check if customer already has an Entity ID
-        $entityId = $people->get(DealerSocketConfigurationService::getCustomerIdKey($people, $this->region));
+        $entityId = $people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
 
         if ($entityId) {
             return $this->updateCustomer($people);

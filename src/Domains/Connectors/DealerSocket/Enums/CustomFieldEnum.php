@@ -6,13 +6,13 @@ namespace Kanvas\Connectors\DealerSocket\Enums;
 
 enum CustomFieldEnum: string
 {
-    case DEALER_SOCKET_CREDENTIAL = 'dealer_socket_credential';
-    case DEALER_SOCKET_PUBLIC_KEY = 'dealer_socket_public_key';
-    case DEALER_SOCKET_PRIVATE_KEY = 'dealer_socket_private_key';
-    case DEALER_SOCKET_DEALER_ID = 'dealer_socket_dealer_id';
-    case DEALER_SOCKET_USERNAME = 'dealer_socket_username';
-    case DEALER_SOCKET_PASSWORD = 'dealer_socket_password';
-    case DEALER_SOCKET_VENDOR_NAME = 'dealer_socket_vendor_name';
-    case DEALER_SOCKET_LEAD_ID = 'dealer_socket_lead_id';
-    case DEALER_SOCKET_CUSTOMER_ID = 'dealer_socket_customer_id';
+    case DEALER_SOCKET_CREDENTIAL = 'DEALER_SOCKET_CREDENTIAL';
+    case DEALER_SOCKET_PUBLIC_KEY = 'DEALER_SOCKET_PUBLIC_KEY';
+    case DEALER_SOCKET_PRIVATE_KEY = 'DEALER_SOCKET_PRIVATE_KEY';
+    case DEALER_SOCKET_DEALER_ID = 'DEALER_SOCKET_DEALER_ID';
+    case DEALER_SOCKET_USERNAME = 'DEALER_SOCKET_USERNAME';
+    case DEALER_SOCKET_PASSWORD = 'DEALER_SOCKET_PASSWORD';
+    case DEALER_SOCKET_VENDOR_NAME = 'DEALER_SOCKET_VENDOR_NAME';
+    case DEALER_SOCKET_LEAD_ID = 'DEALER_SOCKET_LEAD_ID';
+    case DEALER_SOCKET_CUSTOMER_ID = 'DEALER_SOCKET_CUSTOMER_ID';
 }

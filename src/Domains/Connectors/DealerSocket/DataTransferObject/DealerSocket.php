@@ -13,7 +13,6 @@ class DealerSocket
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,
-        public Regions $region,
         public string $publicKey,
         public string $privateKey,
         public string $username,
@@ -26,12 +25,11 @@ class DealerSocket
     /**
      * fromArray.
      */
-    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
+    public static function fromMultiple(array $data, AppInterface $app, CompanyInterface $company): self
     {
         return new self(
             $company,
             $app,
-            Regions::getById($data['region_id']),
             $data['publicKey'],
             $data['privateKey'],
             $data['username'],

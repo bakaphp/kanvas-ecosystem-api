@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\WorkNoteClient;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
@@ -20,7 +21,7 @@ class DealerSocketWorkNoteService
         protected CompanyInterface $company,
         protected Regions $region,
     ) {
-        $this->workNoteClient = new WorkNoteClient(app: $app, company: $company, region: $region);
+        $this->workNoteClient = new WorkNoteClient(app: $app, company: $company);
     }
 
     /**
@@ -88,7 +89,7 @@ class DealerSocketWorkNoteService
     protected function buildWorkNoteData(Lead $lead, string $note): array
     {
         $entityId = $lead->people->get(
-            DealerSocketConfigurationService::getCustomerIdKey($lead->people, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value
         );
 
         if (! $entityId) {
@@ -96,7 +97,7 @@ class DealerSocketWorkNoteService
         }
 
         $eventId = $lead->get(
-            DealerSocketConfigurationService::getLeadIdKey($lead, $this->region)
+            CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value
         );
 
         if (! $eventId) {
