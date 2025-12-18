@@ -72,7 +72,7 @@ abstract class BaseClient
         if (empty($credential) || ! is_array($credential)) {
             throw new ValidationException(
                 sprintf(
-                    'DealerSocket keys are not set for company %s (ID: %d) on region %s',
+                    'DealerSocket keys are not set for company %s (ID: %d)',
                     $company->name,
                     $company->id,
                 )
