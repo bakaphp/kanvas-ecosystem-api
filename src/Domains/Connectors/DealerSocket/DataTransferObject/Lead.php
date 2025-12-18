@@ -25,83 +25,9 @@ class Lead extends DataTransferObjectLead
     public static function fromMultiple(
         UserInterface $user,
         AppInterface $app,
-        array $lead,
+        array $request,
     ): self {
-        /*   Array
-(
-    [customer] => Array
-        (
-            [firstName] => Leonora
-            [lastName] => O'Hara
-            [middleName] =>
-            [suffix] =>
-            [companyName] =>
-            [success] => 1
-            [entityId] => 1069090
-            [dmsCustomerId] =>
-            [secondaryDealerId] => DCP QA
-            [email] => noreply+xtorphy@kanvas.dev
-            [phone] => 8093560729
-            [emails] => Array
-                (
-                    [0] => Array
-                        (
-                            [email] => noreply+xtorphy@kanvas.dev
-                            [type] => email address
-                        )
-
-                )
-
-            [phones] => Array
-                (
-                    [0] => Array
-                        (
-                            [number] => 8093560729
-                            [type] => Mobile
-                        )
-
-                )
-
-            [address] => Array
-                (
-                    [street] =>
-                    [city] =>
-                    [zipCode] =>
-                    [state] => 0
-                )
-
-            [errorCode] =>
-            [errorMessage] =>
-        )
-
-    [events] => Array
-        (
-            [0] => Array
-                (
-                    [eventId] => 2573630
-                    [eventCategory] => 1
-                    [eventType] => 100050
-                    [status] => 220
-                    [statusName] => 0 - Unqualified
-                    [insertDate] => 2025-12-17T19:34:51.81
-                    [updateDate] => 2025-12-17T19:34:51.81
-                    [personAssigned] => DCPJoan
-                    [vehicle] => Array
-                        (
-                            [year] =>
-                            [make] =>
-                            [model] =>
-                            [vin] =>
-                            [stockNumber] =>
-                            [currentMileage] =>
-                        )
-
-                )
-
-        )
-
-) */
-
+        $lead = $request;
         $firstname = $lead['customer']['firstName'];
         $country = Countries::getByCode('US');
         $leadData = $lead['events'][0] ?? [];
