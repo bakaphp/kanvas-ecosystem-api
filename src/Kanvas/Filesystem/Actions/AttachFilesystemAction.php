@@ -135,7 +135,11 @@ class AttachFilesystemAction
             }
 
             if (method_exists($this->entity, 'searchable')) {
-                $this->entity->searchable();
+                if ($this->entity->shouldBeSearchable()) {
+                    $this->entity->searchable();
+                } else {
+                    $this->entity->unsearchable();
+                }
             }
 
             return $fileEntity;
