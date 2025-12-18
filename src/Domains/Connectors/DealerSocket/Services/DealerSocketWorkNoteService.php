@@ -10,7 +10,6 @@ use Exception;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\WorkNoteClient;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Regions\Models\Regions;
 
 class DealerSocketWorkNoteService
 {
