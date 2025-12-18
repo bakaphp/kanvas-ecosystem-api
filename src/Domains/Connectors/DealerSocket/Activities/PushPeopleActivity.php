@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\DealerSocket\Workflows\Activities;
+namespace Kanvas\Connectors\DealerSocket\Activities;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
+use Kanvas\Connectors\DealerSocket\Actions\PushPeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -14,29 +14,26 @@ class PushPeopleActivity extends KanvasActivity
 {
     public $tries = 3;
 
-    public function execute(People $lead, Apps $app, array $params): array
+    public function execute(People $people, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         return $this->executeIntegration(
-            entity: $lead,
+            entity: $people,
             app: $app,
             integration: IntegrationsEnum::DEALERSOCKET,
-            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                $pushLead = new DealerSocketLeadService(
-                    $app,
-                    $lead->company,
-                    $integrationCompany->region
-                );
-                $data = $pushLead->saveLead($lead);
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
+                $data = new PushPeopleAction(
+                    people: $people
+                )->execute();
 
                 return [
-                    'message' => 'Lead pushed successfully',
+                    'message' => 'People pushed successfully',
                     //'entity' => $pushLead,
                     'data' => $data,
                 ];
             },
-            company: $lead->company,
+            company: $people->company,
         );
     }
 }

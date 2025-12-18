@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\LeadClient;
 use Kanvas\Guild\Customers\Models\People;
@@ -60,9 +61,18 @@ class DealerSocketLeadService
     {
         $response = $this->leadClient->searchLeadsByEntityId($customerId);
 
+        $customerClient = new CustomerClient(app: $this->app, company: $this->company);
+
+        $additionalCustomerInfo = $customerClient->getCustomerById($customerId);
+
         if (! isset($response['events']) || ! isset($response['customer'])) {
             throw new Exception('Lead not found in DealerSocket with Customer ID: ' . $customerId);
         }
+
+        $response['customer'] = array_merge(
+            $response['customer'],
+            $additionalCustomerInfo
+        );
 
         return $response;
     }

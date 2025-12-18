@@ -221,19 +221,69 @@ XML;
                 throw new Exception('Failed to parse XML response');
             }
 
-            $success = strtolower((string)$xml->Success) === 'true';
+            $responseExpression = (string)($xml->ShowCustomerInformationDataArea->Show->ResponseCriteria->ResponseExpression ?? '');
+            $success = strtolower($responseExpression) === 'success';
+
+            $customerInfo = $xml->ShowCustomerInformationDataArea->CustomerInformation ?? null;
+            $customerParty = $customerInfo->CustomerInformationDetail->CustomerParty ?? null;
+            $specifiedPerson = $customerParty->SpecifiedPerson ?? null;
+
+            // Parse SecondaryDealerNumberID
+            $secondaryDealerId = (string)($customerInfo->CustomerInformationHeader->SecondaryDealerNumberID ?? '');
+
+            // Parse all phone numbers
+            $phones = [];
+            if ($specifiedPerson && isset($specifiedPerson->TelephoneCommunication)) {
+                foreach ($specifiedPerson->TelephoneCommunication as $phoneCommunication) {
+                    $phones[] = [
+                        'number' => (string)($phoneCommunication->CompleteNumber ?? ''),
+                        'type' => (string)($phoneCommunication->UseCode ?? ''),
+                    ];
+                }
+            }
+
+            // Parse all emails
+            $emails = [];
+            if ($specifiedPerson && isset($specifiedPerson->URICommunication)) {
+                foreach ($specifiedPerson->URICommunication as $uriCommunication) {
+                    $emails[] = [
+                        'email' => (string)($uriCommunication->URIID ?? ''),
+                        'type' => (string)($uriCommunication->ChannelCode ?? ''),
+                    ];
+                }
+            }
+
+            // Parse address
+            $address = null;
+            if ($specifiedPerson && isset($specifiedPerson->PostalAddress)) {
+                $postalAddress = $specifiedPerson->PostalAddress;
+                $address = [
+                    'street' => (string)($postalAddress->LineOne ?? ''),
+                    'city' => (string)($postalAddress->CityName ?? ''),
+                    'zipCode' => (string)($postalAddress->Postcode ?? ''),
+                    'state' => trim((string)($postalAddress->{'StateOrProvinceCountrySub-DivisionID'} ?? '')),
+                ];
+            }
+
+            // Get primary phone and email for backward compatibility
+            $primaryPhone = $phones[0]['number'] ?? '';
+            $primaryEmail = $emails[0]['email'] ?? '';
 
             $result = [
                 'success' => $success,
-                'entityId' => (string)($xml->EntityId ?? ''),
-                'dmsCustomerId' => (string)($xml->DMSCustomerId ?? ''),
-                'firstName' => (string)($xml->FirstName ?? ''),
-                'lastName' => (string)($xml->LastName ?? ''),
-                'email' => (string)($xml->Email ?? ''),
-                'phone' => (string)($xml->Phone ?? ''),
-                'errorCode' => (string)($xml->ErrorCode ?? ''),
-                'errorMessage' => (string)($xml->ErrorMessage ?? ''),
-                'rawXml' => $response->body(),
+                'entityId' => (string)($customerParty->PartyID ?? ''),
+                'dmsCustomerId' => '',
+                'secondaryDealerId' => $secondaryDealerId,
+                'firstName' => (string)($specifiedPerson->GivenName ?? ''),
+                'lastName' => (string)($specifiedPerson->FamilyName ?? ''),
+                'email' => $primaryEmail,
+                'phone' => $primaryPhone,
+                'emails' => $emails,
+                'phones' => $phones,
+                'address' => $address,
+                'errorCode' => '',
+                'errorMessage' => $success ? '' : 'Customer not found',
+                //'rawXml' => $response->body(),
             ];
 
             return $result;

@@ -19,7 +19,6 @@ class DealerSocketWorkNoteService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected Regions $region,
     ) {
         $this->workNoteClient = new WorkNoteClient(app: $app, company: $company);
     }

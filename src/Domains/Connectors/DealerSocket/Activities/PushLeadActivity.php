@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\DealerSocket\Workflows\Activities;
+namespace Kanvas\Connectors\DealerSocket\Activities;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
+use Kanvas\Connectors\DealerSocket\Actions\PushLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -23,12 +23,9 @@ class PushLeadActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::DEALERSOCKET,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                $pushLead = new DealerSocketLeadService(
-                    $app,
-                    $lead->company,
-                    $integrationCompany->region
-                );
-                $data = $pushLead->saveLead($lead);
+                $data = new PushLeadAction(
+                    lead: $lead
+                )->execute();
 
                 return [
                     'message' => 'Lead pushed successfully',

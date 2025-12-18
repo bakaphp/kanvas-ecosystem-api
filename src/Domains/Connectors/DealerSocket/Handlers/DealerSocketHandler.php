@@ -17,7 +17,6 @@ class DealerSocketHandler extends BaseIntegration
         $dealerSocketDto = new DealerSocket(
             company: $this->company,
             app: $this->app,
-            region: $this->region,
             publicKey: $this->data['publicKey'],
             privateKey: $this->data['privateKey'],
             username: $this->data['username'],

@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\DealerSocket\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Regions\Models\Regions;
 
 class DealerSocket
 {

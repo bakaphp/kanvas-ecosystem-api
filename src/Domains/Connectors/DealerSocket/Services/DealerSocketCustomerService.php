@@ -31,6 +31,12 @@ class DealerSocketCustomerService
      */
     public function saveCustomer(People $people): array
     {
+        $entityId = $people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
+
+        if ($entityId) {
+            return $this->updateCustomer($people);
+        }
+
         $customerData = $this->mapCustomerToArray($people);
 
         $response = $this->customerClient->createCustomer($customerData);
