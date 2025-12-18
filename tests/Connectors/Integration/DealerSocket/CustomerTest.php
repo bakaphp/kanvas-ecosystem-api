@@ -6,12 +6,12 @@ namespace Tests\Connectors\Integration\DealerSocket;
 
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketCustomerService;
 use Kanvas\Guild\Customers\Models\People;
-use Tests\Connectors\Traits\HasDealerSockerConfiguration;
+use Tests\Connectors\Traits\HasDealerSocketConfiguration;
 use Tests\TestCase;
 
 final class CustomerTest extends TestCase
 {
-    use HasDealerSockerConfiguration;
+    use HasDealerSocketConfiguration;
 
     public function testCreateCustomer()
     {
@@ -20,9 +20,9 @@ final class CustomerTest extends TestCase
         $app = $people->app;
         $region = $company->defaultRegion;
 
-        $this->setupDealerSocketConfiguration($company, $app, $region);
+        $this->setupDealerSocketConfiguration($company, $app);
 
-        $customerService = new DealerSocketCustomerService($app, $company, $region);
+        $customerService = new DealerSocketCustomerService($app, $company);
         $response = $customerService->saveCustomer($people);
 
         $this->assertArrayHasKey('entityId', $response);
@@ -35,9 +35,9 @@ final class CustomerTest extends TestCase
         $app = $people->app;
         $region = $company->defaultRegion;
 
-        $this->setupDealerSocketConfiguration($company, $app, $region);
+        $this->setupDealerSocketConfiguration($company, $app);
 
-        $customerService = new DealerSocketCustomerService($app, $company, $region);
+        $customerService = new DealerSocketCustomerService($app, $company);
 
         $people->name = 'TEST - ' . now()->format('H:i:s');
         $people->firstname = 'updadte';

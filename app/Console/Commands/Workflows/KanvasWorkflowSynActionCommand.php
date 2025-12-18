@@ -14,7 +14,8 @@ use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
-use Kanvas\Connectors\DealerSocket\Workflows\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
+use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
+use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
@@ -296,6 +297,7 @@ class KanvasWorkflowSynActionCommand extends Command
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
             ActivitiesPushLeadActivity::class,
+            ActivitiesPushPeopleActivity::class,
         ];
 
         $createdActions = [];
