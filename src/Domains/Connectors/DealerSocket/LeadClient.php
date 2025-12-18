@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\DealerSocket;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 
 class LeadClient extends BaseClient
 {
@@ -282,7 +283,7 @@ XML;
 
         $xml .= "\n    </customer>";
         $xml .= "\n    <vendor>";
-        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . config('dealersocket.dealer_id') . ']]></id>';
+        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . $this->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value)[CustomFieldEnum::DEALER_SOCKET_DEALER_ID->value] . ']]></id>';
         $xml .= "\n      <vendorname>Vendor Name</vendorname>";
         $xml .= "\n      <contact>";
         $xml .= "\n        <name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name>";
@@ -381,7 +382,7 @@ XML;
         return "{$baseUrl}/DirectPost/{$dealerId}";
     }
 
-    public function searchLeadsByEntityId(int $entityId, string $eventCategory = 'Sales'): array
+    public function searchLeadsByEntityId(int|string $entityId, string $eventCategory = 'Sales'): array
     {
         return $this->searchEvents([
             'entityId' => $entityId,
@@ -389,7 +390,7 @@ XML;
         ]);
     }
 
-    public function searchByLeadId(int $eventId, int $entityId): array
+    public function searchByLeadId(int|string $eventId, int $entityId): array
     {
         $results = $this->searchEvents([
             'entityId' => $entityId,

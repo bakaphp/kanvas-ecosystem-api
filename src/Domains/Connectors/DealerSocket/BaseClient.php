@@ -21,8 +21,8 @@ abstract class BaseClient
     protected string $baseUrl;
 
     public function __construct(
-        Companies $company,
-        Apps $app,
+        protected Companies $company,
+        protected Apps $app,
     ) {
         [$publicKey, $privateKey, $username, $password, $dealerId, $vendorName] = self::getKeys($company, $app);
         $this->authService = new AuthService(
@@ -36,7 +36,7 @@ abstract class BaseClient
         $this->baseUrl = 'https://api.dealersocket.com/api/DealerSocket';
     }
 
-    protected function post(string $endpoint, string $xmlBody): SimpleXMLElement|false
+    protected function post(string $endpoint, string $xmlBody): SimpleXMLElement|array|false
     {
         $headers = $this->authService->getHMACHeaders($xmlBody);
 
@@ -47,7 +47,7 @@ abstract class BaseClient
         return $this->parseResponse($response);
     }
 
-    protected function parseResponse($response): SimpleXMLElement|false
+    protected function parseResponse($response): SimpleXMLElement|array|false
     {
         if ($response->failed()) {
             throw new Exception('DealerSocket API Error: ' . $response->body());
@@ -56,7 +56,7 @@ abstract class BaseClient
         $contentType = $response->header('Content-Type');
 
         if (str_contains($contentType, 'application/json')) {
-            return json_decode($response->body());
+            return json_decode($response->body(), true);
         }
 
         return simplexml_load_string($response->body());

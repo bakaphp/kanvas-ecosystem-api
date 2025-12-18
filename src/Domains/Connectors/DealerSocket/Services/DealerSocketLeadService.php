@@ -56,6 +56,17 @@ class DealerSocketLeadService
         return $response;
     }
 
+    public function getLeadByCustomerId(int|string $customerId): array
+    {
+        $response = $this->leadClient->searchLeadsByEntityId($customerId);
+
+        if (! isset($response['events']) || ! isset($response['customer'])) {
+            throw new Exception('Lead not found in DealerSocket with Customer ID: ' . $customerId);
+        }
+
+        return $response;
+    }
+
     /**
      * Map Lead model to DealerSocket array format
      */
