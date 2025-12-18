@@ -720,7 +720,13 @@ XML;
         $xml .= "\n      <SalesLeadDetail>";
 
         if (! empty($data['leadStatus'])) {
-            $xml .= "\n        <LeadStatus>{$data['leadStatus']}</LeadStatus>";
+            $statusText = is_numeric($data['leadStatus'])
+                ? $this->mapStatusCodeToLeadStatus((int)$data['leadStatus'])
+                : $data['leadStatus'];
+
+            if ($statusText) {
+                $xml .= "\n        <LeadStatus>{$statusText}</LeadStatus>";
+            }
         }
 
         if (! empty($data['preference'])) {
@@ -963,5 +969,19 @@ XML;
     public function getDealerId(): string
     {
         return $this->authService->getDealerId();
+    }
+
+    private function mapStatusCodeToLeadStatus(int $statusCode): ?string
+    {
+        return match ($statusCode) {
+            220 => 'Unqualified',
+            221 => 'Contacted',
+            227 => 'Store Visit',
+            222 => 'Demo',
+            223 => 'Write-Up',
+            224 => 'Pending F&I',
+            226 => 'Lost',
+            default => null,
+        };
     }
 }
