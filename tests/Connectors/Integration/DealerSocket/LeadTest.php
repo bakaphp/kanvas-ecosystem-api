@@ -4,26 +4,41 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\DealerSocket;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Tests\Connectors\Traits\HasDealerSockerConfiguration;
+use Tests\Connectors\Traits\HasDealerSocketConfiguration;
 use Tests\TestCase;
 
 final class LeadTest extends TestCase
 {
-    use HasDealerSockerConfiguration;
+    use HasDealerSocketConfiguration;
 
     public function testCreateLead()
     {
-        $lead = Lead::first();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        $company = $lead->company;
-        $app = $lead->app;
+        $people = People::factory()->withUserId($user->getId())
+             ->withAppId($app->getId())
+             ->withCompanyId($company->getId())
+             ->withContacts(canUseFakeInfo: false)
+             ->create();
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
         $region = $company->defaultRegion;
 
-        $this->setupDealerSocketConfiguration($company, $app, $region);
+        $this->setupDealerSocketConfiguration($company, $app);
 
-        $leadService = new DealerSocketLeadService($app, $company, $region);
+        $leadService = new DealerSocketLeadService($app, $company);
 
         $response = $leadService->saveLead($lead);
 
@@ -32,15 +47,30 @@ final class LeadTest extends TestCase
 
     public function testUpdateLead()
     {
-        $lead = Lead::first();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        $company = $lead->company;
-        $app = $lead->app;
+        $people = People::factory()->withUserId($user->getId())
+             ->withAppId($app->getId())
+             ->withCompanyId($company->getId())
+             ->withContacts(canUseFakeInfo: false)
+             ->create();
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
         $region = $company->defaultRegion;
 
-        $this->setupDealerSocketConfiguration($company, $app, $region);
+        $this->setupDealerSocketConfiguration($company, $app);
 
-        $leadService = new DealerSocketLeadService($app, $company, $region);
+        $leadService = new DealerSocketLeadService($app, $company);
+
+        $response = $leadService->saveLead($lead);
 
         $lead->title = 'TEST - ' . now()->format('H:i:s');
         $lead->description = 'Probando actualización';
