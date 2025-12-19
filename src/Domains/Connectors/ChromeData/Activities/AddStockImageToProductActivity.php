@@ -29,7 +29,7 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
             app: $app,
             integration: IntegrationsEnum::CHROMEDATA,
             additionalParams: $params,
-            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams): array {
                 // Get VIN from product variant SKU
                 $variant = $product->variants()->first();
                 if (! $variant) {
