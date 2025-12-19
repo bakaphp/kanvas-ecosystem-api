@@ -61,11 +61,20 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $source = $lead->source?->name ?? '';
+
+                if (in_array(strtolower($source), ['dealertrack'])) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
+                    ]);
+                }
+
                 if (! $cellPhone && ! $email) {
                     return $this->failWorkflow([
                         'error' => 'Lead does not have a phone number or email, wont be able to send message until we add email support',
                     ]);
                 }
+
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
