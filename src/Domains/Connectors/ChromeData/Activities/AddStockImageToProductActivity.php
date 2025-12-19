@@ -29,7 +29,7 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
             app: $app,
             integration: IntegrationsEnum::CHROMEDATA,
             additionalParams: $params,
-            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams): array {
                 // Get VIN from product variant SKU
                 $variant = $product->variants()->first();
                 if (! $variant) {
@@ -70,6 +70,41 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
 
                 // Check existing images first to avoid unnecessary API calls
                 $existingFiles = $product->getFiles();
+                $hasStockImage = $existingFiles->contains(function ($file) {
+                    return $file->field_name === 'stock_image';
+                });
+
+                // If product already has 1 image and it's a stock image, skip to avoid using credits
+                if ($existingFiles->count() === 1 && $hasStockImage) {
+                    return [
+                        'success' => true,
+                        'message' => 'Product already has stock image. Skipping to avoid using credits.',
+                        'product_id' => $product->getId(),
+                        'product_name' => $product->name,
+                        'vin' => $vin,
+                        'action' => 'skipped',
+                    ];
+                }
+
+                // Initialize ChromeData service
+                $vehicleService = new VehicleService($app, $product->company);
+
+                // Get stock image using new optimized method
+                $stockImage = $vehicleService->getStockImageByVin($vin, $make, $model, (int) $year);
+
+                if (empty($stockImage)) {
+                    return $this->failWorkflow([
+                        'success' => false,
+                        'message' => 'No stock image found for this VIN.',
+                        'product_id' => $product->getId(),
+                        'product_name' => $product->name,
+                        'vin' => $vin,
+                        'make' => $make,
+                        'model' => $model,
+                        'year' => $year,
+                    ]);
+                }
+
                 $hasStockImage = $existingFiles->contains(function ($file) {
                     return $file->field_name === 'stock_image';
                 });
