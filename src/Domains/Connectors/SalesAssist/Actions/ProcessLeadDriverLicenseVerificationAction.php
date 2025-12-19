@@ -664,7 +664,7 @@ class ProcessLeadDriverLicenseVerificationAction
                    'results' => $this->idVerificationReport['results'],
                    'isShowRoom' => true,
                    'verificationData' => $this->intellicheckResponse,
-                               ]
+                ]
             );
 
             $engagement = EngagementRepository::findEngagementForLead(
