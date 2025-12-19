@@ -676,13 +676,14 @@ class ProcessLeadDriverLicenseVerificationAction
             if ($engagement) {
                 $message = $engagement->message;
                 $message->addFile($pdfReport, 'id-verification');
+            } else {
+                // If no engagement found, attach to lead directly
+                $lead->addFile($pdfReport, 'id-verification');
             }
 
             return $pdfReport;
-            //$entity->addFile($pdfReport, 'id-verification');
         } catch (Throwable $e) {
             report($e);
-            // Log PDF generation error but continue
         }
 
         return null;
