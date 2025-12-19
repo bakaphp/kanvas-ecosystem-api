@@ -39,6 +39,8 @@ class Client
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
             'verify' => false, // Only for this specific case
+            'timeout' => 30, // Maximum time to wait for response (30 seconds)
+            'connect_timeout' => 10, // Maximum time to wait for connection (10 seconds)
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
