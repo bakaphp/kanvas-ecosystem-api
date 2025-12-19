@@ -63,6 +63,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
                 $source = $lead->source?->name ?? '';
 
+                //for now avoid service
                 if (in_array(strtolower($source), ['dealertrack'])) {
                     return $this->failWorkflow([
                         'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
