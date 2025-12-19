@@ -74,41 +74,6 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     return $file->field_name === 'stock_image';
                 });
 
-                // If product already has 1 image and it's a stock image, skip to avoid using credits
-                if ($existingFiles->count() === 1 && $hasStockImage) {
-                    return [
-                        'success' => true,
-                        'message' => 'Product already has stock image. Skipping to avoid using credits.',
-                        'product_id' => $product->getId(),
-                        'product_name' => $product->name,
-                        'vin' => $vin,
-                        'action' => 'skipped',
-                    ];
-                }
-
-                // Initialize ChromeData service
-                $vehicleService = new VehicleService($app, $product->company);
-
-                // Get stock image using new optimized method
-                $stockImage = $vehicleService->getStockImageByVin($vin, $make, $model, (int) $year);
-
-                if (empty($stockImage)) {
-                    return $this->failWorkflow([
-                        'success' => false,
-                        'message' => 'No stock image found for this VIN.',
-                        'product_id' => $product->getId(),
-                        'product_name' => $product->name,
-                        'vin' => $vin,
-                        'make' => $make,
-                        'model' => $model,
-                        'year' => $year,
-                    ]);
-                }
-
-                $hasStockImage = $existingFiles->contains(function ($file) {
-                    return $file->field_name === 'stock_image';
-                });
-
                 // If product has images AND has more than just the stock image, remove stock image from both product and variant
                 if ($existingFiles->isNotEmpty() && $existingFiles->count() > 1 && $hasStockImage) {
                     $stockImageFile = $existingFiles->firstWhere('field_name', 'stock_image');

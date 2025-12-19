@@ -70,6 +70,7 @@ trait HasFilesystemTrait
             $fileSystem->name = $fileInfo['basename'];
             $fileSystem->file_type = $this->cleanExtension($extension);
             $fileSystem->size = 0;
+            $fileSystem->is_deleted = StateEnums::NO->getValue();
             $fileSystem->saveOrFail();
         }
 

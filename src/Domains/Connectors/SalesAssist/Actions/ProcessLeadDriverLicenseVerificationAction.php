@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -22,6 +24,7 @@ use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as DataTransferObjectContact;
@@ -40,6 +43,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class ProcessLeadDriverLicenseVerificationAction
 {
@@ -154,6 +158,7 @@ class ProcessLeadDriverLicenseVerificationAction
             // Send verification notification once for the main lead (moved from individual validations)
             if ($this->intellicheckResponse && $this->idVerificationReport) {
                 $this->sendVerificationNotification($this->lead, $this->lead->people);
+                $this->generatePdfReport($this->lead);
             }
 
             // Clean up temporary data
@@ -641,6 +646,46 @@ class ProcessLeadDriverLicenseVerificationAction
 
         $notification->setSubject($people->name . ' - ID Verification Report');
         Notification::send($usersToNotify, $notification);
+    }
+
+    protected function generatePdfReport(Lead $lead): ?ModelsFilesystem
+    {
+        try {
+            $pdfReport = PdfService::generatePdfFromTemplate(
+                $lead->app,
+                $lead->user,
+                'id-verification-report',
+                $lead,
+                [
+                   'message' => $this->idVerificationReport['message'],
+                   'status' => $this->idVerificationReport['status'],
+                   'flags' => $this->idVerificationReport['flags'],
+                   'failures' => $this->idVerificationReport['failures'],
+                   'results' => $this->idVerificationReport['results'],
+                   'isShowRoom' => true,
+                   'verificationData' => $this->intellicheckResponse,
+                               ]
+            );
+
+            $engagement = EngagementRepository::findEngagementForLead(
+                $lead,
+                ConfigurationEnum::ID_VERIFICATION->value,
+                ActionStatusEnum::SUBMITTED->value,
+            );
+
+            if ($engagement) {
+                $message = $engagement->message;
+                $message->addFile($pdfReport, 'id-verification');
+            }
+
+            return $pdfReport;
+            //$entity->addFile($pdfReport, 'id-verification');
+        } catch (Throwable $e) {
+            report($e);
+            // Log PDF generation error but continue
+        }
+
+        return null;
     }
 
     protected function getVerificationMessage(Model $entity, bool $isIdValid, bool $isExpired): string
