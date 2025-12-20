@@ -548,8 +548,8 @@ class LLMMessageResponseActivity extends KanvasActivity
             $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
 
             if ($message->isRoot() && $isNotSafeForWork) {
-                $channel->is_deleted = 1;
-                $channel->save();
+                /* $channel->is_deleted = 1;
+                $channel->save(); */
             }
 
             return [
