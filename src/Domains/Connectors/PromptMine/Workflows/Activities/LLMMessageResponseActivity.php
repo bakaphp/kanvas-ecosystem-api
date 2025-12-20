@@ -33,7 +33,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class LLMMessageResponseActivity extends KanvasActivity
@@ -547,6 +547,11 @@ class LLMMessageResponseActivity extends KanvasActivity
             //return [$isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : ''];
             $placeHolderText = urlencode('We could not process your prompt at this time'); // . '\n' . urlencode($errorBody);
 
+            if ($message->isRoot() && $isNotSafeForWork) {
+                $channel->is_deleted = 1;
+                $channel->save();
+            }
+
             return [
                 'response' => $isNotSafeForWork ? $message->app->get('NSFW_IMAGE_URL') : (string) $message->app->get('PLACE_HOLDER_IMAGE_URL') . '?text=' . $placeHolderText,
                 'chat_history' => $chatHistory,
@@ -650,7 +655,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
-            ->generate();
+            ->asText();
 
         return trim(str_replace(['```', 'json'], '', $response->text));
     }

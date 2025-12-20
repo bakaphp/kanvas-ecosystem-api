@@ -23,6 +23,8 @@ type Address {
     state: String
     zip: String
     country: Country
+    latitude: Float
+    longitude: Float
     is_default: Boolean!
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")
@@ -47,6 +49,8 @@ input AddressInput {
     zip: String
     country: String
     country_id: ID
+    latitude: Float
+    longitude: Float
     is_default: Boolean
     id: ID
 }

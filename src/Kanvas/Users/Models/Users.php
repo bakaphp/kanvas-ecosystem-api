@@ -342,6 +342,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->hasMany(UserAddress::class, 'users_id');
     }
 
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            UserAddress::class,
+            'users_id'
+        )->where('is_default', true);
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
@@ -381,7 +389,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             try {
                 UsersRepository::belongsToThisApp($this, $app);
             } catch (ModelNotFoundException $e) {
-                throw new ModelNotFoundException('User not found in app - ' . $this->getId());
+                throw new ModelNotFoundException('User not found in app - ' . $this->getId() . ' - ');
             }
             $userRegisterInApp = new RegisterUsersAppAction($this);
             $userRegisterInApp->execute($this->password);
@@ -609,8 +617,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on 
-                the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured for this user on
+                the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -626,8 +634,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured 
-                for this user on the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured
+                for this user on the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -924,6 +932,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'user_active' => (bool) $this->user_active,
             'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }

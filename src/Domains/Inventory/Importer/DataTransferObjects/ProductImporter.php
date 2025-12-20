@@ -16,7 +16,7 @@ class ProductImporter extends Data
         public array $variants,
         public ?string $description = null,
         public array $categories = [],
-        public bool $isPublished = true,
+        public bool $isPublished = false,
         public int $position = 0,
         public ?string $shortDescription = null,
         public ?string $htmlDescription = null,

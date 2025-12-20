@@ -88,9 +88,8 @@ class WalletManagementQuery
 
     private function getPasoRapidoBalance(AppInterface $app, Companies $company, string $tag): array
     {
-        $pasoRapidoService = new PasoRapidoService($app, $company);
-
         try {
+            $pasoRapidoService = new PasoRapidoService($app, $company);
             $customer = $pasoRapidoService->verifyCustomer($tag);
 
             return [

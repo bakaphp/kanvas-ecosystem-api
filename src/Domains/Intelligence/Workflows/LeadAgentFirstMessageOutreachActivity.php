@@ -61,6 +61,20 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $source = $lead->source?->name ?? '';
+
+                //for now avoid service
+                if (in_array(strtolower($source), ['dealertrack'])) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
+                    ]);
+                }
+
+                if (! $cellPhone && ! $email) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead does not have a phone number or email, wont be able to send message until we add email support',
+                    ]);
+                }
 
                 $channels = [
                     'sms' => $cellPhone,
@@ -197,17 +211,17 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $messageType
                                 );
 
+                                //only do the external activity once for the first message
                                 if ($totalSentMessages === 0) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
                                 $sentChannels[] = $communicationChannel;
+                                $totalSentMessages++;
                             } catch (Exception $e) {
                                 report($e);
                             }
                         }
                     }
-
-                    $totalSentMessages++;
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
