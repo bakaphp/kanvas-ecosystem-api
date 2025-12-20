@@ -607,7 +607,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             return false;
         }
 
-        $hours = $schedule[$dayName];
+        $hours = $schedule[$dayName] ?? '';
 
         // Handle closed days
         if (strtolower($hours) === 'closed') {
