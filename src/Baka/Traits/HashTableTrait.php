@@ -390,7 +390,9 @@ trait HashTableTrait
 
         return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
             ->where($settingsTable . '.name', $name)
-            ->where($settingsTable . '.value', $value)
+            ->when($value !== null, function ($query) use ($settingsTable, $value) {
+                $query->where($settingsTable . '.value', $value);
+            })
             ->where($instance->getTable() . '.is_deleted', 0)
             ->select($instance->getTable() . '.*')
             ->first();

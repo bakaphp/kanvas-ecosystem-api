@@ -191,12 +191,28 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
-                                new SendMessageToLeadAction($lead)->execute(
-                                    $communicationChannel,
+                                $createMessage = $this->createMessage(
+                                    $lead,
                                     $firstLeadMessage['message'],
-                                    $params['from'] ?? null,
-                                    $firstLeadMessage['title'] ?? null,
+                                    $communicationChannelNumber,
+                                    $channel ?? null,
+                                    $messageType
                                 );
+
+                                if ($this->canSendMessageWithinWorkingHours($lead)) {
+                                    new SendMessageToLeadAction($lead)->execute(
+                                        $communicationChannel,
+                                        $firstLeadMessage['message'],
+                                        $params['from'] ?? null,
+                                        $firstLeadMessage['title'] ?? null,
+                                    );
+                                } else {
+                                    $createMessage->is_locked = true;
+                                    $createMessage->set('communicationChannel', $communicationChannel);
+                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+                                    $createMessage->save();
+                                }
                                 $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
                                 $createMessage = $this->createMessage(
@@ -250,6 +266,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    private function canSendMessageWithinWorkingHours(Lead $lead): bool
+    {
+        if (! $lead->company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS->value, false)) {
+            return true;
+        }
+
+        return $lead->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
