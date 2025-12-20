@@ -67,9 +67,14 @@ class UpdateOrderAction
             $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
 
-            if ($hasItems) {
+            if ($this->order->isFulfilled() && $hasItems) {
+                $this->order->addItems($lineItems);
+                $this->order->fulfillPending();
+                $this->order->calculateTotal();
+            } elseif ($hasItems) {
                 $this->order->deleteItems();
                 $this->order->addItems($lineItems);
+                $this->order->calculateTotal();
             }
 
             // Log the activity after changes are made
