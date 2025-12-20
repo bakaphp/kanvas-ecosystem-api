@@ -10,4 +10,5 @@ enum ConfigurationEnum: string
     case WORKING_HOURS = 'work_hours';
     case WORKING_DAYS = 'working_days';
     case HAVE_FOLLOW_UP = 'have_follow_up';
+    case MESSAGE_MINUTES_INTERVAL = 'message_minutes_interval';
 }
