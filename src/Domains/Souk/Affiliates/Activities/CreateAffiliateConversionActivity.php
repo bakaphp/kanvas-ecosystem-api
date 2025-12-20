@@ -34,9 +34,9 @@ class CreateAffiliateConversionActivity extends KanvasActivity
 
                 // Check hardcoded mapping first: ['link_code' => affiliate_id]
                 if (! empty($affiliateLinkMapping) && isset($affiliateLinkMapping[$affiliateLink])) {
+                    $affiliateShortCode = $affiliateLink;
                     $affiliateId = $affiliateLinkMapping[$affiliateLink];
                     $affiliateLink = $affiliateLinkMapping[$affiliateLink];
-                    $affiliateShortCode = $affiliateLink;
                 }
 
                 $affiliateLink = AffiliateLink::fromApp($app)
@@ -55,6 +55,10 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                         'result' => false,
                         'message' => 'Order does not have affiliate_id in custom_fields or metadata',
                         'order_id' => $order->getId(),
+                        'affiliate_id' => $affiliateId,
+                        'affiliate_link' => $affiliateLink,
+                        'affiliate_shortcode' => $affiliateShortCode,
+                        'affiliate_link_mapping' => $affiliateLinkMapping,
                     ]);
                 }
 

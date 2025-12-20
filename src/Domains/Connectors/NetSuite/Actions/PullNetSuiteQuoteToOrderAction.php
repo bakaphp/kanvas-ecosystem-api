@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
 use Kanvas\Currencies\Models\Currencies;
@@ -19,6 +20,7 @@ use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use NetSuite\Classes\Estimate;
 use Spatie\LaravelData\DataCollection;
 
@@ -376,6 +378,7 @@ class PullNetSuiteQuoteToOrderAction
         // Convert to string for consistent searching
         $quoteIdString = (string) $netsuiteQuoteId;
         $quoteIdInt = (int) $netsuiteQuoteId;
+        $isB2B = B2BConfigurationService::hasGlobalCompany($this->app);
 
         // First try to find by custom field
         $orderByCustomField = Order::getByCustomField(
@@ -390,7 +393,9 @@ class PullNetSuiteQuoteToOrderAction
 
         // Fallback to metadata search with proper null/empty checks
         return Order::fromApp($this->app)
-            ->fromCompany($this->company)
+            ->when(! $isB2B, function (Builder $query) {
+                $query->fromCompany($this->company);
+            })
             ->whereNotNull('metadata')
             ->where('metadata', '!=', '{}')
             ->where('metadata', '!=', '[]')

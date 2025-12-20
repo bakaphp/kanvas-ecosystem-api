@@ -28,10 +28,10 @@ class ChromeDataHandler extends BaseIntegration
         }
 
         // Save configuration to app settings
-        $this->app->set(ConfigurationEnum::ACCOUNT_NUMBER->value, $accountNumber);
-        $this->app->set(ConfigurationEnum::ACCOUNT_SECRET->value, $accountSecret);
-        $this->app->set(ConfigurationEnum::COUNTRY->value, $country);
-        $this->app->set(ConfigurationEnum::LANGUAGE->value, $language);
+        $this->company->set(ConfigurationEnum::ACCOUNT_NUMBER->value, $accountNumber);
+        $this->company->set(ConfigurationEnum::ACCOUNT_SECRET->value, $accountSecret);
+        $this->company->set(ConfigurationEnum::COUNTRY->value, $country);
+        $this->company->set(ConfigurationEnum::LANGUAGE->value, $language);
 
         // Test the connection
         try {

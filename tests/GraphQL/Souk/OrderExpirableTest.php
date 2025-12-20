@@ -451,9 +451,9 @@ class OrderExpirableTest extends TestCase
             amount: 100
         );
 
-        $uniqueTrackingId = 'TRACK-' . uniqid();
+        $uniqueTrackingId = 'TRACK-' . strtoupper(uniqid());
 
-        // Create first order with tracking ID
+        // Create first order with UPPERCASE tracking ID
         $firstOrderData = [
             "cartId" => 0,
             'customer' => [
@@ -467,7 +467,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => $uniqueTrackingId,
+                    'tracking_id' => $uniqueTrackingId, // UPPERCASE
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
@@ -492,7 +492,7 @@ class OrderExpirableTest extends TestCase
 
         $this->assertNull($firstResponse->json('errors'));
 
-        // Try to create second order with same tracking ID (should fail)
+        // Try to create second order with lowercase tracking ID (should fail - case-insensitive duplicate)
         $duplicateOrderData = [
             "cartId" => 0,
             'customer' => [
@@ -506,7 +506,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => $uniqueTrackingId,
+                    'tracking_id' => strtolower($uniqueTrackingId), // lowercase version - should be detected as duplicate
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
@@ -532,5 +532,136 @@ class OrderExpirableTest extends TestCase
         // Should return validation error
         $this->assertArrayHasKey('errors', $response->json());
         $this->assertStringContainsString("The metadata contains a duplicate value for field 'data.tracking_id'", $response->json('errors.0.message'));
+    }
+
+    public function testDuplicateMetadataValidationWithStatus(): void
+    {
+        $app = app(Apps::class);
+
+        // Configure duplicate metadata validation with status exclusion
+        $app->set('validate_metadata_duplicated_enabled', '1');
+        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
+        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
+        $app->set('validate_metadata_duplicated_use_cache', '0');
+        $app->set('validate_metadata_duplicated_exclude_statuses', 'cancelled,delivered'); // Exclude cancelled and delivered orders
+
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'slots',
+                'value' => 100
+            ]
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: [
+                'id' => $this->warehouseResponse['id'],
+            ]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        // Create first order with tracking ID
+        $firstOrderData = [
+            "cartId" => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'order_type' => 'sales',
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+            'metadata' => [
+                'data' => [
+                    'tracking_id' => 'TEST-CANCELLED-001',
+                    'start_at' => now()->addHour()->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
+                ]
+            ],
+        ];
+
+        $firstResponse = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                    message
+                }
+            }
+        ', [
+            'input' => $firstOrderData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertNull($firstResponse->json('errors'));
+        $orderId = $firstResponse->json('data.createOrderFromCart.order.id');
+
+        // Change first order status to 'cancelled'
+        $order = Order::findOrFail($orderId);
+        $cancelledStatus = $order->orderType->statuses()->where('slug', 'cancelled')->first();
+
+        if ($cancelledStatus) {
+            $order->order_status_id = $cancelledStatus->id;
+            $order->save();
+        }
+
+        // Try to create second order with same tracking ID (lowercase) - should SUCCEED because first order is cancelled
+        $duplicateOrderData = [
+            "cartId" => 0,
+            'customer' => [
+                'email' => fake()->email()
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                ],
+            ],
+            'metadata' => [
+                'data' => [
+                    'tracking_id' => 'test-cancelled-001', // lowercase - but should be allowed because first order is cancelled
+                    'start_at' => now()->addHour()->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
+                ]
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                    message
+                }
+            }
+        ', [
+            'input' => $duplicateOrderData,
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        // Should NOT return validation error - cancelled orders are excluded
+        $this->assertNull($response->json('errors'));
+        $this->assertNotNull($response->json('data.createOrderFromCart.order.id'));
     }
 }

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WooCommerce\Webhooks;
 use Exception;
 use Kanvas\Connectors\WooCommerce\Actions\PullOrderFromWooCommerceAction;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -17,7 +18,7 @@ class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
     {
         $orderId = $this->webhookRequest->payload['order_id'] ?? null;
         $regionId = $this->receiver->configuration['region_id'] ?? null;
-        $runWorkflow = $this->webhookRequest->payload['run_workflow'] ?? true;
+        $runWorkflow = (bool) ($this->webhookRequest->payload['run_workflow'] ?? true);
 
         if (! $orderId) {
             return [
@@ -49,10 +50,33 @@ class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
                 user: $this->receiver->user,
                 region: $region,
                 wooCommerceOrderId: (int) $orderId,
-                runWorkflows: (bool) $runWorkflow
+                runWorkflows: false,
             );
 
             $order = $pullOrderAction->execute();
+
+            /**
+             * @todo make this dynamic for affiliate fields
+             */
+            if (! empty($this->webhookRequest->payload['affiliate_id'])) {
+                $order->addMetadata('affiliate_id', $this->webhookRequest->payload['affiliate_id']);
+            }
+
+            if (! empty($this->webhookRequest->payload['country'])) {
+                $order->addMetadata('affiliate_shortcode', $this->webhookRequest->payload['country']);
+                $order->addMetadata('affiliate_link_code', $this->webhookRequest->payload['country']);
+            }
+
+            if ($runWorkflow) {
+                $order->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                        'app' => $this->receiver->app,
+                        'company' => $this->receiver->company,
+                    ]
+                );
+            }
 
             return [
                 'message' => 'Order pulled successfully',
