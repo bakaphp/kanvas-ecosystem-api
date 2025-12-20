@@ -161,9 +161,9 @@ class OrderManagementMutation
 
         $order = Order::getById($orderId, $app);
 
-        // if ($order->isFulfilled() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
-        //     throw new ValidationException('Order is already fulfilled');
-        // }
+        if ($order->isFulfilled() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
+            throw new ValidationException('Order is already fulfilled');
+        }
 
         //remove it when we figure out wtf is going on with a app
         if ($app->get('DONT_OVERWRITE_METADATA_ON_ORDER_UPDATE', false)) {
