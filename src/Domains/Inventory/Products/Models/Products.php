@@ -11,6 +11,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -731,6 +732,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function publish(): void
     {
         $this->is_published = 1;
+        $this->published_at = Carbon::now();
         $this->save();
     }
 

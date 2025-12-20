@@ -18,7 +18,7 @@ use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 
 /**
  * @todo move to prompt mine namespace

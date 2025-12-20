@@ -389,12 +389,12 @@ trait HashTableTrait
         $foreignKey = $instance->getSettingsForeignKey();
 
         return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
-                   ->where($settingsTable . '.name', $name)
-                   ->when($value !== null, function ($query) use ($settingsTable, $value) {
-                       $query->where($settingsTable . '.value', $value);
-                   })
-                   ->where($instance->getTable() . '.is_deleted', 0)
-                   ->select($instance->getTable() . '.*')
-                   ->first();
+            ->where($settingsTable . '.name', $name)
+            ->when($value !== null, function ($query) use ($settingsTable, $value) {
+                $query->where($settingsTable . '.value', $value);
+            })
+            ->where($instance->getTable() . '.is_deleted', 0)
+            ->select($instance->getTable() . '.*')
+            ->first();
     }
 }

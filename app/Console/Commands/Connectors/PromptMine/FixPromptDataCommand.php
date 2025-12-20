@@ -12,7 +12,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class FixPromptDataCommand extends Command
@@ -327,7 +327,8 @@ class FixPromptDataCommand extends Command
                 $response = Prism::text()
                     ->using(Provider::Gemini, 'gemini-2.0-flash')
                     ->withPrompt($parentMessageData['prompt'])
-                    ->generate();
+                    ->asText();
+
                 $responseText = str_replace(['```', 'json'], '', $response->text);
                 $messageData['nugget'] = $responseText;
                 $this->info('Added message nugget to message data');
@@ -403,7 +404,7 @@ class FixPromptDataCommand extends Command
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($messageData['prompt'])
-            ->generate();
+            ->asText();
 
         $responseText = str_replace(['```', 'json'], '', $response->text);
         $nuggetId = DB::connection('social')->table('messages')->insertGetId([
