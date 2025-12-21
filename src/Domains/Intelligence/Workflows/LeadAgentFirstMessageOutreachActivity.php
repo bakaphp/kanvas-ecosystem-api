@@ -207,12 +207,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $firstLeadMessage['title'] ?? null,
                                     );
                                 } else {
-                                    $createMessage->is_locked = 1;
+                                    $createMessage->setLock();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
-                                    $createMessage->save();
                                 }
+
                                 $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
                                 //only do the external activity once for the first message
