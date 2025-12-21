@@ -87,11 +87,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $sentChannels = [];
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
-                    if (! $value) {
+                    if ($value === null || empty($value)) {
                         continue;
                     }
                     $template = $stageConfig['templates'][$communicationChannel] ?? null;
-                    if (! $template) {
+                    if ($template === null || empty($template)) {
                         continue;
                     }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
@@ -207,21 +207,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $firstLeadMessage['title'] ?? null,
                                     );
                                 } else {
-                                    $createMessage->is_locked = true;
+                                    $createMessage->setLock();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
-                                    $createMessage->save();
                                 }
-                                $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
-                                $createMessage = $this->createMessage(
-                                    $lead,
-                                    $firstLeadMessage['message'],
-                                    $communicationChannelNumber,
-                                    $channel ?? null,
-                                    $messageType
-                                );
+                                $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
 
                                 //only do the external activity once for the first message
                                 if ($totalSentMessages === 0) {
