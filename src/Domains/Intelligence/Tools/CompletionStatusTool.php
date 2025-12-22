@@ -82,7 +82,7 @@ class CompletionStatusTool implements ContextToolInterface
         );
 
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-pro')
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
