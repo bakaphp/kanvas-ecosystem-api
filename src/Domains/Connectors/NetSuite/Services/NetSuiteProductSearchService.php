@@ -113,6 +113,26 @@ class NetSuiteProductSearchService
             $products = $this->mapSearchResultToProduct($response->searchResult->searchRowList->searchRow);
         }
 
+        // Handle pagination - fetch remaining pages if they exist
+        $searchId = $response->searchResult->searchId ?? null;
+        $totalPages = $response->searchResult->totalPages ?? 1;
+        $currentPage = $response->searchResult->pageIndex ?? 1;
+
+        if ($searchId && $totalPages > 1) {
+            for ($pageIndex = $currentPage + 1; $pageIndex <= $totalPages; $pageIndex++) {
+                $searchMoreRequest = new \NetSuite\Classes\SearchMoreWithIdRequest();
+                $searchMoreRequest->searchId = $searchId;
+                $searchMoreRequest->pageIndex = $pageIndex;
+
+                $moreResponse = $this->service->searchMoreWithId($searchMoreRequest);
+
+                if ($moreResponse->searchResult->status->isSuccess && isset($moreResponse->searchResult->searchRowList->searchRow)) {
+                    $moreProducts = $this->mapSearchResultToProduct($moreResponse->searchResult->searchRowList->searchRow);
+                    $products = array_merge($products, $moreProducts);
+                }
+            }
+        }
+
         return $products;
     }
 
