@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('tags', function (Blueprint $table) {
             $table->bigInteger('parent_id')->nullable()->index('parent_id');
+            $table->string('path')->nullable()->after('parent_id')->index();
         });
     }
 
@@ -22,6 +23,7 @@ return new class () extends Migration {
     {
         Schema::table('tags', function (Blueprint $table) {
             $table->dropColumn('parent_id');
+            $table->dropColumn('path');
         });
     }
 };

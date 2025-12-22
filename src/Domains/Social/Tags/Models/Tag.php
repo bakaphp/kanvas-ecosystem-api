@@ -12,16 +12,18 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
-use Override;
+use Nevadskiy\Tree\AsTree;
 
 /**
  * @property int id
  * @property int parent_id
+ * @property string path
  * @property int apps_id
  * @property int companies_id
  * @property int users_id
  * @property string name
  * @property string slug
+ * @property int weight
  * @property string color
  * @property int status
  * @property int is_feature
@@ -29,6 +31,7 @@ use Override;
 class Tag extends BaseModel
 {
     use SlugTrait;
+    use AsTree;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
