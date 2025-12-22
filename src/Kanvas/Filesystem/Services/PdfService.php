@@ -38,7 +38,7 @@ class PdfService
 
         $tempFilePath = $tempDir . '/' . $fileName;
 
-        $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
+        $snappy = new Pdf('/usr/local/bin/wkhtmltopdf', $options);
 
         $snappy->setOption('encoding', 'UTF-8');
         $snappy->setOption('no-outline', true);
