@@ -106,7 +106,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         }
 
         //only notify one time
-        if ($lead->company->get(IntelligenceEnumsConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value) 
+        if ($lead->company->get(IntelligenceEnumsConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
             && $lead->get(ConfigurationEnum::MANAGER_NOTIFIED_AT->value)) {
             return;
         }
