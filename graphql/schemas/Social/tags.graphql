@@ -62,6 +62,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "parent_id"
                     "name"
                     "slug"
                     "weight"

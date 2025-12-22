@@ -16,6 +16,7 @@ use Override;
 
 /**
  * @property int id
+ * @property int parent_id
  * @property int apps_id
  * @property int companies_id
  * @property int users_id
