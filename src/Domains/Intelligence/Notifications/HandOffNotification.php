@@ -33,4 +33,12 @@ class HandOffNotification extends Notification
         $this->setPushTemplateName('lead_handoff_push_notification');
         $this->setSmsTemplateName('lead_handoff_sms_notification');
     }
+
+    public function setChannelOnlyPush(): void
+    {
+        $this->channels = [
+            OneSignalNotificationChannel::class,
+            ExpoChannel::class,
+        ];
+    }
 }
