@@ -266,7 +266,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             return true;
         }
 
-        return $lead->isWithinWorkingHours(now());
+        return $lead->company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
