@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 
 class PromptAgentEngagerCommand extends Command
 {

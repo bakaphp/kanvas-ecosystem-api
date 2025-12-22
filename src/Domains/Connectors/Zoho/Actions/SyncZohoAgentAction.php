@@ -110,6 +110,18 @@ class SyncZohoAgentAction
                 'updated_at' => now(),
             ];
 
+            if ($owner['id']) {
+                $agentOwner = Agent::where([
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'users_linked_source_id' => $owner['id'],
+                ])->lockForUpdate()->first();
+
+                if ($agent->owner_id !== $agentOwner->member_id) {
+                    $agentData['owner_id'] = $agentOwner->member_id;
+                }
+            }
+
             if ($agent) {
                 if ($updatedMemberNumber) {
                     $agentData['member_id'] = $memberNumber;

@@ -9,7 +9,10 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
@@ -191,6 +194,7 @@ class ProcessVideoRequestAction
 
         if (! isset($submitResponse['request_id'])) {
             (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -245,6 +249,7 @@ class ProcessVideoRequestAction
 
         if (! isset($submitResponse['request_id'])) {
             (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
@@ -344,7 +349,7 @@ class ProcessVideoRequestAction
     private function constructModelPayload(array $payload): array
     {
         $messageFiles = $this->entity->getFiles();
-        $imageUrls = $messageFiles->pluck('url')->toArray();
+        $imageUrls = $this->processFileUrls($messageFiles);
         $attachmentType = $this->entity->message['attachment_type'] ?? 'reference_to_video';
         $isSingleFile = $messageFiles->count() === 1;
 
@@ -363,5 +368,29 @@ class ProcessVideoRequestAction
         };
 
         return array_merge($payload, $attachmentData);
+    }
+
+    /**
+     * Process file URLs, optimizing images over 10MB
+     */
+    private function processFileUrls(SupportCollection $files): array
+    {
+        $maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+
+        return $files->map(function (Filesystem $file) use ($maxFileSize): string {
+            $fileSize = $file->size ?? 0;
+
+            if ($fileSize > $maxFileSize) {
+                try {
+                    return ImageOptimizerService::optimizeImageFromUrl($file->url);
+                } catch (Exception $e) {
+                    report($e);
+
+                    return $file->url;
+                }
+            }
+
+            return $file->url;
+        })->toArray();
     }
 }
