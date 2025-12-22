@@ -13,6 +13,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
 use Bavix\Wallet\Interfaces\Customer;
 use Bavix\Wallet\Traits\CanPayFloat;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
@@ -128,6 +130,14 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function addresses(): HasMany
     {
         return $this->hasMany(CompaniesAddress::class, 'companies_id');
+    }
+
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            CompaniesAddress::class,
+            'companies_id'
+        )->where('is_default', StateEnums::YES->getValue());
     }
 
     /**
@@ -416,6 +426,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
         $array['created_at'] = $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString();
+        $array['is_active'] = (bool) $this->is_active;
+        $array['is_deleted'] = (bool) $this->is_deleted;
+        $array['zipcode'] = (string) ($this->zipcode ?? '');
 
         return $array;
     }
@@ -577,5 +590,35 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    public function isWithinWorkingHours(Carbon $now): bool
+    {
+        $schedule = $this->get('working_days_schedule');
+
+        if (! $schedule || empty($schedule)) {
+            throw new InvalidArgumentException('Working days schedule is not set or invalid for company ID: ' . $this->getId());
+        }
+
+        $now->setTimezone($this->timezone);
+        $dayName = $now->format('l'); // Monday, Tuesday, etc.
+
+        if (! isset($schedule[$dayName])) {
+            return false;
+        }
+
+        $hours = $schedule[$dayName] ?? '';
+
+        // Handle closed days
+        if (strtolower($hours) === 'closed') {
+            return false;
+        }
+
+        [$start, $end] = array_map('trim', explode('-', $hours));
+
+        $startTime = Carbon::parse($dayName . ' ' . $start, $this->timezone);
+        $endTime = Carbon::parse($dayName . ' ' . $end, $this->timezone);
+
+        return $now->between($startTime, $endTime);
     }
 }

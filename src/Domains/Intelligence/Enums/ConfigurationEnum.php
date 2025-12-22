@@ -23,4 +23,6 @@ enum ConfigurationEnum: string
     case LAST_MESSAGE_TIME = 'last_message_time';
     case LAST_MESSAGE = 'last_message';
     case MUTE_AI_AGENT = 'ai_control';
+    case FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS = 'ai_agent_first_message_only_during_business_hours';
+    case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
 }

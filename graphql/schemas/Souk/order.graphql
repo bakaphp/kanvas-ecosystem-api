@@ -3,6 +3,15 @@ enum ExportFormat {
     PDF
 }
 
+enum PaymentMethodType {
+    MANUAL
+    CARD
+    CASH
+    BANK_TRANSFER
+    WALLET
+    PAYMENT
+}
+
 type OrderExportResult {
     status: String!
     download_url: String
@@ -343,6 +352,9 @@ type OrderTransitionHistory {
     changed_at: String
     ended_at: String
     duration_in_seconds: Int
+    payment_type: String @method(name: "getPaymentType")
+    is_paid: Boolean! @method(name: "isPaid")
+    payment: Payment @hasOne(relation: "payment")
 }
 
 input ExportMetadataInput {
@@ -569,6 +581,7 @@ extend type Query @guard {
                 columns: ["name", "slug", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
             )
+        paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
         @paginate(
             defaultCount: 25

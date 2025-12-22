@@ -61,10 +61,14 @@ class CreateProductAction
                 'upc' => $this->productDto->upc,
                 'status_id' => $this->productDto->status_id,
                 'users_id' => $this->user->getId(),
-                'is_published' => $this->productDto->is_published,
-                'published_at' => Carbon::now(),
                 'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
             ];
+
+            //for now use isAdmin until we have the full role online
+            if ($this->user->can('is_published', Products::class) || $this->user->isAdmin()) {
+                $updateData['is_published'] = $this->productDto->is_published;
+                $updateData['published_at'] = Carbon::now();
+            }
 
             if ($productType == null) {
                 unset($updateData['products_types_id']);

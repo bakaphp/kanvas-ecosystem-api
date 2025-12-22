@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
+use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction as ActionsPullLeadAction;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction as EleadPullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum as EleadCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as VinSolutionPullLeadAction;
@@ -24,6 +26,7 @@ class PullLeadAction
         return match ($connector) {
             'elead' => $this->executeElead(),
             'vinsolution' => $this->executeVinSolution(),
+            'dealersocket' => $this->executeDealerSocket(),
             default => [],
         };
     }
@@ -36,6 +39,10 @@ class PullLeadAction
 
         if ($this->lead->company->get(VinSolutionCustomFieldEnum::COMPANY->value) !== null) {
             return 'vinsolution';
+        }
+
+        if ($this->lead->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value) !== null) {
+            return 'dealersocket';
         }
 
         return 'unknown';
@@ -57,5 +64,15 @@ class PullLeadAction
             $this->lead->company,
             $this->lead->user
         ))->execute(lead: $this->lead);
+    }
+
+    private function executeDealerSocket(): array
+    {
+        //code...
+        return new ActionsPullLeadAction(
+            $this->lead->app,
+            $this->lead->company,
+            $this->lead->user
+        )->execute(lead: $this->lead);
     }
 }

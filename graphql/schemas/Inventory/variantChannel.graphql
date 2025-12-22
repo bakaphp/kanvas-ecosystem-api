@@ -108,6 +108,11 @@ extend type Query {
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
             )
+        hasWarehouse: _
+            @whereHasConditions(
+                relation: "warehouses"
+                columns: ["id", "name", "uuid"]
+            )
         orderBy: _
             @orderBy(
                 columns: [

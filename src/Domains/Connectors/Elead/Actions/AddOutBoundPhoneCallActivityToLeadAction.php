@@ -121,7 +121,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'title' => 'Sally Stopped the Clock',
                 'message' => $this->message,
             ],
-            via: ['sms', 'push', 'expo'],
+            via: ['sms', 'push', 'expo', 'mail'],
             entity: $this->lead
         );
 

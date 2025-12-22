@@ -261,6 +261,8 @@ class CompanyManagementMutation
             'city_id' => $addressInput['city_id'] ?? 0,
             'state_id' => $addressInput['state_id'] ?? 0,
             'countries_id' => $addressInput['country_id'] ?? 0,
+            'latitude' => $addressInput['latitude'] ?? null,
+            'longitude' => $addressInput['longitude'] ?? null,
             'is_default' => $addressInput['is_default'] ?? false,
         ];
 
@@ -302,6 +304,8 @@ class CompanyManagementMutation
             'city_id' => $addressInput['city_id'] ?? $address->city_id,
             'state_id' => $addressInput['state_id'] ?? $address->state_id,
             'countries_id' => $addressInput['country_id'] ?? $address->countries_id,
+            'latitude' => $addressInput['latitude'] ?? $address->latitude,
+            'longitude' => $addressInput['longitude'] ?? $address->longitude,
             'is_default' => $addressInput['is_default'] ?? $address->is_default,
         ]);
 

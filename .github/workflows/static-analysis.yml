@@ -127,6 +127,12 @@ jobs:
       TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
       TEST_GOOGLE_PAYMENT_CLIENT_CONFIG: ${{ secrets.TEST_GOOGLE_PAYMENT_CLIENT_CONFIG }}
       TEST_GOOGLE_PACKAGE_NAME: ${{ secrets.TEST_GOOGLE_PACKAGE_NAME }}
+      TEST_DEALER_SOCKET_PUBLIC_KEY: ${{ secrets.TEST_DEALER_SOCKET_PUBLIC_KEY }}
+      TEST_DEALER_SOCKET_PRIVATE_KEY: ${{ secrets.TEST_DEALER_SOCKET_PRIVATE_KEY }}
+      TEST_DEALER_SOCKET_DEALER_ID: ${{ secrets.TEST_DEALER_SOCKET_DEALER_ID }}
+      TEST_DEALER_SOCKET_USERNAME: ${{ secrets.TEST_DEALER_SOCKET_USERNAME }}
+      TEST_DEALER_SOCKET_PASSWORD: ${{ secrets.TEST_DEALER_SOCKET_PASSWORD }}
+      TEST_DEALER_SOCKET_VENDOR_NAME: ${{ secrets.TEST_DEALER_SOCKET_VENDOR_NAME }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,7 +176,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}

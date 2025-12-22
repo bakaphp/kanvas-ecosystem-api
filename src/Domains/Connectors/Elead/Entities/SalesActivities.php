@@ -323,7 +323,12 @@ class SalesActivities
         string $opportunityId,
         array $queryParams = []
     ): array {
-        $activities = self::getHistoryByOpportunityId($app, $company, $opportunityId, $queryParams);
+        $activities = self::getHistoryByOpportunityId(
+            $app,
+            $company,
+            $opportunityId,
+            $queryParams
+        );
 
         $openActivities = [];
 
@@ -339,6 +344,34 @@ class SalesActivities
             'items' => $openActivities,
             'links' => $activities['links'] ?? [],
         ];
+    }
+
+    public static function hasSalesAgentReachedOut(
+        AppInterface $app,
+        Companies $company,
+        string $customerId,
+        string $opportunityId
+    ): bool {
+        $activities = self::getHistorySearch(
+            $app,
+            $company,
+            $customerId,
+            $opportunityId
+        );
+
+        if (isset($activities['items'])) {
+            foreach ($activities['items'] as $activity) {
+                $phoneOutReach = $activity['activityType'] === 'Phone Call'
+                    && $activity['outcome'] === 'Completed'
+                    && $activity['name'] === 'Outbound Call';
+
+                if ($phoneOutReach) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

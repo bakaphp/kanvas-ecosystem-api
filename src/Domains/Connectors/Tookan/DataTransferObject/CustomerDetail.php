@@ -11,10 +11,10 @@ class CustomerDetail extends Data
     public function __construct(
         public string $name,
         public string $phone,
+        public string $address,
+        public float|string $latitude,
+        public float|string $longitude,
         public ?string $email = null,
-        public ?string $address = null,
-        public ?float $latitude = null,
-        public ?float $longitude = null,
     ) {
     }
 }

@@ -100,6 +100,7 @@ class CreateExternalOrderAction
             'status' => OrderStatusEnum::COMPLETED->value,
             'checkoutToken' => '',
             'currency' => $orderCurrency,
+            'metadata' => $order->metadata,
             'items' => $items,
             'parent' => $order,
             'ipAddress' => $order->ip_address,
@@ -107,6 +108,9 @@ class CreateExternalOrderAction
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
         $kanvasOrder = $action->execute();
+        $kanvasOrder->shipping_address_id = $order->shipping_address_id;
+        $kanvasOrder->billing_address_id = $order->billing_address_id;
+        $kanvasOrder->fulfillment_status = $order->fulfillment_status;
         $kanvasOrder->resources_id = $order->id;
         $kanvasOrder->resources_type = $order->getMorphClass();
         $kanvasOrder->saveQuietly();
