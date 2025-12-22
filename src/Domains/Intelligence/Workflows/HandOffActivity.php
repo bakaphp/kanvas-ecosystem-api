@@ -53,6 +53,7 @@ class HandOffActivity extends KanvasActivity
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
                 $companyHumanHandOffOnlySms = (bool) ($lead->company->get('ai_human_handoff_only_sms') ?? false);
+                $companyComplianceHandOffOnlyPush = (bool) ($lead->company->get('ai_compliance_handoff_only_push') ?? false);
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
@@ -79,6 +80,10 @@ class HandOffActivity extends KanvasActivity
                     $handOffNotification->setSubject('Lead Compliance Handoff Notification - ' . $lead->people->name);
                     $handOffNotification->setPushTemplateName('lead_handoff_compliance_push_notification');
                     $handOffNotification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
+
+                    if ($companyComplianceHandOffOnlyPush) {
+                        $handOffNotification->setChannelOnlyPush();
+                    }
                     /*  $contactInfo = match (strtolower($communicationChannel)) {
                          'sms' => $lead->people->getCellPhones(),
                          'email' => $leadOwner->getEmails(),
