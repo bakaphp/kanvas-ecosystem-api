@@ -34,7 +34,7 @@ class ConvertMessageImagesToPdfActivity extends KanvasActivity
     public function convertImagesToPdf(Message $message, AppInterface $app): array
     {
         // Initialize PDF generator with options
-        $pdf = new Pdf('/usr/bin/wkhtmltopdf', [
+        $pdf = new Pdf('/usr/local/bin/wkhtmltopdf', [
             'encoding' => 'UTF-8',
             'no-outline' => true,
             'margin-right' => 0,
