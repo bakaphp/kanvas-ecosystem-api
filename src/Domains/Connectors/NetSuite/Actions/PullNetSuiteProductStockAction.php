@@ -42,7 +42,6 @@ class PullNetSuiteProductStockAction
                 'company' => $this->mainAppCompany->getId(),
                 'app' => $this->app->getId(),
                 'error' => 'Products not found',
-                'company' => $this->mainAppCompany->getId(),
                 'searchId' => $savedSearchID,
                 'savedSearchTotal' => count($products),
                 'processed' => 0,

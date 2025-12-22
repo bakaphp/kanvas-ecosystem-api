@@ -48,6 +48,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
+use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -293,6 +294,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
+            PullNetSuiteStockWebhookJob::class,
         ];
 
         $createdActions = [];

@@ -137,7 +137,9 @@ class NetSuiteSyncStockCommand extends Command
                 $company,
                 $user,
                 RolesEnums::INVENTORY_MANAGER,
-            )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
+            )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), [
+                "results" => $results
+            ]);
 
             $this->info("Stock sync completed successfully!");
         } catch (Exception $e) {
