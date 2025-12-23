@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class SendDelayMessageCommand extends Command
 {
@@ -100,6 +101,15 @@ class SendDelayMessageCommand extends Command
                 $message->is_locked = 0;
                 $message->saveOrFail();
                 $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+
+                //dispatch workflow
+                $message->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                       'app' => $message->app,
+                    ]
+                );
 
                 $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
                 $eLeadOpportunity->addComment('Sally has already sent the first message to the lead. It’s been an hour since the lead was created, and no sales agent has contacted them yet.');

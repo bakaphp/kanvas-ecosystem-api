@@ -193,15 +193,18 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
+                                $canSendMessage = $this->canSendMessageWithinWorkingHours($lead);
+
                                 $createMessage = $this->createMessage(
                                     $lead,
                                     $firstLeadMessage['message'],
                                     $communicationChannelNumber,
                                     $channel ?? null,
-                                    $messageType
+                                    $messageType,
+                                    $canSendMessage
                                 );
 
-                                if ($this->canSendMessageWithinWorkingHours($lead)) {
+                                if ($canSendMessage) {
                                     new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
                                         $firstLeadMessage['message'],
@@ -318,6 +321,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         string $to,
         ?Channel $channel = null,
         string $messageType = 'twilio-sms',
+        bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
         $agentUser = $lead->app->get('kanvas_agent_user_id');
@@ -356,7 +360,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $messageInput,
             $leadSystemModule,
             $lead->getId()
-        )->execute();
+        );
+        $newMessage->runWorkflow = $runWorkflow;
+
+        $newMessage = $newMessage->execute();
         //$newMessage = $createMessageAction->execute();
         //$newMessage->addEntity($lead);
         if ($channel) {
