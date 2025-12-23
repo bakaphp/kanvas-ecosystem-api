@@ -31,9 +31,9 @@ class SendDelayMessageCommand extends Command
         foreach ($companies as $company) {
             $this->newLine();
             $minutedMessages = $company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value) ?? 60;
-            $messages = Message::where('apps_id', $app->getId())
-                ->whereIn('companies_id', $company->getId())
-                ->where('is_locked', true)
+            $messages = Message::fromApp($app)
+                ->fromCompany($company)
+                ->where('is_locked', 1)
                 ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
                 ->cursor();
 
