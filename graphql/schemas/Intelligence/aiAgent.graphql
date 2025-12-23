@@ -13,4 +13,9 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSessionQuery@getSessionInfo"
         )
+
+    testCreateFirstMessage(lead_id: ID!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\TestCreateFirstMessageQuery@getData"
+        )
 }
