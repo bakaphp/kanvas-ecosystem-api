@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\NetSuite\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
 use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Exceptions\ModelNotFoundException;
 use NetSuite\Classes\Customer;
