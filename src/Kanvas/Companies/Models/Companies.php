@@ -594,7 +594,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
 
     public function isWithinWorkingHours(Carbon $now): bool
     {
-        $schedule = $this->get('working_days_schedule');
+        $schedule = $this->get('work_hours');
 
         if (! $schedule || empty($schedule)) {
             throw new InvalidArgumentException('Working days schedule is not set or invalid for company ID: ' . $this->getId());
