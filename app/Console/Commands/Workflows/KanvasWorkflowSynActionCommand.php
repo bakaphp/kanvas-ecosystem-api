@@ -142,6 +142,7 @@ use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
+use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
@@ -294,6 +295,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
+            AddFundsToUserWalletActivity::class,
         ];
 
         $createdActions = [];
