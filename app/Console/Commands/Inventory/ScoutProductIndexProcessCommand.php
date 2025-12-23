@@ -165,7 +165,7 @@ class ScoutProductIndexProcessCommand extends Command
 
         // Get products that are published but have no variants published on the default channel
         $query = Products::fromApp($app)
-            ->where('is_published', 1)
+            //->where('is_published', 1)
             ->where('is_deleted', 0)
             ->where('companies_id', $companyId)
             ->whereHas('variants') // Ensure the product has variants
