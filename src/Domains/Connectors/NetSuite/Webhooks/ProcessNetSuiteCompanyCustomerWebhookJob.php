@@ -10,6 +10,7 @@ use Kanvas\Companies\Actions\AddAddressToCompanyAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -91,6 +92,12 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             }
 
             //throw $e; // Re-throw non-rate-limit errors
+            return [
+                'message' => 'Error syncing NetSuite Company: ' . $e->getMessage(),
+                'status' => 'error',
+                'netSuiteCompanyId' => $netSuiteCompanyId,
+            ];
+        } catch (ModelNotFoundException $e) {
             return [
                 'message' => 'Error syncing NetSuite Company: ' . $e->getMessage(),
                 'status' => 'error',
