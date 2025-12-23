@@ -6,6 +6,8 @@ input TagInput {
 
 type Tag {
     id: ID!
+    parent_id: ID
+    parent: Tag @belongsTo(method: "parent")
     user: User! @belongsTo(method: "user")
     name: String!
     slug: String
@@ -14,6 +16,7 @@ type Tag {
     created_at: String
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
+    children: [Tag!] @hasMany(type: PAGINATOR)
 }
 
 type TagEntity {
@@ -62,6 +65,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "parent_id"
                     "name"
                     "slug"
                     "weight"
