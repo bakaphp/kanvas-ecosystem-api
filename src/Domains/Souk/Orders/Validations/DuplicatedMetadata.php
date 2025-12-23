@@ -59,37 +59,44 @@ class DuplicatedMetadata implements ValidationRule
         // Normalize to lowercase for case-insensitive comparison
         $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-        // if ($settings['use_cache']) {
-        //     $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
-
-        //     return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
-        //         return $this->queryDuplicate($normalizedValue, $settings);
-        //     });
-        // }
-
         return $this->queryDuplicate($normalizedValue, $settings);
     }
 
     private function queryDuplicate(mixed $value, array $settings): bool
     {
-        // Convert dot notation to JSON path for whereJsonContains
         $jsonPath = $settings['field'];
 
-        $query = Order::fromApp($this->app)
-            ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
+        // Base query for matching metadata field
+        $baseQuery = Order::fromApp($this->app)
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+            ->where('metadata', '!=', '')
+            ->whereRaw("JSON_VALID(metadata) = 1")
+            ->whereRaw("JSON_EXTRACT(metadata, '$.{$jsonPath}') IS NOT NULL")
             ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
 
-        // Exclude certain order statuses if configured
-        if (! empty($settings['exclude_statuses'])) {
-            $excludeStatuses = array_map('trim', explode(',', $settings['exclude_statuses']));
-            $query->whereHas('orderStatus', function ($q) use ($excludeStatuses) {
-                $q->whereNotIn('slug', $excludeStatuses);
-            });
+        // If no exclude statuses configured, just check within cooldown period
+        if (empty($settings['exclude_statuses'])) {
+            return $baseQuery
+                ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
+                ->exists();
         }
 
-        return $query->exists();
+        $excludeStatuses = array_map('trim', explode(',', $settings['exclude_statuses']));
+
+        // Check two conditions:
+        return $baseQuery->where(function ($query) use ($excludeStatuses, $settings) {
+            // Condition 1: Within cooldown AND NOT in excluded statuses
+            $query->where(function ($q) use ($excludeStatuses, $settings) {
+                $q->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
+                    ->whereHas('orderStatus', function ($statusQuery) use ($excludeStatuses) {
+                        $statusQuery->whereNotIn('slug', $excludeStatuses);
+                    });
+            })
+            // Condition 2: OR in excluded statuses (any time)
+            ->orWhereHas('orderStatus', function ($statusQuery) use ($excludeStatuses) {
+                $statusQuery->whereIn('slug', $excludeStatuses);
+            });
+        })->exists();
     }
 
     private function extractFieldValue(mixed $metadata, string $fieldPath): mixed
