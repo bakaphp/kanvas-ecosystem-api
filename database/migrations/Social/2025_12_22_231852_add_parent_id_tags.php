@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('tags', function (Blueprint $table) {
-            $table->bigInteger('parent_id')->nullable()->index('parent_id');
+            $table->bigInteger('parent_id')->nullable()->index('parent_id')->after('companies_id');
             $table->string('path')->nullable()->after('parent_id')->index();
         });
     }

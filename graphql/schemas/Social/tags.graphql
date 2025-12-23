@@ -6,7 +6,11 @@ input TagInput {
 
 type Tag {
     id: ID!
+    parent_id: ID
+    parent: Tag @belongsTo(method: "parent")
     user: User! @belongsTo(method: "user")
+    companies_id: ID!
+    apps_id: ID!
     name: String!
     slug: String
     weight: Int
