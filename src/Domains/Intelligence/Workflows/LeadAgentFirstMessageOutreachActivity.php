@@ -85,6 +85,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
                 $sentChannels = [];
+                $stopTheClock = false;
+
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
                     if ($value === null || empty($value)) {
@@ -207,6 +209,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $firstLeadMessage['title'] ?? null,
                                     );
 
+                                    $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                 } else {
                                     $createMessage->setLock();
@@ -216,7 +219,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 }
 
                                 //only do the external activity once for the first message
-                                if ($totalSentMessages === 0) {
+                                if ($totalSentMessages === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
                                 $sentChannels[] = $communicationChannel;
