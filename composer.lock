@@ -1685,16 +1685,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.99.3",
+            "version": "v0.99.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "8b644294906f40dfd2ade4097324bf2a5c7f6873"
+                "reference": "c1e17ae2e892c3b0f6db9c61f2f33e847b373d76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/8b644294906f40dfd2ade4097324bf2a5c7f6873",
-                "reference": "8b644294906f40dfd2ade4097324bf2a5c7f6873",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/c1e17ae2e892c3b0f6db9c61f2f33e847b373d76",
+                "reference": "c1e17ae2e892c3b0f6db9c61f2f33e847b373d76",
                 "shasum": ""
             },
             "require": {
@@ -1716,7 +1716,7 @@
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
                 "projektgopher/whisky": "^0.7.0",
-                "rector/rector": "2.2.7",
+                "rector/rector": "2.2.14",
                 "spatie/laravel-ray": "^1.39",
                 "symplify/rule-doc-generator-contracts": "^11.2"
             },
@@ -1752,7 +1752,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.99.3"
+                "source": "https://github.com/prism-php/prism/tree/v0.99.5"
             },
             "funding": [
                 {
@@ -1760,7 +1760,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-21T22:31:06+00:00"
+            "time": "2025-12-23T18:59:41+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -4391,16 +4391,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.43.1",
+            "version": "v12.44.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "195b893593a9298edee177c0844132ebaa02102f"
+                "reference": "592bbf1c036042958332eb98e3e8131b29102f33"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/195b893593a9298edee177c0844132ebaa02102f",
-                "reference": "195b893593a9298edee177c0844132ebaa02102f",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/592bbf1c036042958332eb98e3e8131b29102f33",
+                "reference": "592bbf1c036042958332eb98e3e8131b29102f33",
                 "shasum": ""
             },
             "require": {
@@ -4609,7 +4609,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2025-12-16T18:53:08+00:00"
+            "time": "2025-12-23T15:29:43+00:00"
         },
         {
             "name": "laravel/octane",
