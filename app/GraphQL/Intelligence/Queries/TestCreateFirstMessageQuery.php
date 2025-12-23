@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Queries;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
@@ -12,7 +13,12 @@ class TestCreateFirstMessageQuery
 {
     public function getData(mixed $root, array $request): array
     {
-        $lead = Lead::getById($request['lead_id']);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = Lead::getByIdFromCompanyApp(
+            $request['lead_id'],
+            $company,
+            app(Apps::class)
+        );
         $action = new CreateLeadFirstEngagementMessageAction(
             $lead
         );
