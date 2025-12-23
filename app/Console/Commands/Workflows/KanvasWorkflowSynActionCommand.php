@@ -138,11 +138,11 @@ use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessReferralCodeRedemptionActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessUserSignupLoyaltyActivity;
 use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
+use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
 use Kanvas\Workflow\Rules\Models\Action;
-use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 
 class KanvasWorkflowSynActionCommand extends Command
 {
