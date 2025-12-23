@@ -26,7 +26,7 @@ class SendDelayMessageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        $companies = Companies::getByCustomField(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value, null);
+        $companies = Companies::getByCustomFieldBuilder(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value, null)->get();
 
         foreach ($companies as $company) {
             $this->newLine();
