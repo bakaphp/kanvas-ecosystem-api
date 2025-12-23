@@ -9,8 +9,6 @@ type Tag {
     parent_id: ID
     parent: Tag @belongsTo(method: "parent")
     user: User! @belongsTo(method: "user")
-    companies_id: ID!
-    apps_id: ID!
     name: String!
     slug: String
     weight: Int
@@ -18,6 +16,7 @@ type Tag {
     created_at: String
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
+    children: [Tag!] @hasMany(type: PAGINATOR)
 }
 
 type TagEntity {

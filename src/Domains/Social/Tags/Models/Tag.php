@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  * @property int id
