@@ -34,11 +34,19 @@ class CreateLeadFromADFAction
             ];
         }
 
+        // Extract email - handle both string and array formats
+        $emailData = $data['adf']['prospect']['customer']['contact']['email'] ?? null;
+        $email = is_array($emailData) ? ($emailData['@content'] ?? null) : $emailData;
+
+        // Extract phone - handle both string and array formats
+        $phoneData = $data['adf']['prospect']['customer']['contact']['phone'] ?? null;
+        $phone = is_array($phoneData) ? ($phoneData['@content'] ?? null) : $phoneData;
+
         $people = PeoplesRepository::getMatchingEmailPhone(
             $app,
             $company,
-            $data['adf']['prospect']['customer']['contact']['email'] ?? $data['adf']['prospect']['customer']['contact']['email']['@content'] ?? null,
-            $data['adf']['prospect']['customer']['contact']['phone']['@content'] ?? null,
+            $email,
+            $phone,
         );
 
         if ($people) {
