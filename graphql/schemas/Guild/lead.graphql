@@ -302,7 +302,7 @@ extend type Query @guard {
                 columns: ["companies_branches_id", "leads_owner_id", "users_id"]
             )
     ): LeadDashboard!
-        @paginate(
+        @field(
             builder: "App\\GraphQL\\Guild\\Builders\\Leads\\DashboardBuilder@getCompanyInfo"
         )
 }
