@@ -23,6 +23,7 @@ enum ConfigurationEnum: string
     case CREDIT_APP_SUBMITS = 'VIN_SOLUTIONS_CREDIT_APP_SUBMITS';
     case DEFAULT_STATE_KEY = 'VIN_SOLUTIONS_DEFAULT_STATE';
     case LEAD_TIME_DIFF_MINUTES = 'VIN_LEAD_TIME_DIFF_MINUTES';
+    case MANAGER_NOTIFIED_AT = 'VIN_SOLUTION_MANAGER_NOTIFIED_AT';
 
     public static function getUserKey(Companies $company, UserInterface $user): string
     {

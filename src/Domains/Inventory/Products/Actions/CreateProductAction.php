@@ -64,7 +64,8 @@ class CreateProductAction
                 'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
             ];
 
-            if ($this->user->can('is_published', Products::class)) {
+            //for now use isAdmin until we have the full role online
+            if ($this->user->can('is_published', Products::class) || $this->user->isAdmin()) {
                 $updateData['is_published'] = $this->productDto->is_published;
                 $updateData['published_at'] = Carbon::now();
             }

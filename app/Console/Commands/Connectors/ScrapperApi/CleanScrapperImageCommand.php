@@ -343,7 +343,7 @@ class CleanScrapperImageCommand extends Command
                 ->attach('image', file_get_contents($tempOriginal), 'original.jpg')
                 ->attach('image_2', file_get_contents($tempMask), 'mask.png')
                 ->post($this->aiAPI, [
-                    'model' => 'gemini-2.5-flash-image-preview',
+                    'model' => 'gemini-2.5-pro-image-preview',
                     'prompt' => "I'm providing you with two images. The first is the original image, and the second is a mask. I want you to remove the element that corresponds to the white area in the mask image from the original image. After removing it, fill the empty space so that it matches the surrounding background realistically and consistently. The final result should be the original image without the object that was highlighted by the mask.",
                 ]);
 

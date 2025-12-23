@@ -64,9 +64,7 @@ jobs:
             docker restart queue-scout-worker-1
             docker restart queue-workflow-1
 
-            # Additional queues for 1.x branch
-            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
-            fi
+            # restart all the queues
+            docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload
