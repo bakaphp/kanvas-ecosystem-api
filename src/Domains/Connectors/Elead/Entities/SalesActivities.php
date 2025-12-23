@@ -349,14 +349,14 @@ class SalesActivities
     public static function hasSalesAgentReachedOut(
         AppInterface $app,
         Companies $company,
-        string $customerId,
-        string $opportunityId
+        string $opportunityId,
+        array $queryParams = []
     ): bool {
-        $activities = self::getHistorySearch(
+        $activities = self::getHistoryByOpportunityId(
             $app,
             $company,
-            $customerId,
-            $opportunityId
+            $opportunityId,
+            $queryParams
         );
 
         if (isset($activities['items'])) {
