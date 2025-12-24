@@ -32,46 +32,50 @@ class CompanyIsHolidayTool implements ContextToolInterface
         $todayImmutable = $today->toDateTimeImmutable();
         $isFederalHoliday = $usHolidays->isHoliday($todayImmutable);
 
-        if (! $isFederalHoliday) {
-            return [
-                'is_holiday' => false,
-                'is_a_working_day' => true,
-                'holiday_info' => null,
-                'date_checked' => $today->toDateString(),
-            ];
-        }
-
         // Get the federal holiday name by iterating through holidays
         $federalHolidayName = null;
         foreach ($usHolidays as $holiday) {
             if ($holiday->format('Y-m-d') === $today->format('Y-m-d')) {
+                echo $holiday->getName(); // --- DEBUG ---
                 $federalHolidayName = $holiday->getName();
 
                 break;
             }
         }
 
-        // Fallback if no holiday name found (shouldn't happen if isHoliday returned true)
-        if ($federalHolidayName === null) {
-            return [
-                'is_holiday' => false,
-                'is_a_working_day' => true,
-                'holiday_info' => null,
-                'date_checked' => $today->toDateString(),
-            ];
+        if ($today->format('m-d') === '12-24') {
+            $federalHolidayName = 'Christmas Eve';
         }
 
-        // Check if this federal holiday is in the company's observed holidays list
         $isCompanyObservedHoliday = in_array($federalHolidayName, $companyObservedHolidays, true);
 
         return [
-            'is_holiday' => $isCompanyObservedHoliday,
-            'is_a_working_day' => ! $isCompanyObservedHoliday,
-            'holiday_info' => [
+            'is_holiday' => $federalHolidayName !== null,
+            'is_a_working_day' => $isCompanyObservedHoliday,
+            'holiday_info' => $federalHolidayName ? [
                 'federal_holiday' => $federalHolidayName,
                 'company_observes' => $isCompanyObservedHoliday,
-            ],
+            ] : null,
             'date_checked' => $today->toDateString(),
         ];
+
+        /*     // Fallback if no holiday name found (shouldn't happen if isHoliday returned true)
+            if ($federalHolidayName === null) {
+                return [
+                    'is_holiday' => false,
+                    'is_a_working_day' => true,
+                    'holiday_info' => null,
+                    'date_checked' => $today->toDateString(),
+                ];
+            }
+
+            if (! $isFederalHoliday) {
+                return [
+                    'is_holiday' => false,
+                    'is_a_working_day' => true,
+                    'holiday_info' => null,
+                    'date_checked' => $today->toDateString(),
+                ];
+            } */
     }
 }

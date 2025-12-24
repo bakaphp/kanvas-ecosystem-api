@@ -30,7 +30,7 @@ class Lead extends DataTransferObjectLead
         $lead = $request;
         $firstname = $lead['customer']['firstName'];
         $country = Countries::getByCode('US');
-        $leadData = $lead['events'][0] ?? [];
+        $leadData = ! empty($lead['events']) ? end($lead['events']) : [];
 
         $people = People::from([
             'app' => $app,
