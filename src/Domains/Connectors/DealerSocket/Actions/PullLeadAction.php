@@ -41,7 +41,7 @@ class PullLeadAction
         $response = $leadService->getLeadByCustomerId($customerId);
 
         $response['company'] = $this->company;
-        $currentLead = $response['events'][0] ?? [];
+        $currentLead = ! empty($response['events']) ? end($response['events']) : [];
 
         $dealerSocketLead = DataTransferObjectLead::from(
             $this->user,
