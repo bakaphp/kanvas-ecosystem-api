@@ -39,6 +39,9 @@ class SendDelayMessageCommand extends Command
             $messages = Message::fromApp($app)
                 ->fromCompany($company)
                 ->where('is_locked', 1)
+                ->whereHas('messageType', function ($query) {
+                    $query->whereIn('slug', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
+                })
                 ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
                 ->cursor();
 
