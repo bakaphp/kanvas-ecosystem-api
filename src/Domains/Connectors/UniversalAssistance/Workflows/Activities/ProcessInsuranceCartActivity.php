@@ -83,8 +83,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Mark order as processed successfully
                 $order->set('universal_assistance_processed', true);
 
-                // Return comprehensive results focusing on voucher data and SOAP inputs
-                return [
+                // Determine if workflow was successful
+                $workflowSuccess = $this->checkWorkflowSuccess($results);
+
+                $workflowResponse = [
+                    'workflow_success' => $workflowSuccess, // Single boolean variable to check workflow success
                     'workflow_results' => $results,
                     'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
                     'original_insurance_data' => $data['insurance_data'],
@@ -98,6 +101,13 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         'total_cost' => $this->calculateTotalCostFromMultiResults($results),
                     ],
                 ];
+
+                if (! $workflowSuccess) {
+                    return $this->failWorkflow($workflowResponse);
+                }
+
+                // Return comprehensive results focusing on voucher data and SOAP inputs
+                return $workflowResponse;
             },
             additionalParams: $params,
             company: $order->company,
@@ -219,7 +229,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             // Try both namespace key variations
             $orderKeys = [
                 'Kanvas\\Souk\\Orders\\Models\\Order',  // Double backslash
-                'Kanvas\Souk\Orders\Models\Order'          // Single backslash
+                'Kanvas\Souk\Orders\Models\Order',          // Single backslash
             ];
 
             foreach ($orderKeys as $orderKey) {
@@ -353,6 +363,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 foreach ($orderMetadata['esims'] as $esim) {
                     if (isset($esim['message_id'])) {
                         $primaryMessageId = $esim['message_id'];
+
                         break;
                     }
                 }
@@ -1658,6 +1669,66 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             $message->saveOrFail();
         } catch (Exception $e) {
         }
+    }
+
+    /**
+     * Check if the workflow was successful by examining voucher results
+     */
+    protected function checkWorkflowSuccess(array $results): bool
+    {
+        // Check for multi-eSIM results (workflow_results contains esim_0, esim_1, etc.)
+        $hasEsimResults = false;
+        foreach (array_keys($results) as $key) {
+            if (str_starts_with((string) $key, 'esim_')) {
+                $hasEsimResults = true;
+
+                break;
+            }
+        }
+
+        if ($hasEsimResults) {
+            // Multi-eSIM: check all eSIMs
+            foreach ($results as $esimKey => $esimResults) {
+                if (! str_starts_with((string) $esimKey, 'esim_')) {
+                    continue;
+                }
+
+                if (! $this->checkSingleEsimSuccess($esimResults)) {
+                    return false; // If any eSIM failed, workflow failed
+                }
+            }
+
+            return true; // All eSIMs succeeded
+        }
+
+        // Single eSIM: check directly
+        return $this->checkSingleEsimSuccess($results);
+    }
+
+    /**
+     * Check if a single eSIM's insurance processing was successful
+     */
+    protected function checkSingleEsimSuccess(array $esimResults): bool
+    {
+        // Check titular voucher
+        if (isset($esimResults['titular']['voucher_result']['success'])) {
+            if ($esimResults['titular']['voucher_result']['success'] === false) {
+                return false;
+            }
+        }
+
+        // Check dependents vouchers
+        if (! empty($esimResults['dependents'])) {
+            foreach ($esimResults['dependents'] as $dependent) {
+                if (isset($dependent['voucher_result']['success'])) {
+                    if ($dependent['voucher_result']['success'] === false) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     /**
