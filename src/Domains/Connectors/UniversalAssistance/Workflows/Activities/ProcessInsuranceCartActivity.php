@@ -86,7 +86,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // Determine if workflow was successful
                 $workflowSuccess = $this->checkWorkflowSuccess($results);
 
-                $result = [
+                $workflowResponse = [
                     'workflow_success' => $workflowSuccess, // Single boolean variable to check workflow success
                     'workflow_results' => $results,
                     'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
@@ -103,11 +103,11 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 ];
 
                 if (! $workflowSuccess) {
-                    return $this->failWorkflow($result);
+                    return $this->failWorkflow($workflowResponse);
                 }
 
                 // Return comprehensive results focusing on voucher data and SOAP inputs
-                return $result;
+                return $workflowResponse;
             },
             additionalParams: $params,
             company: $order->company,
