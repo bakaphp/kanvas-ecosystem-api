@@ -113,6 +113,14 @@ class SalesActivities
         return $response;
     }
 
+    public static function getActivityOutcome(AppInterface $app, Companies $company, string $activityId): array
+    {
+        $client = new Client($app, $company);
+        $response = $client->get("/sales/v1/elead/activities/{$activityId}/outcomes");
+
+        return $response;
+    }
+
     /**
      * Get activity by activity ID.
      */
@@ -182,6 +190,28 @@ class SalesActivities
         if (! empty($queryParams)) {
             $url .= '?' . http_build_query($queryParams);
         }
+
+        return $client->get($url);
+    }
+
+    /**
+     * Get activity history with search (includes both scheduled and completed activities).
+     * Retrieve activity history with comments by sales customer and opportunity identifier.
+     */
+    public static function getHistorySearch(
+        AppInterface $app,
+        Companies $company,
+        string $customerId,
+        string $opportunityId
+    ): array {
+        $client = new Client($app, $company);
+        $url = '/sales/v1/elead/activity-history/search';
+        $queryParams = [
+            'customerId' => $customerId,
+            'opportunityId' => $opportunityId,
+        ];
+
+        $url .= '?' . http_build_query($queryParams);
 
         return $client->get($url);
     }
@@ -293,7 +323,12 @@ class SalesActivities
         string $opportunityId,
         array $queryParams = []
     ): array {
-        $activities = self::getHistoryByOpportunityId($app, $company, $opportunityId, $queryParams);
+        $activities = self::getHistoryByOpportunityId(
+            $app,
+            $company,
+            $opportunityId,
+            $queryParams
+        );
 
         $openActivities = [];
 
@@ -309,6 +344,34 @@ class SalesActivities
             'items' => $openActivities,
             'links' => $activities['links'] ?? [],
         ];
+    }
+
+    public static function hasSalesAgentReachedOut(
+        AppInterface $app,
+        Companies $company,
+        string $opportunityId,
+        array $queryParams = []
+    ): bool {
+        $activities = self::getHistoryByOpportunityId(
+            $app,
+            $company,
+            $opportunityId,
+            $queryParams
+        );
+
+        if (isset($activities['items'])) {
+            foreach ($activities['items'] as $activity) {
+                $phoneOutReach = $activity['activityType'] === 'Phone Call'
+                    && $activity['outcome'] === 'Completed'
+                    && $activity['name'] === 'Outbound Call';
+
+                if ($phoneOutReach) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -72,7 +72,9 @@ class UpdateVariantsAction
         );
 
         //update product searchable index
-        $this->variant->product?->searchable();
+        if ($this->variant->product?->shouldBeSearchable() === true) {
+            $this->variant->product->searchable();
+        }
 
         if ($this->runWorkflow) {
             $this->variant->product?->fireWorkflow(

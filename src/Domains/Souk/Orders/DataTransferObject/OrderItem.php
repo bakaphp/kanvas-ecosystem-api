@@ -33,7 +33,9 @@ class OrderItem extends Data
 
     public static function viaRequest(AppInterface $app, CompanyInterface $company, Regions $region, array $request): self
     {
-        if ($app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
+        $allowCrossCompanyVariants = $app->get(ConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value) ?? false;
+
+        if ($allowCrossCompanyVariants || $app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
             $variant = Variants::getById($request['variant_id'], $app);
         } else {
             $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);

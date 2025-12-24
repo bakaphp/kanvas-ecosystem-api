@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -22,6 +24,7 @@ use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as DataTransferObjectContact;
@@ -40,6 +43,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class ProcessLeadDriverLicenseVerificationAction
 {
@@ -57,8 +61,6 @@ class ProcessLeadDriverLicenseVerificationAction
 
     public function execute(): array
     {
-        DB::beginTransaction();
-
         try {
             // Lock the lead to prevent concurrent processing
             $lockedLead = Lead::where('id', $this->lead->id)
@@ -156,16 +158,18 @@ class ProcessLeadDriverLicenseVerificationAction
             // Send verification notification once for the main lead (moved from individual validations)
             if ($this->intellicheckResponse && $this->idVerificationReport) {
                 $this->sendVerificationNotification($this->lead, $this->lead->people);
+                $this->generatePdfReport($this->lead);
             }
 
             // Clean up temporary data
             $this->cleanupTemporaryData($this->lead);
 
-            DB::commit();
+            // DB::commit();
 
             return [
                 'success' => true,
                 'results' => $results,
+                'hasMainDriverLicense' => $hasMainDriverLicense,
                 'driverLicenseData' => $driverLicenseData,
                 'idVerificationData' => $idVerificationData,
                 'intellicheckResponse' => $this->intellicheckResponse ?? null,
@@ -173,7 +177,7 @@ class ProcessLeadDriverLicenseVerificationAction
                 'message' => 'Driver license verification completed',
             ];
         } catch (Exception $e) {
-            DB::rollBack();
+            // DB::rollBack();
             report($e);
             $this->cleanupTemporaryData($this->lead);
 
@@ -190,10 +194,11 @@ class ProcessLeadDriverLicenseVerificationAction
     ): array {
         $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
         $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
+        $updatePeopleData = null;
 
         // Update people information from driver license data
         if ($driverLicenseData) {
-            $this->updatePeopleFromDriverLicense($lead->people, $driverLicenseData);
+            $updatePeopleData = $this->updatePeopleFromDriverLicense($lead->people, $driverLicenseData);
         }
 
         // Create engagement and message
@@ -210,6 +215,8 @@ class ProcessLeadDriverLicenseVerificationAction
             'message_id' => $message->getId(),
             'id_valid' => $isIdValid,
             'id_expired' => $isExpired,
+            'driverLicenseData' => $driverLicenseData,
+            'updatePeopleData' => $updatePeopleData?->toArray(),
         ];
     }
 
@@ -298,7 +305,7 @@ class ProcessLeadDriverLicenseVerificationAction
             ->first();
     }
 
-    protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): void
+    protected function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): PeopleDataInput
     {
         // Parse address components
         $addressComponents = isset($driverLicenseData['address']) ?
@@ -346,6 +353,7 @@ class ProcessLeadDriverLicenseVerificationAction
             contacts: DataTransferObjectContact::collect([], DataCollection::class),
             address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
             id: $people->id,
+            license_number: $driverLicenseData['license'] ?? null,
             custom_fields: [],
             tags: []
         );
@@ -358,6 +366,8 @@ class ProcessLeadDriverLicenseVerificationAction
             // Set the driver's license number
             $people->set('drivers_license_number', $driverLicenseData['license']);
         }
+
+        return $peopleData;
     }
 
     protected function createEngagement(Lead $lead, People $people, Apps $app): Engagement
@@ -636,6 +646,47 @@ class ProcessLeadDriverLicenseVerificationAction
 
         $notification->setSubject($people->name . ' - ID Verification Report');
         Notification::send($usersToNotify, $notification);
+    }
+
+    protected function generatePdfReport(Lead $lead): ?ModelsFilesystem
+    {
+        try {
+            $pdfReport = PdfService::generatePdfFromTemplate(
+                $lead->app,
+                $lead->user,
+                'id-verification-report',
+                $lead,
+                [
+                   'message' => $this->idVerificationReport['message'],
+                   'status' => $this->idVerificationReport['status'],
+                   'flags' => $this->idVerificationReport['flags'],
+                   'failures' => $this->idVerificationReport['failures'],
+                   'results' => $this->idVerificationReport['results'],
+                   'isShowRoom' => true,
+                   'verificationData' => $this->intellicheckResponse,
+                ]
+            );
+
+            $engagement = EngagementRepository::findEngagementForLead(
+                $lead,
+                ConfigurationEnum::ID_VERIFICATION->value,
+                ActionStatusEnum::SUBMITTED->value,
+            );
+
+            if ($engagement) {
+                $message = $engagement->message;
+                $message->addFile($pdfReport, 'id-verification');
+            } else {
+                // If no engagement found, attach to lead directly
+                $lead->addFile($pdfReport, 'id-verification');
+            }
+
+            return $pdfReport;
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return null;
     }
 
     protected function getVerificationMessage(Model $entity, bool $isIdValid, bool $isExpired): string

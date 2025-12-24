@@ -21,11 +21,11 @@ class PayFromWalletAction
 
     public function execute(): Wallet
     {
-        $userCompany = $this->order->getMetadata('user_company_id');
-        if (! $userCompany) {
-            throw new Exception('User company not found in order metadata.');
-        }
-
+        /*         $userCompany = $this->order->getMetadata('user_company_id');
+                if (! $userCompany) {
+                    throw new Exception('User company not found in order metadata.');
+                }
+         */
         //$company = Companies::getById($userCompany);
         $company = $this->order->user->getCurrentCompany();
 
@@ -42,7 +42,10 @@ class PayFromWalletAction
 
         foreach ($this->order->items as $item) {
             //if they are coins we cant deduct from the wallet
-            if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value !== null) {
+            if (
+                $item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value !== null ||
+                $item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_USER_WALLET_COIN_SLUG->value)?->value !== null
+            ) {
                 continue;
             }
             //$total += $item->getTotal();

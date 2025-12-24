@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
@@ -191,5 +192,27 @@ class Products
         $productModel = (new DuplicateProductAction($product, auth()->user()))->execute();
 
         return $productModel;
+    }
+
+    public function publishManagement(mixed $root, array $req): ProductsModel
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        if (! $user->can('is_published', ProductsModel::class) || ! $user->isAdmin()) {
+            throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
+        $product = ProductsRepository::getById((int) $req['id'], $company);
+
+        if ($req['is_published']) {
+            $product->publish();
+            $product->searchable();
+        } else {
+            $product->unPublish();
+            $product->unsearchable();
+        }
+
+        return $product;
     }
 }

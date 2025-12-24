@@ -3,6 +3,15 @@ enum ExportFormat {
     PDF
 }
 
+enum PaymentMethodType {
+    MANUAL
+    CARD
+    CASH
+    BANK_TRANSFER
+    WALLET
+    PAYMENT
+}
+
 type OrderExportResult {
     status: String!
     download_url: String
@@ -14,6 +23,7 @@ type Order {
     id: ID!
     uuid: String!
     tracking_client_id: String
+    ip_address: String
     user_email: String
     user_phone: String
     token: String
@@ -55,8 +65,10 @@ type Order {
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
-    orderTransitionHistory: [OrderTransitionHistory!] @hasMany(relation: "orderTransitionHistory")
-    discount_codes: [OrderDiscountRelation] @hasMany(relation: "orderDiscountCodes")
+    orderTransitionHistory: [OrderTransitionHistory!]
+        @hasMany(relation: "orderTransitionHistory")
+    discount_codes: [OrderDiscountRelation]
+        @hasMany(relation: "orderDiscountCodes")
     transaction_link: String!
         @field(
             resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"
@@ -67,6 +79,8 @@ type Order {
             method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
         )
     shipping_address: Address @belongsTo(relation: "shippingAddress")
+    affiliate_conversion: [AffiliateConversion!]
+        @hasMany(relation: "affiliateConversion")
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -219,7 +233,16 @@ input ExtendOrderInput {
 input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
+    status: String
+    payment_status: String
     metadata: Mixed
+    metadata_action: MetadataAction = MERGE
+}
+
+enum MetadataAction {
+    MERGE # Preserve old, add/update new
+    REPLACE # Replace all with new
+    CLEAR # Only keep new metadata
 }
 
 input DraftOrderInput {
@@ -329,6 +352,9 @@ type OrderTransitionHistory {
     changed_at: String
     ended_at: String
     duration_in_seconds: Int
+    payment_type: String @method(name: "getPaymentType")
+    is_paid: Boolean! @method(name: "isPaid")
+    payment: Payment @hasOne(relation: "payment")
 }
 
 input ExportMetadataInput {
@@ -392,6 +418,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
+    generatePaymentIntentFromOrder(orderId: ID!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntentFromOrder"
+        )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
@@ -420,6 +450,11 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderEmailMutation@sendOrderEmail"
         )
+
+    orderChangeCustomer(order_id: ID!, customer_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderCustomerManagementMutation@changeCustomer"
+        )
 }
 
 extend type Query @guard {
@@ -444,6 +479,7 @@ extend type Query @guard {
                     "created_at"
                     "updated_at"
                     "token"
+                    "ip_address"
                 ]
             )
         orderType: _
@@ -487,6 +523,17 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+        hasAffiliateConversion: _
+            @whereHasConditions(
+                relation: "affiliateConversion"
+                columns: [
+                    "affiliates_id"
+                    "status"
+                    "confirmed"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
@@ -524,6 +571,17 @@ extend type Query @guard {
                     "duration_in_seconds"
                 ]
             )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
+        paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
         @paginate(
             defaultCount: 25
@@ -553,6 +611,7 @@ extend type Query @guard {
                     "parent_id"
                     "created_at"
                     "updated_at"
+                    "ip_address"
                 ]
             )
         orderType: _
@@ -612,5 +671,4 @@ extend type Query @guard {
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
             scopes: ["fromPublicApp", "notDeleted"]
         )
-
 }

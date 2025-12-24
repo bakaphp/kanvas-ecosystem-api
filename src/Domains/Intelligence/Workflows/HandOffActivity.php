@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -29,9 +30,9 @@ class HandOffActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
-                    return ['Handoff was already processed for this lead'];
-                }
+                /*  if ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                     return ['Handoff was already processed for this lead'];
+                 } */
 
                 if (! empty($params['rotation_id'])) {
                     try {
@@ -46,10 +47,13 @@ class HandOffActivity extends KanvasActivity
                 }
 
                 $leadOwner = $leadOwner ?? $lead->owner ?? $lead->user;
+                $handOffUserRole = $lead->company->get('ai_agent_handoff_user_role') ?? 'Manager';
 
-                $handOffType = $params['handoff_type'] ?? 'human';
+                $handOffType = strtolower($params['handoff_type'] ?? 'human');
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+                $companyHumanHandOffOnlySms = (bool) ($lead->company->get('ai_human_handoff_only_sms') ?? false);
+                $companyComplianceHandOffOnlyPush = (bool) ($lead->company->get('ai_compliance_handoff_only_push') ?? false);
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
@@ -64,12 +68,22 @@ class HandOffActivity extends KanvasActivity
                     ]
                 );
 
-                if (strtolower($handOffType) === 'compliance_internal') {
+                if ($companyHumanHandOffOnlySms && $handOffType === 'human') {
+                    $handOffNotification->channels = [
+                        TwilioSmsChannel::class,
+                    ];
+                }
+
+                if ($handOffType === 'compliance_internal') {
                     //$params['template_name'] = 'lead_compliance_handoff';
                     $handOffNotification->setTemplateName('lead_handoff_compliance_handoff');
-                    $handOffNotification->setSubject('Lead Compliance Handoff Notification');
+                    $handOffNotification->setSubject('Lead Compliance Handoff Notification - ' . $lead->people->name);
                     $handOffNotification->setPushTemplateName('lead_handoff_compliance_push_notification');
                     $handOffNotification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
+
+                    if ($companyComplianceHandOffOnlyPush) {
+                        $handOffNotification->setChannelOnlyPush();
+                    }
                     /*  $contactInfo = match (strtolower($communicationChannel)) {
                          'sms' => $lead->people->getCellPhones(),
                          'email' => $leadOwner->getEmails(),
@@ -108,9 +122,12 @@ class HandOffActivity extends KanvasActivity
                 );
 
                 //managers
-                $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, 'Manager')->get();
+                $managers = UsersRepository::getCompanyAppUserByRole($lead->company, $lead->app, $handOffUserRole)->get();
 
                 foreach ($managers as $manager) {
+                    if ($leadOwner->getId() === $manager->getId()) {
+                        continue;
+                    }
                     $manager->notify(
                         $handOffNotification
                     );

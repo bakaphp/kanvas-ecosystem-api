@@ -33,12 +33,15 @@ class CreateLeadContextInfoAction
             ->where('is_deleted', 0)
             ->firstOrFail();
 
-        $firstPipelineStage = $pipeline->stages->firstOrFail();
-        $this->lead->pipeline_id = $pipeline->id;
-        $this->lead->pipeline_stage_id = $firstPipelineStage->id;
-        $this->lead->saveOrFail();
-
-        $pipelineStageConfig = $firstPipelineStage->config;
+        if (! isset($params['match_pipeline'])) {
+            $firstPipelineStage = $pipeline->stages->firstOrFail();
+            $this->lead->pipeline_id = $pipeline->id;
+            $this->lead->pipeline_stage_id = $firstPipelineStage->id;
+            $this->lead->saveOrFail();
+            $pipelineStageConfig = $firstPipelineStage->config;
+        } else {
+            $pipelineStageConfig = $this->lead->stage->config;
+        }
 
         if (empty($pipelineStageConfig)) {
             throw new Exception('No configuration found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
@@ -74,7 +77,6 @@ class CreateLeadContextInfoAction
         if (empty($leadContext)) {
             return [];
         }
-
 
         return $leadContext;
     }

@@ -4,12 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Workflow;
 
+use Baka\Support\Str;
+use Baka\Support\Url;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -43,7 +53,22 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 //$syncLeadAction = new SyncLeadAction($lead);
                 //$eLeadOpportunity = $syncLeadAction->execute();
-                $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                try {
+                    $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+                } catch (ServerException $e) {
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
+                    ]);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), '404')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity fetch error: ' . $e->getMessage(),
+                    ]);
+                }
+
                 $note = $message->message['content'] ?? '';
 
                 if (empty($note)) {
@@ -53,16 +78,81 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
-                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
-                $eLeadOpportunity->addComment($note);
+                $agentChannel = '(' . ucfirst($lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms') . ') ';
+
+                $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
+                if ($aiChatLink !== null && $fromAgent) {
+                    $aiChatLink = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
+                    $note .= " \n\n View Full Conversation here: {$aiChatLink}";
+                }
+
+                $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
+
+                try {
+                    $eLeadOpportunity->addComment($note);
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), 'not active')
+                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                        $lead->close();
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'Elead Opportunity add comment error: ' . $e->getMessage(),
+                    ]);
+                }
+
+                // Notify managers
+                $sentManagerNotification = false;
+                if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
+                    $this->notifyManagers($message);
+                    $sentManagerNotification = true;
+                }
 
                 return [
                     'note' => $note,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
+                    'manager_notified' => $sentManagerNotification,
                 ];
             },
             company: $company,
         );
+    }
+
+    /**
+     * @todo this is not the best place but , this is just for the client to test and move
+     * to another action
+     */
+    protected function notifyManagers(Message $message): void
+    {
+        $hoursTool = new CompanyWorkHoursTool($message)->execute();
+        if ($hoursTool['status'] !== 'work_hours') {
+            return;
+        }
+
+        $notification = new Blank(
+            templateName: 'agent-manager-notification',
+            data: [
+                'message' => $message,
+                'company' => $message->company,
+                'app' => $message->app,
+                'user' => $message->user,
+            ],
+            via: ['sms', 'push', 'expo', 'mail'],
+            entity: $message
+        );
+
+        $notification->setSubject('New Customer Engaged with Sally');
+        $notification->setPushTemplateName('agent_manager_push_notification');
+        $notification->setSmsTemplateName('agent_manager_sms_notification');
+
+        //managers
+        $managers = UsersRepository::getCompanyAppUserByRole(
+            $message->company,
+            $message->app,
+            'BDCManager'
+        )->get();
+
+        Notification::send($managers, $notification);
     }
 }

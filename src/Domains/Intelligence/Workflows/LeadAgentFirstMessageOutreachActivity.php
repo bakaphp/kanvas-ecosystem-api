@@ -50,126 +50,198 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
+                try {
+                    $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
+                } catch (Exception $e) {
+                    return $this->failWorkflow([
+                        'error' => 'Error creating lead context: ' . $e->getMessage(),
+                    ]);
+                }
 
-                //get the first message
-                $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead)->execute();
-
-                //set the first message
-                $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
-                $leadContext['first_message'] = $firstLeadMessage;
-                $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
-                $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
-                $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
+                $source = $lead->source?->name ?? '';
 
-                //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-                if (empty($communicationChannel)) {
-                    return [
-                        'error' => 'No communication channel selected , please set one to be able to send messages',
-                        'context' => $createContext,
-                        'first_message' => $firstLeadMessage,
-                    ];
+                //for now avoid service
+                if (in_array(strtolower($source), ['dealertrack'])) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
+                    ]);
                 }
 
-                $communicationChannelNumber = match ($communicationChannel) {
+                if (! $cellPhone && ! $email) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead does not have a phone number or email, wont be able to send message until we add email support',
+                    ]);
+                }
+
+                $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    default => $cellPhone
-                };
+                    'whatsapp' => $cellPhone,
+                ];
 
-                if (empty($communicationChannelNumber)) {
-                    throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
-                }
+                $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
+                $totalSentMessages = 0;
+                $sentChannels = [];
+                $stopTheClock = false;
 
-                if (isset($params['create_session'])) {
-                    $channel = ChannelDto::from([
-                        'apps' => $app,
-                        'companies' => $lead->company,
-                        'users' => $lead->user,
-                        'entity_id' => $lead->getId(),
-                        'entity_namespace' => Lead::class,
-                        'name' => 'Lead ' . $lead->getId() . ' Session',
-                        'slug' => SessionChannelService::createChannelSlug(
-                            $communicationChannel,
-                            $communicationChannelNumber
-                        ),
-                    ]);
-                    $channel = (new CreateChannelAction($channel))->execute();
-
-                    $sessionDto = Session::from([
-                        'agent' => Agent::getById($params['agent_id']),
-                        'channel' => $channel,
-                        'app' => $app,
-                        'company' => $lead->company,
-                        'entity_id' => $lead->getId(),
-                        'entity_namespace' => Lead::class,
-                        'user' => $lead->user->toArray(),
-                        'canal_id' => SessionChannelService::createCanalId(
-                            $communicationChannel,
-                            $communicationChannelNumber
-                        ),
-                    ]);
-                    new CreateSessionAction($sessionDto)->execute();
-                }
-
-                //hijack session
-                if ($lead->company->get('allow_session_hijack', false)
-                    && $lead->company->get('overwrite_phone_number') !== null) {
-                    $overwriteConfig = $lead->company->get('overwrite_phone_number');
-                    $overwriteConfig = array_flip($overwriteConfig);
-                    $originalRemoteJid = match ($communicationChannel) {
-                        'whatsapp' => $cellPhone = $cellPhone . '@s.whatsapp.net',
-                        'sms' => '+' . $cellPhone,
-                        'email' => SessionChannelService::createChannelSlug('email', $email),
-                    };
-
-                    if (isset($overwriteConfig[$originalRemoteJid])) {
-                        unset($params['disable_sending']);
+                foreach ($channels as $communicationChannel => $value) {
+                    //get the first message
+                    if ($value === null || empty($value)) {
+                        continue;
                     }
-                }
+                    $template = $stageConfig['templates'][$communicationChannel] ?? null;
+                    if ($template === null || empty($template)) {
+                        continue;
+                    }
+                    $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
 
-                //send the first message
-                if (! isset($params['disable_sending'])) {
-                    $leadCurrentDateIn = $this->getLeadCreatedAt($lead);
+                    //set the first message
+                    $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
+                    $leadContext['first_message'] = $firstLeadMessage;
+                    $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
+                    $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
+                    // $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
 
-                    $messageType = match ($communicationChannel) {
-                        'sms' => 'twilio-sms',
-                        'email' => 'mailgun-email',
-                        default => 'twilio-sms',
+                    //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+                    // if (empty($communicationChannel)) {
+                    //     return $this->failWorkflow([
+                    //         'error' => 'No communication channel selected , please set one to be able to send messages',
+                    //         'context' => $createContext,
+                    //         'first_message' => $firstLeadMessage,
+                    //     ]);
+                    // }
+
+                    $communicationChannelNumber = match ($communicationChannel) {
+                        'sms' => $cellPhone,
+                        'email' => $email,
+                        'whatsapp' => $cellPhone,
+                        default => $cellPhone
                     };
 
-                    if ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn)) {
-                        new SendMessageToLeadAction($lead)->execute(
-                            $communicationChannel,
-                            $firstLeadMessage['message'],
-                            $params['from'] ?? null,
-                            $firstLeadMessage['title'] ?? null,
-                        );
-                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                    if (empty($communicationChannelNumber)) {
+                        //throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
+                        return $this->failWorkflow([
+                            'error' => 'Lead does not have a phone number or email for channel ' . $communicationChannel . ', wont be able to send message until we add email support',
+                            //'context' => $createContext,
+                            //'first_message' => $firstLeadMessage,
+                        ]);
+                    }
 
-                        $createMessage = $this->createMessage(
-                            $lead,
-                            $firstLeadMessage['message'],
-                            $communicationChannelNumber,
-                            $channel ?? null,
-                            $messageType
-                        );
+                    if (isset($params['create_session'])) {
+                        $channel = ChannelDto::from([
+                            'apps' => $app,
+                            'companies' => $lead->company,
+                            'users' => $lead->user,
+                            'entity_id' => $lead->getId(),
+                            'entity_namespace' => Lead::class,
+                            'name' => ucwords($communicationChannel) . ' ' . $lead->getId(),
+                            'slug' => SessionChannelService::createChannelSlug(
+                                $communicationChannel,
+                                $communicationChannelNumber
+                            ),
+                        ]);
+                        $channel = (new CreateChannelAction($channel))->execute();
 
-                        try {
-                            $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead);
-                        } catch (Exception $e) {
-                            report($e);
+                        $sessionDto = Session::from([
+                            'agent' => Agent::getById($params['agent_id']),
+                            'channel' => $channel,
+                            'app' => $app,
+                            'company' => $lead->company,
+                            'entity_id' => $lead->getId(),
+                            'entity_namespace' => Lead::class,
+                            'user' => $lead->user->toArray(),
+                            'canal_id' => SessionChannelService::createCanalId(
+                                $communicationChannel,
+                                $communicationChannelNumber
+                            ),
+                        ]);
+                        new CreateSessionAction($sessionDto)->execute();
+                    }
+
+                    //hijack session
+                    if (
+                        $lead->company->get('allow_session_hijack', false)
+                        && $lead->company->get('overwrite_phone_number') !== null
+                    ) {
+                        $overwriteConfig = $lead->company->get('overwrite_phone_number');
+                        $overwriteConfig = array_flip($overwriteConfig);
+                        $originalRemoteJid = match ($communicationChannel) {
+                            'whatsapp' => $cellPhone = $cellPhone . '@s.whatsapp.net',
+                            'sms' => '+' . $cellPhone,
+                            'email' => SessionChannelService::createChannelSlug('email', $email),
+                        };
+
+                        if (isset($overwriteConfig[$originalRemoteJid])) {
+                            unset($params['disable_sending']);
+                        }
+                    }
+
+                    //send the first message
+                    if (! isset($params['disable_sending'])) {
+                        $leadCurrentDateIn = $this->getLeadCreatedAt($lead);
+
+                        $messageType = match ($communicationChannel) {
+                            'sms' => 'twilio-sms',
+                            'email' => 'mailgun-email',
+                            'whatsapp' => 'whatsapp',
+                            default => 'twilio-sms',
+                        };
+                        $skipLeadCurrentDatIn = isset($params['skipLeadCurrentDatIn']) && $params['skipLeadCurrentDatIn'];
+
+                        if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
+                            try {
+                                $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead);
+
+                                $createMessage = $this->createMessage(
+                                    $lead,
+                                    $firstLeadMessage['message'],
+                                    $communicationChannelNumber,
+                                    $channel ?? null,
+                                    $messageType,
+                                    $shouldSendFirstMessageNow
+                                );
+
+                                if ($shouldSendFirstMessageNow) {
+                                    new SendMessageToLeadAction($lead)->execute(
+                                        $communicationChannel,
+                                        $firstLeadMessage['message'],
+                                        $params['from'] ?? null,
+                                        $firstLeadMessage['title'] ?? null,
+                                    );
+
+                                    $stopTheClock = true;
+                                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                } else {
+                                    $createMessage->setLock();
+                                    $createMessage->set('communicationChannel', $communicationChannel);
+                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+                                }
+
+                                //only do the external activity once for the first message
+                                if ($totalSentMessages === 0 && $stopTheClock) {
+                                    $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+                                }
+                                $sentChannels[] = $communicationChannel;
+                                $totalSentMessages++;
+                            } catch (Exception $e) {
+                                report($e);
+                            }
                         }
                     }
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
                 $now = Carbon::now($timezone);
-
+                if (! isset($firstLeadMessage)) {
+                    return $this->failWorkflow([
+                        'message' => 'First message no generate',
+                        'channels' => $channels,
+                    ]);
+                }
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE_TIME->value, $now->toDateTimeString());
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);
 
@@ -186,10 +258,26 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'is_today' => (int) $this->isWithinOneDay($lead, $leadCurrentDateIn ?? ''),
                     'lead_opportunity' => $eLeadOpportunity ?? null,
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
+                    'total_sent_messages' => $totalSentMessages,
+                    'sent_channels' => $sentChannels,
                     //'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
         );
+    }
+
+    private function shouldSendFirstMessageNow(Lead $lead): bool
+    {
+        $company = $lead->company;
+
+        // If company does NOT enforce the rule "send only during off-hours",
+        // we can always send.
+        if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+            return true;
+        }
+
+        // Rule *is enabled*: allow only outside business hours.
+        return ! $company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
@@ -209,11 +297,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
      *  @todo this is not the right place to do this but for now its ok
      * we need to make sure we have the phone call activity
      */
-    private function leadExternalActivityDateIn(Lead $lead): mixed
+    private function leadExternalActivityDateIn(Lead $lead, Message $message): mixed
     {
         $outBoundPhoneCallActivity = null;
         if ($lead->get('downloaded_from_eleads')) {
-            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead)
+            $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead, $message)
             ->execute('Sally Take Over', 'Sally stop the clock');
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             // To do VinSolution Push Note to Lead
@@ -224,7 +312,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function isWithinOneDay(Lead $lead, string $dateString): bool
     {
-        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? 'America/New_York';
+        $leadTimezone = $lead->company->get('timezone', 'America/New_York') ?? $lead->company->timezone ?? 'America/New_York';
 
         $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
         $now = Carbon::now($leadTimezone);
@@ -238,6 +326,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         string $to,
         ?Channel $channel = null,
         string $messageType = 'twilio-sms',
+        bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
         $agentUser = $lead->app->get('kanvas_agent_user_id');
@@ -276,10 +365,19 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $messageInput,
             $leadSystemModule,
             $lead->getId()
-        )->execute();
+        );
+        $newMessage->runWorkflow = $runWorkflow;
+
+        $newMessage = $newMessage->execute();
         //$newMessage = $createMessageAction->execute();
         //$newMessage->addEntity($lead);
         if ($channel) {
+            $channel->addCategory(
+                'ai-agent',
+                $lead->app,
+                $lead->user,
+                $lead->company
+            );
             $channel->addMessage($newMessage);
         }
 

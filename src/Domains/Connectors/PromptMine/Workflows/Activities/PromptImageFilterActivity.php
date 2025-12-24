@@ -36,7 +36,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Throwable;
 
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -162,13 +162,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         $imageFilter
                     );
                 } catch (Exception $e) {
-                    report($e);
+                    //report($e);
+                    new MessageOrderFulfillmentAction($entity)->execute('image', true);
 
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message_id' => $entity->getId(),
                         'message' => 'Error processing image: ' . $e->getMessage(),
-                    ];
+                    ]);
                 }
             },
             company: $company,
@@ -372,6 +373,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 // If we're out of retries, rethrow the exception
                 if ($attempt >= $maxRetries) {
+                    $params['email_template'] = 'image-processing-failure-generic-error';
                     $this->sendFailNotification(
                         $entity,
                         "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
@@ -407,7 +409,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
-                    'email_template' => $params['email_template'],
+                    'email_template' => 'image-processing-failure-policy-violation',
                     'push_template' => $params['push_template'],
                 ],
             );
@@ -466,6 +468,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $responseData = $response->json();
 
         if (! $response->successful()) {
+            $params['email_template'] = 'image-processing-failure-generic-error';
             $this->sendFailNotification(
                 $entity,
                 "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
@@ -569,16 +572,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $params['via'] ?? ['database']
         );
 
-        $title = str_replace('&#039;', "'", $title);
-        $title = str_replace('&amp;#039;', "'", $title);
-        $title = html_entity_decode($title, ENT_QUOTES, 'UTF-8');
-
         try {
             // Send notification to the user
             $newMessageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your image for {$title} has been processed",
+                message: addslashes("Your image for {$title} has been processed"),
                 title: 'Image Processed',
                 via: $endViaList,
                 templates: [
@@ -732,7 +731,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
-            ->generate();
+            ->asText();
 
         return str_replace(['```', 'json'], '', $response->text);
     }
@@ -750,7 +749,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             title: 'Error processing image',
             via: $endViaList,
             templates: [
-                'email_template' => $params['email_template'],
+                'email_template' => 'image-processing-failure-generic-error',
                 'push_template' => $params['push_template'],
             ],
         );

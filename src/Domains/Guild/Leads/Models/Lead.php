@@ -12,6 +12,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -19,7 +20,9 @@ use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -62,7 +65,7 @@ use Throwable;
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate
- * @property string $third_party_sync_status @deprecated version 0.3
+ * @property string $third_party_sync_status
  */
 class Lead extends BaseModel implements EventResourceInterface
 {
@@ -186,6 +189,13 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasMany(Channel::class, 'entity_id', 'id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'id')
+            ->where('entity_namespace', self::class)
+            ->where('name', 'Notes');
     }
 
     public function receiver(): BelongsTo
@@ -337,6 +347,42 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $this->organization_id = $organization->id;
         $this->save();
+    }
+
+    public function toSearchableArray(): array
+    {
+        $lead = [
+            'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'email' => (string) $this->email,
+            'phone' => (string) $this->phone,
+            'title' => (string) $this->title,
+            'firstname' => (string) $this->firstname,
+            'lastname' => (string) $this->lastname,
+            'description' => (string) $this->description,
+            'reason_lost' => (string) $this->reason_lost,
+            'is_duplicate' => (bool) $this->is_duplicate,
+            'users_id' => $this->users_id,
+            'companies_id' => $this->companies_id,
+            'apps_id' => $this->apps_id,
+            'companies_branches_id' => $this->companies_branches_id,
+            'leads_receivers_id' => $this->leads_receivers_id,
+            'leads_owner_id' => $this->leads_owner_id,
+            'leads_status_id' => $this->leads_status_id,
+            'leads_sources_id' => $this->leads_sources_id,
+            'pipeline_id' => $this->pipeline_id,
+            'pipeline_stage_id' => $this->pipeline_stage_id,
+            'people_id' => $this->people_id,
+            'organization_id' => $this->organization_id,
+            'leads_types_id' => $this->leads_types_id,
+            'status' => $this->status,
+            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+            'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
+            'people' => $this->people ? $this->people->toSearchableArray() : null,
+        ];
+
+        return $lead;
     }
 
     /**
@@ -550,6 +596,7 @@ class Lead extends BaseModel implements EventResourceInterface
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $user = auth()->user();
 
         $app->fireWorkflow(
             event: WorkflowEnum::SEARCH->value,
@@ -562,7 +609,13 @@ class Lead extends BaseModel implements EventResourceInterface
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+         } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
@@ -590,6 +643,7 @@ class Lead extends BaseModel implements EventResourceInterface
         if ($currentStage) {
             return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
                 ->where('weight', '>', $currentStage->weight)
+                ->where('is_deleted', 0)
                 ->orderBy('weight', 'asc')
                 ->first();
         }
@@ -604,5 +658,15 @@ class Lead extends BaseModel implements EventResourceInterface
             $this->pipeline_stage_id = $nextStage->id;
             $this->saveOrFail();
         }
+    }
+
+    public function hasBeenContacted(): bool
+    {
+        return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+    }
+
+    public function setContactStatus(LeadGroupStatusEnum $status): void
+    {
+        $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 }

@@ -29,6 +29,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -80,7 +81,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $payload['data']['messages']['key']['remoteJid'] = $newPhone;
             }
         }
-
         // Process based on event type
         $result = match ($eventType) {
             WebhookEventEnum::MESSAGES_UPSERT->value => $this->handleMessageUpsert($payload),
@@ -139,7 +139,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         if (isset($data['key'])) {
             $data = [$data];
         }
-
         foreach ($data as $messageData) {
             $key = $messageData['key'] ?? [];
             $messageContent = $messageData['message'] ?? [];
@@ -147,7 +146,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             $messageType = $this->getMessageType($messageContent);
             $isDocument = MessageTypeEnum::isDocumentType($messageType);
             $text = $this->extractMessageText($messageContent, $messageType);
-            $chatJid = $key['remoteJid'] ?? null;
+            $chatJid = $key['remoteJidAlt'] ?? $key['senderPn'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
             $lead = null;
@@ -166,6 +165,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people = $this->processContactFromMessage($chatJid, $messageData);
                 $lead = $this->createLeadFromPeople($people);
                 $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
+                $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
             }
 
             // Create the message slug
@@ -1004,7 +1004,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         } elseif ($this->isChannelJid($jid)) {
             return 'wa-channel-' . Str::slug($jid);
         } else {
-            return 'wa-chat-' . Str::slug($jid);
+            $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
+
+            return SessionChannelService::createChannelSlug('whatsapp', $phoneNumber);
         }
     }
 
@@ -1060,6 +1062,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         $lead->app,
                         $lead->user,
                         $lead->company
+                    );
+
+                    $channel->addCategory(
+                        'ai-agent',
+                        $this->receiver->app,
+                        $this->receiver->user,
+                        $this->receiver->company
                     );
                 }
             } elseif ($name && $channel->name !== $name) {

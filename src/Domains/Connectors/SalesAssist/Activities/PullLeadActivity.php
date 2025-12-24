@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
@@ -39,6 +41,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
         $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
+        $isDealerSocket = $company->get(DealerSocketEnumsCustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value) !== null;
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
@@ -56,6 +59,15 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             )->execute(
                 lead: $entity->id > 0 ? $entity : null,
                 leadId: (int) $leadId,
+            );
+        } elseif ($isDealerSocket) {
+            return new PullPeopleAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                lead: $entity->id > 0 ? $entity : null,
+                customerId: (int) $leadId,
             );
         }
 

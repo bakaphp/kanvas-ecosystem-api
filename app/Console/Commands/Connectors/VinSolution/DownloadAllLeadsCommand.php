@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\VinSolution;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -33,8 +34,8 @@ class DownloadAllLeadsCommand extends Command
      */
     protected $signature = 'kanvas:vinsolution-download-all-leads 
                             {app_id : The application ID}
-                            {company_id : The company ID}
-                            {user_id : The user ID}
+                            {company_ids : Comma-separated company IDs (e.g., "11265,8170,8171")}
+                            {user_ids : User ID(s) - single for all, comma-separated matching companies, or partial list (remaining use company relationship)}
                             {--from-first-page=0 : Start from first page (1) or continue from last position (0)}
                             {--total-page-limit= : Limit the total number of pages to process}
                             {--items-per-page=10 : Number of items per page}
@@ -45,19 +46,85 @@ class DownloadAllLeadsCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Download all leads from VinSolution for a specific company';
+    protected $description = 'Download all leads from VinSolution for one or multiple companies (processed sequentially to avoid rate limiting)';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): void
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
-        $company = Companies::getById((int) $this->argument('company_id'));
-        $user = Users::getById((int) $this->argument('user_id'));
-
         $this->overwriteAppService($app);
 
+        // Parse company IDs
+        $companyIdsInput = $this->argument('company_ids');
+        if (is_array($companyIdsInput)) {
+            $this->error('Invalid company_ids format. Please provide a comma-separated string.');
+
+            return;
+        }
+        $companyIds = array_map('trim', explode(',', (string) $companyIdsInput));
+
+        // Parse user IDs
+        $userIdsInput = $this->argument('user_ids');
+        if (is_array($userIdsInput)) {
+            $this->error('Invalid user_ids format. Please provide a comma-separated string.');
+
+            return;
+        }
+        $userIds = array_map('trim', explode(',', (string) $userIdsInput));
+
+        // If only one user ID provided, use it for all companies
+        if (count($userIds) === 1 && count($companyIds) > 1) {
+            $userIds = array_fill(0, count($companyIds), $userIds[0]);
+        }
+
+        $companiesCount = count($companyIds);
+        $this->info("Processing {$companiesCount} companies sequentially to avoid rate limiting...");
+        $this->newLine();
+
+        // Process each company sequentially
+        foreach ($companyIds as $index => $companyId) {
+            try {
+                $company = Companies::getById((int) $companyId);
+
+                // Get user - either from provided IDs or from company relationship
+                if (isset($userIds[$index])) {
+                    $user = Users::getById((int) $userIds[$index]);
+                    $this->info("=== Processing Company ID: {$companyId} with User ID: {$userIds[$index]} ({" . ($index + 1) . "/{$companiesCount}) ===");
+                } else {
+                    // Get user from company relationship
+                    $user = $company->user;
+                    if (! $user) {
+                        $this->error("Company {$companyId} has no associated user and no user ID was provided.");
+
+                        continue;
+                    }
+                    $this->info("=== Processing Company ID: {$companyId} with User ID from company relationship: {$user->getId()} ({" . ($index + 1) . "/{$companiesCount}) ===");
+                }
+                $this->newLine();
+
+                $this->processCompany($app, $company, $user);
+            } catch (Throwable $e) {
+                $this->error("Failed to process company {$companyId}: " . $e->getMessage());
+            }
+
+            $this->newLine();
+
+            // Add a small delay between companies to further reduce rate limiting risk
+            if ($index < count($companyIds) - 1) {
+                $this->info('Waiting 5 seconds before processing next company...');
+                sleep(5);
+                $this->newLine();
+            }
+        }
+
+        $this->info('=== All companies processed ===');
+    }
+
+    /**
+     * Process a single company's leads download.
+     */
+    private function processCompany(Apps $app, Companies $company, Users $user): void
+    {
         // Check if company has VinSolution configuration
         if (! $company->get(ConfigurationEnum::COMPANY->value)) {
             $this->error('Company does not have VinSolution configuration');
@@ -81,6 +148,17 @@ class DownloadAllLeadsCommand extends Command
 
             return;
         }
+
+        // Get the percentage of leads to process communication channel for (default 100%)
+        $commChannelPercentage = (int) ($company->get('agent_communication_channel_percentage') ?? 100);
+
+        // Redis keys for tracking daily stats
+        $todayDate = now()->format('Y-m-d');
+        $redisDailyLeadsCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_count_' . $company->getId() . '_' . $todayDate;
+        $redisDailyCommChannelCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_comm_channel_' . $company->getId() . '_' . $todayDate;
+
+        // Redis key expiration time (48 hours in seconds)
+        $redisKeyExpirationSeconds = 48 * 60 * 60;
 
         // Sync duplicate active leads before downloading (if enabled)
         $syncDuplicates = (bool) $this->option('sync-duplicates');
@@ -110,9 +188,15 @@ class DownloadAllLeadsCommand extends Command
             $totalItems = $initialLeads['count'];
             $totalPages = $totalPageLimit ?? (int) ceil($totalItems / $itemsPerPage);
 
+            // Get daily counts from Redis
+            $dailyLeadsCount = (int) (Redis::get($redisDailyLeadsCountKey) ?? 0);
+            $dailyCommChannelCount = (int) (Redis::get($redisDailyCommChannelCountKey) ?? 0);
+
             $this->info("Total leads: {$totalItems}");
             $this->info("Total pages: {$totalPages}");
             $this->info('Starting from page: ' . ($lastLeadsPagination < 1 ? 1 : $lastLeadsPagination));
+            $this->info("Communication channel will be set for {$commChannelPercentage}% of leads (today)");
+            $this->info("Leads processed today: {$dailyLeadsCount}, Communication channels set: {$dailyCommChannelCount}");
 
             $successCount = 0;
             $errorCount = 0;
@@ -148,10 +232,24 @@ class DownloadAllLeadsCommand extends Command
                             $pullLeadAction = new PullLeadAction($app, $company, $user);
                             $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
 
-                            if ($existingLead === null) {
+                            if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
+                                //$lead = ModelsLead::getById($transformedLead['LeadId']);
+                                //$lead->set('downloaded_from_vin_solution', true);
+                                // Check if this lead should have communication channel set based on percentage
+                                //if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
                                 $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
+                                // Increment daily communication channel counter
+                                /*  Redis::incr($redisDailyCommChannelCountKey);
+                                 Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
+                                 $dailyCommChannelCount++; */
+                                //}
                             }
 
+                            // Increment daily leads counter
+                            /*     Redis::incr($redisDailyLeadsCountKey);
+                                Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
+                                $dailyLeadsCount++;
+ */
                             if (! empty($result)) {
                                 $successCount++;
                             }
@@ -188,6 +286,29 @@ class DownloadAllLeadsCommand extends Command
         }
     }
 
+    /**
+     * Determine if a lead should have its communication channel set based on percentage.
+     * Uses a deterministic algorithm to ensure consistent distribution across leads processed today.
+     */
+    private function shouldProcessLeadByPercentage(int $dailyLeadsCount, int $percentage): bool
+    {
+        // If percentage is 100, always process
+        if ($percentage >= 100) {
+            return true;
+        }
+
+        // If percentage is 0 or less, never process
+        if ($percentage <= 0) {
+            return false;
+        }
+
+        // Calculate the interval: process every (100/percentage)th lead
+        $interval = (int) ceil(100 / $percentage);
+
+        // Process leads at regular intervals to maintain percentage across the entire day
+        return ($dailyLeadsCount % $interval) === 0;
+    }
+
     private function setCommunicationChannel(string $leadId, string $vinSolutionDateIn): void
     {
         $lead = ModelsLead::getById($leadId);
@@ -209,13 +330,14 @@ class DownloadAllLeadsCommand extends Command
             $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
         }
 
-        /*  $lead->fireWorkflow(
-             WorkflowEnum::CREATED->value,
-             true,
-             [
-                 'app' => $lead->app,
-             ]
-         ); */
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
+        $lead->set('lead_first_contacted_cli_at', Carbon::now()->toDateTimeString());
     }
 
     /**

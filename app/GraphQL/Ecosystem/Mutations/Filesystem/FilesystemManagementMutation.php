@@ -8,6 +8,7 @@ use Baka\Helpers\MergePdf;
 use Baka\Support\Str;
 use Baka\Validations\Pdf;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -283,13 +284,16 @@ class FilesystemManagementMutation
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $globalMergeFilesEnabled = $company->get(AppSettingsEnums::ENABLE_GLOBAL_MERGE_FILESYSTEM->getValue(), false);
 
         if (count($request['files']) > 0) {
             $files = [];
             foreach ($request['files'] as $fileId) {
                 try {
                     $fileUrl = FilesystemEntities::getById($fileId)->filesystem()->where('apps_id', $app->getId())
-                        ->where('companies_id', $company->getId())
+                        ->when(! $globalMergeFilesEnabled, function (Builder $query) use ($company) {
+                            $query->where('companies_id', $company->getId());
+                        })
                         ->firstOrFail()
                         ->url;
 
@@ -362,7 +366,7 @@ class FilesystemManagementMutation
         if (empty($allRecords)) {
             return [
                 'headers' => [],
-                'firstRow' => []
+                'firstRow' => [],
             ];
         }
 
@@ -380,7 +384,7 @@ class FilesystemManagementMutation
 
         return [
             'header' => $headers,
-            'row' => $firstRow
+            'row' => $firstRow,
         ];
     }
 

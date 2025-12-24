@@ -6,15 +6,23 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
+use Kanvas\Souk\Discounts\DataTransferObject\DiscountConditionData;
+use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use NetSuite\Classes\Estimate;
+use Spatie\LaravelData\DataCollection;
 
 class PullNetSuiteQuoteToOrderAction
 {
@@ -41,6 +49,9 @@ class PullNetSuiteQuoteToOrderAction
 
         // Update order with NetSuite quote data
         $this->updateOrderFromNetSuiteQuote($order, $netsuiteQuote);
+
+        //apply discount if any
+        $this->applyDiscount($order, $netsuiteQuote);
 
         return $order;
     }
@@ -137,6 +148,42 @@ class PullNetSuiteQuoteToOrderAction
 
         // Save the order
         $order->saveOrFail();
+    }
+
+    public function applyDiscount(Order $order, Estimate $netsuiteQuote): ?Discount
+    {
+        if (empty($netsuiteQuote->discountTotal) || empty($netsuiteQuote->discountRate)) {
+            return null;
+        }
+
+        //$totalDiscount = (float) $netsuiteQuote->discountTotal;
+        $discountRate = $netsuiteQuote->discountRate;
+        //$discountTotal = $netsuiteQuote->discountTotal;
+        $netDiscount = $netsuiteQuote->discountItem;
+        $discountCode = Str::cleanup($netDiscount->name);
+
+        $discount = new CreateDiscountAction(
+            $order->app,
+            $order->company,
+            new DiscountData(
+                name: $netDiscount->name,
+                description: $netDiscount->name,
+                discount_type_id: Discount::getByName('Percentage')->id,
+                value: abs((float) str_replace('%', '', $discountRate)),
+                is_percentage: true,
+                conditions: DiscountConditionData::collect([], DataCollection::class),
+                is_one_per_customer: false,
+                min_order_value: null,
+                max_discount_amount: null,
+                code: $discountCode,
+            )
+        )->execute();
+        $discount->set(
+            CustomFieldEnum::NET_SUITE_DISCOUNT_ID->value,
+            $netDiscount->internalId
+        );
+
+        return $order->applyDiscountCode($discountCode);
     }
 
     /**
@@ -331,6 +378,7 @@ class PullNetSuiteQuoteToOrderAction
         // Convert to string for consistent searching
         $quoteIdString = (string) $netsuiteQuoteId;
         $quoteIdInt = (int) $netsuiteQuoteId;
+        $isB2B = B2BConfigurationService::hasGlobalCompany($this->app);
 
         // First try to find by custom field
         $orderByCustomField = Order::getByCustomField(
@@ -345,7 +393,9 @@ class PullNetSuiteQuoteToOrderAction
 
         // Fallback to metadata search with proper null/empty checks
         return Order::fromApp($this->app)
-            ->fromCompany($this->company)
+            ->when(! $isB2B, function (Builder $query) {
+                $query->fromCompany($this->company);
+            })
             ->whereNotNull('metadata')
             ->where('metadata', '!=', '{}')
             ->where('metadata', '!=', '[]')

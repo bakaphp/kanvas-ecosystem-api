@@ -22,11 +22,16 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
+use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -45,6 +50,9 @@ use Spatie\LaravelData\DataCollection;
  * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
+ * @property string|null $ip_address
+ * @property int|null $parent_id
+ * @property int $companies_id
  * @property string|null $user_email
  * @property string|null $user_phone
  * @property string|null $token
@@ -63,6 +71,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $payment_status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property string|null $fulfillment_status
@@ -157,6 +166,11 @@ class Order extends BaseModel
         return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
     }
 
+    public function affiliateConversion(): HasMany
+    {
+        return $this->hasMany(AffiliateConversion::class, 'orders_id', 'id');
+    }
+
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
@@ -234,6 +248,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function fulfillPending(): void
+    {
+        $this->fulfillment_status = 'pending';
+        $this->saveOrFail();
+    }
+
     public function completed(): void
     {
         $this->status = 'completed';
@@ -250,6 +270,21 @@ class Order extends BaseModel
     {
         $this->status = 'canceled';
         $this->saveOrFail();
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+            new TransitionOrderStateAction(
+                $this,
+                $user,
+                $orderStatus
+            )->execute(true);
+        }
+
+        // to keep the legacy support
+        $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->completed();
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
@@ -737,5 +772,21 @@ class Order extends BaseModel
         if ($autoSave) {
             $this->saveOrFail();
         }
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new OrderFactory();
+    }
+
+    public function applyDiscountCode(string $code): ?Discount
+    {
+        $discountService = new DiscountService(
+            $this->app,
+            $this->company
+        );
+
+        return $discountService->applyDiscountCode($code, $this);
     }
 }

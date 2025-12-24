@@ -16,21 +16,11 @@ trait HasLightHouseCache
         bool $withKanvasConfiguration = true,
         bool $cleanGlobalKey = false
     ): void {
-        $key = $this->generateLighthouseCacheKey(globalModelKey: $cleanGlobalKey) . '*';
         $redis = Redis::connection('graph-cache');
-        $keys = $redis->keys($key);
-        if (empty($keys) && $withKanvasConfiguration) {
-            //$this->generateCustomFieldsLighthouseCache();
-            $this->generateFilesLighthouseCache();
+        $hashKey = $this->generateLighthouseHashKey($cleanGlobalKey);
 
-            return;
-        }
+        $redis->del($hashKey);
 
-        foreach ($keys as $key) {
-            $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
-        }
-
-        //$this->generateCustomFieldsLighthouseCache();
         if ($withKanvasConfiguration) {
             $this->generateFilesLighthouseCache();
         }
@@ -47,11 +37,16 @@ trait HasLightHouseCache
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void
     {
-        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = $this->generateLighthouseCacheKey() . $separator . $relationship . $separator . 'first' . $separator . $items;
         $redis = Redis::connection('graph-cache');
+        $hashKey = $this->generateLighthouseHashKey();
+        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
+
+        // Field key matches what directive expects
+        $fieldKey = $relationship . $separator . 'first' . $separator . $items;
+
         $result = $this->getRelationshipQueryBuilder($relationship)->paginate($items);
-        $redis->set($key, $result);
+
+        $redis->hSet($hashKey, $fieldKey, $result);
     }
 
     public function generateCustomFieldsLighthouseCache(int $items = 25): void
@@ -68,14 +63,18 @@ trait HasLightHouseCache
         $this->generateRelationshipLighthouseCache('files', $items);
     }
 
-    protected function generateLighthouseCacheKey(bool $globalModelKey = false): string
+    /**
+     * Generate the Redis hash key (matches directive's extractHashParts).
+     */
+    protected function generateLighthouseHashKey(bool $globalModelKey = false): string
     {
         $graphTypeName = $this->getGraphTypeName();
-        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
 
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName;
+        if ($globalModelKey) {
+            return CacheKeyAndTagsGenerator::PREFIX . ":{$graphTypeName}";
+        }
 
-        return $globalModelKey ? $key : $key . $separator . $this->getId();
+        return CacheKeyAndTagsGenerator::PREFIX . ":{$graphTypeName}:{$this->getId()}";
     }
 
     protected function getRelationshipQueryBuilder(string $relationship)

@@ -16,7 +16,6 @@ class VariantsWarehouses extends Data
         public float $quantity,
         public float $price,
         public string $sku,
-        public float $cost = 0.00,
         public int $position = 0,
         public ?string $serial_number = null,
         public ?int $status_id = null,
@@ -28,7 +27,8 @@ class VariantsWarehouses extends Data
         public bool $can_pre_order = false,
         public bool $is_coming_son = false,
         public bool $is_new = false,
-        public ?array $config = null
+        public ?array $config = null,
+        public float $cost = 0.00
     ) {
     }
 
@@ -39,7 +39,6 @@ class VariantsWarehouses extends Data
             $warehouse,
             isset($request['quantity']) ? (float) $request['quantity'] : 0,
             isset($request['price']) ? (float) $request['price'] : 0.00,
-            isset($request['cost']) ? (float) $request['cost'] : 0.00,
             $request['sku'] ?? $variant->sku,
             (int) ($request['position'] ?? 0),
             $request['serial_number'] ?? null,
@@ -52,7 +51,8 @@ class VariantsWarehouses extends Data
             $request['can_pre_order'] ?? false,
             $request['is_coming_son'] ?? false,
             $request['is_new'] ?? false,
-            $request['config'] ?? null
+            $request['config'] ?? null,
+            isset($request['cost']) ? (float) $request['cost'] : 0.00,
         );
     }
 }

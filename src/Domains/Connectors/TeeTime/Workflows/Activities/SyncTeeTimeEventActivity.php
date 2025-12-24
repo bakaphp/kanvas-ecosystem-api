@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Connectors\TeeTime\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
@@ -34,7 +36,9 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
 
                     if ($toStatus === EventStatusEnum::ACTIVE->value) {
                         $eventVersion = $event->versions->first();
-                        if ($eventVersion) {
+                        $participants = $eventVersion->participants;
+
+                        if ($eventVersion && ! $participants->isEmpty()) {
                             $codes = (new CreatePassAction(
                                 $eventVersion->event,
                                 $eventVersion
@@ -50,7 +54,7 @@ class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivit
                 return [
                     'event' => $event->getId(),
                     'status' => 'success',
-                    "event_name" => $eventName,
+                    'event_name' => $eventName,
                     'message' => 'Event synced correctly',
                     'data' => $event->toArray(),
                     'response' => $event->toArray(),

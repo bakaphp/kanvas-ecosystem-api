@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use Baka\Support\Url;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceEnumsConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -48,19 +56,85 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 }
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
-                $note = ($fromAgent ? 'Sally: ' : 'Customer: ') . $note;
+                $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
+                $agentChannel = '(' . ucfirst($lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms') . ') ';
+
+                $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
+
+                if ($aiChatLink !== null) {
+                    $aiChatLink = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
+                    $linkText = "\nView Full Conversation here: {$aiChatLink}";
+
+                    if (strlen($note) + strlen($linkText) > 200) {
+                        $note = substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
+                    } else {
+                        $note .= $linkText;
+                    }
+                }
 
                 $vinNote = new PushNoteToLeadAction(
                     lead: $lead,
                     message: $message,
                 )->execute($note);
 
+                // Notify managers
+                $sentManagerNotification = false;
+                if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
+                    $this->notifyManagers($message, $lead);
+                    $sentManagerNotification = true;
+                }
+
                 return [
                     'note' => $vinNote,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
+                    'sent_manager_notification' => $sentManagerNotification,
                 ];
             }
         );
+    }
+
+    /**
+     * @todo this is not the best place but , this is just for the client to test and move
+     * to another action.
+     */
+    protected function notifyManagers(Message $message, Lead $lead): void
+    {
+        $hoursTool = new CompanyWorkHoursTool($message)->execute();
+        if ($hoursTool['status'] !== 'work_hours') {
+            return;
+        }
+
+        //only notify one time
+        if ($lead->company->get(IntelligenceEnumsConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
+            && $lead->get(ConfigurationEnum::MANAGER_NOTIFIED_AT->value)) {
+            return;
+        }
+
+        $notification = new Blank(
+            templateName: 'agent-manager-notification',
+            data: [
+                'message' => $message,
+                'company' => $message->company,
+                'app' => $message->app,
+                'user' => $message->user,
+            ],
+            via: ['sms', 'push', 'expo'],
+            entity: $message
+        );
+
+        $notification->setSubject('New Customer Engaged with Sally');
+        $notification->setPushTemplateName('agent_manager_push_notification');
+        $notification->setSmsTemplateName('agent_manager_sms_notification');
+
+        //managers
+        $managers = UsersRepository::getCompanyAppUserByRole(
+            $message->company,
+            $message->app,
+            'BDCManager'
+        )->get();
+
+        Notification::send($managers, $notification);
+        $lead->set(ConfigurationEnum::MANAGER_NOTIFIED_AT->value, date('Y-m-d H:i:s'));
     }
 }

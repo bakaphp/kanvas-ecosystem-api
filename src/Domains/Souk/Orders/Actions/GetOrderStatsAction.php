@@ -2,10 +2,10 @@
 
 namespace Kanvas\Souk\Orders\Actions;
 
-use DateTime;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 
@@ -101,7 +101,7 @@ class GetOrderStatsAction
      */
     private function getOrdersInPeriod($start, $end, $currentCount = null): array
     {
-        $dateList = $this->generateDateList($start, $end);
+        $dateList = DateHelper::generateDateList($start, $end);
 
         $dateRangeSub = DB::raw('(SELECT ' . implode(' UNION ALL SELECT ', $dateList) . ') as date_list(date_val)');
 
@@ -153,7 +153,7 @@ class GetOrderStatsAction
             ->orderBy('date_range.report_date')
             ->get();
 
-        $daysInRange = collect($this->generateDateList($start, $end))
+        $daysInRange = collect(DateHelper::generateDateList($start, $end))
             ->map(fn ($date) => trim($date, "'"));
 
         $groupedResults = $results->groupBy('date');
@@ -188,20 +188,6 @@ class GetOrderStatsAction
             ],
             'data' => $byDates->toArray(),
         ];
-    }
-
-    private function generateDateList($start, $end): array
-    {
-        $dates = [];
-        $startDate = new DateTime($start);
-        $endDate = new DateTime($end);
-
-        while ($startDate <= $endDate) {
-            $dates[] = "'" . $startDate->format('Y-m-d') . "'";
-            $startDate->modify('+1 day');
-        }
-
-        return $dates;
     }
 
     private function getCurrentCount(?string $baseDate = null, string $timezone = 'UTC'): int
