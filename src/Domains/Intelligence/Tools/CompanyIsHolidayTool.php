@@ -36,7 +36,6 @@ class CompanyIsHolidayTool implements ContextToolInterface
         $federalHolidayName = null;
         foreach ($usHolidays as $holiday) {
             if ($holiday->format('Y-m-d') === $today->format('Y-m-d')) {
-                echo $holiday->getName(); // --- DEBUG ---
                 $federalHolidayName = $holiday->getName();
 
                 break;
