@@ -268,11 +268,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function canSendMessageWithinWorkingHours(Lead $lead): bool
     {
-        if (! $lead->company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS->value, false)) {
+        if (! $lead->company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
             return true;
         }
 
-        return $lead->company->isWithinWorkingHours(now());
+        //if within working hours return false , if only during off hours , we can only send if outside working hours
+        return $lead->company->isWithinWorkingHours(now()) === false;
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
