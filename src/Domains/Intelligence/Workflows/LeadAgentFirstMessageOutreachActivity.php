@@ -193,7 +193,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
-                                $canSendMessage = $this->canSendMessageWithinWorkingHours($lead);
+                                $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead);
 
                                 $createMessage = $this->createMessage(
                                     $lead,
@@ -201,10 +201,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $communicationChannelNumber,
                                     $channel ?? null,
                                     $messageType,
-                                    $canSendMessage
+                                    $shouldSendFirstMessageNow
                                 );
 
-                                if ($canSendMessage) {
+                                if ($shouldSendFirstMessageNow) {
                                     new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
                                         $firstLeadMessage['message'],
@@ -266,13 +266,18 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
     }
 
-    private function canSendMessageWithinWorkingHours(Lead $lead): bool
+    private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        if (! $lead->company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS->value, false)) {
+        $company = $lead->company;
+
+        // If company does NOT enforce the rule "send only during off-hours",
+        // we can always send.
+        if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
             return true;
         }
 
-        return $lead->company->isWithinWorkingHours(now());
+        // Rule *is enabled*: allow only outside business hours.
+        return ! $company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
