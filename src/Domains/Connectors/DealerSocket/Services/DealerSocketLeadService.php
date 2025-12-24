@@ -65,7 +65,7 @@ class DealerSocketLeadService
 
         $additionalCustomerInfo = $customerClient->getCustomerById($customerId);
 
-        if (! isset($response['events']) || ! isset($response['customer'])) {
+        if (! isset($response['events']) || empty($response['events']) || ! isset($response['customer'])) {
             throw new Exception('Lead not found in DealerSocket with Customer ID: ' . $customerId);
         }
 

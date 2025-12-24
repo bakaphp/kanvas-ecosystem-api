@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
+use Yasumi\Yasumi;
 
 class CompanyWorkHoursTool implements ContextToolInterface
 {
@@ -16,17 +17,19 @@ class CompanyWorkHoursTool implements ContextToolInterface
     protected ?array $weeklyHours = null;
     protected ?array $simpleHours = null;
     protected ?array $workingDays = null;
+    protected array $companyObservedHolidays = [];
 
     public function __construct(
         protected Model $entity
     ) {
         $tz = $this->entity->company->timezone ?? 'UTC';
-        $this->now = Carbon::now($tz);
+        $this->now = Carbon::now($tz)->addDays(1);
 
         $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
         $this->workingDays = $this->normalizeDays(
             $this->entity->company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
         );
+        $this->companyObservedHolidays = $this->entity->company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
 
         if ($this->looksLikeWeeklyMap($this->simpleHours ?? [])) {
             $this->weeklyHours = $this->simpleHours;
@@ -39,7 +42,8 @@ class CompanyWorkHoursTool implements ContextToolInterface
     {
         [$opensAt, $closesAt] = $this->getTodayOpenClose($this->now);
 
-        $status = $this->getStatus($this->now, $opensAt, $closesAt);
+        $holidayInfo = $this->getHolidayInfo($this->now);
+        $status = $this->getStatus($this->now, $opensAt, $closesAt, $holidayInfo);
         $nextOpen = $this->getNextOpenDateTime($this->now, $opensAt, $closesAt);
 
         return [
@@ -50,11 +54,17 @@ class CompanyWorkHoursTool implements ContextToolInterface
             'next_open_iso' => $nextOpen->toIso8601String(),
             'next_open_human' => $nextOpen->format('l jS \\a\\t h:i A'),
             'current_time' => $this->now->format('Y-m-d H:i:s'),
+            //'is_holiday' => $holidayInfo['is_observed_holiday'],
+            //'holiday_name' => $holidayInfo['holiday_name'],
         ];
     }
 
-    protected function getStatus(Carbon $now, ?Carbon $opensAt, ?Carbon $closesAt): string
+    protected function getStatus(Carbon $now, ?Carbon $opensAt, ?Carbon $closesAt, array $holidayInfo): string
     {
+        if ($holidayInfo['is_observed_holiday']) {
+            return 'after_hours';
+        }
+
         if (! $this->isWorkingDay($now)) {
             return 'after_hours';
         }
@@ -68,6 +78,13 @@ class CompanyWorkHoursTool implements ContextToolInterface
 
     protected function getNextOpenDateTime(Carbon $now, ?Carbon $todayOpen, ?Carbon $todayClose): Carbon
     {
+        $todayHolidayInfo = $this->getHolidayInfo($now);
+
+        // If today is an observed holiday, skip to next working day
+        if ($todayHolidayInfo['is_observed_holiday']) {
+            return $this->nextWorkingDayOpen($now->copy()->addDay());
+        }
+
         if ($this->isWorkingDay($now) && $todayOpen && $todayClose) {
             if ($now->lt($todayOpen)) {
                 return $todayOpen->copy();
@@ -119,7 +136,8 @@ class CompanyWorkHoursTool implements ContextToolInterface
     {
         $cursor = $start->copy();
         for ($i = 0; $i < 14; $i++) {
-            if ($this->isWorkingDay($cursor)) {
+            $holidayInfo = $this->getHolidayInfo($cursor);
+            if (! $holidayInfo['is_observed_holiday'] && $this->isWorkingDay($cursor)) {
                 [$open, $close] = $this->getOpenCloseForDayName($cursor->dayName, $cursor);
                 if ($open && $close) {
                     return $open->copy();
@@ -200,5 +218,33 @@ class CompanyWorkHoursTool implements ContextToolInterface
         $matches = array_intersect($keys, $valid);
 
         return count($matches) >= 4;
+    }
+
+    protected function getHolidayInfo(Carbon $date): array
+    {
+        $usHolidays = Yasumi::create('USA', $date->year);
+        $dateImmutable = $date->toDateTimeImmutable();
+
+        $holidayName = null;
+        foreach ($usHolidays as $holiday) {
+            if ($holiday->format('Y-m-d') === $date->format('Y-m-d')) {
+                $holidayName = $holiday->getName();
+
+                break;
+            }
+        }
+
+        if ($date->format('m-d') === '12-24') {
+            $holidayName = 'Christmas Eve';
+        }
+
+        // If it's a holiday and NOT in the working holidays list, company is closed
+        $isClosedForHoliday = $holidayName !== null && ! in_array($holidayName, $this->companyObservedHolidays, true);
+
+        return [
+            'is_holiday' => $holidayName !== null,
+            'is_observed_holiday' => $isClosedForHoliday,
+            'holiday_name' => $holidayName,
+        ];
     }
 }

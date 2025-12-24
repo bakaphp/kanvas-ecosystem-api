@@ -296,7 +296,7 @@ XML;
         }
     }
 
-    public function getCustomerById(int $entityId): array
+    public function getCustomerById(int|string $entityId): array
     {
         return $this->searchCustomer(['entityId' => $entityId]);
     }
