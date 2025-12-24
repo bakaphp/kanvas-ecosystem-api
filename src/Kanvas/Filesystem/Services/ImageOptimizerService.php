@@ -6,7 +6,8 @@ namespace Kanvas\Filesystem\Services;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\ImageManager;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
 use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
@@ -41,36 +42,31 @@ class ImageOptimizerService
 
         /**
          * ----------------------------
-         * 1) OPTIONAL RESIZE (Intervention)
+         * 1) RESIZE (Intervention v3)
          * ----------------------------
          */
         if (($maxWidth !== null || $maxHeight !== null)
             && in_array($extension, $resizableExtensions, true)) {
             try {
-                $img = Image::make($imagePath);
+                $manager = self::manager();
+                $img = $manager->read($imagePath);
 
-                $img->resize(
-                    $maxWidth,
-                    $maxHeight,
-                    function ($constraint) {
-                        $constraint->aspectRatio();
-                        $constraint->upsize();
-                    }
-                );
+                // scale() keeps aspect ratio automatically in v3
+                $img = $img->scale($maxWidth, $maxHeight);
 
-                // Format-aware saving
+                // Format-aware save
                 switch ($extension) {
                     case 'jpg':
                     case 'jpeg':
-                        $img->save($imagePath, 90);
+                        $img->save($imagePath, quality: 90);
 
                         break;
                     case 'png':
-                        $img->save($imagePath, 9); // PNG compression
+                        $img->toPng()->save($imagePath);
 
                         break;
                     case 'webp':
-                        $img->encode('webp', 90)->save($imagePath);
+                        $img->toWebp(90)->save($imagePath);
 
                         break;
                 }
@@ -106,33 +102,31 @@ class ImageOptimizerService
 
         /**
          * -----------------------------------------------------------
-         * 3) TARGET FILE SIZE (JPEG + WEBP, PNG cannot be reduced)
+         * 3) TARGET SIZE REDUCTION (JPEG + WEBP ONLY)
          * -----------------------------------------------------------
          */
-        if ($targetSizeMb !== null) {
-            if (self::isJpeg($extension) || self::isWebp($extension)) {
-                $targetBytes = $targetSizeMb * 1024 * 1024;
+        if ($targetSizeMb !== null && (self::isJpeg($extension) || self::isWebp($extension))) {
+            $targetBytes = $targetSizeMb * 1024 * 1024;
+            $quality = 85;
+            $minQuality = 20;
 
-                $quality = 85;
-                $minQuality = 20;
+            while (filesize($imagePath) > $targetBytes && $quality >= $minQuality) {
+                try {
+                    $manager = self::manager();
+                    $img = $manager->read($imagePath);
 
-                while (filesize($imagePath) > $targetBytes && $quality >= $minQuality) {
-                    try {
-                        $img = Image::make($imagePath);
-
-                        if (self::isJpeg($extension)) {
-                            $img->save($imagePath, $quality);
-                        } elseif (self::isWebp($extension)) {
-                            $img->encode('webp', $quality)->save($imagePath);
-                        }
-                    } catch (Exception $e) {
-                        report($e);
-
-                        break;
+                    if (self::isJpeg($extension)) {
+                        $img->save($imagePath, quality: $quality);
+                    } elseif (self::isWebp($extension)) {
+                        $img->toWebp($quality)->save($imagePath);
                     }
+                } catch (Exception $e) {
+                    report($e);
 
-                    $quality -= 5;
+                    break;
                 }
+
+                $quality -= 5;
             }
         }
 
@@ -141,11 +135,16 @@ class ImageOptimizerService
 
     private static function isJpeg(string $ext): bool
     {
-        return in_array(strtolower($ext), ['jpg', 'jpeg'], true);
+        return in_array($ext, ['jpg', 'jpeg'], true);
     }
 
     private static function isWebp(string $ext): bool
     {
-        return strtolower($ext) === 'webp';
+        return $ext === 'webp';
+    }
+
+    protected static function manager(): ImageManager
+    {
+        return new ImageManager(new Driver());
     }
 }
