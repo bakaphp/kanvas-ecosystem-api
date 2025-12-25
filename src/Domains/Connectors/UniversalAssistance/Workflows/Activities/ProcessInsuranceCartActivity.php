@@ -46,7 +46,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
 
                         try {
-                            $esimResults = $this->processeSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
+                            $esimResults = $this->processSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
                         } catch (ValidationException $e) {
                             return $this->failWorkflow([
                                 'message' => $e->getMessage(),
@@ -1202,7 +1202,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      * Process a single eSIM with plan grouping logic
      * Groups titular and dependents by same plan/convenio to create fewer vouchers
      */
-    protected function processeSIMWithPlanGrouping(InsuranceWorkflowService $service, array $insuranceData, int $esimIndex): array
+    protected function processSIMWithPlanGrouping(InsuranceWorkflowService $service, array $insuranceData, int $esimIndex): array
     {
         // Convert any objects to arrays to prevent stdClass errors
         $insuranceData = $this->convertObjectsToArrays($insuranceData);
@@ -1717,6 +1717,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             }
         }
 
+        // Check titular ErrorCode from Universal Assistance API response
+        $titularErrorCode = $esimResults['titular']['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $esimResults['titular']['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+            ?? $esimResults['titular']['voucher_result']['error_code']
+            ?? null;
+
+        if ($titularErrorCode !== null && $titularErrorCode !== '00') {
+            return false; // ErrorCode > 0 indicates failure
+        }
+
         // Check dependents vouchers
         if (! empty($esimResults['dependents'])) {
             foreach ($esimResults['dependents'] as $dependent) {
@@ -1724,6 +1734,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     if ($dependent['voucher_result']['success'] === false) {
                         return false;
                     }
+                }
+
+                // Check dependent ErrorCode from Universal Assistance API response
+                $dependentErrorCode = $dependent['voucher_result']['voucher_data']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+                    ?? $dependent['voucher_result']['voucher_data']['voucher_response']['UAAltaVoucheMinResponse']['DatosVoucherResp']['ErrorCode']
+                    ?? $dependent['voucher_result']['error_code']
+                    ?? null;
+
+                if ($dependentErrorCode !== null && $dependentErrorCode !== '00') {
+                    return false; // ErrorCode > 0 indicates failure
                 }
             }
         }
