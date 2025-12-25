@@ -23,7 +23,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         protected Model $entity
     ) {
         $tz = $this->entity->company->timezone ?? 'UTC';
-        $this->now = Carbon::now($tz)->addDays(1);
+        $this->now = Carbon::now($tz);
 
         $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
         $this->workingDays = $this->normalizeDays(
