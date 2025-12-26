@@ -25,7 +25,7 @@ class RenderTemplateAction
     /**
      * Invoke function.
      */
-    public function execute(string $templateName, array $templateParams): string
+    public function execute(string $templateName, array $templateParams, $bladeRenderTemplateParams = true): string
     {
         /**
          * @psalm-suppress PossiblyNullArgument
@@ -42,10 +42,19 @@ class RenderTemplateAction
                 $parentTemplate->template
             );
         }
-
+        // We need to avoid using the render method to replace the values on the template, sometimes it does not work as expected for push notifications
+        if (! $bladeRenderTemplateParams) {
+            foreach ($templateParams as $key => $value) {
+                $notificationTemplate = str_replace(
+                    "{{{$key}}}",
+                    $value,
+                    $notificationTemplate
+                );
+            }
+        }
         return Blade::render(
             $notificationTemplate,
-            $templateParams
+            $bladeRenderTemplateParams ? $templateParams : []
         );
     }
 }
