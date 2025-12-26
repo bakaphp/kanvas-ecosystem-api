@@ -40,7 +40,8 @@ class DealerSocketLeadService
 
         $leadData = $this->mapLeadToArray($lead);
 
-        $format = config('dealersocket.lead_format', 'star');
+        //$format = config('dealersocket.lead_format', 'star');
+        $format = $lead->company->get('dealersocket_lead_format') ?? 'start';
 
         $response = $format === 'adf'
             ? $this->leadClient->createSalesLeadADF($leadData)
@@ -65,7 +66,7 @@ class DealerSocketLeadService
 
         $additionalCustomerInfo = $customerClient->getCustomerById($customerId);
 
-        if (! isset($response['events']) || ! isset($response['customer'])) {
+        if (! isset($response['events']) || empty($response['events']) || ! isset($response['customer'])) {
             throw new Exception('Lead not found in DealerSocket with Customer ID: ' . $customerId);
         }
 
@@ -105,7 +106,7 @@ class DealerSocketLeadService
 
             'leadInterestCode' => $this->mapLeadInterestCode($lead),
             'customerType' => 'Prospect',
-            'contactMethod' => 'Phone',
+            'contactMethod' => $this->mapContactMethod($lead->get('preferred_contact_method') ?? ''),
             'leadSource' => $this->getLeadSource($lead),
             'customerComments' => $this->getCustomerComments($lead),
             'leadComments' => $this->getLeadComments($lead),
@@ -118,6 +119,16 @@ class DealerSocketLeadService
 
             'description' => $lead->description ?? '',
         ];
+    }
+
+    protected function mapContactMethod(string $method): string
+    {
+        return match (strtolower($method)) {
+            'phone', 'call', 'telephone' => 'Telephone',
+            'text', 'sms' => 'Text',
+            'email', 'mail' => 'Email',
+            default => 'Telephone',
+        };
     }
 
     /**
@@ -244,7 +255,8 @@ class DealerSocketLeadService
      */
     protected function getVendorName(): string
     {
-        return config('dealersocket.vendor_name', $this->company->name);
+        //return config('dealersocket.vendor_name', $this->company->name);
+        return $this->company->get(CustomFieldEnum::DEALER_SOCKET_VENDOR_NAME->value) ?? $this->company->name;
     }
 
     /**
@@ -526,7 +538,8 @@ class DealerSocketLeadService
                 return '';
             }
 
-            return trim($owner->firstname . ' ' . $owner->lastname);
+            //return trim($owner->firstname . ' ' . $owner->lastname);
+            return $owner->displayname;
         } catch (Throwable $e) {
             return '';
         }
@@ -647,10 +660,10 @@ class DealerSocketLeadService
         }
 
         // // Add sales person if available
-        // $salesPersonName = $this->getSalesPerson($lead);
-        // if ($salesPersonName) {
-        //     $data['salesPersonName'] = $salesPersonName;
-        // }
+        $salesPersonName = $this->getSalesPerson($lead);
+        if ($salesPersonName !== '' && $salesPersonName !== null) {
+            $data['salesPersonName'] = $salesPersonName;
+        }
 
         // Add lead status if available
         try {
