@@ -82,7 +82,8 @@ trait NotificationRenderTrait
             ?? $this->templateName
             ?? $this->getType()->getPushTemplateName();
 
-        return $this->renderTemplate($templateName);
+        // we don't want to render blade params for push templates, sometimes does not work properly.
+        return $this->renderTemplate(templateName: $templateName, bladeRenderTemplateParams: false);
     }
 
     protected function getSmsTemplate(): string
@@ -121,9 +122,9 @@ trait NotificationRenderTrait
         }
     }
 
-    protected function renderTemplate(string $templateName): string
+    protected function renderTemplate(string $templateName, bool $bladeRenderTemplateParams = true): string
     {
-        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company, $bladeRenderTemplateParams);
 
         return $renderTemplate->execute($templateName, $this->getData());
     }

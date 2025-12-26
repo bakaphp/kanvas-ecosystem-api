@@ -17,7 +17,8 @@ class RenderTemplateAction
      */
     public function __construct(
         protected ?AppInterface $app = null,
-        protected ?CompanyInterface $company = null
+        protected ?CompanyInterface $company = null,
+        protected ?bool $bladeRenderTemplateParams = true,
     ) {
         $this->app = $app ?? app(Apps::class);
     }
@@ -25,7 +26,7 @@ class RenderTemplateAction
     /**
      * Invoke function.
      */
-    public function execute(string $templateName, array $templateParams, $bladeRenderTemplateParams = true): string
+    public function execute(string $templateName, array $templateParams): string
     {
         /**
          * @psalm-suppress PossiblyNullArgument
@@ -43,7 +44,7 @@ class RenderTemplateAction
             );
         }
         // We need to avoid using the render method to replace the values on the template, sometimes it does not work as expected for push notifications
-        if (! $bladeRenderTemplateParams) {
+        if (! $this->bladeRenderTemplateParams) {
             foreach ($templateParams as $key => $value) {
                 $notificationTemplate = str_replace(
                     "{{{$key}}}",
@@ -54,7 +55,7 @@ class RenderTemplateAction
         }
         return Blade::render(
             $notificationTemplate,
-            $bladeRenderTemplateParams ? $templateParams : []
+            $this->bladeRenderTemplateParams ? $templateParams : []
         );
     }
 }
