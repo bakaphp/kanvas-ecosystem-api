@@ -1336,13 +1336,30 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function extractMessageText(array $messageContent, string $messageType): ?string
     {
         return match ($messageType) {
-            'text' => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
-            'image' => $messageContent['imageMessage']['caption'] ?? null,
-            'video' => $messageContent['videoMessage']['caption'] ?? null,
-            'document' => $messageContent['documentMessage']['caption'] ?? null,
-            'contact' => $messageContent['contactMessage']['displayName'] ?? null,
-            'location' => $messageContent['locationMessage']['name'] ?? null,
-            default => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
+            'text', 'whatsapp-text' =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
+
+            'image', 'whatsapp-image' =>
+                $messageContent['imageMessage']['caption'] ?? null,
+
+            'video', 'whatsapp-video' =>
+                $messageContent['videoMessage']['caption'] ?? null,
+
+            'document', 'whatsapp-document' =>
+                $messageContent['documentMessage']['caption'] ?? null,
+
+            'contact', 'whatsapp-contact' =>
+                $messageContent['contactMessage']['displayName'] ?? null,
+
+            'location', 'whatsapp-location' =>
+                $messageContent['locationMessage']['name'] ?? null,
+
+            default =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
         };
     }
 
