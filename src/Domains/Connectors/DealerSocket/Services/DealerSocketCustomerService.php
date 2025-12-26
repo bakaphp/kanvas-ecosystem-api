@@ -183,7 +183,7 @@ class DealerSocketCustomerService
     /**
      * Get customer by Entity ID
      */
-    public function getCustomerById(int $entityId): array
+    public function getCustomerById(string|int $entityId): array
     {
         return $this->customerClient->getCustomerById($entityId);
     }
