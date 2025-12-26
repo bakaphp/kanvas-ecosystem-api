@@ -43,8 +43,8 @@ class BusinessDayCalculator
         }
 
         while ($current->lt($end)) {
-            // Check for custom special days (including half-days) - O(1) lookup
             $dateKey = $current->format('Y-m-d');
+            // Check for custom special days first (they override weekend rules)
             if (isset($specialDaysLookup[$dateKey])) {
                 $specialDay = $specialDaysLookup[$dateKey];
 
@@ -60,7 +60,19 @@ class BusinessDayCalculator
                 }
             }
 
-            // Regular business day
+            // Check for weekends
+            if ($current->isSunday()) {
+                // Sunday - skip full day
+                $current->addDay();
+                continue;
+            } elseif ($current->isSaturday()) {
+                // Saturday - count as half day
+                $businessDays += 0.5;
+                $current->addDay();
+                continue;
+            }
+
+            // Regular business day (Monday-Friday, not a special day)
             $businessDays++;
             $current->addDay();
         }
