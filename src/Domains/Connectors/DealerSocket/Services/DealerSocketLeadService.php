@@ -255,7 +255,8 @@ class DealerSocketLeadService
      */
     protected function getVendorName(): string
     {
-        return config('dealersocket.vendor_name', $this->company->name);
+        //return config('dealersocket.vendor_name', $this->company->name);
+        return $this->company->get(CustomFieldEnum::DEALER_SOCKET_VENDOR_NAME->value) ?? $this->company->name;
     }
 
     /**

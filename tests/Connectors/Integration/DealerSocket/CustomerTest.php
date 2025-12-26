@@ -92,6 +92,34 @@ final class CustomerTest extends TestCase
             $this->assertNotEmpty($searchResponse);
         } */
 
+    public function testSearchCustomerByName()
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()->withUserId($user->getId())
+             ->withAppId($app->getId())
+             ->withCompanyId($company->getId())
+             ->withContacts(canUseFakeInfo: false)
+             ->create();
+        $region = $company->defaultRegion;
+
+        $this->setupDealerSocketConfiguration($company, $app);
+
+        $customerService = new DealerSocketCustomerService($app, $company);
+        $response = $customerService->saveCustomer($people);
+
+        $searchResponse = $customerService->searchCustomerByName(
+            $people->firstname,
+            $people->lastname,
+            true
+        );
+
+        $this->assertNotEmpty($searchResponse);
+        $this->assertGreaterThanOrEqual(1, count($searchResponse['customers']));
+    }
+
     public function testSearchCustomerByPhone()
     {
         $app = app(Apps::class);
