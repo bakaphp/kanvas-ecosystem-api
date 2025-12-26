@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\DealerSocket;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\DealerSocket\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 
 class LeadClient extends BaseClient
@@ -41,7 +42,6 @@ class LeadClient extends BaseClient
     private function postLead(string $xml, string $format = 'star'): array
     {
         $url = $this->getDirectPostUrl($format);
-
         $headers = $this->authService->getDirectPostHeaders();
 
         $response = Http::withHeaders($headers)
@@ -364,12 +364,12 @@ XML;
     private function getDirectPostUrl(string $format): string
     {
         $format = strtolower($format);
-        $environment = 'testing';
+        $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
         $dealerId = $this->authService->getDealerId();
+        $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
 
-        if ($environment === 'testing' || config('dealersocket.use_oem_testing_url', false)) {
-            $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
-
+        // --- TESTING ENVIRONMENT (OEM) ---
+        if ($environment === 'testing') {
             if ($format === 'adf') {
                 return "{$baseUrl}/ADF/1/SalesLead/223IIV3839";
             } else {
@@ -377,9 +377,11 @@ XML;
             }
         }
 
-        $baseUrl = config('dealersocket.base_url', 'https://api.dealersocket.com/api/DealerSocket');
-
-        return "{$baseUrl}/DirectPost/{$dealerId}";
+        if ($format === 'adf') {
+            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerId;
+        } else {
+            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerId;
+        }
     }
 
     public function searchLeadsByEntityId(int|string $entityId, string $eventCategory = 'Sales'): array
