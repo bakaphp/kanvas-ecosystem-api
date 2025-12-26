@@ -14,6 +14,9 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * @todo move to a SA namespace, this is not for Twilio anymore
+ */
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
     public $tries = 3;
