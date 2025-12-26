@@ -62,8 +62,8 @@ jobs:
             docker stop batch-logger-queue
             docker stop queue-user-interactions
 
-            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker restart  queue queue2 queue3 queue4 queue5 queue6 queue7 queue8 queue-imports3 queue-imports4 queue-workflow-1 queue-workflow-2 queue-workflow-3 queue-workflow-4 queue-scout-worker-2 queue-scout-worker-3 queue-notifications
+            if [ "${{ github.ref_name }}" == "1.x" ]; then
+              docker restart queue{,2,3,4,5,6,7,8} queue-imports{2,3,4} queue-workflow-{1..4} queue-scout-worker-{2,3} queue-notifications
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload
