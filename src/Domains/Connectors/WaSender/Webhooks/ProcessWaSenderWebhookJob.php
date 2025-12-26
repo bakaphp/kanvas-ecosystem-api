@@ -1309,7 +1309,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      */
     protected function getMessageType(array $messageContent): string
     {
-        if (isset($messageContent['conversation'])) {
+        if (isset($messageContent['conversation']) || isset($messageContent['extendedTextMessage'])) {
             return 'whatsapp-text';
         } elseif (isset($messageContent['imageMessage'])) {
             return 'whatsapp-image';
@@ -1342,7 +1342,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             'document' => $messageContent['documentMessage']['caption'] ?? null,
             'contact' => $messageContent['contactMessage']['displayName'] ?? null,
             'location' => $messageContent['locationMessage']['name'] ?? null,
-            default => null,
+            default => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
         };
     }
 
