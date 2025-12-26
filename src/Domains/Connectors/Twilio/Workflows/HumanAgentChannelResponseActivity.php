@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -74,8 +75,15 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
+                $channelType = match ($message->type) {
+                    ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
+                    ChannelCategoryEnum::EMAIL->value => LeadCommunicationChannelEnum::EMAIL->value,
+                    ChannelCategoryEnum::SMS->value => LeadCommunicationChannelEnum::SMS->value,
+                    default => LeadCommunicationChannelEnum::SMS->value,
+                };
+
                 return new SendMessageToLeadAction($lead)->execute(
-                    LeadCommunicationChannelEnum::SMS->value,
+                    $channelType,
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
