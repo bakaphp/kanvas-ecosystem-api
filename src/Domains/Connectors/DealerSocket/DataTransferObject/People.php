@@ -39,7 +39,7 @@ class People extends DataTransferObjectPeople
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
                         'weight' => 0,
                     ],
-                    $lead['customer']['emails'] ?? []
+                    $people['emails'] ?? []
                 ),
                 array_map(
                     fn ($phone) => [
@@ -51,7 +51,7 @@ class People extends DataTransferObjectPeople
                             ? 100
                             : 0,
                     ],
-                    $lead['customer']['phones'] ?? []
+                    $people['phones'] ?? []
                 )
             ),
             'address' => ! empty($people['address'])
