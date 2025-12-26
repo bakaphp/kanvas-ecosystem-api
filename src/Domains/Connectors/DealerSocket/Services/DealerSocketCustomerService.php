@@ -175,9 +175,16 @@ class DealerSocketCustomerService
     /**
      * Search for a customer by name
      */
-    public function searchCustomerByName(?string $firstName, ?string $lastName): array
-    {
-        return $this->customerClient->getCustomerByName($firstName, $lastName);
+    public function searchCustomerByName(
+        ?string $firstName = null,
+        ?string $lastName = null,
+        bool $multipleResults = false
+    ): array {
+        return $this->customerClient->getCustomerByName(
+            $firstName,
+            $lastName,
+            $multipleResults
+        );
     }
 
     /**

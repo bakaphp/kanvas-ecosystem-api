@@ -189,7 +189,7 @@ XML;
         return $xml;
     }
 
-    public function searchCustomer(array $searchData): array
+    public function searchCustomer(array $searchData, bool $returnMultiple = false): array
     {
         $xml = $this->buildSearchXML($searchData);
 
@@ -198,13 +198,13 @@ XML;
             ->withBody($xml, 'application/xml')
             ->post($this->baseUrl . '/SearchEntity');
 
-        return $this->parseSearchResponse($response);
+        return $this->parseSearchResponse($response, $returnMultiple);
     }
 
     /**
      * Parse Search Entity response
      */
-    private function parseSearchResponse($response): array
+    private function parseSearchResponse($response, bool $returnMultiple = false): array
     {
         if ($response->failed()) {
             return [
@@ -224,69 +224,40 @@ XML;
             $responseExpression = (string)($xml->ShowCustomerInformationDataArea->Show->ResponseCriteria->ResponseExpression ?? '');
             $success = strtolower($responseExpression) === 'success';
 
-            $customerInfo = $xml->ShowCustomerInformationDataArea->CustomerInformation ?? null;
-            $customerParty = $customerInfo->CustomerInformationDetail->CustomerParty ?? null;
-            $specifiedPerson = $customerParty->SpecifiedPerson ?? null;
+            $customerInfoList = $xml->ShowCustomerInformationDataArea->CustomerInformation ?? [];
 
-            // Parse SecondaryDealerNumberID
-            $secondaryDealerId = (string)($customerInfo->CustomerInformationHeader->SecondaryDealerNumberID ?? '');
+            // If returnMultiple is true, parse all CustomerInformation elements
+            if ($returnMultiple) {
+                $customers = [];
 
-            // Parse all phone numbers
-            $phones = [];
-            if ($specifiedPerson && isset($specifiedPerson->TelephoneCommunication)) {
-                foreach ($specifiedPerson->TelephoneCommunication as $phoneCommunication) {
-                    $phones[] = [
-                        'number' => (string)($phoneCommunication->CompleteNumber ?? ''),
-                        'type' => (string)($phoneCommunication->UseCode ?? ''),
-                    ];
+                foreach ($customerInfoList as $customerInfo) {
+                    $parsedCustomer = $this->parseCustomerInfo($customerInfo);
+                    if ($parsedCustomer) {
+                        $customers[] = $parsedCustomer;
+                    }
                 }
-            }
 
-            // Parse all emails
-            $emails = [];
-            if ($specifiedPerson && isset($specifiedPerson->URICommunication)) {
-                foreach ($specifiedPerson->URICommunication as $uriCommunication) {
-                    $emails[] = [
-                        'email' => (string)($uriCommunication->URIID ?? ''),
-                        'type' => (string)($uriCommunication->ChannelCode ?? ''),
-                    ];
-                }
-            }
-
-            // Parse address
-            $address = null;
-            if ($specifiedPerson && isset($specifiedPerson->PostalAddress)) {
-                $postalAddress = $specifiedPerson->PostalAddress;
-                $address = [
-                    'street' => (string)($postalAddress->LineOne ?? ''),
-                    'city' => (string)($postalAddress->CityName ?? ''),
-                    'zipCode' => (string)($postalAddress->Postcode ?? ''),
-                    'state' => trim((string)($postalAddress->{'StateOrProvinceCountrySub-DivisionID'} ?? '')),
+                return [
+                    'success' => $success,
+                    'count' => count($customers),
+                    'customers' => $customers,
+                    'errorCode' => '',
+                    'errorMessage' => $success ? '' : 'No customers found',
                 ];
             }
 
-            // Get primary phone and email for backward compatibility
-            $primaryPhone = $phones[0]['number'] ?? '';
-            $primaryEmail = $emails[0]['email'] ?? '';
+            // Single record mode (backward compatible) - return first CustomerInformation
+            $customerInfo = is_array($customerInfoList) || $customerInfoList instanceof \Traversable
+                ? (isset($customerInfoList[0]) ? $customerInfoList[0] : $customerInfoList)
+                : $customerInfoList;
 
-            $result = [
-                'success' => $success,
-                'entityId' => (string)($customerParty->PartyID ?? ''),
-                'dmsCustomerId' => '',
-                'secondaryDealerId' => $secondaryDealerId,
-                'firstName' => (string)($specifiedPerson->GivenName ?? ''),
-                'lastName' => (string)($specifiedPerson->FamilyName ?? ''),
-                'email' => $primaryEmail,
-                'phone' => $primaryPhone,
-                'emails' => $emails,
-                'phones' => $phones,
-                'address' => $address,
-                'errorCode' => '',
-                'errorMessage' => $success ? '' : 'Customer not found',
-                //'rawXml' => $response->body(),
-            ];
+            $parsedCustomer = $this->parseCustomerInfo($customerInfo);
 
-            return $result;
+            return array_merge(
+                ['success' => $success],
+                $parsedCustomer ?? [],
+                ['errorCode' => '', 'errorMessage' => $success ? '' : 'Customer not found']
+            );
         } catch (Exception $e) {
             return [
                 'success' => false,
@@ -294,6 +265,73 @@ XML;
                 'body' => $response->body(),
             ];
         }
+    }
+
+    /**
+     * Parse a single CustomerInformation element
+     */
+    private function parseCustomerInfo($customerInfo): ?array
+    {
+        if (! $customerInfo) {
+            return null;
+        }
+
+        $customerParty = $customerInfo->CustomerInformationDetail->CustomerParty ?? null;
+        $specifiedPerson = $customerParty->SpecifiedPerson ?? null;
+
+        // Parse SecondaryDealerNumberID
+        $secondaryDealerId = (string)($customerInfo->CustomerInformationHeader->SecondaryDealerNumberID ?? '');
+
+        // Parse all phone numbers
+        $phones = [];
+        if ($specifiedPerson && isset($specifiedPerson->TelephoneCommunication)) {
+            foreach ($specifiedPerson->TelephoneCommunication as $phoneCommunication) {
+                $phones[] = [
+                    'number' => (string)($phoneCommunication->CompleteNumber ?? ''),
+                    'type' => (string)($phoneCommunication->UseCode ?? ''),
+                ];
+            }
+        }
+
+        // Parse all emails
+        $emails = [];
+        if ($specifiedPerson && isset($specifiedPerson->URICommunication)) {
+            foreach ($specifiedPerson->URICommunication as $uriCommunication) {
+                $emails[] = [
+                    'email' => (string)($uriCommunication->URIID ?? ''),
+                    'type' => (string)($uriCommunication->ChannelCode ?? ''),
+                ];
+            }
+        }
+
+        // Parse address
+        $address = null;
+        if ($specifiedPerson && isset($specifiedPerson->PostalAddress)) {
+            $postalAddress = $specifiedPerson->PostalAddress;
+            $address = [
+                'street' => (string)($postalAddress->LineOne ?? ''),
+                'city' => (string)($postalAddress->CityName ?? ''),
+                'zipCode' => (string)($postalAddress->Postcode ?? ''),
+                'state' => trim((string)($postalAddress->{'StateOrProvinceCountrySub-DivisionID'} ?? '')),
+            ];
+        }
+
+        // Get primary phone and email for backward compatibility
+        $primaryPhone = $phones[0]['number'] ?? '';
+        $primaryEmail = $emails[0]['email'] ?? '';
+
+        return [
+            'entityId' => (string)($customerParty->PartyID ?? ''),
+            'dmsCustomerId' => '',
+            'secondaryDealerId' => $secondaryDealerId,
+            'firstName' => (string)($specifiedPerson->GivenName ?? ''),
+            'lastName' => (string)($specifiedPerson->FamilyName ?? ''),
+            'email' => $primaryEmail,
+            'phone' => $primaryPhone,
+            'emails' => $emails,
+            'phones' => $phones,
+            'address' => $address,
+        ];
     }
 
     public function getCustomerById(int|string $entityId): array
@@ -311,8 +349,11 @@ XML;
         return $this->searchCustomer(['phone' => $phone]);
     }
 
-    public function getCustomerByName(?string $firstName, ?string $lastName): array
-    {
+    public function getCustomerByName(
+        ?string $firstName = null,
+        ?string $lastName = null,
+        bool $multipleResults = false
+    ): array {
         $searchData = [];
         if ($firstName) {
             $searchData['firstName'] = $firstName;
@@ -321,7 +362,7 @@ XML;
             $searchData['lastName'] = $lastName;
         }
 
-        return $this->searchCustomer($searchData);
+        return $this->searchCustomer($searchData, $multipleResults);
     }
 
     private function buildSearchXML(array $searchData): string
