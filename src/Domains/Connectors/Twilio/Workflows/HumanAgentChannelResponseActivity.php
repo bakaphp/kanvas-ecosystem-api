@@ -86,7 +86,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 };
 
                 //we have a loop when you create a msg , its sent back via webhook, so we hide the msg that initiate everything
-                if($message->messageType->verb === ChannelCategoryEnum::WHATSAPP->value){
+                if ($message->messageType->verb === ChannelCategoryEnum::WHATSAPP->value) {
                     $message->is_public = 0;
                     $message->save();
                 }
