@@ -42,10 +42,8 @@ class LeadClient extends BaseClient
     private function postLead(string $xml, string $format = 'star'): array
     {
         $url = $this->getDirectPostUrl($format);
-        echo "url: $url\n";
         $headers = $this->authService->getDirectPostHeaders();
 
-        print_R($xml);
         $response = Http::withHeaders($headers)
             ->withBody($xml, 'application/xml')
             ->post($url);
