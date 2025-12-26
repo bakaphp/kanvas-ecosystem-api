@@ -142,6 +142,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         foreach ($data as $messageData) {
             $key = $messageData['key'] ?? [];
             $messageContent = $messageData['message'] ?? [];
+            $messageBody = $messageData['messageBody'] ?? null;
 
             $messageType = $this->getMessageType($messageContent);
             $isDocument = MessageTypeEnum::isDocumentType($messageType);
@@ -204,7 +205,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     user: $this->receiver->user,
                     type: $messageTypeModel,
                     message: [
-                        'content' => $text,
+                        'content' => $text !== null && $text !== '' ? $text : $messageBody,
                         'raw_data' => $messageData,
                         'message_id' => $messageId,
                         'chat_jid' => $chatJid,
