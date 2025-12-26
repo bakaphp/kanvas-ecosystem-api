@@ -75,7 +75,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
-                $channelType = match ($message->type) {
+                $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
                     ChannelCategoryEnum::EMAIL->value => LeadCommunicationChannelEnum::EMAIL->value,
                     ChannelCategoryEnum::SMS->value => LeadCommunicationChannelEnum::SMS->value,
