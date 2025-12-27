@@ -62,8 +62,25 @@ class Lead extends DataTransferObjectLead
             ->first();
 
         $customFields = [
-            CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value => $leadData['eventId'],
-        ];
+             CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value => $leadData['eventId'],
+         ];
+
+        //vehicle of interest
+        if (isset($leadData['vehicle']) && is_array($leadData['vehicle']) && ! empty($leadData['vehicle'])) {
+            $milage = $leadData['vehicle']['currentMileage'] ?? 0;
+
+            $customFields['vehicle_of_interest'] = [
+                'year' => $leadData['vehicle']['year'] ?? null,
+                'make' => $leadData['vehicle']['make'] ?? null,
+                'model' => $leadData['vehicle']['model'] ?? null,
+                'trim' => null,
+                'color' => null,
+                'isNew' => (int) $milage <= 100 ? true : false,
+                'vin' => $leadData['vehicle']['vin'] ?? null,
+                'stock_number' => $leadData['vehicle']['stockNumber'] ?? null,
+                'mileage' => $milage,
+            ];
+        }
 
         return self::from([
             'app' => $app,
