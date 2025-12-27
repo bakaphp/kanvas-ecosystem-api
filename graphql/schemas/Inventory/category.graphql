@@ -7,7 +7,7 @@ type Category {
     description: String
     slug: String!
     code: String
-    position: Int!
+    position: Int
     is_featured: Boolean!
     translation(languageCode: String!): ProductTranslation
         @field(
