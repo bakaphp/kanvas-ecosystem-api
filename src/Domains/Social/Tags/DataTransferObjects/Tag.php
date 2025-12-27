@@ -17,7 +17,9 @@ class Tag extends Data
         public Companies $company,
         public string|int $name,
         public ?string $slug = null,
-        public int $weight = 0
+        public int $weight = 0,
+        public ?int $parent_id = null,
+        public ?int $is_feature = 0,
     ) {
     }
 }
