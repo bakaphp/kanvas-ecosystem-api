@@ -51,11 +51,13 @@ class BusinessDayCalculator
                 if ($specialDay['type'] === 'full_day') {
                     // Skip full day
                     $current->addDay();
+
                     continue;
                 } elseif ($specialDay['type'] === 'half_day') {
                     // Count as half day
                     $businessDays += 0.5;
                     $current->addDay();
+
                     continue;
                 }
             }
@@ -64,11 +66,13 @@ class BusinessDayCalculator
             if ($current->isSunday()) {
                 // Sunday - skip full day
                 $current->addDay();
+
                 continue;
             } elseif ($current->isSaturday()) {
                 // Saturday - count as half day
                 $businessDays += 0.5;
                 $current->addDay();
+
                 continue;
             }
 

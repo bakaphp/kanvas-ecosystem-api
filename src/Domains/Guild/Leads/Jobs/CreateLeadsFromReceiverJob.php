@@ -116,6 +116,8 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
                 true,
                 [
                             'app' => $lead->app,
+                            'payload' => $payload,
+                            'sub_source' => $this->receiver->configuration['sub_source'] ?? null,
                         ]
             );
         }
