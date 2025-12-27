@@ -76,6 +76,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
+use Kanvas\Connectors\SalesAssist\Activities\DealerAppCenterSubSourcesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\GenerateLeadLinkedFieldActivity;
 use Kanvas\Connectors\SalesAssist\Activities\LeadProcessDriverLicenseImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PeopleProcessDriverLicenseImageActivity;
@@ -304,6 +305,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesPushPeopleActivity::class,
             ActivitiesAddLeadCommentFromAgentMessageActivity::class,
             ProcessADFAgentInboundLeadJob::class,
+            DealerAppCenterSubSourcesActivity::class,
         ];
 
         $createdActions = [];
