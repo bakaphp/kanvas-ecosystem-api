@@ -20,7 +20,7 @@ class DealerAppCenterSubSourcesActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         /**
-         * for now this is harcoded for specific company 
+         * for now this is harcoded for specific company
          */
         return $this->executeIntegration(
             entity: $lead,
