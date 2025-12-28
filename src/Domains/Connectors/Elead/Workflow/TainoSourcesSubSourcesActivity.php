@@ -17,6 +17,11 @@ class TainoSourcesSubSourcesActivity extends KanvasActivity
     public function execute(Lead $lead, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+        if (! key_exists('payload', $params)) {
+            return [
+                'error' => 'Payload is required',
+            ];
+        }
         $payload = $params['payload'] ?? [];
 
         if (! $payload) {
