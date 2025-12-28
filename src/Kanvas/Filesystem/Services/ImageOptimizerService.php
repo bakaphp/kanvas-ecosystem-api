@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
+use Baka\Support\Str;
 use Exception;
+use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
+use Kanvas\Filesystem\Models\Filesystem;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
 use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
@@ -15,6 +18,75 @@ use Spatie\ImageOptimizer\Optimizers\Optipng;
 
 class ImageOptimizerService
 {
+    /**
+    * Optimize an existing Filesystem entity and update it with the optimized image.
+    *
+    * Downloads the image from the filesystem URL, optimizes it, re-uploads to cloud storage,
+    * and updates the Filesystem record with the new URL, path, and size.
+    */
+    public static function optimizeFilesystem(
+        Filesystem $filesystem,
+        bool $optimize = true,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+        ?int $quality = null,
+    ): Filesystem {
+        // Download and optimize the image
+        $optimizedPath = self::optimizeImageFromUrl(
+            imageUrl: $filesystem->url,
+            optimize: $optimize,
+            maxWidth: $maxWidth,
+            maxHeight: $maxHeight,
+            quality: $quality,
+        );
+
+        $app = $filesystem->app;
+        $company = $filesystem->company;
+
+        try {
+            // Get the filesystem service for re-uploading
+            $filesystemService = new FilesystemServices($app, $company);
+            $storage = $filesystemService->getStorageByDisk();
+
+            // Get upload path from app config
+            $uploadPath = $app->get('cloud-bucket-path') ?? '/';
+
+            // Generate new filename with optimized suffix
+            $originalName = Str::before(Str::before($filesystem->name, '?'), '#');
+            $pathInfo = pathinfo($originalName);
+            $baseName = $pathInfo['filename'] ?? 'optimized';
+            $extension = $pathInfo['extension'] ?? pathinfo($optimizedPath, PATHINFO_EXTENSION);
+            $newFilename = $baseName . '_optimized_' . time() . '.' . $extension;
+
+            // Upload the optimized file
+            $uploadedPath = $storage->putFileAs(
+                $uploadPath,
+                new File($optimizedPath),
+                $newFilename,
+                ['visibility' => 'public']
+            );
+
+            // Get new URL and file size
+            $newUrl = $storage->url($uploadedPath);
+            $newSize = filesize($optimizedPath);
+
+            // Update the filesystem entity
+            $filesystem->update([
+                'url' => $newUrl,
+                'path' => $storage->path($uploadedPath),
+                'name' => $newFilename,
+                'size' => $newSize,
+            ]);
+
+            return $filesystem->fresh();
+        } finally {
+            // Clean up temp file
+            if (file_exists($optimizedPath)) {
+                @unlink($optimizedPath);
+            }
+        }
+    }
+
     public static function optimizeImageFromUrl(
         string $imageUrl,
         bool $optimize = true,
