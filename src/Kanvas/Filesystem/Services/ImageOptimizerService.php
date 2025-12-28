@@ -82,25 +82,23 @@ class ImageOptimizerService
          * ----------------------------
          */
         try {
-            if ($optimize === false) {
-                return $imagePath;
+            if ($optimize) {
+                $optimizerChain = new OptimizerChain();
+
+                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
+                $optimizerChain->addOptimizer(
+                    new Jpegoptim([
+                        '-m85',
+                        '--strip-all',
+                        '--all-progressive',
+                    ])
+                );
+
+                $optimizerChain
+                    ->useLogger(Log::channel())
+                    ->setTimeout(60)
+                    ->optimize($imagePath);
             }
-
-            $optimizerChain = new OptimizerChain();
-
-            $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
-            $optimizerChain->addOptimizer(
-                new Jpegoptim([
-                    '-m85',
-                    '--strip-all',
-                    '--all-progressive',
-                ])
-            );
-
-            $optimizerChain
-                ->useLogger(Log::channel())
-                ->setTimeout(60)
-                ->optimize($imagePath);
         } catch (Exception $e) {
             report($e);
         }
@@ -122,6 +120,8 @@ class ImageOptimizerService
 
                     if (self::isJpeg($extension)) {
                         $img->save($imagePath, quality: $quality);
+                    } elseif (self::isPng($extension)) {
+                        $img->save($imagePath, quality: $quality);
                     } elseif (self::isWebp($extension)) {
                         $img->toWebp($quality)->save($imagePath);
                     }
@@ -141,6 +141,11 @@ class ImageOptimizerService
     private static function isJpeg(string $ext): bool
     {
         return in_array($ext, ['jpg', 'jpeg'], true);
+    }
+
+    private static function isPng(string $ext): bool
+    {
+        return $ext === 'png';
     }
 
     private static function isWebp(string $ext): bool
