@@ -383,11 +383,11 @@ class ProcessVideoRequestAction
 
             if ($fileSize > $maxFileSize) {
                 try {
-                    return ImageOptimizerService::optimizeImageFromUrl(
-                        imageUrl: $file->url,
+                    return ImageOptimizerService::optimizeFilesystem(
+                        filesystem: $file,
                         optimize: false,
                         quality: 90
-                    );
+                    )->url;
                 } catch (Exception $e) {
                     report($e);
 
