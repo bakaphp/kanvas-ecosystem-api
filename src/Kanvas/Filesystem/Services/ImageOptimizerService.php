@@ -17,9 +17,10 @@ class ImageOptimizerService
 {
     public static function optimizeImageFromUrl(
         string $imageUrl,
+        bool $optimize = true,
         ?int $targetSizeMb = null,
         ?int $maxWidth = null,
-        ?int $maxHeight = null
+        ?int $maxHeight = null,
     ): string {
         $tempPath = storage_path('app/temp');
         if (! is_dir($tempPath)) {
@@ -81,6 +82,10 @@ class ImageOptimizerService
          * ----------------------------
          */
         try {
+            if ($optimize === false) {
+                return $imagePath;
+            }
+
             $optimizerChain = new OptimizerChain();
 
             $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
