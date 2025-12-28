@@ -6,6 +6,8 @@ namespace Kanvas\Filesystem\Services;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\ImageManager;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
 use Spatie\ImageOptimizer\Optimizers\Jpegoptim;
@@ -13,29 +15,77 @@ use Spatie\ImageOptimizer\Optimizers\Optipng;
 
 class ImageOptimizerService
 {
-    public static function optimizeImageFromUrl(string $imageUrl): string
-    {
-        chdir(storage_path('app/temp'));
-        $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
+    public static function optimizeImageFromUrl(
+        string $imageUrl,
+        bool $optimize = true,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+        ?int $quality = null,
+    ): string {
+        $tempPath = storage_path('app/temp');
+        if (! is_dir($tempPath)) {
+            if (! mkdir($tempPath, 0755, true) && ! is_dir($tempPath)) {
+                throw new RuntimeException("Failed to create temp directory at: $tempPath");
+            }
+        }
 
+        if (! chdir($tempPath)) {
+            throw new RuntimeException("Failed to change directory to: $tempPath");
+        }
+
+        $imagePath = FilesystemServices::downloadImageFromUrl($imageUrl);
         if ($imagePath === null || ! file_exists($imagePath)) {
             throw new RuntimeException('Failed to download image from URL');
         }
 
-        $maxRetries = 3;
-        $retryDelay = 200000;
+        $extension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+        $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+        /**
+         * ----------------------------
+         * 1) RESIZE (Intervention v3)
+         * ----------------------------
+         */
+        if (($maxWidth !== null || $maxHeight !== null)
+            && in_array($extension, $resizableExtensions, true)) {
             try {
-                $optimizerChain = new OptimizerChain();
-                $optimizerChain->addOptimizer(
-                    new Optipng([
-                        '-i0',
-                        '-o2',
-                        '-quiet',
-                    ])
-                );
+                $manager = self::manager();
+                $img = $manager->read($imagePath);
 
+                // scale() keeps aspect ratio automatically in v3
+                $img = $img->scale($maxWidth, $maxHeight);
+
+                // Format-aware save
+                switch ($extension) {
+                    case 'jpg':
+                    case 'jpeg':
+                        $img->save($imagePath, quality: 90);
+
+                        break;
+                    case 'png':
+                        $img->toPng()->save($imagePath);
+
+                        break;
+                    case 'webp':
+                        $img->toWebp(90)->save($imagePath);
+
+                        break;
+                }
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        /**
+         * ----------------------------
+         * 2) SPATIE OPTIMIZATION
+         * ----------------------------
+         */
+        try {
+            if ($optimize) {
+                $optimizerChain = new OptimizerChain();
+
+                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
                 $optimizerChain->addOptimizer(
                     new Jpegoptim([
                         '-m85',
@@ -48,20 +98,56 @@ class ImageOptimizerService
                     ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($imagePath);
+            }
+        } catch (Exception $e) {
+            report($e);
+        }
 
-                break; // Success, exit loop
+        /**
+         * -----------------------------------------------------------
+         * 3) QUALITY-BASED COMPRESSION (NO DIMENSION CHANGE)
+         * -----------------------------------------------------------
+         * Reduces file size by re-encoding at specified quality level.
+         * Works for JPEG, PNG, and WebP formats.
+         */
+        if ($quality !== null && $quality >= 1 && $quality <= 100) {
+            try {
+                $manager = self::manager();
+                $img = $manager->read($imagePath);
+
+                if (self::isJpeg($extension)) {
+                    $img->save($imagePath, quality: $quality);
+                } elseif (self::isPng($extension)) {
+                    // PNG compression level (0-9), convert quality to compression
+                    $img->toPng()->save($imagePath);
+                } elseif (self::isWebp($extension)) {
+                    $img->toWebp($quality)->save($imagePath);
+                }
             } catch (Exception $e) {
                 report($e);
-
-                if ($attempt === $maxRetries) {
-                    //Log::error('All optimization attempts failed, using unoptimized image');
-                    // Don't throw, just return unoptimized image
-                } else {
-                    usleep($retryDelay);
-                }
             }
         }
 
         return $imagePath;
+    }
+
+    private static function isJpeg(string $ext): bool
+    {
+        return in_array($ext, ['jpg', 'jpeg'], true);
+    }
+
+    private static function isPng(string $ext): bool
+    {
+        return $ext === 'png';
+    }
+
+    private static function isWebp(string $ext): bool
+    {
+        return $ext === 'webp';
+    }
+
+    protected static function manager(): ImageManager
+    {
+        return new ImageManager(new Driver());
     }
 }

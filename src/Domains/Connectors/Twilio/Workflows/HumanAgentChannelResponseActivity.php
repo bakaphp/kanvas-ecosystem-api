@@ -14,6 +14,9 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * @todo move to a SA namespace, this is not for Twilio anymore
+ */
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -75,12 +78,18 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
-                $channelType = match ($message->type) {
+                $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
                     ChannelCategoryEnum::EMAIL->value => LeadCommunicationChannelEnum::EMAIL->value,
                     ChannelCategoryEnum::SMS->value => LeadCommunicationChannelEnum::SMS->value,
                     default => LeadCommunicationChannelEnum::SMS->value,
                 };
+
+                //we have a loop when you create a msg , its sent back via webhook, so we hide the msg that initiate everything
+                if ($message->messageType->verb === ChannelCategoryEnum::WHATSAPP->value) {
+                    $message->is_public = 0;
+                    $message->save();
+                }
 
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,

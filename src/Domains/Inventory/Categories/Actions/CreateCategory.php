@@ -45,6 +45,8 @@ class CreateCategory
             'position' => $this->dto->position,
             'is_published' => $this->dto->is_published,
             'weight' => $this->dto->weight ?? null,
+            'description' => $this->dto->description,
+            'is_featured' => $this->dto->is_featured,
         ]);
     }
 }

@@ -76,6 +76,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
+use Kanvas\Connectors\SalesAssist\Activities\DealerAppCenterSubSourcesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\GenerateLeadLinkedFieldActivity;
 use Kanvas\Connectors\SalesAssist\Activities\LeadProcessDriverLicenseImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PeopleProcessDriverLicenseImageActivity;
@@ -143,6 +144,7 @@ use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessReferralCodeRedemptionActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessUserSignupLoyaltyActivity;
 use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
+use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
@@ -299,11 +301,13 @@ class KanvasWorkflowSynActionCommand extends Command
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
+            AddFundsToUserWalletActivity::class,
             PullNetSuiteStockWebhookJob::class,
             ActivitiesPushLeadActivity::class,
             ActivitiesPushPeopleActivity::class,
             ActivitiesAddLeadCommentFromAgentMessageActivity::class,
             ProcessADFAgentInboundLeadJob::class,
+            DealerAppCenterSubSourcesActivity::class,
         ];
 
         $createdActions = [];
