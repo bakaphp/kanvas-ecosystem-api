@@ -35,7 +35,9 @@ class PromptIAPOrderActivity extends KanvasActivity
 
                     $aiModelKey = $variant->getAttributeBySlug('ai-model')?->value;
                     $aiModelRelated = $variant->getAttributeBySlug('ai-model-related')?->value;
-                    $totalCredits = $variant->getAttributeBySlug('bundle-quantity')?->value ?? 1;
+                    $creditQuantity = $variant->getAttributeBySlug('bundle-quantity')?->value ?? 1;
+                    $bundleModels = $variant->getAttributeBySlug('ai-bundle-model')?->value;
+
                     $purchaseType = match (strtolower($variant->product->categories->first()->slug)) {
                         'texttotext' => 'text',
                         'imagetovideo' => 'video',
@@ -62,15 +64,25 @@ class PromptIAPOrderActivity extends KanvasActivity
                         continue;
                     }
 
-                    if (isset($orderCredit[$purchaseType][$aiModelKey])) {
-                        $orderCredit[$purchaseType][$aiModelKey] += $totalCredits;
-                        if ($aiModelRelated !== null && $aiModelRelated !== $aiModelKey) {
-                            $orderCredit[$purchaseType][$aiModelRelated] += $totalCredits;
-                        }
-                    } else {
-                        $orderCredit[$purchaseType][$aiModelKey] = $totalCredits;
-                        if ($aiModelRelated != null && $aiModelRelated !== $aiModelKey) {
-                            $orderCredit[$purchaseType][$aiModelRelated] = $totalCredits;
+                    // Add credits for base AI model
+                    $orderCredit[$purchaseType][$aiModelKey] =
+                        ($orderCredit[$purchaseType][$aiModelKey] ?? 0) + $creditQuantity;
+
+                    // Add credits for related model
+                    if ($aiModelRelated && $aiModelRelated !== $aiModelKey) {
+                        $orderCredit[$purchaseType][$aiModelRelated] =
+                            ($orderCredit[$purchaseType][$aiModelRelated] ?? 0) + $creditQuantity;
+                    }
+
+                    // Bundle models (multi-model package)
+                    if (is_array($bundleModels)) {
+                        foreach ($bundleModels as $type => $models) {
+                            $orderCredit[$type] ??= [];
+
+                            foreach ($models as $modelKey => $credits) {
+                                $orderCredit[$type][$modelKey] =
+                                    ($orderCredit[$type][$modelKey] ?? 0) + $credits;
+                            }
                         }
                     }
                 }

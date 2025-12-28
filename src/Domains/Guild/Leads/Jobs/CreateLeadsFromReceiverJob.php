@@ -110,13 +110,17 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             ]
         );
 
-        $lead->fireWorkflow(
-            WorkflowEnum::FAKE_CONTEXT->value,
-            true,
-            [
-                        'app' => $lead->app,
-                    ]
-        );
+        if ($lead->company->get('ai')) {
+            $lead->fireWorkflow(
+                WorkflowEnum::FAKE_CONTEXT->value,
+                true,
+                [
+                            'app' => $lead->app,
+                            'payload' => $payload,
+                            'sub_source' => $this->receiver->configuration['sub_source'] ?? null,
+                        ]
+            );
+        }
 
         return [
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
