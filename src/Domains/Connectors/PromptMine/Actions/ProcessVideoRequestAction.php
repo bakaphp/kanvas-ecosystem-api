@@ -386,7 +386,7 @@ class ProcessVideoRequestAction
                     return ImageOptimizerService::optimizeImageFromUrl(
                         imageUrl: $file->url,
                         optimize: false,
-                        targetSizeMb: 9
+                        quality: 90
                     );
                 } catch (Exception $e) {
                     report($e);
