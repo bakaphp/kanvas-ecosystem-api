@@ -18,9 +18,9 @@ class ImageOptimizerService
     public static function optimizeImageFromUrl(
         string $imageUrl,
         bool $optimize = true,
-        ?int $targetSizeMb = null,
         ?int $maxWidth = null,
         ?int $maxHeight = null,
+        ?int $quality = null,
     ): string {
         $tempPath = storage_path('app/temp');
         if (! is_dir($tempPath)) {
@@ -105,33 +105,26 @@ class ImageOptimizerService
 
         /**
          * -----------------------------------------------------------
-         * 3) TARGET SIZE REDUCTION (JPEG + WEBP ONLY)
+         * 3) QUALITY-BASED COMPRESSION (NO DIMENSION CHANGE)
          * -----------------------------------------------------------
+         * Reduces file size by re-encoding at specified quality level.
+         * Works for JPEG, PNG, and WebP formats.
          */
-        if ($targetSizeMb !== null && (self::isJpeg($extension) || self::isWebp($extension))) {
-            $targetBytes = $targetSizeMb * 1024 * 1024;
-            $quality = 85;
-            $minQuality = 20;
+        if ($quality !== null && $quality >= 1 && $quality <= 100) {
+            try {
+                $manager = self::manager();
+                $img = $manager->read($imagePath);
 
-            while (filesize($imagePath) > $targetBytes && $quality >= $minQuality) {
-                try {
-                    $manager = self::manager();
-                    $img = $manager->read($imagePath);
-
-                    if (self::isJpeg($extension)) {
-                        $img->save($imagePath, quality: $quality);
-                    } elseif (self::isPng($extension)) {
-                        $img->save($imagePath, quality: $quality);
-                    } elseif (self::isWebp($extension)) {
-                        $img->toWebp($quality)->save($imagePath);
-                    }
-                } catch (Exception $e) {
-                    report($e);
-
-                    break;
+                if (self::isJpeg($extension)) {
+                    $img->save($imagePath, quality: $quality);
+                } elseif (self::isPng($extension)) {
+                    // PNG compression level (0-9), convert quality to compression
+                    $img->toPng()->save($imagePath);
+                } elseif (self::isWebp($extension)) {
+                    $img->toWebp($quality)->save($imagePath);
                 }
-
-                $quality -= 5;
+            } catch (Exception $e) {
+                report($e);
             }
         }
 
