@@ -53,7 +53,7 @@ class DealerAppCenterSubSourcesActivity extends KanvasActivity
                     $lead->set('sub_source', $params['sub_source']);
                 }
 
-                $sourceName = $params['sub_source'] == 'Facebook' || $params['sub_source'] == 'Instagram' ? 'Meta' : $params['source'];
+                $sourceName = $params['sub_source'] == 'Facebook' || $params['sub_source'] == 'Instagram' ? 'Meta' : 'Dealer Website';
                 $leadSourceDto = new LeadSourceDTO(
                     app: $lead->app,
                     company: $lead->company,
