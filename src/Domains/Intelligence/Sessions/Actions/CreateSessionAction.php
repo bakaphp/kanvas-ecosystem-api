@@ -31,6 +31,8 @@ class CreateSessionAction
                 'agents_id' => $this->session->agent->getId(),
                 'channel_id' => $this->session->channel->getId(),
                 'companies_id' => $this->session->company->getId(),
+                'entity_namespace' => $this->session->entity_namespace,
+                'entity_id' => $this->session->entity_id,
             ], [
             'canal_id' => $this->session->canal_id,
             'entity_namespace' => $this->session->entity_namespace,
