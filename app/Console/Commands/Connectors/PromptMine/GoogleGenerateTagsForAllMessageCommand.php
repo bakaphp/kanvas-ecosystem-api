@@ -85,7 +85,8 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
                 $messageTags = $generateMessageTagAction->execute(
                     textLookupKey: 'ai_nugged.nugget',
                     totalTags: 3,
-                    tags: $allTags
+                    tags: $allTags,
+                    messageContentIndexes: ['prompt', 'title']
                 );
             } catch (PrismException $e) {
                 $this->error('Error generating tags for message ID ' . $message->getId() . ': ' . $e->getMessage());
