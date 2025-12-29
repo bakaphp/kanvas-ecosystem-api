@@ -11,6 +11,7 @@ type Tag {
     user: User! @belongsTo(method: "user")
     name: String!
     slug: String
+    description: String
     weight: Int
     is_feature: Int
     created_at: String
