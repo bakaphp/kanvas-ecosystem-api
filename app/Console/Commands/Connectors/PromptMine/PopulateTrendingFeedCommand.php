@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Recombee\Actions\PopulateCustomTrendingFeedAction;
 use Kanvas\Connectors\Recombee\Actions\PopulateTrendingFeedAction;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Actions\CreateTagAction;
@@ -22,7 +23,7 @@ class PopulateTrendingFeedCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id} {message_type_id}';
+    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id} {message_type_id} {style=default}';
 
     /**
      * The console command description.
@@ -33,9 +34,8 @@ class PopulateTrendingFeedCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
@@ -44,8 +44,27 @@ class PopulateTrendingFeedCommand extends Command
         $messageType = (int) $this->argument('message_type_id');
 
         $messageType = MessageType::getById($messageType, $app);
+        $style = $this->argument('style');
 
-        $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, $messageType, true);
+        if ($style !== 'custom') {
+            $this->info('Using default trending feed population');
+            $populateTrendingFeedAction = new PopulateTrendingFeedAction(
+                $app,
+                $company,
+                true
+            );
+            $populateTrendingFeedAction->execute();
+
+            return;
+        }
+
+        $this->info('Using custom trending feed population');
+        $populateTrendingFeedAction = new PopulateCustomTrendingFeedAction(
+            $app,
+            $company,
+            $messageType,
+            true
+        );
         $populateTrendingFeedAction->execute();
 
         /*  $tag = (new CreateTagAction(
