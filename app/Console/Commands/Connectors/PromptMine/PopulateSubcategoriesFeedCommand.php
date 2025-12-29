@@ -64,6 +64,11 @@ class PopulateSubcategoriesFeedCommand extends Command
             )
         ))->execute();
 
+        if (! $categoryTag->path) {
+            $categoryTag->path = $categoryTag->id;
+            $categoryTag->saveOrFail();
+        }
+
         $subcategoryTag = (new CreateTagAction(
             new Tag(
                 $app,
