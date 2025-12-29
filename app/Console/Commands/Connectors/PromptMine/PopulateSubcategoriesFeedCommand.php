@@ -99,10 +99,10 @@ class PopulateSubcategoriesFeedCommand extends Command
             )
         ))->execute();
 
-       if (! $subcategoryTag->parent_id) {
+        if (! $subcategoryTag->parent_id) {
             $subcategoryTag->parent_id = $categoryTag->id;
             $subcategoryTag->saveOrFail();
-       }
+        }
         //Lets tag all messages with the subcategory
         $messages = Message::fromApp($app)
             ->where('companies_id', $company->getId())
@@ -112,7 +112,7 @@ class PopulateSubcategoriesFeedCommand extends Command
 
         foreach ($messages as $message) {
             $message->addTag($subcategorySlug, $app, $company->user, $company);
-            echo("Tagged message ID {$message->id} with subcategory {$subcategorySlug} of category {$categorySlug}\n");
+            echo ("Tagged message ID {$message->id} with subcategory {$subcategorySlug} of category {$categorySlug}\n");
         }
     }
 }
