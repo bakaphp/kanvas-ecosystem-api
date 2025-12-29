@@ -97,17 +97,21 @@ class DealerSocketLeadService
             'bodId' => $this->generateBodId($lead),
             'documentId' => $this->generateDocumentId($lead),
 
+            'namePart' => null,
             'firstName' => $people->firstname,
             'lastName' => $people->lastname,
             'email' => $this->getEmailFromPeople($people),
             'phone' => $this->getPhoneFromPeople($people),
             'phoneType' => $this->getPhoneTypeFromPeople($people),
             'phoneTime' => 'Anytime',
+            'providerName' => 'SalesAssist',
+            'service' => '',
 
             'leadInterestCode' => $this->mapLeadInterestCode($lead),
             'customerType' => 'Prospect',
             'contactMethod' => $this->mapContactMethod($lead->get('preferred_contact_method') ?? ''),
             'leadSource' => $this->getLeadSource($lead),
+            'source' => $this->getLeadSource($lead),
             'customerComments' => $this->getCustomerComments($lead),
             'leadComments' => $this->getLeadComments($lead),
 
