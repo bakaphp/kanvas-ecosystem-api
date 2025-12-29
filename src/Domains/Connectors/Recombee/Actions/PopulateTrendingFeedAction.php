@@ -110,7 +110,11 @@ class PopulateTrendingFeedAction
     {
         try {
             $message->addTag($trendingSlug, $this->app, $this->user, $this->company);
-            $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
+            $message->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                ['app' => $message->app]
+            );
         } catch (Exception $e) {
             // Skip failed messages
         }
