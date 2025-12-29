@@ -32,6 +32,7 @@ class CreateChannelAction
                 $this->channelDto->entity_namespace,
                 $legacySystemModule,
             ])
+            ->where('entity_id', $this->channelDto->entity_id)
             ->first();
 
         if (! $channel) {
