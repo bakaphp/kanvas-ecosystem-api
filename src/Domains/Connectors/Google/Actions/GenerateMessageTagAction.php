@@ -34,10 +34,10 @@ class GenerateMessageTagAction
         }
 
         $messageData = $this->message->message;
-
+        $messageText = $messageData;
         //$messageText = $textLookupKey !== null ? data_get($messageData, $textLookupKey) : $messageData; //ai_nugged.nugget
         //$messageContent
-        $messageText = ! is_array($messageData) ? $messageData : $messageData;
+        //$messageText = ! is_array($messageData) ? $messageData : $messageData;
 
         if (is_array($messageData) && ! empty($messageContentIndexes)) {
             $collectedText = '';
