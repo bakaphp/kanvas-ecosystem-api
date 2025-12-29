@@ -22,7 +22,7 @@ class PopulateTrendingFeedCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id} {message_type_id} --custom=false';
+    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id} {message_type_id} {--custom=false}';
 
     /**
      * The console command description.
