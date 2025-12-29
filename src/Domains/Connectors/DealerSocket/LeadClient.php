@@ -22,7 +22,7 @@ class LeadClient extends BaseClient
     {
         $xml = $this->buildADFLeadXML($data);
 
-        return $this->postLead($xml);
+        return $this->postLead($xml, 'adf');
     }
 
     public function createServiceLead(array $data): array
@@ -242,29 +242,53 @@ XML;
   <prospect>
     <id sequence="1" source="{$data['source']}">{$leadId}</id>
     <requestdate>{$requestDate}</requestdate>
-    <vehicle interest="{$data['interest']}" status="{$data['status']}">
-      <year><![CDATA[{$data['vehicle']['year']}]]></year>
-      <make><![CDATA[{$data['vehicle']['make']}]]></make>
-      <model><![CDATA[{$data['vehicle']['model']}]]></model>
 XML;
 
-        if (! empty($data['vehicle']['vin'])) {
-            $xml .= "\n      <vin><![CDATA[{$data['vehicle']['vin']}]]></vin>";
-        }
-        if (! empty($data['vehicle']['stock'])) {
-            $xml .= "\n      <stock><![CDATA[{$data['vehicle']['stock']}]]></stock>";
+        // ---------------------------------------------------------
+        // VEHICLE BLOCK — ONLY IF interest AND vehicle exist
+        // ---------------------------------------------------------
+        if (! empty($data['interest']) && ! empty($data['vehicle']) && is_array($data['vehicle'])) {
+            $xml .= "\n    <vehicle interest=\"{$data['interest']}\" status=\"{$data['status']}\">";
+
+            $xml .= "\n      <year><![CDATA[" . ($data['vehicle']['year'] ?? '') . ']]></year>';
+            $xml .= "\n      <make><![CDATA[" . ($data['vehicle']['make'] ?? '') . ']]></make>';
+            $xml .= "\n      <model><![CDATA[" . ($data['vehicle']['model'] ?? '') . ']]></model>';
+
+            if (! empty($data['vehicle']['vin'])) {
+                $xml .= "\n      <vin><![CDATA[{$data['vehicle']['vin']}]]></vin>";
+            }
+
+            if (! empty($data['vehicle']['stock'])) {
+                $xml .= "\n      <stock><![CDATA[{$data['vehicle']['stock']}]]></stock>";
+            }
+
+            $xml .= "\n    </vehicle>";
         }
 
-        $xml .= "\n    </vehicle>";
+        $namePart = $data['namePart'] ?? 'full';
+        $phoneType = strtolower($data['phoneType'] ?? '');
+
+        $validTypes = ['voice', 'mobile', 'fax'];
+
+        if (! in_array($phoneType, $validTypes, true)) {
+            $phoneType = 'mobile'; // default fallback
+        }
+
+        $phoneTime = strtolower(trim($data['phoneTime'] ?? 'day'));
+
+        $validTimes = ['day', 'evening', 'night'];
+
+        if (! in_array($phoneTime, $validTimes, true)) {
+            $phoneTime = 'day'; // default fallback
+        }
+        // ---------------------------------------------------------
+        // CUSTOMER
+        // ---------------------------------------------------------
         $xml .= "\n    <customer>";
         $xml .= "\n      <contact>";
-        $xml .= "\n        <name part=\"{$data['namePart']}\">";
-        $xml .= "\n          <![CDATA[{$data['firstName']} {$data['lastName']}]]>";
-        $xml .= "\n        </name>";
+        $xml .= "\n        <name part=\"{$namePart}\"><![CDATA[{$data['firstName']} {$data['lastName']}]]></name>";
         $xml .= "\n        <email><![CDATA[{$data['email']}]]></email>";
-        $xml .= "\n        <phone type=\"{$data['phoneType']}\" time=\"{$data['phoneTime']}\">";
-        $xml .= "\n          <![CDATA[{$data['phone']}]]>";
-        $xml .= "\n        </phone>";
+        $xml .= "\n        <phone type=\"{$phoneType}\" time=\"{$phoneTime}\"><![CDATA[{$data['phone']}]]></phone>";
 
         if (! empty($data['address'])) {
             $xml .= "\n        <address>";
@@ -282,17 +306,26 @@ XML;
         }
 
         $xml .= "\n    </customer>";
+
+        // ---------------------------------------------------------
+        // VENDOR
+        // ---------------------------------------------------------
         $xml .= "\n    <vendor>";
-        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . $this->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value)[CustomFieldEnum::DEALER_SOCKET_DEALER_ID->value] . ']]></id>';
+        $xml .= "\n      <id source=\"DealerId\"><![CDATA["
+            . $this->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value)[CustomFieldEnum::DEALER_SOCKET_DEALER_ID->value]
+            . ']]></id>';
         $xml .= "\n      <vendorname>Vendor Name</vendorname>";
-        $xml .= "\n      <contact>";
-        $xml .= "\n        <name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name>";
-        $xml .= "\n      </contact>";
+        $xml .= "\n      <contact><name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name></contact>";
         $xml .= "\n    </vendor>";
+
+        // ---------------------------------------------------------
+        // PROVIDER
+        // ---------------------------------------------------------
         $xml .= "\n    <provider>";
         $xml .= "\n      <name part=\"full\"><![CDATA[{$data['providerName']}]]></name>";
         $xml .= "\n      <service><![CDATA[{$data['service']}]]></service>";
         $xml .= "\n    </provider>";
+
         $xml .= "\n  </prospect>";
         $xml .= "\n</adf>";
 
