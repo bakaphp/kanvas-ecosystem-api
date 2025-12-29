@@ -13,6 +13,7 @@ type Tag {
     user: User! @belongsTo(relation: "user")
     name: String!
     slug: String
+    description: String
     weight: Int
     is_feature: Int
     created_at: String

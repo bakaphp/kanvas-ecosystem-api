@@ -24,6 +24,7 @@ use Override;
  * @property int users_id
  * @property string name
  * @property string slug
+ * @property string description
  * @property int weight
  * @property string color
  * @property int status
@@ -96,6 +97,7 @@ class Tag extends BaseModel
                 'lastname' => $this?->company?->user?->lastname,
             ],
             'slug' => $this->slug,
+            'description' => $this->description,
             'apps_id' => $this->apps_id,
             'weight' => $this->weight,
             'status' => $this->status,
