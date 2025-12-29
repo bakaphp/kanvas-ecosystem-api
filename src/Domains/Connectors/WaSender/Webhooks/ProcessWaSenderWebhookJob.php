@@ -142,6 +142,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         foreach ($data as $messageData) {
             $key = $messageData['key'] ?? [];
             $messageContent = $messageData['message'] ?? [];
+            $messageBody = $messageData['messageBody'] ?? null;
 
             $messageType = $this->getMessageType($messageContent);
             $isDocument = MessageTypeEnum::isDocumentType($messageType);
@@ -204,7 +205,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     user: $this->receiver->user,
                     type: $messageTypeModel,
                     message: [
-                        'content' => $text,
+                        'content' => $text !== null && $text !== '' ? $text : $messageBody,
                         'raw_data' => $messageData,
                         'message_id' => $messageId,
                         'chat_jid' => $chatJid,
@@ -1309,7 +1310,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      */
     protected function getMessageType(array $messageContent): string
     {
-        if (isset($messageContent['conversation'])) {
+        if (isset($messageContent['conversation']) || isset($messageContent['extendedTextMessage'])) {
             return 'whatsapp-text';
         } elseif (isset($messageContent['imageMessage'])) {
             return 'whatsapp-image';
@@ -1336,13 +1337,30 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function extractMessageText(array $messageContent, string $messageType): ?string
     {
         return match ($messageType) {
-            'text' => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
-            'image' => $messageContent['imageMessage']['caption'] ?? null,
-            'video' => $messageContent['videoMessage']['caption'] ?? null,
-            'document' => $messageContent['documentMessage']['caption'] ?? null,
-            'contact' => $messageContent['contactMessage']['displayName'] ?? null,
-            'location' => $messageContent['locationMessage']['name'] ?? null,
-            default => null,
+            'text', 'whatsapp-text' =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
+
+            'image', 'whatsapp-image' =>
+                $messageContent['imageMessage']['caption'] ?? null,
+
+            'video', 'whatsapp-video' =>
+                $messageContent['videoMessage']['caption'] ?? null,
+
+            'document', 'whatsapp-document' =>
+                $messageContent['documentMessage']['caption'] ?? null,
+
+            'contact', 'whatsapp-contact' =>
+                $messageContent['contactMessage']['displayName'] ?? null,
+
+            'location', 'whatsapp-location' =>
+                $messageContent['locationMessage']['name'] ?? null,
+
+            default =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
         };
     }
 

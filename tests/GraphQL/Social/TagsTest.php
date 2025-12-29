@@ -388,4 +388,265 @@ class TagsTest extends TestCase
                 ],
             ]);
     }
+
+    public function testTagParentChildRelationship(): void
+    {
+        // Create parent tag
+        $parentInput = [
+            'name' => fake()->name(),
+            'weight' => random_int(1, 100),
+        ];
+
+        $parentResponse = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                        weight
+                    }
+                }
+            ',
+            ['input' => $parentInput]
+        );
+
+        $parentId = $parentResponse->json('data.createTag.id');
+
+        // Create child tag with parent_id
+        $childInput = [
+            'name' => fake()->name(),
+            'weight' => random_int(1, 100),
+            'parent_id' => $parentId,
+        ];
+
+        $childResponse = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                        weight
+                        parent {
+                            id
+                            name
+                        }
+                    }
+                }
+            ',
+            ['input' => $childInput]
+        );
+
+        $childResponse->assertJsonPath('data.createTag.parent.id', $parentId);
+        $childId = $childResponse->json('data.createTag.id');
+
+        // Query parent tag and verify children relationship
+        $response = $this->graphQL(
+            '
+                query($where: QueryTagsWhereWhereConditions) {
+                    tags(where: $where) {
+                        data {
+                            id
+                            name
+                            children(first: 10) {
+                                data {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            ',
+            [
+                'where' => [
+                    'column' => 'ID',
+                    'operator' => 'EQ',
+                    'value' => $parentId,
+                ],
+            ]
+        );
+
+        $children = $response->json('data.tags.data.0.children.data');
+        $this->assertNotEmpty($children);
+        $childIds = array_column($children, 'id');
+        $this->assertContains($childId, $childIds);
+    }
+
+    public function testTagMultipleChildrenRelationship(): void
+    {
+        // Create parent tag
+        $parentInput = [
+            'name' => fake()->name(),
+            'weight' => random_int(1, 100),
+        ];
+
+        $parentResponse = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                    }
+                }
+            ',
+            ['input' => $parentInput]
+        );
+
+        $parentId = $parentResponse->json('data.createTag.id');
+
+        // Create multiple child tags
+        $childIds = [];
+        for ($i = 0; $i < 3; $i++) {
+            $childInput = [
+                'name' => fake()->name(),
+                'weight' => random_int(1, 100),
+                'parent_id' => $parentId,
+            ];
+
+            $childResponse = $this->graphQL(
+                '
+                    mutation createTag($input: TagInput!) {
+                        createTag(input: $input) {
+                            id
+                            name
+                            parent {
+                                id
+                            }
+                        }
+                    }
+                ',
+                ['input' => $childInput]
+            );
+
+            $childResponse->assertJsonPath('data.createTag.parent.id', $parentId);
+            $childIds[] = $childResponse->json('data.createTag.id');
+        }
+
+        // Query parent and verify all children
+        $response = $this->graphQL(
+            '
+                query($where: QueryTagsWhereWhereConditions) {
+                    tags(where: $where) {
+                        data {
+                            id
+                            name
+                            children(first: 10) {
+                                data {
+                                    id
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            ',
+            [
+                'where' => [
+                    'column' => 'ID',
+                    'operator' => 'EQ',
+                    'value' => $parentId,
+                ],
+            ]
+        );
+
+        $children = $response->json('data.tags.data.0.children.data');
+        $this->assertCount(3, $children);
+
+        $returnedChildIds = array_column($children, 'id');
+        foreach ($childIds as $childId) {
+            $this->assertContains($childId, $returnedChildIds);
+        }
+    }
+
+    public function testUpdateTagParent(): void
+    {
+        // Create two parent tags
+        $parent1Response = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'name' => fake()->name(),
+                    'weight' => random_int(1, 100),
+                ],
+            ]
+        );
+        $parent1Id = $parent1Response->json('data.createTag.id');
+
+        $parent2Response = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'name' => fake()->name(),
+                    'weight' => random_int(1, 100),
+                ],
+            ]
+        );
+        $parent2Id = $parent2Response->json('data.createTag.id');
+
+        // Create child tag under parent1
+        $childInput = [
+            'name' => fake()->name(),
+            'weight' => random_int(1, 100),
+            'parent_id' => $parent1Id,
+        ];
+
+        $childResponse = $this->graphQL(
+            '
+                mutation createTag($input: TagInput!) {
+                    createTag(input: $input) {
+                        id
+                        name
+                        parent {
+                            id
+                        }
+                    }
+                }
+            ',
+            ['input' => $childInput]
+        );
+
+        $childId = $childResponse->json('data.createTag.id');
+        $childResponse->assertJsonPath('data.createTag.parent.id', $parent1Id);
+
+        // Update child to have parent2 as parent
+        $updateInput = [
+            'name' => fake()->name(),
+            'weight' => random_int(1, 100),
+            'parent_id' => $parent2Id,
+        ];
+
+        $updateResponse = $this->graphQL(
+            '
+                mutation updateTag($id: ID!, $input: TagInput!) {
+                    updateTag(id: $id, input: $input) {
+                        id
+                        name
+                        parent {
+                            id
+                        }
+                    }
+                }
+            ',
+            [
+                'id' => $childId,
+                'input' => $updateInput,
+            ]
+        );
+
+        $updateResponse->assertJsonPath('data.updateTag.parent.id', $parent2Id);
+    }
 }

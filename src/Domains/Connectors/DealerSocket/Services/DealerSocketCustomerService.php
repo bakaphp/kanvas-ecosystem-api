@@ -175,15 +175,22 @@ class DealerSocketCustomerService
     /**
      * Search for a customer by name
      */
-    public function searchCustomerByName(?string $firstName, ?string $lastName): array
-    {
-        return $this->customerClient->getCustomerByName($firstName, $lastName);
+    public function searchCustomerByName(
+        ?string $firstName = null,
+        ?string $lastName = null,
+        bool $multipleResults = false
+    ): array {
+        return $this->customerClient->getCustomerByName(
+            $firstName,
+            $lastName,
+            $multipleResults
+        );
     }
 
     /**
      * Get customer by Entity ID
      */
-    public function getCustomerById(int $entityId): array
+    public function getCustomerById(string|int $entityId): array
     {
         return $this->customerClient->getCustomerById($entityId);
     }

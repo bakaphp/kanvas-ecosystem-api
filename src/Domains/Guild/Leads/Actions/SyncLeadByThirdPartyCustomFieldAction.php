@@ -66,6 +66,7 @@ class SyncLeadByThirdPartyCustomFieldAction
             }
 
             $lead->saveOrFail();
+            $lead->saveCustomFields();
 
             if (count($this->lead->followers)) {
                 foreach ($this->lead->followers as $follower) {
