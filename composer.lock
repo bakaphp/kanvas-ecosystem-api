@@ -1685,16 +1685,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.99.5",
+            "version": "v0.99.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "c1e17ae2e892c3b0f6db9c61f2f33e847b373d76"
+                "reference": "825f6af949469bd2e6c2e187f629e72d0e32a9fa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/c1e17ae2e892c3b0f6db9c61f2f33e847b373d76",
-                "reference": "c1e17ae2e892c3b0f6db9c61f2f33e847b373d76",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/825f6af949469bd2e6c2e187f629e72d0e32a9fa",
+                "reference": "825f6af949469bd2e6c2e187f629e72d0e32a9fa",
                 "shasum": ""
             },
             "require": {
@@ -1752,7 +1752,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.99.5"
+                "source": "https://github.com/prism-php/prism/tree/v0.99.8"
             },
             "funding": [
                 {
@@ -1760,7 +1760,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-23T18:59:41+00:00"
+            "time": "2025-12-29T21:46:57+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -19958,5 +19958,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
