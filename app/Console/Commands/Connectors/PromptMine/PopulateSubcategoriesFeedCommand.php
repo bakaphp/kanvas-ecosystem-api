@@ -112,7 +112,7 @@ class PopulateSubcategoriesFeedCommand extends Command
 
         foreach ($messages as $message) {
             $message->addTag($subcategorySlug, $app, $company->user, $company);
-            echo ("Tagged message ID {$message->id} with subcategory {$subcategorySlug} of category {$categorySlug}\n");
+            echo("Tagged message ID {$message->id} with subcategory {$subcategorySlug} of category {$categorySlug}\n");
         }
     }
 }
