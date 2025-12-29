@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Models\BaseModel;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -34,6 +35,7 @@ class Tag extends BaseModel
 {
     use SlugTrait;
     use AsTree;
+    use HasFilesystemTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
