@@ -9,6 +9,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Models\BaseModel;
@@ -34,6 +35,7 @@ class Tag extends BaseModel
 {
     use SlugTrait;
     use AsTree;
+    use HasFilesystemTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
