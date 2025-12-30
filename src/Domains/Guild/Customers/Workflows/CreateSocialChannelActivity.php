@@ -18,8 +18,6 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CreateSocialChannelActivity extends KanvasActivity
 {
-    public int $tries = 3;
-
     public function execute(Contact $contact, Apps $app, array $params): array
     {
         $contactTypesAllowed = [
