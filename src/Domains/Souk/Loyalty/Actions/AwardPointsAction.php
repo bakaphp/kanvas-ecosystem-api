@@ -7,12 +7,14 @@ namespace Kanvas\Souk\Loyalty\Actions;
 use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Loyalty\Models\OrderLoyaltyPoints;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 
 class AwardPointsAction
 {
     public function __construct(
         private Order $order,
-        private LoyaltyTierMembership $membership
+        private LoyaltyTierMembership $membership,
+        private bool $addToWallet = true
     ) {
     }
 
@@ -21,11 +23,11 @@ class AwardPointsAction
         $program = $this->membership->program;
         $tier = $this->membership->tier;
 
-        // Calculate base points
-        $basePoints = (int) floor($this->order->total_gross_amount * $program->getPointsPerDollar());
+        // Calculate base points (supports decimal points)
+        $basePoints = $this->order->total_gross_amount * $program->getPointsPerDollar();
 
         // Apply tier multiplier
-        $earnedPoints = (int) floor($basePoints * $tier->getEarningMultiplier());
+        $earnedPoints = round($basePoints * $tier->getEarningMultiplier(), 2);
 
         // Create order loyalty points record
         $orderLoyaltyPoints = OrderLoyaltyPoints::create([
@@ -40,6 +42,14 @@ class AwardPointsAction
 
         // Award points to membership
         $this->membership->addPoints($earnedPoints);
+
+        //add point to the wallet
+        if ($this->addToWallet) {
+            new AddFundsToUserWalletAction(
+                order: $this->order,
+                useOrderTotal: true
+            )->execute();
+        }
 
         // Check for tier upgrade
         $this->checkTierUpgrade();

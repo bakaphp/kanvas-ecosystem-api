@@ -57,7 +57,7 @@ class MyReferralInfoQuery
             ->with(['referee'])
             ->get();
 
-        $totalPoints = (int) $redemptions->sum('referrer_points_awarded');
+        $totalPoints = (float) $redemptions->sum('referrer_points_awarded');
         $totalReferrals = $redemptions->count();
 
         // Build referred users list
