@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ChromeData\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Connectors\ChromeData\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ChromeData\Services\VehicleService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -19,12 +20,16 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
     {
         $this->overwriteAppService($app);
 
+        if (empty($product->company->get(ConfigurationEnum::ACCOUNT_NUMBER->value))) {
+            return [];
+        }
+
         return $this->executeIntegration(
             entity: $product,
             app: $app,
             integration: IntegrationsEnum::CHROMEDATA,
             additionalParams: $params,
-            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams) {
+            integrationOperation: function ($product, $app, $integrationCompany, $additionalParams): array {
                 // Get VIN from product variant SKU
                 $variant = $product->variants()->first();
                 if (! $variant) {
@@ -63,6 +68,24 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     $year = $year[0] ?? null;
                 }
 
+                // Check existing images first to avoid unnecessary API calls
+                $existingFiles = $product->getFiles();
+                $hasStockImage = $existingFiles->contains(function ($file) {
+                    return $file->field_name === 'stock_image';
+                });
+
+                // If product already has 1 image and it's a stock image, skip to avoid using credits
+                if ($existingFiles->count() === 1 && $hasStockImage) {
+                    return [
+                        'success' => true,
+                        'message' => 'Product already has stock image. Skipping to avoid using credits.',
+                        'product_id' => $product->getId(),
+                        'product_name' => $product->name,
+                        'vin' => $vin,
+                        'action' => 'skipped',
+                    ];
+                }
+
                 // Initialize ChromeData service
                 $vehicleService = new VehicleService($app, $product->company);
 
@@ -82,8 +105,6 @@ class AddStockImageToProductActivity extends KanvasActivity implements WorkflowA
                     ]);
                 }
 
-                // Check existing images
-                $existingFiles = $product->getFiles();
                 $hasStockImage = $existingFiles->contains(function ($file) {
                     return $file->field_name === 'stock_image';
                 });

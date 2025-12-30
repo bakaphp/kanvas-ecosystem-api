@@ -33,7 +33,6 @@ class PopulateTopVideosFeedCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -45,7 +44,12 @@ class PopulateTopVideosFeedCommand extends Command
 
         $messageType = MessageType::getById($messageType, $app);
 
-        $populateTrendingFeedAction = new PopulateTopVideosFeedAction($app, $company, $messageType, true);
+        $populateTrendingFeedAction = new PopulateTopVideosFeedAction(
+            $app,
+            $company,
+            $messageType,
+            true
+        );
         $populateTrendingFeedAction->execute();
 
         /*  $tag = (new CreateTagAction(

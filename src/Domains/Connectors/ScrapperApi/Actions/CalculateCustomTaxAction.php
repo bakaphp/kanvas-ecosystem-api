@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 
 class CalculateCustomTaxAction
 {

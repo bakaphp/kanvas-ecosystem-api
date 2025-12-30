@@ -27,7 +27,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\BooleanSchema;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
@@ -185,7 +185,7 @@ class CreateMessageFollowUpAction
 
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
             $response = Prism::structured()
-                       ->using(Provider::Gemini, 'gemini-2.5-flash')
+                       ->using(Provider::Gemini, 'gemini-2.5-pro')
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)

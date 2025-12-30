@@ -11,6 +11,7 @@ use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceEnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Templates\Blank;
@@ -79,7 +80,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 // Notify managers
                 $sentManagerNotification = false;
                 if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
-                    $this->notifyManagers($message);
+                    $this->notifyManagers($message, $lead);
                     $sentManagerNotification = true;
                 }
 
@@ -97,10 +98,16 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
      * @todo this is not the best place but , this is just for the client to test and move
      * to another action.
      */
-    protected function notifyManagers(Message $message): void
+    protected function notifyManagers(Message $message, Lead $lead): void
     {
         $hoursTool = new CompanyWorkHoursTool($message)->execute();
         if ($hoursTool['status'] !== 'work_hours') {
+            return;
+        }
+
+        //only notify one time
+        if ($lead->company->get(IntelligenceEnumsConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
+            && $lead->get(ConfigurationEnum::MANAGER_NOTIFIED_AT->value)) {
             return;
         }
 
@@ -116,7 +123,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
             entity: $message
         );
 
-        $notification->setSubject('New Customer Engaged with Sally');
+        $notification->setSubject($lead->people->name . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
 
@@ -128,5 +135,6 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
         )->get();
 
         Notification::send($managers, $notification);
+        $lead->set(ConfigurationEnum::MANAGER_NOTIFIED_AT->value, date('Y-m-d H:i:s'));
     }
 }

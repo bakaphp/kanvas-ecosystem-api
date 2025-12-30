@@ -47,6 +47,7 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
                     }
 
                     $order->updateOrFail();
+                    $order->refresh();
 
                     new SendUserNotificationAction(
                         $order->app,

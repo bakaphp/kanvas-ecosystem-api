@@ -43,6 +43,7 @@ class LightHouseCustomException extends Exception implements ClientAware, Provid
      * Return the content that is put in the "extensions" part
      * of the returned error.
      */
+    #[Override]
     public function getExtensions(): array
     {
         return [

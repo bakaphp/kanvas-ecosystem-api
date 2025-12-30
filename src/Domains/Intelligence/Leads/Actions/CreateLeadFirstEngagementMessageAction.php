@@ -9,7 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use RuntimeException;
@@ -53,7 +53,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['company' => $this->lead->company->toArray()],
                 ['lead' => $this->lead->toArray()]
             ),
-            'template' => $this->template
+            'template' => $this->template,
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
@@ -74,7 +74,7 @@ class CreateLeadFirstEngagementMessageAction
 
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-pro')
                    ->withMaxTokens(7000) // Increase from default
                    ->withSchema($schema)
                    ->withPrompt($prompt)

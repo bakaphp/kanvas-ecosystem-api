@@ -61,6 +61,20 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $source = $lead->source?->name ?? '';
+
+                //for now avoid service
+                if (in_array(strtolower($source), ['dealertrack'])) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
+                    ]);
+                }
+
+                if (! $cellPhone && ! $email) {
+                    return $this->failWorkflow([
+                        'error' => 'Lead does not have a phone number or email, wont be able to send message until we add email support',
+                    ]);
+                }
 
                 $channels = [
                     'sms' => $cellPhone,
@@ -71,13 +85,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
                 $sentChannels = [];
+                $stopTheClock = false;
+
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
-                    if (! $value) {
+                    if ($value === null || empty($value)) {
                         continue;
                     }
                     $template = $stageConfig['templates'][$communicationChannel] ?? null;
-                    if (! $template) {
+                    if ($template === null || empty($template)) {
                         continue;
                     }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
@@ -177,33 +193,45 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
-                                new SendMessageToLeadAction($lead)->execute(
-                                    $communicationChannel,
-                                    $firstLeadMessage['message'],
-                                    $params['from'] ?? null,
-                                    $firstLeadMessage['title'] ?? null,
-                                );
-                                $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead);
 
                                 $createMessage = $this->createMessage(
                                     $lead,
                                     $firstLeadMessage['message'],
                                     $communicationChannelNumber,
                                     $channel ?? null,
-                                    $messageType
+                                    $messageType,
+                                    $shouldSendFirstMessageNow
                                 );
 
-                                if ($totalSentMessages === 0) {
+                                if ($shouldSendFirstMessageNow) {
+                                    new SendMessageToLeadAction($lead)->execute(
+                                        $communicationChannel,
+                                        $firstLeadMessage['message'],
+                                        $params['from'] ?? null,
+                                        $firstLeadMessage['title'] ?? null,
+                                    );
+
+                                    $stopTheClock = true;
+                                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                } else {
+                                    $createMessage->setLock();
+                                    $createMessage->set('communicationChannel', $communicationChannel);
+                                    $createMessage->set('from_number', $params['from'] ?? null);
+                                    $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+                                }
+
+                                //only do the external activity once for the first message
+                                if ($totalSentMessages === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
                                 $sentChannels[] = $communicationChannel;
+                                $totalSentMessages++;
                             } catch (Exception $e) {
                                 report($e);
                             }
                         }
                     }
-
-                    $totalSentMessages++;
                 }
 
                 $timezone = $lead->company->get('timezone') ?? 'UTC';
@@ -236,6 +264,20 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    private function shouldSendFirstMessageNow(Lead $lead): bool
+    {
+        $company = $lead->company;
+
+        // If company does NOT enforce the rule "send only during off-hours",
+        // we can always send.
+        if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+            return true;
+        }
+
+        // Rule *is enabled*: allow only outside business hours.
+        return ! $company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
@@ -284,6 +326,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         string $to,
         ?Channel $channel = null,
         string $messageType = 'twilio-sms',
+        bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
         $agentUser = $lead->app->get('kanvas_agent_user_id');
@@ -322,7 +365,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $messageInput,
             $leadSystemModule,
             $lead->getId()
-        )->execute();
+        );
+        $newMessage->runWorkflow = $runWorkflow;
+
+        $newMessage = $newMessage->execute();
         //$newMessage = $createMessageAction->execute();
         //$newMessage->addEntity($lead);
         if ($channel) {

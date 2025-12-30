@@ -1,0 +1,449 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\DealerSocket;
+
+use Exception;
+use Illuminate\Support\Facades\Http;
+
+class CustomerClient extends BaseClient
+{
+    public function createCustomer(array $data): array
+    {
+        $xml = $this->buildCustomerXML($data, 'create');
+
+        $headers = $this->authService->getHeaders($xml);
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->post($this->baseUrl . '/Customer');
+
+        return $this->parseCustomerResponse($response);
+    }
+
+    public function updateCustomer(int $entityId, array $data): array
+    {
+        $data['entityId'] = $entityId;
+        $xml = $this->buildCustomerXML($data, 'update');
+
+        $headers = $this->authService->getHeaders($xml);
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->put($this->baseUrl . '/Customer');
+
+        return $this->parseCustomerResponse($response);
+    }
+
+    /**
+     * Parse Customer API response
+     */
+    private function parseCustomerResponse($response): array
+    {
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'error' => 'HTTP Error: ' . $response->status(),
+                'body' => $response->body(),
+            ];
+        }
+
+        try {
+            $xml = simplexml_load_string($response->body());
+
+            if ($xml === false) {
+                throw new Exception('Failed to parse XML response');
+            }
+
+            $success = strtolower((string)$xml->Success) === 'true';
+
+            $result = [
+                'success' => $success,
+                'entityId' => (string)($xml->EntityId ?? ''),
+                'dmsCustomerId' => (string)($xml->DMSCustomerId ?? ''),
+                'errorCode' => (string)($xml->ErrorCode ?? ''),
+                'errorMessage' => (string)($xml->ErrorMessage ?? ''),
+                'rawXml' => $response->body(),
+            ];
+
+            return $result;
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Parse Error: ' . $e->getMessage(),
+                'body' => $response->body(),
+            ];
+        }
+    }
+
+    private function buildCustomerXML(array $data, string $action): string
+    {
+        $vendorName = $this->authService->getVendorName();
+        $dealerId = $this->authService->getDealerId();
+        $now = now()->toIso8601String();
+
+        $xml = <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<ProcessCustomerInformation xmlns="http://www.starstandard.org/STAR/5">
+  <ApplicationArea>
+    <Sender>
+      <CreatorNameCode>{$vendorName}</CreatorNameCode>
+      <DealerNumberID>{$dealerId}</DealerNumberID>
+    </Sender>
+    <CreationDateTime>{$now}</CreationDateTime>
+  </ApplicationArea>
+  <ProcessCustomerInformationDataArea>
+    <CustomerInformation>
+      <CustomerInformationDetail>
+        <CustomerParty>
+          <SpecialRemarksDescription>{$data['type']}</SpecialRemarksDescription>
+XML;
+
+        if ($data['type'] === 'Individual') {
+            $xml .= $this->buildIndividualXML($data);
+        } else {
+            $xml .= $this->buildCompanyXML($data);
+        }
+
+        $xml .= <<<XML
+        </CustomerParty>
+      </CustomerInformationDetail>
+    </CustomerInformation>
+  </ProcessCustomerInformationDataArea>
+</ProcessCustomerInformation>
+XML;
+
+        return ltrim($xml);
+    }
+
+    private function buildIndividualXML(array $data): string
+    {
+        $entityId = $data['entityId'] ?? '';
+        $phone = $data['phone'] ?? '';
+        $email = $data['email'] ?? '';
+
+        $xml = "\n          <SpecifiedPerson>";
+
+        if (! empty($entityId)) {
+            $xml .= "\n            <ID>{$entityId}</ID>";
+        }
+
+        $xml .= "\n            <GivenName>{$data['firstName']}</GivenName>";
+        $xml .= "\n            <FamilyName>{$data['lastName']}</FamilyName>";
+
+        if (! empty($phone)) {
+            $xml .= "\n            <TelephoneCommunication>";
+            $xml .= "\n              <CompleteNumber>{$phone}</CompleteNumber>";
+            $xml .= "\n              <UseCode>Home</UseCode>";
+            $xml .= "\n            </TelephoneCommunication>";
+        }
+
+        if (! empty($email)) {
+            $xml .= "\n            <URICommunication>";
+            $xml .= "\n              <URIID>{$email}</URIID>";
+            $xml .= "\n            </URICommunication>";
+        }
+
+        $xml .= "\n          </SpecifiedPerson>";
+
+        return $xml;
+    }
+
+    private function buildCompanyXML(array $data): string
+    {
+        $entityId = $data['entityId'] ?? '';
+        $companyName = $data['companyName'] ?? '';
+        $phone = $data['phone'] ?? '';
+        $email = $data['email'] ?? '';
+
+        $xml = "\n          <SpecifiedOrganization>";
+
+        if (! empty($entityId)) {
+            $xml .= "\n            <ID>{$entityId}</ID>";
+        }
+
+        $xml .= "\n            <CompanyName>{$companyName}</CompanyName>";
+
+        if (! empty($data['contactFirstName']) && ! empty($data['contactLastName'])) {
+            $xml .= "\n            <PrimaryContact>";
+            $xml .= "\n              <GivenName>{$data['contactFirstName']}</GivenName>";
+            $xml .= "\n              <FamilyName>{$data['contactLastName']}</FamilyName>";
+
+            if (! empty($phone)) {
+                $xml .= "\n              <TelephoneCommunication>";
+                $xml .= "\n                <CompleteNumber>{$phone}</CompleteNumber>";
+                $xml .= "\n                <UseCode>Work</UseCode>";
+                $xml .= "\n              </TelephoneCommunication>";
+            }
+
+            if (! empty($email)) {
+                $xml .= "\n              <URICommunication>";
+                $xml .= "\n                <URIID>{$email}</URIID>";
+                $xml .= "\n              </URICommunication>";
+            }
+
+            $xml .= "\n            </PrimaryContact>";
+        }
+
+        $xml .= "\n          </SpecifiedOrganization>";
+
+        return $xml;
+    }
+
+    public function searchCustomer(array $searchData, bool $returnMultiple = false): array
+    {
+        $xml = $this->buildSearchXML($searchData);
+
+        $headers = $this->authService->getHeaders($xml);
+        $response = Http::withHeaders($headers)
+            ->withBody($xml, 'application/xml')
+            ->post($this->baseUrl . '/SearchEntity');
+
+        return $this->parseSearchResponse($response, $returnMultiple);
+    }
+
+    /**
+     * Parse Search Entity response
+     */
+    private function parseSearchResponse($response, bool $returnMultiple = false): array
+    {
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'error' => 'HTTP Error: ' . $response->status(),
+                'body' => $response->body(),
+            ];
+        }
+
+        try {
+            $xml = simplexml_load_string($response->body());
+
+            if ($xml === false) {
+                throw new Exception('Failed to parse XML response');
+            }
+
+            $responseExpression = (string)($xml->ShowCustomerInformationDataArea->Show->ResponseCriteria->ResponseExpression ?? '');
+            $success = strtolower($responseExpression) === 'success';
+
+            $customerInfoList = $xml->ShowCustomerInformationDataArea->CustomerInformation ?? [];
+
+            // If returnMultiple is true, parse all CustomerInformation elements
+            if ($returnMultiple) {
+                $customers = [];
+
+                foreach ($customerInfoList as $customerInfo) {
+                    $parsedCustomer = $this->parseCustomerInfo($customerInfo);
+                    if ($parsedCustomer) {
+                        $customers[] = $parsedCustomer;
+                    }
+                }
+
+                return [
+                    'success' => $success,
+                    'count' => count($customers),
+                    'customers' => $customers,
+                    'errorCode' => '',
+                    'errorMessage' => $success ? '' : 'No customers found',
+                ];
+            }
+
+            // Single record mode (backward compatible) - return first CustomerInformation
+            $customerInfo = is_array($customerInfoList) || $customerInfoList instanceof \Traversable
+                ? (isset($customerInfoList[0]) ? $customerInfoList[0] : $customerInfoList)
+                : $customerInfoList;
+
+            $parsedCustomer = $this->parseCustomerInfo($customerInfo);
+
+            return array_merge(
+                ['success' => $success],
+                $parsedCustomer ?? [],
+                ['errorCode' => '', 'errorMessage' => $success ? '' : 'Customer not found']
+            );
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Parse Error: ' . $e->getMessage(),
+                'body' => $response->body(),
+            ];
+        }
+    }
+
+    /**
+     * Parse a single CustomerInformation element
+     */
+    private function parseCustomerInfo($customerInfo): ?array
+    {
+        if (! $customerInfo) {
+            return null;
+        }
+
+        $customerParty = $customerInfo->CustomerInformationDetail->CustomerParty ?? null;
+        $specifiedPerson = $customerParty->SpecifiedPerson ?? null;
+
+        // Parse SecondaryDealerNumberID
+        $secondaryDealerId = (string)($customerInfo->CustomerInformationHeader->SecondaryDealerNumberID ?? '');
+
+        // Parse all phone numbers
+        $phones = [];
+        if ($specifiedPerson && isset($specifiedPerson->TelephoneCommunication)) {
+            foreach ($specifiedPerson->TelephoneCommunication as $phoneCommunication) {
+                $phones[] = [
+                    'number' => (string)($phoneCommunication->CompleteNumber ?? ''),
+                    'type' => (string)($phoneCommunication->UseCode ?? ''),
+                ];
+            }
+        }
+
+        // Parse all emails
+        $emails = [];
+        if ($specifiedPerson && isset($specifiedPerson->URICommunication)) {
+            foreach ($specifiedPerson->URICommunication as $uriCommunication) {
+                $emails[] = [
+                    'email' => (string)($uriCommunication->URIID ?? ''),
+                    'type' => (string)($uriCommunication->ChannelCode ?? ''),
+                ];
+            }
+        }
+
+        // Parse address
+        $address = null;
+        if ($specifiedPerson && isset($specifiedPerson->PostalAddress)) {
+            $postalAddress = $specifiedPerson->PostalAddress;
+            $address = [
+                'street' => (string)($postalAddress->LineOne ?? ''),
+                'city' => (string)($postalAddress->CityName ?? ''),
+                'zipCode' => (string)($postalAddress->Postcode ?? ''),
+                'state' => trim((string)($postalAddress->{'StateOrProvinceCountrySub-DivisionID'} ?? '')),
+            ];
+        }
+
+        // Get primary phone and email for backward compatibility
+        $primaryPhone = $phones[0]['number'] ?? '';
+        $primaryEmail = $emails[0]['email'] ?? '';
+
+        return [
+            'entityId' => (string)($customerParty->PartyID ?? ''),
+            'dmsCustomerId' => '',
+            'secondaryDealerId' => $secondaryDealerId,
+            'firstName' => (string)($specifiedPerson->GivenName ?? ''),
+            'lastName' => (string)($specifiedPerson->FamilyName ?? ''),
+            'email' => $primaryEmail,
+            'phone' => $primaryPhone,
+            'emails' => $emails,
+            'phones' => $phones,
+            'address' => $address,
+        ];
+    }
+
+    public function getCustomerById(int|string $entityId): array
+    {
+        return $this->searchCustomer(['entityId' => $entityId]);
+    }
+
+    public function getCustomerByEmail(string $email): array
+    {
+        return $this->searchCustomer(['email' => $email]);
+    }
+
+    public function getCustomerByPhone(string $phone): array
+    {
+        return $this->searchCustomer(['phone' => $phone]);
+    }
+
+    public function getCustomerByName(
+        ?string $firstName = null,
+        ?string $lastName = null,
+        bool $multipleResults = false
+    ): array {
+        $searchData = [];
+        if ($firstName) {
+            $searchData['firstName'] = $firstName;
+        }
+        if ($lastName) {
+            $searchData['lastName'] = $lastName;
+        }
+
+        return $this->searchCustomer($searchData, $multipleResults);
+    }
+
+    private function buildSearchXML(array $searchData): string
+    {
+        $vendorName = $this->authService->getVendorName();
+        $dealerId = $this->authService->getDealerId();
+        $now = now()->toIso8601String();
+
+        $xml = <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<GetCustomerInformation xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.starstandard.org/STAR/5">
+  <ApplicationArea>
+    <Sender>
+      <CreatorNameCode>{$vendorName}</CreatorNameCode>
+      <SenderNameCode>{$vendorName}</SenderNameCode>
+      <DealerNumberID>{$dealerId}</DealerNumberID>
+    </Sender>
+    <CreationDateTime>{$now}</CreationDateTime>
+    <Destination>
+      <DestinationNameCode>DS</DestinationNameCode>
+    </Destination>
+  </ApplicationArea>
+  <GetCustomerInformationDataArea>
+    <CustomerInformation>
+      <CustomerInformationDetail>
+        <CustomerParty>
+XML;
+
+        if (! empty($searchData['entityId'])) {
+            $xml .= "\n          <PartyID>{$searchData['entityId']}</PartyID>";
+        }
+
+        if (! empty($searchData['dmsCustomerId'])) {
+            $xml .= "\n          <DealerManagementSystemID>{$searchData['dmsCustomerId']}</DealerManagementSystemID>";
+        }
+
+        if (! empty($searchData['firstName']) || ! empty($searchData['lastName']) ||
+            ! empty($searchData['email']) || ! empty($searchData['phone'])) {
+            $xml .= "\n          <SpecifiedPerson>";
+
+            if (! empty($searchData['firstName'])) {
+                $xml .= "\n            <GivenName>{$searchData['firstName']}</GivenName>";
+            }
+
+            if (! empty($searchData['lastName'])) {
+                $xml .= "\n            <FamilyName>{$searchData['lastName']}</FamilyName>";
+            }
+
+            if (! empty($searchData['phone'])) {
+                $xml .= "\n            <TelephoneCommunication>";
+                $xml .= "\n              <CompleteNumber>{$searchData['phone']}</CompleteNumber>";
+                $xml .= "\n            </TelephoneCommunication>";
+            }
+
+            if (! empty($searchData['email'])) {
+                $xml .= "\n            <URICommunication>";
+                $xml .= "\n              <URIID>{$searchData['email']}</URIID>";
+                $xml .= "\n              <ChannelCode>Email Address</ChannelCode>";
+                $xml .= "\n            </URICommunication>";
+            }
+
+            $xml .= "\n          </SpecifiedPerson>";
+        }
+
+        if (! empty($searchData['vin'])) {
+            $xml .= "\n        </CustomerParty>";
+            $xml .= "\n        <Vehicle>";
+            $xml .= "\n          <VehicleID>{$searchData['vin']}</VehicleID>";
+            $xml .= "\n        </Vehicle>";
+            $xml .= "\n        <CustomerParty>";
+        }
+
+        $xml .= <<<XML
+
+        </CustomerParty>
+      </CustomerInformationDetail>
+    </CustomerInformation>
+  </GetCustomerInformationDataArea>
+</GetCustomerInformation>
+XML;
+
+        return ltrim($xml);
+    }
+}

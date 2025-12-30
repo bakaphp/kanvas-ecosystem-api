@@ -96,13 +96,20 @@ class ScoutProductIndexProcessCommand extends Command
         $products = $query->orderBy('id', 'DESC')->cursor();
 
         $i = 0;
+        $j = 0;
         //need to iterate so custom index take effect
         foreach ($products as $product) {
-            $product->searchable();
-            $i++;
+            if ($product->shouldBeSearchable()) {
+                $i++;
+                $product->searchable();
+            } else {
+                $j++;
+                $product->unsearchable();
+            }
             usleep(100000); // 100ms delay between batches
         }
         $this->info('Total products to reindexed: ' . $i);
+        $this->info('Total products to unindexed: ' . $j);
     }
 
     public function delete(Apps $app, ?string $companyId = null): void
@@ -158,7 +165,7 @@ class ScoutProductIndexProcessCommand extends Command
 
         // Get products that are published but have no variants published on the default channel
         $query = Products::fromApp($app)
-            ->where('is_published', 1)
+            //->where('is_published', 1)
             ->where('is_deleted', 0)
             ->where('companies_id', $companyId)
             ->whereHas('variants') // Ensure the product has variants
