@@ -13,11 +13,13 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Override;
 
 class AddLeadCommentFromAgentMessageActivity extends WorkflowAddLeadCommentFromAgentMessageActivity
 {
     public $tries = 3;
 
+    #[Override]
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
