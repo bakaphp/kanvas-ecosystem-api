@@ -47,7 +47,7 @@ class AwardPointsAction
         if ($useWallet) {
             new AddFundsToUserWalletAction(
                 order: $this->order,
-                useOrderTotal: true,
+                useOrderTotal: false,
                 amount: $earnedPoints
             )->execute();
         }
