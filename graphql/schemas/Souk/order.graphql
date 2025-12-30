@@ -264,6 +264,7 @@ input OrderLineItemInput {
     quantity: Float!
     price: Money
     metadata: Mixed
+    channel_id: ID
 }
 
 input PaymentInput {
