@@ -20,7 +20,7 @@ type Tag {
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
     files: [Filesystem!]!
-        @cacheRedis
+        # @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
