@@ -51,16 +51,18 @@ class FollowUpEngagementAction
             }
 
             $now = Carbon::now($timezone);
-            $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : '1970-01-01 00:00:00';
-            $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
-            $timeDiff = $lastMessageTime->diffInMinutes($now);
-            $contacted = $this->lead->hasBeenContacted();
-            $isActive = $this->lead->isActive();
+            $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
+            if ($lastMessageCreatedAt) {
+                $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
+                $timeDiff = $lastMessageTime->diffInMinutes($now);
+                $contacted = $this->lead->hasBeenContacted();
+                $isActive = $this->lead->isActive();
+            }
 
-            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && $timeDiff >= $rules['minutes_no_response']
                 && $contacted === false
-                && $isActive) {
+                && $isActive)) {
                 $message = null;
 
                 try {
