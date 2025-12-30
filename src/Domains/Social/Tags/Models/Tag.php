@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Models\BaseModel;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -24,6 +25,7 @@ use Override;
  * @property int users_id
  * @property string name
  * @property string slug
+ * @property string description
  * @property int weight
  * @property string color
  * @property int status
@@ -33,6 +35,7 @@ class Tag extends BaseModel
 {
     use SlugTrait;
     use AsTree;
+    use HasFilesystemTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
@@ -96,6 +99,7 @@ class Tag extends BaseModel
                 'lastname' => $this?->company?->user?->lastname,
             ],
             'slug' => $this->slug,
+            'description' => $this->description,
             'apps_id' => $this->apps_id,
             'weight' => $this->weight,
             'status' => $this->status,
