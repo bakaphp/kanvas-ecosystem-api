@@ -13,8 +13,7 @@ class AwardPointsAction
 {
     public function __construct(
         private Order $order,
-        private LoyaltyTierMembership $membership,
-        private bool $addToWallet = true
+        private LoyaltyTierMembership $membership
     ) {
     }
 
@@ -43,8 +42,9 @@ class AwardPointsAction
         // Award points to membership
         $this->membership->addPoints($earnedPoints);
 
+        $useWallet = (bool) ($program->referral_config['add_to_wallet'] ?? false);
         //add point to the wallet
-        if ($this->addToWallet) {
+        if ($useWallet) {
             new AddFundsToUserWalletAction(
                 order: $this->order,
                 useOrderTotal: true
