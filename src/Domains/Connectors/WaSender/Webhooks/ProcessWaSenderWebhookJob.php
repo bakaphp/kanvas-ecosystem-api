@@ -1197,11 +1197,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
-        $phoneCandidates = $this->phoneCandidatesFromJid($jid);
+        $normalizePhones = $this->normalizePhoneFromJid($jid);
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
-            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneCandidates) {
-                $query->whereIn('value', $phoneCandidates)
+            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $normalizePhones) {
+                $query->whereIn('value', $normalizePhones)
                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
             })->fromCompany($this->receiver->company)
                 ->fromApp($this->receiver->app)
@@ -1253,7 +1253,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         return $createAction->execute();
     }
 
-    protected function phoneCandidatesFromJid(string $jid): array
+    protected function normalizePhoneFromJid(string $jid): array
     {
         $digits = preg_replace('/\D+/', '', str_replace('@s.whatsapp.net', '', $jid)) ?? '';
 
