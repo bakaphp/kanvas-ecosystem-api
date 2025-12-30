@@ -8,6 +8,7 @@ use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -36,12 +37,18 @@ class LeadsRepository
 
     public static function getPeopleActiveLeads(People $people): Builder
     {
+        $mappingStatus = $people->company->get(ConfigurationEnum::MAPPING_STATUS_CRM->value);
+
         return Lead::fromApp($people->app)
                     ->fromCompany($people->company)
                     ->notDeleted()
                     ->where('people_id', $people->id)
-                        ->whereHas('status', function ($query) {
-                            $query->whereIn('name', ['active', 'created']);
+                        ->whereHas('status', function ($query) use ($mappingStatus) {
+                            if ($mappingStatus) {
+                                $query->whereIn('name', [$mappingStatus['active'], $mappingStatus['created'], 'active', 'created']);
+                            } else {
+                                $query->whereIn('name', ['active', 'created']);
+                            }
                         });
     }
 
