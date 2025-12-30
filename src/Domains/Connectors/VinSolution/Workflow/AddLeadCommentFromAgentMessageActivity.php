@@ -123,7 +123,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
             entity: $message
         );
 
-        $notification->setSubject('New Customer Engaged with Sally');
+        $notification->setSubject($lead->people->name . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
 
