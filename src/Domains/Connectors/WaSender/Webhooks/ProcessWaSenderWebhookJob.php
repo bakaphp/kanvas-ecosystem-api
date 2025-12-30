@@ -193,8 +193,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     new MessageTypeInput(
                         $this->receiver->app->getId(),
                         0,
-                        $messageType,
-                        $messageType,
+                        $isDocument ? 'file-upload' : $messageType,
+                        $isDocument ? 'file-upload' : $messageType,
                     )
                 ))->execute();
 
@@ -1255,23 +1255,20 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
     protected function phoneCandidatesFromJid(string $jid): array
     {
-        $raw = str_replace('@s.whatsapp.net', '', $jid);
-        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        $digits = preg_replace('/\D+/', '', str_replace('@s.whatsapp.net', '', $jid)) ?? '';
 
-        $candidates = [];
-        if ($digits !== '') {
-            $candidates[] = $digits;
-
-            if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
-                $candidates[] = substr($digits, 1);
-            }
-
-            if (strlen($digits) === 10) {
-                $candidates[] = '1' . $digits;
-            }
-        }
-
-        return array_values(array_unique(array_filter($candidates)));
+        return collect([$digits])
+            ->filter() // elimina vacíos
+            ->flatMap(function ($number) {
+                return collect([
+                    $number,
+                    strlen($number) === 11 && str_starts_with($number, '1') ? substr($number, 1) : null,
+                    strlen($number) === 10 ? '1' . $number : null,
+                ])->filter();
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
