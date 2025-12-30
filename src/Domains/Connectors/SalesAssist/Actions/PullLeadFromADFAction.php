@@ -12,14 +12,14 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kiwilan\XmlReader\XmlReader;
 
-class CreateLeadFromADFAction
+class PullLeadFromADFAction
 {
     public function __construct(
         protected ReceiverWebhookCall $webhookRequest
     ) {
     }
 
-    public function execute(): array
+    public function execute(): ?Lead
     {
         $payload = $this->webhookRequest->payload;
         $app = $this->webhookRequest->receiverWebhook->app;
@@ -29,9 +29,7 @@ class CreateLeadFromADFAction
         $data = $xml->toArray();
 
         if (! isset($data['adf']['prospect'])) {
-            return [
-                'error' => 'ADF prospect not found in payload',
-            ];
+            return null;
         }
 
         // Extract email - handle both string and array formats
@@ -49,26 +47,25 @@ class CreateLeadFromADFAction
             $phone,
         );
 
-        if ($people) {
-            $requestDate = Carbon::parse($data['adf']['prospect']['requestdate']);
-            $minutesForMatch = $company->get(ConfigurationEnum::MINUTES_FOR_MATCH_ADF_LEAD->value) ?? 30;
-
-            $lead = Lead::fromApp($app)
-                ->fromCompany($company)
-                ->where('people_id', $people->id)
-                ->whereBetween('created_at', [
-                    $requestDate->toDateTimeString(),
-                    $requestDate->copy()->addMinutes($minutesForMatch)->toDateTimeString(),
-                ])
-                ->latest()
-                ->first();
-
-            $lead?->set(LeadCustomFieldEnum::ADF_LEAD_XML->value, $data);
+        if (! $people) {
+            return null;
         }
 
-        return [
-            'body-plain' => $payload['body-plain'] ?? null,
-            'stripped-text' => $payload['stripped-text'] ?? null,
-        ];
+        $requestDate = Carbon::parse($data['adf']['prospect']['requestdate']);
+        $minutesForMatch = $company->get(ConfigurationEnum::MINUTES_FOR_MATCH_ADF_LEAD->value) ?? 30;
+
+        $lead = Lead::fromApp($app)
+            ->fromCompany($company)
+            ->where('people_id', $people->id)
+            ->whereBetween('created_at', [
+                $requestDate->copy()->subMinutes(5)->toDateTimeString(),
+                $requestDate->copy()->addMinutes($minutesForMatch)->toDateTimeString(),
+            ])
+            ->latest()
+            ->first();
+
+        $lead?->set(LeadCustomFieldEnum::ADF_LEAD_XML->value, $data);
+
+        return $lead ?? null;
     }
 }

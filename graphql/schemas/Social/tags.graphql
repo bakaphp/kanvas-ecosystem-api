@@ -2,13 +2,15 @@ input TagInput {
     name: String!
     slug: String
     weight: Int
+    parent_id: ID
+    is_feature: Int
 }
 
 type Tag {
     id: ID!
     parent_id: ID
-    parent: Tag @belongsTo(method: "parent")
-    user: User! @belongsTo(method: "user")
+    parent: Tag @belongsTo(relation: "parent")
+    user: User! @belongsTo(relation: "user")
     name: String!
     slug: String
     description: String
@@ -17,13 +19,13 @@ type Tag {
     created_at: String
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
-    children: [Tag!] @hasMany(type: PAGINATOR)
     files: [Filesystem!]!
         # @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    children: [Tag!] @hasMany(relation: "children", type: PAGINATOR)
 }
 
 type TagEntity {

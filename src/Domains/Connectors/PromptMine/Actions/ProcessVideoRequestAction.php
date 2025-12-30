@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -377,12 +377,17 @@ class ProcessVideoRequestAction
     {
         $maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
 
-        return $files->map(function (Filesystem $file) use ($maxFileSize): string {
+        return $files->map(function (FilesystemEntities $fileEntity) use ($maxFileSize): string {
+            $file = $fileEntity->filesystem;
             $fileSize = $file->size ?? 0;
 
             if ($fileSize > $maxFileSize) {
                 try {
-                    return ImageOptimizerService::optimizeImageFromUrl($file->url);
+                    return ImageOptimizerService::optimizeFilesystem(
+                        filesystem: $file,
+                        optimize: false,
+                        quality: 90
+                    )->url;
                 } catch (Exception $e) {
                     report($e);
 

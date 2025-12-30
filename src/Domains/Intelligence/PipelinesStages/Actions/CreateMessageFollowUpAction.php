@@ -185,7 +185,7 @@ class CreateMessageFollowUpAction
 
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
             $response = Prism::structured()
-                       ->using(Provider::Gemini, 'gemini-2.5-flash')
+                       ->using(Provider::Gemini, 'gemini-2.5-pro')
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)

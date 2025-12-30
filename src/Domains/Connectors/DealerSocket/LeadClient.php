@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\DealerSocket;
 
 use Exception;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\DealerSocket\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 
 class LeadClient extends BaseClient
@@ -21,7 +22,7 @@ class LeadClient extends BaseClient
     {
         $xml = $this->buildADFLeadXML($data);
 
-        return $this->postLead($xml);
+        return $this->postLead($xml, 'adf');
     }
 
     public function createServiceLead(array $data): array
@@ -41,7 +42,6 @@ class LeadClient extends BaseClient
     private function postLead(string $xml, string $format = 'star'): array
     {
         $url = $this->getDirectPostUrl($format);
-
         $headers = $this->authService->getDirectPostHeaders();
 
         $response = Http::withHeaders($headers)
@@ -242,29 +242,53 @@ XML;
   <prospect>
     <id sequence="1" source="{$data['source']}">{$leadId}</id>
     <requestdate>{$requestDate}</requestdate>
-    <vehicle interest="{$data['interest']}" status="{$data['status']}">
-      <year><![CDATA[{$data['vehicle']['year']}]]></year>
-      <make><![CDATA[{$data['vehicle']['make']}]]></make>
-      <model><![CDATA[{$data['vehicle']['model']}]]></model>
 XML;
 
-        if (! empty($data['vehicle']['vin'])) {
-            $xml .= "\n      <vin><![CDATA[{$data['vehicle']['vin']}]]></vin>";
-        }
-        if (! empty($data['vehicle']['stock'])) {
-            $xml .= "\n      <stock><![CDATA[{$data['vehicle']['stock']}]]></stock>";
+        // ---------------------------------------------------------
+        // VEHICLE BLOCK — ONLY IF interest AND vehicle exist
+        // ---------------------------------------------------------
+        if (! empty($data['interest']) && ! empty($data['vehicle']) && is_array($data['vehicle'])) {
+            $xml .= "\n    <vehicle interest=\"{$data['interest']}\" status=\"{$data['status']}\">";
+
+            $xml .= "\n      <year><![CDATA[" . ($data['vehicle']['year'] ?? '') . ']]></year>';
+            $xml .= "\n      <make><![CDATA[" . ($data['vehicle']['make'] ?? '') . ']]></make>';
+            $xml .= "\n      <model><![CDATA[" . ($data['vehicle']['model'] ?? '') . ']]></model>';
+
+            if (! empty($data['vehicle']['vin'])) {
+                $xml .= "\n      <vin><![CDATA[{$data['vehicle']['vin']}]]></vin>";
+            }
+
+            if (! empty($data['vehicle']['stock'])) {
+                $xml .= "\n      <stock><![CDATA[{$data['vehicle']['stock']}]]></stock>";
+            }
+
+            $xml .= "\n    </vehicle>";
         }
 
-        $xml .= "\n    </vehicle>";
+        $namePart = $data['namePart'] ?? 'full';
+        $phoneType = strtolower($data['phoneType'] ?? '');
+
+        $validTypes = ['voice', 'mobile', 'fax'];
+
+        if (! in_array($phoneType, $validTypes, true)) {
+            $phoneType = 'mobile'; // default fallback
+        }
+
+        $phoneTime = strtolower(trim($data['phoneTime'] ?? 'day'));
+
+        $validTimes = ['day', 'evening', 'night'];
+
+        if (! in_array($phoneTime, $validTimes, true)) {
+            $phoneTime = 'day'; // default fallback
+        }
+        // ---------------------------------------------------------
+        // CUSTOMER
+        // ---------------------------------------------------------
         $xml .= "\n    <customer>";
         $xml .= "\n      <contact>";
-        $xml .= "\n        <name part=\"{$data['namePart']}\">";
-        $xml .= "\n          <![CDATA[{$data['firstName']} {$data['lastName']}]]>";
-        $xml .= "\n        </name>";
+        $xml .= "\n        <name part=\"{$namePart}\"><![CDATA[{$data['firstName']} {$data['lastName']}]]></name>";
         $xml .= "\n        <email><![CDATA[{$data['email']}]]></email>";
-        $xml .= "\n        <phone type=\"{$data['phoneType']}\" time=\"{$data['phoneTime']}\">";
-        $xml .= "\n          <![CDATA[{$data['phone']}]]>";
-        $xml .= "\n        </phone>";
+        $xml .= "\n        <phone type=\"{$phoneType}\" time=\"{$phoneTime}\"><![CDATA[{$data['phone']}]]></phone>";
 
         if (! empty($data['address'])) {
             $xml .= "\n        <address>";
@@ -282,17 +306,26 @@ XML;
         }
 
         $xml .= "\n    </customer>";
+
+        // ---------------------------------------------------------
+        // VENDOR
+        // ---------------------------------------------------------
         $xml .= "\n    <vendor>";
-        $xml .= "\n      <id source=\"DealerId\"><![CDATA[" . $this->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value)[CustomFieldEnum::DEALER_SOCKET_DEALER_ID->value] . ']]></id>';
+        $xml .= "\n      <id source=\"DealerId\"><![CDATA["
+            . $this->company->get(CustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value)[CustomFieldEnum::DEALER_SOCKET_DEALER_ID->value]
+            . ']]></id>';
         $xml .= "\n      <vendorname>Vendor Name</vendorname>";
-        $xml .= "\n      <contact>";
-        $xml .= "\n        <name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name>";
-        $xml .= "\n      </contact>";
+        $xml .= "\n      <contact><name part=\"full\"><![CDATA[{$data['salesPerson']}]]></name></contact>";
         $xml .= "\n    </vendor>";
+
+        // ---------------------------------------------------------
+        // PROVIDER
+        // ---------------------------------------------------------
         $xml .= "\n    <provider>";
         $xml .= "\n      <name part=\"full\"><![CDATA[{$data['providerName']}]]></name>";
         $xml .= "\n      <service><![CDATA[{$data['service']}]]></service>";
         $xml .= "\n    </provider>";
+
         $xml .= "\n  </prospect>";
         $xml .= "\n</adf>";
 
@@ -364,12 +397,12 @@ XML;
     private function getDirectPostUrl(string $format): string
     {
         $format = strtolower($format);
-        $environment = 'testing';
+        $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
         $dealerId = $this->authService->getDealerId();
+        $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
 
-        if ($environment === 'testing' || config('dealersocket.use_oem_testing_url', false)) {
-            $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
-
+        // --- TESTING ENVIRONMENT (OEM) ---
+        if ($environment === 'testing') {
             if ($format === 'adf') {
                 return "{$baseUrl}/ADF/1/SalesLead/223IIV3839";
             } else {
@@ -377,9 +410,11 @@ XML;
             }
         }
 
-        $baseUrl = config('dealersocket.base_url', 'https://api.dealersocket.com/api/DealerSocket');
-
-        return "{$baseUrl}/DirectPost/{$dealerId}";
+        if ($format === 'adf') {
+            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerId;
+        } else {
+            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerId;
+        }
     }
 
     public function searchLeadsByEntityId(int|string $entityId, string $eventCategory = 'Sales'): array

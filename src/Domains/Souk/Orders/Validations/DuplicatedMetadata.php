@@ -49,7 +49,7 @@ class DuplicatedMetadata implements ValidationRule
         return [
             'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
             'cooldown_hours' => (int) $this->app->get('validate_metadata_duplicated_cooldown_hours', 24),
-            'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', true),
+            'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', false),
             'exclude_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
         ];
     }
@@ -59,13 +59,13 @@ class DuplicatedMetadata implements ValidationRule
         // Normalize to lowercase for case-insensitive comparison
         $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-        if ($settings['use_cache']) {
-            $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
+        // if ($settings['use_cache']) {
+        //     $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
 
-            return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
-                return $this->queryDuplicate($normalizedValue, $settings);
-            });
-        }
+        //     return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
+        //         return $this->queryDuplicate($normalizedValue, $settings);
+        //     });
+        // }
 
         return $this->queryDuplicate($normalizedValue, $settings);
     }

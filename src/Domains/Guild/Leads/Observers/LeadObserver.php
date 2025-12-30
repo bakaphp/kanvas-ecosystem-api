@@ -121,4 +121,14 @@ class LeadObserver
 
         //$lead->clearLightHouseCacheJob();
     }
+
+    public function deleted(Lead $lead): void
+    {
+        //delete social channel related to this lead
+        $channel = $lead->getSocialChannel();
+
+        if ($channel) {
+            $channel->delete();
+        }
+    }
 }

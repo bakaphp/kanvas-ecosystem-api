@@ -199,7 +199,7 @@ class Products
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        if (! $user->can('is_published', ProductsModel::class)) {
+        if (! $user->can('is_published', ProductsModel::class) || ! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
         }
 
