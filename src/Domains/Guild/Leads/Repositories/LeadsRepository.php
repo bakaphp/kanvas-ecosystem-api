@@ -44,8 +44,8 @@ class LeadsRepository
                     ->notDeleted()
                     ->where('people_id', $people->id)
                         ->whereHas('status', function ($query) use ($mappingStatus) {
-                            if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus) && key_exists('created', $mappingStatus)) {
-                                $query->whereIn('name', [$mappingStatus['active'], $mappingStatus['created'], 'active', 'created']);
+                            if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus)) {
+                                $query->whereIn('name', ...$mappingStatus['active']);
                             } else {
                                 $query->whereIn('name', ['active', 'created']);
                             }
