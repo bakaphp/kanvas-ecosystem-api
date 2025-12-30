@@ -19,7 +19,7 @@ type Tag {
     taggables: [TagEntity!]! @hasMany(method: "taggables")
     children: [Tag!] @hasMany(type: PAGINATOR)
     files: [Filesystem!]!
-        @cacheRedis
+        # @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
