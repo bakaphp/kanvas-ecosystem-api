@@ -193,8 +193,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     new MessageTypeInput(
                         $this->receiver->app->getId(),
                         0,
-                        $isDocument ? 'file-upload' : $messageType,
-                        $isDocument ? 'file-upload' : $messageType,
+                        $messageType,
+                        $messageType,
                     )
                 ))->execute();
 
