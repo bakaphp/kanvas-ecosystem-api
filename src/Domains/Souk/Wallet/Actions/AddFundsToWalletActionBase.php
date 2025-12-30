@@ -16,6 +16,7 @@ abstract class AddFundsToWalletActionBase
     public function __construct(
         protected Order $order,
         protected bool $useOrderTotal = false,
+        protected ?float $amount = null,
     ) {
     }
 
@@ -29,13 +30,18 @@ abstract class AddFundsToWalletActionBase
     abstract protected function getWalletHolder(): Model;
 
     /**
-     * Calculate the total amount to deposit based on order items or order total.
+     * Calculate the total amount to deposit based on:
+     * 1. Explicit amount if provided
+     * 2. Order total if useOrderTotal is true
+     * 3. Coin variant items (default)
      *
      * @throws Exception
      */
     protected function calculateTotal(): float
     {
-        if ($this->useOrderTotal) {
+        if ($this->amount !== null) {
+            $total = $this->amount;
+        } elseif ($this->useOrderTotal) {
             $total = (float) $this->order->total_gross_amount;
         } else {
             $total = 0.0;
