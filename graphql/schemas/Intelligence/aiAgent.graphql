@@ -1,7 +1,9 @@
 type AIAgentSession {
-    name: String!
+    name: String
     user: Mixed!
     id: ID!
+    uuid: ID
+    canal_id: String!
     company: Company!
     company_config: Mixed
     content: Mixed

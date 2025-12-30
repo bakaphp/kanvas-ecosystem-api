@@ -28,6 +28,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -189,6 +190,12 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasMany(Channel::class, 'entity_id', 'id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'id')
+            ->where('entity_namespace', self::class);
     }
 
     public function notes(): HasOne
