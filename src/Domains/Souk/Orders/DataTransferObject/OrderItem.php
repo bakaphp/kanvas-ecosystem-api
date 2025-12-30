@@ -28,6 +28,7 @@ class OrderItem extends Data
         public readonly Currencies $currency,
         public readonly int $quantityShipped = 0,
         public readonly ?array $metadata = null,
+        public readonly ?int $channelId = null,
     ) {
     }
 
@@ -56,6 +57,7 @@ class OrderItem extends Data
             currency: $region->currency,
             quantityShipped: $request['quantity_shipped'] ?? 0,
             metadata: $request['attributes'] ?? $request['metadata'] ?? null,
+            channelId: $request['attributes']['channel_id'] ?? null,
         );
     }
 
