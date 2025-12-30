@@ -31,8 +31,8 @@ class LoyaltyTierMembershipFactory extends Factory
             'users_id' => Users::factory(),
             'loyalty_tiers_id' => LoyaltyTier::factory(),
             'loyalty_programs_id' => LoyaltyProgram::factory(),
-            'lifetime_points' => $this->faker->numberBetween(0, 10000),
-            'current_points' => $this->faker->numberBetween(0, 5000),
+            'lifetime_points' => $this->faker->randomFloat(2, 0, 10000),
+            'current_points' => $this->faker->randomFloat(2, 0, 5000),
             'tier_promoted_at' => $this->faker->optional(0.7)->dateTime(),
         ];
     }

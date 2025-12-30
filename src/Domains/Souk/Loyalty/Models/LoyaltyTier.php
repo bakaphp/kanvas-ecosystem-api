@@ -75,7 +75,7 @@ class LoyaltyTier extends BaseModel
     /**
      * Check if a user qualifies for this tier based on points.
      */
-    public function qualifiesForTier(int $points): bool
+    public function qualifiesForTier(float $points): bool
     {
         return $points >= $this->min_points;
     }
