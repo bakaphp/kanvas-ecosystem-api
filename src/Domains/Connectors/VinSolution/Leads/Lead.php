@@ -25,9 +25,6 @@ class Lead
 
     public string $createdAt;
 
-    /**
-     * Initialize.
-     */
     public function __construct(array $data)
     {
         $this->id = $data['LeadId'] ?? $data['leadId'];
