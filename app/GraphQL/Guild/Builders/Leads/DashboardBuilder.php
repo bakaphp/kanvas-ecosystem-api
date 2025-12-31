@@ -34,29 +34,32 @@ class DashboardBuilder
 
         $memberId = (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
 
+        $closedStatuses = $company->get('LEADS_CLOSED_STATUS_NAMES') ?? ['complete', 'closed'];
+        $openStatuses = $company->get('LEADS_OPEN_STATUS_NAMES') ?? ['new', 'active', 'open', 'in_progress'];
+        $closedStatusPlaceholders = implode(',', array_fill(0, count($closedStatuses), '?'));
+        $openStatusPlaceholders = implode(',', array_fill(0, count($openStatuses), '?'));
+
         if ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && $agentInfo) {
-            return Lead::selectRaw('
-                    COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
-                    COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
+            return Lead::selectRaw("
+                    COUNT(CASE WHEN leads_status.name IN ({$openStatusPlaceholders}) THEN 1 END) as total_active_leads,
+                    COUNT(CASE WHEN leads_status.name IN ({$closedStatusPlaceholders}) THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['complete', 'closed', 'complete', 'closed', $agentInfo->users_linked_source_id, $company->getId()])
+                ", [...$openStatuses, ...$closedStatuses, $agentInfo->users_linked_source_id, $company->getId()])
                 ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                 ->fromCompany($company);
         }
 
         if ($app->get(LeadFilterEnum::FILTER_BY_OWNER_AGENTS->value) && $user->get('ZOHO_USER_OWNER_ID')) {
             try {
-                $query = Lead::selectRaw('
-                COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
-                COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
-                (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
-            ', ['complete', 'closed', 'complete', 'closed', $agentInfo->users_linked_source_id, $company->getId()])
-                            ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
-                            ->where('leads_owner_id', $user->getId())
-                            ->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
-                            //where('leads.created_at', '>', '2025-01-01')
-                            ->fromCompany($company)
-
+                $query = Lead::selectRaw("
+                    COUNT(CASE WHEN leads_status.name IN ({$openStatusPlaceholders}) THEN 1 END) as total_active_leads,
+                    COUNT(CASE WHEN leads_status.name IN ({$closedStatusPlaceholders}) THEN 1 END) as total_closed_leads,
+                    (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
+                ", [...$openStatuses, ...$closedStatuses, $agentInfo->users_linked_source_id, $company->getId()])
+                    ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
+                    ->where('leads_owner_id', $user->getId())
+                    ->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
+                    ->fromCompany($company)
                     ->where('leads.is_deleted', 0);
 
                 return $query;
@@ -68,11 +71,11 @@ class DashboardBuilder
         /**
          * @var Builder
          */
-        return Lead::selectRaw('
-                    COUNT(CASE WHEN leads_status.name != ? AND leads_status.name != ? THEN 1 END) as total_active_leads,
-                    COUNT(CASE WHEN leads_status.name = ? OR leads_status.name = ? THEN 1 END) as total_closed_leads,
+        return Lead::selectRaw("
+                    COUNT(CASE WHEN leads_status.name IN ({$openStatusPlaceholders}) THEN 1 END) as total_active_leads,
+                    COUNT(CASE WHEN leads_status.name IN ({$closedStatusPlaceholders}) THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['complete', 'closed', 'complete', 'closed', $memberId, $company->getId()])
+                ", [...$openStatuses, ...$closedStatuses, $memberId, $company->getId()])
                  ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                  ->fromCompany($company);
     }
