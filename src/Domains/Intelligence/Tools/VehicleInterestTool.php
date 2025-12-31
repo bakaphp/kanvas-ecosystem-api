@@ -48,6 +48,7 @@ class VehicleInterestTool implements ContextToolInterface
             'isPrimary' => $vehicleInterest['isPrimary'] ?? '',
             'price' => $variant?->getPriceInfoFromDefaultChannel()->price ?? 0,
             'uuid' => $variant?->product->uuid ?? '',
+            'variant_uuid' => $variant?->uuid ?? '',
         ];
     }
 }
