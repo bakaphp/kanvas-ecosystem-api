@@ -59,6 +59,7 @@ class FollowUpEngagementAction
                 $isActive = $this->lead->isActive();
             }
 
+          
             if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && $timeDiff >= $rules['minutes_no_response']
                 && $contacted === false
@@ -96,6 +97,7 @@ class FollowUpEngagementAction
                 $this->lead->moveToNextPipelineStage();
             }
         }
+        
         if (isset($message) && $message) {
             return [
                 'first_message' => $message,
