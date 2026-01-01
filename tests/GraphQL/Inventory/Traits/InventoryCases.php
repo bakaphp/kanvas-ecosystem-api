@@ -40,7 +40,7 @@ trait InventoryCases
 
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
-       $this->setupInventory();
+        $this->setupInventory();
 
         if (empty($data)) {
             $name = $data['name'] ?? fake()->name;
@@ -79,8 +79,7 @@ trait InventoryCases
 
     public function createVariant(string $productId, array $warehouseData, array $data = [], array $attributes = []): TestResponse
     {
-             $this->setupInventory();
-
+        $this->setupInventory();
 
         if (empty($data)) {
             $data = [
@@ -120,7 +119,7 @@ trait InventoryCases
 
     public function createChannel(array $data = []): TestResponse
     {
-               $this->setupInventory();
+        $this->setupInventory();
 
         if (empty($data)) {
             $data = [
@@ -144,7 +143,7 @@ trait InventoryCases
 
     public function addVariantToChannel(string $variantId, string $channelId, array $warehouseData, array $data = []): TestResponse
     {
-               $this->setupInventory();
+        $this->setupInventory();
 
         if (empty($data)) {
             $data = [
@@ -169,7 +168,8 @@ trait InventoryCases
     }
 
     public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = 0, array $data = []): TestResponse
-    {       $this->setupInventory();
+    {
+        $this->setupInventory();
 
         if (empty($data)) {
             $data = [
