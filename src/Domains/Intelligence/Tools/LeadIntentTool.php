@@ -12,7 +12,7 @@ use Override;
 
 class LeadIntentTool implements ContextToolInterface
 {
-    protected Agent $agent;
+    protected ?Agent $agent = null;
 
     public function __construct(
         protected Model $entity

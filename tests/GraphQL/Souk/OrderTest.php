@@ -10,6 +10,8 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -29,7 +31,44 @@ class OrderTest extends TestCase
 
     public function testCreateDraftOrder()
     {
-        $variantWarehouse = VariantsWarehouses::first();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->setupInventory($app, $company, $user);
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 0.29,
+            ],
+            ]
+        );
+        $product = new CreateProductAction($productData, $user)->execute();
+        $variant = $product->variants()->first();
+
+        $variantWarehouse = VariantsWarehouses::whereHas('variant', function ($query) use ($app, $company) {
+            $query->where('apps_id', $app->getId())->where('companies_id', $company->getId());
+        })->first();
+
+        $channel = Channels::getDefault($company, $app);
+
+        $addVariantToChannel = new AddVariantToChannelAction(
+            $variantWarehouse,
+            $channel,
+            VariantChannel::from([
+                    'price' => 10.00,
+                    'discounted_price' => 10.00,
+                    'is_published' => 10.00 > 0,
+                    'config' => null,
+                ])
+        );
+        $addVariantToChannel->execute();
+
         $region = $variantWarehouse->warehouse->region;
         $company = $region->company;
         $user = $company->user;
@@ -53,6 +92,7 @@ class OrderTest extends TestCase
                 [
                     'variant_id' => $variantWarehouse->variant->getId(),
                     'quantity' => 1,
+                    'channel_id' => $channel->getId(),
                 ],
             ],
         ];
@@ -97,7 +137,7 @@ class OrderTest extends TestCase
             ]
         );
         $this->setupStripeConfiguration($app);
-        $product = (new CreateProductAction($productData, $user))->execute();
+        $product = new CreateProductAction($productData, $user)->execute();
         $variant = $product->variants()->first();
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
         $channel = Channels::fromApp($app)->fromCompany($company)->first();
@@ -515,7 +555,7 @@ class OrderTest extends TestCase
             'id' => $createOrderResponse['id'],
             'input' => [
                 'fulfillment_status' => 'fulfilled',
-                'statius' => 'completed',
+                'status' => 'completed',
                 'payment_status' => 'paid',
             ],
         ], [], [

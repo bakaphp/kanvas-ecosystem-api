@@ -8,6 +8,7 @@ use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Testing\TestResponse;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as DataTransferObjectAttributes;
@@ -17,6 +18,7 @@ use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
 use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
+use Kanvas\Inventory\Support\Setup;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as DataTransferObjectWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -24,8 +26,22 @@ use Kanvas\Regions\Models\Regions;
 
 trait InventoryCases
 {
+    public function setupInventory(
+        ?AppInterface $app = null,
+        ?CompanyInterface $company = null,
+        ?UserInterface $user = null
+    ): void {
+        $app = $app ?? app(Apps::class);
+        $user = $user ?? auth()->user();
+        $company = $company ?? $user->getCurrentCompany();
+        $setupInventory = new Setup($app, $user, $company);
+        $setupInventory->run();
+    }
+
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
+       $this->setupInventory();
+
         if (empty($data)) {
             $name = $data['name'] ?? fake()->name;
             $data = [
@@ -63,6 +79,9 @@ trait InventoryCases
 
     public function createVariant(string $productId, array $warehouseData, array $data = [], array $attributes = []): TestResponse
     {
+             $this->setupInventory();
+
+
         if (empty($data)) {
             $data = [
                 'name' => fake()->name,
@@ -101,6 +120,8 @@ trait InventoryCases
 
     public function createChannel(array $data = []): TestResponse
     {
+               $this->setupInventory();
+
         if (empty($data)) {
             $data = [
                 'name' => fake()->name,
@@ -123,6 +144,8 @@ trait InventoryCases
 
     public function addVariantToChannel(string $variantId, string $channelId, array $warehouseData, array $data = []): TestResponse
     {
+               $this->setupInventory();
+
         if (empty($data)) {
             $data = [
                 'variants_id' => $variantId,
@@ -146,7 +169,8 @@ trait InventoryCases
     }
 
     public function addVariantToWarehouse(string $variantId, string $warehouseId, int $amount = 0, array $data = []): TestResponse
-    {
+    {       $this->setupInventory();
+
         if (empty($data)) {
             $data = [
                 'data' => [

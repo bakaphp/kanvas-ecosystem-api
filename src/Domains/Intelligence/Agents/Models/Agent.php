@@ -104,6 +104,7 @@ class Agent extends BaseModel
         return new AgentFactory();
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(

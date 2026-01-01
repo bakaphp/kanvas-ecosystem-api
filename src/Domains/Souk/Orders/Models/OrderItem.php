@@ -29,6 +29,7 @@ use Override;
  * @property int $order_id
  * @property int|float $quantity_fulfilled
  * @property int $variant_id
+ * @property int|null $channel_id
  * @property float|null $tax_rate
  * @property string|null $translated_product_name
  * @property string|null $currency
