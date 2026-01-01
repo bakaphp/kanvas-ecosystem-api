@@ -58,7 +58,6 @@ class FollowUpEngagementCommand extends Command
                     ->where('created_at', '>=', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
                     ->orderBy('id', 'ASC')
-                    ->where('id', 578129)
                     ->cursor();
 
                 $this->info('Processing stage ID ' . $stage->id . ' - ' . $stage->name . ' for leads ' . count($leads->toArray()));
@@ -156,7 +155,7 @@ class FollowUpEngagementCommand extends Command
                 $company,
                 $user
             )->execute([
-                'entity_id' => (int) $leadId >> 0 ? (int) $leadId : null,
+                'entity_id' => (int) $leadId > 0 ? (int) $leadId : null,
             ], $lead);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
