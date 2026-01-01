@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\DealerSocket;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,7 +15,6 @@ use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\AuthService;
 use Kanvas\Exceptions\ValidationException;
 use SimpleXMLElement;
-use Illuminate\Http\Client\Response;
 
 abstract class BaseClient
 {
