@@ -57,26 +57,44 @@ class FollowUpEngagementCommand extends Command
                     // ->whereIn('id', [525873,525867,509766,513064,513546])
                     ->where('created_at', '>=', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
+                    ->orderBy('id', 'ASC')
                     ->cursor();
 
+                $this->info('Processing stage ID ' . $stage->id . ' - ' . $stage->name . ' for leads ' . count($leads->toArray()));
                 foreach ($leads as $lead) {
                     $this->overwriteAppService($lead->app);
                     $this->reSyncLead($lead);
                     $lead->refresh();
 
-                    $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null
-                                    || ($lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0)
-                                    || $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null
-                                    || $lead->isActive() === false || $lead->hasBeenContacted()
-                                    || ! in_array($lead->type?->name, ['INTERNET']);
+                    $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
+
+                    $noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    $muteAiAgent = $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0;
+                    $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+                    $notActive = $lead->isActive() === false;
+                    $hasBeenContacted = $lead->hasBeenContacted();
+                    $notInternet = ! in_array(strtolower($lead->type?->name), ['internet']);
+
+                    /*      $this->line('  - No Agent Channel: ' . ($noAgentChannel ? 'true' : 'false'));
+                         $this->line('  - Mute AI Agent: ' . ($muteAiAgent ? 'true' : 'false'));
+                         $this->line('  - No First Message: ' . ($noFirstMessage ? 'true' : 'false'));
+                         $this->line('  - Not Active: ' . ($notActive ? 'true' : 'false'));
+                         $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
+                         $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
+
+                    $shouldSkip = $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
                     $ignoreFollowUp = (bool)$this->option('ignore-have-follow-up');
 
                     if ($shouldSkip) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
+
                         continue;
                     } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+
                         break;
                     }
 
@@ -93,6 +111,7 @@ class FollowUpEngagementCommand extends Command
 
                     //how do we avoid sending notifications for leads that haven'b been contacted
                     try {
+                        $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
                         $result = new FollowUpEngagementAction($lead)->execute();
                     } catch (Exception $e) {
                         $this->error('Error processing lead ID ' . $lead->id . ': ' . $e->getMessage());
@@ -135,7 +154,9 @@ class FollowUpEngagementCommand extends Command
                 $app,
                 $company,
                 $user
-            )->execute([], $lead);
+            )->execute([
+                'entity_id' => (int) $leadId > 0 ? (int) $leadId : null,
+            ], $lead);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
                 $app,
