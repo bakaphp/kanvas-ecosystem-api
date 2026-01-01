@@ -12,6 +12,7 @@ use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
+use Kanvas\Connectors\VinSolution\Leads\Lead as LeadsLead;
 use Kanvas\Connectors\VinSolution\Leads\Source;
 use Kanvas\Connectors\VinSolution\Leads\Types;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -38,6 +39,12 @@ class Lead extends DataTransferObjectLead
         $customer = Contact::getById($dealer, $dealerUser, $data['CustomerId']);
         $country = Countries::getByCode('US');
         $people = People::fromContact($customer, $app, $company, $user);
+        $leadV2 = LeadsLead::getByIdV2(
+            $dealer,
+            $dealerUser,
+            $data['LeadId'],
+            $app
+        );
 
         /*         $eLeadOwnerId = null;s
 
@@ -82,7 +89,11 @@ class Lead extends DataTransferObjectLead
         );
 
         $vinLeadsType = self::getLeadsType($company);
-        $vinLeadsTypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
+        $vinleadtypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
+        if (strtolower($vinleadtypeId) === 'internet' && ! empty($leadV2->leadTypeName)) {
+            $vinLeadsTypeId = $leadV2->leadTypeName;
+        }
+        //double check leadType with v2
 
         $localLeadType = $localLeadSource?->type ?? LeadType::fromApp($app)->fromCompany($company)->where('name', strtoupper($vinLeadsTypeId))->first();
 

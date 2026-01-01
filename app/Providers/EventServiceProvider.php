@@ -44,6 +44,8 @@ use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Social\Tags\Observers\TagsObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -106,6 +108,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
+        Tag::observe(TagsObserver::class);
     }
 
     /**

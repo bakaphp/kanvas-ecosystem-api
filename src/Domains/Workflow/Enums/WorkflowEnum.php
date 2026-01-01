@@ -42,6 +42,8 @@ enum WorkflowEnum: string
     case FAKE_CONTEXT = "fake-context";
     case UPDATE_USER_PROFILE = "update-user-profile";
 
+    case CONTACT_SAVED = 'contact-saved';
+
     /**
      * Get the enum case by its value.
      */
