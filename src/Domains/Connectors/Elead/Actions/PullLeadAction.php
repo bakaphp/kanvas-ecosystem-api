@@ -230,38 +230,16 @@ class PullLeadAction
         if ($lead->hasBeenContacted()) {
             return;
         }
-        $data = SalesActivities::getHistoryByOpportunityId(
+        $hasReachOut = SalesActivities::hasSalesAgentReachedOut(
             $lead->app,
             $lead->company,
             $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
         );
 
-        if (! isset($data['items']) || ! is_array($data['items'])) {
+        if ($hasReachOut) {
+            $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
+        } else {
             $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
         }
-
-        foreach ($data['items'] as $item) {
-            if (! isset($item['createdBy'])) {
-                continue;
-            }
-
-            $status = strtolower($status);
-
-            $createdBy = strtolower($item['createdBy']);
-            $isSystem = $createdBy === 'system' ||
-                str_contains($createdBy, 'fortellis') || $item['name'] == 'Appointment' || $status == 'appointment set';
-
-            $isSystem = $createdBy === 'system' ||
-                            str_contains($createdBy, 'fortellis') ;
-            $onlyStatus = $item['name'] == 'Appointment' || $status == 'appointment set';
-
-            if (! $isSystem && $onlyStatus) {
-                $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
-
-                return ;
-            }
-        }
-
-        $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
     }
 }
