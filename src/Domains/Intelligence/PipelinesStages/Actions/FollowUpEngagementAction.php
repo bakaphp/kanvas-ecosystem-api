@@ -96,6 +96,7 @@ class FollowUpEngagementAction
                 $this->lead->moveToNextPipelineStage();
             }
         }
+
         if (isset($message) && $message) {
             return [
                 'first_message' => $message,

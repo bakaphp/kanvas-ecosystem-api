@@ -52,6 +52,10 @@ class CreateDraftOrderAction
 
             $order->addItems($this->orderData->items);
 
+            if ($this->orderData->items->first()->channelId) {
+                $order->setChannelId($this->orderData->items->first()->channelId);
+            }
+
             $order->calculateTotal();
 
             // Run after commit

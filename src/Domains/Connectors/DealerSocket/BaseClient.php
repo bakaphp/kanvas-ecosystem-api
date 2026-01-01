@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\DealerSocket;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -47,7 +48,7 @@ abstract class BaseClient
         return $this->parseResponse($response);
     }
 
-    protected function parseResponse($response): SimpleXMLElement|array|false
+    protected function parseResponse(Response $response): SimpleXMLElement|array|false
     {
         if ($response->failed()) {
             throw new Exception('DealerSocket API Error: ' . $response->body());

@@ -111,7 +111,9 @@ type OrderItem {
     unit_price_gross_amount: Money!
     is_shipping_required: Boolean
     quantity_fulfilled: Float
-    variant: Variant! @belongsTo
+    variant: Variant! @belongsTo(relation: "variant")
+    order: Order! @belongsTo(relation: "order")
+    channel: Channel @belongsTo(relation: "channel")
     tax_rate: Money!
     translated_product_name: String
     currency: String
