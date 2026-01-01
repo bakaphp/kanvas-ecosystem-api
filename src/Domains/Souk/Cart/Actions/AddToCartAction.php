@@ -61,6 +61,7 @@ class AddToCartAction
                     ];
                 })->collapse()->all() : []);
 
+            $attributes['channel_id'] = $item['channel_id'] ?? $variantPriceService->getCurrentChannelId();
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,

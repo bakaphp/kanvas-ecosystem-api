@@ -100,7 +100,8 @@ class Order extends Data
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                quantityShipped: 0,
+                channelId: $lineItem['attributes']['channel_id'] ?? null,
             );
 
             $orderItems[] = $item;

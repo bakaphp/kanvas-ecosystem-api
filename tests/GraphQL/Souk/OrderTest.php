@@ -62,6 +62,9 @@ class OrderTest extends TestCase
             mutation createDraftOrder($input: DraftOrderInput!) {
                 createDraftOrder(input: $input) {
                     id
+                    channel {
+                        id
+                    }
                 }
             }
         ', [
@@ -71,6 +74,9 @@ class OrderTest extends TestCase
         ]);
 
         $response->assertSuccessful();
+        $orderData = $response->json()['data']['createDraftOrder'];
+        $this->assertNotNull($orderData['channel']);
+        $this->assertNotNull($orderData['channel']['id']);
     }
 
     public function testReturnOrderFromCart()
@@ -145,6 +151,9 @@ class OrderTest extends TestCase
                 createOrderFromCart(input: $input) {
                     order {
                         id
+                        channel {
+                            id
+                        }
                     }
                 }
             }
