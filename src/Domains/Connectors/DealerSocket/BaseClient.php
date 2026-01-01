@@ -14,6 +14,7 @@ use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\AuthService;
 use Kanvas\Exceptions\ValidationException;
 use SimpleXMLElement;
+use Illuminate\Http\Client\Response;
 
 abstract class BaseClient
 {
@@ -47,7 +48,7 @@ abstract class BaseClient
         return $this->parseResponse($response);
     }
 
-    protected function parseResponse($response): SimpleXMLElement|array|false
+    protected function parseResponse(Response $response): SimpleXMLElement|array|false
     {
         if ($response->failed()) {
             throw new Exception('DealerSocket API Error: ' . $response->body());
