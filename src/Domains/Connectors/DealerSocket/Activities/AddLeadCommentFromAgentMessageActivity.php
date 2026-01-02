@@ -50,12 +50,7 @@ class AddLeadCommentFromAgentMessageActivity extends WorkflowAddLeadCommentFromA
 
                 $channelSlug = $message->channels->first()->slug;
 
-                $channel = match (true) {
-                    str_contains($channelSlug, 'wa-chat') => 'whatsapp',
-                    str_contains($channelSlug, 'twilio') => 'sms',
-                    str_contains($channelSlug, 'email') => 'email',
-                    default => $note,
-                };
+                $channel = $this->getLeadChannelName($channelSlug);
 
                 $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
 
