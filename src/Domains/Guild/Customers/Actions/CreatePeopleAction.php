@@ -177,57 +177,57 @@ class CreatePeopleAction
                     $people->address()->saveMany($addressesToAdd);
                 }
             }
+        }
 
-            if ($this->peopleData->peopleEmploymentHistory) {
-                foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
-                    $people->employmentHistory()->updateOrCreate(
-                        [
-                            'organizations_id' => $employmentHistory['organizations_id'],
-                            'apps_id' => $this->peopleData->app->getId(),
-                            'position' => $employmentHistory['position'],
-                        ],
-                        [
-                            'position' => $employmentHistory['position'],
-                            'income' => $employmentHistory['income'],
-                            'start_date' => $employmentHistory['start_date'],
-                            'end_date' => $employmentHistory['end_date'],
-                            'status' => $employmentHistory['status'],
-                            'income_type' => $employmentHistory['income_type'] ?? null,
-                        ]
-                    );
-                }
-            }
-
-            if (! empty($this->peopleData->organization)) {
-                $organization = (new CreateOrganizationAction(
-                    new Organization(
-                        company: $this->peopleData->branch->company,
-                        user: $this->peopleData->user,
-                        app: $this->peopleData->app,
-                        name: $this->peopleData->organization,
-                    )
-                ))->execute();
-                OrganizationPeople::addPeopleToOrganization($organization, $people);
-            }
-
-            if (! empty($addressesToAdd)) {
-                $people->address()->saveMany($addressesToAdd);
-            }
-
-            if ($this->runWorkflow) {
-                $people->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true,
+        if ($this->peopleData->peopleEmploymentHistory) {
+            foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
+                $people->employmentHistory()->updateOrCreate(
                     [
-                        'app' => $this->peopleData->app,
+                        'organizations_id' => $employmentHistory['organizations_id'],
+                        'apps_id' => $this->peopleData->app->getId(),
+                        'position' => $employmentHistory['position'],
+                    ],
+                    [
+                        'position' => $employmentHistory['position'],
+                        'income' => $employmentHistory['income'],
+                        'start_date' => $employmentHistory['start_date'],
+                        'end_date' => $employmentHistory['end_date'],
+                        'status' => $employmentHistory['status'],
+                        'income_type' => $employmentHistory['income_type'] ?? null,
                     ]
                 );
             }
-
-            $people->refresh();
-
-            return $people;
         }
+
+        if (! empty($this->peopleData->organization)) {
+            $organization = (new CreateOrganizationAction(
+                new Organization(
+                    company: $this->peopleData->branch->company,
+                    user: $this->peopleData->user,
+                    app: $this->peopleData->app,
+                    name: $this->peopleData->organization,
+                )
+            ))->execute();
+            OrganizationPeople::addPeopleToOrganization($organization, $people);
+        }
+
+        if (! empty($addressesToAdd)) {
+            $people->address()->saveMany($addressesToAdd);
+        }
+
+        if ($this->runWorkflow) {
+            $people->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->peopleData->app,
+                ]
+            );
+        }
+
+        $people->refresh();
+
+        return $people;
     }
 
     protected function checkIfPeopleExist(CompanyInterface $company): void

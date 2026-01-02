@@ -287,7 +287,7 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company]);
+        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company, 'app' => $this->app]);
 
         return $contact;
     }
@@ -302,7 +302,7 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company]);
+        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company, 'app' => $this->app]);
 
         return $contact;
     }
@@ -317,7 +317,7 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company]);
+        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value, true, ['company' => $this->company, 'app' => $this->app]);
 
         return $contact;
     }
