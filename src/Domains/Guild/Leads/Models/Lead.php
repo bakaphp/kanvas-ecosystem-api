@@ -79,7 +79,10 @@ class Lead extends BaseModel implements EventResourceInterface
     use CanUseWorkflow;
     use HasLightHouseCache;
     use EventResourceTrait;
-
+    protected $observables = [
+        'softDeleting',
+        'softDeleted',
+    ];
     protected $table = 'leads';
     protected $guarded = [];
 
