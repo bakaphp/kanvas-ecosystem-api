@@ -8,7 +8,6 @@ use Baka\Support\Url;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
 use Kanvas\Connectors\VinSolution\Workflow\AddLeadCommentFromAgentMessageActivity as WorkflowAddLeadCommentFromAgentMessageActivity;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Messages\Models\Message;
@@ -48,7 +47,17 @@ class AddLeadCommentFromAgentMessageActivity extends WorkflowAddLeadCommentFromA
 
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
                 $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
-                $agentChannel = '(' . ucfirst($lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms') . ') ';
+
+                $channelSlug = $message->channels->first()->slug;
+
+                $channel = match (true) {
+                    str_contains($channelSlug, 'wa-chat') => 'whatsapp',
+                    str_contains($channelSlug, 'twilio') => 'sms',
+                    str_contains($channelSlug, 'email') => 'email',
+                    default => $note,
+                };
+
+                $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
 
                 $note = ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
 
