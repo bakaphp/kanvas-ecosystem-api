@@ -89,8 +89,8 @@ class Lead extends DataTransferObjectLead
         );
 
         $vinLeadsType = self::getLeadsType($company);
-        $vinleadtypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
-        if (strtolower($vinleadtypeId) === 'internet' && ! empty($leadV2->leadTypeName)) {
+        $vinLeadsTypeId = ! isset($data['newLeadType']) ? ($vinLeadsType[$data['LeadType'] - 1] ?? 'INTERNET') : $data['newLeadType'];
+        if (strtolower($vinLeadsTypeId) === 'internet' && ! empty($leadV2->leadTypeName)) {
             $vinLeadsTypeId = $leadV2->leadTypeName;
         }
         //double check leadType with v2
