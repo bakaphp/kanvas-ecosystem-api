@@ -24,7 +24,7 @@ class FollowUpEngagementAction
 
     public function execute(): ?array
     {
-        $config = $this->lead->stage->config;
+        $stageConfig = $this->lead->stage->config;
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
@@ -40,7 +40,7 @@ class FollowUpEngagementAction
             $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
 
-            $rules = $config['notification_engagement_rules'];
+            $config = $stageConfig['notification_engagement_rules'];
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
             $timezone = $this->lead->company->timezone ?? 'UTC';
 
@@ -52,17 +52,30 @@ class FollowUpEngagementAction
 
             $now = Carbon::now($timezone);
             $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
+            $diffCalendarDays = $config['diffCalendarDays'] ?? 0;
+            $ignoreMinutesNoResponse = false;
+
+            if ($diffCalendarDays) {
+                if ($lastMessageCreatedAt) {
+                    $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
+                    if ($lastMessageTime->diffInDays($now) >= $diffCalendarDays) {
+                        $this->lead->pipeline_stage_id = $config['passToNextStage'];
+                        $this->lead->save();
+                        $this->lead->refresh();
+                        $ignoreMinutesNoResponse = true;
+                    }
+                }
+            }
             if ($lastMessageCreatedAt) {
                 $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
                 $timeDiff = $lastMessageTime->diffInMinutes($now);
-                $contacted = $this->lead->hasBeenContacted();
-                $isActive = $this->lead->isActive();
             }
-
-            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
-                && $timeDiff >= $rules['minutes_no_response']
-                && $contacted === false
-                && $isActive)) {
+            $contacted = $this->lead->hasBeenContacted();
+            $isActive = $this->lead->isActive();
+            if ($contacted === true || $isActive === false || $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                continue;
+            }
+            if (! $lastMessageCreatedAt || $ignoreMinutesNoResponse || $timeDiff >= $config['minutes_no_response']) {
                 $message = null;
 
                 try {
@@ -81,7 +94,7 @@ class FollowUpEngagementAction
                     continue;
                 }
 
-                if (isset($rules['send_message']) && $rules['send_message']) {
+                if (isset($config['send_message']) && $config['send_message']) {
                     new SendMessageToLeadAction($this->lead)->execute(
                         $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
