@@ -24,17 +24,11 @@ class CreatePeopleAction
 {
     public bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected readonly PeopleDataInput $peopleData
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
