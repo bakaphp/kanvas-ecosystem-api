@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Observers\TagsObserver;
 use Nevadskiy\Tree\AsTree;
 use Override;
-use Kanvas\Social\Tags\Observers\TagsObserver;
 
 /**
  * @property int id
