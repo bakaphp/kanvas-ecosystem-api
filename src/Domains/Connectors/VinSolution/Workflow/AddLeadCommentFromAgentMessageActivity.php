@@ -119,7 +119,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 'app' => $message->app,
                 'user' => $message->user,
             ],
-            via: ['sms', 'push', 'expo'],
+            via: ['sms', 'push', 'expo', 'mail'],
             entity: $message
         );
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Intelligence\Sessions\Models\Session;
 
 class DeleteSessionAction
 {
@@ -16,7 +16,7 @@ class DeleteSessionAction
 
     public function execute(): void
     {
-        $sessions = Sessions::where('entity_namespace', Lead::class)
+        $sessions = Session::where('entity_namespace', Lead::class)
             ->where('entity_id', $this->lead->getId())
             ->get();
 

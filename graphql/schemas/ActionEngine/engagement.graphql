@@ -1,11 +1,12 @@
 type Engagement {
     id: ID!
     uuid: String!
-    user: User! @belongsTo
+    user: User! @belongsTo(relation: "user")
+    company: Company! @belongsTo(relation: "company")
     company_action: CompanyAction! @belongsTo(relation: "companyAction")
-    message: Message @belongsTo
-    lead: Lead @belongsTo
-    people: People @belongsTo
+    message: Message @belongsTo(relation: "message")
+    lead: Lead @belongsTo(relation: "lead")
+    people: People @belongsTo(relation: "people")
     entity_uuid: String!
     slug: String!
 }
