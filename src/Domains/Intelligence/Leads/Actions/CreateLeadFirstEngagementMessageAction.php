@@ -13,6 +13,7 @@ use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
+use Prism\Prism\Structured\Response;
 use RuntimeException;
 
 /**
@@ -85,7 +86,7 @@ class CreateLeadFirstEngagementMessageAction
         return [...$response->structured ?? [], ['background' => $prompt]];
     }
 
-    public function callPrism($schema, $prompt): array
+    public function callPrism(ObjectSchema $schema, string $prompt): Response
     {
         $response = Prism::structured()
            ->using(Provider::Gemini, 'gemini-2.5-pro')
