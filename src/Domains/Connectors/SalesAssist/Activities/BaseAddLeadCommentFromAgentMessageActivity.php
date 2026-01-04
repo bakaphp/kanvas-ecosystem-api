@@ -122,7 +122,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: $this->getIntegration(),
-            integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
+            integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams): array {
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
