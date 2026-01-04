@@ -13,8 +13,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceEnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-use Kanvas\Intelligence\Traits\LeadChannelName;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -22,8 +22,6 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
-    use LeadChannelName;
-
     public $tries = 3;
 
     public function execute(Message $message, Apps $app, array $params): array
@@ -62,7 +60,7 @@ class AddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 $channelSlug = $message->channels->first()->slug;
 
-                $channel = $this->getLeadChannelName($channelSlug);
+                $channel = ChannelCategoryEnum::getLeadChannelName($channelSlug);
 
                 $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
 

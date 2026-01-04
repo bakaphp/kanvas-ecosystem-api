@@ -25,4 +25,14 @@ enum ChannelCategoryEnum: string
                 implode(', ', array_column(self::cases(), 'value'))
             );
     }
+
+    public static function getLeadChannelName(string $channelSlug): string
+    {
+        return match (true) {
+            str_contains($channelSlug, 'wa-chat') => self::WHATSAPP->value,
+            str_contains($channelSlug, 'twilio') => self::SMS->value,
+            str_contains($channelSlug, 'email') => self::EMAIL->value,
+            default => 'unknown',
+        };
+    }
 }

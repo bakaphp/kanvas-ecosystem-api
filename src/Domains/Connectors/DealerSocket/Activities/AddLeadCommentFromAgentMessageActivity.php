@@ -10,6 +10,7 @@ use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
 use Kanvas\Connectors\VinSolution\Workflow\AddLeadCommentFromAgentMessageActivity as WorkflowAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Override;
@@ -50,7 +51,7 @@ class AddLeadCommentFromAgentMessageActivity extends WorkflowAddLeadCommentFromA
 
                 $channelSlug = $message->channels->first()->slug;
 
-                $channel = $this->getLeadChannelName($channelSlug);
+                $channel = ChannelCategoryEnum::getLeadChannelName($channelSlug);
 
                 $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
 
