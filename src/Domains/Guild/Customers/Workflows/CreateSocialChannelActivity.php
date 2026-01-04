@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\KanvasActivity;
 
 class CreateSocialChannelActivity extends KanvasActivity
@@ -52,8 +53,8 @@ class CreateSocialChannelActivity extends KanvasActivity
 
         if ($communicationChannel === 'sms') {
             $channel = $this->createChannelAndSession(
-                channelKey: 'whatsapp',          // para el slug
-                communicationChannel: $communicationChannel, // se mantiene igual que tu código original
+                channelKey: 'whatsapp',          //slug
+                communicationChannel: $communicationChannel, 
                 contact: $contact,
                 app: $app,
                 lead: $lead,
@@ -74,7 +75,7 @@ class CreateSocialChannelActivity extends KanvasActivity
         Apps $app,
         Lead $lead,
         int $agentId
-    ) {
+    ): Channel {
         $channelDto = ChannelDto::from([
             'apps' => $app,
             'companies' => $lead->company,
@@ -88,7 +89,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             ),
         ]);
 
-        $channel = (new CreateChannelAction($channelDto))->execute();
+        $channel = new CreateChannelAction($channelDto)->execute();
 
         $sessionDto = Session::from([
             'agent' => Agent::getById($agentId),
@@ -104,7 +105,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             ),
         ]);
 
-        (new CreateSessionAction($sessionDto))->execute();
+        new CreateSessionAction($sessionDto)->execute();
 
         return $channel;
     }
