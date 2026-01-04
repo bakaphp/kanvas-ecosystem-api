@@ -207,6 +207,7 @@ class CreateBaseOrderAction
                 currency: Currencies::getByCode('USD'),
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
+                channelId: $lineItem['attributes']['channel_id'] ?? null
             );
         }
 

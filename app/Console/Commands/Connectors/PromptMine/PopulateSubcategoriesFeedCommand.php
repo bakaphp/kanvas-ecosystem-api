@@ -26,6 +26,7 @@ class PopulateSubcategoriesFeedCommand extends Command
         {app_id : The application ID}
         {company_id : The company ID}
         {message_type_id : The message type ID}
+        {category_group_slug : The category group slug}
         {category_slug : The category slug}
         {subcategory_slug : The subcategory slug}
         {message_id_list : Comma-separated message IDs}';
@@ -37,13 +38,10 @@ class PopulateSubcategoriesFeedCommand extends Command
      */
     protected $description = 'Populate subcategories feed with a curated list of prompts';
 
-    /**
-     * Execute the console command.
-     *
-     */
-    public function handle()
+    public function handle(): void
     {
         $messageType = (int) $this->argument('message_type_id');
+        $categoryGroupSlug = (string) $this->argument('category_group_slug');
         $categorySlug = (string) $this->argument('category_slug');
         $subcategorySlug = (string) $this->argument('subcategory_slug');
         $messageIdList = explode(',', (string) $this->argument('message_id_list'));
@@ -54,28 +52,53 @@ class PopulateSubcategoriesFeedCommand extends Command
         $messageType = MessageType::getById($messageType, $app);
         $user = $company->user;
 
+        $categoryGroupTag = (new CreateTagAction(
+            new Tag(
+                $app,
+                $user,
+                $company,
+                $categoryGroupSlug
+            )
+        ))->execute();
+
+        if (! $categoryGroupTag->path) {
+            $categoryGroupTag->path = $categoryGroupTag->id;
+            $categoryGroupTag->saveOrFail();
+        }
+
         //Add the subcategory as a child of the category
-        $categoryTag = (new CreateTagAction(
+        $categoryTag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $categorySlug
             )
-        ))->execute();
+        )->execute();
 
-        $subcategoryTag = (new CreateTagAction(
+        if (! $categoryTag->path) {
+            $categoryTag->path = $categoryTag->id;
+            $categoryTag->saveOrFail();
+        }
+
+        if (! $categoryTag->parent_id) {
+            $categoryTag->parent_id = $categoryGroupTag->id;
+            $categoryTag->saveOrFail();
+        }
+
+        $subcategoryTag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $subcategorySlug
             )
-        ))->execute();
+        )->execute();
 
-        $subcategoryTag->parent_id = $categoryTag->id;
-        $subcategoryTag->saveOrFail();
-
+        if (! $subcategoryTag->parent_id) {
+            $subcategoryTag->parent_id = $categoryTag->id;
+            $subcategoryTag->saveOrFail();
+        }
         //Lets tag all messages with the subcategory
         $messages = Message::fromApp($app)
             ->where('companies_id', $company->getId())

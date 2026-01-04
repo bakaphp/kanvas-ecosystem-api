@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -92,14 +93,14 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $message = $existingMessage;
         } else {
             // Get the appropriate message type
-            $messageTypeModel = (new CreateMessageTypeAction(
+            $messageTypeModel = new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $this->receiver->app->getId(),
                     0,
                     'twilio-sms',
                     'twilio-sms',
                 )
-            ))->execute();
+            )->execute();
 
             // Create the message using the action
             $messageInput = new MessageInput(
@@ -279,17 +280,22 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $phoneNumber,
             $this->receiver->company
         ); */
-        $query = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWithCountryCode) {
-            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWithCountryCode])
-                  ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-        })
-        ->fromCompany($this->receiver->company)
-        ->fromApp($this->receiver->app);
+        /*  $query = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWithCountryCode) {
+             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWithCountryCode])
+                   ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+         })
+         ->fromCompany($this->receiver->company)
+         ->fromApp($this->receiver->app); */
+        $query = PeoplesRepository::getByPhoneNumber(
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            phoneNumbers: [$phoneNumber, $phoneNumberWithCountryCode]
+        );
 
         $allCustomers = $query->get();
-        $existingCustomer = $allCustomers->first(function ($customer) {
-            return LeadsRepository::getPeopleActiveLead($customer);
-        }) ?: $allCustomers->first();
+        $existingCustomer = $allCustomers->first(function (PeopleModel $customer): bool {
+            return LeadsRepository::getPeopleActiveLead($customer) !== null;
+        }) ?? $allCustomers->first();
 
         if ($existingCustomer && $this->hijackSession) {
             return $existingCustomer;

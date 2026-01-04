@@ -61,6 +61,8 @@ type Order {
     created_at: String!
     updated_at: String
     order_type: OrderType @belongsTo(relation: "orderType")
+    region: Region @belongsTo(relation: "region")
+    channel: Channel @belongsTo(relation: "channel")
     parent: Order @belongsTo(relation: "parent")
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
@@ -109,7 +111,9 @@ type OrderItem {
     unit_price_gross_amount: Money!
     is_shipping_required: Boolean
     quantity_fulfilled: Float
-    variant: Variant! @belongsTo
+    variant: Variant! @belongsTo(relation: "variant")
+    order: Order! @belongsTo(relation: "order")
+    channel: Channel @belongsTo(relation: "channel")
     tax_rate: Money!
     translated_product_name: String
     currency: String
@@ -262,6 +266,7 @@ input OrderLineItemInput {
     quantity: Float!
     price: Money
     metadata: Mixed
+    channel_id: ID
 }
 
 input PaymentInput {

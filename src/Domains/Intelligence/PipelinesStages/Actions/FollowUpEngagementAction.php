@@ -40,10 +40,6 @@ class FollowUpEngagementAction
             $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
 
-            if (! $lastMessage) {
-                continue;
-            }
-
             $rules = $config['notification_engagement_rules'];
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
             $timezone = $this->lead->company->timezone ?? 'UTC';
@@ -55,16 +51,18 @@ class FollowUpEngagementAction
             }
 
             $now = Carbon::now($timezone);
+            $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
+            if ($lastMessageCreatedAt) {
+                $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
+                $timeDiff = $lastMessageTime->diffInMinutes($now);
+                $contacted = $this->lead->hasBeenContacted();
+                $isActive = $this->lead->isActive();
+            }
 
-            $lastMessageTime = Carbon::parse($lastMessage->created_at, $timezone);
-            $timeDiff = $lastMessageTime->diffInMinutes($now);
-            $contacted = $this->lead->hasBeenContacted();
-            $isActive = $this->lead->isActive();
-
-            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && $timeDiff >= $rules['minutes_no_response']
                 && $contacted === false
-                && $isActive) {
+                && $isActive)) {
                 $message = null;
 
                 try {
@@ -98,6 +96,7 @@ class FollowUpEngagementAction
                 $this->lead->moveToNextPipelineStage();
             }
         }
+
         if (isset($message) && $message) {
             return [
                 'first_message' => $message,
