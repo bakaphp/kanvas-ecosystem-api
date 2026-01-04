@@ -89,13 +89,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 foreach ($channels as $communicationChannel => $value) {
                     //get the first message
-                    if ($value === null || empty($value)) {
-                        continue;
-                    }
+                    // if ($value === null || empty($value)) {
+                    //     continue;
+                    // }
                     $template = $stageConfig['templates'][$communicationChannel] ?? null;
-                    if ($template === null || empty($template)) {
-                        continue;
-                    }
+                    // if ($template === null || empty($template)) {
+                    //     continue;
+                    // }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
 
                     //set the first message
@@ -193,7 +193,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
-                                $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead);
+                                $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead) && $template;
 
                                 $createMessage = $this->createMessage(
                                     $lead,
