@@ -1258,7 +1258,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $digits = preg_replace('/\D+/', '', str_replace('@s.whatsapp.net', '', $jid)) ?? '';
 
         return collect([$digits])
-            ->filter() // elimina vacíos
+            ->filter() // Remove empty values
             ->flatMap(function ($number) {
                 return collect([
                     $number,
