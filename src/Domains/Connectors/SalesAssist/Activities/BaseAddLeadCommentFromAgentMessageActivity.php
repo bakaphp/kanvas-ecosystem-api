@@ -81,7 +81,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         };
 
         //return ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
-        return $fromWho . '. ' . $note;
+        return $fromWho . ': ' . $note;
     }
 
     /**
