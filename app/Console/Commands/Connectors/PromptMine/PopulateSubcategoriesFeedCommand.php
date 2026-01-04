@@ -38,11 +38,7 @@ class PopulateSubcategoriesFeedCommand extends Command
      */
     protected $description = 'Populate subcategories feed with a curated list of prompts';
 
-    /**
-     * Execute the console command.
-     *
-     */
-    public function handle()
+    public function handle(): void
     {
         $messageType = (int) $this->argument('message_type_id');
         $categoryGroupSlug = (string) $this->argument('category_group_slug');
@@ -71,14 +67,14 @@ class PopulateSubcategoriesFeedCommand extends Command
         }
 
         //Add the subcategory as a child of the category
-        $categoryTag = (new CreateTagAction(
+        $categoryTag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $categorySlug
             )
-        ))->execute();
+        )->execute();
 
         if (! $categoryTag->path) {
             $categoryTag->path = $categoryTag->id;
@@ -90,14 +86,14 @@ class PopulateSubcategoriesFeedCommand extends Command
             $categoryTag->saveOrFail();
         }
 
-        $subcategoryTag = (new CreateTagAction(
+        $subcategoryTag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $subcategorySlug
             )
-        ))->execute();
+        )->execute();
 
         if (! $subcategoryTag->parent_id) {
             $subcategoryTag->parent_id = $categoryTag->id;
