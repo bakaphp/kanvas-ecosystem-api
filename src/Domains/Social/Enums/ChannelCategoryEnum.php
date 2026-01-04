@@ -33,7 +33,7 @@ enum ChannelCategoryEnum: string
             str_contains($channelSlug, 'twilio') => self::SMS->value,
             str_contains($channelSlug, 'email') => self::EMAIL->value,
             str_contains($channelSlug, 'note') => 'notes',
-            default => 'unknown',
+            default => 'notes',
         };
     }
 }
