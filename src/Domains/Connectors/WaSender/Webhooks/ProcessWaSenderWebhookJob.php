@@ -18,6 +18,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -1200,12 +1201,17 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $normalizePhones = $this->normalizePhoneFromJid($jid);
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
-            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $normalizePhones) {
-                $query->whereIn('value', $normalizePhones)
-                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-            })->fromCompany($this->receiver->company)
-                ->fromApp($this->receiver->app)
-                ->first();
+            /*  $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $normalizePhones) {
+                 $query->whereIn('value', $normalizePhones)
+                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+             })->fromCompany($this->receiver->company)
+                 ->fromApp($this->receiver->app)
+                 ->first(); */
+            $existingCustomer = PeoplesRepository::getByPhoneNumber(
+                $this->receiver->app,
+                $this->receiver->company,
+                $normalizePhones
+            )->first();
         }
 
         if ($existingCustomer && $this->hijackSession) {
