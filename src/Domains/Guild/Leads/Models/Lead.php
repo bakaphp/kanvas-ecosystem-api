@@ -688,4 +688,9 @@ class Lead extends BaseModel implements EventResourceInterface
 
         return $muteAiAgent;
     }
+
+    public function canRunAiAgent(): bool
+    {
+        return ! $this->isAiMuted();
+    }
 }

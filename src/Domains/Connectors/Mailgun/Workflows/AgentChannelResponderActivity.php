@@ -53,7 +53,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) !== null && (int) $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) === 0) {
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
                         'message' => 'Lead turned off AI agent responses',
                         'entity' => null,
