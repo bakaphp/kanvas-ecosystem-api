@@ -35,7 +35,7 @@ class DownloadMessageFileAction
         $this->extension = $map[$this->type] ?? null;
     }
 
-    public function execute(array $params = []): ?array
+    public function execute(): array
     {
         $content = Http::get($this->fileUrl);
         $filename = uniqid() . '.' . $this->extension;
