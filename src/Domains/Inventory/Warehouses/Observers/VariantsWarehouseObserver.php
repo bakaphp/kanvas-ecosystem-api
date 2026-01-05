@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Observers;
 
+use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -38,6 +39,13 @@ class VariantsWarehouseObserver
                 $variantWarehouse
             ))->execute();
         }
+
+        ProductsWarehouses::firstOrCreate(
+            [
+                'products_id' => $variantWarehouse->variant->products_id,
+                'warehouses_id' => $variantWarehouse->warehouses_id,
+            ]
+        );
     }
 
     public function created(VariantsWarehouses $variantWarehouse): void
@@ -51,6 +59,13 @@ class VariantsWarehouseObserver
             'total_variant_quantity',
             $variantWarehouse->variant->setTotalQuantity()
         );
+
+        ProductsWarehouses::firstOrCreate(
+            [
+            'products_id' => $variantWarehouse->variant->products_id,
+            'warehouses_id' => $variantWarehouse->warehouses_id,
+            ]
+        );
     }
 
     public function deleted(VariantsWarehouses $variantWarehouse): void
@@ -59,5 +74,15 @@ class VariantsWarehouseObserver
             'total_products',
             $variantWarehouse->getTotalProducts()
         );
+
+        if ($variantWarehouse->getTotalProducts() === 0) {
+            $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+                ->where('warehouses_id', $variantWarehouse->warehouses_id)
+                ->first();
+
+            if ($productWarehouse) {
+                $productWarehouse->delete();
+            }
+        }
     }
 }
