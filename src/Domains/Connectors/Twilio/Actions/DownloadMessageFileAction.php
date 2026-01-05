@@ -49,11 +49,7 @@ class DownloadMessageFileAction
             $user = Users::getById($agentUser);
         }
 
-        $filesystem = $this->filesystemService->createFileSystemFromBase64(
-            base64_encode($content->body()), // Convert content to base64
-            $filename,
-            $user
-        );
+        $filesystem = $this->filesystemService->uploadFileFromUrl($this->fileUrl, $user);
 
         return ['media' => $filesystem, 'type' => $this->type];
     }
