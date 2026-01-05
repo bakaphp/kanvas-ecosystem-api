@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -146,6 +147,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
 
         $channel->addMessage($message);
+
+        for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+            $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
+            $message->addFilesystem($filesystem['media'], $filesystem['type']);
+        }
+
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
         $workflowJobKey = "workflow_job:{$batchKey}";
 
