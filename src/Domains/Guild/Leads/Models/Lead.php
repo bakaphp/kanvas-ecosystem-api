@@ -28,6 +28,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -678,5 +679,17 @@ class Lead extends BaseModel implements EventResourceInterface
     public function setContactStatus(LeadGroupStatusEnum $status): void
     {
         $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
+    }
+
+    public function isAiMuted(): bool
+    {
+        $noAgentChannel = $this->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+        $muteAiAgent = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) == 0;
+        $noFirstMessage = $this->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+        $notActive = $this->isActive() === false;
+        $hasBeenContacted = $this->hasBeenContacted();
+        $notInternet = ! in_array(strtolower($this->type?->name), ['internet']);
+
+        return $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
     }
 }
