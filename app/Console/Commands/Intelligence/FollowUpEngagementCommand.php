@@ -17,7 +17,6 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 
@@ -69,7 +68,7 @@ class FollowUpEngagementCommand extends Command
                     $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
                     $noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
-                    $muteAiAgent = $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0;
+                    $muteAiAgent = $lead->isAiMuted();
                     $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                     $notActive = $lead->isActive() === false;
                     $hasBeenContacted = $lead->hasBeenContacted();
