@@ -105,6 +105,22 @@ class Lead
         return $response;
     }
 
+    public static function getByVin(Dealer $dealer, User $user, string $vin, ?AppInterface $app = null): array
+    {
+        $client = new Client($dealer->id, $user->id, $app);
+
+        $response = $client->get(
+            '/vehicles/vin?vin=' . urlencode($vin),
+            [
+                'headers' => [
+                    'Accept' => 'application/vnd.coxauto.v1+json',
+                ],
+            ]
+        );
+
+        return $response;
+    }
+
     /**
      * Get a contact by its ID.
      */
