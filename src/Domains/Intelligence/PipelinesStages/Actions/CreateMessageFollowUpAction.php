@@ -158,6 +158,7 @@ class CreateMessageFollowUpAction
         )->execute();
 
         $this->session->channel->addMessage($message);
+        $message->addTag('followup');
 
         return $responseText['message'];
     }
