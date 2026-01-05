@@ -399,21 +399,22 @@ XML;
         $format = strtolower($format);
         $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
         $dealerId = $this->authService->getDealerId();
+        $dealerNumber = $this->company->get(CustomFieldEnum::DEALER_SOCKET_DEALER_NUMBER->value) ?? '';
         $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
 
         // --- TESTING ENVIRONMENT (OEM) ---
         if ($environment === 'testing') {
             if ($format === 'adf') {
-                return "{$baseUrl}/ADF/1/SalesLead/223IIV3839";
+                return "{$baseUrl}/ADF/1/SalesLead/";
             } else {
-                return "{$baseUrl}/STAR/554/SalesLead/223IIV3839";
+                return "{$baseUrl}/STAR/554/SalesLead/";
             }
         }
 
         if ($format === 'adf') {
-            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerId;
+            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerNumber;
         } else {
-            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerId;
+            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerNumber;
         }
     }
 
