@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
@@ -66,6 +67,13 @@ class FollowUpEngagementCommand extends Command
 
                     $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
+                    $noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    $muteAiAgent = $lead->isAiMuted();
+                    $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+                    $notActive = $lead->isActive() === false;
+                    $hasBeenContacted = $lead->hasBeenContacted();
+                    $notInternet = ! in_array(strtolower($lead->type?->name), ['internet']);
+
                     /*      $this->line('  - No Agent Channel: ' . ($noAgentChannel ? 'true' : 'false'));
                          $this->line('  - Mute AI Agent: ' . ($muteAiAgent ? 'true' : 'false'));
                          $this->line('  - No First Message: ' . ($noFirstMessage ? 'true' : 'false'));
@@ -73,7 +81,7 @@ class FollowUpEngagementCommand extends Command
                          $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
                          $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
 
-                    $shouldSkip = $lead->isAiMuted();
+                    $shouldSkip = $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 

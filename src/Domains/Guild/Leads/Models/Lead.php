@@ -683,13 +683,6 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isAiMuted(): bool
     {
-        $noAgentChannel = $this->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
-        $muteAiAgent = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) == 0;
-        $noFirstMessage = $this->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
-        $notActive = $this->isActive() === false;
-        $hasBeenContacted = $this->hasBeenContacted();
-        $notInternet = ! in_array(strtolower($this->type?->name), ['internet']);
-
-        return $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
+        return (bool) $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) == 0;
     }
 }
