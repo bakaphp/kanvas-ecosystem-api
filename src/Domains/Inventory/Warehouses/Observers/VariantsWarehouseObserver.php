@@ -40,12 +40,20 @@ class VariantsWarehouseObserver
             ))->execute();
         }
 
-        ProductsWarehouses::firstOrCreate(
-            [
-                'products_id' => $variantWarehouse->variant->products_id,
-                'warehouses_id' => $variantWarehouse->warehouses_id,
-            ]
-        );
+        $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+            ->where('warehouses_id', $variantWarehouse->warehouses_id)
+            ->withTrashed()
+            ->first();
+
+        if (! $productWarehouse) {
+            $productWarehouse = new ProductsWarehouses();
+            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+            $productWarehouse->is_deleted = 0;
+            $productWarehouse->saveOrFail();
+        } elseif ($productWarehouse->is_deleted) {
+            $productWarehouse->restore();
+        }
     }
 
     public function created(VariantsWarehouses $variantWarehouse): void
@@ -60,12 +68,18 @@ class VariantsWarehouseObserver
             $variantWarehouse->variant->setTotalQuantity()
         );
 
-        ProductsWarehouses::firstOrCreate(
-            [
-            'products_id' => $variantWarehouse->variant->products_id,
-            'warehouses_id' => $variantWarehouse->warehouses_id,
-            ]
-        );
+        $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+            ->where('warehouses_id', $variantWarehouse->warehouses_id)
+            ->withTrashed()
+            ->first();
+
+        if (! $productWarehouse) {
+            $productWarehouse = new ProductsWarehouses();
+            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+            $productWarehouse->is_deleted = 0;
+            $productWarehouse->saveOrFail();
+        }
     }
 
     public function deleted(VariantsWarehouses $variantWarehouse): void
@@ -78,6 +92,7 @@ class VariantsWarehouseObserver
         if ($variantWarehouse->getTotalProducts() === 0) {
             $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
                 ->where('warehouses_id', $variantWarehouse->warehouses_id)
+                ->withTrashed()
                 ->first();
 
             if ($productWarehouse) {
