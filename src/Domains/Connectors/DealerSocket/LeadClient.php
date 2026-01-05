@@ -402,14 +402,14 @@ XML;
         $dealerNumber = $this->company->get(CustomFieldEnum::DEALER_SOCKET_DEALER_NUMBER->value) ?? '';
         $baseUrl = $this->app->get(ConfigurationEnum::DEALER_SOCKET_DEFAULT_URL->value) . '/DSOEMLead/US/DCP';
 
-        // --- TESTING ENVIRONMENT (OEM) ---
-        if ($environment === 'testing') {
-            if ($format === 'adf') {
-                return "{$baseUrl}/ADF/1/SalesLead/";
-            } else {
-                return "{$baseUrl}/STAR/554/SalesLead/";
-            }
-        }
+        /*         // --- TESTING ENVIRONMENT (OEM) ---
+                if ($environment === 'testing') {
+                    if ($format === 'adf') {
+                        return "{$baseUrl}/ADF/1/SalesLead/";
+                    } else {
+                        return "{$baseUrl}/STAR/554/SalesLead/";
+                    }
+                } */
 
         if ($format === 'adf') {
             return "{$baseUrl}/ADF/1/SalesLead/" . $dealerNumber;
