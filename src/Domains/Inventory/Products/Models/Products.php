@@ -178,7 +178,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'products_warehouses',
             'products_id',
             'warehouses_id'
-        );
+        )->where('products_warehouses.is_deleted', 0);
     }
 
     /**
