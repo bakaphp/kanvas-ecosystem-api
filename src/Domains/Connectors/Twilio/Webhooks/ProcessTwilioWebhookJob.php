@@ -149,16 +149,16 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $channel->addMessage($message);
 
-        try {
-            for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+        for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+            try {
                 $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
                 $message->addFilesystem($filesystem['media'], $filesystem['type']);
+            } catch (Exception $e) {
+                report($e);
             }
-        } catch (Exception $e) {
-            report($e);
         }
-
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+
         $workflowJobKey = "workflow_job:{$batchKey}";
 
         // Clear any cancellation flag
