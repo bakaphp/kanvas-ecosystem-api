@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -148,9 +149,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $channel->addMessage($message);
 
-        for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
-            $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
-            $message->addFilesystem($filesystem['media'], $filesystem['type']);
+        try {
+            for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+                $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
+                $message->addFilesystem($filesystem['media'], $filesystem['type']);
+            }
+        } catch (Exception $e) {
+            report($e);
         }
 
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
