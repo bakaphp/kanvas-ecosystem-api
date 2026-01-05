@@ -683,6 +683,9 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isAiMuted(): bool
     {
-        return (bool) $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) == 0;
+        $muteValue = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value);
+        $muteAiAgent = $muteValue !== null && (int) $muteValue === 0;
+
+        return $muteAiAgent;
     }
 }
