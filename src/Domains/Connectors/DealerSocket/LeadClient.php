@@ -397,10 +397,10 @@ XML;
     private function getDirectPostUrl(string $format): string
     {
         $format = strtolower($format);
-        $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
+        $environment = (int) $this->app->get(ConfigurationEnum::DEALER_SOCKET_ENV_PRODUCTION->value) === 1 ? 'production' : 'testing';
         $dealerId = $this->authService->getDealerId();
         $dealerNumber = $this->company->get(CustomFieldEnum::DEALER_SOCKET_DEALER_NUMBER->value) ?? '';
-        $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
+        $baseUrl = $this->app->get(ConfigurationEnum::DEALER_SOCKET_DEFAULT_URL->value) . '/DSOEMLead/US/DCP';
 
         // --- TESTING ENVIRONMENT (OEM) ---
         if ($environment === 'testing') {
