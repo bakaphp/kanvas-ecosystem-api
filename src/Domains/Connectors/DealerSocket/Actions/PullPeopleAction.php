@@ -54,7 +54,7 @@ class PullPeopleAction
             );
         }
 
-        if (empty($customerData)) {
+        if (empty($customerData) || empty($customerData['firstName']) || empty($customerData['emails'])) {
             throw new InvalidArgumentException('No customer data found in DealerSocket');
         }
 
