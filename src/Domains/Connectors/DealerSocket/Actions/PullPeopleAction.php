@@ -54,6 +54,10 @@ class PullPeopleAction
             );
         }
 
+        if (empty($customerData)) {
+            throw new InvalidArgumentException('No customer data found in DealerSocket');
+        }
+
         if ($people === null) {
             $peopleData = DataTransferObjectPeople::fromMultiple(
                 $this->user,
