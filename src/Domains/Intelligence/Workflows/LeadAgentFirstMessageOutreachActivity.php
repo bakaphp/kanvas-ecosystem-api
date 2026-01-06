@@ -216,6 +216,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                    $sentChannels[] = $communicationChannel;
+                                    $totalSentMessages++;
                                 } else {
                                     $createMessage->setLock();
                                     $createMessage->set('communicationChannel', $communicationChannel);
@@ -227,8 +229,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 if ($totalSentMessages === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
-                                $sentChannels[] = $communicationChannel;
-                                $totalSentMessages++;
                             } catch (Exception $e) {
                                 report($e);
                             }
