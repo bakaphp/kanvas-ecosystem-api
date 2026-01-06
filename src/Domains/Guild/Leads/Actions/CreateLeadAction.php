@@ -32,9 +32,6 @@ class CreateLeadAction
     protected CompanyInterface $company;
     protected bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected readonly LeadDataInput $leadData,
         protected ?LeadAttempt $leadAttempt = null
@@ -42,9 +39,6 @@ class CreateLeadAction
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Lead
     {
         return DB::transaction(function () {
