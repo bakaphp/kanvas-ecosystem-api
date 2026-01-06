@@ -19,6 +19,10 @@ use Kiwilan\XmlReader\XmlReader;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+/**
+ * @todo this is tied right now to Dealer Socket
+ * we have to make this agonistic
+ */
 class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 {
     #[Override]
