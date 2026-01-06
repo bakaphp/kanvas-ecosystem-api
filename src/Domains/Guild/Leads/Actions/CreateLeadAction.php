@@ -110,6 +110,18 @@ class CreateLeadAction
                     WorkflowEnum::CREATED->value,
                     true
                 );
+
+                //@todo improve this for create social channels
+                $newLead->people->contacts->each(function ($contact) use ($newLead) {
+                    $contact->fireWorkflow(
+                        WorkflowEnum::CONTACT_SAVED->value,
+                        true,
+                        [
+                                    'company' => $this->company,
+                                    'app' => $newLead->app,
+                                ]
+                    );
+                });
             }
 
             try {
