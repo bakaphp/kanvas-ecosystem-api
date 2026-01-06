@@ -1164,7 +1164,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people->lastname,
                 $people->id
             ),
-            leads_owner_id: 0,
+            leads_owner_id: $leadReceiver->rotation ? $leadReceiver->rotation->getAgent()->id : 0,
             status_id: 0,
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
