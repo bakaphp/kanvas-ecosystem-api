@@ -44,6 +44,7 @@ class SyncZohoAgentAction
             $owner = $record->Owner;
             $updatedMemberNumber = false;
             $newMemberNumber = false;
+            $sponsorInfo = $record->Sponsor_Name ?? [];
 
             // Get or create owner and their agent record
             try {
@@ -120,6 +121,15 @@ class SyncZohoAgentAction
                 if ($agent->owner_id !== $agentOwner->member_id) {
                     $agentData['owner_id'] = $agentOwner->member_id;
                 }
+            }
+
+            if ($sponsorInfo && isset($sponsorInfo['id'])) {
+                $agentData['sponsor_name'] = $sponsorInfo['name'] ?? null;
+                $agentData['sponsor_user_id'] = Agent::where([
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'users_linked_source_id' => $sponsorInfo['id'],
+                ])->lockForUpdate()->first()?->users_id ?? null;
             }
 
             if ($agent) {
