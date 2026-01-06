@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Webhooks;
 
+use InvalidArgumentException;
 use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
@@ -145,10 +146,15 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 
             // If ADF didn’t provide a lead, look up the person in CRM
             if ($existingLead === null) {
-                $people = new PullPeopleAction($app, $company, $user)->execute(
-                    email: $email,
-                    phoneNumber: $phone
-                );
+                try {
+                    $people = new PullPeopleAction($app, $company, $user)->execute(
+                        email: $email,
+                        phoneNumber: $phone
+                    );
+                } catch (InvalidArgumentException $e) {
+                    report($e);
+                    $people = null;
+                }
 
                 if ($people === null) {
                     $lead = $this->createLeadFromADF([
