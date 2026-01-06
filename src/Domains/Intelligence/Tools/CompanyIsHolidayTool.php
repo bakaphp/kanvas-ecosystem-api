@@ -46,6 +46,12 @@ class CompanyIsHolidayTool implements ContextToolInterface
             $federalHolidayName = 'Christmas Eve';
         }
 
+        if ($this->entity->company->get('holiday_epiphany')) {
+            if ($today->format('m-d') === '01-06') {
+                $federalHolidayName = 'Epiphany';
+            }
+        }
+
         $isCompanyObservedHoliday = in_array($federalHolidayName, $companyObservedHolidays, true);
 
         return [
