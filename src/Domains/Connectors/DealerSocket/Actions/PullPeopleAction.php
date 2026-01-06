@@ -32,22 +32,31 @@ class PullPeopleAction
             throw new InvalidArgumentException('At least one parameter must be provided');
         }
         $customerService = new DealerSocketCustomerService($this->app, $this->company);
+        $people = null;
 
         if ($customerId !== null) {
             $customerData = $customerService->getCustomerById($customerId);
-        } elseif ($email !== null) {
-            /* $customerService = new DealerSocketCustomerService($this->app, $this->company);
-            $customerData = $customerService->searchCustomerByEmail($email); */
-            throw new InvalidArgumentException('Search by email not implemented yet');
         } else {
             $customerData = $customerService->searchCustomerByPhone($phoneNumber);
         }
 
-        $people = People::getByCustomField(
-            CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value,
-            $customerData['entityId'],
-            $this->company
-        );
+        /*         elseif ($email !== null) {
+                    /* $customerService = new DealerSocketCustomerService($this->app, $this->company);
+                    $customerData = $customerService->searchCustomerByEmail($email);
+                    throw new InvalidArgumentException('Search by email not implemented yet');
+                } */
+
+        if (isset($customerData['entityId'])) {
+            $people = People::getByCustomField(
+                CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value,
+                $customerData['entityId'],
+                $this->company
+            );
+        }
+
+        if (empty($customerData)) {
+            throw new InvalidArgumentException('No customer data found in DealerSocket');
+        }
 
         if ($people === null) {
             $peopleData = DataTransferObjectPeople::fromMultiple(
