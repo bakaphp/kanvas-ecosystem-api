@@ -79,7 +79,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    'whatsapp' => $cellPhone,
+                    //'whatsapp' => $cellPhone,
                 ];
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];

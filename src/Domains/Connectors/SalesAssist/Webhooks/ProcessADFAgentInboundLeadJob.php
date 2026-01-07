@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Webhooks;
 
+use InvalidArgumentException;
 use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
@@ -11,9 +12,12 @@ use Kanvas\Connectors\SalesAssist\Actions\PullLeadFromADFAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDTO;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kiwilan\XmlReader\XmlReader;
 use Override;
@@ -32,7 +36,7 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
         $user = $this->webhookRequest->receiverWebhook->user;
-        $configuration = $this->webhookRequest->receiverWebhook->configuration;
+        $configuration = $this->webhookRequest->receiverWebhook->configuration ?? [];
 
         // Parse XML
         $xml = XmlReader::make($payload['body-plain'], true, true);
@@ -135,7 +139,7 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
                 'vendorName' => $vendorName,
                 'providerName' => $providerName,
                 'providerService' => $providerService,
-            ]);
+            ], $configuration);
         } else {
             // First attempt: pull lead directly from ADF
             $existingLead = new PullLeadFromADFAction($this->webhookRequest)->execute();
@@ -145,10 +149,15 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 
             // If ADF didn’t provide a lead, look up the person in CRM
             if ($existingLead === null) {
-                $people = new PullPeopleAction($app, $company, $user)->execute(
-                    email: $email,
-                    phoneNumber: $phone
-                );
+                try {
+                    $people = new PullPeopleAction($app, $company, $user)->execute(
+                        email: $email,
+                        phoneNumber: $phone
+                    );
+                } catch (InvalidArgumentException $e) {
+                    report($e);
+                    $people = null;
+                }
 
                 if ($people === null) {
                     $lead = $this->createLeadFromADF([
@@ -166,7 +175,7 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
                         'vendorName' => $vendorName,
                         'providerName' => $providerName,
                         'providerService' => $providerService,
-                    ]);
+                    ], $configuration);
                 } else {
                     // Pull/create lead from CRM customer ID
                     $lead = $pullLeadAction->execute(
@@ -183,21 +192,47 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
             }
         }
 
+        if ($lead instanceof Lead === false) {
+            return [
+                'status' => 'failed',
+                'message' => 'Lead processing failed',
+            ];
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+               'app' => $lead->app,
+               ...($configuration['agent_configuration'] ?? []),
+            ]
+        );
+
         return [
             'status' => 'success',
             'message' => 'ADF Agent Inbound Lead Processed',
-            'lead_id' => is_object($lead) ? $lead->getId() : $lead,
+            'lead_id' => $lead->getId(),
         ];
     }
 
-    protected function createLeadFromADF(array $data): Lead
+    protected function createLeadFromADF(array $data, array $configuration): Lead
     {
+        $receiver = $configuration['receiver_id'] ?? null;
+
+        if ($receiver !== null) {
+            $receiver = LeadReceiver::getByIdFromCompanyApp(
+                (int) $receiver,
+                $this->webhookRequest->receiverWebhook->company,
+                $this->webhookRequest->receiverWebhook->app
+            );
+        }
+
         $contacts = [];
         if ($data['email']) {
-            $contacts[] = ['contacts_types_id' => 1, 'value' => $data['email']];
+            $contacts[] = ['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => $data['email']];
         }
         if ($data['phone']) {
-            $contacts[] = ['contacts_types_id' => 2, 'value' => $data['phone']];
+            $contacts[] = ['contacts_types_id' => ContactTypeEnum::CELLPHONE->value, 'value' => $data['phone']];
         }
 
         $addressData = [];
@@ -228,6 +263,9 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
             pipeline_stage_id: 0,
             people: $peopleDTO,
             description: $data['comments'],
+            type_id: $receiver?->leadType->id ?? 0,
+            receiver_id: $receiver?->getId() ?? 0,
+            leads_owner_id: $receiver?->rotation->getAgent()->id ?? 0,
             custom_fields: [
                 'prospect_id' => $data['prospectId'],
                 'prospect_source' => $data['prospectSource'],

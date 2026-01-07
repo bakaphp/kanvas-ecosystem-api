@@ -72,7 +72,7 @@ class FollowUpEngagementCommand extends Command
                     $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                     $notActive = $lead->isActive() === false;
                     $hasBeenContacted = $lead->hasBeenContacted();
-                    $notInternet = ! in_array(strtolower($lead->type?->name), ['internet']);
+                    $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), ['internet']);
 
                     /*      $this->line('  - No Agent Channel: ' . ($noAgentChannel ? 'true' : 'false'));
                          $this->line('  - Mute AI Agent: ' . ($muteAiAgent ? 'true' : 'false'));
