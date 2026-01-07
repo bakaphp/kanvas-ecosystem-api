@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and GCP collection
+        run: |
+          pip install ansible google-auth
+          ansible-galaxy collection install google.cloud
+
+      - name: Create inventory file
+        run: |
+          cat > ansible/inventory.gcp.yml << EOF
+          plugin: google.cloud.gcp_compute
+          projects:
+            - ${{ secrets.GCP_PROJECT_ID }}
+          zones:
+            - ${{ vars.GCP_ZONE }}
+          filters:
+            - status = RUNNING
+          auth_kind: serviceaccount
+          service_account_contents: ${{ secrets.GCP_SA_KEY }}
+          groups:
+            myapp: "'${{ vars.INSTANCE_GROUP_NAME }}' in name"
+          EOF
+
+      - name: Write SSH key
+        run: |
+          echo '${{ secrets.SSH_PRIVATE_KEY }}' > ssh-key
+          chmod 600 ssh-key
+
+      - name: Run Ansible playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'false'
+        run: |
+          ansible-playbook ansible/deploy.yml \
+            -i ansible/inventory.gcp.yml \
+            --private-key ssh-key \
+            -u ${{ vars.SSH_USER }}

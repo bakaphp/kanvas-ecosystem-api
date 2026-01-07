@@ -1,0 +1,48 @@
+---
+- name: Deploy app to all instances
+  hosts: myapp
+  become: true
+  strategy: free  # Run on all hosts in parallel
+
+  vars:
+    app_dir: /var/www/myapp
+    repo_url: git@github.com:yourorg/yourrepo.git
+    branch: main
+
+  tasks:
+    - name: Sync app files
+      ansible.posix.synchronize:
+        src: ../../
+        dest: "{{ app_dir }}"
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=node_modules"
+          - "--exclude=vendor"
+          - "--exclude=.env"
+          - "--exclude=storage/logs/*"
+          - "--exclude=ansible"
+
+    - name: Install dependencies
+      command: composer install --no-dev --optimize-autoloader
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Run migrations
+      command: php artisan migrate --force
+      args:
+        chdir: "{{ app_dir }}"
+      run_once: true  # Only run on one host
+
+    - name: Clear and cache config
+      shell: |
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Restart PHP-FPM
+      service:
+        name: php-fpm
+        state: restarted
