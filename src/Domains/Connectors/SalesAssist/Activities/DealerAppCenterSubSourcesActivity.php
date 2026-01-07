@@ -31,9 +31,9 @@ class DealerAppCenterSubSourcesActivity extends KanvasActivity
                 $payload = $params['payload'] ?? [];
 
                 if (! $payload) {
-                    return $this->failWorkflow([
-                        'error' => 'Payload is required',
-                    ]);
+                    return [
+                        "success" => false
+                    ]
                 }
 
                 $form = collect($payload['custom_fields'] ?? [])

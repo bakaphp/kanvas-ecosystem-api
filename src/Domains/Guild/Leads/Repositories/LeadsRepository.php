@@ -6,9 +6,11 @@ namespace Kanvas\Guild\Leads\Repositories;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
+use Google\Collection;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -71,5 +73,21 @@ class LeadsRepository
                         })
                         ->orderBy('id', 'desc')
                         ->first();
+    }
+
+    public static function getActiveLeadByCompany(Companies $company): ?Collection
+    {
+        $mappingStatus = $company->get(ConfigurationEnum::MAPPING_STATUS_CRM->value);
+
+        return Lead::fromCompany($company)
+                        ->notDeleted()
+                        ->whereHas('status', function ($query) use ($mappingStatus) {
+                            if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus) && is_array($mappingStatus['active'])) {
+                                $query->whereIn('name', ...$mappingStatus['active']);
+                            } else {
+                                $query->whereIn('name', ['active', 'created']);
+                            }
+                        })
+                        ->get();
     }
 }
