@@ -422,7 +422,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      * - message.data.iccid
      * - message.iccid
      */
-    protected function findMessageIdByIccid(string $iccid, AppInterface $app): ?int
+    protected function findMessageIdByIccid(string|int $iccid, AppInterface $app): ?int
     {
         try {
             // Search for the ICCID in the message JSON column
