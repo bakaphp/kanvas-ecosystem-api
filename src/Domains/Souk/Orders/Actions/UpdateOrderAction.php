@@ -53,23 +53,36 @@ class UpdateOrderAction
         }
 
         return DB::connection('commerce')->transaction(function () use ($lineItems, $hasItems, $originalValues) {
-            $this->order->metadata = [
-                ...($this->order->metadata ?? []),
-                'data' => [
-                    ...($this->order->metadata['data'] ?? []),
-                    ...($this->orderData['metadata']['data'] ?? []),
-                ],
-            ];
+            $currentMetadata = is_array($this->order->metadata) ? $this->order->metadata : [];
+            $newMetadata = is_array($this->orderData['metadata'] ?? null) ? $this->orderData['metadata'] : [];
+
+            $this->order->metadata = $this->mergeMetadata(
+                $currentMetadata,
+                $newMetadata,
+                $this->orderData['metadata_action'] ?? $this->order->get('ORDER_METADATA_ACTION', 'MERGE') ?? 'MERGE'
+            );
+
             $this->order->fulfillment_status = $this->orderData['fulfillment_status'] ?? $this->order->fulfillment_status;
+            $this->order->status = $this->orderData['status'] ?? $this->order->status;
+            $this->order->payment_status = $this->orderData['payment_status'] ?? $this->order->payment_status;
             $this->order->saveOrFail();
 
-            if ($hasItems) {
+            if ($this->order->isFulfilled() && $hasItems) {
+                $this->order->addItems($lineItems);
+                $this->order->fulfillPending();
+                $this->order->calculateTotal();
+            } elseif ($hasItems) {
                 $this->order->deleteItems();
                 $this->order->addItems($lineItems);
+                $this->order->calculateTotal();
             }
 
             // Log the activity after changes are made
-            $this->logOrderActivity($originalValues, $hasItems, $lineItems);
+            $this->logOrderActivity(
+                $originalValues,
+                $hasItems,
+                $lineItems
+            );
 
             // Run after commit
             DB::afterCommit(function () {
@@ -165,5 +178,63 @@ class UpdateOrderAction
                 ])
                 ->log('Order updated');
         }
+    }
+
+    private function mergeMetadata(
+        array $currentMetadata,
+        array $newMetadata,
+        string $metadataAction = 'MERGE'
+    ): array {
+        $currentMetadata = is_array($currentMetadata) ? $currentMetadata : [];
+        $newMetadata = is_array($newMetadata) ? $newMetadata : [];
+
+        if ($metadataAction === 'REPLACE') {
+            return [
+                ...$currentMetadata,
+                ...$newMetadata,
+            ];
+        } elseif ($metadataAction === 'CLEAR') {
+            return $newMetadata;
+        }
+
+        // Merge mode: preserve old, update existing (overwrite unless null), add new
+        $result = $currentMetadata;
+
+        foreach ($newMetadata as $key => $value) {
+            if ($key === 'data') {
+                // Merge data array - overwrite non-null values
+                $result['data'] = $this->mergeArrayRecursive(
+                    $currentMetadata['data'] ?? [],
+                    $newMetadata['data'] ?? []
+                );
+            } elseif (is_array($value) && isset($result[$key]) && is_array($result[$key])) {
+                // Recursively merge nested arrays - overwrite all values
+                $result[$key] = $this->mergeArrayRecursive($result[$key], $value);
+            } elseif ($value !== null) {
+                // Overwrite scalar values, but skip if null
+                $result[$key] = $value;
+            }
+            // If $value is null, keep the old value (don't overwrite)
+        }
+
+        return $result;
+    }
+
+    private function mergeArrayRecursive(array $current, array $new): array
+    {
+        foreach ($new as $key => $value) {
+            if ($value === null) {
+                // Skip null values, keep old
+                continue;
+            } elseif (is_array($value) && isset($current[$key]) && is_array($current[$key])) {
+                // Recursively merge nested arrays
+                $current[$key] = $this->mergeArrayRecursive($current[$key], $value);
+            } else {
+                // Overwrite (including empty arrays, type changes, etc)
+                $current[$key] = $value;
+            }
+        }
+
+        return $current;
     }
 }

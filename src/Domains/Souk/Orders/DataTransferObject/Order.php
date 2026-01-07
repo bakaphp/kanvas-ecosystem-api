@@ -59,6 +59,7 @@ class Order extends Data
         public readonly ?PaymentMethod $paymentMethod = null,
         public readonly ?string $paymentStatus = null, // enums
         public readonly ?ModelsOrder $parent = null,
+        public readonly ?string $ipAddress = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }
@@ -99,7 +100,8 @@ class Order extends Data
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                quantityShipped: 0,
+                channelId: $lineItem['attributes']['channel_id'] ?? null,
             );
 
             $orderItems[] = $item;

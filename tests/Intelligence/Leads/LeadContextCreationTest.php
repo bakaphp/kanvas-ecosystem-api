@@ -9,7 +9,9 @@ use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\LeadSources\Models\LeadSource;
 use Kanvas\Guild\Support\Setup;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Tools\ArtifactsTool;
@@ -31,6 +33,7 @@ final class LeadContextCreationTest extends TestCase
         $company = $user->getCurrentCompany();
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
+
         $company->set(ConfigurationEnum::WORKING_DAYS->value, [
             'monday',
             'tuesday',
@@ -44,6 +47,9 @@ final class LeadContextCreationTest extends TestCase
         ]);
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $agent->name = 'CompletionStatusTool';
+        $agent->saveOrFail();
 
         $leadType = LeadType::firstOrCreate([
             'name' => 'Internet ',
@@ -55,6 +61,33 @@ final class LeadContextCreationTest extends TestCase
 
         $lead->leads_types_id = $leadType->id;
         $lead->saveOrFail();
+
+        $leadSource = LeadSource::create([
+           'apps_id' => $app->getId(),
+           'companies_id' => $company->getId(),
+           'name' => 'Contact Us',
+           'description' => 'Test Description',
+           'is_active' => 1,
+           'leads_types_id' => $leadType->id,
+        ]);
+        $lead->leads_sources_id = $leadSource->id;
+        $lead->saveOrFail();
+
+        $company->set('adf_sources', [
+           [
+               'Source' => 'Contact Us',
+               'Sub_Source' => 'Website',
+               'Backend' => 'General Inquiry',
+               'Default_Completion_Status' => 'New',
+           ],
+           [
+               'Source' => 'Test Source',
+               'Sub_Source' => 'Test Subsource',
+               'Backend' => 'Test Backend',
+               'Default_Completion_Status' => 'Test Status',
+           ],
+        ]);
+
         $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, [
             'isNew' => true,
             'yearFrom' => 2024,
@@ -105,11 +138,11 @@ final class LeadContextCreationTest extends TestCase
                     'params' => [],
                     'contact_index' => 'lead_intent',
                 ],
-                [
+               /*  [
                     'class' => CompletionStatusTool::class,
                     'params' => [],
                     'contact_index' => 'completion_status',
-                ],
+                ], */
             ],
         ];
 

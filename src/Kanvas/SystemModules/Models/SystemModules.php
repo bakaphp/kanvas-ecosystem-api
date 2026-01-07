@@ -57,7 +57,7 @@ class SystemModules extends BaseModel
 
     protected $casts = [
         'browse_fields' => 'array',
-        'fields' => Json::class
+        'fields' => Json::class,
     ];
 
     protected $fillable = [
@@ -65,7 +65,7 @@ class SystemModules extends BaseModel
         'name',
         'apps_id',
         'slug',
-        'use_import'
+        'use_import',
     ];
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Webhooks;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
@@ -31,11 +32,14 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
             $productSyncResult = $syncNetSuiteProduct->execute($barcode);
             $successMessage = 'NetSuite Product Synced';
 
+            $app = $this->receiver->app;
+
             new SendUserNotificationAction(
-                $this->receiver->app,
+                $app,
                 $mainCompany,
-                $this->receiver->user
-            )->execute($this->receiver->app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
+                $this->receiver->user,
+                RolesEnums::INVENTORY_MANAGER
+            )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
         }
 
 

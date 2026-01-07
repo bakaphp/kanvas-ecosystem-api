@@ -29,7 +29,7 @@ class ChannelsManagementMutation
             description: $request['input']['description'],
             entity_id: $request['input']['entity_id'],
             entity_namespace: $systemModule->model_name,
-            slug: $request['input']['slug'] ?? Str::slug($request['input']['name'])
+            slug: $request['input']['slug'] ?? Str::slug($request['input']['name']),
         );
 
         $createChannel = new CreateChannelAction($channelDto);
@@ -68,6 +68,7 @@ class ChannelsManagementMutation
         $channel = ChannelRepository::getById((int)$request['input']['channel_id'], auth()->user());
         $user = Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
         $app = app(Apps::class);
+
         try {
             $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany(), $app);
         } catch (Exception $e) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
@@ -382,7 +383,7 @@ trait HashTableTrait
         $this->reGenerateRedisSettings();
     }
 
-    public static function getByCustomField(string $name, mixed $value): ?Model
+    public static function getByCustomFieldBuilder(string $name, mixed $value): Builder
     {
         $instance = new static();
         $settingsTable = $instance->getSettingsTable();
@@ -390,9 +391,16 @@ trait HashTableTrait
 
         return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
             ->where($settingsTable . '.name', $name)
-            ->where($settingsTable . '.value', $value)
+            ->when($value !== null, function ($query) use ($settingsTable, $value) {
+                $query->where($settingsTable . '.value', $value);
+            })
             ->where($instance->getTable() . '.is_deleted', 0)
-            ->select($instance->getTable() . '.*')
+            ->select($instance->getTable() . '.*');
+    }
+
+    public static function getByCustomField(string $name, mixed $value): ?Model
+    {
+        return self::getByCustomFieldBuilder($name, $value)
             ->first();
     }
 }

@@ -20,7 +20,8 @@ class ChannelRepository
     {
         $databaseSocial = config('database.connections.social.database', 'social');
         $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
-            ->where('channel_users.users_id', $user->getId());
+            ->where('channel_users.users_id', $user->getId())
+            ->where('channels.is_deleted', 0);
 
         return $builder;
     }

@@ -8,6 +8,7 @@ use Baka\Contracts\CompanyInterface;
 use Exception;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -16,6 +17,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Users\Models\Users;
+use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 
 class FilesystemServices
 {
@@ -109,7 +111,7 @@ class FilesystemServices
             'storage_api_uri' => $this->app->get('cloud-cdn'), // see: Public URLs below
             'apiEndpoint' => null, // set storageClient apiEndpoint
             'visibility' => 'public', // optional: public|private
-            'visibility_handler' => \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
+            'visibility_handler' => UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
             'metadata' => ['cacheControl' => 'public,max-age=86400'], // optional: default metadata
         ]);
     }
@@ -133,7 +135,7 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => (bool)$this->app->get('use_path_style_endpoint') ?? false,
+            'use_path_style_endpoint' => (bool) ($this->app->get('use_path_style_endpoint') ?? false),
             'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
@@ -153,10 +155,14 @@ class FilesystemServices
 
         $fileContent = $diskS3->get($path);
         $filename = basename($path);
-        $path = storage_path('app/csv/' . $filename);
-        file_put_contents($path, $fileContent);
 
-        return $path;
+        $directory = storage_path('app/csv');
+        File::ensureDirectoryExists($directory);
+
+        $localPath = $directory . '/' . $filename;
+        File::put($localPath, $fileContent);
+
+        return $localPath;
     }
 
     public function createFileSystemFromBase64(string $base64String, string $originalName, Users $user): ModelsFilesystem
@@ -195,20 +201,33 @@ class FilesystemServices
         if (is_null($extension)) {
             $parsedUrl = parse_url($imageUrl);
             $path = $parsedUrl['path'];
-
             $extension = pathinfo($path, PATHINFO_EXTENSION);
         }
 
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
+        $dirPath = storage_path('app/temp');
 
-        // Get the image content
-        $imageContent = file_get_contents($imageUrl);
+        // Ensure directory exists
+        // if (! is_dir($dirPath)) {
+        //     mkdir($dirPath, 0755, true);
+        // }
 
-        if ($imageContent !== false) {
-            // Save the image locally
-            file_put_contents($tempFilePath, $imageContent);
+        $tempFilePath = $dirPath . '/' . uniqid() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
 
-            return $tempFilePath;
+        try {
+            // Use Laravel HTTP client with retry logic
+            $response = Http::timeout(30)
+                ->retry(3, 100) // Retry 3 times with 100ms delay
+                ->get($imageUrl);
+
+            if ($response->successful()) {
+                $imageContent = $response->body();
+
+                file_put_contents($tempFilePath, $imageContent);
+
+                return $tempFilePath;
+            }
+        } catch (Exception $e) {
+            report($e);
         }
 
         return null;

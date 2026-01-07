@@ -9,7 +9,10 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Social\Messages\Models\Message;
 
 class ProcessVideoRequestAction
@@ -25,23 +28,19 @@ class ProcessVideoRequestAction
 
     public function execute(): array
     {
-        // Extract video model dynamically from message - use the full value as is
-        $videoModel = $this->entity->message['ai_model']['value'] ?? 'fal-ai/veo3';
-        $videoType = $this->entity->message['type'] ?? 'video-format';
-
-        // Determine if it's text-to-video or image-to-video based on hasFiles flag
-        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
-
-        // Construct the API URL based on video type
-        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
-        $videoKey = $isImageToVideo ? 'fal-ai/image-to-video' : 'fal-ai/text-to-video';
         $isGoogleService = false;
+        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $videoModel = $this->entity->message['ai_model']['value'];
+        $videoKey = 'fal-ai';
+        $videoType = $isImageToVideo ? '/image-to-video' : '/text-to-video';
+        $videoKey = $videoKey . $videoType;
 
         /**
          * if its google use the specific api route
          */
         if (Str::contains($videoModel, 'veo')) {
-            $videoKey = str_replace('fal-ai/', 'google/', $videoKey);
+            $videoKey = str_replace('fal-ai' . $videoType, 'google-v2', $videoKey);
             $videoModel = str_replace('fal-ai/', '', $videoModel);
             $isGoogleService = true;
             $this->isGoogleService = true;
@@ -82,8 +81,8 @@ class ProcessVideoRequestAction
                     ];
                 }
 
-                $videoUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
-                $results = $this->submitImageToVideo($videoUrlsArray, $videoModel, $apiUrl);
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
                 $requestId = $results['request_id'] ?? null;
             } else {
                 // Process text-to-video
@@ -194,6 +193,8 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
             throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
         }
 
@@ -216,9 +217,10 @@ class ProcessVideoRequestAction
         $submitPayload = [
             'operation' => 'submit',
             'model' => $videoModel,
-            'image_url' => $imageUrlsArray,
             'prompt' => $this->entity->message['prompt'] ?? '',
         ];
+
+        $submitPayload = $this->constructModelPayload($submitPayload);
 
         // Add optional webhook URL if configured
         $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
@@ -246,6 +248,8 @@ class ProcessVideoRequestAction
         $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
 
         if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
             throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
         }
 
@@ -258,25 +262,7 @@ class ProcessVideoRequestAction
     protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
     {
         if ($this->isGoogleService && $isVideo) {
-            // For Google services, use multipart form data
-            $httpRequest = Http::asMultipart();
-
-            // Add each field from payload as form data
-            foreach ($payload as $key => $value) {
-                if ($key === 'image_url') {
-                    // Download the image content and send as file
-                    $imageContent = Http::get(is_array($value) ? $value[0] : $value)->body();
-                    $httpRequest = $httpRequest->attach(
-                        'image',
-                        $imageContent,
-                        'image.png' // Default filename, could be extracted from URL if needed
-                    );
-                } else {
-                    $httpRequest = $httpRequest->attach((string) $key, (string) $value);
-                }
-            }
-
-            $response = $httpRequest->post($apiUrl);
+            $response = Http::post($apiUrl, $payload);
         } else {
             // For non-Google services, use JSON
             $response = Http::withHeaders([
@@ -305,7 +291,8 @@ class ProcessVideoRequestAction
             return [];
         }
 
-        $videoKey = $type === 'text-to-video' ? 'fal-ai/text-to-video' : 'fal-ai/image-to-video';
+        $videoProvider = Str::contains($messageModel, 'veo') ? 'google-v2' : 'fal-ai';
+        $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
 
         // Search through all categories for the video key
         foreach ($settings as $category) {
@@ -318,8 +305,10 @@ class ProcessVideoRequestAction
                     if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
                         // Find the model configuration that matches the message model
                         foreach ($videoTypeConfig['value'] as $modelConfig) {
-                            if (isset($modelConfig['model']) &&
-                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))) {
+                            if (
+                                isset($modelConfig['model']) &&
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))
+                            ) {
                                 if (isset($modelConfig['input_config'])) {
                                     return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
                                 }
@@ -355,5 +344,58 @@ class ProcessVideoRequestAction
         }
 
         return $defaults;
+    }
+
+    private function constructModelPayload(array $payload): array
+    {
+        $messageFiles = $this->entity->getFiles();
+        $imageUrls = $this->processFileUrls($messageFiles);
+        $attachmentType = $this->entity->message['attachment_type'] ?? 'reference_to_video';
+        $isSingleFile = $messageFiles->count() === 1;
+
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            //throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+        }
+
+        $attachmentData = match ($attachmentType) {
+            'start_end_frame' => [
+                'image_url' => $imageUrls[0],
+                'lastFrameUrl' => $imageUrls[1],
+            ],
+            default => $isSingleFile
+                ? ['image_url' => $imageUrls[0]]
+                : ['referenceImageUrls' => $imageUrls],
+        };
+
+        return array_merge($payload, $attachmentData);
+    }
+
+    /**
+     * Process file URLs, optimizing images over 10MB
+     */
+    private function processFileUrls(SupportCollection $files): array
+    {
+        $maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+
+        return $files->map(function (FilesystemEntities $fileEntity) use ($maxFileSize): string {
+            $file = $fileEntity->filesystem;
+            $fileSize = $file->size ?? 0;
+
+            if ($fileSize > $maxFileSize) {
+                try {
+                    return ImageOptimizerService::optimizeFilesystem(
+                        filesystem: $file,
+                        optimize: false,
+                        quality: 90
+                    )->url;
+                } catch (Exception $e) {
+                    report($e);
+
+                    return $file->url;
+                }
+            }
+
+            return $file->url;
+        })->toArray();
     }
 }

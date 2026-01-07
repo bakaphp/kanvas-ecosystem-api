@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 
 class PromptCreatorAgentCommand extends Command
 {
@@ -211,7 +211,7 @@ PROMPT;
             $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
             ->withPrompt($promptEngineering)
-                ->generate();
+                ->asText();
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 

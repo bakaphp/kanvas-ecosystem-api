@@ -15,6 +15,8 @@ abstract class AddFundsToWalletActionBase
 {
     public function __construct(
         protected Order $order,
+        protected bool $useOrderTotal = false,
+        protected ?float $amount = null,
     ) {
     }
 
@@ -28,19 +30,28 @@ abstract class AddFundsToWalletActionBase
     abstract protected function getWalletHolder(): Model;
 
     /**
-     * Calculate the total amount to deposit based on order items.
+     * Calculate the total amount to deposit based on:
+     * 1. Explicit amount if provided
+     * 2. Order total if useOrderTotal is true
+     * 3. Coin variant items (default)
      *
      * @throws Exception
      */
     protected function calculateTotal(): float
     {
-        $total = 0.0;
-        foreach ($this->order->items as $item) {
-            if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value === null) {
-                continue;
-            }
+        if ($this->amount !== null) {
+            $total = $this->amount;
+        } elseif ($this->useOrderTotal) {
+            $total = (float) $this->order->total_gross_amount;
+        } else {
+            $total = 0.0;
+            foreach ($this->order->items as $item) {
+                if ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value)?->value === null) {
+                    continue;
+                }
 
-            $total += (float) ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_AMOUNT->value)?->value ?? $item->getPrice());
+                $total += (float) ($item->variant->getAttributeBySlug(ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_AMOUNT->value)?->value ?? $item->getPrice());
+            }
         }
 
         if ($total <= 0) {

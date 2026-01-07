@@ -60,6 +60,7 @@ use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -321,6 +322,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * User loyalty tier memberships relationship.
+     */
+    public function loyaltyTierMemberships(): HasMany
+    {
+        return $this->hasMany(LoyaltyTierMembership::class, 'users_id');
+    }
+
+    /**
      * User country relationship.
      */
     public function country(): BelongsTo
@@ -331,6 +340,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function addresses(): HasMany
     {
         return $this->hasMany(UserAddress::class, 'users_id');
+    }
+
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            UserAddress::class,
+            'users_id'
+        )->where('is_default', true);
     }
 
     public function getMainRoleAttribute(): string
@@ -372,7 +389,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             try {
                 UsersRepository::belongsToThisApp($this, $app);
             } catch (ModelNotFoundException $e) {
-                throw new ModelNotFoundException('User not found in app - ' . $this->getId());
+                throw new ModelNotFoundException('User not found in app - ' . $this->getId() . ' - ');
             }
             $userRegisterInApp = new RegisterUsersAppAction($this);
             $userRegisterInApp->execute($this->password);
@@ -564,14 +581,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentCompanyId = $this->get(Companies::cacheKey());
-        } else {
-            //verify I have access to it
-            $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $companyId = app(CompaniesBranches::class)->company()->first()?->getId();
+
+            if ($companyId > 0) {
+                return $companyId;
+            }
         }
 
-        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
+        return (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
     }
 
     /**
@@ -580,13 +598,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
-        } else {
-            $currentBranchId = app(CompaniesBranches::class)->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $branchId = app(CompaniesBranches::class)->getId();
         }
 
-        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
+        $branchId = (int) ($branchId ?? $this->get($this->getCurrentCompany()->branchCacheKey()));
+
+        return $branchId > 0 ? $branchId : $this->default_company_branch;
     }
 
     /**
@@ -599,8 +617,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on 
-                the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured for this user on
+                the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -616,8 +634,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured 
-                for this user on the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured
+                for this user on the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -914,13 +932,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'user_active' => (bool) $this->user_active,
             'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_users';
+        $customIndex = $this->app ? $this->app->get('app_custom_users_index') : null;
+
+        return $customIndex ?: config('scout.prefix') . '_users';
     }
 
     public static function search($query = '', $callback = null)

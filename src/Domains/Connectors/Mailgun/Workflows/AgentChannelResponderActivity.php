@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -53,9 +52,9 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)) {
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
-                        'message' => 'Lead is being handed off to human agent',
+                        'message' => 'Lead turned off AI agent responses',
                         'entity' => null,
                     ];
                 }

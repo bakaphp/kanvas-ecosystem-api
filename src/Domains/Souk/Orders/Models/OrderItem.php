@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -29,6 +30,7 @@ use Override;
  * @property int $order_id
  * @property int|float $quantity_fulfilled
  * @property int $variant_id
+ * @property int|null $channel_id
  * @property float|null $tax_rate
  * @property string|null $translated_product_name
  * @property string|null $currency
@@ -133,5 +135,10 @@ class OrderItem extends BaseModel
         }
 
         return $this->metadata[$key] ?? null;
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channel_id', 'id');
     }
 }

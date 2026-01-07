@@ -22,7 +22,7 @@ class PopulateTrendingFeedCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id}';
+    protected $signature = 'kanvas:prompt-generate-trending-feed {app_id} {company_id} {message_type_id} {--custom=false}';
 
     /**
      * The console command description.
@@ -33,7 +33,6 @@ class PopulateTrendingFeedCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -41,11 +40,16 @@ class PopulateTrendingFeedCommand extends Command
         $this->overwriteAppService($app);
 
         $company = Companies::getById((int) $this->argument('company_id'));
-        //$messageType = (int) $this->argument('message_type_id');
+        $messageType = (int) $this->argument('message_type_id');
 
-        //$messageType = MessageType::getById($messageType, $app);
+        $messageType = MessageType::getById($messageType, $app);
 
-        $populateTrendingFeedAction = new PopulateTrendingFeedAction($app, $company, true);
+        $populateTrendingFeedAction = new PopulateTrendingFeedAction(
+            $app,
+            $company,
+            $messageType,
+            (bool) $this->option('custom')
+        );
         $populateTrendingFeedAction->execute();
 
         /*  $tag = (new CreateTagAction(

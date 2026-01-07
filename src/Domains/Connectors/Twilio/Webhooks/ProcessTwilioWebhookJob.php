@@ -5,16 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -74,6 +78,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
             $lead = $this->createLeadFromPeople($people);
+            $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
@@ -90,14 +95,14 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $message = $existingMessage;
         } else {
             // Get the appropriate message type
-            $messageTypeModel = (new CreateMessageTypeAction(
+            $messageTypeModel = new CreateMessageTypeAction(
                 new MessageTypeInput(
                     $this->receiver->app->getId(),
                     0,
                     'twilio-sms',
                     'twilio-sms',
                 )
-            ))->execute();
+            )->execute();
 
             // Create the message using the action
             $messageInput = new MessageInput(
@@ -143,6 +148,15 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
 
         $channel->addMessage($message);
+
+        for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
+            try {
+                $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
+                $message->addFilesystem($filesystem['media'], $filesystem['type']);
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
 
         $workflowJobKey = "workflow_job:{$batchKey}";
@@ -272,22 +286,28 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     public function processContactFromMessage(array $request): PeopleModel
     {
         $phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
-        $phoneNumberWitCountryCode = str_replace('+', '', $request['From']);
-        $existingCustomer = People::getByCustomField(
+        $phoneNumberWithCountryCode = str_replace('+', '', $request['From']);
+        /* $existingCustomer = People::getByCustomField(
             'twilio_jid',
             $phoneNumber,
             $this->receiver->company
+        ); */
+        /*  $query = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWithCountryCode) {
+             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWithCountryCode])
+                   ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+         })
+         ->fromCompany($this->receiver->company)
+         ->fromApp($this->receiver->app); */
+        $query = PeoplesRepository::getByPhoneNumber(
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            phoneNumbers: [$phoneNumber, $phoneNumberWithCountryCode]
         );
 
-        // also find customer by phone number if not found by JID
-        if (! $existingCustomer) {
-            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWitCountryCode) {
-                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWitCountryCode])
-                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-            })->fromCompany($this->receiver->company)
-                ->fromApp($this->receiver->app)
-            ->first();
-        }
+        $allCustomers = $query->get();
+        $existingCustomer = $allCustomers->first(function (PeopleModel $customer): bool {
+            return LeadsRepository::getPeopleActiveLead($customer) !== null;
+        }) ?? $allCustomers->first();
 
         if ($existingCustomer && $this->hijackSession) {
             return $existingCustomer;
@@ -316,12 +336,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         );
 
         if ($existingCustomer) {
-            $peopleDto->id = $existingCustomer->getId();
+            //$peopleDto->id = $existingCustomer->getId();
+            return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
         }
 
-        $createAction = new CreatePeopleAction($peopleDto);
-
-        return $createAction->execute();
+        return new CreatePeopleAction($peopleDto)->execute();
     }
 
     protected function createMessageSlug(string $messageId, string $from): string
@@ -347,11 +366,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             if (! $channel) {
                 $channel = Channel::firstOrCreate(
                     [
-                                          'users_id' => $this->receiver->users_id,
-                      'apps_id' => $this->receiver->app->getId(),
-                      'companies_id' => $this->receiver->company->getId(),
-                      'slug' => $slug,
-                ],
+                        'users_id' => $this->receiver->users_id,
+                        'apps_id' => $this->receiver->app->getId(),
+                        'companies_id' => $this->receiver->company->getId(),
+                        'slug' => $slug,
+                    ],
                     [
                       'name' => $name ?? $from,
                       'description' => 'Channel Twilio for ' . $from,
@@ -369,6 +388,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'twilio',
                 'ai-agent',
             ]);
+            $channel->addCategory(
+                'ai-agent',
+                $this->receiver->app,
+                $this->receiver->user,
+                $this->receiver->company
+            );
             $channel->set(ConfigurationEnum::AGENT_CHANNEL_TYPE->value, 'SMS');
 
             return $channel;

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -66,6 +67,10 @@ class CreateMessageAction
                 $message->syncTags($this->messageInput->tags);
             }
 
+            if (count($this->messageInput->categories)) {
+                $message->syncCategories($this->messageInput->categories);
+            }
+
             if ($this->systemModule && $this->entityId !== null) {
                 $associateMessage = new AssociateMessageToSystemModule(
                     $message,
@@ -76,12 +81,20 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
+                $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
+                    ->where('apps_id', $this->messageInput->app->getId())
+                    ->where('companies_id', $this->messageInput->company->getId())
+                    ->where('is_deleted', 0)
+                    ->first();
+
                 new CreateChannelAction(new Channel(
                     apps: $message->app,
                     companies: $message->company,
                     users: $message->user,
-                    entity_id: $message->getId(),
-                    entity_namespace: Message::class,
+                    //entity_id: $this->entityId ?? $message->getId(),
+                    entity_id: $channel?->entity_id ?? $message->getId(),
+                    //entity_namespace: $this->systemModule?->model_name ?? Message::class,
+                    entity_namespace: $channel?->entity_namespace ?? Message::class,
                     name: $this->messageInput->channel_slug,
                     description: $this->messageInput->channel_slug,
                     slug: $this->messageInput->channel_slug,

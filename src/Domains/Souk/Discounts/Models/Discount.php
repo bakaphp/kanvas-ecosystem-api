@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Souk\Discounts\Factories\DiscountFactory;
 use Kanvas\Souk\Discounts\Observers\DiscountObserver;
 use Kanvas\Souk\Models\BaseModel;
@@ -45,6 +46,7 @@ class Discount extends BaseModel
 {
     use UuidTrait;
     use HasFactory;
+    use HasCustomFields;
 
     protected $table = 'discounts';
     protected $guarded = [];

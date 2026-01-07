@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Traits\MorphEntityDataTrait;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
@@ -36,6 +41,9 @@ class Channel extends BaseModel
     use UuidTrait;
     use CanUseWorkflow;
     use HasTagsTrait;
+    use HasCategoriesTrait;
+    use MorphEntityDataTrait;
+    use SlugTrait;
 
     protected $table = 'channels';
 
@@ -132,9 +140,20 @@ class Channel extends BaseModel
                         $q->where('messages.created_at', '=', $currentMessageTimestamp)
                           ->where('messages.id', '<', $currentMessage->id);
                     });
+                $query->where('messages.message_types_id', $currentMessage->message_types_id);
             })
             ->orderBy('messages.created_at', 'desc')
             ->orderBy('messages.id', 'desc')
+            ->first();
+    }
+
+    public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): ?self
+    {
+        return self::query()
+            ->where('slug', $slug)
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->notDeleted()
             ->first();
     }
 }

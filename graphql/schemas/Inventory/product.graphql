@@ -205,6 +205,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@duplicateProduct"
         )
+    publishProduct(id: ID!, is_published: Boolean!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@publishManagement"
+        )
     updateProductAttributeTranslations(
         product_id: ID!
         attribute_id: ID!
@@ -298,7 +302,11 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
         )
-    productRecommendations(id: ID!, intent: String!, config: Mixed): [Product!]!
+    productRecommendations(
+        id: ID!
+        intent: String!
+        config: Mixed
+    ): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"

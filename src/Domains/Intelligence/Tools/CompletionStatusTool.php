@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Override;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ArraySchema;
 use Prism\Prism\Schema\EnumSchema;
 use Prism\Prism\Schema\NumberSchema;
@@ -82,7 +82,7 @@ class CompletionStatusTool implements ContextToolInterface
         );
 
         $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-flash')
+                   ->using(Provider::Gemini, 'gemini-2.5-pro')
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))

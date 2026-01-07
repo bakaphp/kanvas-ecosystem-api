@@ -38,6 +38,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Factories\VariantFactory;
 use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
@@ -340,6 +341,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             ->firstOrFail();
 
         return $this->channels()->where('channels_id', $channel->getId())->firstOrFail();
+    }
+
+    public function getChannelInfo(?Channels $channel = null): ?VariantsChannels
+    {
+        if ($channel === null) {
+            $channel = Channels::where('is_default', true)
+                ->where('apps_id', $this->apps_id)
+                ->notDeleted()
+                ->where('is_published', StateEnums::ON->getValue())
+                ->where('companies_id', $this->companies_id)
+                ->firstOrFail();
+        }
+
+        $result = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+
+        return $result instanceof VariantsChannels ? $result : null;
     }
 
     /**
@@ -909,5 +926,11 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
         // Select only variant columns to avoid ambiguity
         return $query->select('products_variants.*')->distinct();
+    }
+
+    #[Override]
+    public static function newFactory(): VariantFactory
+    {
+        return new VariantFactory();
     }
 }

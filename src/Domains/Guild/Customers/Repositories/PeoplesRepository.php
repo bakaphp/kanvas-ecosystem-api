@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -139,5 +140,25 @@ class PeoplesRepository
         }
 
         return $people;
+    }
+
+    /**
+     * @return Builder<People>
+     */
+    public static function getByPhoneNumber(AppInterface $app, CompanyInterface $company, array $phoneNumbers): Builder
+    {
+        return People::whereHas('contacts', function (Builder $query) use ($phoneNumbers) {
+            $query->where(function (Builder $q) use ($phoneNumbers) {
+                foreach ($phoneNumbers as $phone) {
+                    $q->orWhereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phone]);
+                }
+            })
+            ->whereIn('contacts_types_id', [
+                ContactTypeEnum::CELLPHONE->value,
+                ContactTypeEnum::PHONE->value,
+            ]);
+        })
+        ->fromCompany($company)
+        ->fromApp($app);
     }
 }

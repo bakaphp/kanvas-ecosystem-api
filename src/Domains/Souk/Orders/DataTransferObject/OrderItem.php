@@ -28,12 +28,15 @@ class OrderItem extends Data
         public readonly Currencies $currency,
         public readonly int $quantityShipped = 0,
         public readonly ?array $metadata = null,
+        public readonly ?int $channelId = null,
     ) {
     }
 
     public static function viaRequest(AppInterface $app, CompanyInterface $company, Regions $region, array $request): self
     {
-        if ($app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
+        $allowCrossCompanyVariants = $app->get(ConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value) ?? false;
+
+        if ($allowCrossCompanyVariants || $app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
             $variant = Variants::getById($request['variant_id'], $app);
         } else {
             $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
@@ -41,6 +44,14 @@ class OrderItem extends Data
 
         $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
         $price = (float) ($request['price'] ?? $variant->getPrice($warehouse, Channels::getDefault($company, $app)));
+
+        $channelId = $request['channel_id'] ?? $request['attributes']['channel_id'] ?? null;
+        if ($channelId !== null) {
+            $channel = $allowCrossCompanyVariants || $app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value)
+                        ? Channels::getById($channelId, $app)
+                        : Channels::getByIdFromCompanyApp($channelId, $company, $app);
+            $channelId = $channel->getId();
+        }
 
         return new self(
             app: $app,
@@ -54,6 +65,7 @@ class OrderItem extends Data
             currency: $region->currency,
             quantityShipped: $request['quantity_shipped'] ?? 0,
             metadata: $request['attributes'] ?? $request['metadata'] ?? null,
+            channelId: $channelId,
         );
     }
 

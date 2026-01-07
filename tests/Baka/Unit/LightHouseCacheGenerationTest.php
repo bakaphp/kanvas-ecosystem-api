@@ -44,7 +44,13 @@ class LightHouseCacheGenerationTest extends TestCase
         $items = 25;
 
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $people->getId() . ':' . $relationship . ':first:' . $items;
-        $this->assertInstanceOf(LengthAwarePaginator::class, $redis->get($key));
+
+        // Hash key format: PREFIX:GraphTypeName:id
+        $hashKey = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $people->getId();
+
+        // Field key format: relationship:first:items
+        $fieldKey = $relationship . $separator . 'first' . $separator . $items;
+
+        $this->assertInstanceOf(LengthAwarePaginator::class, $redis->hGet($hashKey, $fieldKey));
     }
 }

@@ -18,6 +18,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
@@ -29,6 +30,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -80,7 +82,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $payload['data']['messages']['key']['remoteJid'] = $newPhone;
             }
         }
-
         // Process based on event type
         $result = match ($eventType) {
             WebhookEventEnum::MESSAGES_UPSERT->value => $this->handleMessageUpsert($payload),
@@ -139,15 +140,15 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         if (isset($data['key'])) {
             $data = [$data];
         }
-
         foreach ($data as $messageData) {
             $key = $messageData['key'] ?? [];
             $messageContent = $messageData['message'] ?? [];
+            $messageBody = $messageData['messageBody'] ?? null;
 
             $messageType = $this->getMessageType($messageContent);
             $isDocument = MessageTypeEnum::isDocumentType($messageType);
             $text = $this->extractMessageText($messageContent, $messageType);
-            $chatJid = $key['remoteJid'] ?? null;
+            $chatJid = $key['remoteJidAlt'] ?? $key['senderPn'] ?? null;
             $isFromMe = $key['fromMe'] ?? false;
             $messageId = $key['id'] ?? Str::uuid()->toString();
             $lead = null;
@@ -166,6 +167,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people = $this->processContactFromMessage($chatJid, $messageData);
                 $lead = $this->createLeadFromPeople($people);
                 $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
+                $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
             }
 
             // Create the message slug
@@ -204,7 +206,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     user: $this->receiver->user,
                     type: $messageTypeModel,
                     message: [
-                        'content' => $text,
+                        'content' => $text !== null && $text !== '' ? $text : $messageBody,
                         'raw_data' => $messageData,
                         'message_id' => $messageId,
                         'chat_jid' => $chatJid,
@@ -1004,7 +1006,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         } elseif ($this->isChannelJid($jid)) {
             return 'wa-channel-' . Str::slug($jid);
         } else {
-            return 'wa-chat-' . Str::slug($jid);
+            $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
+
+            return SessionChannelService::createChannelSlug('whatsapp', $phoneNumber);
         }
     }
 
@@ -1060,6 +1064,13 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                         $lead->app,
                         $lead->user,
                         $lead->company
+                    );
+
+                    $channel->addCategory(
+                        'ai-agent',
+                        $this->receiver->app,
+                        $this->receiver->user,
+                        $this->receiver->company
                     );
                 }
             } elseif ($name && $channel->name !== $name) {
@@ -1153,7 +1164,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people->lastname,
                 $people->id
             ),
-            leads_owner_id: 0,
+            leads_owner_id: $leadReceiver->rotation ? $leadReceiver->rotation->getAgent()->id : 0,
             status_id: 0,
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
@@ -1187,15 +1198,20 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
         // Extract phone number from JID
         $phoneNumber = str_replace('@s.whatsapp.net', '', $jid);
-
+        $normalizePhones = $this->normalizePhoneFromJid($jid);
         // also find customer by phone number if not found by JID
         if (! $existingCustomer) {
-            $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $phoneNumber) {
-                $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phoneNumber])
-                      ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-            })->fromCompany($this->receiver->company)
-                ->fromApp($this->receiver->app)
-                ->first();
+            /*  $existingCustomer = People::whereHas('contacts', function (Builder $query) use ($jid, $normalizePhones) {
+                 $query->whereIn('value', $normalizePhones)
+                       ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
+             })->fromCompany($this->receiver->company)
+                 ->fromApp($this->receiver->app)
+                 ->first(); */
+            $existingCustomer = PeoplesRepository::getByPhoneNumber(
+                $this->receiver->app,
+                $this->receiver->company,
+                $normalizePhones
+            )->first();
         }
 
         if ($existingCustomer && $this->hijackSession) {
@@ -1241,6 +1257,24 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
         $createAction = new CreatePeopleAction($peopleDto);
 
         return $createAction->execute();
+    }
+
+    protected function normalizePhoneFromJid(string $jid): array
+    {
+        $digits = preg_replace('/\D+/', '', str_replace('@s.whatsapp.net', '', $jid)) ?? '';
+
+        return collect([$digits])
+            ->filter() // Remove empty values
+            ->flatMap(function ($number) {
+                return collect([
+                    $number,
+                    strlen($number) === 11 && str_starts_with($number, '1') ? substr($number, 1) : null,
+                    strlen($number) === 10 ? '1' . $number : null,
+                ])->filter();
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -1300,7 +1334,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
      */
     protected function getMessageType(array $messageContent): string
     {
-        if (isset($messageContent['conversation'])) {
+        if (isset($messageContent['conversation']) || isset($messageContent['extendedTextMessage'])) {
             return 'whatsapp-text';
         } elseif (isset($messageContent['imageMessage'])) {
             return 'whatsapp-image';
@@ -1327,13 +1361,30 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
     protected function extractMessageText(array $messageContent, string $messageType): ?string
     {
         return match ($messageType) {
-            'text' => $messageContent['conversation'] ?? $messageContent['extendedTextMessage']['text'] ?? null,
-            'image' => $messageContent['imageMessage']['caption'] ?? null,
-            'video' => $messageContent['videoMessage']['caption'] ?? null,
-            'document' => $messageContent['documentMessage']['caption'] ?? null,
-            'contact' => $messageContent['contactMessage']['displayName'] ?? null,
-            'location' => $messageContent['locationMessage']['name'] ?? null,
-            default => null,
+            'text', 'whatsapp-text' =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
+
+            'image', 'whatsapp-image' =>
+                $messageContent['imageMessage']['caption'] ?? null,
+
+            'video', 'whatsapp-video' =>
+                $messageContent['videoMessage']['caption'] ?? null,
+
+            'document', 'whatsapp-document' =>
+                $messageContent['documentMessage']['caption'] ?? null,
+
+            'contact', 'whatsapp-contact' =>
+                $messageContent['contactMessage']['displayName'] ?? null,
+
+            'location', 'whatsapp-location' =>
+                $messageContent['locationMessage']['name'] ?? null,
+
+            default =>
+                $messageContent['conversation']
+                ?? $messageContent['extendedTextMessage']['text']
+                ?? null,
         };
     }
 

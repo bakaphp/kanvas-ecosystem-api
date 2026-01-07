@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Exports;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Kanvas\Souk\Orders\Models\Order;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -85,8 +86,17 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
 
     private function getNestedValue($object, string $path)
     {
+        // Handle multiple paths for concatenation (e.g., "user.firstname user.lastname")
+        if (Str::contains($path, ' ')) {
+            return Str::of($path)
+                ->explode(' ')
+                ->map(fn ($singlePath) => $this->getNestedValue($object, $singlePath))
+                ->filter()
+                ->join(' ');
+        }
+
         // Handle array access like items[0].product_name
-        if (strpos($path, '[') !== false) {
+        if (Str::contains($path, '[')) {
             return $this->getArrayValue($object, $path);
         }
 

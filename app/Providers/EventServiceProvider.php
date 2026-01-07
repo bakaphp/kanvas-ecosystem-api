@@ -94,7 +94,7 @@ class EventServiceProvider extends ServiceProvider
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
         Status::observe(StatusObserver::class);
-        VariantsWarehouses::observe(VariantsWarehouseObserver::class);
+        #VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
         #Products::observe(ProductsObserver::class);
         ProductsTypes::observe(ProductsTypesObserver::class);

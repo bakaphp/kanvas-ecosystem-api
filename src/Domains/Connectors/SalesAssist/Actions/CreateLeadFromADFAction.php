@@ -34,19 +34,27 @@ class CreateLeadFromADFAction
             ];
         }
 
+        // Extract email - handle both string and array formats
+        $emailData = $data['adf']['prospect']['customer']['contact']['email'] ?? null;
+        $email = is_array($emailData) ? ($emailData['@content'] ?? null) : $emailData;
+
+        // Extract phone - handle both string and array formats
+        $phoneData = $data['adf']['prospect']['customer']['contact']['phone'] ?? null;
+        $phone = is_array($phoneData) ? ($phoneData['@content'] ?? null) : $phoneData;
+
         $people = PeoplesRepository::getMatchingEmailPhone(
             $app,
             $company,
-            $data['adf']['prospect']['customer']['contact']['email'] ?? null,
-            $data['adf']['prospect']['customer']['contact']['phone']['@content'] ?? null,
+            $email,
+            $phone,
         );
 
         if ($people) {
             $requestDate = Carbon::parse($data['adf']['prospect']['requestdate']);
             $minutesForMatch = $company->get(ConfigurationEnum::MINUTES_FOR_MATCH_ADF_LEAD->value) ?? 30;
 
-            $lead = Lead::where('apps_id', $app->id)
-                ->where('companies_id', $company->id)
+            $lead = Lead::fromApp($app)
+                ->fromCompany($company)
                 ->where('people_id', $people->id)
                 ->whereBetween('created_at', [
                     $requestDate->toDateTimeString(),

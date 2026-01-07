@@ -31,7 +31,9 @@ class ProcessOrderItemAction
         $items = $orderItemService->getOrderItemsFromCsv($file);
 
         // Get the valid order items.
-        $validOrderItems = $orderItemService->getValidOrderItems($items);
+        $validationResult = $orderItemService->getValidOrderItems($items);
+        $validOrderItems = $validationResult['validItems'];
+        $notFoundErrors = $validationResult['errors'];
         $validOrderItemsCount = count($validOrderItems);
 
         if ($validOrderItemsCount === 0) {
@@ -58,8 +60,11 @@ class ProcessOrderItemAction
         // Process the order items and add to cart.
         $result = $orderItemService->processOrderItems($validOrderItems, $channelId);
 
-        if (count($result['errors']) > 0) {
-            throw new Exception(implode(', ', $result['errors']));
+        // Merge errors from both validation steps
+        $allErrors = array_merge($notFoundErrors, $result['errors']);
+
+        if (count($allErrors) > 0) {
+            throw new Exception(implode(', ', $allErrors));
         }
 
         // Add the items to the cart.

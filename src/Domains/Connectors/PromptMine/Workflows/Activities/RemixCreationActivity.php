@@ -13,10 +13,12 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class RemixCreationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -57,9 +59,17 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         'result' => false,
                     ];
                 }
-                $entity->parent_id = $entity->message['remix_parent_id'];
-                $entity->save();
-                $entity->parent->increment('total_children');
+
+                try {
+                    $entity->parent_id = $entity->message['remix_parent_id'];
+                    $entity->save();
+                } catch (Throwable $th) {
+                    return $this->failWorkflow([
+                        'message' => 'Remix creation failed: ' . $th->getMessage(),
+                        'result' => false,
+                        'message_id' => $entity->getId(),
+                    ]);
+                }
 
                 //Send notification to the original message owner
                 $endViaList = array_map(
@@ -71,23 +81,27 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     $remixMessage = Message::find($entity->message['remix_parent_id']);
                     $promptRemixTitle = $remixMessage->message['title'] ?? '';
                     $newMessageNotification = new MessageOwnerPushNotification(
-                        user: $entity->user,
+                        user: $remixMessage->user,
                         entity: $entity,
-                        message: "Your AI creation {$promptRemixTitle} has been remixed!",
-                        title: 'AI creation remixed',
+                        message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
+                        title: 'Your prompt has been remixed!',
                         via: $endViaList,
                         templates: [
                             'email_template' => $params['email_template'],
                             'push_template' => $params['push_template'],
                         ],
                     );
+                    if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
+                        $entity->parent->increment('total_children');
+                        $remixMessage->set('remix_count', $remixMessage->childrenByType('memo')->count());
+                    }
                     $remixMessage->user->notify($newMessageNotification);
-                } catch (\Throwable $th) {
-                    return [
+                } catch (Throwable $th) {
+                    return $this->failWorkflow([
                         'message' => 'Notification to remix owner failed: ' . $th->getMessage(),
                         'result' => true,
                         'message_id' => $entity->getId(),
-                    ];
+                    ]);
                 }
 
                 return [

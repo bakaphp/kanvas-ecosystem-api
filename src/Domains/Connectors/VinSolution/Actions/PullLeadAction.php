@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
@@ -24,7 +25,10 @@ use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class PullLeadAction
@@ -36,9 +40,12 @@ class PullLeadAction
     ) {
     }
 
-    public function execute(?ModelsLead $lead = null, ?int $leadId = null): array
-    {
-        return DB::transaction(function () use ($lead, $leadId) {
+    public function execute(
+        ?ModelsLead $lead = null,
+        ?int $leadId = null,
+        bool $triggerFirstMessage = false
+    ): array {
+        return DB::transaction(function () use ($lead, $leadId, $triggerFirstMessage) {
             $vinCompany = Dealer::getById($this->company->get(ConfigurationEnum::COMPANY->value), $this->app);
 
             $vinUserId = $this->user->get(ConfigurationEnum::getUserKey($this->company, $this->user));
@@ -69,6 +76,11 @@ class PullLeadAction
 
             if (! empty($vinLead['Leads'])) {
                 $currentLead = $vinLead['Leads'][0];
+                $createdAt = $currentLead['CreatedUtc'] ?? null;
+                $showIsShowRoom = $currentLead['IsOnShowroom'] ?? null;
+                $leadStatus = $currentLead['LeadStatusType'] ?? null;
+                $leadGroupCategory = $currentLead['LeadGroupCategory'] ?? null; //Waiting , Contacted
+
                 $vinLead = DataTransferObjectLead::fromVinLeadArray(
                     $currentLead,
                     $vinCompany,
@@ -79,6 +91,14 @@ class PullLeadAction
                 );
 
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
+
+                //set communication channel
+                if ($lead->company->get('ai', false) || $triggerFirstMessage) {
+                    $this->setCommunicationChannel(
+                        $lead,
+                        $currentLead ?? []
+                    );
+                }
 
                 //$lead->searchable();
                 $this->addCoBuyerParticipant(
@@ -126,6 +146,77 @@ class PullLeadAction
 
             return [];
         });
+    }
+
+    private function isWithin10Minutes(string $dateString): bool
+    {
+        $diffTime = $this->company->get(ConfigurationEnum::LEAD_TIME_DIFF_MINUTES->value, 5) ?? 5;
+        $leadTimezone = $this->company->get('timezone', 'America/New_York') ?? $this->company->timezone ?? 'America/New_York';
+
+        $leadDate = Carbon::parse($dateString)->setTimezone($leadTimezone);
+        $now = Carbon::now($leadTimezone);
+
+        return $leadDate->diffInMinutes($now) <= $diffTime && $leadDate->isPast();
+    }
+
+    private function setCommunicationChannel(ModelsLead $lead, array $currentLead): void
+    {
+        //get a new fresh lead instance to avoid any issues with workflow state (disabled)
+        $lead = ModelsLead::getById($lead->id);
+        $createdAt = $currentLead['CreatedUtc'] ?? null;
+        $showIsShowRoom = (bool) ($currentLead['IsOnShowroom'] ?? false);
+        $leadStatus = $currentLead['LeadStatusType'] ?? null;
+        $leadGroupCategory = $currentLead['GroupCategory'] ?? null; //Waiting , Contacted
+
+        if ($leadGroupCategory !== null) {
+            $lead->setContactStatus(LeadGroupStatusEnum::get($leadGroupCategory));
+        }
+        $leadTypeName = (string) $lead->type?->name;
+
+        if (empty($createdAt)
+            || empty($lead->firstname)
+            || strtolower($lead->firstname) === 'name'
+            || $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value)
+            || $showIsShowRoom === true
+            || ! in_array(strtolower($leadTypeName), ['internet'])
+            || ! $this->isWithin10Minutes($createdAt)
+            || ! $lead->isActive()) {
+            return;
+        }
+
+        $lead->set('process_via_pull', true);
+        $lead->set('downloaded_from_vin_solution', true);
+        $lead->set('vin_solution_date_in', $createdAt);
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel === null) {
+            return;
+        }
+
+        $lead->set(
+            LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value,
+            $agentNotificationChannel
+        );
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+                'company' => $lead->company,
+            ]
+        );
+
+        $lead->set('lead_first_contacted_at', Carbon::now()->toDateTimeString());
     }
 
     private function addCoBuyerParticipant(

@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
@@ -73,7 +74,8 @@ class CreateContentSessionAction
                 'last_message_time' => $lastMessageTime,
                 'last_message' => $lastMessage,
                 'intent_number' => $lead->get('intent_number') ?? 0,
-                'max_intent_number' => $lead->pipeline->stages->count() ?? 0,
+                'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
+                'company_language' => $lead->company->get('lang', 'en'),
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -127,6 +129,9 @@ class CreateContentSessionAction
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
+            'leadEmail' => $data['leadEmail'],
+            'leadOwnerName' => $data['leadOwnerName'],
+            'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
     }
 
@@ -145,6 +150,8 @@ class CreateContentSessionAction
         ];
 
         $results = [];
+        $aiAgentUserId = (int) $this->entity->company->get('ai-agent-user-id');
+        $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $this->entity->user;
 
         foreach ($actions as $key => $action) {
             try {
@@ -152,7 +159,7 @@ class CreateContentSessionAction
                     Engagement::from(
                         $this->session->app,
                         $this->session->company,
-                        $this->entity->user,
+                        $user,
                         $this->entity,
                         [
                             'action' => $action,
@@ -217,7 +224,7 @@ class CreateContentSessionAction
         ];
     }
 
-    protected function getRelatedVehicles(array $vehicleInterest): array
+    public function getRelatedVehicles(array $vehicleInterest, int $limit = 10): array
     {
         if (empty($vehicleInterest['make']) || empty($vehicleInterest['model'])) {
             return [];
@@ -234,7 +241,7 @@ class CreateContentSessionAction
             user: null,
             company: $this->session->company,
         )->select('products_variants.uuid', 'products_variants.name')
-            ->limit(10)
+            ->limit($limit)
             ->orderBy('products_variants.name', 'desc')
             ->get();
 

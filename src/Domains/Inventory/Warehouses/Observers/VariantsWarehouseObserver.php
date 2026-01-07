@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Observers;
 
+use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -38,6 +39,21 @@ class VariantsWarehouseObserver
                 $variantWarehouse
             ))->execute();
         }
+
+        $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+            ->where('warehouses_id', $variantWarehouse->warehouses_id)
+            ->withTrashed()
+            ->first();
+
+        if (! $productWarehouse) {
+            $productWarehouse = new ProductsWarehouses();
+            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+            $productWarehouse->is_deleted = 0;
+            $productWarehouse->saveOrFail();
+        } elseif ($productWarehouse->is_deleted) {
+            $productWarehouse->restore();
+        }
     }
 
     public function created(VariantsWarehouses $variantWarehouse): void
@@ -51,6 +67,19 @@ class VariantsWarehouseObserver
             'total_variant_quantity',
             $variantWarehouse->variant->setTotalQuantity()
         );
+
+        $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+            ->where('warehouses_id', $variantWarehouse->warehouses_id)
+            ->withTrashed()
+            ->first();
+
+        if (! $productWarehouse) {
+            $productWarehouse = new ProductsWarehouses();
+            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+            $productWarehouse->is_deleted = 0;
+            $productWarehouse->saveOrFail();
+        }
     }
 
     public function deleted(VariantsWarehouses $variantWarehouse): void
@@ -59,5 +88,16 @@ class VariantsWarehouseObserver
             'total_products',
             $variantWarehouse->getTotalProducts()
         );
+
+        if ($variantWarehouse->getTotalProducts() === 0) {
+            $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
+                ->where('warehouses_id', $variantWarehouse->warehouses_id)
+                ->withTrashed()
+                ->first();
+
+            if ($productWarehouse) {
+                $productWarehouse->delete();
+            }
+        }
     }
 }

@@ -106,7 +106,7 @@ class RecombeeUserRecommendationService
     public function getUserToUserRecommendation(
         UserInterface $user,
         int $count = 10,
-        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGETIONS_SIMILAR_INTERESTS->value,
+        string $scenario = ScenariosEnum::USER_FOLLOW_SUGGESTION_SIMILAR_INTERESTS->value,
         array $additionalOptions = []
     ): array {
         $options = array_merge([
@@ -133,21 +133,33 @@ class RecombeeUserRecommendationService
         ], $additionalOptions);
         $recommIdName = 'for-you-feed' ? CustomFieldEnum::USER_FOR_YOU_FEED_RECOMM_ID->value : $scenario . '-recomm-id';
 
-        if ($user->get($recommIdName)) {
-            return $this->getItemToUserPagination(
-                (string) $user->get($recommIdName),
-                $count
+        try {
+            if ($user->get($recommIdName)) {
+                return $this->getItemToUserPagination(
+                    (string) $user->get($recommIdName),
+                    $count
+                );
+            }
+
+            $recommendation = $this->client->send(
+                new RecommendItemsToUser((string) $user->getId(), $count, $options)
+            );
+
+            $user->set(
+                $recommIdName,
+                (string) $recommendation['recommId']
+            );
+        } catch (\Throwable $th) {
+            $recommendation = $this->client->send(
+                new RecommendItemsToUser((string) $user->getId(), $count, $options)
+            );
+
+            $user->set(
+                $recommIdName,
+                (string) $recommendation['recommId']
             );
         }
 
-        $recommendation = $this->client->send(
-            new RecommendItemsToUser((string) $user->getId(), $count, $options)
-        );
-
-        $user->set(
-            $recommIdName,
-            (string) $recommendation['recommId']
-        );
 
         return $recommendation;
     }

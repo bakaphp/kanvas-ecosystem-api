@@ -22,6 +22,11 @@ class OrderUpdateEvent implements ShouldBroadcast
     {
     }
 
+    public function getOrder(): Order
+    {
+        return $this->order;
+    }
+
     public function broadcastWith(): array
     {
         return [

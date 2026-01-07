@@ -13,12 +13,12 @@ class VerifyCustomerResponse extends Data
         public readonly string $lastname,
         public readonly string $device,
         public readonly string $message,
-        public readonly string $document,
         public readonly float $balance,
         public readonly string $type,
         public readonly string $reference,
         public readonly string $account,
         public readonly string $status,
+        public readonly ?string $document = null,
     ) {
     }
 }

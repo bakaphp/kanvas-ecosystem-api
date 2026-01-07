@@ -17,10 +17,10 @@ class ImportOrderItemsCsvTest extends TestCase
     private const IMPORT_ORDER_CSV_MUTATION = '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ';
 
@@ -222,10 +222,10 @@ class ImportOrderItemsCsvTest extends TestCase
             '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ',
             'variables' => [
@@ -270,7 +270,8 @@ class ImportOrderItemsCsvTest extends TestCase
         $responseData = $response->json();
         $message = $responseData['data']['importOrderCsv']['message'];
 
-        $this->assertStringContainsString('Not enough stock for product', $message);
+        $this->assertStringContainsString('You only have', $message);
+        $this->assertStringContainsString('in stock for', $message);
         $this->assertStringContainsString($variantResponse['name'], $message);
     }
 
@@ -316,10 +317,10 @@ class ImportOrderItemsCsvTest extends TestCase
             '
                 mutation ImportOrderCsv($file: Upload!, $channel_id: ID!) {
                     importOrderCsv(input: {file: $file, channel_id: $channel_id})
-                    { 
-                        status, 
-                        message 
-                    } 
+                    {
+                        status,
+                        message
+                    }
                 }
             ',
             'variables' => [
@@ -380,6 +381,84 @@ class ImportOrderItemsCsvTest extends TestCase
         $this->assertCount(2, $cartItems);
     }
 
+    public function testImportOrderItemsWithNotFoundItems(): void
+    {
+        $app = app(Apps::class);
+        $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+        $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 10
+        );
+
+        $operations = [
+            'query' => self::IMPORT_ORDER_CSV_MUTATION,
+            'variables' => [
+                'file' => null,
+                'channel_id' => $channelResponse['id'],
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        // CSV with one valid item and one non-existent item
+        $csv = $this->getMixedProductsCsvContent([
+            [
+                'id' => $variantResponse['id'],
+                'name' => $variantResponse['name'],
+                'ean' => $variantResponse['ean'],
+            ],
+            [
+                'id' => 99999,
+                'name' => 'Non Existent Product',
+                'ean' => 'NOTFOUND123',
+            ],
+        ], 5);
+
+        $file = [
+            '0' => UploadedFile::fake()->createWithContent('products.csv', $csv),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $file);
+
+        $response->assertJson([
+            'data' => [
+                'importOrderCsv' => [
+                    'status' => 'error',
+                ],
+            ],
+        ]);
+
+        // Check that the error message contains the item not found error
+        $responseData = $response->json();
+        $message = $responseData['data']['importOrderCsv']['message'];
+
+        $this->assertStringContainsString('NOTFOUND123', $message);
+        $this->assertStringContainsString('Product does not exist in our inventory', $message);
+    }
+
     private function getProductsCsvContent($qty = 0): string
     {
         return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."
@@ -395,6 +474,16 @@ class ImportOrderItemsCsvTest extends TestCase
     }
 
     private function getValidProductsCsvContent(array $products, $qty = 0): string
+    {
+        return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."' . "\n" .
+            '"Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency' . "\n" .
+            collect($products)->map(
+                fn ($product) =>
+                "{$product['id']},\"{$product['name']}\",\"{$product['ean']}\",{$qty},0,0,0,0,0,USD"
+            )->join("\n");
+    }
+
+    private function getMixedProductsCsvContent(array $products, $qty = 0): string
     {
         return '"Instructions: Please fill out the Quantity fields. Ensure all entries are accurate before uploading. Save the file as a CSV format."' . "\n" .
             '"Variant ID",Name,"Copic Item No/ UPC",Order Qty,"Min Quantity",Price,Tax,Discount,Currency' . "\n" .

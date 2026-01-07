@@ -8,9 +8,7 @@ use Baka\Enums\StateEnums;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -72,6 +70,7 @@ trait HasFilesystemTrait
             $fileSystem->name = $fileInfo['basename'];
             $fileSystem->file_type = $this->cleanExtension($extension);
             $fileSystem->size = 0;
+            $fileSystem->is_deleted = StateEnums::NO->getValue();
             $fileSystem->saveOrFail();
         }
 

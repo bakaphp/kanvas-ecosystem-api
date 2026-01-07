@@ -38,7 +38,7 @@ class Random
         return $part1 . $part2 . $part3;
     }
 
-    public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNo = 10): string
+    public static function generateDisplayNameFromEmail(string $email, AppInterface $app, int $randNum = 100): string
     {
         if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email format provided');
@@ -60,7 +60,7 @@ class Random
             return self::generatePrivateRelayUsername();
         }
 
-        return self::ensureUsernameUniqueness($displayname, $app, $randNo);
+        return self::ensureUsernameUniqueness($displayname, $app, $randNum);
     }
 
     private static function generatePrivateRelayUsername(): string
@@ -86,7 +86,7 @@ class Random
         return $username;
     }
 
-    private static function ensureUsernameUniqueness(string $username, AppInterface $app, int $randNo): string
+    private static function ensureUsernameUniqueness(string $username, AppInterface $app, int $randNum): string
     {
         $originalName = $username;
         $counter = 0;
@@ -94,12 +94,17 @@ class Random
         // Try a few times with random numbers
         while ($counter < self::MAX_UNIQUENESS_ATTEMPTS) {
             if (! UsersAssociatedApps::query()->fromApp($app)->where('displayname', $username)->exists()) {
-                return $username; // Already unique
+                return $username;
             }
 
-            // Add random suffix
-            $randomNumber = ($randNo > 0) ? rand(1, $randNo) : '';
-            $username = $originalName . $randomNumber;
+            if ($counter < self::MAX_UNIQUENESS_ATTEMPTS / 2) {
+                // Why this? To avoid usernames like displayname1. We want duplicates to start at 2, like displayname2, displayname3, etc.
+                $username = $originalName . ($counter + 2);
+            } else {
+                // Random suffix as fallback
+                $username = $originalName . rand(1, $randNum);
+            }
+
             $counter++;
         }
 

@@ -5,27 +5,43 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Services;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Models\Session;
 
 class SessionChannelService
 {
     public static function createCanalId(string $channel, string $id): string
     {
+        $normalizedId = self::normalizePhoneNumber($id);
+
         return match ($channel) {
-            'whatsapp' => "$id@s.whatsapp.net",
-            'sms' => "+$id",
+            'whatsapp' => $normalizedId . '@s.whatsapp.net',
+            'sms' => '+' . $normalizedId,
             'email' => $id,
         };
     }
 
     public static function createChannelSlug(string $channel, string $id): string
     {
+        $normalizedId = self::normalizePhoneNumber($id);
+
         return match ($channel) {
-            'whatsapp' => "wa-chat-$id-at-swhatsappnet",
-            'sms' => "twilio-$id",
-            'email' => 'email-' . str_replace(['@', '.'], ['-at-', '-dot-'], $id),
+            'whatsapp' => 'wa-chat-' . $normalizedId . '-at-swhatsappnet',
+            'sms' => 'twilio-' . $normalizedId,
+            'email' => 'email-' . self::sanitizeEmail($id),
         };
+    }
+
+    private static function normalizePhoneNumber(string $phone): string
+    {
+        return (string) preg_replace('/^\+?1/', '', $phone);
+    }
+
+    private static function sanitizeEmail(string $email): string
+    {
+        return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
     }
 
     public static function generateChannelLink(Model $entity, AppInterface $app): ?string
@@ -37,23 +53,35 @@ class SessionChannelService
         }
 
         $locationId = $entity->branch->uuid;
-        $agentSession = Session::fromApp($app)
+        $channelSlug = Session::fromApp($app)
             ->where('entity_namespace', get_class($entity))
             ->where('entity_id', $entity->getId())
             ->whereNotNull('agents_id')
-            ->first();
+            ->first()?->uuid;
 
-        if ($agentSession === null || empty($agentSession?->uuid)) {
+        if ($entity instanceof Lead) {
+            /**
+             * @todo make the channel dynamic based on the lead's preferred contact method
+             */
+            $channelSlug = $entity->socialChannels()
+                ->where(function (Builder $query) {
+                    $query->where('name', 'like', '%email%')
+                        ->orWhere('name', 'like', '%sms%');
+                })
+                ->first()?->slug;
+        }
+
+        if ($channelSlug === null) {
             return null;
         }
 
         return sprintf(
-            '%s/login?channel=%s&lead=%s&location=%s&app=%s',
+            '%s/chats/%s?app=%s&location=%s&channel=%s',
             $baseUrl,
-            $agentSession->uuid,
             $entity->getId(),
+            $app->key,
             $locationId,
-            $app->key
+            $channelSlug
         );
     }
 }
