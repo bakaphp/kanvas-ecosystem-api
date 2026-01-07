@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
@@ -112,14 +113,14 @@ class CreateLeadAction
                 );
 
                 //@todo improve this for create social channels
-                $newLead->people->contacts->each(function ($contact) use ($newLead) {
+                $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
                     $contact->fireWorkflow(
                         WorkflowEnum::CONTACT_SAVED->value,
                         true,
                         [
-                                    'company' => $this->company,
-                                    'app' => $newLead->app,
-                                ]
+                            'company' => $this->company,
+                            'app' => $newLead->app,
+                        ]
                     );
                 });
             }
