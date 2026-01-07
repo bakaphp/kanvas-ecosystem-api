@@ -82,7 +82,7 @@ class ConvertTextToSpeechActivity extends KanvasActivity
         $response = $this->submitData($endpoint, $entity->message['prompt'], $model, $entity->message['voice'] ?? null)->json();
         $response = $response->json()['audio'];
 
-        $tempFilePath = FilesystemServices::downloadFromUrl($response['url']);
+        $tempFilePath = FilesystemServices::downloadImageFromUrl($response['url']);
 
         if ($tempFilePath === null) {
             return null;
