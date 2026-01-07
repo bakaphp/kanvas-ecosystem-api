@@ -76,5 +76,8 @@ class MessageObserver
                 $channel->saveOrFail();
             }
         }
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->unsearchable();
+        }
     }
 }
