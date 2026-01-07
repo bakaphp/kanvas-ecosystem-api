@@ -41,7 +41,6 @@ class ConvertTextToSpeechActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
             integrationOperation: function ($entity, $app, $integrationCompany) use ($params) {
-
                 $filesystemRecord = $this->processFalAiTextToSpeech(
                     entity: $entity,
                     params: $params,
