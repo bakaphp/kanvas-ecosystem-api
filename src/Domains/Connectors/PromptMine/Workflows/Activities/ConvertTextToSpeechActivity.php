@@ -5,22 +5,21 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Exception;
+use finfo;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use \Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Illuminate\Http\Client\Response;
-use finfo;
-use \Kanvas\Filesystem\Models\Filesystem;
 
 class ConvertTextToSpeechActivity extends KanvasActivity
 {
@@ -63,17 +62,11 @@ class ConvertTextToSpeechActivity extends KanvasActivity
                     'company_id' => $integrationCompany->getId(),
                     'app_id' => $app->getId(),
                 ];
-                
             },
             company: $company,
         );
     }
 
-    /**
-     * Process image with fal.ai
-     *
-     * @return array [fileSystemRecord, processedImageUrl, requestId]
-     */
     protected function processFalAiTextToSpeech(Model $entity, array $params): ?Filesystem
     {
         // Step 1: Submit the image for processing
@@ -106,9 +99,6 @@ class ConvertTextToSpeechActivity extends KanvasActivity
         return $fileSystemRecord;
     }
 
-     /**
-     * Submit data for processing
-     */
     protected function submitData(string $apiUrl, string $prompt, string $model, string $voice): Response
     {
         $response = Http::withHeaders([
@@ -123,9 +113,6 @@ class ConvertTextToSpeechActivity extends KanvasActivity
         return $response;
     }
 
-    /**
-     * Get the company for this workflow
-     */
     protected function getCompany(AppInterface $app, Model $entity): Companies
     {
         $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
