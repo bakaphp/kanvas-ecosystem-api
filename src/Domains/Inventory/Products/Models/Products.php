@@ -949,7 +949,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     public function recalculateWeightByImageCount(): void
     {
-        if (! $this->app->get('product_increase_weight_by_image_count')) {
+        if (! $this->company->get('product_increase_weight_by_image_count')) {
             return;
         }
 
