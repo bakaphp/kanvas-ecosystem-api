@@ -30,7 +30,6 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
@@ -169,13 +168,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $lead = $this->createLeadFromPeople($people);
                 $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
                 $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
-            } else {
-                $people = $this->processContact($chatJid);
-                $lead = $this->createLeadFromPeople($people);
-                if ($messageBody && $messageData) {
-                    $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
-                }
-                unset($people, $lead);
             }
 
             // Create the message slug
