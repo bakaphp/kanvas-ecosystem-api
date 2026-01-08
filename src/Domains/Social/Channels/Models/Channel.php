@@ -11,6 +11,7 @@ use Baka\Traits\MorphEntityDataTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
@@ -92,6 +93,14 @@ class Channel extends BaseModel
             ->first();
     }
 
+    public function entity(): ?Model
+    {
+        return $this->entity_namespace::getById($this->entity_id);
+    }
+
+    /**
+    * Add a message to the channel.
+    */
     public function addMessage(
         Message $message,
         ?UserInterface $user = null
@@ -145,6 +154,34 @@ class Channel extends BaseModel
             ->orderBy('messages.created_at', 'desc')
             ->orderBy('messages.id', 'desc')
             ->first();
+    }
+
+    public function mapLeadConversationHistory(): array
+    {
+        $conversationMessages = $this->messages()->get()
+            ->map(fn (Message $message) => [
+                'created_at' => $message->created_at,
+                'user' => $message->slug ? 'lead' : 'agent',
+                'message' => $message->message,
+                'type' => 'conversation',
+            ]);
+        $agentNotesMessages = $this->entity()->notes ? $this->entity()->notes->messages()->get()
+            ->map(fn (Message $message) => [
+                'created_at' => $message->created_at,
+                'user' => 'agent',
+                'message' => $message->message,
+                'type' => 'note',
+            ]) : [];
+
+        return $conversationMessages
+            ->concat($agentNotesMessages)
+            ->sortBy('created_at')
+            ->map(fn (array $item): array => [
+                'user' => $item['user'],
+                'message' => $item['message'],
+            ])
+            ->values()
+            ->toArray();
     }
 
     public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): ?self

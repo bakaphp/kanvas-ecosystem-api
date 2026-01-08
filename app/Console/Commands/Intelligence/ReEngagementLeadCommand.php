@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Intelligence\Leads\Actions\ReEngagementLeadAction;
 
 class ReEngagementLeadCommand extends Command
 {
@@ -31,6 +32,7 @@ class ReEngagementLeadCommand extends Command
             $leads = LeadsRepository::getActiveLeadByCompany($company);
             foreach ($leads as $lead) {
                 foreach ($lead->socialChannels as $channel) {
+                    new ReEngagementLeadAction($channel, (int) $company->get(CompanyConfigurationEnum::REENGAGEMENT_LEAD_TIME->value))->execute();
                 }
             }
         }

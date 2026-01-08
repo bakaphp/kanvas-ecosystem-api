@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Leads\Actions;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
@@ -20,10 +22,17 @@ use Prism\Prism\Schema\StringSchema;
 
 class ReEngagementLeadAction
 {
+    protected Agent $agent;
+
     public function __construct(
         protected Channel $channel,
         protected int $minutesWithoutActivity
     ) {
+        $agentName = 'ReEngagementAgent';
+        $this->agent = Agent::fromApp($channel->app)
+            ->fromCompany($channel->company)
+            ->where('name', $agentName)
+            ->firstOrFail();
     }
 
     public function execute(): void
@@ -72,17 +81,21 @@ class ReEngagementLeadAction
                 'vehicle_interest' => $vehicleInterestTool,
             ];
 
+            $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
+
             $response = Prism::structured()
                        ->using(Provider::Gemini, 'gemini-2.5-pro')
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)
                        ->asStructured();
+
             if (! empty($response->structured)) {
                 $communicationChannel = ChannelCategoryEnum::getLeadChannelName($this->channel->slug);
                 new SendMessageToLeadAction($this->channel->entity())->execute(
                     $communicationChannel,
                     $response->structured['message'],
+                    $this->channel->company->get('twilio_phone_number')
                 );
             }
         }
