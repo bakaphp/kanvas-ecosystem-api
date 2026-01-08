@@ -13,7 +13,6 @@ use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 class PushFollowRecommendationNotificationCommand extends Command
