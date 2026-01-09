@@ -72,9 +72,7 @@ class PullPeopleLeadAction
         }
 
         if (! $customer) {
-            throw new DriveCentricException(
-                'Customer not found in DriveCentric with provided criteria'
-            );
+            return [];
         }
 
         return $customer;
