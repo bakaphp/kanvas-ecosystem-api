@@ -52,7 +52,7 @@ class PushPeopleAction
         }
 
         $customerData = PeopleDTO::toDriveCentric($this->people);
-     
+
         return $this->customerService->updateCustomer($customerId, $customerData);
     }
 
