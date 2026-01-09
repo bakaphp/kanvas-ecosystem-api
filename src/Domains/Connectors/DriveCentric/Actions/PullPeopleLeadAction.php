@@ -8,7 +8,6 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\CustomerService;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -72,9 +71,7 @@ class PullPeopleLeadAction
         }
 
         if (! $customer) {
-            throw new DriveCentricException(
-                'Customer not found in DriveCentric with provided criteria'
-            );
+            return [];
         }
 
         return $customer;
