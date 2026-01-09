@@ -28,8 +28,8 @@ class FollowsRecommendationsPushNotication extends Notification
             'metadata' => $entity->toArray(),
             'via' => $via,
             'destination_id' => $entity->getId(),
-            'destination_type' => 'MESSAGE',
-            'destination_event' => 'NEW_MESSAGE',
+            'destination_type' => 'USER',
+            'destination_event' => 'FOLLOWING',
         ];
 
         parent::__construct($entity, $data, $via);
