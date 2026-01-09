@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
-use Kanvas\Connectors\DriveCentric\Actions\PullLeadAction as DriveCentricActionsPullLeadAction;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -40,6 +40,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $this->app = $app;
         $leadId = $params['entity_id'] ?? null;
         $user = $params['user'] ?? null;
+        $phone = $params['phone'] ?? null;
+        $email = $params['email'] ?? null;
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
         $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
@@ -73,13 +75,14 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 customerId: (int) $leadId,
             )->toArray();
         } elseif ($isDriveCentric) {
-            return new DriveCentricActionsPullLeadAction(
+            return new PullPeopleLeadAction(
                 $app,
                 $company,
                 $user
             )->execute(
-                $leadId,
-            )->toArray();
+                phone: $phone,
+                email: $email,
+            )?->toArray() ?? [];
         }
 
         return [];

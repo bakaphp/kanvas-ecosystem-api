@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\DriveCentric;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PullPeopleAction;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Actions\PushPeopleAction;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
@@ -345,5 +346,96 @@ final class PeopleTest extends TestCase
         );
 
         $this->assertIsArray($customers);
+    }
+
+    /**
+     * Test pulling people with their associated lead by email.
+     */
+    public function testPullPeopleLeadByEmail(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->setupDriveCentricClient($app, $company);
+
+        // Create a person with unique email
+        $email = 'test+' . fake()->unique()->userName . '@kanvas.dev';
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+
+        $people->addEmail($email);
+
+        // Create a lead for this person
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
+        // Push lead to create customer and deal in DriveCentric
+        $pushLeadAction = new PushLeadAction($lead);
+        $pushLeadAction->execute();
+
+        sleep(5);
+
+        // Now pull both people and lead by email
+        $pullPeopleLeadAction = new PullPeopleLeadAction($app, $company, $user);
+        $result = $pullPeopleLeadAction->execute(email: $email);
+
+        $this->assertInstanceOf(Lead::class, $result);
+        $this->assertNotNull($result->people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
+        $this->assertNotNull($result->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value));
+    }
+
+    /**
+     * Test pulling people with their associated lead by phone.
+     */
+    public function testPullPeopleLeadByPhone(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->setupDriveCentricClient($app, $company);
+
+        // Create a person with unique phone
+        $phone = '809' . fake()->randomNumber(7, true);
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+
+        $people->addPhone($phone);
+
+        // Create a lead for this person
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
+        // Push lead to create customer and deal in DriveCentric
+        $pushLeadAction = new PushLeadAction($lead);
+        $pushLeadAction->execute();
+
+        sleep(5);
+
+        // Now pull both people and lead by phone
+        $pullPeopleLeadAction = new PullPeopleLeadAction($app, $company, $user);
+        $result = $pullPeopleLeadAction->execute(phone: $phone);
+
+        $this->assertInstanceOf(People::class, $result->people);
+        $this->assertInstanceOf(Lead::class, $result);
+        $this->assertNotNull($result->people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
+        $this->assertNotNull($result->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value));
     }
 }
