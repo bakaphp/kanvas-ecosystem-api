@@ -95,7 +95,7 @@ class PullLeadAction
                 $customerId = $this->extractCustomerId($customer);
 
                 if ($customerId) {
-                    $coBuyer = $pullPeople->executeById($customerId);
+                    $coBuyer = $pullPeople->execute(customerId: $customerId);
                     $lead->addCoBuyerParticipant($coBuyer);
                 }
             } catch (Throwable $e) {

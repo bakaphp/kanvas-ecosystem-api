@@ -23,25 +23,31 @@ class UserService
      * List all users for the store.
      * GET /api/stores/{storeId}/user/list
      */
-    public function listUsers(int $offset = 0, int $limit = 100): array
+    public function listUsers(string $start, int $offset = 0, int $limit = 100): array
     {
         $response = $this->client->get('/api/stores/{+storeId}/user/list', [
             'offset' => $offset,
             'limit' => $limit,
+            'start' => $start,
         ]);
 
-        return $response->json('users') ?? [];
+        return $response->json('data') ?? [];
     }
 
     /**
      * Search users by various criteria.
      * GET /api/stores/{storeId}/user/search
+     *
+     * Supported filters: dmsId, crmId, phone, email, offset, showInactive
      */
     public function searchUsers(array $filters = []): array
     {
-        $response = $this->client->get('/api/stores/{+storeId}/user/search', $filters);
+        // Filter out null/empty values to avoid sending empty params
+        $params = array_filter($filters, fn ($value) => $value !== null && $value !== '');
 
-        return $response->json('users') ?? [];
+        $response = $this->client->get('/api/stores/{+storeId}/user/search', $params);
+
+        return $response->json('data') ?? [];
     }
 
     /**
@@ -81,8 +87,11 @@ class UserService
     /**
      * Get all active users.
      */
-    public function getActiveUsers(): array
+    public function getActiveUsers(int $offset = 0): array
     {
-        return $this->searchUsers(['isActive' => true]);
+        return $this->searchUsers([
+            'showInactive' => 'false',
+            'offset' => $offset,
+        ]);
     }
 }

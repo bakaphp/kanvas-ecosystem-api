@@ -209,8 +209,8 @@ final class PeopleTest extends TestCase
         $pulledPeople = $pullPeopleAction->execute(email: $email);
 
         $this->assertNotEmpty($pulledPeople);
-        $this->assertInstanceOf(People::class, $pulledPeople[0]);
-        $this->assertNotNull($pulledPeople[0]->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
+        $this->assertInstanceOf(People::class, $pulledPeople);
+        $this->assertNotNull($pulledPeople->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
     }
 
     /**
@@ -252,8 +252,8 @@ final class PeopleTest extends TestCase
         $pulledPeople = $pullPeopleAction->execute(phone: $phone);
 
         $this->assertNotEmpty($pulledPeople);
-        $this->assertInstanceOf(People::class, $pulledPeople[0]);
-        $this->assertNotNull($pulledPeople[0]->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
+        $this->assertInstanceOf(People::class, $pulledPeople);
+        $this->assertNotNull($pulledPeople->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));
     }
 
     /**
@@ -294,7 +294,7 @@ final class PeopleTest extends TestCase
         sleep(5);
         // Now pull the customer by ID
         $pullPeopleAction = new PullPeopleAction($app, $company, $user);
-        $pulledPeople = $pullPeopleAction->executeById($customerId);
+        $pulledPeople = $pullPeopleAction->execute(customerId: $customerId);
 
         $this->assertInstanceOf(People::class, $pulledPeople);
         $this->assertEquals($customerId, $pulledPeople->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value));

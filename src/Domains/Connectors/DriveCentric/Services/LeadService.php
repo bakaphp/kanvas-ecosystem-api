@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Client;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
+use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -120,7 +121,7 @@ class LeadService
             ?? $this->app->get(ConfigurationEnum::DEFAULT_SOURCE_DESCRIPTION->value)
             ?? $lead->company->name;
 
-        return [
+        $dealData = [
             'source' => [
                 'type' => $sourceType,
                 'description' => $sourceDescription,
@@ -150,6 +151,43 @@ class LeadService
                 ],
             ],
             'stage' => $this->mapLeadStatusToStage($lead),
+        ];
+
+        // Add salesperson1 if lead owner has DriveCentric user ID
+        $salesperson = $this->formatSalesperson($lead);
+        if ($salesperson) {
+            $dealData['salesperson1'] = $salesperson;
+        }
+
+        return $dealData;
+    }
+
+    /**
+     * Format salesperson data from lead owner.
+     */
+    protected function formatSalesperson(Lead $lead): ?array
+    {
+        $owner = $lead->owner;
+
+        if (! $owner) {
+            return null;
+        }
+
+        $driveCentricUserId = $owner->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
+
+        if (! $driveCentricUserId) {
+            return null;
+        }
+
+        return [
+            'identifiers' => [
+                [
+                    'type' => 'CrmId',
+                    'value' => $driveCentricUserId,
+                ],
+            ],
+            'firstName' => $owner->firstname,
+            'lastName' => $owner->lastname,
         ];
     }
 

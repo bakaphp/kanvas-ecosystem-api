@@ -40,7 +40,7 @@ class PullLeadsByDateRangeAction
         string $endDate,
         int $offset = 0
     ): array {
-        return DB::transaction(function () use ($startDate, $endDate, $offset) {
+        return DB::transaction(function () use ($startDate, $endDate, $offset): array {
             $deals = $this->leadService->getDealsByRange(
                 $startDate,
                 $endDate,

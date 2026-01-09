@@ -39,6 +39,11 @@ final class PushLeadTest extends TestCase
             ->withPeopleId($people->getId())
             ->create();
 
+        $user->set(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value, 'd8256337-9fe4-4671-8b18-abc36e452b86');
+        //$user->set(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value, 'd67d5406-e126-4ef9-841f-a42aa93039eb');
+        $lead->leads_owner_id = $user->getId();
+        $lead->save();
+
         $pushLeadAction = new PushLeadAction($lead);
         $response = $pushLeadAction->execute();
 
