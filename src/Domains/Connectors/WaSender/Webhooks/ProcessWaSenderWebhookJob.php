@@ -241,6 +241,11 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (isset($lead) && $lead instanceof Lead) {
                 // Associate the message with the lead
                 $message->addEntity($lead);
+
+                $firstMessage = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value);
+                if (! $firstMessage) {
+                    $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $message->message);
+                }
             }
 
             // Associate message with channel
