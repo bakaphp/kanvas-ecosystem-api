@@ -75,16 +75,16 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 customerId: (int) $leadId,
             )->toArray();
         } elseif ($isDriveCentric) {
-            return [
-                new PullPeopleLeadAction(
-                    $app,
-                    $company,
-                    $user
-                )->execute(
-                    phone: $phone,
-                    email: $email,
-                )?->toArray() ?? [],
-            ];
+            $lead = new PullPeopleLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                phone: $phone,
+                email: $email,
+            );
+
+            return $lead ? [$lead->toArray()] : [];
         }
 
         return [];
