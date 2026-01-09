@@ -72,7 +72,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 lead: $entity->id > 0 ? $entity : null,
                 customerId: (int) $leadId,
             )->toArray();
-        }elseif ($isDriveCentric) {
+        } elseif ($isDriveCentric) {
             return new DriveCentricActionsPullLeadAction(
                 $app,
                 $company,

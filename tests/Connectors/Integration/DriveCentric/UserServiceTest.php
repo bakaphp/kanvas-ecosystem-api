@@ -53,10 +53,10 @@ final class UserServiceTest extends TestCase
 
         // Setup DriveCentric client
         $this->setupDriveCentricClient($app, $company);
-/* 
-        $userService = new UserService($app, $company);
-        $activeUsers = $userService->getActiveUsers();
+        /*
+                $userService = new UserService($app, $company);
+                $activeUsers = $userService->getActiveUsers();
 
-        $this->assertIsArray($activeUsers); */
+                $this->assertIsArray($activeUsers); */
     }
 }
