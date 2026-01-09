@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\CustomerService;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -31,12 +32,16 @@ class PullPeopleLeadAction
         return DB::transaction(function () use ($email, $phone, $customerId): ?Lead {
             $customer = $this->findCustomer($email, $phone, $customerId);
 
-            $pullPeopleAction = new PullPeopleAction($this->app, $this->company, $this->user);
-            $pullPeopleAction->execute(
-                email: $email,
-                phone: $phone,
-                customerId: $customerId
-            );
+            try {
+                $pullPeopleAction = new PullPeopleAction($this->app, $this->company, $this->user);
+                $pullPeopleAction->execute(
+                    email: $email,
+                    phone: $phone,
+                    customerId: $customerId
+                );
+            } catch (DriveCentricException $e) {
+                return null;
+            }
 
             $lead = null;
             if (! empty($customer['deal']['id'])) {
