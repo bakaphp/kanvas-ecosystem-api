@@ -22,18 +22,9 @@ class PullPeopleActivity extends KanvasActivity
             entity: $model,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
+            additionalParams: $params,
             integrationOperation: function ($model, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $pullPeople = new PullPeopleAction($app, $model->company, $model->user);
-
-                // Check if we have a customer ID to pull directly
-                if (! empty($params['customer_id'])) {
-                    $people = $pullPeople->executeById($params['customer_id']);
-
-                    return [
-                        'message' => 'People pulled successfully by ID',
-                        'entity' => [$people],
-                    ];
-                }
 
                 // Pull by email or phone
                 $email = $model->getEmails()->first()?->value ?? $params['email'] ?? null;
@@ -43,7 +34,7 @@ class PullPeopleActivity extends KanvasActivity
 
                 return [
                     'message' => 'People pulled successfully',
-                    'entity' => $people,
+                    'entity' => $people->toArray()
                 ];
             },
             company: $model->company,

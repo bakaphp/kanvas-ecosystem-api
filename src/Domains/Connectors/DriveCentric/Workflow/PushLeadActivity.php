@@ -22,19 +22,10 @@ class PushLeadActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $pushAction = new PushLeadAction($lead);
                 $result = $pushAction->execute();
-
-                // Handle vehicle of interest if provided
-                if (! empty($params['vehicle_of_interest'])) {
-                    $pushAction->addVehicleOfInterest($params['vehicle_of_interest']);
-                }
-
-                // Handle trade-in if provided
-                if (! empty($params['trade_in'])) {
-                    $pushAction->addTradeIn($params['trade_in']);
-                }
 
                 return [
                     'message' => 'Lead pushed successfully to DriveCentric',

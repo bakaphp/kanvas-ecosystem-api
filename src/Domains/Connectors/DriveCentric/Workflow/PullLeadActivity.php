@@ -22,21 +22,11 @@ class PullLeadActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $pullAction = new PullLeadAction($app, $lead->company, $lead->user);
 
-                // Pull by deal ID if provided
-                if (! empty($params['deal_id'])) {
-                    $result = $pullAction->execute($params['deal_id']);
-
-                    return [
-                        'message' => 'Lead pulled successfully from DriveCentric',
-                        'entity' => $pullAction->getFormattedResponse($result),
-                    ];
-                }
-
-                // Pull by existing lead (refresh)
-                $result = $pullAction->executeByLead($lead);
+                $result = $pullAction->execute($lead);
 
                 return [
                     'message' => 'Lead refreshed successfully from DriveCentric',

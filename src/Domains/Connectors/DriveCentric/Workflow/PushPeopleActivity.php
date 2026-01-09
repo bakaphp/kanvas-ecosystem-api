@@ -22,19 +22,20 @@ class PushPeopleActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
+            additionalParams: $params,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $pushAction = new PushPeopleAction($people);
                 $result = $pushAction->execute();
 
-                // Handle credit app if provided
-                if (! empty($params['credit_app'])) {
-                    $pushAction->addCreditApp($params['credit_app']);
-                }
+                /*  // Handle credit app if provided
+                 if (! empty($params['credit_app'])) {
+                     $pushAction->addCreditApp($params['credit_app']);
+                 }
 
-                // Handle additional contact info if provided
-                if (! empty($params['contact_info'])) {
-                    $pushAction->addContact($params['contact_info']);
-                }
+                 // Handle additional contact info if provided
+                 if (! empty($params['contact_info'])) {
+                     $pushAction->addContact($params['contact_info']);
+                 } */
 
                 return [
                     'message' => 'People pushed successfully to DriveCentric',
