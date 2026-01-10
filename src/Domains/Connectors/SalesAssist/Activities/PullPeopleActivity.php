@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleAction as DriveCentricActionsPullPeopleAction;
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullPeopleAction as ActionsPullPeopleAction;
@@ -38,6 +40,7 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
         $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
+        $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
@@ -51,6 +54,16 @@ class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInter
             )->execute(
                 email: $params['email'] ?? null,
             );
+        } elseif ($isDriveCentric) {
+            return (new DriveCentricActionsPullPeopleAction(
+                $app,
+                $company,
+                $user
+            ))->execute(
+                customerId: $peopleId,
+                email: $params['email'] ?? null,
+                phone: $params['phone'] ?? null,
+            )->toArray();
         }
 
         return [];
