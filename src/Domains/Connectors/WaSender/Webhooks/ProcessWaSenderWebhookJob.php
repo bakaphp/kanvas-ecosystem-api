@@ -172,7 +172,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             } else {
                 $people = $this->processContact($chatJid);
                 $lead = $this->createLeadFromPeople($people);
-                $status = $messageData['status'] ?? null;
+                $status = $messageData['status'] ?? null; // status = 2 from Whatsapp App, Status == 1 from WaSender API
                 if ($messageBody !== null && $status == 2) {
                     $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
                     unset($people);
