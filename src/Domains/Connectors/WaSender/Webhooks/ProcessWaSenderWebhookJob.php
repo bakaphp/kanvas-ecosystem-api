@@ -172,8 +172,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             } else {
                 $people = $this->processContact($chatJid);
                 $lead = $this->createLeadFromPeople($people);
-
-                if ($messageBody !== null && $messageData['status'] == 2) {
+                $status = $messageData['status'] ?? null;
+                if ($messageBody !== null && $status == 2) {
                     $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
                     unset($people);
                     $lead = null;
