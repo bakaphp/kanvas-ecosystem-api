@@ -175,7 +175,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 if ($messageBody && $messageData) {
                     $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value,  0);
                 }
-                unset($people, $lead);
+                unset($people);
             }
 
             // Create the message slug
