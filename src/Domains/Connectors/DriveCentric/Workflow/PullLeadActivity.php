@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DriveCentric\Workflow;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
+use Kanvas\Connectors\DriveCentric\Actions\PullLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-class PushLeadActivity extends KanvasActivity
+class PullLeadActivity extends KanvasActivity
 {
     public $tries = 3;
 
@@ -24,12 +24,13 @@ class PushLeadActivity extends KanvasActivity
             integration: IntegrationsEnum::DRIVE_CENTRIC,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params): array {
-                $pushAction = new PushLeadAction($lead);
-                $result = $pushAction->execute();
+                $pullAction = new PullLeadAction($app, $lead->company, $lead->user);
+
+                $result = $pullAction->execute($lead);
 
                 return [
-                    'message' => 'Lead pushed successfully to DriveCentric',
-                    'entity' => $result,
+                    'message' => 'Lead refreshed successfully from DriveCentric',
+                    'entity' => $pullAction->getFormattedResponse($result),
                 ];
             },
             company: $lead->company,

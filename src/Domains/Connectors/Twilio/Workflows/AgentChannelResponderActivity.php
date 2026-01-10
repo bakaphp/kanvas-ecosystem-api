@@ -33,6 +33,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
+            additionalParams: $params,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [

@@ -49,9 +49,9 @@ class CreateSocialChannelActivity extends KanvasActivity
             integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params): array {
                 $lead = $contact->people->leads->first();
                 if (! $lead) {
-                    return [
+                    return $this->failWorkflow([
                         'error' => 'No lead associated with this contact',
-                    ];
+                    ]);
                 }
                 $communicationChannel = match ($contact->contacts_types_id) {
                     ContactTypeEnum::CELLPHONE->value => 'sms',

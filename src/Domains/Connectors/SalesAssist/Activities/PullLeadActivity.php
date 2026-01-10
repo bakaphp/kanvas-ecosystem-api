@@ -10,6 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
@@ -38,10 +40,13 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $this->app = $app;
         $leadId = $params['entity_id'] ?? null;
         $user = $params['user'] ?? null;
+        $phone = $params['phone'] ?? null;
+        $email = $params['email'] ?? null;
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
         $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
         $isDealerSocket = $company->get(DealerSocketEnumsCustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value) !== null;
+        $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
 
@@ -68,7 +73,18 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             )->execute(
                 lead: $entity->id > 0 ? $entity : null,
                 customerId: (int) $leadId,
+            )->toArray();
+        } elseif ($isDriveCentric) {
+            $lead = new PullPeopleLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                phone: $phone,
+                email: $email,
             );
+
+            return $lead ? [$lead->toArray()] : [];
         }
 
         return [];
