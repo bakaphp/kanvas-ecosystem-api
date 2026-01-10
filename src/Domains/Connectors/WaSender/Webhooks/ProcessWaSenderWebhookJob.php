@@ -172,10 +172,12 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             } else {
                 $people = $this->processContact($chatJid);
                 $lead = $this->createLeadFromPeople($people);
-                if ($messageBody && $messageData) {
+
+                if ($messageBody !== null) {
                     $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+                    unset($people, $lead);
+                    $lead = null;
                 }
-                unset($people, $lead);
             }
 
             // Create the message slug
@@ -198,14 +200,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $existingMessage;
             } else {
                 // Get the appropriate message type
-                $messageTypeModel = (new CreateMessageTypeAction(
+                $messageTypeModel = new CreateMessageTypeAction(
                     new MessageTypeInput(
                         $this->receiver->app->getId(),
                         0,
                         $messageType,
                         $messageType,
                     )
-                ))->execute();
+                )->execute();
 
                 // Create the message using the action
                 $messageInput = new MessageInput(
