@@ -173,10 +173,23 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people = $this->processContact($chatJid);
                 $lead = $this->createLeadFromPeople($people);
                 $status = $messageData['status'] ?? null;
-                if ($messageBody !== null && $status == 2) {
-                    $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
-                    unset($people);
-                    $lead = null;
+
+                $firstMessage = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value);
+                if ($messageBody !== null) {
+                    if (! $firstMessage) {
+                        $lead->set(
+                            LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value,
+                            $messageBody
+                        );
+                    }
+
+                    //status = 2 , means user delivery, status = 1 means api delivery
+                    if ((int) $status === 2) {
+                        $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+
+                        unset($people);
+                        $lead = null;
+                    }
                 }
             }
 
@@ -251,11 +264,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (isset($lead) && $lead instanceof Lead) {
                 // Associate the message with the lead
                 $message->addEntity($lead);
-
-                $firstMessage = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value);
-                if (! $firstMessage) {
-                    $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $message->message);
-                }
             }
 
             // Associate message with channel
