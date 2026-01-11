@@ -172,11 +172,24 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             } else {
                 $people = $this->processContact($chatJid);
                 $lead = $this->createLeadFromPeople($people);
-                $status = $messageData['status'] ?? null; // status = 2 from Whatsapp App, Status == 1 from WaSender API
-                if ($messageBody !== null && $status == 2) {
-                    $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
-                    unset($people);
-                    $lead = null;
+                $status = $messageData['status'] ?? null;
+
+                $firstMessage = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value);
+                if ($messageBody !== null) {
+                    if (! $firstMessage) {
+                        $lead->set(
+                            LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value,
+                            $messageBody
+                        );
+                    }
+
+                    //status = 2 , means user delivery, status = 1 means api delivery
+                    if ((int) $status === 2) {
+                        $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+
+                        unset($people);
+                        $lead = null;
+                    }
                 }
             }
 
@@ -251,6 +264,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (isset($lead) && $lead instanceof Lead) {
                 // Associate the message with the lead
                 $message->addEntity($lead);
+                $message->addTag('engagement');
             }
 
             // Associate message with channel

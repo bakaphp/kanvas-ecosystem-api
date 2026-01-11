@@ -145,7 +145,7 @@ class AgentChannelResponderAction
                     'message_id' => '--',
                     'chat_jid' => $to,
                     'from_me' => true,
-                    'from_ia' => true
+                    'from_ia' => true,
             ],
             is_public: 1,
             tags: [$to],
@@ -158,6 +158,7 @@ class AgentChannelResponderAction
             $newMessage->addEntity($message->entity());
         }
         $channel->addMessage($newMessage);
+        $newMessage->addTag('engagement');
 
         return $newMessage;
     }
