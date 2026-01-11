@@ -145,6 +145,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
+            $message->addTag('engagement');
         }
 
         $channel->addMessage($message);

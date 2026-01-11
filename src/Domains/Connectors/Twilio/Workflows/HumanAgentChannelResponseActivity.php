@@ -91,6 +91,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     $message->save();
                 }
 
+                $message->addTag('engagement');
+
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,

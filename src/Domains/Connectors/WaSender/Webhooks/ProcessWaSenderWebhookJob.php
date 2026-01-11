@@ -264,6 +264,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (isset($lead) && $lead instanceof Lead) {
                 // Associate the message with the lead
                 $message->addEntity($lead);
+                $message->addTag('engagement');
             }
 
             // Associate message with channel
