@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -155,24 +156,39 @@ class CreateContentSessionAction
 
         foreach ($actions as $key => $action) {
             try {
-                $engagement = new CreateEngagementAction(
-                    Engagement::from(
-                        $this->session->app,
-                        $this->session->company,
-                        $user,
-                        $this->entity,
-                        [
-                            'action' => $action,
-                            'request_id' => Str::uuid()->toString(),
-                            'source' => 'ai',
-                            'status' => 'sent',
-                            'data' => [],
-                        ],
-                        $this->entity->people
-                    ),
-                    false
+                //lets check if this leads already has this engagement
+                $engagement = EngagementRepository::findEngagementForLead(
+                    $this->entity,
+                    $action,
+                    'sent',
+                    'ASC'
                 );
-                $result = $engagement->execute();
+
+                if ($engagement === null) {
+                    $engagement = new CreateEngagementAction(
+                        Engagement::from(
+                            $this->session->app,
+                            $this->session->company,
+                            $user,
+                            $this->entity,
+                            [
+                                'action' => $action,
+                                'request_id' => Str::uuid()->toString(),
+                                'source' => 'ai',
+                                'status' => 'sent',
+                                'data' => [],
+                            ],
+                            $this->entity->people
+                        ),
+                        false
+                    );
+                    $result = $engagement->execute();
+                }
+
+                //hide the msg
+                $result->message->is_public = 0;
+                $result->message->saveQuietly();
+
                 $results[$key] = $result->message->message['action_link'] ?? null;
             } catch (Exception $e) {
                 //report($e);

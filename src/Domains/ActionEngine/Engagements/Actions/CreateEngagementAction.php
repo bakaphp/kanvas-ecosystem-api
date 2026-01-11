@@ -370,9 +370,9 @@ class CreateEngagementAction
             'name' => $this->actionSlug,
             'verb' => $this->actionSlug,
         ]);
-        $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+        $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
 
-        $message = (new CreateMessageAction(
+        $message = new CreateMessageAction(
             MessageInput::fromArray(
                 $messageInput,
                 $this->user,
@@ -382,7 +382,7 @@ class CreateEngagementAction
             ),
             SystemModulesRepository::getByModelName(Lead::class, $this->app),
             $this->lead->getId()
-        ))->execute();
+        )->execute();
 
         //@todo move this to a workflow activity (Async)
         $this->replaceLink(

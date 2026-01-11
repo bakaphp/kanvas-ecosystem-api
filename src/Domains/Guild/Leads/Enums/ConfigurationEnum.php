@@ -13,4 +13,5 @@ enum ConfigurationEnum: string
     case SENT_FIRST_MESSAGE_AT = 'guild_first_message_sent_at';
     case IS_ENGAGEMENT = 'guild_is_engagement';
     case CONTACTED = 'guild_lead_contacted';
+    case FOLLOW_UP_LEAD_TYPE = 'guild_follow_up_lead_type';
 }
