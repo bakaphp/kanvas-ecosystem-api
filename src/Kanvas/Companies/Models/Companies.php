@@ -621,4 +621,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
 
         return $now->between($startTime, $endTime);
     }
+
+    public function isAIEnabled(): bool
+    {
+        return (bool) $this->get('ai');
+    }
 }

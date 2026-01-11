@@ -7,7 +7,9 @@ namespace Kanvas\Guild\Customers\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
@@ -47,12 +49,15 @@ class CreateSocialChannelActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params): array {
-                $lead = $contact->people->leads->first();
+                //$lead = $contact->people->leads->first();
+                $lead = LeadsRepository::getPeopleActiveLead($contact->people);
+                
                 if (! $lead) {
                     return $this->failWorkflow([
                         'error' => 'No lead associated with this contact',
                     ]);
                 }
+                
                 $communicationChannel = match ($contact->contacts_types_id) {
                     ContactTypeEnum::CELLPHONE->value => 'sms',
                     ContactTypeEnum::EMAIL->value => 'email',
