@@ -46,7 +46,7 @@ class GenerateWhoToFollowRecommendationsAction
             ->where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->where('entity_namespace', Users::class)
-            ->limit(100)
+            ->limit(50)
             ->pluck('entity_id');
 
         return Users::query()
@@ -55,6 +55,9 @@ class GenerateWhoToFollowRecommendationsAction
                     ->where('users_associated_apps.apps_id', '=', $this->app->getId())
                     ->whereNotNull('users_associated_apps.firstname')
                     ->where('users_associated_apps.firstname', '!=', '')
+                    ->where('users_associated_apps.lastname', '!=', '')
+                    ->whereNotNull('users_associated_apps.firstname')
+                    ->whereNotNull('users_associated_apps.lastname')
                     ->where('users_associated_apps.is_deleted', 0)
                     ->where('users_associated_apps.status', 1)
                     ->where('users_associated_apps.total_messages_count', '>=', 1);
@@ -63,7 +66,8 @@ class GenerateWhoToFollowRecommendationsAction
             ->whereIn('users.id', $entityIds)
             ->where('users.id', '!=', $user->getId())
             ->where('users.is_deleted', 0)
-            ->select('users.*');
+            ->select('users.*')
+            ->limit(5); //limit to 5 results for now.
     }
 
     private function getIntersectedPopularUsersIds(array $entityIds): array
