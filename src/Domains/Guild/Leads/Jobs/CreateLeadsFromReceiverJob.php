@@ -110,7 +110,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             ]
         );
 
-        if ($lead->company->get('ai')) {
+        if ($lead->company->isAIEnabled()) {
             $lead->fireWorkflow(
                 WorkflowEnum::FAKE_CONTEXT->value,
                 true,
