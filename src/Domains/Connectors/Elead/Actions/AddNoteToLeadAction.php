@@ -56,7 +56,7 @@ class AddNoteToLeadAction
         try {
             $parentEngagement = $this->message->getEngagement();
             // Need to look for the current engagement via status
-            $currentEngagement = EngagementRepository::findEngagementForLeaAndEntity(
+            $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
                 $message['verb'],
                 $message['status'],

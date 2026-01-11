@@ -12,6 +12,7 @@ use InvalidArgumentException;
 enum ChannelCategoryEnum: string
 {
     case EMAIL = 'email';
+    case MAILGUN = 'mailgun-email';
     case SMS = 'sms';
     case WHATSAPP = 'whatsapp';
     case INTERNAL_NOTES = 'internal_notes';
@@ -32,6 +33,7 @@ enum ChannelCategoryEnum: string
             str_contains($channelSlug, 'wa-chat') => self::WHATSAPP->value,
             str_contains($channelSlug, 'twilio') => self::SMS->value,
             str_contains($channelSlug, 'email') => self::EMAIL->value,
+            str_contains($channelSlug, 'mailgun') => self::MAILGUN->value,
             str_contains($channelSlug, 'note') => 'notes',
             default => 'notes',
         };
