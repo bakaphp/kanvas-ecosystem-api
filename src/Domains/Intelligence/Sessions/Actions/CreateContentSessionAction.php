@@ -183,6 +183,8 @@ class CreateContentSessionAction
                         false
                     );
                     $result = $engagement->execute();
+                } else {
+                    $result = $engagement;
                 }
 
                 //hide the msg
