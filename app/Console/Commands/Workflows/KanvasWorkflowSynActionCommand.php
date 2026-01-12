@@ -84,6 +84,7 @@ use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleLeadFromSearchActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
@@ -308,6 +309,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesAddLeadCommentFromAgentMessageActivity::class,
             ProcessADFAgentInboundLeadJob::class,
             DealerAppCenterSubSourcesActivity::class,
+            SyncLeadWithLegacyCRMActivity::class,
         ];
 
         $createdActions = [];
