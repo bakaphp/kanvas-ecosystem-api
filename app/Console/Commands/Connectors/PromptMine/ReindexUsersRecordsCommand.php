@@ -51,15 +51,18 @@ class ReindexUsersRecordsCommand extends Command
             ->where('users.is_deleted', 0)
             ->cursor();
 
-        $i = 0;
+        $totalUsers = $users->count();
+        $this->output->progressStart($totalUsers);
+
         foreach ($users as $user) {
             try {
                 $user->searchable();
-                $i++;
+                $this->output->progressAdvance();
             } catch (\Exception $e) {
                 $this->error("Error reindexing item ID: {$user->id} - " . $e->getMessage());
             }
         }
-        $this->info('Total products to reindexed: ' . $i);
+        $this->output->progressFinish();
+        $this->info('Total products to reindexed: ' . $totalUsers);
     }
 }
