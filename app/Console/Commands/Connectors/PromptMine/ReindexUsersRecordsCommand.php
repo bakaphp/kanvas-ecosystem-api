@@ -47,12 +47,19 @@ class ReindexUsersRecordsCommand extends Command
             ->join('users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
             ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users_associated_apps.user_active', 1)
-            ->where('companies_id', 0)
+            ->where('users_associated_apps.companies_id', 0)
             ->where('users.is_deleted', 0)
-            ->select('users.*')
-            ->get();
+            ->cursor();
 
-        $this->info('Total users to reindexed: ' . $users->count());
-        $users->searchable();
+        $i = 0;
+        foreach ($users as $user) {
+            try {
+                $user->searchable();
+                $i++;
+            } catch (\Exception $e) {
+                $this->error("Error reindexing item ID: {$user->id} - " . $e->getMessage());
+            }
+        }
+        $this->info('Total products to reindexed: ' . $i);
     }
 }
