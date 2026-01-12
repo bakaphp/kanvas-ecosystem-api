@@ -220,6 +220,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $totalSentMessages++;
                                 } else {
                                     $createMessage->setLock();
+                                    $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
