@@ -1,0 +1,55 @@
+# Simplified Product Creation and Update with Quantities
+# Automatically adds variants to default warehouse with quantities
+
+input VariantWithQuantityInput {
+    name: String!
+    quantity: Int!
+    description: String
+    short_description: String
+    sku: String
+    price: Float
+    warehouse_id: ID
+}
+
+input ProductWithQuantitiesInput {
+    products_types_id: ID
+    products_types: String
+    name: String!
+    description: String
+    slug: String
+    short_description: String
+    sku: String
+    is_published: Boolean
+    attributes: [ProductAttributesInput!]
+    variants: [VariantWithQuantityInput!]!
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+    status: StatusReferenceInput
+}
+
+input ProductWithQuantitiesUpdateInput {
+    products_types_id: ID
+    products_types: String
+    name: String
+    description: String
+    slug: String
+    short_description: String
+    is_published: Boolean
+    attributes: [ProductAttributesInput!]
+    variants: [VariantWithQuantityInput!]
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+    status: StatusReferenceInput
+}
+
+extend type Mutation @guard {
+    createProductWithQuantities(input: ProductWithQuantitiesInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductWithQuantitiesMutation@create"
+        )
+
+    updateProductWithQuantities(id: ID!, input: ProductWithQuantitiesUpdateInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductWithQuantitiesMutation@update"
+        )
+}
