@@ -10,10 +10,11 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
-use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -156,42 +157,19 @@ class CreateContentSessionAction
 
         foreach ($actions as $key => $action) {
             try {
-                //lets check if this leads already has this engagement
-                $engagement = EngagementRepository::findEngagementForLead(
-                    $this->entity,
-                    $action,
-                    'sent',
-                    'ASC'
-                );
+                // Try to get or create engagement with retry logic
+                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
 
                 if ($engagement === null) {
-                    $engagement = new CreateEngagementAction(
-                        Engagement::from(
-                            $this->session->app,
-                            $this->session->company,
-                            $user,
-                            $this->entity,
-                            [
-                                'action' => $action,
-                                'request_id' => Str::uuid()->toString(),
-                                'source' => 'ai',
-                                'status' => 'sent',
-                                'data' => [],
-                            ],
-                            $this->entity->people
-                        ),
-                        false
-                    );
-                    $result = $engagement->execute();
-                } else {
-                    $result = $engagement;
+                    //$results[$key] = null;
+                    continue;
                 }
 
                 //hide the msg
-                $result->message->is_public = 0;
-                $result->message->saveQuietly();
+                $engagement->message->is_public = 0;
+                $engagement->message->saveQuietly();
 
-                $results[$key] = $result->message->message['action_link'] ?? null;
+                $results[$key] = $engagement->message->message['action_link'] ?? null;
             } catch (Exception $e) {
                 //report($e);
                 $results[$key] = null;
@@ -199,6 +177,43 @@ class CreateContentSessionAction
         }
 
         return $results;
+    }
+
+    /**
+     * Get or create engagement with database locking to prevent race conditions.
+     *
+     * CreateEngagementAction has allowDuplicate=false which checks for existing engagements,
+     * but it has a race condition. We use cache locking here to ensure only one process
+     * can create/check for an engagement at a time.
+     */
+    private function getOrCreateEngagementWithLock(string $action, Users $user): Engagement
+    {
+        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
+
+        // Use Laravel's cache lock with a 10-second timeout to prevent race conditions
+        return Cache::lock($lockKey, 10)->get(function () use ($action, $user): ModelsEngagement {
+            // CreateEngagementAction with allowDuplicate=false will check for existing
+            // engagements and return them instead of creating duplicates
+            $engagementAction = new CreateEngagementAction(
+                Engagement::from(
+                    $this->session->app,
+                    $this->session->company,
+                    $user,
+                    $this->entity,
+                    [
+                        'action' => $action,
+                        'request_id' => Str::uuid()->toString(),
+                        'source' => 'ai',
+                        'status' => 'sent',
+                        'data' => [],
+                    ],
+                    $this->entity->people
+                ),
+                false // allowDuplicate = false
+            );
+
+            return $engagementAction->execute();
+        });
     }
 
     /**
