@@ -159,7 +159,6 @@ class CreateContentSessionAction
             try {
                 // Try to get or create engagement with retry logic
                 $engagement = $this->getOrCreateEngagementWithLock($action, $user);
-
                 if ($engagement === null) {
                     //$results[$key] = null;
                     continue;
@@ -179,14 +178,7 @@ class CreateContentSessionAction
         return $results;
     }
 
-    /**
-     * Get or create engagement with database locking to prevent race conditions.
-     *
-     * CreateEngagementAction has allowDuplicate=false which checks for existing engagements,
-     * but it has a race condition. We use cache locking here to ensure only one process
-     * can create/check for an engagement at a time.
-     */
-    private function getOrCreateEngagementWithLock(string $action, Users $user): Engagement
+    private function getOrCreateEngagementWithLock(string $action, Users $user): ModelsEngagement
     {
         $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
 
