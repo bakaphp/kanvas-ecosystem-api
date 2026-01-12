@@ -49,7 +49,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $user,
             app: $app,
-            integration: IntegrationsEnum::INTERNAL,
+            integration: IntegrationsEnum::ELEAD,
             integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($params) {
                 $company = $params['company'];
 
@@ -82,11 +82,11 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 }
 
                 if (! $match) {
-                    return [
+                    $this->failWorkflow([
                         'error' => 'User not found in Elead',
                         'looking' => $user->email,
                         'ELeadEmployeeID' => $employee->id,
-                    ];
+                    ]);
                 }
 
                 return [
