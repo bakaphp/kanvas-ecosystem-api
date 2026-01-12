@@ -178,12 +178,12 @@ class CreateContentSessionAction
         return $results;
     }
 
-    private function getOrCreateEngagementWithLock(string $action, Users $user): ModelsEngagement
+    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
     {
         $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
 
-        // Use Laravel's cache lock with a 10-second timeout to prevent race conditions
-        return Cache::lock($lockKey, 10)->get(function () use ($action, $user): ModelsEngagement {
+        // Use Laravel's cache lock - block() waits for lock to become available
+        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
             // CreateEngagementAction with allowDuplicate=false will check for existing
             // engagements and return them instead of creating duplicates
             $engagementAction = new CreateEngagementAction(
