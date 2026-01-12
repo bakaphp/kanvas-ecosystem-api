@@ -336,14 +336,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $user = Users::getById((int) $agentUser);
         }
 
-        $messageTypeModel = (new CreateMessageTypeAction(
+        $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(
                 $lead->app->getId(),
                 0,
                 $messageType,
                 $messageType,
             )
-        ))->execute();
+        )->execute();
 
         $messageInput = new MessageInput(
             app: $lead->app,
