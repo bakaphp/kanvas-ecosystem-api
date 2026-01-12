@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\VinSolution;
 use Baka\Traits\KanvasJobsTrait;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
@@ -221,38 +222,44 @@ class DownloadAllLeadsCommand extends Command
                         try {
                             // Transform the lead data to match the expected format
                             $transformedLead = $this->transformVinLeadData($vinLeadData);
+                            $leadId = $transformedLead['LeadId'];
 
-                            $existingLead = ModelsLead::getByCustomField(
-                                CustomFieldEnum::LEADS->value,
-                                $transformedLead['LeadId'],
-                                $company,
-                            );
+                            // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
+                            $lockKey = "vinsolution_lead_sync:{$company->getId()}:{$leadId}";
 
-                            // Use PullLeadAction to sync the lead
-                            $pullLeadAction = new PullLeadAction($app, $company, $user);
-                            $result = $pullLeadAction->execute(null, $transformedLead['LeadId']);
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $transformedLead, $company, $app, $user, &$successCount) {
+                                $existingLead = ModelsLead::getByCustomField(
+                                    CustomFieldEnum::LEADS->value,
+                                    $leadId,
+                                    $company,
+                                );
 
-                            if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
-                                //$lead = ModelsLead::getById($transformedLead['LeadId']);
-                                //$lead->set('downloaded_from_vin_solution', true);
-                                // Check if this lead should have communication channel set based on percentage
-                                //if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
-                                $this->setCommunicationChannel((string) $transformedLead['LeadId'], $transformedLead['createdUtc'] ?? '');
-                                // Increment daily communication channel counter
-                                /*  Redis::incr($redisDailyCommChannelCountKey);
-                                 Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
-                                 $dailyCommChannelCount++; */
-                                //}
-                            }
+                                // Use PullLeadAction to sync the lead
+                                $pullLeadAction = new PullLeadAction($app, $company, $user);
+                                $result = $pullLeadAction->execute(null, $leadId);
 
-                            // Increment daily leads counter
-                            /*     Redis::incr($redisDailyLeadsCountKey);
-                                Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
-                                $dailyLeadsCount++;
- */
-                            if (! empty($result)) {
-                                $successCount++;
-                            }
+                                if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
+                                    //$lead = ModelsLead::getById($leadId);
+                                    //$lead->set('downloaded_from_vin_solution', true);
+                                    // Check if this lead should have communication channel set based on percentage
+                                    //if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
+                                    $this->setCommunicationChannel((string) $leadId, $transformedLead['createdUtc'] ?? '');
+                                    // Increment daily communication channel counter
+                                    /*  Redis::incr($redisDailyCommChannelCountKey);
+                                     Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
+                                     $dailyCommChannelCount++; */
+                                    //}
+                                }
+
+                                // Increment daily leads counter
+                                /*     Redis::incr($redisDailyLeadsCountKey);
+                                    Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
+                                    $dailyLeadsCount++;
+     */
+                                if (! empty($result)) {
+                                    $successCount++;
+                                }
+                            });
                         } catch (Throwable $e) {
                             $errorCount++;
                             $this->warn("Failed to sync lead {$vinLeadData['leadId']}: " . $e->getMessage());
