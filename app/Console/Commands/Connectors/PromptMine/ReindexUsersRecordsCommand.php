@@ -53,13 +53,12 @@ class ReindexUsersRecordsCommand extends Command
 
         $i = 0;
         foreach ($users as $user) {
-             try {
+            try {
                 $user->searchable();
                 $i++;
             } catch (\Exception $e) {
                 $this->error("Error reindexing item ID: {$user->id} - " . $e->getMessage());
             }
-            
         }
         $this->info('Total products to reindexed: ' . $i);
     }
