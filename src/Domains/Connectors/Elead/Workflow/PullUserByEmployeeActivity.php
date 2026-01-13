@@ -54,15 +54,15 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 $company = $params['company'];
 
                 if (! isset($company) || ! $company instanceof Companies) {
-                    return [
+                    $this->failWorkflow([
                         'error' => 'Company not found',
-                    ];
+                    ]);
                 }
 
                 if (! $company->get(ConfigurationEnum::COMPANY->value)) {
-                    return [
+                    $this->failWorkflow([
                         'error' => 'Company not found in Elead',
-                    ];
+                    ]);
                 }
 
                 foreach ($this->employeePositions as $position) {
