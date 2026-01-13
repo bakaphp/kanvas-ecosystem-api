@@ -26,9 +26,9 @@ class SyncLeadWithLegacyCRMAction
             throw new InvalidArgumentException('Legacy CRM API URL is not configured.');
         }
 
-        $this->cid = $this->lead->app->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
+        $this->cid = (string) ($this->lead->app->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
             ?? $this->lead->company->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
-            ?? '';
+            ?? '');
     }
 
     public function execute(): array
