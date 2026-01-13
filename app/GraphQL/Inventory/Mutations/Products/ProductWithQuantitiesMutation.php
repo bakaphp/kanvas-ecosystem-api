@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\Actions\UpdateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
@@ -16,6 +17,7 @@ use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class ProductWithQuantitiesMutation
@@ -23,9 +25,6 @@ class ProductWithQuantitiesMutation
     /**
      * Create a product with variants and quantities.
      * Automatically adds variants to default warehouse with specified quantities.
-     *
-     * @param mixed $root
-     * @param array{input: array} $args
      */
     public function create(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): ProductsModel
     {
@@ -77,6 +76,11 @@ class ProductWithQuantitiesMutation
                     $variant['sku'] = $productSlug . '_' . $variantSlug;
                 }
 
+                // Handle channels: findOrCreate channel by name and convert to channels_id
+                if (isset($variant['channels'])) {
+                    $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
+                }
+
                 // Quantity will be automatically handled by VariantService::createVariantsFromArray
                 // It checks for 'quantity' in the variant array and passes it to the warehouse
             }
@@ -92,9 +96,6 @@ class ProductWithQuantitiesMutation
     /**
      * Update a product with variants and quantities.
      * Updates existing variants or creates new ones in default warehouse.
-     *
-     * @param mixed $root
-     * @param array{id: string, input: array} $args
      */
     public function update(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): ProductsModel
     {
@@ -142,6 +143,11 @@ class ProductWithQuantitiesMutation
                     $variantSlug = Str::slug($variant['name']);
                     $variant['sku'] = $productSlug . '_' . $variantSlug;
                 }
+
+                // Handle channels: findOrCreate channel by name and convert to channels_id
+                if (isset($variant['channels'])) {
+                    $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
+                }
             }
 
             // Process variants separately after product update
@@ -159,5 +165,45 @@ class ProductWithQuantitiesMutation
         }
 
         return $productModel->refresh();
+    }
+
+    /**
+     * Process channels array: findOrCreate channels by name and format for VariantService.
+     */
+    private function processChannels(array $channels, Companies $company, Apps $app, $user): array
+    {
+        $processedChannels = [];
+
+        foreach ($channels as $channelData) {
+            // FindOrCreate channel by name
+            $channel = Channels::firstOrCreate(
+                [
+                    'name' => $channelData['name'],
+                    'companies_id' => $company->getId(),
+                    'apps_id' => $app->getId(),
+                ],
+                [
+                    'slug' => $channelData['slug'] ?? Str::slug($channelData['name']),
+                    'description' => $channelData['name'] . ' pricing channel',
+                    'users_id' => $user->getId(),
+                    'is_published' => 1,
+                ]
+            );
+
+            // Get default warehouse if not specified
+            $warehouseId = $channelData['warehouses_id'] ?? Warehouses::getDefault($company, $app)->getId();
+
+            // Format for VariantService (expects channels_id, not name)
+            $processedChannels[] = [
+                'channels_id' => $channel->getId(),
+                'warehouses_id' => $warehouseId,
+                'price' => $channelData['price'],
+                'discounted_price' => $channelData['discounted_price'] ?? 0,
+                'is_published' => $channelData['is_published'] ?? true,
+                'config' => $channelData['config'] ?? null,
+            ];
+        }
+
+        return $processedChannels;
     }
 }
