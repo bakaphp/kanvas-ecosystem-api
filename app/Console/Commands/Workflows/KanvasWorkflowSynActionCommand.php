@@ -19,6 +19,7 @@ use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPush
 use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
+use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
@@ -299,6 +300,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
+            PullUserByEmployeeActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
