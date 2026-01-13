@@ -134,7 +134,7 @@ class PullLeadAction
         }
 
         $vehicleData = $vehicles[0] ?? [];
-        
+
         // Handle nested vehicle structure
         $vehicle = $vehicleData['vehicle'] ?? $vehicleData;
 
