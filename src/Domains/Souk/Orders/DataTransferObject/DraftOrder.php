@@ -30,6 +30,7 @@ class DraftOrder extends Data
         public readonly CompaniesBranches $branch,
         public readonly Regions $region,
         public readonly Users $user,
+        public readonly Channels $channel,
         public readonly string $email,
         public readonly ModelsPeople $people,
         public readonly float $total,
@@ -46,7 +47,6 @@ class DraftOrder extends Data
         public readonly ?string $phone = null,
         public readonly ?string $notes = null,
         public readonly mixed $metadata = null,
-        public readonly Channels $channel
     ) {
     }
 
