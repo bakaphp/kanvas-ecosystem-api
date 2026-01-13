@@ -26,7 +26,9 @@ class SyncLeadWithLegacyCRMActivity extends KanvasActivity
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams): array {
                 $action = new SyncLeadWithLegacyCRMAction($lead);
 
-                return $action->execute();
+                $result =  $action->execute();
+
+                return $result['success'] ? $result : $this->failWorkflow($result);
             },
             company: $lead->company,
         );
