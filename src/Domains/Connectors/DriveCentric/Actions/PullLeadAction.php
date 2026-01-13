@@ -127,13 +127,16 @@ class PullLeadAction
      */
     protected function syncVehicleOfInterest(array $deal, Lead $lead): void
     {
-        $vehicles = $deal['vehiclesOfInterest'] ?? $deal['vehicles'] ?? [];
+        $vehicles = $deal['vehicleInterests'] ?? $deal['vehiclesOfInterest'] ?? $deal['vehicles'] ?? [];
 
         if (empty($vehicles)) {
             return;
         }
 
-        $vehicle = $vehicles[0] ?? [];
+        $vehicleData = $vehicles[0] ?? [];
+        
+        // Handle nested vehicle structure
+        $vehicle = $vehicleData['vehicle'] ?? $vehicleData;
 
         if (isset($vehicle['year']) && $vehicle['year'] > 0) {
             $lead->set(CustomFieldEnums::VEHICLE_OF_INTEREST->value, [
@@ -144,7 +147,10 @@ class PullLeadAction
                 'vin' => $vehicle['vin'] ?? null,
                 'stockNumber' => $vehicle['stockNumber'] ?? null,
                 'price' => $vehicle['price'] ?? null,
-                'isNew' => ($vehicle['stockType'] ?? '') === 'New',
+                'mileage' => $vehicle['mileage'] ?? null,
+                'exteriorColor' => $vehicle['exteriorColor'] ?? null,
+                'interiorColor' => $vehicle['interiorColor'] ?? null,
+                'isNew' => ($vehicle['stockType'] ?? $vehicleData['stockType'] ?? '') === 'New',
             ]);
         }
     }
