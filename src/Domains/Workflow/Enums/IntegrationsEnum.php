@@ -43,4 +43,5 @@ enum IntegrationsEnum: string
     case SUPERCARROS = 'supercarros';
     case TOOKAN = 'tookan';
     case CHROMEDATA = 'chromedata';
+    case TRIGGER_IA = 'trigger-ia';
 }

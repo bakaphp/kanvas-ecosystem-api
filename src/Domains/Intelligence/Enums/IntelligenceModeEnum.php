@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Enums;
 
 enum IntelligenceModeEnum: string
 {
-    case FULL_ON = 'full_on';
-    case SUPPORT = 'support';
-    case OFF = 'off';
+    case FULL_ON = 'FULL_ON';
+    case SUPPORT = 'SUPPORT';
+    case OFF = 'OFF';
 }
