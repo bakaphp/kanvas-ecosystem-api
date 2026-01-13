@@ -22,6 +22,7 @@ class SyncLeadWithLegacyCRMActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams): array {
                 $action = new SyncLeadWithLegacyCRMAction($lead);
 
