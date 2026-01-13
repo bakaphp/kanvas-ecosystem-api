@@ -117,7 +117,7 @@ class SyncLeadWithLegacyCRMAction
             'domain' => 'Internet',
             'vd_referrer' => $domain,
             'fname' => $people->firstname,
-            'lname' => !empty($people->lastname) ? $people->lastname : ($this->lead->get('lastName') ?? 'N/A'),
+            'lname' => ! empty($people->lastname) ? $people->lastname : ($this->lead->get('lastName') ?? 'N/A'),
             'telephone' => $people->getAllPhones()->first()?->value ?? '',
             'email' => $people->getEmails()->first()?->value ?? '',
             'message' => $this->lead->get('message') ?? $this->lead->description ?? '',
