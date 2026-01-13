@@ -14,28 +14,24 @@ use Spatie\LaravelData\Data;
 
 class Categories extends Data
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public AppInterface $app,
         public CompanyInterface $company,
         public UserInterface $user,
         public string $name,
         public ?int $parent_id = null,
-        public int|string $position = 0,
+        public int|string|float $position = 0,
         public bool $is_published = true,
-        public int $weight = 0,
+        public float|int $weight = 0,
         public ?string $code = null,
         public ?string $slug = null,
+        public ?string $description = null,
+        public int|bool|null $is_featured = 0,
     ) {
     }
 
     /**
      * fromArray.
-     *
      */
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
@@ -49,7 +45,9 @@ class Categories extends Data
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
             $request['weight'] ?? 0,
             $request['code'] ?? null,
-            $request['slug'] ?? null
+            $request['slug'] ?? null,
+            $request['description'] ?? null,
+            $request['is_featured'] ?? 0
         );
     }
 }

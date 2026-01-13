@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -87,20 +88,26 @@ class LeadObserver
             $aiNotesChannel = $lead->company->get('enable_ai_notes_channel', false);
 
             if ($aiNotesChannel) {
-                (
-                    new CreateChannelAction(
-                        new Channel(
-                            $lead->app,
-                            $lead->company,
-                            $lead->user,
-                            (string)$lead->getKey(),
-                            Lead::class,
-                            'Notes',
-                            'AI Notes Channel',
-                            Str::uuid()->toString()
-                        )
+                $channel = new CreateChannelAction(
+                    new Channel(
+                        $lead->app,
+                        $lead->company,
+                        $lead->user,
+                        (string)$lead->getKey(),
+                        Lead::class,
+                        'Notes',
+                        'AI Notes Channel',
+                        Str::uuid()->toString()
                     )
-                )->execute();
+                )
+                ->execute();
+
+                $channel->addCategory(
+                    'ai-agent',
+                    $lead->app,
+                    $lead->user,
+                    $lead->company
+                );
             }
         }
 
@@ -114,5 +121,26 @@ class LeadObserver
         LeadUpdateEvent::dispatch($lead);
 
         //$lead->clearLightHouseCacheJob();
+    }
+
+    public function deleted(Lead $lead): void
+    {
+        //delete social channel related to this lead
+        $channel = $lead->getSocialChannel();
+
+        if ($channel) {
+            $channel->delete();
+        }
+        new DeleteSessionAction($lead)->execute();
+    }
+
+    public function softDeleted(Lead $lead): void
+    {
+        //delete social channel related to this lead
+        $channels = $lead->socialChannels;
+        foreach ($channels as $channel) {
+            $channel->delete();
+        }
+        new DeleteSessionAction($lead)->execute();
     }
 }

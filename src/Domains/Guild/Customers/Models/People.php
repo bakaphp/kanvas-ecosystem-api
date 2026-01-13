@@ -279,35 +279,41 @@ class People extends BaseModel
 
     public function addEmail(string $email): Contact
     {
-        return Contact::updateOrCreate(
+        $contact = Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $email,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
             ]
         );
+
+        return $contact;
     }
 
     public function addPhone(string $phone): Contact
     {
-        return Contact::updateOrCreate(
+        $contact = Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
+
+        return $contact;
     }
 
     public function addCellPhone(string $phone): Contact
     {
-        return Contact::updateOrCreate(
+        $contact = Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
             ]
         );
+
+        return $contact;
     }
 
     public static function findByEmailOrCreate(

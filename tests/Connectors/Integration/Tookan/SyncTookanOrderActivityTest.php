@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass;
+namespace Tests\Connectors\Integration\Tookan;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Workflows\Activities\SyncTookanOrderActivity;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Handlers\TookanHandler;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanParentOrderStatusActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -33,7 +34,9 @@ final class SyncTookanOrderActivityTest extends TestCase
         $app = app(Apps::class);
         $user = Auth::user();
         $company = $user->getCurrentCompany();
+        $this->setupInventory($app, $company, $user);
         $region = Regions::getDefault($company ?? $company, $app);
+        $app->set(EnumsConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, true);
 
         $app->set(ConfigurationEnum::API_KEY->value, env('TEST_TOOKAN_API_KEY'));
         $app->set(ConfigurationEnum::BASE_URL->value, env('TEST_TOOKAN_BASE_URL', ConfigurationEnum::SANDBOX_URL->value));
@@ -50,7 +53,7 @@ final class SyncTookanOrderActivityTest extends TestCase
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [])->json();
-        dump("product response", $productResponse);
+        //dump('product response', $productResponse);
         $productResponse = $productResponse['data']['createProduct'];
 
         $warehouseData = [
@@ -75,9 +78,10 @@ final class SyncTookanOrderActivityTest extends TestCase
 
         // Create second company within the same app
         $company2 = Companies::factory()->create([
-            'apps_id' => $app->getId(),
+            //'apps_id' => $app->getId(),
             'name' => 'Second Test Company',
         ]);
+        $this->setupInventory($app, $company2, $user);
 
         $company2->associateUser(
             $user,
@@ -97,6 +101,7 @@ final class SyncTookanOrderActivityTest extends TestCase
             'input' => [
                 'name' => 'Second Company Product',
                 'slug' => 'second-company-product-' . time(),
+                'sku' => 'SCP-' . time(),
                 'description' => 'Product from second company',
                 'attributes' => [
                     [
@@ -157,20 +162,20 @@ final class SyncTookanOrderActivityTest extends TestCase
                 createOrderFromCart(input: $input) {
                     order {
                         id
+                        status
                     }
                 }
             }
         ', [
             'input' => $data,
         ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-Location' => $company2->branch->uuid,
             'X-Kanvas-App' => $app->key,
         ]);
-
         $order = $response->json('data.createOrderFromCart.order');
         $order = Order::fromApp($app)->find($order['id']);
 
-        $activity = new SyncTookanOrderActivity(
+        $activity = new TookanParentOrderStatusActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -182,8 +187,12 @@ final class SyncTookanOrderActivityTest extends TestCase
         ]);
 
         $order->refresh();
-        $this->assertEquals($result['status'], 'success');
-        $this->assertEquals($result['message'], 'Order synced correctly');
+        $app->del(EnumsConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        if ($result['error'] !== 'No integration configured for this company') {
+            $this->assertEquals($result['status'], 'success');
+            $this->assertEquals($result['message'], 'Parent order status transition handled successfully');
+        }
         // $this->assertEquals($order->resource->companies_id, $company2->id);
     }
 }

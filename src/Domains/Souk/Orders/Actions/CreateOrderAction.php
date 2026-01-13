@@ -91,12 +91,16 @@ class CreateOrderAction
             $order->ip_address = $this->orderData->ipAddress;
             $order->saveOrFail();
 
+            $order->addItems($this->orderData->items);
+
+            if ($this->orderData->items->first()->channelId) {
+                $order->setChannelId($this->orderData->items->first()->channelId);
+            }
+
             if ($this->orderData->orderType) {
                 $order->setOrderType($this->orderData->orderType);
                 new TransitionOrderStateAction($order, $this->orderData->user, $order->orderStatus)->setInitialState();
             }
-
-            $order->addItems($this->orderData->items);
 
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
                 new CreatePaymentAction($order, $this->orderData->user)->execute($order->metadata['data']);
@@ -112,6 +116,8 @@ class CreateOrderAction
                             'app' => $this->orderData->app,
                         ]
                     );
+
+                    // $this->simulateWorkflow($order);
                 }
 
                 try {
@@ -156,4 +162,21 @@ class CreateOrderAction
 
         return $this;
     }
+
+    // public function simulateWorkflow(ModelsOrder $order)
+    // {
+    //     $activity = new CreateTookanOrderActivity(
+    //         0,
+    //         now()->toDateTimeString(),
+    //         StoredWorkflow::make(),
+    //         []
+    //     );
+
+    //     $result = $activity->execute($order, $order->app, [
+    //         'currentEventTypeName' =>  WorkflowEnum::CREATED->value,
+    //         'app' => $order->app,
+    //     ]);
+
+    //     print_r($result);
+    // }
 }

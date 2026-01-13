@@ -14,6 +14,7 @@ use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 #[ObservedBy([EventVersionParticipantObserver::class])]
 class EventVersionParticipant extends BaseModel
@@ -42,6 +43,7 @@ class EventVersionParticipant extends BaseModel
         return $this->belongsTo(ParticipantType::class);
     }
 
+    #[Override]
     protected function casts(): array
     {
         return [

@@ -121,6 +121,6 @@ extend type Mutation @guardByAdmin {
         systemModule: String!
     ): Boolean
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToRole"
         )
 }

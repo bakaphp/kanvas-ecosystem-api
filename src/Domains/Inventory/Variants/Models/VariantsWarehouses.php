@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,6 +18,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Models\VariantWarehouseStatusHistory;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
 use Override;
 
 /**
@@ -43,6 +45,7 @@ use Override;
  * @property string $updated_at
  * @property bool $is_deleted
  */
+#[ObservedBy([VariantsWarehouseObserver::class])]
 class VariantsWarehouses extends BaseModel
 {
     use NoAppRelationshipTrait;

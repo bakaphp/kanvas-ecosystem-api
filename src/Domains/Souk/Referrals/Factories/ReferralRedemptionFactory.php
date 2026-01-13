@@ -30,7 +30,7 @@ class ReferralRedemptionFactory extends Factory
             'referee_user_id' => null,
             'orders_id' => null,
             'discounts_id' => null,
-            'referrer_points_awarded' => $this->faker->numberBetween(100, 1000),
+            'referrer_points_awarded' => $this->faker->randomFloat(2, 100, 1000),
             'referee_discount_amount' => $this->faker->randomFloat(2, 5, 50),
             'status' => 'pending',
             'redeemed_at' => null,

@@ -251,29 +251,31 @@ final class RecombeeProductIndexServiceTest extends TestCase
             }
         ';
 
-        $this->graphQL(
+        $response = $this->graphQL(
             $query,
             [
                 'id' => (string) $this->product->getId(),
                 'intent' => 'product',
             ]
-        )->assertJsonStructure([
-            'data' => [
-                'productRecommendations' => [
-                    'data' => [
-                        '*' => [
-                            'id',
-                            'name',
-                            'slug',
-                            'is_published',
-                        ],
-                    ],
-                    'paginatorInfo' => [
-                        'total',
-                        'count',
+        );
+
+        $response->assertJsonStructure([
+        'data' => [
+            'productRecommendations' => [
+                'data' => [
+                    '*' => [
+                        'id',
+                        'name',
+                        'slug',
+                        'is_published',
                     ],
                 ],
+                'paginatorInfo' => [
+                    'total',
+                    'count',
+                ],
             ],
+        ],
         ]);
     }
 }

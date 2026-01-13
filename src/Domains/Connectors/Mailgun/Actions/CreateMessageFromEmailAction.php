@@ -97,6 +97,7 @@ class CreateMessageFromEmailAction
 
         if ($channel !== null) {
             $channel->addMessage($newMessage);
+            $newMessage->addTag('engagement');
 
             $channel->addCategory(
                 'ai-agent',

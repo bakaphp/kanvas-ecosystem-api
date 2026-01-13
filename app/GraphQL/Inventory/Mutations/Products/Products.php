@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
@@ -15,6 +17,7 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\DataTransferObject\Translate as ProductTranslateDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -98,7 +101,8 @@ class Products
      */
     public function removeAttribute(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $app = app(Apps::class);
+        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany(), $app);
         $attribute = AttributesRepository::getById((int) $req['attribute_id'], auth()->user()->getCurrentCompany());
         $action = new RemoveAttributeAction($product, $attribute);
 
@@ -110,8 +114,16 @@ class Products
      */
     public function addWarehouse(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $product->warehouses()->attach($req['warehouse_id']);
+        $app = app(Apps::class);
+        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany(), $app);
+
+        $productWarehouse = ProductsWarehouses::where('products_id', $product->getId())
+           ->where('warehouses_id', $req['warehouse_id'])
+           ->first();
+
+        if ($productWarehouse === null) {
+            $product->warehouses()->attach($req['warehouse_id']);
+        }
 
         return $product;
     }
@@ -191,5 +203,27 @@ class Products
         $productModel = (new DuplicateProductAction($product, auth()->user()))->execute();
 
         return $productModel;
+    }
+
+    public function publishManagement(mixed $root, array $req): ProductsModel
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        if (! $user->can('is_published', ProductsModel::class) || ! $user->isAdmin()) {
+            throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
+        $product = ProductsRepository::getById((int) $req['id'], $company);
+
+        if ($req['is_published']) {
+            $product->publish();
+            $product->searchable();
+        } else {
+            $product->unPublish();
+            $product->unsearchable();
+        }
+
+        return $product;
     }
 }

@@ -28,6 +28,8 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -78,7 +80,10 @@ class Lead extends BaseModel implements EventResourceInterface
     use CanUseWorkflow;
     use HasLightHouseCache;
     use EventResourceTrait;
-
+    protected $observables = [
+        'softDeleting',
+        'softDeleted',
+    ];
     protected $table = 'leads';
     protected $guarded = [];
 
@@ -189,6 +194,12 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasMany(Channel::class, 'entity_id', 'id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'id')
+            ->where('entity_namespace', self::class);
     }
 
     public function notes(): HasOne
@@ -347,6 +358,42 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $this->organization_id = $organization->id;
         $this->save();
+    }
+
+    public function toSearchableArray(): array
+    {
+        $lead = [
+            'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'email' => (string) $this->email,
+            'phone' => (string) $this->phone,
+            'title' => (string) $this->title,
+            'firstname' => (string) $this->firstname,
+            'lastname' => (string) $this->lastname,
+            'description' => (string) $this->description,
+            'reason_lost' => (string) $this->reason_lost,
+            'is_duplicate' => (bool) $this->is_duplicate,
+            'users_id' => $this->users_id,
+            'companies_id' => $this->companies_id,
+            'apps_id' => $this->apps_id,
+            'companies_branches_id' => $this->companies_branches_id,
+            'leads_receivers_id' => $this->leads_receivers_id,
+            'leads_owner_id' => $this->leads_owner_id,
+            'leads_status_id' => $this->leads_status_id,
+            'leads_sources_id' => $this->leads_sources_id,
+            'pipeline_id' => $this->pipeline_id,
+            'pipeline_stage_id' => $this->pipeline_stage_id,
+            'people_id' => $this->people_id,
+            'organization_id' => $this->organization_id,
+            'leads_types_id' => $this->leads_types_id,
+            'status' => $this->status,
+            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+            'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
+            'people' => $this->people ? $this->people->toSearchableArray() : null,
+        ];
+
+        return $lead;
     }
 
     /**
@@ -632,5 +679,17 @@ class Lead extends BaseModel implements EventResourceInterface
     public function setContactStatus(LeadGroupStatusEnum $status): void
     {
         $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
+    }
+
+    public function isAiMuted(): bool
+    {
+        $muteValue = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value);
+
+        return $muteValue !== null && (int) $muteValue === 0;
+    }
+
+    public function canRunAiAgent(): bool
+    {
+        return ! $this->isAiMuted();
     }
 }

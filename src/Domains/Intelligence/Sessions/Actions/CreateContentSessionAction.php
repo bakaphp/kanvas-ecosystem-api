@@ -10,9 +10,11 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -75,6 +77,7 @@ class CreateContentSessionAction
                 'last_message' => $lastMessage,
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
+                'company_language' => $lead->company->get('lang', 'en'),
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -154,25 +157,18 @@ class CreateContentSessionAction
 
         foreach ($actions as $key => $action) {
             try {
-                $engagement = new CreateEngagementAction(
-                    Engagement::from(
-                        $this->session->app,
-                        $this->session->company,
-                        $user,
-                        $this->entity,
-                        [
-                            'action' => $action,
-                            'request_id' => Str::uuid()->toString(),
-                            'source' => 'ai',
-                            'status' => 'sent',
-                            'data' => [],
-                        ],
-                        $this->entity->people
-                    ),
-                    false
-                );
-                $result = $engagement->execute();
-                $results[$key] = $result->message->message['action_link'] ?? null;
+                // Try to get or create engagement with retry logic
+                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
+                if ($engagement === null) {
+                    //$results[$key] = null;
+                    continue;
+                }
+
+                //hide the msg
+                $engagement->message->is_public = 0;
+                $engagement->message->saveQuietly();
+
+                $results[$key] = $engagement->message->message['action_link'] ?? null;
             } catch (Exception $e) {
                 //report($e);
                 $results[$key] = null;
@@ -180,6 +176,36 @@ class CreateContentSessionAction
         }
 
         return $results;
+    }
+
+    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
+    {
+        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
+
+        // Use Laravel's cache lock - block() waits for lock to become available
+        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
+            // CreateEngagementAction with allowDuplicate=false will check for existing
+            // engagements and return them instead of creating duplicates
+            $engagementAction = new CreateEngagementAction(
+                Engagement::from(
+                    $this->session->app,
+                    $this->session->company,
+                    $user,
+                    $this->entity,
+                    [
+                        'action' => $action,
+                        'request_id' => Str::uuid()->toString(),
+                        'source' => 'ai',
+                        'status' => 'sent',
+                        'data' => [],
+                    ],
+                    $this->entity->people
+                ),
+                false // allowDuplicate = false
+            );
+
+            return $engagementAction->execute();
+        });
     }
 
     /**

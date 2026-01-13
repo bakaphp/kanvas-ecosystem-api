@@ -88,9 +88,8 @@ class WalletManagementQuery
 
     private function getPasoRapidoBalance(AppInterface $app, Companies $company, string $tag): array
     {
-        $pasoRapidoService = new PasoRapidoService($app, $company);
-
         try {
+            $pasoRapidoService = new PasoRapidoService($app, $company);
             $customer = $pasoRapidoService->verifyCustomer($tag);
 
             return [
@@ -100,7 +99,8 @@ class WalletManagementQuery
         } catch (RequestException $e) {
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())?->descripcionMensaje;
+                $body = json_decode((string) $response->getBody());
+                $errorMessage = $body->descripcionMensaje ?? $body->message ?? $e->getMessage();
             } else {
                 $errorMessage = $e->getMessage();
             }

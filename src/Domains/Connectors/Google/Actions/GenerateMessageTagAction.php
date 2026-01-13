@@ -20,7 +20,8 @@ class GenerateMessageTagAction
         ?string $textLookupKey = null,
         bool $limitByCompany = false,
         int $totalTags = 3,
-        array $tags = []
+        array $tags = [],
+        array $messageContentIndexes = []
     ): Message {
         if (empty($tags)) {
             $tags = Tag::fromApp($this->message->app)->notDeleted();
@@ -33,9 +34,21 @@ class GenerateMessageTagAction
         }
 
         $messageData = $this->message->message;
-
+        $messageText = $messageData;
         //$messageText = $textLookupKey !== null ? data_get($messageData, $textLookupKey) : $messageData; //ai_nugged.nugget
-        $messageText = ! is_array($messageData) ? $messageData : json_encode($messageData);
+        //$messageContent
+        //$messageText = ! is_array($messageData) ? $messageData : $messageData;
+
+        if (is_array($messageData) && ! empty($messageContentIndexes)) {
+            $collectedText = '';
+            foreach ($messageContentIndexes as $index) {
+                $textPart = data_get($messageData, $index);
+                if (is_string($textPart)) {
+                    $collectedText .= ' ' . $textPart;
+                }
+            }
+            $messageText = trim($collectedText);
+        }
 
         if (empty($messageText) || ! is_string($messageText)) {
             return $this->message;
@@ -54,7 +67,10 @@ class GenerateMessageTagAction
             };
         }
 
-        if (! empty($tags)) {
+        //verify is doesn't have NSFW tag in the list
+        $hasNSFWTag = in_array('nsfw', array_map('strtolower', $tags), true);
+
+        if (! empty($tags) && ! $hasNSFWTag) {
             $this->message->addTags(
                 $tags
             );

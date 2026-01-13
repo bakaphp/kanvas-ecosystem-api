@@ -33,13 +33,13 @@ class AddAttributeAction
             if ($variantAttribute) {
                 $variantAttribute->value = $this->value;
                 $variantAttribute->is_deleted = 0;
-                $variantAttribute->update();
+                $variantAttribute->saveOrFail();
             } else {
                 $variantAttribute = new VariantsAttributes();
                 $variantAttribute->products_variants_id = $this->variant->getId();
                 $variantAttribute->attributes_id = $this->attribute->getId();
                 $variantAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
-                $variantAttribute->save();
+                $variantAttribute->saveOrFail();
             }
         } catch (UniqueConstraintViolationException $e) {
             // do nothing

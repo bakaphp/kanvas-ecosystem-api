@@ -150,14 +150,22 @@ class CreateBaseOrderAction
         // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
 
-        //@todo remove this we already have it on create order action
-        new SendUserNotificationAction(
-            $order->app,
-            $this->company,
-            $order->user
-        )->execute('admin-new-order', [
-            'order' => $order,
-        ]);
+        try {
+            $userCompany = $order->user->getCurrentCompany();
+            $orderCompany = $order->company;
+
+            if ($userCompany->getId() == $orderCompany->getId()) {
+                new SendUserNotificationAction(
+                    $order->app,
+                    $this->company,
+                    $order->user
+                )->execute('admin-new-order', [
+                    'order' => $order,
+                ]);
+            }
+        } catch (Exception $e) {
+            report($e);
+        }
 
         $this->cart->clear();
 
@@ -199,6 +207,7 @@ class CreateBaseOrderAction
                 currency: Currencies::getByCode('USD'),
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
+                channelId: $lineItem['attributes']['channel_id'] ?? null
             );
         }
 

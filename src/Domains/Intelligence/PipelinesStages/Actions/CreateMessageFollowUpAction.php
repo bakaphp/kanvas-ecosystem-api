@@ -27,7 +27,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\BooleanSchema;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
@@ -130,7 +130,13 @@ class CreateMessageFollowUpAction
             'verb' => 'twilio-sms',
         ]);
 
-        $user = Users::getById($this->session->agent->user_id);
+        $agentUser = $this->lead->app->get('kanvas_agent_user_id');
+        if ($agentUser !== null) {
+            $user = Users::getById($agentUser);
+        } else {
+            $user = Users::getById($this->session->agent->user_id);
+        }
+
         $message = $responseText['message'];
 
         $messageInput = MessageInput::from([
@@ -158,6 +164,7 @@ class CreateMessageFollowUpAction
         )->execute();
 
         $this->session->channel->addMessage($message);
+        $message->addTag('followup');
 
         return $responseText['message'];
     }
@@ -185,7 +192,7 @@ class CreateMessageFollowUpAction
 
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
             $response = Prism::structured()
-                       ->using(Provider::Gemini, 'gemini-2.5-flash')
+                       ->using(Provider::Gemini, 'gemini-2.5-pro')
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)
