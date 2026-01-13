@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -45,6 +46,7 @@ class DraftOrder extends Data
         public readonly ?string $phone = null,
         public readonly ?string $notes = null,
         public readonly mixed $metadata = null,
+        public readonly Channels $channel
     ) {
     }
 
@@ -88,6 +90,8 @@ class DraftOrder extends Data
 
         $people = (new CreatePeopleAction($people))->execute();
 
+        $channel = Channels::getById($request['input']['channel_id'], $app);
+
         $shippingAddress = ! empty($request['input']['shipping_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $request['input']['shipping_address']['address1'] ?? '',
@@ -123,25 +127,26 @@ class DraftOrder extends Data
         }
 
         return new self(
-            $app,
-            $branch,
-            $region,
-            $user,
-            $request['input']['email'],
-            $people,
-            $total,
-            $totalTax,
-            $totalDiscount,
-            $totalShipping,
-            'draft',
-            $region->currency,
-            OrderItem::collect($lineItems, DataCollection::class),
-            ['manual'],
-            $shippingAddress,
-            $billingAddress,
-            $request['input']['phone'] ?? null,
-            $request['input']['notes'] ?? null,
-            $request['input']['metadata'] ?? null,
+            app: $app,
+            branch: $branch,
+            region: $region,
+            user: $user,
+            email: $request['input']['email'],
+            people: $people,
+            total: $total,
+            taxes: $totalTax,
+            totalDiscount: $totalDiscount,
+            totalShipping: $totalShipping,
+            status: 'draft',
+            currency: $region->currency,
+            items: OrderItem::collect($lineItems, DataCollection::class),
+            paymentGatewayName: ['manual'],
+            shippingAddress: $shippingAddress,
+            billingAddress: $billingAddress,
+            phone: $request['input']['phone'] ?? null,
+            notes: $request['input']['notes'] ?? null,
+            metadata: $request['input']['metadata'] ?? null,
+            channel: $channel
         );
     }
 }
