@@ -24,11 +24,11 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\RestoreReactivatedAccountContentAction;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
+use Kanvas\Users\Models\RequestDeletedAccount;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Kanvas\Users\Models\RequestDeletedAccount;
 
 class AuthManagementMutation
 {

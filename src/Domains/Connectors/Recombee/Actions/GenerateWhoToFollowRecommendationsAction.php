@@ -54,10 +54,9 @@ class GenerateWhoToFollowRecommendationsAction
                 $join->on('users.id', '=', 'users_associated_apps.users_id')
                     ->where('users_associated_apps.apps_id', '=', $this->app->getId())
                     ->whereNotNull('users_associated_apps.firstname')
-                    ->where('users_associated_apps.firstname', '!=', '')
-                    ->where('users_associated_apps.lastname', '!=', '')
-                    ->whereNotNull('users_associated_apps.firstname')
                     ->whereNotNull('users_associated_apps.lastname')
+                    ->whereNot('users_associated_apps.firstname', '')
+                    ->whereNot('users_associated_apps.lastname', '')
                     ->where('users_associated_apps.is_deleted', 0)
                     ->where('users_associated_apps.status', 1)
                     ->where('users_associated_apps.total_messages_count', '>=', 1);

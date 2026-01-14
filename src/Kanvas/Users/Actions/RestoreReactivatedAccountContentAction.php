@@ -6,16 +6,15 @@ namespace Kanvas\Users\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\RequestDeletedAccount;
 use Kanvas\Users\Models\Users;
-use Kanvas\Social\Messages\Models\UsersMessages;
 
 class RestoreReactivatedAccountContentAction
 {
     public function __construct(
         public Apps $app,
         public Users $user,
-    ) {}
+    ) {
+    }
 
     public function execute(): bool
     {
