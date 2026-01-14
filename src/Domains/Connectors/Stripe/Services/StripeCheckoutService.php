@@ -42,7 +42,7 @@ class StripeCheckoutService
                             'name' => "Order #{$order->getOrderNumber()}",
                             'description' => $this->getOrderDescription($order),
                         ],
-                        'unit_amount' => $this->convertToStripeAmount($order->total_gross_amount, $order->currency),
+                        'unit_amount' => $this->convertToStripeAmount($order->total_net_amount, $order->currency),
                     ],
                     'quantity' => 1,
                 ],
