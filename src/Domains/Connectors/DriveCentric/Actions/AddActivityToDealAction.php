@@ -18,9 +18,6 @@ class AddActivityToDealAction
         $this->leadService = new LeadService($this->lead->app, $this->lead->company);
     }
 
-    /**
-     * Execute the action to add an activity to the deal.
-     */
     public function execute(
         string $title,
         ?string $content = null,
@@ -30,14 +27,12 @@ class AddActivityToDealAction
     ): array {
         $dealId = $this->lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
 
-        // If deal doesn't exist, create it first
         if (! $dealId) {
             $pushLeadAction = new PushLeadAction($this->lead);
             $pushLeadAction->execute();
             $dealId = $this->lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
         }
 
-        // Build activity object
         $activity = [
             'identifiers' => [
                 [
@@ -49,14 +44,12 @@ class AddActivityToDealAction
             'title' => $title,
         ];
 
-        // Add user - use provided user or default to lead owner
         if ($user) {
             $activity['user'] = $user;
         } else {
-            // Default to lead owner - use CrmId from custom field
             $leadOwner = $this->lead->user;
             $driveCentricUserId = $leadOwner->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
-            
+
             $activity['user'] = [
                 'identifiers' => [
                     ['type' => 'CrmId', 'value' => $driveCentricUserId],
@@ -66,7 +59,6 @@ class AddActivityToDealAction
             ];
         }
 
-        // Add optional fields
         if ($content) {
             $activity['content'] = $content;
         }
@@ -75,13 +67,10 @@ class AddActivityToDealAction
             $activity['files'] = $files;
         }
 
-        // Get full deal data with all required fields
         $dealData = $this->leadService->formatLeadForDriveCentric($this->lead);
-        
-        // Add deal identifier for update
+
         $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
-        
-        // Add activity
+
         $dealData['activities'] = [$activity];
 
         return $this->leadService->upsertDeal($dealData);
