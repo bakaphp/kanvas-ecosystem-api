@@ -102,14 +102,19 @@ class LeadService
     {
         $people = $lead->people;
 
-        $phones = $people->phones->map(function ($phone) {
+        // Use getAllPhones to get both cellphones and regular phones
+        $phones = $people->getAllPhones()->map(function ($phone) {
+            // Map phone types - cellphones should be Mobile, regular phones as Home
+            $phoneType = $phone->type->name === 'Cellphone' ? 'Mobile' : 'Home';
+
             return [
-                'type' => 'Home',
+                'type' => $phoneType,
                 'value' => $phone->value,
             ];
         })->toArray();
 
-        $emails = $people->emails->map(function ($email) {
+        // Use getEmails method
+        $emails = $people->getEmails()->map(function ($email) {
             return [
                 'type' => 'Home',
                 'value' => $email->value,
@@ -121,37 +126,53 @@ class LeadService
             ?? $this->app->get(ConfigurationEnum::DEFAULT_SOURCE_DESCRIPTION->value)
             ?? $lead->company->name;
 
+        $customer = [
+            'isPrimaryBuyer' => true,
+            'type' => 'Individual',
+            'firstName' => $people->firstname,
+            'middleName' => $people->middlename ?? '',
+            'lastName' => $people->lastname,
+            'identifiers' => [
+                [
+                    'type' => 'PartnerId',
+                    'value' => (string) $people->getId(), // Use people ID for customer identifier
+                ],
+            ],
+            'phones' => $phones,
+            'emails' => $emails,
+        ];
+
+        // Add customer CrmId identifier if it exists
+        $customerId = $people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value);
+        if ($customerId) {
+            $customer['identifiers'][] = ['type' => 'CrmId', 'value' => $customerId];
+        }
+
+        // Add birthdate only if valid and format as YYYY-MM-DD
+        if ($people->dob && $people->dob->year > 1900) {
+            $customer['birthdate'] = $people->dob->format('Y-m-d');
+        }
+
         $dealData = [
             'source' => [
                 'type' => $sourceType,
                 'description' => $sourceDescription,
             ],
-            'customers' => [
-                [
-                    'isPrimaryBuyer' => true,
-                    'type' => 'Individual',
-                    'firstName' => $people->firstname,
-                    'middleName' => $people->middlename ?? '',
-                    'lastName' => $people->lastname,
-                    'birthdate' => $people->dob,
-                    'identifiers' => [
-                        [
-                            'type' => 'PartnerId',
-                            'value' => (string) $lead->getId(),
-                        ],
-                    ],
-                    'phones' => $phones,
-                    'emails' => $emails,
-                ],
-            ],
+            'customers' => [$customer],
             'identifiers' => [
                 [
                     'type' => 'PartnerId',
-                    'value' => (string) $lead->getId(),
+                    'value' => (string) $lead->getId(), // Use lead ID for deal identifier
                 ],
             ],
             'stage' => $this->mapLeadStatusToStage($lead),
         ];
+
+        // Add deal CrmId identifier if it exists
+        $dealId = $lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
+        if ($dealId) {
+            $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
+        }
 
         // Add salesperson1 if lead owner has DriveCentric user ID
         $salesperson = $this->formatSalesperson($lead);
@@ -173,7 +194,7 @@ class LeadService
             return null;
         }
 
-        $driveCentricUserId = $owner->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
+        $driveCentricUserId = $owner->get(ConfigurationEnum::getUserKey($lead->company));
 
         if (! $driveCentricUserId) {
             return null;
