@@ -133,4 +133,14 @@ class LeadObserver
         }
         new DeleteSessionAction($lead)->execute();
     }
+
+    public function softDeleted(Lead $lead): void
+    {
+        //delete social channel related to this lead
+        $channels = $lead->socialChannels;
+        foreach ($channels as $channel) {
+            $channel->delete();
+        }
+        new DeleteSessionAction($lead)->execute();
+    }
 }

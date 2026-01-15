@@ -19,6 +19,7 @@ use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -48,6 +49,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $apps_id
  * @property int companies_id
  * @property int $region_id
+ * @property int|null $channel_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $ip_address
@@ -226,6 +228,7 @@ class Order extends BaseModel
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
         $orderItem->metadata = $item->metadata;
+        $orderItem->channel_id = $item->channelId;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -667,6 +670,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setChannelId(int $channelId): void
+    {
+        $this->channel_id = $channelId;
+        $this->saveOrFail();
+    }
+
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
@@ -709,6 +718,11 @@ class Order extends BaseModel
     public function orderTransitionHistory(): HasMany
     {
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channel_id', 'id');
     }
 
     /**

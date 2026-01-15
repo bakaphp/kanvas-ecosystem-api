@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\LeadClient;
@@ -138,25 +137,20 @@ class DealerSocketLeadService
     /**
      * Get email from People model
      */
-    protected function getEmailFromPeople(People $people): string
+    protected function getEmailFromPeople(People $people): ?string
     {
-        try {
-            $emails = $people->getEmails();
+        //try {
+        $emails = $people->getEmails();
 
-            if ($emails->isEmpty()) {
-                throw new Exception("People {$people->id} has no email address");
-            }
+        /*  if ($emails->isEmpty()) {
+             throw new Exception("People {$people->id} has no email address");
+         } */
 
-            // Get first email
-            return $emails->first()->value;
-        } catch (Throwable $e) {
-            Log::error('Failed to get email from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
-
+        // Get first email
+        return $emails->first()?->value ?? null;
+        /* } catch (Throwable $e) {
             throw new Exception("Customer must have an email address. People ID: {$people->id}");
-        }
+        } */
     }
 
     /**

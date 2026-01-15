@@ -59,8 +59,12 @@ class CompanyWorkHoursTool implements ContextToolInterface
         ];
     }
 
-    protected function getStatus(Carbon $now, ?Carbon $opensAt, ?Carbon $closesAt, array $holidayInfo): string
-    {
+    protected function getStatus(
+        Carbon $now,
+        ?Carbon $opensAt,
+        ?Carbon $closesAt,
+        array $holidayInfo
+    ): string {
         if ($holidayInfo['is_observed_holiday']) {
             return 'after_hours';
         }
@@ -76,8 +80,11 @@ class CompanyWorkHoursTool implements ContextToolInterface
         return $now->between($opensAt, $closesAt, true) ? 'work_hours' : 'after_hours';
     }
 
-    protected function getNextOpenDateTime(Carbon $now, ?Carbon $todayOpen, ?Carbon $todayClose): Carbon
-    {
+    protected function getNextOpenDateTime(
+        Carbon $now,
+        ?Carbon $todayOpen,
+        ?Carbon $todayClose
+    ): Carbon {
         $todayHolidayInfo = $this->getHolidayInfo($now);
 
         // If today is an observed holiday, skip to next working day

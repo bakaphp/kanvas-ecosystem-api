@@ -159,6 +159,7 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             $newMessage->addEntity($message->entity());
         }
         $channel->addMessage($newMessage);
+        $newMessage->addTag('engagement');
 
         return $newMessage;
     }

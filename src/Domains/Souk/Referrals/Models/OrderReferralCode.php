@@ -16,7 +16,7 @@ use Override;
  * @property int $referral_codes_id
  * @property int $referrer_user_id
  * @property int $referee_user_id
- * @property int $referrer_points_earned
+ * @property float $referrer_points_earned
  * @property float $referee_discount_applied
  * @property string $status
  * @property \DateTimeInterface|null $completed_at
@@ -48,7 +48,7 @@ class OrderReferralCode extends BaseModel
     protected function casts(): array
     {
         return [
-            'referrer_points_earned' => 'integer',
+            'referrer_points_earned' => 'float',
             'referee_discount_applied' => 'decimal:2',
             'completed_at' => 'datetime',
         ];

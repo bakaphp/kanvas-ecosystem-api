@@ -397,23 +397,24 @@ XML;
     private function getDirectPostUrl(string $format): string
     {
         $format = strtolower($format);
-        $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
+        $environment = (int) $this->app->get(ConfigurationEnum::DEALER_SOCKET_ENV_PRODUCTION->value) === 1 ? 'production' : 'testing';
         $dealerId = $this->authService->getDealerId();
-        $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
+        $dealerNumber = $this->company->get(CustomFieldEnum::DEALER_SOCKET_DEALER_NUMBER->value) ?? '';
+        $baseUrl = $this->app->get(ConfigurationEnum::DEALER_SOCKET_DEFAULT_URL->value) . '/DSOEMLead/US/DCP';
 
-        // --- TESTING ENVIRONMENT (OEM) ---
-        if ($environment === 'testing') {
-            if ($format === 'adf') {
-                return "{$baseUrl}/ADF/1/SalesLead/223IIV3839";
-            } else {
-                return "{$baseUrl}/STAR/554/SalesLead/223IIV3839";
-            }
-        }
+        /*         // --- TESTING ENVIRONMENT (OEM) ---
+                if ($environment === 'testing') {
+                    if ($format === 'adf') {
+                        return "{$baseUrl}/ADF/1/SalesLead/";
+                    } else {
+                        return "{$baseUrl}/STAR/554/SalesLead/";
+                    }
+                } */
 
         if ($format === 'adf') {
-            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerId;
+            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerNumber;
         } else {
-            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerId;
+            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerNumber;
         }
     }
 

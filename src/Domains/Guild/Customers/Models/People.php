@@ -287,8 +287,6 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
-
         return $contact;
     }
 
@@ -302,8 +300,6 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
-
         return $contact;
     }
 
@@ -316,8 +312,6 @@ class People extends BaseModel
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
             ]
         );
-
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
 
         return $contact;
     }

@@ -66,6 +66,7 @@ class FollowUpEngagementActionTest extends TestCase
         ];
         $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
         $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
+        $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ['New Year’s Day', 'Christmas Day', 'Independence Day', 'Labor Day', 'Thanksgiving Day', 'Christmas Eve']);
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $lead->people->addEmail(fake()->email);

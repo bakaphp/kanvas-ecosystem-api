@@ -16,8 +16,8 @@ use Override;
  * @property int $orders_id
  * @property int $loyalty_programs_id
  * @property int $loyalty_tier_memberships_id
- * @property int $points_earned
- * @property int $points_redeemed
+ * @property float $points_earned
+ * @property float $points_redeemed
  * @property string $status
  * @property \DateTime|null $credited_at
  */
@@ -47,9 +47,9 @@ class OrderLoyaltyPoints extends BaseModel
     protected function casts(): array
     {
         return [
-            'points_earned' => 'integer',
-            'points_redeemed' => 'integer',
-            'points_net' => 'integer',
+            'points_earned' => 'float',
+            'points_redeemed' => 'float',
+            'points_net' => 'float',
             'credited_at' => 'datetime',
         ];
     }
@@ -72,7 +72,7 @@ class OrderLoyaltyPoints extends BaseModel
     /**
      * Calculate net points (earned - redeemed).
      */
-    public function getNetPoints(): int
+    public function getNetPoints(): float
     {
         return $this->points_earned - $this->points_redeemed;
     }

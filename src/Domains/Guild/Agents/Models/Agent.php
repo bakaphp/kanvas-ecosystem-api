@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Agents\Enums\AgentFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -27,6 +28,8 @@ use Kanvas\Users\Models\Users;
  * @property int $total_leads
  * @property int $owner_id
  * @property string $owner_linked_source_id
+ * @property string|null $sponsor_name
+ * @property int|null $sponsor_user_id
  */
 class Agent extends BaseModel
 {
@@ -118,5 +121,10 @@ class Agent extends BaseModel
          * @psalm-suppress RedundantCastGivenDocblockType
          */
         return (string) $this->member_id;
+    }
+
+    public function sponsor(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'sponsor_user_id', 'id');
     }
 }

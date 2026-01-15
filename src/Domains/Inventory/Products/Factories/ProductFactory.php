@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Override;
 
 class ProductFactory extends Factory
@@ -34,6 +35,16 @@ class ProductFactory extends Factory
             'description' => $this->faker->text,
             //'sku' => $this->faker->numberBetween(1000, 9000),
         ];
+    }
+
+    #[Override]
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Products $product) {
+            Variants::factory()
+                ->withProductId($product->getId())
+                ->create();
+        });
     }
 
     public function withUserId(int $userId)

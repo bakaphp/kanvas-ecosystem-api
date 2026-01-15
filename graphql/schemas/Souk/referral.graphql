@@ -24,8 +24,8 @@ type ReferralRedemption {
     referrer: User! @belongsTo
     referee: User! @belongsTo
     order: Order @belongsTo
-    referrer_points_awarded: Int!
-    referee_discount_amount: Float!
+    referrer_points_awarded: Money!
+    referee_discount_amount: Money!
     status: String!
     redeemed_at: DateTime
     created_at: DateTime!
@@ -37,14 +37,14 @@ type ReferredUser {
     user_id: ID!
     name: String!
     email: String!
-    points_earned: Int!
-    discount_applied: Float!
+    points_earned: Money!
+    discount_applied: Money!
     referred_at: DateTime!
 }
 
 type UserReferralInfo {
     referral_code: String!
-    total_points_earned: Int!
+    total_points_earned: Money!
     total_referrals: Int!
     referred_users: [ReferredUser!]!
 }
