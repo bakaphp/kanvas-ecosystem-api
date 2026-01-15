@@ -84,4 +84,11 @@ extend type Query @guard {
             defaultCount: 25
             scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
+
+    warehousesByChannel(channel_id: ID!): [Warehouse!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Warehouses\\WarehouseBuilder@getByChannel"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+        )
 }
