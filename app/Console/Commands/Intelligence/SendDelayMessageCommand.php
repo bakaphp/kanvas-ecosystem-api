@@ -124,8 +124,10 @@ class SendDelayMessageCommand extends Command
                         $title,
                     );
                     $message->is_locked = 0;
+                    $message->is_public = 1;
+                    $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
                     //dispatch workflow
                     $message->fireWorkflow(

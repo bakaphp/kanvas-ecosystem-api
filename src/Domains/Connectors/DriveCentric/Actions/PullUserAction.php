@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\DriveCentric\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\UserService;
@@ -19,12 +20,9 @@ class PullUserAction
         protected AppInterface $app,
         protected Companies $company,
     ) {
-        $this->userService = new UserService($this->app, $this->company);
+        $this->userService = new UserService($app, $company);
     }
 
-    /**
-     * Execute pull user action - search by email or name and save CRM ID.
-     */
     public function execute(UserInterface $user): array
     {
         // First try to find by email
@@ -34,15 +32,15 @@ class PullUserAction
             $driveCentricUser = $this->userService->getUserByEmail($user->email);
         }
 
-        // If not found by email, try by name
-        if (! $driveCentricUser && $user->firstname) {
-            $users = $this->userService->getUserByName($user->firstname, $user->lastname);
-            $driveCentricUser = $users[0] ?? null;
+        $phoneNumber = $user->phone_number ?? $user->cell_phone_number ?? null;
+        // If not found by email, try by phone
+        if (! $driveCentricUser && ! empty($phoneNumber)) {
+            $driveCentricUser = $this->userService->getUserByPhone($phoneNumber);
         }
 
         if (! $driveCentricUser) {
             throw new DriveCentricException(
-                "User not found in DriveCentric: {$user->email} / {$user->firstname} {$user->lastname}"
+                "User not found in DriveCentric: {$user->email} / {$phoneNumber}"
             );
         }
 
@@ -55,7 +53,7 @@ class PullUserAction
 
         // Save CRM ID to Kanvas user
         $user->set(
-            CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value,
+            ConfigurationEnum::getUserKey($this->company),
             $crmId
         );
 

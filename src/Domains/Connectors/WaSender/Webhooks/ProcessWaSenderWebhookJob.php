@@ -30,6 +30,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
@@ -168,6 +169,28 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $lead = $this->createLeadFromPeople($people);
                 $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'whatsapp');
                 $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
+            } else {
+                $people = $this->processContact($chatJid);
+                $lead = $this->createLeadFromPeople($people);
+                $status = $messageData['status'] ?? null;
+
+                $firstMessage = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value);
+                if ($messageBody !== null) {
+                    if (! $firstMessage) {
+                        $lead->set(
+                            LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value,
+                            $messageBody
+                        );
+                    }
+
+                    //status = 2 , means user delivery, status = 1 means api delivery
+                    if ((int) $status === 2) {
+                        $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+
+                        unset($people);
+                        $lead = null;
+                    }
+                }
             }
 
             // Create the message slug
@@ -191,14 +214,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $message = $existingMessage;
             } else {
                 // Get the appropriate message type
-                $messageTypeModel = (new CreateMessageTypeAction(
+                $messageTypeModel = new CreateMessageTypeAction(
                     new MessageTypeInput(
                         $this->receiver->app->getId(),
                         0,
                         $messageType,
                         $messageType,
                     )
-                ))->execute();
+                )->execute();
 
                 // Create the message using the action
                 $messageInput = new MessageInput(
@@ -242,6 +265,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             if (isset($lead) && $lead instanceof Lead) {
                 // Associate the message with the lead
                 $message->addEntity($lead);
+                $message->addTag('engagement');
             }
 
             // Associate message with channel

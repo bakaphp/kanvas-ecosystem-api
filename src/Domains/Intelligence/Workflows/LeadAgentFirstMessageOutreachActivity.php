@@ -221,6 +221,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $totalSentMessages++;
                                 } else {
                                     $createMessage->setLock();
+                                    $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
@@ -344,14 +345,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $user = Users::getById((int) $agentUser);
         }
 
-        $messageTypeModel = (new CreateMessageTypeAction(
+        $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(
                 $lead->app->getId(),
                 0,
                 $messageType,
                 $messageType,
             )
-        ))->execute();
+        )->execute();
 
         $messageInput = new MessageInput(
             app: $lead->app,

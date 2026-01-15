@@ -22,14 +22,25 @@ class UserService
     /**
      * List all users for the store.
      * GET /api/stores/{storeId}/user/list
+     *
+     * @param string|null $start Start date-time (e.g., "2025-06-06")
+     * @param string|null $end End date-time (e.g., "2025-07-06")
+     * @param int $offset Pagination offset
+     * @param bool $showInactive Include inactive users
      */
-    public function listUsers(string $start, int $offset = 0, int $limit = 100): array
-    {
-        $response = $this->client->get('/api/stores/{+storeId}/user/list', [
-            'offset' => $offset,
-            'limit' => $limit,
+    public function listUsers(
+        ?string $start = null,
+        ?string $end = null,
+        int $offset = 0,
+        bool $showInactive = false
+    ): array {
+        $params = array_filter([
             'start' => $start,
-        ]);
+            'end' => $end,
+            'offset' => $offset,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $response = $this->client->get('/api/stores/{+storeId}/user/list', $params);
 
         return $response->json('data') ?? [];
     }
@@ -61,17 +72,13 @@ class UserService
     }
 
     /**
-     * Search user by name.
+     * Search user by phone.
      */
-    public function getUserByName(string $firstName, ?string $lastName = null): array
+    public function getUserByPhone(string $phone): ?array
     {
-        $filters = ['firstName' => $firstName];
+        $users = $this->searchUsers(['phone' => $phone]);
 
-        if ($lastName) {
-            $filters['lastName'] = $lastName;
-        }
-
-        return $this->searchUsers($filters);
+        return $users[0] ?? null;
     }
 
     /**

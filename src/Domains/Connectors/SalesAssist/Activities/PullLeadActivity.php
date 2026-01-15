@@ -49,15 +49,16 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
+        $pullLead = [];
 
         if ($isElead) {
-            return new PullLeadAction(
+            $pullLead = new PullLeadAction(
                 $app,
                 $company,
                 $user
             )->execute($params, $entity->id > 0 ? $entity : null);
         } elseif ($isVinSolutions) {
-            return new ActionsPullLeadAction(
+            $pullLead = new ActionsPullLeadAction(
                 $app,
                 $company,
                 $user
@@ -66,27 +67,40 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 leadId: (int) $leadId,
             );
         } elseif ($isDealerSocket) {
-            return new PullPeopleAction(
+            $pullLead = new PullPeopleAction(
                 $app,
                 $company,
                 $user
             )->execute(
-                lead: $entity->id > 0 ? $entity : null,
-                customerId: (int) $leadId,
+                email: $email,
+                phoneNumber: $phone,
+                customerId: $entity->id > 0 ? $entity->id : ((int) $leadId ?? null),
             )->toArray();
         } elseif ($isDriveCentric) {
-            return [
-                new PullPeopleLeadAction(
-                    $app,
-                    $company,
-                    $user
-                )->execute(
-                    phone: $phone,
-                    email: $email,
-                )?->toArray() ?? [],
-            ];
+            $pullLead = new PullPeopleLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                phone: $phone,
+                email: $email,
+            );
+
+            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
         }
 
-        return [];
+        if ($isDriveCentric && $leadId === 'test') {
+            $pullLead = new PullPeopleLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                phone: $phone,
+                email: $email,
+            );
+            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
+        }
+
+        return $pullLead;
     }
 }

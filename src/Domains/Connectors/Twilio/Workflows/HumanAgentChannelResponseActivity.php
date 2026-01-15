@@ -80,7 +80,11 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
-                    ChannelCategoryEnum::EMAIL->value => LeadCommunicationChannelEnum::EMAIL->value,
+
+                    ChannelCategoryEnum::EMAIL->value,
+                    ChannelCategoryEnum::MAILGUN->value
+                        => LeadCommunicationChannelEnum::EMAIL->value,
+
                     ChannelCategoryEnum::SMS->value => LeadCommunicationChannelEnum::SMS->value,
                     default => LeadCommunicationChannelEnum::SMS->value,
                 };
@@ -90,6 +94,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     $message->is_public = 0;
                     $message->save();
                 }
+
+                $message->addTag('engagement');
 
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,

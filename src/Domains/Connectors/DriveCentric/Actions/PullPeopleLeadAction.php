@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\CustomerService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 
 class PullPeopleLeadAction
 {
@@ -34,7 +35,7 @@ class PullPeopleLeadAction
 
             try {
                 $pullPeopleAction = new PullPeopleAction($this->app, $this->company, $this->user);
-                $pullPeopleAction->execute(
+                $people = $pullPeopleAction->execute(
                     email: $email,
                     phone: $phone,
                     customerId: $customerId
@@ -47,6 +48,13 @@ class PullPeopleLeadAction
             if (! empty($customer['deal']['id'])) {
                 $pullLeadAction = new PullLeadAction($this->app, $this->company, $this->user);
                 $lead = $pullLeadAction->execute($customer['deal']['id']);
+            } elseif (empty($customer['deal'])) {
+                //close all lead for thi customer
+                $leads = LeadsRepository::getPeopleActiveLeads($people);
+
+                foreach ($leads->get() as $existingLead) {
+                    $existingLead->close();
+                }
             }
 
             return $lead;

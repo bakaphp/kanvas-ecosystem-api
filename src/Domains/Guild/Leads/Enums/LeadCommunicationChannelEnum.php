@@ -9,4 +9,5 @@ enum LeadCommunicationChannelEnum: string
     case WHATSAPP = 'whatsapp';
     case SMS = 'sms';
     case EMAIL = 'email';
+    case MAILGUN = 'mailgun-email';
 }
