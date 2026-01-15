@@ -38,8 +38,8 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
-                $syncLeadAction = new SyncLeadAction($lead);
-                $eLeadOpportunity = $syncLeadAction->execute();
+                /*   $syncLeadAction = new SyncLeadAction($lead);
+                  $eLeadOpportunity = $syncLeadAction->execute(); */
 
                 $isElead = $lead->company->get(CustomFieldEnum::COMPANY->value) !== null;
                 $isVinSolutions = $lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
