@@ -74,6 +74,7 @@ class ProductsTest extends TestCase
                 }
             }"
         );
+
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }

@@ -6,12 +6,14 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
+use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Social\Channels\Models\Channel;
 
 use function Sentry\captureException;
 
@@ -39,6 +41,7 @@ class FollowUpEngagementAction
 
             $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
+            $isWhatsApp = $messageTemplateChannel === 'whatsapp';
 
             $rules = $config['notification_engagement_rules'];
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
@@ -50,8 +53,20 @@ class FollowUpEngagementAction
                 continue;
             }
 
+            if ($isWhatsApp) {
+                $lastClientMessageTime = $this->getLastClientMessageTime($session->channel);
+
+                // WhatsApp rule: we can only follow up within 24h of the last client message
+                if (! $lastClientMessageTime || $lastClientMessageTime->lt(now($timezone)->subDay())) {
+                    continue;
+                }
+
+                $lastMessageTime = $lastClientMessageTime;
+            }
+
             $now = Carbon::now($timezone);
             $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
+
             if ($lastMessageCreatedAt) {
                 $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
                 $timeDiff = $lastMessageTime->diffInMinutes($now);
@@ -83,7 +98,7 @@ class FollowUpEngagementAction
 
                 if (isset($rules['send_message']) && $rules['send_message']) {
                     new SendMessageToLeadAction($this->lead)->execute(
-                        $this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
+                        $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
                         $this->lead->company->get('twilio_phone_number')
                     );
@@ -96,6 +111,7 @@ class FollowUpEngagementAction
                 $this->lead->moveToNextPipelineStage();
             }
         }
+
         if (isset($message) && $message) {
             return [
                 'first_message' => $message,
@@ -104,5 +120,24 @@ class FollowUpEngagementAction
         }
 
         return null;
+    }
+
+    protected function getLastClientMessageTime(Channel $channel): ?Carbon
+    {
+        $messages = $channel->messages()
+            ->where('message->from_me', false)
+            ->where('is_deleted', 0)
+            ->whereHas('messageType', function ($query): void {
+                $query->where('verb', '=', MessageTypeEnum::TEXT->value);
+            })
+            ->where('created_at', '>=', now()->subDay())
+            ->orderBy('created_at', 'DESC')
+            ->get();
+
+        if (count($messages) === 0) {
+            return null;
+        }
+
+        return Carbon::parse($messages->first()->created_at);
     }
 }

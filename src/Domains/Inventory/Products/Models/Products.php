@@ -178,7 +178,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'products_warehouses',
             'products_id',
             'warehouses_id'
-        );
+        )->where('products_warehouses.is_deleted', 0);
     }
 
     /**
@@ -643,7 +643,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     }
 
     #[Override]
-    public static function newFactory()
+    public static function newFactory(): ProductFactory
     {
         return new ProductFactory();
     }
@@ -949,7 +949,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     public function recalculateWeightByImageCount(): void
     {
-        if (! $this->app->get('product_increase_weight_by_image_count')) {
+        if (! $this->company->get('product_increase_weight_by_image_count')) {
             return;
         }
 

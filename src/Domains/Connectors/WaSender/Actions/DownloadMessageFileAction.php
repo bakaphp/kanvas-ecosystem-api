@@ -53,10 +53,6 @@ array_key_first($this->message->message['raw_data']['message']);
 
         $url = $this->message->message['raw_data']['message'][$this->messageTypeKey]['url'] ?? null;
         $imageName = $this->message->message['message_id'] ?? null;
-        logger()->debug('debug', [
-            $mediaKey,
-            $url,
-        ]);
 
         return $this->processWhatsAppMedia($messageId, $mediaKey, $url, $mimeType);
     }

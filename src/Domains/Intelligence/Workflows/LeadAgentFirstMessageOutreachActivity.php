@@ -58,7 +58,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     ]);
                 }
 
-                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? $lead->people->getPhones()->first()?->value ?? '';
+                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
                 $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
                 $source = $lead->source?->name ?? '';
@@ -79,7 +79,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $channels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    'whatsapp' => $cellPhone,
+                    //'whatsapp' => $cellPhone,
                 ];
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
@@ -93,6 +93,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         continue;
                     }
                     $template = $stageConfig['templates'][$communicationChannel] ?? null;
+
                     if ($template === null || empty($template)) {
                         continue;
                     }
@@ -193,6 +194,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                         if ($skipLeadCurrentDatIn || ($leadCurrentDateIn && $this->isWithinOneDay($lead, $leadCurrentDateIn))) {
                             try {
+                                //$shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead) && $template !== null; //to discuss again
                                 $shouldSendFirstMessageNow = $this->shouldSendFirstMessageNow($lead);
 
                                 $createMessage = $this->createMessage(
@@ -214,8 +216,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                    $sentChannels[] = $communicationChannel;
+                                    $totalSentMessages++;
                                 } else {
                                     $createMessage->setLock();
+                                    $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
@@ -225,8 +230,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 if ($totalSentMessages === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                 }
-                                $sentChannels[] = $communicationChannel;
-                                $totalSentMessages++;
                             } catch (Exception $e) {
                                 report($e);
                             }
@@ -334,14 +337,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             $user = Users::getById((int) $agentUser);
         }
 
-        $messageTypeModel = (new CreateMessageTypeAction(
+        $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(
                 $lead->app->getId(),
                 0,
                 $messageType,
                 $messageType,
             )
-        ))->execute();
+        )->execute();
 
         $messageInput = new MessageInput(
             app: $lead->app,

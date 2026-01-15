@@ -8,12 +8,15 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class CreateSocialChannelActivity extends KanvasActivity
@@ -32,39 +35,67 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        $lead = $contact->people->leads->first();
-
-        $communicationChannel = match ($contact->contacts_types_id) {
-            ContactTypeEnum::CELLPHONE->value => 'sms',
-            ContactTypeEnum::PHONE->value => 'sms',
-            ContactTypeEnum::EMAIL->value => 'email',
-            default => 'unknown',
-        };
-
-        $channel = $this->createChannelAndSession(
-            channelKey: $communicationChannel,
-            communicationChannel: $communicationChannel,
-            contact: $contact,
-            app: $app,
-            lead: $lead,
-            agentId: (int) $params['agent_id']
-        );
-
-        if ($communicationChannel === 'sms') {
-            $channel = $this->createChannelAndSession(
-                channelKey: 'whatsapp',          // para el slug
-                communicationChannel: $communicationChannel, // se mantiene igual que tu código original
-                contact: $contact,
-                app: $app,
-                lead: $lead,
-                agentId: (int) $params['agent_id']
-            );
+        if (empty($params['agent_id'])) {
+            return [
+                'error' => 'Agent ID is required to create social channel',
+            ];
         }
 
-        return [
-            'success' => true,
-            'channel_id' => $channel->getId(),
-        ];
+        $company = $contact->people->company;
+
+        return $this->executeIntegration(
+            entity: $contact,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params): array {
+                //$lead = $contact->people->leads->first();
+                $lead = LeadsRepository::getPeopleActiveLead($contact->people);
+
+                if (! $lead) {
+                    return $this->failWorkflow([
+                        'error' => 'No lead associated with this contact',
+                    ]);
+                }
+
+                $communicationChannel = match ($contact->contacts_types_id) {
+                    ContactTypeEnum::CELLPHONE->value => 'sms',
+                    ContactTypeEnum::EMAIL->value => 'email',
+                    default => 'unknown',
+                };
+
+                if ($communicationChannel === 'unknown') {
+                    return $this->failWorkflow([
+                        'error' => 'Communication channel could not be determined',
+                    ]);
+                }
+
+                $channel = $this->createChannelAndSession(
+                    channelKey: $communicationChannel,
+                    communicationChannel: $communicationChannel,
+                    contact: $contact,
+                    app: $app,
+                    lead: $lead,
+                    agentId: (int) $params['agent_id']
+                );
+
+                if ($communicationChannel === 'sms') {
+                    $channel = $this->createChannelAndSession(
+                        channelKey: 'whatsapp',//slug
+                        communicationChannel: $communicationChannel,
+                        contact: $contact,
+                        app: $app,
+                        lead: $lead,
+                        agentId: (int) $params['agent_id']
+                    );
+                }
+
+                return [
+                    'success' => true,
+                    'channel_id' => $channel->getId(),
+                ];
+            },
+            company: $company
+        );
     }
 
     private function createChannelAndSession(
@@ -74,7 +105,7 @@ class CreateSocialChannelActivity extends KanvasActivity
         Apps $app,
         Lead $lead,
         int $agentId
-    ) {
+    ): Channel {
         $channelDto = ChannelDto::from([
             'apps' => $app,
             'companies' => $lead->company,
@@ -88,7 +119,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             ),
         ]);
 
-        $channel = (new CreateChannelAction($channelDto))->execute();
+        $channel = new CreateChannelAction($channelDto)->execute();
 
         $sessionDto = Session::from([
             'agent' => Agent::getById($agentId),
@@ -104,7 +135,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             ),
         ]);
 
-        (new CreateSessionAction($sessionDto))->execute();
+        new CreateSessionAction($sessionDto)->execute();
 
         return $channel;
     }

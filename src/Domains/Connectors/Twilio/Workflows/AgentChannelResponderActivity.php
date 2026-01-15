@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -34,6 +33,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
+            additionalParams: $params,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [
@@ -52,6 +52,8 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
                 $lead = $message->entity();
+                $message->addTag('engagement');
+
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
                     return [
@@ -60,7 +62,7 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) !== null && (int) $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) === 0) {
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
                         'message' => 'Lead turned off AI agent responses',
                         'entity' => null,

@@ -167,7 +167,7 @@ class SuperCarrosVehicleInventoryCommand extends Command
                 $this->info('');
                 $this->info('Imported Products:');
                 foreach ($result['products'] as $product) {
-                    $this->info('• ' . $product->name . ' (SKU: ' . $product->variants->first()->sku . ')');
+                    $this->info('• ' . $product->name . ' (SKU: ' . $product->variants?->first()?->sku . ')');
                 }
             }
         } catch (Throwable $e) {

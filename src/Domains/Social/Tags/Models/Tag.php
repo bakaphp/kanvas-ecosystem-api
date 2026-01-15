@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Social\Tags\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Observers\TagsObserver;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -31,17 +34,25 @@ use Override;
  * @property int status
  * @property int is_feature
  */
+#[ObservedBy([TagsObserver::class])]
 class Tag extends BaseModel
 {
     use SlugTrait;
     use AsTree;
     use HasFilesystemTrait;
+    use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
     protected $guarded = [];
     protected $table = 'tags';
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Tag';
+    }
 
     public function taggables(): HasMany
     {

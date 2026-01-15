@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
@@ -40,8 +42,9 @@ class SendDelayMessageCommand extends Command
                 ->fromCompany($company)
                 ->where('is_locked', 1)
                 ->whereHas('messageType', function ($query) {
-                    $query->whereIn('slug', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
+                    $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
                 })
+                ->whereDate('created_at', now()->toDateString())
                 ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
                 ->cursor();
 
@@ -95,27 +98,50 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
 
-                new SendMessageToLeadAction($lead)->execute(
-                    $communicationChannel,
-                    $messageContent,
-                    $fromNumber,
-                    $title,
-                );
-                $message->is_locked = 0;
-                $message->saveOrFail();
-                $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                try {
+                    $eLeadOpportunity = EntitiesLead::getById(
+                        $lead->app,
+                        $lead->company,
+                        (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                    );
+                    $eLeadOpportunity->addComment("Sally has already sent the first message to the lead. It's been an hour since the lead was created, and no sales agent has contacted them yet.");
+                } catch (ClientException $e) {
+                    if (Str::contains($e->getMessage(), 'not active')
+                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                        $lead->close();
+                        $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
+                    } else {
+                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                    }
 
-                //dispatch workflow
-                $message->fireWorkflow(
-                    WorkflowEnum::CREATED->value,
-                    true,
-                    [
-                       'app' => $message->app,
-                    ]
-                );
+                    continue;
+                }
 
-                $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
-                $eLeadOpportunity->addComment('Sally has already sent the first message to the lead. It’s been an hour since the lead was created, and no sales agent has contacted them yet.');
+                try {
+                    new SendMessageToLeadAction($lead)->execute(
+                        $communicationChannel,
+                        $messageContent,
+                        $fromNumber,
+                        $title,
+                    );
+                    $message->is_locked = 0;
+                    $message->is_public = 1;
+                    $message->created_at = date('Y-m-d H:i:s');
+                    $message->saveOrFail();
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+
+                    //dispatch workflow
+                    $message->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                           'app' => $message->app,
+                        ]
+                    );
+                    $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
+                } catch (Exception $e) {
+                    $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                }
             }
             $this->info('Processed messages for company: ' . $company->name);
         }

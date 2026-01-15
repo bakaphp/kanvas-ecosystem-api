@@ -225,12 +225,18 @@ trait KanvasModelTrait
      */
     public function softDelete(): bool
     {
+        if ($this->fireModelEvent('softDeleting') === false) {
+            return false;
+        }
+
         $this->is_deleted = StateEnums::YES->getValue();
 
         $delete = $this->saveOrFail();
         if (method_exists($this, 'searchableSoftDelete')) {
             $this->searchableSoftDelete();
         }
+
+        $this->fireModelEvent('softDeleted');
 
         return $delete;
     }

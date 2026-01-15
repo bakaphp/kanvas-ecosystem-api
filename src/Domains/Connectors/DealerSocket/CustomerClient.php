@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DealerSocket;
 
 use Exception;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class CustomerClient extends BaseClient
@@ -37,7 +38,7 @@ class CustomerClient extends BaseClient
     /**
      * Parse Customer API response
      */
-    private function parseCustomerResponse($response): array
+    private function parseCustomerResponse(Response $response): array
     {
         if ($response->failed()) {
             return [

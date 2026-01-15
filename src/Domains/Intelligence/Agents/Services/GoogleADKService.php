@@ -30,6 +30,11 @@ class GoogleADKService
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
         $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrate';
 
+        $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
+        if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
+            $this->baseUrl = $companyBaseUrl;
+        }
+
         if (empty($this->baseUrl)) {
             throw new ValidationException('Google Orchestrator configuration is missing');
         }
