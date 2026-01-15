@@ -64,6 +64,24 @@ class BaseAgentResponderAction
         return $newMessage;
     }
 
+    protected function hijackMessagePhone(string $channelId): string
+    {
+        if ($this->agent->company->get('allow_session_hijack', false)
+          && $this->agent->company->get('overwrite_phone_number') !== null
+        ) {
+            $overwriteConfig = $this->agent->company->get('overwrite_phone_number');
+            $originalRemoteJid = $channelId;
+
+            // Reverse lookup: hijacked -> original
+            $reverseMapping = array_flip($overwriteConfig);
+            if (isset($reverseMapping[$originalRemoteJid])) {
+                return $reverseMapping[$originalRemoteJid];
+            }
+        }
+
+        return $channelId;
+    }
+
     public function execute(array $params = []): array
     {
         return [];
