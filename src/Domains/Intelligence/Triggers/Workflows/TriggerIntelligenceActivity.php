@@ -30,7 +30,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 $triggerType = $params['trigger_type'] ?? null;
                 switch ($triggerType) {
                     case TriggersEnum::NEW_LEAD->value:
-                        $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE) ?? IntelligenceModeEnum::FULL_ON->value;
+                        $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE->value) ?? IntelligenceModeEnum::FULL_ON->value;
                         $lead->set('ai_mode', $defaultAiMode);
                         $lead->set(FollowUpTypeEnum::LEAD_FOLLOW_UP->value, 1);
 
