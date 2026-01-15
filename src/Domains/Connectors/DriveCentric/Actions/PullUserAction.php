@@ -105,7 +105,7 @@ class PullUserAction
      */
     public function isSynced(UserInterface $user): bool
     {
-        return ! empty($user->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value));
+        return ! empty($user->get(ConfigurationEnum::getUserKey($this->company)));
     }
 
     /**
@@ -113,6 +113,6 @@ class PullUserAction
      */
     public function getDriveCentricUserId(UserInterface $user): ?string
     {
-        return $user->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
+        return $user->get(ConfigurationEnum::getUserKey($this->company));
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Actions;
 
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
@@ -48,7 +49,7 @@ class AddActivityToDealAction
             $activity['user'] = $user;
         } else {
             $leadOwner = $this->lead->user;
-            $driveCentricUserId = $leadOwner->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
+            $driveCentricUserId = $leadOwner->get(ConfigurationEnum::getUserKey($this->lead->company));
 
             $activity['user'] = [
                 'identifiers' => [
@@ -68,8 +69,6 @@ class AddActivityToDealAction
         }
 
         $dealData = $this->leadService->formatLeadForDriveCentric($this->lead);
-
-        $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
 
         $dealData['activities'] = [$activity];
 
