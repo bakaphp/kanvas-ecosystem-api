@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
@@ -29,7 +30,8 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 $triggerType = $params['trigger_type'] ?? null;
                 switch ($triggerType) {
                     case TriggersEnum::NEW_LEAD->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
+                        $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE) ?? IntelligenceModeEnum::FULL_ON->value;
+                        $lead->set('ai_mode', $defaultAiMode);
                         $lead->set(FollowUpTypeEnum::LEAD_FOLLOW_UP->value, 1);
 
                         break;

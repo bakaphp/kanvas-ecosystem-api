@@ -178,6 +178,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 jid: $chatJid,
                 lead: $lead
             );
+            $channel->deleteLastMessageLocked();
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)

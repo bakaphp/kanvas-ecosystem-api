@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -270,16 +271,23 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $company = $lead->company;
-
-        // If company does NOT enforce the rule "send only during off-hours",
-        // we can always send.
-        if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+        if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
+            return false;
+        } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+            return false;
+        } else {
             return true;
         }
+        // $company = $lead->company;
 
-        // Rule *is enabled*: allow only outside business hours.
-        return ! $company->isWithinWorkingHours(now());
+        // // If company does NOT enforce the rule "send only during off-hours",
+        // // we can always send.
+        // if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+        //     return true;
+        // }
+
+        // // Rule *is enabled*: allow only outside business hours.
+        // return ! $company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string

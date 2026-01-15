@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -123,6 +124,15 @@ class CreateLeadAction
                         ]
                     );
                 });
+                $newLead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_IA->value,
+                    true,
+                    [
+                        'company' => $this->company,
+                        'app' => $newLead->app,
+                        'trigger_type' => TriggersEnum::NEW_LEAD->value,
+                    ]
+                );
             }
 
             try {

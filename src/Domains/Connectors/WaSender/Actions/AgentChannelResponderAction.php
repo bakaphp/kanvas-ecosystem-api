@@ -10,26 +10,20 @@ use Inspector\Inspector;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
+use Override;
 
-class AgentChannelResponderAction
+class AgentChannelResponderAction extends BaseAgentResponderAction
 {
-    public function __construct(
-        protected Channel $channel,
-        protected Message $message,
-        protected Agent $agent,
-        protected ?Session $session = null,
-    ) {
-    }
-
+    #[Override]
     public function execute(array $params = []): array
     {
         //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
@@ -115,7 +109,10 @@ class AgentChannelResponderAction
 
         // Define the callback to send each chunk in real time
         $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId): void {
-            $whatsAppMessageService->sendTextMessage($channelId, $text);
+            $response = $this->createMessage($text, $channelId, $this->message, $this->channel);
+            if (! $response->is_locked) {
+                $whatsAppMessageService->sendTextMessage($channelId, $text);
+            }
         };
 
         $question = $currentAgent instanceof ADKAgent ?
