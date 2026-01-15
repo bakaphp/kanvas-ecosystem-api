@@ -68,7 +68,7 @@ class AddCommentToDealAction
         // Get the message from the engagement service
         // This is the parent msg engagement
         try {
-            $parentEngagement = $message->getEngagement();
+            $parentEngagement = $message->parent ? $message->parent->getEngagement() : $message->getEngagement();
             // Need to look for the current engagement via status
             $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
                 $this->lead,
