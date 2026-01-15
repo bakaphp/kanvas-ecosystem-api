@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DriveCentric\Enums;
 
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Users\Models\Users;
 
 enum ConfigurationEnum: string
 {
