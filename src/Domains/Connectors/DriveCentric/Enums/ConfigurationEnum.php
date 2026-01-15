@@ -17,8 +17,8 @@ enum ConfigurationEnum: string
     case DEFAULT_SOURCE_DESCRIPTION = 'drive_centric_default_source_description';
     case USER = 'drive_centric_user';
 
-    public static function getUserKey(Companies $company, Users $user): string
+    public static function getUserKey(Companies $company): string
     {
-        return self::USER->value . '_' . $company->getId() . '_' . $user->getId();
+        return self::USER->value . '_' . $company->getId();
     }
 }

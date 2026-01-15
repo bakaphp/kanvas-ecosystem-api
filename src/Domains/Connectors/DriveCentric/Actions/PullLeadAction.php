@@ -61,7 +61,7 @@ class PullLeadAction
             $this->user
         );
 
-        $lead = (new SyncLeadByThirdPartyCustomFieldAction($leadDto))->execute();
+        $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
 
         // Pull and sync co-buyers if present
         $this->syncCoBuyers($deal, $lead);
