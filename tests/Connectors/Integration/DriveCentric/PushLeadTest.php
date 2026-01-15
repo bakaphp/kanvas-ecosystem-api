@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\DriveCentric;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\DriveCentric\Actions\AddActivityToDealAction;
+use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Guild\Customers\Models\People;
@@ -94,5 +96,85 @@ final class PushLeadTest extends TestCase
         $this->assertNotEmpty($updatedResponse);
         // Deal ID should remain the same
         $this->assertEquals($dealId, $lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value));
+    }
+
+    public function testAddCommentToLead(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Setup DriveCentric client
+        $this->setupDriveCentricClient($app, $company);
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
+        $user->set(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value, 'd8256337-9fe4-4671-8b18-abc36e452b86');
+        $lead->leads_owner_id = $user->getId();
+        $lead->save();
+
+        // Push lead first
+        $pushLeadAction = new PushLeadAction($lead);
+        $pushLeadAction->execute();
+
+        // Add comment
+        $addCommentAction = new AddCommentToDealAction($lead);
+        $response = $addCommentAction->execute('Customer is interested in financing options');
+
+        $this->assertNotEmpty($response);
+    }
+
+    public function testAddActivityToLead(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Setup DriveCentric client
+        $this->setupDriveCentricClient($app, $company);
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withUserId($user->getId())
+            ->withCompanyId($company->getId())
+            ->withContacts(canUseFakeInfo: false)
+            ->create();
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create();
+
+        $user->set(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value, 'd8256337-9fe4-4671-8b18-abc36e452b86');
+        $lead->leads_owner_id = $user->getId();
+        $lead->save();
+
+        // Push lead first
+        $pushLeadAction = new PushLeadAction($lead);
+        $pushLeadAction->execute();
+
+        // Add activity
+        $addActivityAction = new AddActivityToDealAction($lead);
+        $response = $addActivityAction->execute(
+            title: 'Follow-up call',
+            content: 'Discussed financing options and vehicle availability'
+        );
+
+        $this->assertNotEmpty($response);
+        $this->assertArrayHasKey('activities', $response);
     }
 }

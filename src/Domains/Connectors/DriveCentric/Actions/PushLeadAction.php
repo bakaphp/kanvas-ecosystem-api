@@ -149,13 +149,13 @@ class PushLeadAction
         $coBuyerData['identifiers'] = $identifiers;
 
         // Add contact info
-        $emails = $coBuyerPeople->emails->map(fn ($email) => [
+        $emails = $coBuyerPeople->getEmails()->map(fn ($email) => [
             'type' => 'Home',
             'value' => $email->value,
         ])->toArray();
 
-        $phones = $coBuyerPeople->phones->map(fn ($phone) => [
-            'type' => 'Cell',
+        $phones = $coBuyerPeople->getCellPhones()->map(fn ($phone) => [
+            'type' => 'Mobile',
             'value' => $phone->value,
         ])->toArray();
 
