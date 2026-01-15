@@ -21,10 +21,8 @@ use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Sessions\Models\Sessions;
-use Kanvas\Users\Actions\RestoreReactivatedAccountContentAction;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
-use Kanvas\Users\Models\RequestDeletedAccount;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
@@ -59,12 +57,6 @@ class AuthManagementMutation
                 'deviceId' => $deviceId,
             ])
         );
-
-        // Search if the user is on the account deletion request table and remove it
-        if ($requestDeletedAccount = RequestDeletedAccount::fromApp($app)->where('users_id', $user->getId())->first()) {
-            $requestDeletedAccount->delete();
-            (new RestoreReactivatedAccountContentAction($app, $user))->execute();
-        }
 
         return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
     }
