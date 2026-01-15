@@ -30,8 +30,6 @@ class AddCommentToDealAction
 
         $dealData = $this->leadService->formatLeadForDriveCentric($this->lead);
 
-        $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
-
         $dealData['comments'] = $comment;
 
         return $this->leadService->upsertDeal($dealData);
