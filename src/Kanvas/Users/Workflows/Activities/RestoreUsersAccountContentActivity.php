@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Users\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Users\Actions\RestoreReactivatedAccountContentAction;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Users\Models\RequestDeletedAccount;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
 
 class RestoreUsersAccountContentActivity extends KanvasActivity
 {
