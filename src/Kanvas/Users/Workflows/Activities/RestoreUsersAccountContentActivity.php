@@ -31,7 +31,7 @@ class RestoreUsersAccountContentActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $user,
             app: $app,
-            integration: IntegrationsEnum::PROMPT_MINE,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($user, $app) {
                 new RestoreReactivatedAccountContentAction($app, $user)->execute();
 
