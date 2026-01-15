@@ -43,6 +43,7 @@ enum WorkflowEnum: string
     case UPDATE_USER_PROFILE = "update-user-profile";
 
     case CONTACT_SAVED = 'contact-saved';
+    case AFTER_LEGACY_FEED = 'after-legacy-feed';
 
     /**
      * Get the enum case by its value.
