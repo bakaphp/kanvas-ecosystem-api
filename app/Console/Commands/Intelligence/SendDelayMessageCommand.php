@@ -18,6 +18,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -137,6 +138,16 @@ class SendDelayMessageCommand extends Command
                            'app' => $message->app,
                         ]
                     );
+                    $tags = $message->tags->pluck('name')->toArray();
+                    if (! in_array('first-message', $tags)) {
+                        $lead->fireWorkflow(
+                            WorkflowEnum::TRIGGER_IA->value,
+                            true,
+                            [
+                                'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
+                            ]
+                        );
+                    }
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());

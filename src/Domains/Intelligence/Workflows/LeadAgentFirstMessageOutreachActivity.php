@@ -367,7 +367,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'from_me' => true,
             ],
             is_public: 1,
-            tags: [$to],
+            tags: [$to,'first-message'],
             //slug: Str::slug($text) . '-' . microtime()
         );
 
