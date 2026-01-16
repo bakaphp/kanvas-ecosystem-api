@@ -93,4 +93,20 @@ class SendRotationEmailsAction
 
         return $fieldMaps;
     }
+
+    protected function mapCustomFieldsWithLabels(array $customFields): array
+    {
+        $formLabels = $this->lead->app->get('JSON_FORM_LABELS') ?? [];
+        $fieldMaps = [];
+
+        foreach ($customFields as $customField) {
+            $fieldName = $customField['name'];
+            $fieldMaps[$fieldName] = [
+                'data' => $customField['data'],
+                'label' => $formLabels[$fieldName] ?? $fieldName,
+            ];
+        }
+
+        return $fieldMaps;
+    }
 }
