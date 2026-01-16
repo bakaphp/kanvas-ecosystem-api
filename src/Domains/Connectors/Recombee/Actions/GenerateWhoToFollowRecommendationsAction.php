@@ -46,24 +46,27 @@ class GenerateWhoToFollowRecommendationsAction
             ->where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->where('entity_namespace', Users::class)
-            ->limit(100)
+            ->limit(50)
             ->pluck('entity_id');
 
         return Users::query()
-            ->join('users_associated_apps', function ($join) {
-                $join->on('users.id', '=', 'users_associated_apps.users_id')
-                    ->where('users_associated_apps.apps_id', '=', $this->app->getId())
-                    ->whereNotNull('users_associated_apps.firstname')
-                    ->where('users_associated_apps.firstname', '!=', '')
-                    ->where('users_associated_apps.is_deleted', 0)
-                    ->where('users_associated_apps.status', 1)
-                    ->where('users_associated_apps.total_messages_count', '>=', 1);
+            ->where('is_deleted', 0)
+            ->where('id', '!=', $user->getId())
+            ->whereIn('id', $entityIds)
+            ->whereNotIn('id', $followedIds)
+            ->whereIn('id', function ($q) {
+                $q->select('users_id')
+                    ->from('users_associated_apps')
+                    ->where('apps_id', $this->app->getId())
+                    ->where('is_deleted', 0)
+                    ->where('status', 1)
+                    ->where('total_messages_count', '>=', 1)
+                    ->whereNotNull('firstname')
+                    ->whereNotNull('lastname')
+                    ->whereNot('firstname', '')
+                    ->whereNot('lastname', '');
             })
-            ->whereNotIn('users.id', $followedIds)
-            ->whereIn('users.id', $entityIds)
-            ->where('users.id', '!=', $user->getId())
-            ->where('users.is_deleted', 0)
-            ->select('users.*');
+            ->limit(5);
     }
 
     private function getIntersectedPopularUsersIds(array $entityIds): array

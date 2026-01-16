@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
 use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
-use Kanvas\Notifications\Notification;
 use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
 use Kanvas\Users\Models\Users;
 
-class FollowsRecommendationsPushNotication extends Notification
+class SpotlightCreatorCreditPushNotification extends CustomMessageNotification
 {
     public function __construct(
-        Users $entity,
-        string $title,
+        Users $user,
+        Message $entity,
         string $message,
+        string $title,
         array $via,
         array $templates = []
     ) {
@@ -25,23 +27,22 @@ class FollowsRecommendationsPushNotication extends Notification
             'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $entity->toArray(),
+            'metadata' => $entity->getMessage(),
             'via' => $via,
+            'message_owner_id' => $entity->user->getId(),
+            'message_id' => $entity->getId(),
+            'parent_message_id' => $entity->getId(),
             'destination_id' => $entity->getId(),
-            'destination_type' => 'USER',
-            'destination_event' => 'FOLLOWING',
-            'user_recommendation' => [
-                'id' => $this->entity->getId(),
-                'displayname' => $this->entity->displayname,
-                'photo' => $this->entity->photo,
-            ],
+            'destination_type' => 'MESSAGE',
+            'destination_event' => 'NEW_MESSAGE',
         ];
 
         parent::__construct($entity, $data, $via);
-        $this->setType(NotificationTypesEnum::FOLLOW_RECOMMENDATION->value);
+        $this->setType(NotificationTypesEnum::IMAGE_PROCESSING->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
-        $this->setInteraction(InteractionEnum::RECOMMENDATIONS->getValue());
+        $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());
+        //$this->setFromUser($user);
         $this->channels = $via;
     }
 }

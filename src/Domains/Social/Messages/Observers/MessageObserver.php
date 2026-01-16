@@ -54,7 +54,7 @@ class MessageObserver
         $message->clearLightHouseCacheJob();
 
         if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
-            $message->searchable();
+            $message->searchableSync();
         }
     }
 
@@ -75,6 +75,9 @@ class MessageObserver
                 $channel->last_message_id = $previousMessage?->id;
                 $channel->saveOrFail();
             }
+        }
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->unsearchable();
         }
     }
 }
