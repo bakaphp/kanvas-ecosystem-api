@@ -442,8 +442,6 @@ class LLMMessageResponseActivity extends KanvasActivity
         $model = (string) ($message->message['ai_model']['value'] ?? 'dall-e-3');
         $chatHistory = $this->getChatHistory($message);
 
-        $model = $model === "imagen-4.0-fast-generate-001" ? 'gemini-3-pro-image-preview' : $model;
-
         if ($message->message['type'] === MessageTypeEnum::IMAGE_FORMAT->value) {
             if (isset($message->message['platform']) && $message->message['platform'] === 'android') {
                 $params['safety_tolerance'] = 1;

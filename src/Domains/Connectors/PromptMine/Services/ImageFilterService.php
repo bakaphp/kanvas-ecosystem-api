@@ -59,10 +59,8 @@ class ImageFilterService
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
-        $imageFilterName = $imageFilterName === 'Imagen 4 Fast' ? 'Nano Banana Pro\ud83d\udd25' : $imageFilterName;
-        $imageFilter = $imageFilter === 'imagen-4.0-fast-generate-001' ? 'gemini-3-pro-image-preview' : $imageFilter;
         $isOpenAi = Str::contains($imageFilter, 'gpt');
-        $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
+        $isGeminiBanana = Str::contains($imageFilterName, ['Banana', 'gemini', 'Gemini']);
 
         $company = $this->getCompany($this->app, $this->entity);
 
