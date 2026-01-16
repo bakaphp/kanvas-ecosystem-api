@@ -16,9 +16,9 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\Connectors\Traits\HasStripeConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -298,7 +298,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
                 updateOrder(id: $id, input: $input) {
-                    order { 
+                    order {
                         id
                         metadata
                         items {
@@ -422,7 +422,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
                 updateOrder(id: $id, input: $input) {
-                    order { 
+                    order {
                         id
                         metadata
                         items {
@@ -540,7 +540,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
                 updateOrder(id: $id, input: $input) {
-                    order { 
+                    order {
                         id
                         metadata
                         fulfillment_status
@@ -747,7 +747,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
                 updateOrder(id: $id, input: $input) {
-                    order { 
+                    order {
                         id
                         metadata
                     }
@@ -877,7 +877,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation updateOrder($id: ID!, $input: UpdateOrderInput!) {
                 updateOrder(id: $id, input: $input) {
-                    order { 
+                    order {
                         id
                         metadata
                     }
@@ -1005,7 +1005,7 @@ class OrderTest extends TestCase
 
         $response = $this->graphQL('
             mutation orderChangeCustomer($order_id: ID!, $customer_id: ID!) {
-                orderChangeCustomer(order_id: $order_id, customer_id: $customer_id) 
+                orderChangeCustomer(order_id: $order_id, customer_id: $customer_id)
             }
         ', [
             'order_id' => $orderId,
