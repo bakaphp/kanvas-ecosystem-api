@@ -131,8 +131,8 @@ class SyncZohoAgentAction
                     'users_linked_source_id' => $sponsorInfo['id'],
                 ])->lockForUpdate()->first()?->users_id ?? null;
             } elseif (is_object($agentOwner) && empty($sponsorInfo)) {
-                $agentData['sponsor_name'] = $ownerAgent->name;
-                $agentData['sponsor_user_id'] = $ownerAgent->users_id;
+                $agentData['sponsor_name'] = $agentOwner->name;
+                $agentData['sponsor_user_id'] = $agentOwner->users_id;
             }
 
             if ($agent) {
