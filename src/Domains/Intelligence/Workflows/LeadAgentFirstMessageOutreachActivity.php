@@ -12,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Enums\DailyReportEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -224,7 +223,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     DailyReportService::track(
                                         $app,
                                         $lead->company,
-                                        DailyReportEnum::AI_MESSAGES_SENT->value
+                                        'ai_messages_sent'
                                     );
                                 } else {
                                     $createMessage->setLock();
