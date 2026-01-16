@@ -61,7 +61,7 @@ class PushFollowRecommendationNotificationCommand extends Command
                 foreach ($usersAssocs as $userAssoc) {
                     $user = $userAssoc->user;
                     $recommendedUsers = (new GenerateWhoToFollowRecommendationsAction($app))->execute($user)->get();
-                    if (empty($recommendedUser)) {
+                    if (! $recommendedUsers->count()) {
                         continue;
                     }
                     $randomRecommendedUser = $recommendedUsers->random();
@@ -80,7 +80,7 @@ class PushFollowRecommendationNotificationCommand extends Command
 
                     $dynamicMessage = str_replace('@username', $randomRecommendedUser->displayname, $dynamicMessage);
                     $followsRecommendationsNotification = new FollowsRecommendationsPushNotication(
-                        $user,
+                        $randomRecommendedUser,
                         "Follow Recommendation",
                         $dynamicMessage,
                         $via,

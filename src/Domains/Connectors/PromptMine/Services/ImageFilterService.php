@@ -60,7 +60,7 @@ class ImageFilterService
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
-        $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
+        $isGeminiBanana = Str::contains($imageFilterName, ['Banana', 'gemini', 'Gemini']);
 
         $company = $this->getCompany($this->app, $this->entity);
 
