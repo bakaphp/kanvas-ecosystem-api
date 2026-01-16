@@ -149,7 +149,7 @@ final class LeadTest extends TestCase
         $startDate = date('Y-m-d', strtotime('-30 days'));
         $endDate = date('Y-m-d');
 
-        $deals = $leadService->getDealsByRange($startDate, $endDate, 0, 10);
+        $deals = $leadService->getDealsByRange($startDate, $endDate, 0);
 
         $this->assertIsArray($deals);
         // We don't assert count since there may or may not be deals

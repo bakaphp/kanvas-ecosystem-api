@@ -17,6 +17,7 @@ use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountConditionData;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Discounts\Models\DiscountType;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
@@ -168,12 +169,12 @@ class PullNetSuiteQuoteToOrderAction
             new DiscountData(
                 name: $netDiscount->name,
                 description: $netDiscount->name,
-                discount_type_id: Discount::getByName('Percentage')->id,
+                discount_type_id: DiscountType::getByName('Percentage')->id,
                 value: abs((float) str_replace('%', '', $discountRate)),
                 is_percentage: true,
                 conditions: DiscountConditionData::collect([], DataCollection::class),
                 is_one_per_customer: false,
-                min_order_value: null,
+                min_order_value: 0,
                 max_discount_amount: null,
                 code: $discountCode,
             )
