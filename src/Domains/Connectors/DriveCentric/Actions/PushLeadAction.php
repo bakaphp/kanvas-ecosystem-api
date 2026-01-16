@@ -19,10 +19,6 @@ class PushLeadAction
         $this->leadService = new LeadService($this->lead->app, $this->lead->company);
     }
 
-    /**
-     * Execute the action to push the lead to DriveCentric as a deal.
-     * This will also create the customer in DriveCentric and store the customer ID.
-     */
     public function execute(): array
     {
         return DB::transaction(function () {
@@ -35,6 +31,12 @@ class PushLeadAction
             $vehicleOfInterest = $this->lead->get(CustomFieldEnums::VEHICLE_OF_INTEREST->value);
             if (! empty($vehicleOfInterest)) {
                 $dealData['vehicleInterests'] = [$this->formatVehicleOfInterest($vehicleOfInterest)];
+            }
+
+            // Add trade-in if exists
+            $tradeIn = $this->lead->get(CustomFieldEnums::TRADE_IN->value);
+            if (! empty($tradeIn)) {
+                $dealData['tradeIns'] = [$this->formatTradeIn($tradeIn)];
             }
 
             // Upsert deal in DriveCentric - this creates/updates the deal AND the customer
@@ -50,10 +52,6 @@ class PushLeadAction
         });
     }
 
-    /**
-     * Save identifiers from response.
-     * This stores both the deal ID on the Lead and the customer ID on the People.
-     */
     protected function saveIdentifiers(array $response): void
     {
         // Save deal identifier on the Lead
@@ -73,9 +71,6 @@ class PushLeadAction
         }
     }
 
-    /**
-     * Extract identifier value by type.
-     */
     protected function extractIdentifier(array $identifiers, string $type): ?string
     {
         foreach ($identifiers as $identifier) {
@@ -87,10 +82,6 @@ class PushLeadAction
         return null;
     }
 
-    /**
-     * Handle co-buyer participant by adding them to the deal.
-     * Co-buyers are added to the deal, which creates their customer record.
-     */
     protected function handleCoBuyer(): void
     {
         $coBuyerParticipant = $this->lead->participants()
@@ -185,9 +176,6 @@ class PushLeadAction
         }
     }
 
-    /**
-     * Update lead with vehicle of interest.
-     */
     public function addVehicleOfInterest(array $vehicleData): array
     {
         $dealId = $this->lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
@@ -205,9 +193,6 @@ class PushLeadAction
         return $this->leadService->upsertDeal($dealData);
     }
 
-    /**
-     * Update lead with trade-in vehicle.
-     */
     public function addTradeIn(array $tradeInData): array
     {
         $dealId = $this->lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
@@ -348,5 +333,86 @@ class PushLeadAction
             'stockType' => $stockType,
             'vehicle' => $vehicle,
         ];
+    }
+
+    protected function formatTradeIn(array $tradeInData): array
+    {
+        // Handle nested vehicle structure from AddTradeInToDealAction
+        $vehicleData = $tradeInData['vehicle'] ?? $tradeInData;
+
+        $identifiers = [
+            [
+                'type' => 'PartnerId',
+                'value' => (string) $this->lead->getId() . '-trade-' . time(),
+            ],
+        ];
+
+        // Add CrmId if it exists to avoid duplication
+        if (isset($tradeInData['_vehicle_crm_id'])) {
+            $identifiers[] = [
+                'type' => 'CrmId',
+                'value' => $tradeInData['_vehicle_crm_id'],
+            ];
+        } elseif (isset($vehicleData['_vehicle_crm_id'])) {
+            $identifiers[] = [
+                'type' => 'CrmId',
+                'value' => $vehicleData['_vehicle_crm_id'],
+            ];
+        }
+
+        $vehicle = [
+            'identifiers' => $identifiers,
+            'year' => (int) ($vehicleData['year'] ?? 0),
+            'make' => $vehicleData['make'] ?? '',
+            'model' => $vehicleData['model'] ?? '',
+        ];
+
+        // Add optional vehicle fields
+        if (isset($vehicleData['vin'])) {
+            $vehicle['vin'] = $vehicleData['vin'];
+        }
+        if (isset($vehicleData['mileage'])) {
+            $vehicle['mileage'] = (int) $vehicleData['mileage'];
+        }
+        if (isset($vehicleData['trim'])) {
+            $vehicle['trim'] = $vehicleData['trim'];
+        }
+        if (isset($vehicleData['stockNumber'])) {
+            $vehicle['stockNumber'] = $vehicleData['stockNumber'];
+        }
+        if (isset($vehicleData['exteriorColor'])) {
+            $vehicle['exteriorColor'] = $vehicleData['exteriorColor'];
+        }
+        if (isset($vehicleData['interiorColor'])) {
+            $vehicle['interiorColor'] = $vehicleData['interiorColor'];
+        }
+
+        $tradeIn = [
+            'vehicle' => $vehicle,
+        ];
+
+        // Add trade-in specific fields
+        if (isset($tradeInData['payoffAmount'])) {
+            $tradeIn['payoffAmount'] = (float) $tradeInData['payoffAmount'];
+        } elseif (isset($tradeInData['payoff'])) {
+            $tradeIn['payoffAmount'] = (float) $tradeInData['payoff'];
+        }
+
+        if (isset($tradeInData['allowance'])) {
+            $tradeIn['allowance'] = (float) $tradeInData['allowance'];
+        }
+
+        if (isset($tradeInData['actualCashValue'])) {
+            $tradeIn['actualCashValue'] = (float) $tradeInData['actualCashValue'];
+        } elseif (isset($tradeInData['value'])) {
+            $tradeIn['actualCashValue'] = (float) $tradeInData['value'];
+        }
+
+        // Add lienholder if exists
+        if (isset($tradeInData['lienholder']) && ! empty($tradeInData['lienholder'])) {
+            $tradeIn['lienholder'] = $tradeInData['lienholder'];
+        }
+
+        return $tradeIn;
     }
 }

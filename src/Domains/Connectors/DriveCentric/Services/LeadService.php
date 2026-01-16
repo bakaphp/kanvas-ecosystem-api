@@ -230,4 +230,24 @@ class LeadService
             default => 'Undefined',
         };
     }
+
+    /**
+     * Update customer credit application.
+     * POST /api/stores/{storeId}/customers/{customerId}/creditApp
+     * Note: API returns empty body on success (HTTP 200)
+     */
+    public function updateCustomerCreditApp(string $customerId, array $creditAppData): array
+    {
+        $this->client->post(
+            "/api/stores/{+storeId}/customers/{$customerId}/creditApp",
+            $creditAppData
+        );
+
+        // API returns empty body on success, so we return the submitted data as confirmation
+        return [
+            'success' => true,
+            'customerId' => $customerId,
+            'creditApp' => $creditAppData,
+        ];
+    }
 }

@@ -174,7 +174,7 @@ class PullNetSuiteQuoteToOrderAction
                 is_percentage: true,
                 conditions: DiscountConditionData::collect([], DataCollection::class),
                 is_one_per_customer: false,
-                min_order_value: null,
+                min_order_value: 0,
                 max_discount_amount: null,
                 code: $discountCode,
             )
