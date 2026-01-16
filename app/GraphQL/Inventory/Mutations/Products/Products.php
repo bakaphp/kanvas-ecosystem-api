@@ -38,13 +38,21 @@ class Products
             )->getId();
         }
 
+        $app = app(Apps::class);
+
         if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
             $company = Companies::getById($req['input']['company_id']);
         } else {
             $company = auth()->user()->getCurrentCompany();
         }
 
-        $productDto = ProductDto::viaRequest($req['input'], $company);
+        $productDto = ProductDto::viaRequest(
+            request: $req['input'],
+            company: $company,
+            user: auth()->user(),
+            app: $app
+        );
+
         $action = new CreateProductAction($productDto, auth()->user());
 
         return $action->execute();
@@ -57,12 +65,21 @@ class Products
     {
         $company = auth()->user()->getCurrentCompany();
 
+        $app = app(Apps::class);
+
         if (isset($req['input']['status'])) {
             $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
         }
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
-        $productDto = ProductDto::viaRequest($req['input'], $product->company);
+
+        $productDto = ProductDto::viaRequest(
+            request: $req['input'],
+            company: $product->company,
+            user: auth()->user(),
+            app: $app
+        );
+
         $productModel = (new UpdateProductAction($product, $productDto, auth()->user()))->execute();
 
         return $productModel;

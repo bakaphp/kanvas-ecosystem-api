@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Contracts\Container\BindingResolutionException;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
@@ -54,30 +53,30 @@ class Product extends Data
      * @throws BindingResolutionException
      * @throws ModelNotFoundException
      */
-    public static function viaRequest(array $request, CompanyInterface $company): self
+    public static function viaRequest(array $request, CompanyInterface $company, AppInterface $app, UserInterface $user): self
     {
         return new self(
-            app(Apps::class),
-            $company,
-            auth()->user(),
-            $request['name'],
-            $request['description'] ?? null,
-            isset($request['products_types_id']) ? ProductsTypesRepository::getById((int) $request['products_types_id'], $company) : null,
-            $request['short_description'] ?? null,
-            $request['html_description'] ?? null,
-            $request['warranty_terms'] ?? null,
-            $request['upc'] ?? null,
-            $request['status_id'] ?? null,
-            $request['is_published'] ?? true,
-            $request['sku'] ?? null,
-            $request['categories'] ?? [],
-            $request['warehouses'] ?? [],
-            $request['variants'] ?? [],
-            $request['attributes'] ?? [],
-            $request['productType'] ?? [],
-            $request['files'] ?? [],
-            $request['slug'] ?? null,
-            $request['weight'] ?? null
+            app: $app,
+            company: $company,
+            user: $user,
+            name: $request['name'],
+            description: $request['description'] ?? null,
+            productsType: isset($request['products_types_id']) ? ProductsTypesRepository::getById((int) $request['products_types_id'], $company) : null,
+            short_description: $request['short_description'] ?? null,
+            html_description: $request['html_description'] ?? null,
+            warranty_terms: $request['warranty_terms'] ?? null,
+            upc: $request['upc'] ?? null,
+            status_id: $request['status_id'] ?? null,
+            is_published: $request['is_published'] ?? true,
+            sku: $request['sku'] ?? null,
+            categories: $request['categories'] ?? [],
+            warehouses: $request['warehouses'] ?? [],
+            variants: $request['variants'] ?? [],
+            attributes: $request['attributes'] ?? [],
+            productType: $request['productType'] ?? [],
+            files: $request['files'] ?? [],
+            slug: $request['slug'] ?? null,
+            weight: $request['weight'] ?? null
         );
     }
 
