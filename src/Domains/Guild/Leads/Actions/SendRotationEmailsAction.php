@@ -79,6 +79,7 @@ class SendRotationEmailsAction
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
         $payload['field_maps'] = $fieldMaps;
+        $payload['field_maps_with_labels'] = $this->mapCustomFieldsWithLabels($payload['custom_fields']);
         $payload['photo'] = $lead->company?->getPhoto()?->url;
 
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode, $this->channels);
