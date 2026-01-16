@@ -70,11 +70,15 @@ class LeadService
      * @param string $startDate Start date in YYYY-MM-DD format
      * @param string $endDate End date in YYYY-MM-DD format
      * @param int $offset Number of rows to skip (must be >= 0)
+     * @param bool $includeMeta Include meta information for pagination
+     *
+     * @return array Returns data array or array{meta: array, data: array} if includeMeta is true
      */
     public function getDealsByRange(
         string $startDate,
         string $endDate,
-        int $offset = 0
+        int $offset = 0,
+        bool $includeMeta = false
     ): array {
         $params = [
             'start' => $startDate,
@@ -84,7 +88,14 @@ class LeadService
 
         $response = $this->client->get('/api/stores/{+storeId}/deal/byrange', $params);
 
-        return $response->json('deals') ?? [];
+        if ($includeMeta) {
+            return [
+                'meta' => $response->json('meta') ?? [],
+                'data' => $response->json('data') ?? [],
+            ];
+        }
+
+        return $response->json('data') ?? [];
     }
 
     /**
