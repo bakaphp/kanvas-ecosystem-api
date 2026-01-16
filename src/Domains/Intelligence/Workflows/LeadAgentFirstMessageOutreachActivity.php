@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Enums\DailyReportEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -22,6 +23,7 @@ use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -218,12 +220,24 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        DailyReportEnum::AI_MESSAGES_SENT->value
+                                    );
                                 } else {
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        'ai_delayed_message_scheduled'
+                                    );
                                 }
 
                                 //only do the external activity once for the first message
