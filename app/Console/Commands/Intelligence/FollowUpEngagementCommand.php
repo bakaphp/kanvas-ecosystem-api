@@ -67,7 +67,7 @@ class FollowUpEngagementCommand extends Command
 
                     $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
-                    $noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
                     $muteAiAgent = $lead->isAiMuted();
                     $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                     $notActive = $lead->isActive() === false;
@@ -82,7 +82,7 @@ class FollowUpEngagementCommand extends Command
                          $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
                          $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
 
-                    $shouldSkip = $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
+                    $shouldSkip = $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
