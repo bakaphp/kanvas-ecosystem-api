@@ -133,6 +133,7 @@ use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -318,6 +319,7 @@ class KanvasWorkflowSynActionCommand extends Command
             DriveCentricWorkflowPushLeadActivity::class,
             DriveCentricWorkflowPushPeopleActivity::class,
             PullUserFromCRMActivity::class,
+            TriggerIntelligenceActivity::class,
         ];
 
         $createdActions = [];

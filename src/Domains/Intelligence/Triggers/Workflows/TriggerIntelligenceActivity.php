@@ -24,7 +24,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $lead,
             app: $app,
-            integration: IntegrationsEnum::TRIGGER_IA,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Trigger IA Logic Here
                 $triggerType = $params['trigger_type'] ?? null;
