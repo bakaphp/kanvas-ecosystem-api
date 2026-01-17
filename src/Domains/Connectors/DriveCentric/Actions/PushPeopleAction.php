@@ -40,8 +40,33 @@ class PushPeopleAction
         }
 
         $customerData = PeopleDTO::toDriveCentric($this->people);
+        $customerResult = $this->customerService->updateCustomer($customerId, $customerData);
 
-        return $this->customerService->updateCustomer($customerId, $customerData);
+        // Update credit app with driver's license if available
+        $creditAppResult = $this->updateCreditAppIfNeeded($customerId);
+
+        return [
+            'customer' => $customerResult,
+            'creditApp' => $creditAppResult,
+        ];
+    }
+
+    /**
+     * Update the credit app with driver's license data if available.
+     */
+    protected function updateCreditAppIfNeeded(string $customerId): ?array
+    {
+        $driverLicenseData = $this->people->getDriverLicenseData();
+
+        if ($driverLicenseData === null) {
+            return null;
+        }
+
+        $creditAppPayload = [
+            'drivingLicense' => $driverLicenseData,
+        ];
+
+        return $this->customerService->addCreditApp($customerId, $creditAppPayload);
     }
 
     /**
