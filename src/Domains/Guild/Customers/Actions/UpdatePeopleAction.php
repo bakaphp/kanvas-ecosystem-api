@@ -174,14 +174,14 @@ class UpdatePeopleAction
         }
 
         if ($this->peopleData->organization) {
-            $organization = (new CreateOrganizationAction(
+            $organization = new CreateOrganizationAction(
                 new Organization(
                     company: $this->peopleData->branch->company,
                     user: $this->peopleData->user,
                     app: $this->peopleData->app,
                     name: $this->peopleData->organization,
                 )
-            ))->execute();
+            )->execute();
             OrganizationPeople::addPeopleToOrganization($organization, $this->people);
         }
 
