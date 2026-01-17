@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -218,12 +219,24 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        'ai_messages_sent'
+                                    );
                                 } else {
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        'ai_delayed_message_scheduled'
+                                    );
                                 }
 
                                 //only do the external activity once for the first message

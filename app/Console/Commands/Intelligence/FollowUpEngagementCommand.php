@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Services\DailyReportService;
 
 class FollowUpEngagementCommand extends Command
 {
@@ -90,6 +91,11 @@ class FollowUpEngagementCommand extends Command
 
                     if ($shouldSkip) {
                         $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skipped'
+                        );
 
                         continue;
                     } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {

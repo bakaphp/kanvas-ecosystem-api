@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 
 use function Sentry\captureException;
@@ -101,6 +102,12 @@ class FollowUpEngagementAction
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
                         $this->lead->company->get('twilio_phone_number')
+                    );
+
+                    DailyReportService::track(
+                        $this->lead->app,
+                        $this->lead->company,
+                        'ai_follow_up_engagement_sent'
                     );
                 }
 
