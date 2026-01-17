@@ -61,6 +61,7 @@ class PullLeadAction
             $this->user
         );
 
+        $leadDto->people->runWorkflow = false;
         $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
 
         // Pull and sync co-buyers if present

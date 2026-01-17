@@ -42,6 +42,8 @@ class SyncPeopleByThirdPartyCustomFieldAction
                 $createPeople = new CreatePeopleAction($this->people);
             }
 
+            $createPeople->runWorkflow = $this->people->runWorkflow ?? true;
+            
             return $createPeople->execute();
         });
     }
