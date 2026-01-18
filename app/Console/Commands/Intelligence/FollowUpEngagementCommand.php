@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Services\DailyReportService;
 
 class FollowUpEngagementCommand extends Command
 {
@@ -67,7 +68,7 @@ class FollowUpEngagementCommand extends Command
 
                     $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
-                    $noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
                     $muteAiAgent = $lead->isAiMuted();
                     $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                     $notActive = $lead->isActive() === false;
@@ -82,7 +83,7 @@ class FollowUpEngagementCommand extends Command
                          $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
                          $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
 
-                    $shouldSkip = $noAgentChannel || $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
+                    $shouldSkip = $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
@@ -90,6 +91,11 @@ class FollowUpEngagementCommand extends Command
 
                     if ($shouldSkip) {
                         $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skipped'
+                        );
 
                         continue;
                     } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {

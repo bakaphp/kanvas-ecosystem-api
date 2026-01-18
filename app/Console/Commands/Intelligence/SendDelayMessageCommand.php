@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -149,6 +150,12 @@ class SendDelayMessageCommand extends Command
                         );
                     }
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
+
+                    DailyReportService::track(
+                        $lead->app,
+                        $lead->company,
+                        'ai_delayed_message_sent'
+                    );
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
                 }

@@ -79,6 +79,7 @@ class SendRotationEmailsAction
             $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
         }
         $payload['field_maps'] = $fieldMaps;
+        $payload['field_maps_with_labels'] = $this->mapCustomFieldsWithLabels($payload['custom_fields']);
         $payload['photo'] = $lead->company?->getPhoto()?->url;
 
         $sendLeadEmailsAction->execute($payload, $users, $notificationMode, $this->channels);
@@ -89,6 +90,22 @@ class SendRotationEmailsAction
         $fieldMaps = [];
         foreach ($customFields as $customField) {
             $fieldMaps[$customField['name']] = $customField['data'];
+        }
+
+        return $fieldMaps;
+    }
+
+    protected function mapCustomFieldsWithLabels(array $customFields): array
+    {
+        $formLabels = $this->lead->app->get('JSON_FORM_LABELS') ?? [];
+        $fieldMaps = [];
+
+        foreach ($customFields as $customField) {
+            $fieldName = $customField['name'];
+            $fieldMaps[$fieldName] = [
+                'data' => $customField['data'],
+                'label' => $formLabels[$fieldName] ?? $fieldName,
+            ];
         }
 
         return $fieldMaps;

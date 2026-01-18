@@ -18,9 +18,6 @@ use Spatie\LaravelData\DataCollection;
 
 class Lead extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompaniesBranches $branch,

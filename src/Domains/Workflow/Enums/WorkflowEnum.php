@@ -44,6 +44,7 @@ enum WorkflowEnum: string
 
     case CONTACT_SAVED = 'contact-saved';
     case TRIGGER_IA = 'trigger-ia';
+    case AFTER_LEGACY_FEED = 'after-legacy-feed';
 
     /**
      * Get the enum case by its value.

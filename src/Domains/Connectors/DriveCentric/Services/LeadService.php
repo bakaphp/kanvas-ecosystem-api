@@ -70,11 +70,15 @@ class LeadService
      * @param string $startDate Start date in YYYY-MM-DD format
      * @param string $endDate End date in YYYY-MM-DD format
      * @param int $offset Number of rows to skip (must be >= 0)
+     * @param bool $includeMeta Include meta information for pagination
+     *
+     * @return array Returns data array or array{meta: array, data: array} if includeMeta is true
      */
     public function getDealsByRange(
         string $startDate,
         string $endDate,
-        int $offset = 0
+        int $offset = 0,
+        bool $includeMeta = false
     ): array {
         $params = [
             'start' => $startDate,
@@ -84,7 +88,14 @@ class LeadService
 
         $response = $this->client->get('/api/stores/{+storeId}/deal/byrange', $params);
 
-        return $response->json('deals') ?? [];
+        if ($includeMeta) {
+            return [
+                'meta' => $response->json('meta') ?? [],
+                'data' => $response->json('data') ?? [],
+            ];
+        }
+
+        return $response->json('data') ?? [];
     }
 
     /**
@@ -102,14 +113,19 @@ class LeadService
     {
         $people = $lead->people;
 
-        $phones = $people->phones->map(function ($phone) {
+        // Use getAllPhones to get both cellphones and regular phones
+        $phones = $people->getAllPhones()->map(function ($phone) {
+            // Map phone types - cellphones should be Mobile, regular phones as Home
+            $phoneType = $phone->type->name === 'Cellphone' ? 'Mobile' : 'Home';
+
             return [
-                'type' => 'Home',
+                'type' => $phoneType,
                 'value' => $phone->value,
             ];
         })->toArray();
 
-        $emails = $people->emails->map(function ($email) {
+        // Use getEmails method
+        $emails = $people->getEmails()->map(function ($email) {
             return [
                 'type' => 'Home',
                 'value' => $email->value,
@@ -121,37 +137,53 @@ class LeadService
             ?? $this->app->get(ConfigurationEnum::DEFAULT_SOURCE_DESCRIPTION->value)
             ?? $lead->company->name;
 
+        $customer = [
+            'isPrimaryBuyer' => true,
+            'type' => 'Individual',
+            'firstName' => $people->firstname,
+            'middleName' => $people->middlename ?? '',
+            'lastName' => $people->lastname,
+            'identifiers' => [
+                [
+                    'type' => 'PartnerId',
+                    'value' => (string) $people->getId(), // Use people ID for customer identifier
+                ],
+            ],
+            'phones' => $phones,
+            'emails' => $emails,
+        ];
+
+        // Add customer CrmId identifier if it exists
+        $customerId = $people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value);
+        if ($customerId) {
+            $customer['identifiers'][] = ['type' => 'CrmId', 'value' => $customerId];
+        }
+
+        // Add birthdate only if valid and format as YYYY-MM-DD
+        if ($people->dob && $people->dob->year > 1900) {
+            $customer['birthdate'] = $people->dob->format('Y-m-d');
+        }
+
         $dealData = [
             'source' => [
                 'type' => $sourceType,
                 'description' => $sourceDescription,
             ],
-            'customers' => [
-                [
-                    'isPrimaryBuyer' => true,
-                    'type' => 'Individual',
-                    'firstName' => $people->firstname,
-                    'middleName' => $people->middlename ?? '',
-                    'lastName' => $people->lastname,
-                    'birthdate' => $people->dob,
-                    'identifiers' => [
-                        [
-                            'type' => 'PartnerId',
-                            'value' => (string) $lead->getId(),
-                        ],
-                    ],
-                    'phones' => $phones,
-                    'emails' => $emails,
-                ],
-            ],
+            'customers' => [$customer],
             'identifiers' => [
                 [
                     'type' => 'PartnerId',
-                    'value' => (string) $lead->getId(),
+                    'value' => (string) $lead->getId(), // Use lead ID for deal identifier
                 ],
             ],
             'stage' => $this->mapLeadStatusToStage($lead),
         ];
+
+        // Add deal CrmId identifier if it exists
+        $dealId = $lead->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
+        if ($dealId) {
+            $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
+        }
 
         // Add salesperson1 if lead owner has DriveCentric user ID
         $salesperson = $this->formatSalesperson($lead);
@@ -173,7 +205,7 @@ class LeadService
             return null;
         }
 
-        $driveCentricUserId = $owner->get(CustomFieldEnums::DRIVE_CENTRIC_USER_ID->value);
+        $driveCentricUserId = $owner->get(ConfigurationEnum::getUserKey($lead->company));
 
         if (! $driveCentricUserId) {
             return null;
@@ -208,5 +240,25 @@ class LeadService
             'lost', 'closed-lost' => 'Dead',
             default => 'Undefined',
         };
+    }
+
+    /**
+     * Update customer credit application.
+     * POST /api/stores/{storeId}/customers/{customerId}/creditApp
+     * Note: API returns empty body on success (HTTP 200)
+     */
+    public function updateCustomerCreditApp(string $customerId, array $creditAppData): array
+    {
+        $this->client->post(
+            "/api/stores/{+storeId}/customers/{$customerId}/creditApp",
+            $creditAppData
+        );
+
+        // API returns empty body on success, so we return the submitted data as confirmation
+        return [
+            'success' => true,
+            'customerId' => $customerId,
+            'creditApp' => $creditAppData,
+        ];
     }
 }
