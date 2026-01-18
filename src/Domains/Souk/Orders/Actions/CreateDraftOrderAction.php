@@ -30,6 +30,7 @@ class CreateDraftOrderAction
             $order->apps_id = $this->orderData->app->getId();
             $order->region_id = $this->orderData->region->getId();
             $order->companies_id = $this->orderData->branch->company->getId();
+            $order->channel_id = $this->orderData->channel->getId();
             $order->people_id = $this->orderData->people->getId();
             $order->users_id = $this->orderData->user->getId();
             $order->user_email = $this->orderData->email;

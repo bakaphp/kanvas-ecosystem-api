@@ -30,6 +30,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Throwable;
 
 class VariantService
 {
@@ -165,6 +166,19 @@ class VariantService
         $company = $variantDto->product->company;
 
         $warehouse = Warehouses::getDefault($company, $product->app);
+
+        $warehouseId = $productDto?->warehouses[0] ?? null;
+
+        if ($warehouseId !== null) {
+            try {
+                $warehouse = Warehouses::getByIdFromCompanyApp(
+                    (int) $warehouseId,
+                    $company,
+                    $product->app
+                );
+            } catch (Throwable $e) {
+            }
+        }
 
         if (isset($variant['warehouse']['status'])) {
             $variant['warehouse']['status_id'] = StatusRepository::getById(

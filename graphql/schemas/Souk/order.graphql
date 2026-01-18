@@ -259,6 +259,7 @@ input DraftOrderInput {
     items: [OrderLineItemInput!]!
     note: String
     metadata: Mixed
+    channel_id: ID!
 }
 
 input OrderLineItemInput {
