@@ -321,8 +321,11 @@ class ImageFilterService
      * Process image with OpenAI
      */
     protected function processImageWithOpenAI(
-        string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
-    {
+        string $imageUrl,
+        string $prompt,
+        Model $entity,
+        array $params = []
+    ): ?Filesystem {
         // Download the image file
         $imageContents = file_get_contents($imageUrl);
         $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
