@@ -51,9 +51,6 @@ class PushPeopleAction
         ];
     }
 
-    /**
-     * Update the credit app with driver's license data if available.
-     */
     protected function updateCreditAppIfNeeded(string $customerId): ?array
     {
         $driverLicenseData = $this->people->getDriverLicenseData();
@@ -69,25 +66,16 @@ class PushPeopleAction
         return $this->customerService->addCreditApp($customerId, $creditAppPayload);
     }
 
-    /**
-     * Get the DriveCentric customer ID if it exists.
-     */
     public function getCustomerId(): ?string
     {
         return $this->people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value);
     }
 
-    /**
-     * Get the DriveCentric deal ID if it exists.
-     */
     public function getDealId(): ?string
     {
         return $this->people->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
     }
 
-    /**
-     * Check if the person has been synced to DriveCentric (has a customer ID).
-     */
     public function isSynced(): bool
     {
         return $this->getCustomerId() !== null;
