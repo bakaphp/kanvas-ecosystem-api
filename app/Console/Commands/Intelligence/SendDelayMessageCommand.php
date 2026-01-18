@@ -50,6 +50,14 @@ class SendDelayMessageCommand extends Command
                 ->cursor();
 
             foreach ($messages as $message) {
+                if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
+                    $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
+                    $message->is_locked = 0;
+                    $message->saveOrFail();
+
+                    continue;
+                }
+
                 $communicationChannel = $message->get('communicationChannel');
                 $fromNumber = $message->get('from_number');
                 $title = $message->get('title');
@@ -148,6 +156,9 @@ class SendDelayMessageCommand extends Command
                                 'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
                             ]
                         );
+                        $this->info('Triggered IA takeover workflow for Lead ID ' . $lead->getId());
+                    } else {
+                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
                     }
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
 
