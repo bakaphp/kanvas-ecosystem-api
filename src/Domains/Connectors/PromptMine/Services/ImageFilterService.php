@@ -60,7 +60,9 @@ class ImageFilterService
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
-        $isGeminiBanana = Str::contains($imageFilterName, 'Banana');
+        $googleGeminiKeywords = ['Banana', 'gemini', 'Gemini'];
+        $isGeminiBanana = Str::contains(strtolower($imageFilterName), $googleGeminiKeywords)
+                            || Str::contains($imageFilter, $googleGeminiKeywords);
 
         $company = $this->getCompany($this->app, $this->entity);
 
@@ -104,7 +106,12 @@ class ImageFilterService
         try {
             // Process image based on the model type
             if ($isOpenAi) {
-                $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $this->entity->message['prompt'], $this->entity, $this->params);
+                $fileSystemRecord = $this->processImageWithOpenAI(
+                    $fileUrl,
+                    $this->entity->message['prompt'],
+                    $this->entity,
+                    $this->params
+                );
                 if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
@@ -114,7 +121,14 @@ class ImageFilterService
                 }
             } elseif ($isGeminiBanana) {
                 // Process with Gemini-Nano-Banana
-                $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $this->entity->message['prompt'] ?? '', $this->entity, $imageFilter, $this->params);
+                $imageFilter = str_replace('-remove', '', $imageFilter); //allow us to reuse filters with -remove suffix
+                $fileSystemRecord = $this->processImageWithGeminiBanana(
+                    $fileUrl,
+                    $this->entity->message['prompt'] ?? '',
+                    $this->entity,
+                    $imageFilter,
+                    $this->params
+                );
                 if ($fileSystemRecord === null) {
                     return [
                         'result' => false,
@@ -239,11 +253,22 @@ class ImageFilterService
      *
      * @return array [fileSystemRecord, processedImageUrl, requestId]
      */
-    protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
-    {
+    protected function processImageWithFalAi(
+        string $fileUrl,
+        string $imageFilter,
+        Model $entity,
+        array $params
+    ): array {
         // Step 1: Submit the image for processing
         $model = 'fal-ai/';
-        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
+        $submitResponse = $this->submitImage(
+            $this->apiUrl,
+            $fileUrl,
+            $imageFilter,
+            $entity->message['prompt'] ?? '',
+            $model,
+            $params
+        )->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -295,7 +320,8 @@ class ImageFilterService
     /**
      * Process image with OpenAI
      */
-    protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
+    protected function processImageWithOpenAI(
+        string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
     {
         // Download the image file
         $imageContents = file_get_contents($imageUrl);
@@ -428,12 +454,24 @@ class ImageFilterService
     /**
      * Process image with Gemini-Nano-Banana
      */
-    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter, array $params): ?Filesystem
-    {
+    protected function processImageWithGeminiBanana(
+        string $imageUrl,
+        string $prompt,
+        Model $entity,
+        string $imageFilter,
+        array $params
+    ): ?Filesystem {
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
-        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, '', $params);
+        $response = $this->submitImage(
+            $apiUrl,
+            $imageUrl,
+            $imageFilter,
+            $prompt,
+            '',
+            $params
+        );
         $responseData = $response->json();
 
         if (! $response->successful()) {
@@ -570,8 +608,14 @@ class ImageFilterService
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
-    {
+    protected function submitImage(
+        string $apiUrl,
+        string $imageUrl,
+        string $imageFilter,
+        string $prompt,
+        string $model,
+        array $params
+    ): Response {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);
