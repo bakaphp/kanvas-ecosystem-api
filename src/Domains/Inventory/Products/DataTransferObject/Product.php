@@ -53,7 +53,7 @@ class Product extends Data
      * @throws BindingResolutionException
      * @throws ModelNotFoundException
      */
-    public static function viaRequest(array $request, CompanyInterface $company, AppInterface $app, UserInterface $user): self
+    public static function fromMultiple(array $request, CompanyInterface $company, AppInterface $app, UserInterface $user): self
     {
         return new self(
             app: $app,

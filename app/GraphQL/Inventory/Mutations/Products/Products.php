@@ -46,13 +46,7 @@ class Products
             $company = auth()->user()->getCurrentCompany();
         }
 
-        $productDto = ProductDto::viaRequest(
-            request: $req['input'],
-            company: $company,
-            user: auth()->user(),
-            app: $app
-        );
-
+        $productDto = ProductDto::fromMultiple($req['input'], $company);
         $action = new CreateProductAction($productDto, auth()->user());
 
         return $action->execute();
@@ -73,7 +67,7 @@ class Products
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
 
-        $productDto = ProductDto::viaRequest(
+        $productDto = ProductDto::fromMultiple(
             request: $req['input'],
             company: $product->company,
             user: auth()->user(),
