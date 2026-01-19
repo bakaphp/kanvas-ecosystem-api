@@ -56,6 +56,7 @@ class VideoCreationService
                 'result_data' => $result['result_data'] ?? null,
                 'request_id' => $result['request_id'] ?? null,
                 'message' => $result['message'] ?? 'Video processing started',
+                'data' => $result,
             ];
         } catch (Exception $e) {
             new MessageOrderFulfillmentAction($this->entity)->execute('video', true);
