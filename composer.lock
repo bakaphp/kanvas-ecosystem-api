@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.369.10",
+            "version": "3.369.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "e179090bf2d658be7be37afc146111966ba6f41b"
+                "reference": "7c62f41fb0460c3e5d5c1f70e93e726f1daa75f5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/e179090bf2d658be7be37afc146111966ba6f41b",
-                "reference": "e179090bf2d658be7be37afc146111966ba6f41b",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/7c62f41fb0460c3e5d5c1f70e93e726f1daa75f5",
+                "reference": "7c62f41fb0460c3e5d5c1f70e93e726f1daa75f5",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.369.10"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.369.15"
             },
-            "time": "2026-01-09T19:08:12+00:00"
+            "time": "2026-01-16T19:18:57+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -1684,16 +1684,16 @@
         },
         {
             "name": "echolabsdev/prism",
-            "version": "v0.99.11",
+            "version": "v0.99.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/prism-php/prism.git",
-                "reference": "fa7d043bc2fb683855faad7f67e50ca83742989c"
+                "reference": "2b02cb2cd788a3b42f3fbfdf784f07496c411623"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/fa7d043bc2fb683855faad7f67e50ca83742989c",
-                "reference": "fa7d043bc2fb683855faad7f67e50ca83742989c",
+                "url": "https://api.github.com/repos/prism-php/prism/zipball/2b02cb2cd788a3b42f3fbfdf784f07496c411623",
+                "reference": "2b02cb2cd788a3b42f3fbfdf784f07496c411623",
                 "shasum": ""
             },
             "require": {
@@ -1751,7 +1751,7 @@
             "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
             "support": {
                 "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.99.11"
+                "source": "https://github.com/prism-php/prism/tree/v0.99.13"
             },
             "funding": [
                 {
@@ -1759,7 +1759,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-05T14:04:40+00:00"
+            "time": "2026-01-17T19:32:19+00:00"
         },
         {
             "name": "egulias/email-validator",
@@ -2368,16 +2368,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.69.0",
+            "version": "v1.71.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "a35bcf9d79f7007eaaf325e00011d08f40494fb1"
+                "reference": "e1696b2e27390078d78bd335d6cc6b7b2c32a7dd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/a35bcf9d79f7007eaaf325e00011d08f40494fb1",
-                "reference": "a35bcf9d79f7007eaaf325e00011d08f40494fb1",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/e1696b2e27390078d78bd335d6cc6b7b2c32a7dd",
+                "reference": "e1696b2e27390078d78bd335d6cc6b7b2c32a7dd",
                 "shasum": ""
             },
             "require": {
@@ -2397,7 +2397,7 @@
                 "nikic/php-parser": "^5.6",
                 "opis/closure": "^3.7|^4.0",
                 "phpdocumentor/reflection": "^6.0",
-                "phpdocumentor/reflection-docblock": "^5.3",
+                "phpdocumentor/reflection-docblock": "^5.3.3||^6.0",
                 "phpspec/prophecy-phpunit": "^2.0",
                 "phpunit/phpunit": "^9.0",
                 "squizlabs/php_codesniffer": "2.*"
@@ -2429,9 +2429,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.69.0"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.71.0"
             },
-            "time": "2025-12-06T04:51:04+00:00"
+            "time": "2026-01-16T19:46:18+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
@@ -2534,16 +2534,16 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.49.0",
+            "version": "v1.49.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "30aefa19ce5af165cef8bb39c224cfa865461541"
+                "reference": "67b430f2ef164276e841ebfff8e3aa174576bd7f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/30aefa19ce5af165cef8bb39c224cfa865461541",
-                "reference": "30aefa19ce5af165cef8bb39c224cfa865461541",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/67b430f2ef164276e841ebfff8e3aa174576bd7f",
+                "reference": "67b430f2ef164276e841ebfff8e3aa174576bd7f",
                 "shasum": ""
             },
             "require": {
@@ -2555,7 +2555,7 @@
                 "erusev/parsedown": "^1.6",
                 "google/cloud-pubsub": "^2.0",
                 "phpdocumentor/reflection": "^5.3.3||^6.0",
-                "phpdocumentor/reflection-docblock": "^5.3",
+                "phpdocumentor/reflection-docblock": "^5.3.3||^6.0",
                 "phpseclib/phpseclib": "^2.0||^3.0",
                 "phpspec/prophecy-phpunit": "^2.0",
                 "phpunit/phpunit": "^9.0",
@@ -2585,9 +2585,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.49.0"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.49.1"
             },
-            "time": "2025-12-06T04:51:04+00:00"
+            "time": "2026-01-16T19:46:18+00:00"
         },
         {
             "name": "google/common-protos",
@@ -2650,16 +2650,16 @@
         },
         {
             "name": "google/gax",
-            "version": "v1.40.0",
+            "version": "v1.40.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "1d3834d60b3f0794427c64d2b27d7c627fbba92c"
+                "reference": "80527b9779c3277c31c74d2fb7ff1ca990239163"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/1d3834d60b3f0794427c64d2b27d7c627fbba92c",
-                "reference": "1d3834d60b3f0794427c64d2b27d7c627fbba92c",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/80527b9779c3277c31c74d2fb7ff1ca990239163",
+                "reference": "80527b9779c3277c31c74d2fb7ff1ca990239163",
                 "shasum": ""
             },
             "require": {
@@ -2701,9 +2701,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.40.0"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.40.1"
             },
-            "time": "2025-12-04T18:45:15+00:00"
+            "time": "2026-01-16T19:54:08+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -2796,16 +2796,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.33.3",
+            "version": "v4.33.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "281537d44d6c270606354e65bfa75a0969dbd629"
+                "reference": "22d28025cda0d223a2e48c2e16c5284ecc9f5402"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/281537d44d6c270606354e65bfa75a0969dbd629",
-                "reference": "281537d44d6c270606354e65bfa75a0969dbd629",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/22d28025cda0d223a2e48c2e16c5284ecc9f5402",
+                "reference": "22d28025cda0d223a2e48c2e16c5284ecc9f5402",
                 "shasum": ""
             },
             "require": {
@@ -2834,9 +2834,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.33.3"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.33.4"
             },
-            "time": "2026-01-09T21:49:37+00:00"
+            "time": "2026-01-12T17:58:43+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -2906,12 +2906,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/grantholle/laravel-username-generator.git",
-                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d"
+                "reference": "0df247f9d44a629a5963eb7379c6d31ee9f79b95"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/f66771fbe044a6ab33dd422787ef48e2eeef210d",
-                "reference": "f66771fbe044a6ab33dd422787ef48e2eeef210d",
+                "url": "https://api.github.com/repos/grantholle/laravel-username-generator/zipball/0df247f9d44a629a5963eb7379c6d31ee9f79b95",
+                "reference": "0df247f9d44a629a5963eb7379c6d31ee9f79b95",
                 "shasum": ""
             },
             "require": {
@@ -2971,7 +2971,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-12T17:31:11+00:00"
+            "time": "2026-01-12T21:14:19+00:00"
         },
         {
             "name": "grpc/grpc",
@@ -4846,16 +4846,16 @@
         },
         {
             "name": "laravel/prompts",
-            "version": "v0.3.9",
+            "version": "v0.3.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/prompts.git",
-                "reference": "5c41bf0555b7cfefaad4e66d3046675829581ac4"
+                "reference": "360ba095ef9f51017473505191fbd4ab73e1cab3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/prompts/zipball/5c41bf0555b7cfefaad4e66d3046675829581ac4",
-                "reference": "5c41bf0555b7cfefaad4e66d3046675829581ac4",
+                "url": "https://api.github.com/repos/laravel/prompts/zipball/360ba095ef9f51017473505191fbd4ab73e1cab3",
+                "reference": "360ba095ef9f51017473505191fbd4ab73e1cab3",
                 "shasum": ""
             },
             "require": {
@@ -4899,9 +4899,9 @@
             "description": "Add beautiful and user-friendly forms to your command-line applications.",
             "support": {
                 "issues": "https://github.com/laravel/prompts/issues",
-                "source": "https://github.com/laravel/prompts/tree/v0.3.9"
+                "source": "https://github.com/laravel/prompts/tree/v0.3.10"
             },
-            "time": "2026-01-07T21:00:29+00:00"
+            "time": "2026-01-13T20:29:29+00:00"
         },
         {
             "name": "laravel/sanctum",
@@ -6166,20 +6166,20 @@
         },
         {
             "name": "league/uri",
-            "version": "7.7.0",
+            "version": "7.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/uri.git",
-                "reference": "8d587cddee53490f9b82bf203d3a9aa7ea4f9807"
+                "reference": "4436c6ec8d458e4244448b069cc572d088230b76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/uri/zipball/8d587cddee53490f9b82bf203d3a9aa7ea4f9807",
-                "reference": "8d587cddee53490f9b82bf203d3a9aa7ea4f9807",
+                "url": "https://api.github.com/repos/thephpleague/uri/zipball/4436c6ec8d458e4244448b069cc572d088230b76",
+                "reference": "4436c6ec8d458e4244448b069cc572d088230b76",
                 "shasum": ""
             },
             "require": {
-                "league/uri-interfaces": "^7.7",
+                "league/uri-interfaces": "^7.8",
                 "php": "^8.1",
                 "psr/http-factory": "^1"
             },
@@ -6193,11 +6193,11 @@
                 "ext-gmp": "to improve IPV4 host parsing",
                 "ext-intl": "to handle IDN host with the best performance",
                 "ext-uri": "to use the PHP native URI class",
-                "jeremykendall/php-domain-parser": "to resolve Public Suffix and Top Level Domain",
-                "league/uri-components": "Needed to easily manipulate URI objects components",
-                "league/uri-polyfill": "Needed to backport the PHP URI extension for older versions of PHP",
+                "jeremykendall/php-domain-parser": "to further parse the URI host and resolve its Public Suffix and Top Level Domain",
+                "league/uri-components": "to provide additional tools to manipulate URI objects components",
+                "league/uri-polyfill": "to backport the PHP URI extension for older versions of PHP",
                 "php-64bit": "to improve IPV4 host parsing",
-                "rowbot/url": "to handle WHATWG URL",
+                "rowbot/url": "to handle URLs using the WHATWG URL Living Standard specification",
                 "symfony/polyfill-intl-idn": "to handle IDN host via the Symfony polyfill if ext-intl is not present"
             },
             "type": "library",
@@ -6252,7 +6252,7 @@
                 "docs": "https://uri.thephpleague.com",
                 "forum": "https://thephpleague.slack.com",
                 "issues": "https://github.com/thephpleague/uri-src/issues",
-                "source": "https://github.com/thephpleague/uri/tree/7.7.0"
+                "source": "https://github.com/thephpleague/uri/tree/7.8.0"
             },
             "funding": [
                 {
@@ -6260,20 +6260,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-07T16:02:06+00:00"
+            "time": "2026-01-14T17:24:56+00:00"
         },
         {
             "name": "league/uri-interfaces",
-            "version": "7.7.0",
+            "version": "7.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/uri-interfaces.git",
-                "reference": "62ccc1a0435e1c54e10ee6022df28d6c04c2946c"
+                "reference": "c5c5cd056110fc8afaba29fa6b72a43ced42acd4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/uri-interfaces/zipball/62ccc1a0435e1c54e10ee6022df28d6c04c2946c",
-                "reference": "62ccc1a0435e1c54e10ee6022df28d6c04c2946c",
+                "url": "https://api.github.com/repos/thephpleague/uri-interfaces/zipball/c5c5cd056110fc8afaba29fa6b72a43ced42acd4",
+                "reference": "c5c5cd056110fc8afaba29fa6b72a43ced42acd4",
                 "shasum": ""
             },
             "require": {
@@ -6286,7 +6286,7 @@
                 "ext-gmp": "to improve IPV4 host parsing",
                 "ext-intl": "to handle IDN host with the best performance",
                 "php-64bit": "to improve IPV4 host parsing",
-                "rowbot/url": "to handle WHATWG URL",
+                "rowbot/url": "to handle URLs using the WHATWG URL Living Standard specification",
                 "symfony/polyfill-intl-idn": "to handle IDN host via the Symfony polyfill if ext-intl is not present"
             },
             "type": "library",
@@ -6336,7 +6336,7 @@
                 "docs": "https://uri.thephpleague.com",
                 "forum": "https://thephpleague.slack.com",
                 "issues": "https://github.com/thephpleague/uri-src/issues",
-                "source": "https://github.com/thephpleague/uri-interfaces/tree/7.7.0"
+                "source": "https://github.com/thephpleague/uri-interfaces/tree/7.8.0"
             },
             "funding": [
                 {
@@ -6344,7 +6344,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-12-07T16:03:21+00:00"
+            "time": "2026-01-15T06:54:53+00:00"
         },
         {
             "name": "maatwebsite/excel",
@@ -7446,16 +7446,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "2.11.0",
+            "version": "2.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "680f44d9a07b03b7e50fea9de636e087c1e35e47"
+                "reference": "31a3b00ea9dc238abf748a89233020ab4c9cc718"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/680f44d9a07b03b7e50fea9de636e087c1e35e47",
-                "reference": "680f44d9a07b03b7e50fea9de636e087c1e35e47",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/31a3b00ea9dc238abf748a89233020ab4c9cc718",
+                "reference": "31a3b00ea9dc238abf748a89233020ab4c9cc718",
                 "shasum": ""
             },
             "require": {
@@ -7510,7 +7510,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.11.0"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.11.1"
             },
             "funding": [
                 {
@@ -7518,7 +7518,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-14T17:27:46+00:00"
+            "time": "2026-01-15T09:46:43+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",

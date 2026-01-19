@@ -17,6 +17,8 @@ use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
 {
+    protected string $messageTypeVerb = 'mailgun-email';
+
     #[Override]
     public function execute(array $params = []): array
     {
