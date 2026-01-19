@@ -46,7 +46,12 @@ class Products
             $company = auth()->user()->getCurrentCompany();
         }
 
-        $productDto = ProductDto::fromMultiple($req['input'], $company);
+        $productDto = ProductDto::fromMultiple(
+            request: $req['input'],
+            company: $company,
+            user: auth()->user(),
+            app: $app
+        );
         $action = new CreateProductAction($productDto, auth()->user());
 
         return $action->execute();
