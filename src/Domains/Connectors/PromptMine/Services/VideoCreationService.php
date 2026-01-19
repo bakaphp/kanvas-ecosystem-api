@@ -52,7 +52,7 @@ class VideoCreationService
             return [
                 'result' => true,
                 'status' => 'COMPLETED',
-                'video_url' => $result['video_url'],
+                'video_url' => $result['video_url'] ?? '',
                 'result_data' => $result['result_data'],
             ];
         } catch (Exception $e) {

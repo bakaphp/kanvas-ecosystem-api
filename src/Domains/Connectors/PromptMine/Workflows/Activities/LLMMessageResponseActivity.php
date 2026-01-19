@@ -402,7 +402,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         $fullConversation = $promptClient->getFullConversation($messages, $result);
 
         return [
-            'response' => $result['vide_url'] ?? '',
+            'response' => $result['vide_url'] ?? $result['video_url'] ?? '',
             'chat_history' => $fullConversation,
         ];
     }
