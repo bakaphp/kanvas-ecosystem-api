@@ -61,7 +61,8 @@ class PullLeadAction
             $this->user
         );
 
-        $lead = (new SyncLeadByThirdPartyCustomFieldAction($leadDto))->execute();
+        $leadDto->people->runWorkflow = false;
+        $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
 
         // Pull and sync co-buyers if present
         $this->syncCoBuyers($deal, $lead);
@@ -139,7 +140,7 @@ class PullLeadAction
         $vehicle = $vehicleData['vehicle'] ?? $vehicleData;
 
         if (isset($vehicle['year']) && $vehicle['year'] > 0) {
-            $lead->set(CustomFieldEnums::VEHICLE_OF_INTEREST->value, [
+            $data = [
                 'year' => $vehicle['year'] ?? null,
                 'make' => $vehicle['make'] ?? null,
                 'model' => $vehicle['model'] ?? null,
@@ -151,7 +152,15 @@ class PullLeadAction
                 'exteriorColor' => $vehicle['exteriorColor'] ?? null,
                 'interiorColor' => $vehicle['interiorColor'] ?? null,
                 'isNew' => ($vehicle['stockType'] ?? $vehicleData['stockType'] ?? '') === 'New',
-            ]);
+            ];
+
+            // Extract and save vehicle CrmId to avoid duplication on push
+            $vehicleCrmId = $this->extractCrmIdFromIdentifiers($vehicle['identifiers'] ?? []);
+            if ($vehicleCrmId) {
+                $data['_vehicle_crm_id'] = $vehicleCrmId;
+            }
+
+            $lead->set(CustomFieldEnums::VEHICLE_OF_INTEREST->value, $data);
         }
     }
 
@@ -167,16 +176,39 @@ class PullLeadAction
         }
 
         $tradeIn = $tradeIns[0] ?? [];
+        $vehicle = $tradeIn['vehicle'] ?? $tradeIn;
 
-        $lead->set(CustomFieldEnums::TRADE_IN->value, [
-            'year' => $tradeIn['year'] ?? null,
-            'make' => $tradeIn['make'] ?? null,
-            'model' => $tradeIn['model'] ?? null,
-            'vin' => $tradeIn['vin'] ?? null,
-            'mileage' => $tradeIn['mileage'] ?? null,
-            'value' => $tradeIn['value'] ?? null,
-            'payoff' => $tradeIn['payoff'] ?? null,
-        ]);
+        $data = [
+            'year' => $vehicle['year'] ?? $tradeIn['year'] ?? null,
+            'make' => $vehicle['make'] ?? $tradeIn['make'] ?? null,
+            'model' => $vehicle['model'] ?? $tradeIn['model'] ?? null,
+            'vin' => $vehicle['vin'] ?? $tradeIn['vin'] ?? null,
+            'mileage' => $vehicle['mileage'] ?? $tradeIn['mileage'] ?? null,
+            'value' => $tradeIn['actualCashValue'] ?? $tradeIn['value'] ?? null,
+            'payoff' => $tradeIn['payoffAmount'] ?? $tradeIn['payoff'] ?? null,
+        ];
+
+        // Extract and save vehicle CrmId to avoid duplication on push
+        $vehicleCrmId = $this->extractCrmIdFromIdentifiers($vehicle['identifiers'] ?? []);
+        if ($vehicleCrmId) {
+            $data['_vehicle_crm_id'] = $vehicleCrmId;
+        }
+
+        $lead->set(CustomFieldEnums::TRADE_IN->value, $data);
+    }
+
+    /**
+     * Extract CrmId from identifiers array.
+     */
+    protected function extractCrmIdFromIdentifiers(array $identifiers): ?string
+    {
+        foreach ($identifiers as $identifier) {
+            if (($identifier['type'] ?? '') === 'CrmId') {
+                return $identifier['value'] ?? null;
+            }
+        }
+
+        return null;
     }
 
     /**

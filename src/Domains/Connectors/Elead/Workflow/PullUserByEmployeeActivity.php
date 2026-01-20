@@ -46,10 +46,19 @@ class PullUserByEmployeeActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
+        $company = $params['company'];
+
+        if (! isset($company) || ! $company instanceof Companies) {
+            $this->failWorkflow([
+                'error' => 'Company not found',
+            ]);
+        }
+
         return $this->executeIntegration(
             entity: $user,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) use ($params) {
                 $company = $params['company'];
 
@@ -95,7 +104,8 @@ class PullUserByEmployeeActivity extends KanvasActivity
                     'user' => $user,
                     'ELeadEmployeeID' => $employee->id,
                 ];
-            }
+            },
+            company: $company,
         );
     }
 }

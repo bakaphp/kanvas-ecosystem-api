@@ -672,4 +672,47 @@ class People extends BaseModel
 
         return $query;
     }
+
+    /**
+     * @return array{driversLicenseNumber: string, driversLicenseState: string|null}|null
+     */
+    public function getDriverLicenseData(): ?array
+    {
+        $licenseNumber = null;
+        $licenseState = null;
+
+        if (! empty($this->license_number)) {
+            $licenseNumber = $this->license_number;
+        }
+
+        if (empty($licenseNumber)) {
+            $licenseNumber = $this->get('drivers_license_number');
+        }
+
+        $legacyLicense = $this->get('get_docs_drivers_license');
+        if (! empty($legacyLicense) && is_array($legacyLicense)) {
+            if (empty($licenseNumber) && ! empty($legacyLicense['license'])) {
+                $licenseNumber = $legacyLicense['license'];
+            }
+            if (! empty($legacyLicense['state'])) {
+                $licenseState = $legacyLicense['state'];
+            }
+        }
+
+        if (empty($licenseState)) {
+            $defaultAddress = $this->address()->where('is_default', true)->first();
+            if ($defaultAddress && ! empty($defaultAddress->state)) {
+                $licenseState = $defaultAddress->state;
+            }
+        }
+
+        if (empty($licenseNumber)) {
+            return null;
+        }
+
+        return [
+            'driversLicenseNumber' => $licenseNumber,
+            'driversLicenseState' => $licenseState,
+        ];
+    }
 }

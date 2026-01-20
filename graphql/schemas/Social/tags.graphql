@@ -24,7 +24,10 @@ type Tag {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    children: [Tag!] @hasMany(relation: "children", type: PAGINATOR)
+    children(
+        first: Int
+        orderBy: _ @orderBy(columns: ["weight", "name", "created_at"])
+    ): [Tag!] @hasMany(relation: "children", type: PAGINATOR)
 }
 
 type TagEntity {

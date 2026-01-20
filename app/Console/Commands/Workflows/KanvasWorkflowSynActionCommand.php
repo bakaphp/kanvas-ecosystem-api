@@ -87,6 +87,10 @@ use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleLeadFromSearchActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
@@ -152,6 +156,7 @@ use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
+use Kanvas\Users\Workflows\Activities\RestoreUsersAccountContentActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 
 class KanvasWorkflowSynActionCommand extends Command
@@ -316,6 +321,11 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncLeadWithLegacyCRMActivity::class,
             DriveCentricWorkflowPushLeadActivity::class,
             DriveCentricWorkflowPushPeopleActivity::class,
+            PullUserFromCRMActivity::class,
+            ActivitiesPushLeadNotesActivity::class,
+            SalesAssistActivitiesPushLeadActivity::class,
+            SalesAssistActivitiesPushPeopleActivity::class,
+            RestoreUsersAccountContentActivity::class,
         ];
 
         $createdActions = [];
