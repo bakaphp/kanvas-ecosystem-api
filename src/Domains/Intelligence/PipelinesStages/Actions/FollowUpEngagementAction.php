@@ -133,7 +133,7 @@ class FollowUpEngagementAction
     {
         $messages = $channel->messages()
             ->where('message->from_me', false)
-            ->where('is_deleted', 0)
+            ->where('messages.is_deleted', 0)
             ->whereHas('messageType', function ($query): void {
                 $query->where('verb', '=', MessageTypeEnum::TEXT->value);
             })
