@@ -217,7 +217,8 @@ class DownloadAllLeadsCommand extends Command
                         $lockKey = "drivecentric_deal_sync:{$company->getId()}:{$dealId}";
 
                         Cache::lock($lockKey, 10)->block(10, function () use ($pullLeadAction, $deal, &$successCount): void {
-                            $pullLeadAction->syncDeal($deal);
+                            $syncLead = $pullLeadAction->syncDeal($deal);
+                            $syncLead->set('downloaded_from_drivecentric', 1);
                             $successCount++;
                         });
 
