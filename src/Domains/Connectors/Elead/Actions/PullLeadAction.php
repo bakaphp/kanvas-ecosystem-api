@@ -137,11 +137,18 @@ class PullLeadAction
                         $this->company
                     );
 
-                    $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
+                    $eLead = Lead::getByCustomerId(
+                        $this->app,
+                        $this->company,
+                        $customer['id']
+                    );
                     $eLead->customerId = $customer['id'];
 
                     $lead = new SyncLeadByThirdPartyCustomFieldAction(
-                        DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
+                        DataTransferObjectLead::fromLeadEntity(
+                            $eLead,
+                            $this->user
+                        )
                     )->execute();
 
                     $leadStatus = strtolower($lead->status()?->first()?->name ?? '');
