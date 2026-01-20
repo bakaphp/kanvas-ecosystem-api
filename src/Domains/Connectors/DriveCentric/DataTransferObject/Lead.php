@@ -180,7 +180,7 @@ class Lead extends DataTransferObjectLead
             }
         }
 
-        return $user->getId();
+        return 0;
     }
 
     /**
