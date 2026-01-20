@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Enums;
 
-enum FollowUpTypeEnum: string
+enum FollowUpTypeEnum: int
 {
-    case LEAD_FOLLOW_UP = 'lead_follow_up';
-    case SOLD_LEAD_FOLLOW_UP = 'sold_lead_follow_up';
+    case LEAD_FOLLOW_UP = 1;
+    case SOLD_LEAD_FOLLOW_UP = 2;
+    case NO_FOLLOW_UP = 0;
 }

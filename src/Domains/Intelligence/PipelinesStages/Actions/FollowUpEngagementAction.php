@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
@@ -28,13 +29,11 @@ class FollowUpEngagementAction
     public function __construct(
         public Lead $lead
     ) {
-        if ($this->lead->get(FollowUpTypeEnum::LEAD_FOLLOW_UP->value)) {
-            $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, 1);
-        } elseif ($this->lead->get(FollowUpTypeEnum::SOLD_LEAD_FOLLOW_UP->value)) {
-            $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, 2);
-        } else {
+        $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        if (! $aiFollowUpType || $aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
             throw new Exception('No follow up type set on lead');
         }
+        $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, $aiFollowUpType);
     }
 
     public function execute(): ?array

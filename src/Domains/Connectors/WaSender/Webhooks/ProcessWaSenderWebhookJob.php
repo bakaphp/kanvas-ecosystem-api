@@ -30,8 +30,8 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -182,14 +182,18 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                             $messageBody
                         );
                     }
-
                     //status = 2 , means user delivery, status = 1 means api delivery
-                    if ((int) $status === 2) {
-                        $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+                }
 
-                        unset($people);
-                        $lead = null;
-                    }
+                if ((int) $status === 2) {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_IA->value,
+                        true,
+                        [
+                            'app' => $this->receiver->app,
+                            'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
+                        ]
+                    );
                 }
             }
 
