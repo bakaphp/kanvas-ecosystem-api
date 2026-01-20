@@ -29,7 +29,7 @@ class SyncLeadByThirdPartyCustomFieldAction
 
         $lockKey = 'lead_sync:' . $this->lead->app->getId() . $this->lead->branch->company->getId() . ':' . $customFieldKeys[0] . ':' . $customFieldValues[0];
 
-        return Cache::lock($lockKey, 10)->block(5, function () use ($customFieldKeys, $customFieldValues) {
+        return Cache::lock($lockKey, 30)->block(25, function () use ($customFieldKeys, $customFieldValues) {
             $lead = ModelsLead::getByCustomField(
                 $customFieldKeys[0],
                 $customFieldValues[0],

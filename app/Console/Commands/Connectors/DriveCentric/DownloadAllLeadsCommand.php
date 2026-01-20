@@ -216,7 +216,7 @@ class DownloadAllLeadsCommand extends Command
                         // Use cache lock to prevent duplicate processing
                         $lockKey = "drivecentric_deal_sync:{$company->getId()}:{$dealId}";
 
-                        Cache::lock($lockKey, 10)->block(10, function () use ($pullLeadAction, $deal, &$successCount): void {
+                        Cache::lock($lockKey, 30)->block(25, function () use ($pullLeadAction, $deal, &$successCount): void {
                             $pullLeadAction->syncDeal($deal);
                             $successCount++;
                         });
