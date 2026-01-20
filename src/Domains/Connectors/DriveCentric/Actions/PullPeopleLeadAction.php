@@ -50,11 +50,11 @@ class PullPeopleLeadAction
                 $lead = $pullLeadAction->execute($customer['deal']['id']);
             } elseif (empty($customer['deal'])) {
                 //close all lead for thi customer
-                $leads = LeadsRepository::getPeopleActiveLeads($people);
+                /* $leads = LeadsRepository::getPeopleActiveLeads($people);
 
                 foreach ($leads->get() as $existingLead) {
-                    $existingLead->close();
-                }
+                   // $existingLead->close();
+                } */
             }
 
             return $lead;
