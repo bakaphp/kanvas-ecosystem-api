@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Customer;
@@ -68,9 +69,15 @@ class PullLeadAction
                 $entityId
             );
 
-            $eLead = new SyncLeadAction($lead)->execute();
-
-            $this->setContactStatus($lead, $eLead->subStatus);
+            try {
+                $eLead = new SyncLeadAction($lead)->execute();
+                $this->setContactStatus($lead, $eLead->subStatus);
+            } catch (ClientException $e) {
+                // If the opportunity doesn't exist in Elead (404), close the lead and return it
+                if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
+                    $lead->close();
+                }
+            }
 
             return [
                 [
