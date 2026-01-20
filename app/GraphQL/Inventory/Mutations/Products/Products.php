@@ -46,13 +46,16 @@ class Products
             $company = auth()->user()->getCurrentCompany();
         }
 
-        $productDto = ProductDto::fromMultiple(
+        $productDto = ProductDto::from(
             request: $req['input'],
             company: $company,
             user: auth()->user(),
             app: $app
         );
-        $action = new CreateProductAction($productDto, auth()->user());
+        $action = new CreateProductAction(
+            $productDto,
+            auth()->user()
+        );
 
         return $action->execute();
     }
@@ -67,19 +70,29 @@ class Products
         $app = app(Apps::class);
 
         if (isset($req['input']['status'])) {
-            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
+            $req['input']['status_id'] = StatusRepository::getById(
+                (int) $req['input']['status']['id'],
+                $company
+            )->getId();
         }
 
-        $product = ProductsRepository::getById((int) $req['id'], $company);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            $company
+        );
 
-        $productDto = ProductDto::fromMultiple(
+        $productDto = ProductDto::from(
             request: $req['input'],
             company: $product->company,
             user: auth()->user(),
             app: $app
         );
 
-        $productModel = (new UpdateProductAction($product, $productDto, auth()->user()))->execute();
+        $productModel = new UpdateProductAction(
+            $product,
+            $productDto,
+            auth()->user()
+        )->execute();
 
         return $productModel;
     }
@@ -89,7 +102,10 @@ class Products
      */
     public function delete(mixed $root, array $req): bool
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany()
+        );
 
         Variants::withoutEvents(function () use ($product) {
             foreach ($product->variants as $variant) {
@@ -105,9 +121,19 @@ class Products
      */
     public function addAttribute(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $attribute = AttributesRepository::getById((int) $req['attribute_id'], auth()->user()->getCurrentCompany());
-        $action = new AddAttributeAction($product, $attribute, $req['value']);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany()
+        );
+        $attribute = AttributesRepository::getById(
+            (int) $req['attribute_id'],
+            auth()->user()->getCurrentCompany()
+        );
+        $action = new AddAttributeAction(
+            $product,
+            $attribute,
+            $req['value']
+        );
 
         return $action->execute();
     }
@@ -118,9 +144,19 @@ class Products
     public function removeAttribute(mixed $root, array $req): ProductsModel
     {
         $app = app(Apps::class);
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany(), $app);
-        $attribute = AttributesRepository::getById((int) $req['attribute_id'], auth()->user()->getCurrentCompany());
-        $action = new RemoveAttributeAction($product, $attribute);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany(),
+            $app
+        );
+        $attribute = AttributesRepository::getById(
+            (int) $req['attribute_id'],
+            auth()->user()->getCurrentCompany()
+        );
+        $action = new RemoveAttributeAction(
+            $product,
+            $attribute
+        );
 
         return $action->execute();
     }
@@ -131,7 +167,11 @@ class Products
     public function addWarehouse(mixed $root, array $req): ProductsModel
     {
         $app = app(Apps::class);
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany(), $app);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany(),
+            $app
+        );
 
         $productWarehouse = ProductsWarehouses::where('products_id', $product->getId())
            ->where('warehouses_id', $req['warehouse_id'])
@@ -149,7 +189,10 @@ class Products
      */
     public function removeWarehouse(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany()
+        );
         $product->warehouses()->detach($req['warehouse_id']);
 
         return $product;
@@ -160,7 +203,10 @@ class Products
      */
     public function addCategory(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany()
+        );
         $product->categories()->attach($req['category_id']);
 
         return $product;
@@ -171,7 +217,10 @@ class Products
      */
     public function removeCategory(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            auth()->user()->getCurrentCompany()
+        );
         $product->categories()->detach($req['category_id']);
 
         return $product;
@@ -185,8 +234,14 @@ class Products
         $company = auth()->user()->getCurrentCompany();
         $language = Languages::getByCode($req['code']);
 
-        $product = ProductsRepository::getById((int) $req['id'], $company);
-        $productTranslateDto = ProductTranslateDto::fromMultiple($req['input'], $product->company);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            $company
+        );
+        $productTranslateDto = ProductTranslateDto::fromMultiple(
+            $req['input'],
+            $product->company
+        );
 
         foreach ($productTranslateDto->toArray() as $key => $value) {
             $product->setTranslation($key, $language->code, $value);
@@ -200,12 +255,25 @@ class Products
     {
         $company = auth()->user()->getCurrentCompany();
         $language = Languages::getByCode($req['code']);
-        $attribute = AttributesRepository::getById((int) $req['attribute_id'], $company);
-        $product = ProductsRepository::getById((int) $req['product_id'], $company);
+        $attribute = AttributesRepository::getById(
+            (int) $req['attribute_id'],
+            $company
+        );
+        $product = ProductsRepository::getById(
+            (int) $req['product_id'],
+            $company
+        );
 
-        $productAttribute = $product->attributeValues('attribute_id', $attribute->getId())->firstOrFail();
+        $productAttribute = $product->attributeValues(
+            'attribute_id',
+            $attribute->getId()
+        )->firstOrFail();
         $value = $req['value'];
-        $productAttribute->setTranslation('value', $language->code, $value);
+        $productAttribute->setTranslation(
+            'value',
+            $language->code,
+            $value
+        );
         $productAttribute->save();
 
         return $productAttribute;
@@ -215,8 +283,14 @@ class Products
     {
         $company = auth()->user()->getCurrentCompany();
 
-        $product = ProductsRepository::getById((int) $req['id'], $company);
-        $productModel = (new DuplicateProductAction($product, auth()->user()))->execute();
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            $company
+        );
+        $productModel = (new DuplicateProductAction(
+            $product,
+            auth()->user()
+        ))->execute();
 
         return $productModel;
     }
@@ -230,7 +304,10 @@ class Products
             throw new AuthorizationException('You are not allowed to perform this action');
         }
 
-        $product = ProductsRepository::getById((int) $req['id'], $company);
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            $company
+        );
 
         if ($req['is_published']) {
             $product->publish();
