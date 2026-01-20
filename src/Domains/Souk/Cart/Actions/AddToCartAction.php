@@ -41,7 +41,7 @@ class AddToCartAction
             } else {
                 $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
             }
-            $channelId = isset($item['channel_id']) ? (int) $item['channel_id'] : null;
+            $channelId = ! empty($item['channel_id']) ? (int) $item['channel_id'] : null;
 
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
             /*                $variantPrice = $useCompanySpecificPrice
