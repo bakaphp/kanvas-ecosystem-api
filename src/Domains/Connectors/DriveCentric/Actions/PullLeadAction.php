@@ -64,10 +64,12 @@ class PullLeadAction
         );
 
         if ($existingLead === null) {
+            // Temporarily skip company filter to debug duplicate lead issue
             $lead = Lead::getByCustomField(
-                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
-                $leadDto->custom_fields[CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value],
-                $this->company,
+                name: CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
+                value: $leadDto->custom_fields[CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value],
+                company: $this->company,
+                useCompanyFilter: false,
             );
         } else {
             $lead = $existingLead;
