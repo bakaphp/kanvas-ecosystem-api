@@ -56,6 +56,8 @@ class PullPeopleLeadAction
                 foreach ($leads->get() as $existingLead) {
                     $existingLead->close();
                 }
+
+                $lead = LeadsRepository::getPeopleClosedLead($people);
             }
 
             return $lead;
