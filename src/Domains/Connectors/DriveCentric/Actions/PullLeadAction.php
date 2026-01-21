@@ -61,8 +61,16 @@ class PullLeadAction
             $this->user
         );
 
-        $leadDto->people->runWorkflow = false;
-        $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
+        $lead = Lead::getByCustomField(
+            CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
+            $leadDto->custom_fields[CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value],
+            $this->company,
+        );
+
+        if ($lead === null) {
+            $leadDto->people->runWorkflow = false;
+            $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
+        }
 
         // Pull and sync co-buyers if present
         $this->syncCoBuyers($deal, $lead);
