@@ -105,7 +105,7 @@ class SendDelayMessageCommand extends Command
                         $lead->company,
                         (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     );
-                    $eLeadOpportunity->addComment("Sally has already sent the first message to the lead. It's been an 14 minutes since the lead was created, and no sales agent has contacted them yet.");
+                    $eLeadOpportunity->addComment("Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.");
                 } catch (ClientException $e) {
                     if (Str::contains($e->getMessage(), 'not active')
                         || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
