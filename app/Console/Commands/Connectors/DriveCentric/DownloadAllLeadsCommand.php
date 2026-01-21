@@ -28,13 +28,14 @@ class DownloadAllLeadsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:drivecentric-download-leads 
+    protected $signature = 'kanvas:drivecentric-download-leads
                             {app_id : The application ID}
                             {--company_ids= : Comma-separated company IDs (optional - will auto-detect from config if not provided)}
                             {--start= : Start date in YYYY-MM-DD format (defaults to today)}
                             {--end= : End date in YYYY-MM-DD format (defaults to today)}
                             {--from-offset=0 : Start from specific offset (0) or continue from last position}
-                            {--reset-pagination=0 : Reset pagination to start from beginning (1=yes, 0=no)}';
+                            {--reset-pagination=0 : Reset pagination to start from beginning (1=yes, 0=no)}
+                            {--filter-today=1 : Only process deals created TODAY with activity TODAY (0 = all deals)}';
 
     /**
      * The console command description.
@@ -58,7 +59,7 @@ class DownloadAllLeadsCommand extends Command
             return;
         }
 
-        // Get date range (default to today)
+        // Get date range (default to today only - API only supports date, not time)
         $startDate = $this->option('start') ?: Carbon::now()->format('Y-m-d');
         $endDate = $this->option('end') ?: Carbon::now()->format('Y-m-d');
 
@@ -160,15 +161,26 @@ class DownloadAllLeadsCommand extends Command
         $redisPaginationKey = 'drivecentric_leads_pagination_' . $company->getId();
         $resetPagination = (bool) $this->option('reset-pagination');
         $fromOffset = (int) $this->option('from-offset');
+        $filterToday = (bool) $this->option('filter-today');
 
         // Get starting offset
         $currentOffset = $resetPagination ? 0 : ($fromOffset ?: (int) Redis::get($redisPaginationKey));
 
+        // Calculate cutoff time for filtering
+        $todayStart = Carbon::now()->startOfDay();
+
         $this->info("Starting from offset: {$currentOffset}");
+        if ($filterToday) {
+            $this->info("Filtering: createDate >= {$todayStart->toDateString()} AND latestAttemptDate >= {$todayStart->toDateString()}");
+            $this->info('(Only syncing deals created TODAY with activity TODAY)');
+        } else {
+            $this->info('Filter disabled - processing ALL deals');
+        }
 
         $successCount = 0;
         $errorCount = 0;
         $totalProcessed = 0;
+        $skippedCount = 0;
         $hasMore = true;
 
         // Create progress indicator
@@ -204,6 +216,26 @@ class DownloadAllLeadsCommand extends Command
 
                 foreach ($deals as $deal) {
                     try {
+                        // Filter logic: Only process deals created TODAY with activity TODAY
+                        if ($filterToday) {
+                            $createDate = isset($deal['createDate']) ? Carbon::parse($deal['createDate']) : null;
+                            $latestAttemptDate = isset($deal['latestAttemptDate']) ? Carbon::parse($deal['latestAttemptDate']) : null;
+
+                            // Skip if deal was not created today
+                            if (! $createDate || $createDate->lt($todayStart)) {
+                                $skippedCount++;
+
+                                continue;
+                            }
+
+                            // Skip if no activity today (no attempt today)
+                            if (! $latestAttemptDate || $latestAttemptDate->lt($todayStart)) {
+                                $skippedCount++;
+
+                                continue;
+                            }
+                        }
+
                         $dealId = $this->extractDealId($deal);
 
                         if (! $dealId) {
@@ -230,7 +262,8 @@ class DownloadAllLeadsCommand extends Command
                     }
                 }
 
-                $this->info("Progress: {$totalProcessed}/{$total} - Success: {$successCount}, Errors: {$errorCount}");
+                $skippedMsg = $skippedCount > 0 ? ", Skipped (old/inactive): {$skippedCount}" : '';
+                $this->info("Progress: {$totalProcessed}/{$total} - Success: {$successCount}, Errors: {$errorCount}{$skippedMsg}");
 
                 // Check if there are more pages
                 $nextOffset = $meta['next'] ?? null;
@@ -252,6 +285,9 @@ class DownloadAllLeadsCommand extends Command
         $this->info('Download completed!');
         $this->info("Successfully synced: {$successCount} deals");
         $this->info("Errors: {$errorCount} deals");
+        if ($skippedCount > 0) {
+            $this->info("Skipped (not created today or no activity today): {$skippedCount} deals");
+        }
     }
 
     /**
