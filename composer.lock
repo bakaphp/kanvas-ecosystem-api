@@ -3717,16 +3717,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.16.5",
+            "version": "3.16.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "7da3ed54da70cde01daa1476ba089e4cd27b7a24"
+                "reference": "c45f3a5460da04d395f4b124e6237ab7da0ab6a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/7da3ed54da70cde01daa1476ba089e4cd27b7a24",
-                "reference": "7da3ed54da70cde01daa1476ba089e4cd27b7a24",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/c45f3a5460da04d395f4b124e6237ab7da0ab6a6",
+                "reference": "c45f3a5460da04d395f4b124e6237ab7da0ab6a6",
                 "shasum": ""
             },
             "require": {
@@ -3773,9 +3773,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.5"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.6"
             },
-            "time": "2025-12-10T11:54:57+00:00"
+            "time": "2026-01-21T11:26:33+00:00"
         },
         {
             "name": "intervention/gif",
