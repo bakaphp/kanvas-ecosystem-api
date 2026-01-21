@@ -34,10 +34,12 @@ class PullLeadAction
             ? $this->getDealIdFromLead($dealIdOrLead)
             : $dealIdOrLead;
 
-        return DB::transaction(function () use ($dealId) {
+        $existingLead = $dealIdOrLead instanceof Lead ? $dealIdOrLead : null;
+
+        return DB::transaction(function () use ($dealId, $existingLead): Lead {
             $deal = $this->leadService->getDealById($dealId);
 
-            return $this->syncDeal($deal);
+            return $this->syncDeal($deal, $existingLead);
         });
     }
 
@@ -52,7 +54,7 @@ class PullLeadAction
         return $dealId;
     }
 
-    public function syncDeal(array $deal): Lead
+    public function syncDeal(array $deal, ?Lead $existingLead = null): Lead
     {
         $leadDto = LeadDTO::fromDriveCentric(
             $deal,
@@ -60,12 +62,16 @@ class PullLeadAction
             $this->company,
             $this->user
         );
-
-        $lead = Lead::getByCustomField(
-            CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
-            $leadDto->custom_fields[CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value],
-            $this->company,
-        );
+        
+        if ($existingLead === null) {
+            $lead = Lead::getByCustomField(
+                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
+                $leadDto->custom_fields[CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value],
+                $this->company,
+            );
+        } else {
+            $lead = $existingLead;
+        }
 
         if ($lead === null) {
             $leadDto->people->runWorkflow = false;
