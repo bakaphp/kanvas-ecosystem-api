@@ -62,7 +62,7 @@ class PullLeadAction
             $this->company,
             $this->user
         );
-        
+
         if ($existingLead === null) {
             $lead = Lead::getByCustomField(
                 CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value,
