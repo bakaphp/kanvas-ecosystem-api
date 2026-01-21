@@ -70,6 +70,12 @@ class PullLeadAction
         if ($lead === null) {
             $leadDto->people->runWorkflow = false;
             $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
+        } else {
+            $lead->leads_status_id = $leadDto->status_id;
+            $lead->leads_types_id = $leadDto->type_id;
+            $lead->leads_sources_id = $leadDto->source_id;
+            $lead->leads_owner_id = $leadDto->leads_owner_id;
+            $lead->saveOrFail();
         }
 
         // Pull and sync co-buyers if present
