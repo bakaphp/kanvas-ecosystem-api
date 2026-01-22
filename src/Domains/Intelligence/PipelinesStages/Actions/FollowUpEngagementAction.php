@@ -133,12 +133,12 @@ class FollowUpEngagementAction
     {
         $messages = $channel->messages()
             ->where('message->from_me', false)
-            ->where('is_deleted', 0)
+            ->where('messages.is_deleted', 0)
             ->whereHas('messageType', function ($query): void {
                 $query->where('verb', '=', MessageTypeEnum::TEXT->value);
             })
-            ->where('created_at', '>=', now()->subDay())
-            ->orderBy('created_at', 'DESC')
+            ->where('messages.created_at', '>=', now()->subDay())
+            ->orderBy('messages.created_at', 'DESC')
             ->get();
 
         if (count($messages) === 0) {

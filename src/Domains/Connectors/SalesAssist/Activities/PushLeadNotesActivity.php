@@ -7,11 +7,13 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\DriveCentric\Actions\AddCoBuyerToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCreditAppToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddTradeInToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddVehicleOfInterestToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\ProcessPurchaseVehicleAction;
+use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -34,6 +36,7 @@ class PushLeadNotesActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
                 $lead = $message->entity();
 
@@ -127,6 +130,8 @@ class PushLeadNotesActivity extends KanvasActivity
                     return null;
                 }
                 $lead->addCoBuyerParticipant($people);
+                //new AddCoBuyerToDealAction($lead)->execute($people);
+                new PushLeadAction($lead)->execute();
                 $result = new AddCreditAppToDealAction($lead)->execute($message, $people);
 
                 break;

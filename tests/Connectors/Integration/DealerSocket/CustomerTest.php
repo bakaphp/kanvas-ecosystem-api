@@ -15,6 +15,14 @@ final class CustomerTest extends TestCase
 {
     use HasDealerSocketConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('DealerSocket integration tests are skipped in CI');
+        }
+    }
+
     public function testCreateCustomer()
     {
         $app = app(Apps::class);

@@ -97,6 +97,20 @@ class FollowUpEngagementCommand extends Command
                             'ai_follow_up_engagement_skipped'
                         );
 
+                        $key = match (true) {
+                            $muteAiAgent => 'mute_ai_agent',
+                            $noFirstMessage => 'no_first_message',
+                            $notActive => 'not_active',
+                            $hasBeenContacted => 'has_been_contacted',
+                            default => 'not_internet_type',
+                        };
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skip_reason_' . $key
+                        );
+                        $this->line('  - Skip Reason: ' . $key);
+
                         continue;
                     } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
                         $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');

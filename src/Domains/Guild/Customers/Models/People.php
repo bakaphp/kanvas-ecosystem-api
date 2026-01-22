@@ -368,10 +368,15 @@ class People extends BaseModel
     ): self {
         $app = $app ?? app(Apps::class);
 
-        // Try to find existing person by phone (using regex to match digits only)
-        $person = self::whereHas('contacts', function ($query) use ($phone) {
+        $phoneContactTypeIds = [
+            ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            //ContactType::getByName(ContactTypeEnum::WORK_PHONE->getName())->getId(),
+        ];
+
+        $person = self::whereHas('contacts', function ($query) use ($phone, $phoneContactTypeIds) {
             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
-                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId());
+                  ->whereIn('contacts_types_id', $phoneContactTypeIds);
         })->where('apps_id', $app->getId())
           ->first();
 
