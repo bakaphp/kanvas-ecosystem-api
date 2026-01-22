@@ -8,8 +8,6 @@
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-# Kanvas
-
 **Kanvas is an operational engine for commerce.**  
 It sits between your products and your systems — unifying data, automating workflows, and enabling AI agents to run real operations.
 
