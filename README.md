@@ -1,44 +1,94 @@
-<br />
-<p align="center">
-<img src="https://cdn.prod.website-files.com/66c9f056ff6b7f7ba51cdf21/66ccb2a881e7036ab59136f2_Logo_Kanvas_3.png" alt="Kanvas Logo" style="width: 20%; height: auto;">
-    <br />
-    <br />
-</p>
+![Kanvas Logo](https://cdn.prod.website-files.com/66c9f056ff6b7f7ba51cdf21/66ccb2a881e7036ab59136f2_Logo_Kanvas_3.png)
 
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-Kanvas was born out of years spent building complex backend systems for modern commerce. As an agency, we kept running into the same problems — slow integrations, disconnected systems, repetitive workflows, and custom logic that had to be rebuilt for every project.
+# Kanvas
 
-We realized there was a better way.
+**Kanvas is an operational engine for commerce.**  
+It sits between your products and your systems — unifying data, automating workflows, and enabling AI agents to run real operations.
 
-## **Enter Kanvas Niche.**
-Kanvas is your operational engine — a modular backend designed to unify your systems, automate your workflows, and power the next generation of commerce applications.
+Think of Kanvas as **the backend where operations live.**
 
-Kanvas gives you APIs, workflows, and agent-ready infrastructure — so you can launch faster, integrate better, and scale smarter.
+Not a store.  
+Not a CRM.  
+Not an automation toy.
 
-## **What Kanvas Niche Offers:**
-- **Ecosystem**: Dive into authentication and teams (or multi-tenant) management.
-- **Inventory**: Manage products, their variants, and distribution channels efficiently.
-- **Social**: Engage with features like follows, comments, reactions, and messaging.
-- **CRM**: Navigate through leads, deals, and pipelines with ease.
-- **Workflow**: Seamlessly connect your app with other systems.
+Kanvas is the **core execution layer** that connects and runs them all.
 
-## **Built to Extend, Not Replace**
-Kanvas isn’t trying to be your monolithic platform. It connects the stack you already use — NetSuite, Shopify, Salesforce, custom apps — and becomes your operational layer in the middle.
+## Why Kanvas Exists
 
-Unlike typical low-code automation tools, Kanvas is designed to be part of your core product architecture. Built with Laravel + GraphQL, it supports scalable APIs and deep system integrations.
+Modern commerce stacks are fragmented:
 
-## **Use Kanvas to Launch**
-🛍️ Marketplaces – With built-in vendor, product, and order logic
+- Shopify for products  
+- NetSuite for operations  
+- HubSpot for CRM  
+- Custom services everywhere  
+- Automation glued together with brittle tools  
 
-🚘 Dealer platforms – CRM, inventory, and lead routing included
+Every project ends up rebuilding the same logic: authentication, inventory sync, lead routing, workflows, permissions, integrations.
 
-🧩 Product bundlers – Dynamic SKUs + inventory syncing
+Kanvas was built to stop that.
 
-🏪 B2B commerce portals – Multi-user pricing, approvals, and logic
+It provides a **modular operational backend** where execution is first-class: APIs, workflows, events, and agent-ready infrastructure.
 
-📱 B2C apps – Headless APIs to power custom frontends
+## What Kanvas Is
+
+Kanvas is a **Laravel + GraphQL operational backend** that provides:
+
+- Unified operational APIs  
+- Cross-system workflows  
+- Multi-tenant infrastructure  
+- Event-driven execution  
+- Agent-ready primitives  
+
+So you can build systems where:
+
+- Products sync automatically  
+- Leads route themselves  
+- Inventory propagates across channels  
+- Agents can act, not just chat  
+- Business logic lives in one place  
+
+## Core Domains
+
+Kanvas is composed of operational building blocks:
+
+- **Ecosystem** – auth, apps, teams, multi-tenancy  
+- **Inventory** – products, variants, distribution channels  
+- **CRM** – people, leads, pipelines  
+- **Social** – messaging, follows, reactions  
+- **Workflow** – automations, actions, integrations  
+- **Commerce** – orders, customers, operational logic  
+
+You don’t install “features.”  
+You assemble an **operating system for your product.**
+
+
+## What People Use Kanvas For
+
+- 🚘 Dealer platforms (inventory + CRM + lead routing)  
+- 🛍 Marketplaces (products, vendors, workflows)  
+- 🏪 B2B commerce systems (approvals, pricing, operations)  
+- 🧩 Product bundlers (dynamic SKUs, fulfillment logic)  
+- 📱 Headless apps (custom frontends, unified backend)  
+- 🤖 Agent-driven operations (AI that executes)  
+
+## The Mental Model
+
+Kanvas is not your app.
+
+Kanvas is the **engine your app runs on.**
+
+Your frontends, dashboards, AI agents, and services connect to Kanvas — and Kanvas connects to the rest of your stack.
+
+```text
+UI / Mobile / Agents / Admin
+            ↓
+        Kanvas API
+            ↓
+Shopify • NetSuite • CRMs • Internal systems
+```
 
 ## Prerequisites
 
