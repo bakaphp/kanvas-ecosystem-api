@@ -8,5 +8,5 @@ enum FollowUpTypeEnum: int
 {
     case LEAD_FOLLOW_UP = 1;
     case SOLD_LEAD_FOLLOW_UP = 2;
-    case NO_FOLLOW_UP = 0;
+    case NO_FOLLOW_UP = 3;
 }
