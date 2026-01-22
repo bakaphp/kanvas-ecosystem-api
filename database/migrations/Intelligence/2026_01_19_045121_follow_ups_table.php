@@ -34,7 +34,6 @@ return new class () extends Migration {
             $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
-            $table->foreign('follow_ups_id')->references('id')->on('follow_ups')->onDelete('cascade');
         });
         Schema::create('follow_up_templates', function (Blueprint $table) {
             $table->id();
@@ -45,7 +44,6 @@ return new class () extends Migration {
             $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->nullable();
             $table->boolean('is_deleted')->default(0)->index();
-            $table->foreign('follow_up_days_id')->references('id')->on('follow_up_days')->onDelete('cascade');
         });
     }
 
