@@ -181,7 +181,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                             LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value,
                             $messageBody
                         );
-                        $lead->set('lead_from_whatsapp', 1);
+                        $lead->set('is_service_lead', 1);
                     }
 
                     //status = 2 , means user delivery, status = 1 means api delivery
