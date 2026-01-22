@@ -1,4 +1,9 @@
-![Kanvas Logo](https://cdn.prod.website-files.com/66c9f056ff6b7f7ba51cdf21/66ccb2a881e7036ab59136f2_Logo_Kanvas_3.png)
+<br />
+<p align="center">
+<img src="https://cdn.prod.website-files.com/66c9f056ff6b7f7ba51cdf21/66ccb2a881e7036ab59136f2_Logo_Kanvas_3.png" alt="Kanvas Logo" style="width: 20%; height: auto;">
+    <br />
+    <br />
+</p>
 
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
