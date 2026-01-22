@@ -486,21 +486,21 @@
         },
         {
             "name": "azuyalabs/yasumi",
-            "version": "2.9.0",
+            "version": "2.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/azuyalabs/yasumi.git",
-                "reference": "36005a0796b64bc07257f39c11c42f147fe5320f"
+                "reference": "b9b26a70c3e0ba0b39723e7b756787bff4348536"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/azuyalabs/yasumi/zipball/36005a0796b64bc07257f39c11c42f147fe5320f",
-                "reference": "36005a0796b64bc07257f39c11c42f147fe5320f",
+                "url": "https://api.github.com/repos/azuyalabs/yasumi/zipball/b9b26a70c3e0ba0b39723e7b756787bff4348536",
+                "reference": "b9b26a70c3e0ba0b39723e7b756787bff4348536",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "php": ">=8.1"
+                "php": ">=8.2"
             },
             "require-dev": {
                 "azuyalabs/php-cs-fixer-config": "^0.3",
@@ -555,7 +555,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2025-12-29T16:13:54+00:00"
+            "time": "2026-01-22T12:18:00+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
