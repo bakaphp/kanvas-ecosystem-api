@@ -35,7 +35,7 @@ class PushOrderToCommerceAction
         $aeroAmbulanciaData = $this->order->metadata['aeroAmbulanciaData'] ?? null;
         $universalAssistanceData = $this->order->metadata['universalAssistanceData'] ?? null;
 
-        $response = Http::withHeaders([
+        $response = Http::timeout(60)->withHeaders([
             'X-API-Key' => $this->order->app->get(ConfigurationEnum::COMMERCE_API_KEY->value),
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
