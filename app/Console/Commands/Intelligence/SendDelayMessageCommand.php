@@ -157,9 +157,10 @@ class SendDelayMessageCommand extends Command
                             ]
                         );
                         $this->info('Triggered IA takeover workflow for Lead ID ' . $lead->getId());
-                    } else {
-                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
                     }
+
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
 
                     DailyReportService::track(
