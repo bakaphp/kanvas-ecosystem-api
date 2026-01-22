@@ -5,27 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Connectors\Twilio\Client;
-use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction as BaseAgentChannelResponderAction;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Observability\AgentMonitoring;
 use Override;
 
-class AgentChannelResponderAction extends BaseAgentChannelResponderAction
+class AgentChannelResponderAction extends BaseAgentResponderAction
 {
+    protected string $messageTypeVerb = 'twilio-sms';
+
     #[Override]
     public function execute(array $params = []): array
     {
@@ -81,15 +78,18 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
 
         $client = Client::getInstanceByCompany($this->message->company);
         $onChunk = function ($text, $data) use ($client, $to, $params): void {
-            $this->createMessage($text, $to, $this->message, $this->channel);
+            $response = $this->createMessage($text, $to, $this->message, $this->channel);
             // Use the Twilio client to send a message
-            $client->messages->create(
-                $to, // to
-                [
-                    'from' => $params['from'],
-                    'body' => $text,
-                ]
-            );
+
+            if (! $response->is_locked) {
+                $client->messages->create(
+                    $to, // to
+                    [
+                        'from' => $params['from'],
+                        'body' => $text,
+                    ]
+                );
+            }
         };
 
         $messageConversation = $this->message->message['content'];
@@ -124,43 +124,5 @@ class AgentChannelResponderAction extends BaseAgentChannelResponderAction
             'responseText' => $responseContent,
             'response' => $responseText,
         ];
-    }
-
-    private function createMessage(string $text, string $to, Message $message, Channel $channel): Message
-    {
-        $user = $message->user;
-        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
-        if ($agentUser !== null) {
-            $user = Users::getById((int) $agentUser);
-        }
-
-        $messageInput = new MessageInput(
-            app: $message->app,
-            company: $message->company,
-            user: $user,
-            type: $message->messageType,
-            message: [
-                    'content' => $text,
-                    'raw_data' => $text,
-                    'message_id' => '--',
-                    'chat_jid' => $to,
-                    'from_me' => true,
-                    'from_ia' => true
-
-            ],
-            is_public: 1,
-            tags: [$to],
-            //slug: Str::slug($text) . '-' . microtime()
-        );
-
-        $newMessage = new CreateMessageAction($messageInput)->execute();
-        //$newMessage = $createMessageAction->execute();
-        if ($message->entity() instanceof Model) {
-            $newMessage->addEntity($message->entity());
-        }
-        $channel->addMessage($newMessage);
-        $newMessage->addTag('engagement');
-
-        return $newMessage;
     }
 }

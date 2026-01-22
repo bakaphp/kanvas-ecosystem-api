@@ -18,26 +18,27 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
-class SendDelayMessageCommand extends Command
+class SendUnRespondeMessageCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:intelligence:send-delay-message {app_id}';
+    protected $signature = 'kanvas:intelligence:send-unresponde-message {app_id}';
 
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
-        $companies = Companies::getByCustomFieldBuilder(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value, null)->get();
+        $companies = Companies::getByCustomFieldBuilder(CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value, null)->get();
 
         foreach ($companies as $company) {
             $this->newLine();
             $this->info('Processing company: ' . $company->name);
-            $minutedMessages = $company->get(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value) ?? 60;
+            $minutedMessages = $company->get(CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value) ?? 60;
             $messages = Message::fromApp($app)
                 ->fromCompany($company)
                 ->where('is_locked', 1)
@@ -102,22 +103,13 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
 
-                // Check if message has 'first-message' tag before sending
-                $tags = $message->tags->pluck('name')->toArray();
-                if (! in_array('first-message', $tags)) {
-                    $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
-                    $message->setUnlock();
-
-                    continue;
-                }
-
                 try {
                     $eLeadOpportunity = EntitiesLead::getById(
                         $lead->app,
                         $lead->company,
                         (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     );
-                    $eLeadOpportunity->addComment("Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.");
+                    $eLeadOpportunity->addComment("Sally is sending a follow-up message. The salesperson hasn't responded to the lead yet.");
                 } catch (ClientException $e) {
                     if (Str::contains($e->getMessage(), 'not active')
                         || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
@@ -141,7 +133,6 @@ class SendDelayMessageCommand extends Command
                     $message->is_public = 1;
                     $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
                     //dispatch workflow
                     $message->fireWorkflow(
@@ -152,14 +143,25 @@ class SendDelayMessageCommand extends Command
                         ]
                     );
 
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+                    // Check if message does NOT have 'first-message' tag to trigger IA takeover
+                    $tags = $message->tags->pluck('name')->toArray();
+                    if (! in_array('first-message', $tags)) {
+                        $lead->fireWorkflow(
+                            WorkflowEnum::TRIGGER_AI->value,
+                            true,
+                            [
+                                'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
+                            ]
+                        );
+                        $this->info('Triggered IA takeover workflow for Lead ID ' . $lead->getId());
+                    }
 
-                    $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
+                    $this->info('Sent unresponde message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
 
                     DailyReportService::track(
                         $lead->app,
                         $lead->company,
-                        'ai_delayed_message_sent'
+                        'ai_unresponde_message_sent'
                     );
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
