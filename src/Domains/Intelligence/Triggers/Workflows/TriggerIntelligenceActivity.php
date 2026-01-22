@@ -29,6 +29,10 @@ class TriggerIntelligenceActivity extends KanvasActivity
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Trigger IA Logic Here
                 $triggerType = $params['trigger_type'] ?? null;
+                $modsPrevious = [
+                    'ai_mode' => $lead->get('ai_mode'),
+                    'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                ];
                 switch ($triggerType) {
                     case TriggersEnum::NEW_LEAD->value:
                         $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE->value) ?? IntelligenceModeEnum::FULL_ON->value;
@@ -89,7 +93,14 @@ class TriggerIntelligenceActivity extends KanvasActivity
                         break;
                 }
 
-                return ['Trigger IA executed'];
+                return [
+                    'Trigger IA executed',
+                    'mods_previous' => $modsPrevious,
+                    'mods_current' => [
+                        'ai_mode' => $lead->get('ai_mode'),
+                        'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                    ],
+                ];
             }
         );
     }
