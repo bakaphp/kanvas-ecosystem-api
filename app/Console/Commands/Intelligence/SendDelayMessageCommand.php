@@ -52,8 +52,7 @@ class SendDelayMessageCommand extends Command
             foreach ($messages as $message) {
                 if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
                     $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
-                    $message->is_locked = 0;
-                    $message->saveOrFail();
+                    $message->setUnlock();
 
                     continue;
                 }
@@ -73,8 +72,7 @@ class SendDelayMessageCommand extends Command
                 // for now only work with elead, missing determining if lead was contacted
                 if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
-                    $message->is_locked = 0;
-                    $message->saveOrFail();
+                    $message->setUnlock();
 
                     continue;
                 }
@@ -85,8 +83,7 @@ class SendDelayMessageCommand extends Command
                         $lead->company,
                         $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     )) {
-                        $message->is_locked = 0;
-                        $message->saveOrFail();
+                        $message->setUnlock();
                         $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
@@ -101,8 +98,7 @@ class SendDelayMessageCommand extends Command
 
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
-                    $message->is_locked = 0;
-                    $message->saveOrFail();
+                    $message->setUnlock();
 
                     continue;
                 }
@@ -111,8 +107,7 @@ class SendDelayMessageCommand extends Command
                 $tags = $message->tags->pluck('name')->toArray();
                 if (! in_array('first-message', $tags)) {
                     $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
-                    $message->is_locked = 0;
-                    $message->saveOrFail();
+                    $message->setUnlock();
 
                     continue;
                 }
@@ -143,7 +138,7 @@ class SendDelayMessageCommand extends Command
                         $fromNumber,
                         $title,
                     );
-                    $message->is_locked = 0;
+                    $message->setUnlock();
                     $message->is_public = 1;
                     $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
