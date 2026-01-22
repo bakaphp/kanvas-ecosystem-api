@@ -63,7 +63,7 @@ class BaseAgentResponderAction
         }
         $channel->addMessage($newMessage);
 
-        if ($this->session->entity?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        if ($this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             $newMessage->setLock();
         }
 
