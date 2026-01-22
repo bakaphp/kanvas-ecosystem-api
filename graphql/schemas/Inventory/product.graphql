@@ -77,6 +77,7 @@ type ProductTranslation {
 
 input ProductInput {
     products_types_id: ID
+    products_types: String
     sku: String @rules(apply: ["required_without:variants"])
     name: String!
     description: String
@@ -107,6 +108,7 @@ input ProductAttributesInput {
 
 input ProductInputUpdate {
     products_types_id: Int
+    products_types: String
     name: String
     slug: String
     description: String
@@ -120,6 +122,7 @@ input ProductInputUpdate {
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     categories: [ProductCategoriesReferenceInput!]
+    variants: [VariantsInput!]
 }
 
 input NearByLocationInput {

@@ -88,7 +88,7 @@ input VariantsInput {
     description: String
     short_description: String
     html_description: String
-    sku: String!
+    sku: String
     ean: String
     barcode: String
     serial_number: String
@@ -100,6 +100,7 @@ input VariantsInput {
     status: StatusReferenceInput
     price: Float
     weight: Float
+    warehouse_id: ID
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
     warehouses: [WarehouseReferenceInput!]

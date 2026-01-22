@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
 
+use Baka\Support\Str;
 use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -19,8 +20,10 @@ use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Languages\Models\Languages;
 
 class Products
@@ -31,21 +34,56 @@ class Products
      */
     public function create(mixed $root, array $req): ProductsModel
     {
-        if (isset($req['input']['status'])) {
-            $req['input']['status_id'] = StatusRepository::getById(
-                (int) $req['input']['status']['id'],
-                auth()->user()->getCurrentCompany()
+        $input = $req['input'];
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        if (isset($input['status'])) {
+            $input['status_id'] = StatusRepository::getById(
+                (int) $input['status']['id'],
+                $user->getCurrentCompany()
             )->getId();
         }
 
-        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
-            $company = Companies::getById($req['input']['company_id']);
+        if ($user->isAppOwner() && isset($input['company_id'])) {
+            $company = Companies::getById($input['company_id']);
         } else {
-            $company = auth()->user()->getCurrentCompany();
+            $company = $user->getCurrentCompany();
         }
 
-        $productDto = ProductDto::viaRequest($req['input'], $company);
-        $action = new CreateProductAction($productDto, auth()->user());
+        // Handle products_types lookup by name if provided (creates if not exists)
+        if (isset($input['products_types']) && ! isset($input['products_types_id'])) {
+            $productType = ProductsTypes::firstOrCreate(
+                [
+                    'name' => $input['products_types'],
+                    'apps_id' => $app->getId(),
+                ],
+                [
+                    'companies_id' => $company->getId(),
+                    'users_id' => $user->getId(),
+                    'slug' => Str::slug($input['products_types']),
+                    'description' => $input['products_types'] . ' product type',
+                    'weight' => 0,
+                ]
+            );
+            $input['products_types_id'] = $productType->getId();
+            unset($input['products_types']);
+        }
+
+        // Auto-generate SKU for variants if not provided
+        if (isset($input['variants'])) {
+            $productSlug = $input['slug'] ?? Str::slug($input['name']);
+            foreach ($input['variants'] as $index => &$variant) {
+                if (empty($variant['sku'])) {
+                    $variantSlug = Str::slug($variant['name']);
+                    $variant['sku'] = $productSlug . '_' . $variantSlug;
+                }
+            }
+            unset($variant);
+        }
+
+        $productDto = ProductDto::viaRequest($input, $company);
+        $action = new CreateProductAction($productDto, $user);
 
         return $action->execute();
     }
@@ -55,17 +93,61 @@ class Products
      */
     public function update(mixed $root, array $req): ProductsModel
     {
-        $company = auth()->user()->getCurrentCompany();
-
-        if (isset($req['input']['status'])) {
-            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
-        }
+        $input = $req['input'];
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
-        $productDto = ProductDto::viaRequest($req['input'], $product->company);
-        $productModel = (new UpdateProductAction($product, $productDto, auth()->user()))->execute();
 
-        return $productModel;
+        if (isset($input['status'])) {
+            $input['status_id'] = StatusRepository::getById((int) $input['status']['id'], $company)->getId();
+        }
+
+        // Handle products_types lookup by name if provided (creates if not exists)
+        if (isset($input['products_types']) && ! isset($input['products_types_id'])) {
+            $productType = ProductsTypes::firstOrCreate(
+                [
+                    'name' => $input['products_types'],
+                    'apps_id' => $app->getId(),
+                ],
+                [
+                    'companies_id' => $company->getId(),
+                    'users_id' => $user->getId(),
+                    'slug' => Str::slug($input['products_types']),
+                    'description' => $input['products_types'] . ' product type',
+                    'weight' => 0,
+                ]
+            );
+            $input['products_types_id'] = $productType->getId();
+            unset($input['products_types']);
+        }
+
+        // Auto-generate SKU for variants if not provided
+        if (isset($input['variants'])) {
+            $productSlug = $input['slug'] ?? $product->slug;
+            foreach ($input['variants'] as &$variant) {
+                if (empty($variant['sku'])) {
+                    $variantSlug = Str::slug($variant['name']);
+                    $variant['sku'] = $productSlug . '_' . $variantSlug;
+                }
+            }
+            unset($variant);
+
+            // Process variants separately after product update
+            $variantsInput = $input['variants'];
+            unset($input['variants']);
+        }
+
+        $productDto = ProductDto::viaRequest($input, $product->company);
+        $productModel = (new UpdateProductAction($product, $productDto, $user))->execute();
+
+        // Process variants if provided
+        if (isset($variantsInput)) {
+            VariantService::createVariantsFromArray($productModel, $variantsInput, $user);
+        }
+
+        return $productModel->refresh();
     }
 
     /**

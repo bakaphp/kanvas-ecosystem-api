@@ -52,11 +52,14 @@ input VariantChannelInput {
 }
 
 input VariantChannelReferenceInput {
-    warehouses_id: ID!
-    channels_id: ID!
+    warehouses_id: ID
+    channels_id: ID
+    name: String # Alternative to channels_id - will findOrCreate channel by name
+    slug: String
     price: Float!
     discounted_price: Float
-    is_published: Boolean!
+    config: Mixed
+    is_published: Boolean
 }
 
 enum ChannelVariantsFilterByAttributesEnum {

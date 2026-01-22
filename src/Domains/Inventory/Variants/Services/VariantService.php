@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
@@ -97,8 +99,12 @@ class VariantService
                     );
                 }
             } else {
-                $warehouse = Warehouses::getDefault($company, $product->app);
-                $variantWarehouseInfo = [];
+                // Use specified warehouse_id or default warehouse
+                if (isset($variant['warehouse_id'])) {
+                    $warehouse = WarehouseRepository::getById((int) $variant['warehouse_id'], $company, $product->app);
+                } else {
+                    $warehouse = Warehouses::getDefault($company, $product->app);
+                }
 
                 $variantWarehouseInfo = array_filter([
                     'price' => $variant['price'] ?? null,
@@ -123,11 +129,32 @@ class VariantService
                     } else {
                         $warehouse = Warehouses::getDefault($company, $product->app);
                     }
-                    $channel = ChannelRepository::getById(
-                        (int) $variantChannel['channels_id'],
-                        $company,
-                        $product->app
-                    );
+
+                    // Support channel lookup by name or by ID
+                    if (isset($variantChannel['channels_id'])) {
+                        $channel = ChannelRepository::getById(
+                            (int) $variantChannel['channels_id'],
+                            $company,
+                            $product->app
+                        );
+                    } elseif (isset($variantChannel['name'])) {
+                        $channel = Channels::firstOrCreate(
+                            [
+                                'name' => $variantChannel['name'],
+                                'companies_id' => $company->getId(),
+                                'apps_id' => $product->app->getId(),
+                            ],
+                            [
+                                'slug' => $variantChannel['slug'] ?? Str::slug($variantChannel['name']),
+                                'description' => $variantChannel['name'] . ' pricing channel',
+                                'users_id' => $user->getId(),
+                                'is_published' => 1,
+                            ]
+                        );
+                    } else {
+                        continue; // Skip if neither channels_id nor name is provided
+                    }
+
                     $variantChannelDto = VariantChannelDto::from($variantChannel);
                     self::addVariantChannel(
                         $variantModel,
