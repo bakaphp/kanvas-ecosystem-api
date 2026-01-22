@@ -53,6 +53,8 @@ final class UserServiceTest extends TestCase
 
         // Setup DriveCentric client
         $this->setupDriveCentricClient($app, $company);
+
+        $this->markTestIncomplete('This test has not been implemented yet.');
         /*
                 $userService = new UserService($app, $company);
                 $activeUsers = $userService->getActiveUsers();

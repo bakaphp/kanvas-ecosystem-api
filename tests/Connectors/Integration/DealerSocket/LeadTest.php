@@ -19,6 +19,14 @@ final class LeadTest extends TestCase
 {
     use HasDealerSocketConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('DealerSocket integration tests are skipped in CI');
+        }
+    }
+
     public function testCreateLead(): void
     {
         $app = app(Apps::class);
