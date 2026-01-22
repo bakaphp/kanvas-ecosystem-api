@@ -121,11 +121,12 @@ class LeadObserver
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         if ($lead->wasChanged('leads_status_id')) {
-            if (strtolower($lead->status->name) === 'sold') {
+            $leadStatus = $lead->status()->first();
+            if (strtolower($leadStatus->name) === 'sold') {
                 $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
                     'trigger_type' => TriggersEnum::SOLD_LEAD->value,
                 ]);
-            } elseif (strtolower($lead->status->name) === 'close') {
+            } elseif (strtolower($leadStatus->name) === 'close') {
                 $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
                     'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
                 ]);
