@@ -52,7 +52,6 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    is_locked: Int
 }
 
 type AppModuleMessage {
