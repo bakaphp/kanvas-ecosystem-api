@@ -14,7 +14,7 @@ return new class () extends Migration {
         Schema::create('follow_ups', function (Blueprint $table) {
             $table->id();
             $table->integer('follow_up_type')->default(0);
-            $table->bigInteger('pipelines_id');
+            $table->bigInteger('pipelines_id')->index();
             $table->string('name');
             $table->timestamp('created_at')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamp('updated_at')->nullable();
@@ -22,8 +22,8 @@ return new class () extends Migration {
         });
         Schema::create('follow_up_days', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('follow_ups_id');
-            $table->bigInteger('pipeline_stages_id');
+            $table->bigInteger('follow_ups_id')->index();
+            $table->bigInteger('pipeline_stages_id')->index();
             $table->string('name');
             $table->integer('time_value');
             $table->string('time_unit')->nullable();
@@ -38,7 +38,7 @@ return new class () extends Migration {
         });
         Schema::create('follow_up_templates', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('follow_up_days_id');
+            $table->bigInteger('follow_up_days_id')->index();
             $table->string('communication_channel');
             $table->string('name');
             $table->text('template');
