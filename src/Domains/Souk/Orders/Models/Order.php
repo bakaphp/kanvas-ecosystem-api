@@ -160,7 +160,7 @@ class Order extends BaseModel
 
     public function payments(): MorphMany
     {
-        return $this->morphMany(Payments::class, 'payable');
+        return $this->morphMany(Payments::class, 'payable')->latest();
     }
 
     public function orderDiscounts(): HasMany
