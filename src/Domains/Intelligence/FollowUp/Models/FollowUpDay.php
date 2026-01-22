@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\FollowUp\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Models\BaseModel;
 
 /**
@@ -28,6 +29,11 @@ class FollowUpDay extends BaseModel
     public function followUp(): BelongsTo
     {
         return $this->belongsTo(FollowUp::class, 'follow_ups_id');
+    }
+
+    public function pipelineStage(): BelongsTo
+    {
+        return $this->belongsTo(PipelineStage::class, 'pipeline_stages_id');
     }
 
     public function templates(): HasMany
