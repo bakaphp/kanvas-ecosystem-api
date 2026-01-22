@@ -189,6 +189,7 @@ class CreateUserAction
 
     protected function createNewUser(): Users
     {
+        $createAt = date('Y-m-d H:i:s');
         $user = new Users();
         $user->firstname = $this->data->firstname;
         $user->lastname = $this->data->lastname;
@@ -199,8 +200,8 @@ class CreateUserAction
         $user->cell_phone_number = $this->data->cell_phone_number;
         $user->sex = AppEnums::DEFAULT_SEX->getValue();
         $user->dob = date('Y-m-d');
-        $user->lastvisit = date('Y-m-d H:i:s');
-        $user->registered = date('Y-m-d H:i:s');
+        $user->lastvisit = $createAt;
+        $user->registered = $createAt;
         $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
         $user->user_active = StatusEnums::ACTIVE->getValue();
         $user->status = StatusEnums::ACTIVE->getValue();
@@ -215,6 +216,8 @@ class CreateUserAction
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
+        $user->created_at = $createAt;
+        $user->updated_at = $createAt;
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
