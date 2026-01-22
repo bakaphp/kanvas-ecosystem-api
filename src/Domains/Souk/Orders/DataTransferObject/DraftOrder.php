@@ -17,7 +17,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -50,8 +50,13 @@ class DraftOrder extends Data
     ) {
     }
 
-    public static function viaRequest(AppInterface $app, CompaniesBranches $branch, UserInterface $user, Regions $region, array $request): self
-    {
+    public static function fromMultiple(
+        AppInterface $app,
+        CompaniesBranches $branch,
+        UserInterface $user,
+        Regions $region,
+        array $request
+    ): self {
         $customer = $request['input']['customer'];
         $customer['contacts'] = [
             [
@@ -90,7 +95,9 @@ class DraftOrder extends Data
 
         $people = (new CreatePeopleAction($people))->execute();
 
-        $channel = Channels::getById($request['input']['channel_id'], $app);
+        $channel = isset($request['input']['channel_id'])
+            ? Channels::getByIdFromCompanyApp($request['input']['channel_id'], $branch->company, $app)
+            : Channels::getDefault($branch->company, $app);
 
         $shippingAddress = ! empty($request['input']['shipping_address']['address1']) ?
             $customer->addAddress(new Address(
