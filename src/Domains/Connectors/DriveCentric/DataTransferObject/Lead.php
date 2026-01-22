@@ -65,9 +65,6 @@ class Lead extends DataTransferObjectLead
             'leads_owner_id' => $leadOwnerId,
             'custom_fields' => [
                 CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value => $dealId,
-                CustomFieldEnums::DEAL_STAGE->value => $data['pipelineStage'] ?? $data['stage'] ?? null,
-                CustomFieldEnums::VEHICLE_OF_INTEREST->value => self::extractVehicleOfInterest($data),
-                CustomFieldEnums::TRADE_IN->value => self::extractTradeIn($data),
             ],
         ]);
     }
@@ -151,20 +148,36 @@ class Lead extends DataTransferObjectLead
     protected static function getLeadOwnerId(array $data, Companies $company, UserInterface $user): int
     {
         // Try to find user from deal's salesperson data
-        $salesUser = $data['salesPerson'] ?? $data['user'] ?? null;
+        $salesUser = $data['salesperson1'] ?? $data['salesPerson'] ?? $data['user'] ?? null;
 
-        if ($salesUser && isset($salesUser['userId'])) {
-            $userConfig = UserConfig::where('name', 'LIKE', ConfigurationEnum::USER->value . '_' . $company->getId() . '%')
-                ->where('value', $salesUser['userId'])
-                ->orderBy('users_id', 'DESC')
-                ->first();
+        if ($salesUser) {
+            // Extract CrmId from identifiers
+            $salesUserId = null;
+            if (isset($salesUser['identifiers'])) {
+                foreach ($salesUser['identifiers'] as $identifier) {
+                    if (($identifier['type'] ?? '') === 'CrmId') {
+                        $salesUserId = $identifier['value'] ?? null;
 
-            if ($userConfig) {
-                return $userConfig->users_id;
+                        break;
+                    }
+                }
+            } elseif (isset($salesUser['userId'])) {
+                $salesUserId = $salesUser['userId'];
+            }
+
+            if ($salesUserId) {
+                $userConfig = UserConfig::where('name', 'LIKE', ConfigurationEnum::getUserKey($company) . '%')
+                    ->where('value', $salesUserId)
+                    ->orderBy('users_id', 'DESC')
+                    ->first();
+
+                if ($userConfig) {
+                    return $userConfig->users_id;
+                }
             }
         }
 
-        return $user->getId();
+        return 0;
     }
 
     /**
@@ -193,13 +206,16 @@ class Lead extends DataTransferObjectLead
      */
     protected static function extractVehicleOfInterest(array $data): ?array
     {
-        $vehicles = $data['vehiclesOfInterest'] ?? $data['vehicles'] ?? [];
+        $vehicles = $data['vehicleInterests'] ?? $data['vehiclesOfInterest'] ?? $data['vehicles'] ?? [];
 
         if (empty($vehicles)) {
             return null;
         }
 
-        $vehicle = $vehicles[0] ?? [];
+        $vehicleData = $vehicles[0] ?? [];
+
+        // Handle nested vehicle structure
+        $vehicle = $vehicleData['vehicle'] ?? $vehicleData;
 
         return [
             'year' => $vehicle['year'] ?? null,
@@ -209,7 +225,10 @@ class Lead extends DataTransferObjectLead
             'vin' => $vehicle['vin'] ?? null,
             'stockNumber' => $vehicle['stockNumber'] ?? null,
             'price' => $vehicle['price'] ?? null,
-            'isNew' => ($vehicle['stockType'] ?? '') === 'New',
+            'mileage' => $vehicle['mileage'] ?? null,
+            'exteriorColor' => $vehicle['exteriorColor'] ?? null,
+            'interiorColor' => $vehicle['interiorColor'] ?? null,
+            'isNew' => ($vehicle['stockType'] ?? $vehicleData['stockType'] ?? '') === 'New',
         ];
     }
 

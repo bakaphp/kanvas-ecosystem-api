@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 
 use function Sentry\captureException;
@@ -102,6 +103,12 @@ class FollowUpEngagementAction
                         $message,
                         $this->lead->company->get('twilio_phone_number')
                     );
+
+                    DailyReportService::track(
+                        $this->lead->app,
+                        $this->lead->company,
+                        'ai_follow_up_engagement_sent'
+                    );
                 }
 
                 $intentNumber = (int) ($this->lead->get('intent_number') ?? 0);
@@ -126,12 +133,12 @@ class FollowUpEngagementAction
     {
         $messages = $channel->messages()
             ->where('message->from_me', false)
-            ->where('is_deleted', 0)
+            ->where('messages.is_deleted', 0)
             ->whereHas('messageType', function ($query): void {
                 $query->where('verb', '=', MessageTypeEnum::TEXT->value);
             })
-            ->where('created_at', '>=', now()->subDay())
-            ->orderBy('created_at', 'DESC')
+            ->where('messages.created_at', '>=', now()->subDay())
+            ->orderBy('messages.created_at', 'DESC')
             ->get();
 
         if (count($messages) === 0) {

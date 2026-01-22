@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
-use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Throwable;
 
 class SyncLeadWithLegacyCRMAction
 {
@@ -26,9 +26,9 @@ class SyncLeadWithLegacyCRMAction
             throw new InvalidArgumentException('Legacy CRM API URL is not configured.');
         }
 
-        $this->cid = $this->lead->app->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
+        $this->cid = (string) ($this->lead->app->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
             ?? $this->lead->company->get(ConfigurationEnum::LEGACY_CRM_CLIENT_ID->value)
-            ?? '';
+            ?? '');
     }
 
     public function execute(): array
@@ -45,16 +45,29 @@ class SyncLeadWithLegacyCRMAction
 
         try {
             $response = Http::get($this->apiUrl, $payload);
-            $result = $response->json();
+
+            $body = trim($response->body());
+
+            // Remove: callbackName( ... );
+            if (preg_match('/^[^(]+\((.*)\);?$/s', $body, $matches)) {
+                $json = $matches[1];
+            } else {
+                $json = $body; // fallback in case they ever return pure JSON
+            }
+
+            $result = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
             return [
-                'success' => ($result['status'] ?? 0) === 1,
+                'success' => ($result['status'] ?? 0) === 1 || ($result['status'] ?? 0) === 2,
                 'message' => $result['msg'] ?? 'Unknown response',
                 'data' => $result,
+                'payload' => $payload,
+                'raw' => $body,
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return [
                 'success' => false,
+                'payload' => $payload,
                 'message' => $e->getMessage(),
             ];
         }
@@ -104,7 +117,7 @@ class SyncLeadWithLegacyCRMAction
             'domain' => 'Internet',
             'vd_referrer' => $domain,
             'fname' => $people->firstname,
-            'lname' => $people->lastname,
+            'lname' => ! empty($people->lastname) ? $people->lastname : ($this->lead->get('lastName') ?? 'N/A'),
             'telephone' => $people->getAllPhones()->first()?->value ?? '',
             'email' => $people->getEmails()->first()?->value ?? '',
             'message' => $this->lead->get('message') ?? $this->lead->description ?? '',

@@ -19,7 +19,7 @@ class UpdateDiscountAction
     public function execute(): Discount
     {
         $this->discount->name = $this->data->name;
-        $this->discount->description = $this->discount->description ?? $this->data->description;
+        $this->discount->description = $this->data->description;
         $this->discount->discount_type_id = $this->data->discount_type_id;
         $this->discount->value = $this->data->value;
         $this->discount->is_percentage = $this->data->is_percentage;

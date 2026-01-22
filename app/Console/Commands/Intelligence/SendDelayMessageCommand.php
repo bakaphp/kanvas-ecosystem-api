@@ -18,6 +18,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -104,7 +105,7 @@ class SendDelayMessageCommand extends Command
                         $lead->company,
                         (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     );
-                    $eLeadOpportunity->addComment("Sally has already sent the first message to the lead. It's been an hour since the lead was created, and no sales agent has contacted them yet.");
+                    $eLeadOpportunity->addComment("Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.");
                 } catch (ClientException $e) {
                     if (Str::contains($e->getMessage(), 'not active')
                         || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
@@ -125,8 +126,10 @@ class SendDelayMessageCommand extends Command
                         $title,
                     );
                     $message->is_locked = 0;
+                    $message->is_public = 1;
+                    $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
                     //dispatch workflow
                     $message->fireWorkflow(
@@ -137,6 +140,12 @@ class SendDelayMessageCommand extends Command
                         ]
                     );
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
+
+                    DailyReportService::track(
+                        $lead->app,
+                        $lead->company,
+                        'ai_delayed_message_sent'
+                    );
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
                 }
