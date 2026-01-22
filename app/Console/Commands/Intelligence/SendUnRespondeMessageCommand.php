@@ -147,7 +147,7 @@ class SendUnRespondeMessageCommand extends Command
                     $tags = $message->tags->pluck('name')->toArray();
                     if (! in_array('first-message', $tags)) {
                         $lead->fireWorkflow(
-                            WorkflowEnum::TRIGGER_IA->value,
+                            WorkflowEnum::TRIGGER_AI->value,
                             true,
                             [
                                 'trigger_type' => TriggersEnum::AI_TAKEOVER->value,

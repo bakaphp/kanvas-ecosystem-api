@@ -43,7 +43,7 @@ enum WorkflowEnum: string
     case UPDATE_USER_PROFILE = 'update-user-profile';
 
     case CONTACT_SAVED = 'contact-saved';
-    case TRIGGER_IA = 'trigger-ia';
+    case TRIGGER_AI = 'trigger-ai';
     case AFTER_LEGACY_FEED = 'after-legacy-feed';
 
     /**

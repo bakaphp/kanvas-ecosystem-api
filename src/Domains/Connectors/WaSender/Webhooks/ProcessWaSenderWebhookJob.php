@@ -187,7 +187,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
                 if ((int) $status === 2) {
                     $lead->fireWorkflow(
-                        WorkflowEnum::TRIGGER_IA->value,
+                        WorkflowEnum::TRIGGER_AI->value,
                         true,
                         [
                             'app' => $this->receiver->app,

@@ -125,7 +125,7 @@ class CreateLeadAction
                     );
                 });
                 $newLead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_IA->value,
+                    WorkflowEnum::TRIGGER_AI->value,
                     true,
                     [
                         'company' => $this->company,

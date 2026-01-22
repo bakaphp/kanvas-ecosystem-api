@@ -53,7 +53,7 @@ class HandOffActivity extends KanvasActivity
                 $handOffType = strtolower($params['handoff_type'] ?? 'human');
                 if ($handOffType == 'human') {
                     $lead->fireWorkflow(
-                        WorkflowEnum::TRIGGER_IA->value,
+                        WorkflowEnum::TRIGGER_AI->value,
                         true,
                         [
                             'app' => $app,
