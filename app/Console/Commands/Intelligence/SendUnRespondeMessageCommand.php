@@ -125,7 +125,7 @@ class SendUnRespondeMessageCommand extends Command
                 try {
                     new SendMessageToLeadAction($lead)->execute(
                         $communicationChannel,
-                        $messageContent,
+                        $message->message['content'],
                         $fromNumber,
                         $title,
                     );
