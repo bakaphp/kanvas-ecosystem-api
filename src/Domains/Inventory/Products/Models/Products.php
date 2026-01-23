@@ -333,26 +333,26 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $EarthRadius = 6371; // km
 
+        $distanceFormula = "({$EarthRadius} * acos(
+            least(1, cos(radians(?)) *
+            cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)))) *
+            cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6))) - radians(?)) +
+            sin(radians(?)) *
+            sin(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6))))
+            )
+        ))";
+
         return $query
             ->where('products.is_deleted', 0)
-            ->whereHas('attributes', function ($query) use ($location, $EarthRadius) {
-                $query->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.lat') IS NOT NULL")
-                    ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.long') IS NOT NULL")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)) != 0")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6)) != 0")
-                    ->selectRaw("(
-                {$EarthRadius} * acos(
-                    least(1, cos(radians(?)) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)))) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6))) - radians(?)) +
-                    sin(radians(?)) *
-                    sin(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6))))
-                    )
-                )
-                    ) AS distance", [$location['lat'], $location['long'], $location['lat']])
-                ->having('distance', '<=', $location['radius'])
-                ->orderBy('distance');
-            });
+            ->join('products_attributes', 'products.id', '=', 'products_attributes.products_id')
+            ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.lat') IS NOT NULL")
+            ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.long') IS NOT NULL")
+            ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)) != 0")
+            ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6)) != 0")
+            ->selectRaw("products.*, {$distanceFormula} AS distance", [$location['lat'], $location['long'], $location['lat']])
+            ->havingRaw("distance <= ?", [$location['radius']])
+            ->orderBy('distance', 'ASC')
+            ->groupBy('products.id');
     }
 
     /**
