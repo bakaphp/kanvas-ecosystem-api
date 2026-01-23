@@ -13,7 +13,6 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
-
 use Sentry\State\Scope;
 
 use function Sentry\captureException;
