@@ -25,8 +25,10 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -1163,19 +1165,42 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             )
         )->execute();
 
-        $leadReceiver = new CreateLeadReceiverAction(
-            new LeadReceiver(
-                app: $people->app,
-                branch: $people->company->defaultBranch,
-                user: $people->user,
-                agent: $people->user,
-                name: 'Agent',
-                source: 'AI Agent',
-                isDefault: false,
-                lead_sources_id: $leadSource->getId(),
-                lead_types_id: $leadType->getId()
-            )
-        )->execute();
+        // Check if receiver_id is configured, if so, use existing receiver
+        $receiverId = $this->receiver->configuration['receiver_id'] ?? null;
+
+        if ($receiverId) {
+            $leadReceiver = LeadReceiverModel::fromApp($people->app)
+                ->fromCompany($people->company)
+                ->where('id', $receiverId)
+                ->where('is_deleted', 0)
+                ->firstOrFail();
+        } else {
+            $leadReceiver = new CreateLeadReceiverAction(
+                new LeadReceiver(
+                    app: $people->app,
+                    branch: $people->company->defaultBranch,
+                    user: $people->user,
+                    agent: $people->user,
+                    name: 'Agent',
+                    source: 'AI Agent',
+                    isDefault: false,
+                    lead_sources_id: $leadSource->getId(),
+                    lead_types_id: $leadType->getId()
+                )
+            )->execute();
+        }
+
+        // Check if pipeline_id is configured, if so, use that pipeline
+        $pipelineId = $this->receiver->configuration['pipeline_id'] ?? null;
+        $pipeline = null;
+
+        if ($pipelineId) {
+            $pipeline = Pipeline::fromApp($people->app)
+                ->fromCompany($people->company)
+                ->where('id', $pipelineId)
+                ->where('is_deleted', 0)
+                ->first();
+        }
 
         $leadData = new DataTransferObjectLead(
             app: $people->app,
@@ -1197,7 +1222,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             status_id: 0,
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
-            receiver_id: $leadReceiver->getId()
+            receiver_id: $leadReceiver->getId(),
+            pipeline: $pipeline
         );
 
         $lead = new CreateLeadAction($leadData)->execute();

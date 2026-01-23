@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -38,6 +39,7 @@ class Lead extends Data
         public readonly array $files = [],
         public bool $runWorkflow = true,
         public readonly array $followers = [],
+        public readonly ?Pipeline $pipeline = null,
     ) {
     }
 

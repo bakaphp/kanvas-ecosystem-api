@@ -69,6 +69,21 @@ class CreateLeadAction
             $newLead->leads_status_id = $this->leadData->status_id;
             $newLead->reason_lost = $this->leadData->reason_lost;
 
+            // Assign pipeline and stage if pipeline is provided
+            if ($this->leadData->pipeline instanceof \Kanvas\Guild\Pipelines\Models\Pipeline) {
+                $newLead->pipelines_id = $this->leadData->pipeline->getId();
+
+                // Get the first stage of the pipeline ordered by weight
+                $firstStage = $this->leadData->pipeline->stages()
+                    ->where('is_deleted', 0)
+                    ->orderBy('weight', 'asc')
+                    ->first();
+
+                if ($firstStage) {
+                    $newLead->pipeline_stage_id = $firstStage->id;
+                }
+            }
+
             //create people
             $people = (new CreatePeopleAction($this->leadData->people))->execute();
             $newLead->people_id = $people->getId();
