@@ -20,9 +20,6 @@ use function Sentry\withScope;
 
 class UserManagement
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected Users $user,
         protected AppInterface $app,
@@ -30,9 +27,6 @@ class UserManagement
     ) {
     }
 
-    /**
-     * Update current user data with $data
-     */
     public function update(array $data): Users
     {
         try {
