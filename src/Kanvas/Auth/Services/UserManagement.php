@@ -14,10 +14,9 @@ use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\UserAddress;
 use Kanvas\Users\Models\Users;
 
-use function Sentry\captureException;
-
 use Sentry\State\Scope;
 
+use function Sentry\captureException;
 use function Sentry\withScope;
 
 class UserManagement

@@ -53,7 +53,7 @@ class ConfigManagement
         UsersRepository::belongsToThisApp($user, app(Apps::class));
         $currentUser = auth()->user();
         $isPublic = $currentUser->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        
+
         $user->set(
             $request['input']['key'],
             $request['input']['value'],
