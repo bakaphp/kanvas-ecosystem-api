@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -70,7 +71,7 @@ class CreateLeadAction
             $newLead->reason_lost = $this->leadData->reason_lost;
 
             // Assign pipeline and stage if pipeline is provided
-            if ($this->leadData->pipeline instanceof \Kanvas\Guild\Pipelines\Models\Pipeline) {
+            if ($this->leadData->pipeline instanceof Pipeline) {
                 $newLead->pipelines_id = $this->leadData->pipeline->getId();
 
                 // Get the first stage of the pipeline ordered by weight

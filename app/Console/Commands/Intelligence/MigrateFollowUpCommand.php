@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Intelligence;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +20,7 @@ class MigrateFollowUpCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:migrate-follow-up
+    protected $signature = 'kanvas:intelligence:migrate-follow-up
                             {--pipeline-id= : Migrate only a specific pipeline by ID}
                             {--time-unit= : Force a specific time unit (minutes, hours, days)}
                             {--dry-run : Run the migration without saving to database}';
@@ -172,12 +172,14 @@ class MigrateFollowUpCommand extends Command
                         // Skip if channel is numeric (invalid template structure)
                         if (is_numeric($channel)) {
                             $this->warn("        ⚠ Skipping invalid template with numeric key: {$channel}");
+
                             continue;
                         }
 
                         // Skip if template content is empty
                         if (empty($templateContent)) {
                             $this->warn("        ⚠ Skipping empty template for channel: {$channel}");
+
                             continue;
                         }
 
