@@ -34,6 +34,10 @@ class OrderLateFeeTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Movipass integration tests are skipped in CI');
+        }
+
         $this->apps = app(Apps::class);
         $this->user = Auth::user();
         $this->company = $this->user->getCurrentCompany();

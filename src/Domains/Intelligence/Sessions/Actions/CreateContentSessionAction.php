@@ -17,6 +17,7 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -78,6 +79,8 @@ class CreateContentSessionAction
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
                 'company_language' => $lead->company->get('lang', 'en'),
+                'is_service_lead' => $lead->get('is_service_lead') ?? 0,
+                'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []

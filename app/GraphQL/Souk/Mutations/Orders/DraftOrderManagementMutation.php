@@ -7,7 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateDraftOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DraftOrder;
 use Kanvas\Souk\Orders\Models\Order;
@@ -36,7 +36,7 @@ class DraftOrderManagementMutation
          ])
          ->log('User attempted to create order from draft');
 
-        $draftOrder = DraftOrder::viaRequest(
+        $draftOrder = DraftOrder::from(
             $app,
             $branch,
             $user,
