@@ -34,10 +34,7 @@ class VariantChannelBuilder
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
 
-        /**
-         * @var Builder
-         */
-        return ModelsVariants::select(
+        $query = ModelsVariants::select(
             $variants->getTable() . '.*',
             DB::raw("'{$channel->name}' as channel_name"), //add channel name
             $variantsChannel->getTable() . '.price',
@@ -48,6 +45,8 @@ class VariantChannelBuilder
         ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
         ->where($variantsChannel->getTable() . '.is_deleted', 0)
         ->where($variantsChannel->getTable() . '.is_published', 1);
+
+        return $query;
     }
 
     public function allVariantsPublishedInChannelFilterByAttributes(

@@ -82,6 +82,7 @@ input MessageInput {
     categories: [CategoryInput!]
     slug: String
     files: [Upload!]
+    is_locked: Int
 }
 
 input MessageUpdateInput {
@@ -208,7 +209,7 @@ extend type Query @guard {
         hasChannel: _
             @whereHasConditions(
                 relation: "channels"
-                columns: ["id", "name", "slug", "entity_id"]
+                columns: ["id", "uuid", "name", "slug", "entity_id"]
             )
         hasTags: _
             @whereHasConditions(

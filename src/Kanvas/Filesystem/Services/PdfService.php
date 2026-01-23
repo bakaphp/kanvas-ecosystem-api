@@ -26,7 +26,6 @@ class PdfService
         // Define the file name
         //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
         //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
-
         // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
 
@@ -35,10 +34,11 @@ class PdfService
         if (! is_dir($tempDir) || ! is_writable($tempDir)) {
             $tempDir = storage_path('app/temp');
         }
+        chdir($tempDir);
 
         $tempFilePath = $tempDir . '/' . $fileName;
 
-        $snappy = new Pdf('/usr/bin/wkhtmltopdf', $options);
+        $snappy = new Pdf('/usr/local/bin/wkhtmltopdf', $options);
 
         $snappy->setOption('encoding', 'UTF-8');
         $snappy->setOption('no-outline', true);

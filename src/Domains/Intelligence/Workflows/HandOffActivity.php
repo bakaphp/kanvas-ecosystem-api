@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -50,9 +51,20 @@ class HandOffActivity extends KanvasActivity
                 $handOffUserRole = $lead->company->get('ai_agent_handoff_user_role') ?? 'Manager';
 
                 $handOffType = strtolower($params['handoff_type'] ?? 'human');
+                if ($handOffType == 'human') {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $app,
+                            'trigger_type' => TriggersEnum::HUMAN_HANDOFF->value,
+                        ]
+                    );
+                }
                 $communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
                 $companyHumanHandOffOnlySms = (bool) ($lead->company->get('ai_human_handoff_only_sms') ?? false);
+                $companyComplianceHandOffOnlyPush = (bool) ($lead->company->get('ai_compliance_handoff_only_push') ?? false);
 
                 $handOffNotification = new HandOffNotification(
                     lead: $lead,
@@ -79,6 +91,10 @@ class HandOffActivity extends KanvasActivity
                     $handOffNotification->setSubject('Lead Compliance Handoff Notification - ' . $lead->people->name);
                     $handOffNotification->setPushTemplateName('lead_handoff_compliance_push_notification');
                     $handOffNotification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
+
+                    if ($companyComplianceHandOffOnlyPush) {
+                        $handOffNotification->setChannelOnlyPush();
+                    }
                     /*  $contactInfo = match (strtolower($communicationChannel)) {
                          'sms' => $lead->people->getCellPhones(),
                          'email' => $leadOwner->getEmails(),

@@ -43,6 +43,7 @@ class AuthManagementMutation
         ?GraphQLContext $context = null,
         ?ResolveInfo $resolveInfo = null
     ): array {
+        $app = app(Apps::class);
         $email = $request['data']['email'];
         $password = $request['data']['password'];
         $deviceId = $request['data']['device_id'] ?? null;

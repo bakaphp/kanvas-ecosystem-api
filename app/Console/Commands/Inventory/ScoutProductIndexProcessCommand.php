@@ -23,7 +23,7 @@ class ScoutProductIndexProcessCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id} {--company_id=}';
+    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id} {--company_id=} {--action= : Force action without prompt (delete, reindex, unpublished, delete-all)}';
 
     /**
      * The console command description.
@@ -31,6 +31,16 @@ class ScoutProductIndexProcessCommand extends Command
      * @var string|null
      */
     protected $description = 'Process scout products with actions';
+
+    /**
+     * Action mapping for --action option.
+     */
+    protected array $actionMap = [
+        'delete' => 1,
+        'reindex' => 2,
+        'unpublished' => 3,
+        'delete-all' => 4,
+    ];
 
     /**
      * Execute the console command.
@@ -41,6 +51,21 @@ class ScoutProductIndexProcessCommand extends Command
         $this->overwriteAppService($app);
 
         $companyId = $this->option('company_id') ?? null;
+        $action = $this->option('action') ?? null;
+
+        // If action is provided, bypass the interactive select
+        if ($action !== null) {
+            if (! isset($this->actionMap[$action])) {
+                $this->error("Invalid action '{$action}'. Valid actions are: " . implode(', ', array_keys($this->actionMap)));
+
+                return;
+            }
+
+            $option = $this->actionMap[$action];
+            $this->executeAction($option, $app, $companyId);
+
+            return;
+        }
 
         $option = select(
             label: 'Select the type of function to be done',
@@ -96,13 +121,20 @@ class ScoutProductIndexProcessCommand extends Command
         $products = $query->orderBy('id', 'DESC')->cursor();
 
         $i = 0;
+        $j = 0;
         //need to iterate so custom index take effect
         foreach ($products as $product) {
-            $product->searchable();
-            $i++;
-            usleep(100000); // 100ms delay between batches
+            if ($product->shouldBeSearchable()) {
+                $i++;
+                $product->searchable();
+            } else {
+                $j++;
+                $product->unsearchable();
+            }
+            sleep(1);
         }
         $this->info('Total products to reindexed: ' . $i);
+        $this->info('Total products to unindexed: ' . $j);
     }
 
     public function delete(Apps $app, ?string $companyId = null): void
@@ -127,7 +159,7 @@ class ScoutProductIndexProcessCommand extends Command
         foreach ($products as $product) {
             $product->unsearchable();
             $i++;
-            usleep(100000); // 100ms delay between batches
+            sleep(1);
         }
 
         $this->info('Total products to clean up: ' . $i);
@@ -158,7 +190,7 @@ class ScoutProductIndexProcessCommand extends Command
 
         // Get products that are published but have no variants published on the default channel
         $query = Products::fromApp($app)
-            ->where('is_published', 1)
+            //->where('is_published', 1)
             ->where('is_deleted', 0)
             ->where('companies_id', $companyId)
             ->whereHas('variants') // Ensure the product has variants
@@ -174,7 +206,7 @@ class ScoutProductIndexProcessCommand extends Command
         foreach ($products as $product) {
             $product->unsearchable();
             $i++;
-            usleep(100000); // 100ms delay between batches
+            sleep(1);
         }
 
         $this->info('Total products with all variants unpublished on default channel removed from search: ' . $i);
@@ -199,7 +231,7 @@ class ScoutProductIndexProcessCommand extends Command
         foreach ($products as $product) {
             $product->unsearchable();
             $i++;
-            usleep(100000); // 100ms delay between batches
+            sleep(1);
         }
 
         $this->info('Total products deleted from index: ' . $i);

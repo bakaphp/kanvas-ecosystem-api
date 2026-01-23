@@ -19,7 +19,7 @@ use Override;
  * @property int $referee_user_id
  * @property int $orders_id
  * @property int $discounts_id
- * @property int $referrer_points_awarded
+ * @property float $referrer_points_awarded
  * @property float $referee_discount_amount
  * @property string $status
  * @property \DateTimeInterface|null $redeemed_at
@@ -52,7 +52,7 @@ class ReferralRedemption extends BaseModel
     protected function casts(): array
     {
         return [
-            'referrer_points_awarded' => 'integer',
+            'referrer_points_awarded' => 'float',
             'referee_discount_amount' => 'decimal:2',
             'redeemed_at' => 'datetime',
         ];

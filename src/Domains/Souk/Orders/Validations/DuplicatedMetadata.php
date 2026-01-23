@@ -11,6 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Souk\Orders\Models\Order;
+use Override;
 
 class DuplicatedMetadata implements ValidationRule
 {
@@ -20,10 +21,11 @@ class DuplicatedMetadata implements ValidationRule
     ) {
     }
 
+    #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         // Check if validation is enabled for this app
-        $enabled = $this->app->get("validate_metadata_duplicated_enabled");
+        $enabled = $this->app->get('validate_metadata_duplicated_enabled');
         if (! $enabled || $enabled !== 1) {
             return;
         }
@@ -49,32 +51,49 @@ class DuplicatedMetadata implements ValidationRule
         return [
             'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
             'cooldown_hours' => (int) $this->app->get('validate_metadata_duplicated_cooldown_hours', 24),
-            'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', true),
+            'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', false),
+            'exclude_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
         ];
     }
 
     private function isDuplicate(mixed $value, array $settings): bool
     {
-        if ($settings['use_cache']) {
-            $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$value}";
+        // Normalize to lowercase for case-insensitive comparison
+        $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-            return Cache::remember($cacheKey, 300, function () use ($value, $settings) {
-                return $this->queryDuplicate($value, $settings);
-            });
-        }
+        // if ($settings['use_cache']) {
+        //     $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
 
-        return $this->queryDuplicate($value, $settings);
+        //     return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
+        //         return $this->queryDuplicate($normalizedValue, $settings);
+        //     });
+        // }
+
+        return $this->queryDuplicate($normalizedValue, $settings);
     }
 
     private function queryDuplicate(mixed $value, array $settings): bool
     {
         // Convert dot notation to JSON path for whereJsonContains
-        $jsonPath = str_replace('.', '->', $settings['field']);
+        $jsonPath = $settings['field'];
 
-        return Order::where('apps_id', $this->app->id)
+        $query = Order::fromApp($this->app)
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
-            ->whereJsonContains("metadata->{$jsonPath}", $value)
-            ->exists();
+            ->whereNotNull('metadata')
+            ->where('metadata', '!=', '')
+            ->whereRaw("JSON_VALID(metadata)")
+            ->whereRaw("JSON_LENGTH(metadata) > 0")
+            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
+
+        // Exclude certain order statuses if configured
+        if (! empty($settings['exclude_statuses'])) {
+            $excludeStatuses = array_map('trim', explode(',', $settings['exclude_statuses']));
+            $query->whereHas('orderStatus', function ($q) use ($excludeStatuses) {
+                $q->whereNotIn('slug', $excludeStatuses);
+            });
+        }
+
+        return $query->exists();
     }
 
     private function extractFieldValue(mixed $metadata, string $fieldPath): mixed

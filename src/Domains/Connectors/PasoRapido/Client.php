@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
@@ -17,6 +18,9 @@ class Client
     protected string $appToken;
     protected string $clientId;
     protected string $secret;
+    protected string $redisKey = 'RdVialAuthToken';
+    // lets give 5 months expiration time for the token
+    protected int $expirationTime = 1296000;
     protected GuzzleClient $client;
 
     public const SANDBOX_URL = 'https://prueba.pasorapido.gob.do';
@@ -35,10 +39,16 @@ class Client
         }
 
         $this->appToken = $this->getAccessToken();
+        $this->initializeClient();
+    }
 
+    protected function initializeClient(): void
+    {
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
-            'verify' => false, // Only for this specific case
+            'verify' => false,
+            'timeout' => 30,
+            'connect_timeout' => 10,
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
@@ -46,21 +56,36 @@ class Client
         ]);
     }
 
-    public function getAccessToken(): string
+    public function getAccessToken(bool $forceRefresh = false): string
     {
-        $client = new GuzzleClient([
-            'verify' => false, // Only for this specific case
-        ]);
-        $result = $client->post($this->baseUrl . ConfigurationEnum::AUTHORIZATION_PATH->value, [
-            'json' => [
-                'username' => $this->clientId,
-                'password' => $this->secret,
-            ],
-        ]);
+        $redisKey = $this->redisKey . '-' . $this->clientId;
+        if ($forceRefresh) {
+            Redis::del($redisKey);
+        }
 
-        $body = json_decode($result->getBody()->getContents());
+        if (($token = Redis::get($redisKey)) === null) {
+            $client = new GuzzleClient([
+                'verify' => false, // Only for this specific case
+            ]);
+            $result = $client->post($this->baseUrl . ConfigurationEnum::AUTHORIZATION_PATH->value, [
+                'json' => [
+                    'username' => $this->clientId,
+                    'password' => $this->secret,
+                ],
+            ]);
 
-        return $body->autorizacion;
+            $body = json_decode($result->getBody()->getContents());
+
+            $token = $body->autorizacion;
+            Redis::set(
+                $redisKey,
+                $token,
+                'EX',
+                $this->expirationTime
+            );
+        }
+
+        return $token;
     }
 
     /**
@@ -74,6 +99,15 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 401) {
+                $this->refreshClient();
+
+                $response = $this->client->get($endpoint);
+                $body = $response->getBody()->getContents();
+
+                return json_decode($body, true);
+            }
+
             throw $e;
         }
     }
@@ -91,7 +125,24 @@ class Client
 
             return json_decode($body, true);
         } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 401) {
+                $this->refreshClient();
+
+                $response = $this->client->post($endpoint, [
+                    'json' => $data,
+                ]);
+                $body = $response->getBody()->getContents();
+
+                return json_decode($body, true);
+            }
+
             throw $e;
         }
+    }
+
+    protected function refreshClient(): void
+    {
+        $this->appToken = $this->getAccessToken(forceRefresh: true);
+        $this->initializeClient();
     }
 }

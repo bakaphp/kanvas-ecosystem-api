@@ -42,12 +42,10 @@ class ApplyDiscountToOrderAction
         $orderDiscount->amount = $discountAmount;
         $orderDiscount->saveOrFail();
 
-        // Update order with discount information
-        $this->order->discount_amount = ($this->order->discount_amount ?? 0.0) + $discountAmount;
+        // Update order totals using single source of truth
         $this->order->discount_name = $this->discount->name;
         $this->order->voucher_id = $this->discount->getId();
-        $this->order->total_net_amount = ($this->order->total_gross_amount ?? 0.0) - $this->order->discount_amount;
-        $this->order->saveOrFail();
+        $this->order->calculateTotal();
 
         // Increment discount usage
         $this->discount->incrementUsage();

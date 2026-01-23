@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Pipelines\Enums\PipelineEnum;
+use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 
 /**
  * Class Pipeline.
@@ -41,6 +42,11 @@ class Pipeline extends BaseModel
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class, 'pipeline_id', 'id');
+    }
+
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(FollowUp::class, 'pipelines_id', 'id');
     }
 
     public function switchDefaultPipeline(): void

@@ -39,6 +39,9 @@ enum IntegrationsEnum: string
     case TEE_TIME = 'teetime';
     case TWILIO = 'twilio';
     case MAILGUN = 'mailgun';
+    case DEALERSOCKET = 'dealersocket';
     case SUPERCARROS = 'supercarros';
     case TOOKAN = 'tookan';
+    case CHROMEDATA = 'chromedata';
+    case TRIGGER_AI = 'trigger-ai';
 }

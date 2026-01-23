@@ -80,7 +80,7 @@ class CreateMessageFromEmailAction
                       ),
                   ]);
             $channel = (new CreateChannelAction($channel))->execute();
-
+            $channel->deleteLastMessageLocked();
             $leadSystemModule = SystemModulesRepository::getByModelName(get_class($this->lead), $this->lead->app);
             $newMessage = new CreateMessageAction(
                 $messageInput,
@@ -97,6 +97,7 @@ class CreateMessageFromEmailAction
 
         if ($channel !== null) {
             $channel->addMessage($newMessage);
+            $newMessage->addTag('engagement');
 
             $channel->addCategory(
                 'ai-agent',

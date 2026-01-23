@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteQuoteService;
 use Kanvas\Currencies\Models\Currencies;
@@ -16,9 +17,11 @@ use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountConditionData;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Discounts\Models\DiscountType;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as DataTransferObjectOrderItem;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use NetSuite\Classes\Estimate;
 use Spatie\LaravelData\DataCollection;
 
@@ -166,12 +169,12 @@ class PullNetSuiteQuoteToOrderAction
             new DiscountData(
                 name: $netDiscount->name,
                 description: $netDiscount->name,
-                discount_type_id: Discount::getByName('Percentage')->id,
+                discount_type_id: DiscountType::getByName('Percentage')->id,
                 value: abs((float) str_replace('%', '', $discountRate)),
                 is_percentage: true,
                 conditions: DiscountConditionData::collect([], DataCollection::class),
                 is_one_per_customer: false,
-                min_order_value: null,
+                min_order_value: 0,
                 max_discount_amount: null,
                 code: $discountCode,
             )
@@ -376,6 +379,7 @@ class PullNetSuiteQuoteToOrderAction
         // Convert to string for consistent searching
         $quoteIdString = (string) $netsuiteQuoteId;
         $quoteIdInt = (int) $netsuiteQuoteId;
+        $isB2B = B2BConfigurationService::hasGlobalCompany($this->app);
 
         // First try to find by custom field
         $orderByCustomField = Order::getByCustomField(
@@ -390,7 +394,9 @@ class PullNetSuiteQuoteToOrderAction
 
         // Fallback to metadata search with proper null/empty checks
         return Order::fromApp($this->app)
-            ->fromCompany($this->company)
+            ->when(! $isB2B, function (Builder $query) {
+                $query->fromCompany($this->company);
+            })
             ->whereNotNull('metadata')
             ->where('metadata', '!=', '{}')
             ->where('metadata', '!=', '[]')

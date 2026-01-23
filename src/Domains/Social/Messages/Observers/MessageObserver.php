@@ -43,7 +43,6 @@ class MessageObserver
             $message->parent->increment('total_children');
         }
 
-
         $message->clearLightHouseCacheJob();
 
         $message->user->getAppProfile($message->app)->increment('total_messages_count');
@@ -55,7 +54,30 @@ class MessageObserver
         $message->clearLightHouseCacheJob();
 
         if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
-            $message->searchable();
+            $message->searchableSync();
+        }
+    }
+
+    public function deleted(Message $message): void
+    {
+        // Check each channel this message belongs to
+        foreach ($message->channels as $channel) {
+            $remainingMessagesCount = $channel->messages()
+                ->where('messages.id', '!=', $message->id)
+                ->count();
+
+            if ($remainingMessagesCount === 0) {
+                $channel->is_deleted = 1;
+                $channel->last_message_id = null;
+                $channel->saveOrFail();
+            } elseif ($channel->last_message_id === $message->id) {
+                $previousMessage = $channel->getPreviousMessage($message);
+                $channel->last_message_id = $previousMessage?->id;
+                $channel->saveOrFail();
+            }
+        }
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->unsearchable();
         }
     }
 }

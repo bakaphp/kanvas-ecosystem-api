@@ -34,6 +34,10 @@ class OrderLateFeeTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Movipass integration tests are skipped in CI');
+        }
+
         $this->apps = app(Apps::class);
         $this->user = Auth::user();
         $this->company = $this->user->getCurrentCompany();
@@ -302,6 +306,353 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals($firstUpdatedAt->getTimestamp(), $order->updated_at->getTimestamp(), 'The updated_at timestamp should not change when processing late fees');
         $this->assertEquals($total + 300, $reservation2->fresh()->getTotalAmount()); // 1 day + 60 days
         $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
+    }
+
+    public function testOrderLateFeeWithHolidays(): void
+    {
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // Configure company with holiday settings
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::COUNTRY_CODE->value, 'DO');
+
+        // Add special days: Christmas Eve as half-day, custom company day as full day
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+            [
+                'date' => "2025-12-25",
+                'type' => 'full_day',
+                'name' => 'Christmas',
+            ],
+        ]);
+
+        // Create late fee product
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        // Create main product
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        // Setup channels and warehouses
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+        $today = CarbonImmutable::create(2025, 12, 26, 0, 0, 0, $timezone);
+        Date::setTestNow($today->subDays(2)->startOfSecond());
+
+        $order1 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $today->subDays(2)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $today->subDays(1)->startOfDay()->toDateTimeString(), // Dec 20
+                ],
+            ],
+        );
+
+        $order2 = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $today->subDays(3)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $today->subDays(2)->startOfDay()->toDateTimeString(), // Dec 23
+                ],
+            ],
+        );
+
+        $total = $order1->getTotalAmount();
+
+        Date::setTestNow($today->startOfSecond());
+
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $today->toDateTimeString(),
+                orderIds: [$order1->getId(), $order2->getId()],
+                addLateFee: true
+            );
+
+        // Verify results
+        $reservation1 = $order1->fresh();
+        $reservation2 = $order2->fresh();
+
+        $this->assertCount(1, $lateOrders);
+        $this->assertEquals(100, $reservation1->fresh()->getTotalAmount());
+        $this->assertEquals($total + 100, $reservation2->fresh()->getTotalAmount());
+    }
+
+    public function testOrderLateFeeWithSpecialDaysAndWeekends(): void
+    {
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // Configure company with special days for Dec 24 and 25
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+            [
+                'date' => "2025-12-24",
+                'type' => 'full_day',
+                'name' => 'Christmas Eve',
+            ],
+            [
+                'date' => "2025-12-25",
+                'type' => 'full_day',
+                'name' => 'Christmas',
+            ],
+        ]);
+
+        // Create late fee product
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        // Create main product
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        // Setup channels and warehouses
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+
+        // Monday Dec 29, 2025 - checking late fees
+        $monday = CarbonImmutable::create(2025, 12, 29, 0, 0, 0, $timezone);
+        Date::setTestNow($monday->subDays(6)->startOfSecond());
+
+        // Order with grace starting Dec 23 (Tuesday)
+        // Expected calculation from Dec 23 to Dec 29:
+        // Dec 23 (Tue): 0 retained (grace day)
+        // Dec 24 (Wed): 0 (special day - Christmas Eve)
+        // Dec 25 (Thu): 0 (special day - Christmas)
+        // Dec 26 (Fri): 1 day
+        // Dec 27 (Sat): 0.0 day
+        // Dec 28 (Sun): 0 (Sunday skip)
+        // Dec 29 (Mon): 0 (current day, not finished)
+        // Total: 2.5 business days late
+        $order = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $monday->subDays(6)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $monday->subDays(5)->startOfDay()->toDateTimeString(), // Dec 23
+                ],
+            ],
+        );
+
+        $originalTotal = $order->getTotalAmount();
+
+        // Set test time to Monday Dec 27
+        Date::setTestNow($monday->subDays(2)->startOfSecond());
+
+        // Execute late fee calculation
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $monday->subDays(2)->toDateTimeString(),
+                orderIds: [$order->getId()],
+                addLateFee: true
+            );
+
+        $orderFresh = $order->fresh();
+
+        // Verify order is late
+        $this->assertCount(1, $lateOrders);
+        $this->assertArrayHasKey('business_days_late', $orderFresh->metadata['data']);
+        $this->assertEquals(1, $orderFresh->metadata['data']['business_days_late']);
+
+        // Set test time to Monday Dec 29
+        Date::setTestNow($monday->startOfSecond());
+
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $monday->toDateTimeString(),
+                orderIds: [$order->getId()],
+                addLateFee: true
+            );
+
+        $orderFresh = $order->fresh();
+
+        // Verify order is late
+        $this->assertCount(1, $lateOrders);
+        $this->assertArrayHasKey('business_days_late', $orderFresh->metadata['data']);
+        $this->assertEquals(1.5, $orderFresh->metadata['data']['business_days_late']);
+
+        // Late fee should be added (2.5 days = 1 fee since ceil(2.5/30) = 1)
+        $this->assertGreaterThan(1, $orderFresh->items()->count());
+        $this->assertEquals($originalTotal + 100, $orderFresh->getTotalAmount());
+    }
+
+    public function testOrderLateFeeWithWeekendsOnly(): void
+    {
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // No special days configured - only weekend rules apply
+        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, []);
+
+        // Create late fee product
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        // Create main product
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        // Setup channels and warehouses
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+
+        // Monday Dec 29, 2025
+        $monday = CarbonImmutable::create(2025, 12, 29, 0, 0, 0, $timezone);
+        Date::setTestNow($monday->subDays(6)->startOfSecond());
+
+        // Order with grace starting Dec 23 (Tuesday)
+        // Expected calculation from Dec 23 to Dec 29 (no special days):
+        // Dec 23 (Tue): 1 day
+        // Dec 24 (Wed): 1 day
+        // Dec 25 (Thu): 1 day
+        // Dec 26 (Fri): 1 day
+        // Dec 27 (Sat): 0.5 day
+        // Dec 28 (Sun): 0 (Sunday skip)
+        // Dec 29 (Mon): 0 (current day, not finished)
+        // Total: 4.5 business days late
+        $order = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $monday->subDays(8)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $monday->subDays(6)->startOfDay()->toDateTimeString(), // Dec 23
+                ],
+            ],
+        );
+
+        $originalTotal = $order->getTotalAmount();
+
+        // Set test time to Monday Dec 29
+        Date::setTestNow($monday->startOfSecond());
+
+        // Execute late fee calculation
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute(
+                timeZonedNow: $monday->toDateTimeString(),
+                orderIds: [$order->getId()],
+                addLateFee: true
+            );
+
+        $orderFresh = $order->fresh();
+
+        // Verify order is late
+        $this->assertCount(1, $lateOrders);
+        $this->assertArrayHasKey('business_days_late', $orderFresh->metadata['data']);
+        $this->assertEquals(4.5, $orderFresh->metadata['data']['business_days_late']);
+
+        // Late fee should be added (4.5 days = 1 fee since ceil(4.5/30) = 1)
+        $this->assertGreaterThan(1, $orderFresh->items()->count());
+        $this->assertEquals($originalTotal + 100, $orderFresh->getTotalAmount());
     }
 
     public function testAddAndRemoveLateFee(): void

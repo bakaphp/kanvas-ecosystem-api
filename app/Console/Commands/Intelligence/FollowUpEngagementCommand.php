@@ -17,9 +17,9 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Services\DailyReportService;
 
 class FollowUpEngagementCommand extends Command
 {
@@ -57,24 +57,64 @@ class FollowUpEngagementCommand extends Command
                     // ->whereIn('id', [525873,525867,509766,513064,513546])
                     ->where('created_at', '>=', $this->option('date'))
                     ->whereNotIn('id', $whereNotIn)
+                    ->orderBy('id', 'ASC')
                     ->cursor();
 
+                $this->info('Processing stage ID ' . $stage->id . ' - ' . $stage->name . ' for leads ' . count($leads->toArray()));
                 foreach ($leads as $lead) {
                     $this->overwriteAppService($lead->app);
                     $this->reSyncLead($lead);
                     $lead->refresh();
 
-                    $shouldSkip = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null
- || ($lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) && (int) $lead->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value) === 0) || $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null
-                                    || $lead->isActive() === false || $lead->hasBeenContacted();
+                    $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
+
+                    //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
+                    $muteAiAgent = $lead->isAiMuted();
+                    $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+                    $notActive = $lead->isActive() === false;
+                    $hasBeenContacted = $lead->hasBeenContacted();
+                    $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];
+                    $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), $leadTypes);
+
+                    /*      $this->line('  - No Agent Channel: ' . ($noAgentChannel ? 'true' : 'false'));
+                         $this->line('  - Mute AI Agent: ' . ($muteAiAgent ? 'true' : 'false'));
+                         $this->line('  - No First Message: ' . ($noFirstMessage ? 'true' : 'false'));
+                         $this->line('  - Not Active: ' . ($notActive ? 'true' : 'false'));
+                         $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
+                         $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
+
+                    $shouldSkip = $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
                     $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
 
                     $ignoreFollowUp = (bool)$this->option('ignore-have-follow-up');
 
                     if ($shouldSkip) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skipped'
+                        );
+
+                        $key = match (true) {
+                            $muteAiAgent => 'mute_ai_agent',
+                            $noFirstMessage => 'no_first_message',
+                            $notActive => 'not_active',
+                            $hasBeenContacted => 'has_been_contacted',
+                            default => 'not_internet_type',
+                        };
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skip_reason_' . $key
+                        );
+                        $this->line('  - Skip Reason: ' . $key);
+
                         continue;
                     } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+
                         break;
                     }
 
@@ -91,6 +131,7 @@ class FollowUpEngagementCommand extends Command
 
                     //how do we avoid sending notifications for leads that haven'b been contacted
                     try {
+                        $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
                         $result = new FollowUpEngagementAction($lead)->execute();
                     } catch (Exception $e) {
                         $this->error('Error processing lead ID ' . $lead->id . ': ' . $e->getMessage());
@@ -133,7 +174,9 @@ class FollowUpEngagementCommand extends Command
                 $app,
                 $company,
                 $user
-            )->execute([], $lead);
+            )->execute([
+                'entity_id' => (int) $leadId > 0 ? (int) $leadId : null,
+            ], $lead);
         } elseif ($isVinSolutions) {
             return new ActionsPullLeadAction(
                 $app,

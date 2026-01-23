@@ -19,6 +19,7 @@ use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -48,6 +49,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $apps_id
  * @property int companies_id
  * @property int $region_id
+ * @property int|null $channel_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $ip_address
@@ -158,7 +160,7 @@ class Order extends BaseModel
 
     public function payments(): MorphMany
     {
-        return $this->morphMany(Payments::class, 'payable');
+        return $this->morphMany(Payments::class, 'payable')->latest();
     }
 
     public function orderDiscounts(): HasMany
@@ -226,6 +228,7 @@ class Order extends BaseModel
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
         $orderItem->metadata = $item->metadata;
+        $orderItem->channel_id = $item->channelId;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -245,6 +248,12 @@ class Order extends BaseModel
     public function fulfillCancelled(): void
     {
         $this->fulfillment_status = 'canceled';
+        $this->saveOrFail();
+    }
+
+    public function fulfillPending(): void
+    {
+        $this->fulfillment_status = 'pending';
         $this->saveOrFail();
     }
 
@@ -661,6 +670,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setChannelId(int $channelId): void
+    {
+        $this->channel_id = $channelId;
+        $this->saveOrFail();
+    }
+
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
@@ -703,6 +718,11 @@ class Order extends BaseModel
     public function orderTransitionHistory(): HasMany
     {
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channel_id', 'id');
     }
 
     /**
@@ -752,16 +772,19 @@ class Order extends BaseModel
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
-        ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
-        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
+            ->first();
 
-        $discount = $total[0]['discount'] ?? 0;
-        $orderTotal = ($total[0]['price'] ?? 0);
-        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
-        $this->total_net_amount = (float) $orderTotal;
+        $orderTotal = (float) ($total->price ?? 0);
+
+        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+
+        $this->total_gross_amount = $orderTotal;
+        $this->discount_amount = $discountAmount;
+        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
-        $this->discount_amount = (float) $discount;
 
         if ($autoSave) {
             $this->saveOrFail();

@@ -67,4 +67,6 @@ enum ConfigurationEnum: string
     case MILEAGE_CONFIRMATION = 'mileage-confirmation';
     case SALES_ASSIST_LANDING_PAGE = 'sales-assist-landing-page';
     case MINUTES_FOR_MATCH_ADF_LEAD = 'minutes-for-match-adf-lead';
+    case LEGACY_CRM_API_URL = 'legacy-crm-api-url';
+    case LEGACY_CRM_CLIENT_ID = 'legacy-crm-client-id';
 }

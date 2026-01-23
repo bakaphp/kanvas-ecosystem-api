@@ -10,7 +10,7 @@ use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Prism\Prism\Enums\FinishReason;
-use Prism\Prism\Prism;
+use Prism\Prism\Facades\Prism;
 use Prism\Prism\Testing\StructuredResponseFake;
 use Prism\Prism\ValueObjects\Meta;
 use Prism\Prism\ValueObjects\Usage;

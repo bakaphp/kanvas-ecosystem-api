@@ -11,10 +11,17 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
+use Kanvas\Connectors\DealerSocket\Activities\AddLeadCommentFromAgentMessageActivity as ActivitiesAddLeadCommentFromAgentMessageActivity;
+use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
+use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
+use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
+use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
+use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
@@ -47,6 +54,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
+use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -71,6 +79,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
+use Kanvas\Connectors\SalesAssist\Activities\DealerAppCenterSubSourcesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\GenerateLeadLinkedFieldActivity;
 use Kanvas\Connectors\SalesAssist\Activities\LeadProcessDriverLicenseImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PeopleProcessDriverLicenseImageActivity;
@@ -78,7 +87,13 @@ use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleLeadFromSearchActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
+use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
@@ -118,8 +133,11 @@ use Kanvas\Connectors\WooCommerce\Webhooks\PullWooCommerceOrderWebhookJob;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
+use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
+use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -136,9 +154,11 @@ use Kanvas\Souk\Orders\Activities\B2BUpdateCompanyOrderActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessReferralCodeRedemptionActivity;
 use Kanvas\Souk\Referrals\Activities\ProcessUserSignupLoyaltyActivity;
 use Kanvas\Souk\Referrals\Activities\UserReferralCodeActivity;
+use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
+use Kanvas\Users\Workflows\Activities\RestoreUsersAccountContentActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 
 class KanvasWorkflowSynActionCommand extends Command
@@ -187,6 +207,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreatePeopleFromGhostReceiverJob::class,
             CashierStripeWebhookJob::class,
             CreateOrderInESimActivity::class,
+            ConvertHeicToJpgActivity::class,
             AmplitudeEventStreamWebhookJob::class,
             CreateShopifyDraftOrderActivity::class,
             DeleteVariantFromShopifyActivity::class,
@@ -289,14 +310,35 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
+            PullUserByEmployeeActivity::class,
+            PullWooCommerceOrderWebhookJob::class,
+            AddStockImageToProductActivity::class,
+            UpdateLeadFromZohoDealWebhookJob::class,
+            AddFundsToUserWalletActivity::class,
+            PullNetSuiteStockWebhookJob::class,
+            ActivitiesPushLeadActivity::class,
+            ActivitiesPushPeopleActivity::class,
+            ActivitiesAddLeadCommentFromAgentMessageActivity::class,
+            ProcessADFAgentInboundLeadJob::class,
+            DealerAppCenterSubSourcesActivity::class,
+            SyncLeadWithLegacyCRMActivity::class,
+            DriveCentricWorkflowPushLeadActivity::class,
+            DriveCentricWorkflowPushPeopleActivity::class,
+            PullUserFromCRMActivity::class,
+            TriggerIntelligenceActivity::class,
+            ActivitiesPushLeadNotesActivity::class,
+            SalesAssistActivitiesPushLeadActivity::class,
+            SalesAssistActivitiesPushPeopleActivity::class,
+            RestoreUsersAccountContentActivity::class,
         ];
 
         $createdActions = [];
 
         foreach ($actions as $action) {
             $record = Action::firstOrCreate([
-                'name' => class_basename($action),
                 'model_name' => $action,
+            ], [
+                'name' => class_basename($action),
             ]);
 
             // Check if the record was newly created

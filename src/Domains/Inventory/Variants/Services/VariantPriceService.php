@@ -18,6 +18,7 @@ use Kanvas\Souk\Enums\ConfigurationEnum;
 class VariantPriceService
 {
     protected bool $useCompanySpecificPrice = false;
+    protected ?Channels $currentChannel = null;
 
     public function __construct(
         protected AppInterface $app,
@@ -40,6 +41,9 @@ class VariantPriceService
 
     public function getPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
     {
+        // Reset channel before each price calculation
+        $this->currentChannel = null;
+
         try {
             if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
                 $companyPrice = $this->getCompanySpecificPrice($variant);
@@ -64,19 +68,29 @@ class VariantPriceService
      */
     private function getCompanySpecificPrice(Variants $variant): float
     {
-        return (float) $variant->variantChannels()
-            ->whereHas('channel', function ($query) {
-                $query->where('slug', $this->currentUserCompany->uuid);
-            })
-            ->firstOrFail()
-            ->price;
+        $variantChannel = $variant->variantChannels()
+             ->whereHas('channel', function ($query) {
+                 $query->where('slug', $this->currentUserCompany->uuid);
+             })
+             ->firstOrFail();
+
+        $this->setCurrentChannel($variantChannel->channel);
+
+        return (float) $variantChannel->price;
     }
 
     private function getChannelPrice(Variants $variant, ?int $channelId = null): float
     {
+        $channel = null;
+
         if ($channelId === null) {
-            $channelId = Channels::getDefault($variant->company, $variant->app)?->getId();
+            $channel = Channels::getDefault($variant->company, $variant->app);
+            $channelId = $channel?->getId();
+        } else {
+            $channel = Channels::getById($channelId, $this->app);
         }
+
+        $this->setCurrentChannel($channel);
 
         if ($variant->app->get(AppEnums::CAN_USE_COMMERCE_DISCOUNT_PRICE->getValue())) {
             // Try to get the discount price if available and greater than 0
@@ -99,11 +113,17 @@ class VariantPriceService
 
     private function getDefaultChannelPrice(Variants $variant): float
     {
-        return (float) $variant->getPriceInfoFromDefaultChannel()->price;
+        $variantChannel = $variant->getPriceInfoFromDefaultChannel();
+        $this->setCurrentChannel($variantChannel->channel);
+
+        return (float) $variantChannel->price;
     }
 
     private function getInventoryPrice(Variants $variant): float
     {
+        // No channel associated with warehouse pricing
+        $this->currentChannel = null;
+
         return $variant->variantWarehouses()->first()->price ?? 0.00;
     }
 
@@ -142,5 +162,15 @@ class VariantPriceService
         }
 
         return Currencies::getBaseCurrency();
+    }
+
+    private function setCurrentChannel(?Channels $channel): void
+    {
+        $this->currentChannel = $channel;
+    }
+
+    public function getCurrentChannelId(): ?int
+    {
+        return $this->currentChannel?->getId();
     }
 }
