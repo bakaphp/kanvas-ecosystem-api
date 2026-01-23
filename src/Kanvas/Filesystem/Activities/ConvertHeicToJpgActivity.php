@@ -54,6 +54,9 @@ class ConvertHeicToJpgActivity extends KanvasActivity
                     $app
                 );
 
+                $originalUrl = $filesystem->url;
+                $originalSize = $filesystem->size;
+
                 // Update the original filesystem entity with new data
                 $filesystem->update([
                     'url' => $newFilesystem->url,
@@ -70,10 +73,10 @@ class ConvertHeicToJpgActivity extends KanvasActivity
                     'success' => true,
                     'message' => 'HEIC successfully converted to JPG',
                     'filesystem_id' => $filesystem->id,
-                    'original_url' => $newFilesystem->url,
-                    'new_url' => $filesystem->url,
-                    'original_size' => $newFilesystem->size,
-                    'new_size' => $filesystem->size,
+                    'original_url' => $originalUrl,
+                    'new_url' => $newFilesystem->url,
+                    'original_size' => $originalSize,
+                    'new_size' => $newFilesystem->size,
                 ];
             },
             company: $filesystem->company,
