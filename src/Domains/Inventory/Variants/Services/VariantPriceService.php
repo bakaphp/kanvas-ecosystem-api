@@ -7,10 +7,12 @@ namespace Kanvas\Inventory\Variants\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 
 class VariantPriceService
@@ -25,7 +27,18 @@ class VariantPriceService
         $this->useCompanySpecificPrice = (bool) ($app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false);
     }
 
-    public function getPrice(Variants $variant, ?int $channelId = null): float
+    public function getPriceWithCurrency(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): array
+    {
+        $price = $this->getPrice($variant, $channelId, $warehouseId);
+        $currency = $this->getCurrencyFromWarehouse($variant, $warehouseId);
+
+        return [
+            'price' => $price,
+            'currency' => $currency,
+        ];
+    }
+
+    public function getPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
     {
         try {
             if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
@@ -106,5 +119,28 @@ class VariantPriceService
         }
 
         return $this->getInventoryPrice($variant);
+    }
+
+    private function getCurrencyFromWarehouse(Variants $variant, ?int $warehouseId = null): Currencies
+    {
+        if ($warehouseId) {
+            $warehouse = Warehouses::find($warehouseId);
+            if ($warehouse && $warehouse->region && $warehouse->region->currency) {
+                return $warehouse->region->currency;
+            }
+        }
+
+        $defaultWarehouse = $variant->variantWarehouses()
+            ->where('is_default', true)
+            ->first();
+
+        if ($defaultWarehouse && $defaultWarehouse->warehouse) {
+            $region = $defaultWarehouse->warehouse->region;
+            if ($region && $region->currency) {
+                return $region->currency;
+            }
+        }
+
+        return Currencies::getBaseCurrency();
     }
 }

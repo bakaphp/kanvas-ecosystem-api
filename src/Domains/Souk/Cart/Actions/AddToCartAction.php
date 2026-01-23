@@ -42,6 +42,7 @@ class AddToCartAction
                 $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
             }
             $channelId = $item['channel_id'] ?? null;
+            $warehouseId = $item['warehouse_id'] ?? null;
 
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
             /*                $variantPrice = $useCompanySpecificPrice
@@ -50,7 +51,9 @@ class AddToCartAction
                                       ->firstOrFail()->price
                                   : $variant->getPriceInfoFromDefaultChannel()->price;
               */
-            $variantPrice = $variantPriceService->getPrice($variant, $channelId);
+            $priceInfo = $variantPriceService->getPriceWithCurrency($variant, $channelId, $warehouseId);
+            $variantPrice = $priceInfo['price'];
+            $currency = $priceInfo['currency'];
 
             // Get attributes from existing cart item if it exists, otherwise from product
             $attributes = $cart->has($variant->getId())
@@ -60,6 +63,20 @@ class AddToCartAction
                         $attribute->name => $attribute->value,
                     ];
                 })->collapse()->all() : []);
+
+            $attributes['currency'] = [
+                'id' => $currency->getId(),
+                'code' => $currency->code,
+                'symbol' => $currency->symbol,
+            ];
+
+            if ($warehouseId) {
+                $attributes['warehouse_id'] = $warehouseId;
+            }
+
+            if ($channelId) {
+                $attributes['channel_id'] = $channelId;
+            }
 
             $cart->add([
                 'id' => $variant->getId(),
