@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Activities;
 use Baka\Contracts\AppInterface;
 use Exception;
 use Illuminate\Http\File;
+use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -57,11 +58,18 @@ class ConvertHeicToJpgActivity extends KanvasActivity
                 $originalUrl = $filesystem->url;
                 $originalSize = $filesystem->size;
 
+                // Update field_name to have .jpg extension
+                $fieldName = (string) $filesystem->field_name;
+                $updatedFieldName = Str::endsWith($fieldName, ['.heic', '.HEIC'])
+                    ? Str::beforeLast($fieldName, '.') . '.jpg'
+                    : $fieldName . '.jpg';
+
                 // Update the original filesystem entity with new data
                 $filesystem->update([
                     'url' => $newFilesystem->url,
                     'path' => $newFilesystem->path,
                     'name' => $newFilesystem->name,
+                    'field_name' => $updatedFieldName,
                     'file_type' => 'jpg',
                     'size' => $newFilesystem->size,
                 ]);
