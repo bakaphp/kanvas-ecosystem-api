@@ -793,10 +793,10 @@ class UserTest extends TestCase
         ]);
     }
 
-    public function testPublicCustomFieldsAllowsPublicFields(): void
+    public function testBlockedCustomFieldsAllowsNonBlockedFields(): void
     {
         $app = app(Apps::class);
-        $app->set('public_user_custom_fields', ['allowed_field', 'another_allowed_field']);
+        $app->set('blocked_user_custom_fields', ['blocked_field', 'another_blocked_field']);
 
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
@@ -838,13 +838,13 @@ class UserTest extends TestCase
         $user = auth()->user();
         $this->assertEquals('test_value', $user->get('allowed_field'));
 
-        $app->del('public_user_custom_fields');
+        $app->del('blocked_user_custom_fields');
     }
 
-    public function testPublicCustomFieldsBlocksNonPublicFields(): void
+    public function testBlockedCustomFieldsBlocksConfiguredFields(): void
     {
         $app = app(Apps::class);
-        $app->set('public_user_custom_fields', ['allowed_field', 'another_allowed_field']);
+        $app->set('blocked_user_custom_fields', ['blocked_field', 'another_blocked_field']);
 
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
@@ -871,7 +871,7 @@ class UserTest extends TestCase
                     'lastname' => $lastname,
                     'custom_fields' => [
                         [
-                            'name' => 'restricted_field',
+                            'name' => 'blocked_field',
                             'data' => 'should_not_be_set',
                         ],
                     ],
@@ -882,15 +882,15 @@ class UserTest extends TestCase
         $response->assertSuccessful();
 
         $user = auth()->user();
-        $this->assertNull($user->get('restricted_field'));
+        $this->assertNull($user->get('blocked_field'));
 
-        $app->del('public_user_custom_fields');
+        $app->del('blocked_user_custom_fields');
     }
 
-    public function testPublicCustomFieldsFiltersPartiallyBlockedFields(): void
+    public function testBlockedCustomFieldsFiltersPartiallyBlockedFields(): void
     {
         $app = app(Apps::class);
-        $app->set('public_user_custom_fields', ['allowed_field']);
+        $app->set('blocked_user_custom_fields', ['blocked_field']);
 
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
@@ -921,7 +921,7 @@ class UserTest extends TestCase
                             'data' => 'allowed_value',
                         ],
                         [
-                            'name' => 'restricted_field',
+                            'name' => 'blocked_field',
                             'data' => 'should_not_be_set',
                         ],
                     ],
@@ -935,15 +935,15 @@ class UserTest extends TestCase
 
         $user = auth()->user();
         $this->assertEquals('allowed_value', $user->get('allowed_field'));
-        $this->assertNull($user->get('restricted_field'));
+        $this->assertNull($user->get('blocked_field'));
 
-        $app->del('public_user_custom_fields');
+        $app->del('blocked_user_custom_fields');
     }
 
-    public function testPublicCustomFieldsAllowsAllWhenNotConfigured(): void
+    public function testBlockedCustomFieldsAllowsAllWhenNotConfigured(): void
     {
         $app = app(Apps::class);
-        $app->del('public_user_custom_fields');
+        $app->del('blocked_user_custom_fields');
 
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();

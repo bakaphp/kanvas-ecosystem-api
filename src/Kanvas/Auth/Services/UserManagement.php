@@ -121,21 +121,21 @@ class UserManagement
     }
 
     /**
-     * Filter custom fields to only include public ones.
+     * Filter custom fields to exclude blocked ones.
      * Supports both formats:
      * - Array format: [['name' => 'field', 'data' => 'value']]
      * - Key-value format: ['field' => 'value']
      */
     protected function filterPublicCustomFields(array $customFields): array
     {
-        $publicCustomFields = $this->app->get('public_user_custom_fields');
+        $blockedCustomFields = $this->app->get('blocked_user_custom_fields');
 
-        if (! $publicCustomFields || ! is_array($publicCustomFields)) {
+        if (! $blockedCustomFields || ! is_array($blockedCustomFields)) {
             return $customFields;
         }
 
         $filteredFields = [];
-        $blockedFields = [];
+        $attemptedBlockedFields = [];
 
         // Detect format: check if first element has 'name' key (array format)
         $isArrayFormat = isset($customFields[0]) && is_array($customFields[0]) && isset($customFields[0]['name']);
@@ -152,10 +152,10 @@ class UserManagement
                     continue;
                 }
 
-                if (in_array($fieldName, $publicCustomFields, true)) {
-                    $filteredFields[] = $field;
+                if (in_array($fieldName, $blockedCustomFields, true)) {
+                    $attemptedBlockedFields[] = $fieldName;
                 } else {
-                    $blockedFields[] = $fieldName;
+                    $filteredFields[] = $field;
                 }
             }
         } else {
@@ -165,25 +165,25 @@ class UserManagement
                     continue;
                 }
 
-                if (in_array($fieldName, $publicCustomFields, true)) {
-                    $filteredFields[$fieldName] = $fieldValue;
+                if (in_array($fieldName, $blockedCustomFields, true)) {
+                    $attemptedBlockedFields[] = $fieldName;
                 } else {
-                    $blockedFields[] = $fieldName;
+                    $filteredFields[$fieldName] = $fieldValue;
                 }
             }
         }
 
-        if (! empty($blockedFields)) {
-            withScope(function (Scope $scope) use ($blockedFields, $publicCustomFields): void {
+        if (! empty($attemptedBlockedFields)) {
+            withScope(function (Scope $scope) use ($attemptedBlockedFields, $blockedCustomFields): void {
                 $scope->setContext('custom_fields_violation', [
                     'user_id' => $this->user->getId(),
                     'app_id' => $this->app->getId(),
-                    'blocked_fields' => $blockedFields,
-                    'public_fields' => $publicCustomFields,
+                    'blocked_fields' => $attemptedBlockedFields,
+                    'configured_blocked_fields' => $blockedCustomFields,
                 ]);
 
                 captureException(new Exception(
-                    'User attempted to set non-public custom fields: ' . implode(', ', $blockedFields)
+                    'User attempted to set blocked custom fields: ' . implode(', ', $attemptedBlockedFields)
                 ));
             });
         }
