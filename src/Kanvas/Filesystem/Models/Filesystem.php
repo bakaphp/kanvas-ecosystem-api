@@ -10,6 +10,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
@@ -33,6 +34,7 @@ class Filesystem extends BaseModel
 {
     use UuidTrait;
     use HashTableTrait;
+    use CanUseWorkflow;
     //use Cachable;
     // use QueryCacheable;
 
