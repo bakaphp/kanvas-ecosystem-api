@@ -24,6 +24,7 @@ use Override;
 class AgentChannelResponderAction extends BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'whatsapp';
+    protected string $communicationChannel = 'whatsapp';
 
     #[Override]
     public function execute(array $params = []): array

@@ -22,6 +22,7 @@ use Kanvas\Users\Models\Users;
 class BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'text';
+    protected string $communicationChannel;
 
     public function __construct(
         protected Channel $channel,
@@ -58,6 +59,7 @@ class BaseAgentResponderAction
         );
 
         $newMessage = new CreateMessageAction($messageInput)->execute();
+        $newMessage->set('communicationChannel', $this->communicationChannel);
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }

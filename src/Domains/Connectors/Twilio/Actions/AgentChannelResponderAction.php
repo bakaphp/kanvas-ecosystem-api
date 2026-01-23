@@ -22,6 +22,7 @@ use Override;
 class AgentChannelResponderAction extends BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'twilio-sms';
+    protected string $communicationChannel = 'sms';
 
     #[Override]
     public function execute(array $params = []): array
