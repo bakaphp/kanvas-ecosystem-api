@@ -88,7 +88,11 @@ class SendMessageToLeadAction
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
-        Notification::route('mail', $this->lead->people->getEmails()->first()->value)->notify($notification);
+        $leadEmail = $this->lead->people->getEmails()->first()?->value;
+        if (! $leadEmail) {
+            throw new Exception('Lead does not have an email address');
+        }
+        Notification::route('mail', $leadEmail)->notify($notification);
 
         return [];
     }
