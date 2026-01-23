@@ -64,7 +64,7 @@ class Lead extends DataTransferObjectLead
             'status_id' => $leadStatus?->id ?? 0,
             'leads_owner_id' => $leadOwnerId,
             'custom_fields' => [
-                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value => $dealId,
+                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value => trim($dealId),
             ],
         ]);
     }
