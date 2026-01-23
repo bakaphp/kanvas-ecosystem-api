@@ -199,7 +199,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+                    //'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -298,7 +298,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+                    //'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -409,7 +409,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+//                    'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -791,5 +791,198 @@ class UserTest extends TestCase
                 'saveUserAppPreferences' => true,
             ],
         ]);
+    }
+
+    public function testPublicCustomFieldsAllowsPublicFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('public_user_custom_fields', ['allowed_field', 'another_allowed_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'allowed_field',
+                            'data' => 'test_value',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('allowed_field')
+            ->assertSee('test_value');
+
+        $user = auth()->user();
+        $this->assertEquals('test_value', $user->get('allowed_field'));
+
+        $app->del('public_user_custom_fields');
+    }
+
+    public function testPublicCustomFieldsBlocksNonPublicFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('public_user_custom_fields', ['allowed_field', 'another_allowed_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'restricted_field',
+                            'data' => 'should_not_be_set',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $user = auth()->user();
+        $this->assertNull($user->get('restricted_field'));
+
+        $app->del('public_user_custom_fields');
+    }
+
+    public function testPublicCustomFieldsFiltersPartiallyBlockedFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('public_user_custom_fields', ['allowed_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'allowed_field',
+                            'data' => 'allowed_value',
+                        ],
+                        [
+                            'name' => 'restricted_field',
+                            'data' => 'should_not_be_set',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('allowed_field')
+            ->assertSee('allowed_value');
+
+        $user = auth()->user();
+        $this->assertEquals('allowed_value', $user->get('allowed_field'));
+        $this->assertNull($user->get('restricted_field'));
+
+        $app->del('public_user_custom_fields');
+    }
+
+    public function testPublicCustomFieldsAllowsAllWhenNotConfigured(): void
+    {
+        $app = app(Apps::class);
+        $app->del('public_user_custom_fields');
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'any_field',
+                            'data' => 'any_value',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('any_field')
+            ->assertSee('any_value');
+
+        $user = auth()->user();
+        $this->assertEquals('any_value', $user->get('any_field'));
     }
 }

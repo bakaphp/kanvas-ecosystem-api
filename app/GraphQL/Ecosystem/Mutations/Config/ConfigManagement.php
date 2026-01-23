@@ -24,6 +24,7 @@ class ConfigManagement
     public function deleteAppSetting(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
+
         return $app->del($request['key']);
     }
 
@@ -52,7 +53,12 @@ class ConfigManagement
         UsersRepository::belongsToThisApp($user, app(Apps::class));
         $currentUser = auth()->user();
         $isPublic = $currentUser->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        $user->set($request['input']['key'], $request['input']['value'], $isPublic);
+        
+        $user->set(
+            $request['input']['key'],
+            $request['input']['value'],
+            $isPublic
+        );
 
         return true;
     }
