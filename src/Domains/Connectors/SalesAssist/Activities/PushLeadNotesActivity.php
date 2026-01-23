@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\AddCoBuyerToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
@@ -23,6 +24,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class PushLeadNotesActivity extends KanvasActivity
 {
@@ -58,6 +60,16 @@ class PushLeadNotesActivity extends KanvasActivity
                     $note = new AddCommentToDealAction($lead)->execute($message);
 
                     $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
+
+                    try {
+                        $handleCheckList = new ProcessMessageTaskUpdatesAction(
+                            message: $message,
+                            lead: $lead,
+                            user: $message->user,
+                        )->execute();
+                    } catch (Throwable $e) {
+                        $handleCheckList = $e->getMessage();
+                    }
                 }
                 /*  // Process task updates
                  $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);
@@ -75,7 +87,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 return [
                     'note' => $note,
                     'handlerResult' => $handlerResult,
-                    //'taskUpdates' => $processMessageTaskUpdatesAction,
+                    'taskUpdates' => $handleCheckList,
                     'message' => 'Note added to Lead successfully',
                 ];
             },
