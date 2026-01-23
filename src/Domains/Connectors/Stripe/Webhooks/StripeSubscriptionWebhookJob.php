@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
-use Kanvas\Users\Models\Users;
 
 class StripePaymentIntentWebhookJob extends ProcessWebhookJob
 {
