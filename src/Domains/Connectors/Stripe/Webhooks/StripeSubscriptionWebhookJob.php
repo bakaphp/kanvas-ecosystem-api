@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -21,7 +19,6 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         $receiverPayload = $this->receiver;
         $eventType = $payload['data']['type'] ?? null;
         $clientSecret = $payload['data']['object']['client_secret'] ?? null;
-        
 
         return match ($eventType) {
             'customer.subscription.created' => $this->handleSubscriptionCreated($receiverPayload, $payload),
@@ -38,15 +35,18 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         ];
     }
 
-    /**
-     * @todo move to use commerce to register purchase
-     */
     protected function handleSubscriptionCreated(ReceiverWebhook $receiverPayload, array $payload): array
     {
         $user = $receiverPayload->user;
-        $this->addCredits($user, 'video', 'flex-credits', 200);
-        $this->addCredits($user, 'video', 'nano-banana', 100);
-        $this->addCredits($user, 'video', 'veo', 20);
+        $app = $receiverPayload->app;
+        $userCredits = $user->get('order_credits') ?? [];
+        $modelCreditsStructure = $app->get('model_credits_structure', []);
+
+        foreach ($modelCreditsStructure as $type => $models) {
+            foreach ($models as $model) {
+                $this->addCredits($user, $type, $model, $model['amount']);
+            }
+        }
 
         return [
             'message' => 'Successfully processed subscription created event and added credits to user ' . $user->getId(),
@@ -54,20 +54,23 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         ];
     }
 
-    /**
-     * @todo move to use commerce to register purchase
-     */
     protected function handleInvoicePaid(ReceiverWebhook $receiverPayload, array $payload): array
     {
         $user = $receiverPayload->user;
-        $this->addCredits($user, 'video', 'flex-credits', 200);
+        $app = $receiverPayload->app;
+        $userCredits = $user->get('order_credits') ?? [];
+        $modelCreditsStructure = $app->get('model_credits_structure', []);
 
-        //Get whatever credits the user has left for nano banana and either top up to 100 or add 100 if none exist
-        $credits = json_decode($user->get('order_credits'));
-        $nanoBananaCredits = $credits->video->{"nano-banana"} ?? $this->addCredits($user, 'video', 'nano-banana', 100);
-        if ($nanoBananaCredits < 100) {
-            $this->addCredits($user, 'video', 'nano-banana', 100 - $nanoBananaCredits);
+        foreach ($modelCreditsStructure as $type => $models) {
+            foreach ($models as $model) {
+                if (! $userCredits[$type][$model]['top_off'] || ! $model['one_time_credit']) {
+                    $this->addCredits($user, $type, $model, $model['amount']);
+                } else {
+                    $this->topUpCredits($user, $type, $model, $model['amount']);
+                }
+            }
         }
+
         return [
             'message' => 'Successfully processed invoice paid event and added credits to user ' . $user->getId(),
             'response' => null,
@@ -75,7 +78,7 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
     }
 
     /**
-     * @todo move to use commerce to register purchase
+     * @todo Something else could be done here but for now just log and return
      */
     protected function handleSubscriptionCancellation(ReceiverWebhook $receiverPayload, array $payload): array
     {
@@ -87,15 +90,25 @@ class StripePaymentIntentWebhookJob extends ProcessWebhookJob
         ];
     }
 
-    protected function addCredits(Users $user,string $type, string $nameOfModel, int $amount): void
+    protected function addCredits(Users $user, string $type, string $model, int $amount): void
     {
-        $credits = json_decode($user->get('order_credits'));
-        if (isset($credits->$type)) {
-            $credits->$type->$nameOfModel += $amount;
+        $credits = $user->get('order_credits');
+        if (isset($credits[$type])) {
+            $credits[$type][$model] += $amount;
         } else {
-            $credits->$type = new \stdClass();
-            $credits->$type->$nameOfModel = $amount;
+            $credits[$type] = [];
+            $credits[$type][$model] = $amount;
         }
         $user->set('order_credits', json_encode($credits));
+    }
+
+    protected function topUpCredits(Users $user, string $type, string $model, int $minimumAmount): void
+    {
+        $credits = $user->get('order_credits');
+        $currentAmount = $credits[$type][$model] ?? 0;
+
+        if ($currentAmount < $minimumAmount) {
+            $this->addCredits($user, $type, $model, $minimumAmount - $currentAmount);
+        }
     }
 }
