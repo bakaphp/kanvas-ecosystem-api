@@ -52,6 +52,7 @@ jobs:
             - name
           compose:
             ansible_host: networkInterfaces[0].networkIP
+            ansible_user: sa_${{ secrets.GCP_SERVICE_ACCOUNT_UNIQUE_ID }}
           groups:
             ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
