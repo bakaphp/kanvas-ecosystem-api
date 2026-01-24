@@ -46,7 +46,7 @@ jobs:
             - status = RUNNING
           auth_kind: application
           groups:
-            ${{github.refs_name}} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
+            ${{ github.ref_name }} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
       - name: Write SSH key
@@ -58,7 +58,7 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'false'
         run: |
-          ansible-playbook ansible/playbooks/${{github.refs_name}}-deploy.yml \
+          ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yml \
             -i ansible/inventory.gcp.yml \
             --private-key ssh-key \
             -u ${{ vars.SSH_USER }}
