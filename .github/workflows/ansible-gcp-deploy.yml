@@ -53,7 +53,7 @@ jobs:
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'false'
         run: |
-          ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yml \
+          ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yaml \
             -i ansible/inventory.gcp.yml \
             --ssh-common-args="-o StrictHostKeyChecking=no" \
             -e '{
