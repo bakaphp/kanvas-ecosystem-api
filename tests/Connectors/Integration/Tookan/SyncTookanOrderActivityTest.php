@@ -29,6 +29,14 @@ final class SyncTookanOrderActivityTest extends TestCase
     use InventoryCases;
     use PaymentCases;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Tookan integration tests are skipped in CI');
+        }
+    }
+
     public function testTookanCreationWorkflow(): void
     {
         $app = app(Apps::class);
