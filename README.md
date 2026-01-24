@@ -116,6 +116,260 @@ After doing all the steps above, you could run the project with Laravel Octane b
 Use `--watch` in development allowing you to refresh modified files, this works assuming to have `npm install chokidar` installed in the project.
 ****
 
+## Deployment to GCP with Ansible
+
+This project uses GitHub Actions with Ansible to deploy to Google Cloud Platform (GCP) compute instances using Workload Identity Federation for secure authentication.
+
+### Architecture Overview
+
+- **GitHub Actions**: Orchestrates the deployment workflow
+- **Workload Identity Federation**: Secure authentication to GCP without storing service account keys
+- **Ansible**: Automates deployment tasks across GCP compute instances
+- **Dynamic Inventory**: Automatically discovers GCP instances based on naming patterns
+
+### GCP Setup
+
+#### 1. Create Workload Identity Pool
+
+```bash
+export PROJECT_ID="your-project-id"
+export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+export REPO="bakaphp/kanvas-ecosystem-api"
+
+# Create Workload Identity Pool
+gcloud iam workload-identity-pools create "github-pool" \
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --display-name="GitHub Actions Pool"
+```
+
+#### 2. Create OIDC Provider
+
+```bash
+gcloud iam workload-identity-pools providers create-oidc "github-provider" \
+  --project="${PROJECT_ID}" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --display-name="GitHub Actions Provider" \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+  --attribute-condition="assertion.repository_owner=='bakaphp'"
+```
+
+#### 3. Create Service Account
+
+```bash
+# Create service account
+gcloud iam service-accounts create github-actions-sa \
+  --project="${PROJECT_ID}" \
+  --display-name="GitHub Actions Service Account"
+
+export SA_EMAIL="github-actions-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Grant necessary permissions
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/compute.viewer"
+
+# Grant OS Login permissions for SSH access (replaces SSH keys)
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/compute.osAdminLogin"
+
+# Allow Workload Identity to impersonate the service account
+gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
+  --project="${PROJECT_ID}" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github-pool/attribute.repository/${REPO}"
+```
+
+#### 4. Get Provider Path
+
+```bash
+# Get the full provider path for GitHub secrets
+gcloud iam workload-identity-pools providers describe github-provider \
+  --workload-identity-pool=github-pool \
+  --location=global \
+  --project=$PROJECT_ID \
+  --format="value(name)"
+```
+
+#### 5. Enable OS Login (Replaces SSH Key Management)
+
+OS Login uses IAM for SSH authentication, eliminating the need to manage SSH keys. This is more secure and provides automatic key rotation.
+
+```bash
+# Enable OS Login at project level (applies to all instances)
+gcloud compute project-info add-metadata \
+  --metadata enable-oslogin=TRUE \
+  --project=$PROJECT_ID
+
+# Verify OS Login is enabled
+gcloud compute project-info describe \
+  --project=$PROJECT_ID \
+  --format="value(commonInstanceMetadata.items.filter(key:enable-oslogin))"
+```
+
+**Benefits of OS Login:**
+- No SSH keys to store in GitHub Secrets
+- Automatic credential rotation via IAM
+- Centralized access control
+- Full audit logging via Cloud Audit Logs
+- Works seamlessly with Workload Identity Federation
+
+**For Managed Instance Groups:**
+OS Login is automatically applied to all current and future instances when enabled at the project level. No changes to instance templates required.
+
+### GitHub Configuration
+
+#### Required Secrets
+
+Go to: **Repository Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret Name | Value | Example |
+|------------|-------|---------|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full provider path from step 4 | `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
+| `GCP_SERVICE_ACCOUNT` | Service account email | `github-actions-sa@your-project.iam.gserviceaccount.com` |
+| `GCP_PROJECT_ID` | Your GCP project ID | `your-project-id` |
+| `GCP_REGION` | Your GCP region | `us-central1` |
+| `INSTANCE_GROUP_NAME` | Name pattern for instances | `development` |
+| `GCP_COMPUTE_SSH_PRIVATE_KEY` | SSH private key for compute instances | (your SSH private key) |
+
+#### Required Variables
+
+Go to: **Repository Settings → Secrets and variables → Actions → Variables**
+
+| Variable Name | Value | Example |
+|------------|-------|---------|
+| `SSH_USER` | SSH username | `ubuntu` or `your-username` |
+
+#### GitHub Environments
+
+Create environments matching your branch names (e.g., `development`, `staging`, `main`) in:
+**Repository Settings → Environments**
+
+This allows branch-specific configurations and deployment protection rules.
+
+### Deployment Workflow
+
+The deployment is triggered manually via `workflow_dispatch`. To deploy:
+
+1. Go to **Actions** tab in GitHub
+2. Select **"Ansible GCP Compute Deploy"** workflow
+3. Click **"Run workflow"**
+4. Select the branch to deploy
+5. Click **"Run workflow"**
+
+#### What Happens During Deployment
+
+1. **Authentication**: Authenticates to GCP using Workload Identity Federation
+2. **Dynamic Inventory**: Discovers running GCP instances in the specified region matching the instance group name
+3. **File Sync**: Syncs application files to remote servers (excluding git, node_modules, vendor, etc.)
+4. **Dependencies**: Installs Composer dependencies
+5. **Migrations** (optional): Runs database migrations
+6. **Cache**: Clears and rebuilds Laravel config/route/view cache
+7. **Docker**: Restarts Docker containers with updated code
+
+### Ansible Playbooks
+
+Playbooks are organized by environment in `ansible/playbooks/`:
+- `development-deploy.yaml`
+- `staging-deploy.yaml` (if applicable)
+- `production-deploy.yaml` (if applicable)
+
+#### Playbook Structure
+
+```yaml
+---
+- name: Deploy app to all instances
+  hosts: development  # Matches the group created by dynamic inventory
+  become: true
+  strategy: free  # Run on all hosts in parallel
+
+  tasks:
+    - name: Sync app files
+      ansible.posix.synchronize: ...
+
+    - name: Install dependencies
+      command: composer install ...
+
+    - name: Redeploy docker containers
+      docker_compose: ...
+```
+
+### GCP Instance Requirements
+
+Instances must:
+- Be named with the pattern matching `INSTANCE_GROUP_NAME` (e.g., `development-api-01`)
+- Be in `RUNNING` state
+- Have SSH access configured with the provided private key
+- Have Docker and Docker Compose installed
+- Have the application directory structure in place
+
+### Troubleshooting
+
+#### Authentication Errors
+
+```
+Error: invalid_target
+```
+
+**Solution**: Verify the Workload Identity Provider path and ensure pool/provider are ACTIVE:
+
+```bash
+gcloud iam workload-identity-pools describe github-pool \
+  --location=global \
+  --project=YOUR_PROJECT_ID \
+  --format="value(state)"
+
+gcloud iam workload-identity-pools providers describe github-provider \
+  --workload-identity-pool=github-pool \
+  --location=global \
+  --project=YOUR_PROJECT_ID \
+  --format="value(state)"
+```
+
+Both should return `ACTIVE`.
+
+#### No Hosts Found
+
+**Solution**: Check that:
+- Instances are running
+- Instance names contain the `INSTANCE_GROUP_NAME` value
+- Instances are in the specified `GCP_REGION`
+
+```bash
+gcloud compute instances list \
+  --project=YOUR_PROJECT_ID \
+  --filter="name~INSTANCE_GROUP_NAME AND status=RUNNING"
+```
+
+#### SSH Connection Issues
+
+**Solution**: Verify SSH key is correct and user has access:
+
+```bash
+# Test SSH connection manually
+ssh -i path/to/private-key username@instance-ip
+```
+
+### Local Testing
+
+Test the Ansible playbook locally:
+
+```bash
+cd ansible
+
+# Test inventory discovery
+ansible-inventory -i inventory.gcp.yml --list
+
+# Run playbook with dry-run
+ansible-playbook playbooks/development-deploy.yaml \
+  -i inventory.gcp.yml \
+  --check \
+  --diff
+```
+
 ## Working with kanvas
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
