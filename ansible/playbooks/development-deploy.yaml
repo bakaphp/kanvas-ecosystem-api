@@ -4,10 +4,10 @@
   become: true
   strategy: free  # Run on all hosts in parallel
 
-  vars:
-    app_dir: /var/www/html
-    repo_url: git@github.com:yourorg/yourrepo.git
-    branch: development
+  # vars:
+  #   app_dir: /var/www/html
+  #   repo_url: git@github.com:yourorg/yourrepo.git
+  #   branch: development
 
   tasks:
     - name: Sync app files
@@ -15,6 +15,8 @@
         src: ../../
         dest: "{{ app_dir }}"
         delete: yes
+        verbose: yes
+        verbosity: 2
         rsync_opts:
           - "--exclude=.git"
           - "--exclude=node_modules"
