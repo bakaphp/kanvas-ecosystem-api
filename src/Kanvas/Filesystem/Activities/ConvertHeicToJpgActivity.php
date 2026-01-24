@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -20,9 +21,15 @@ class ConvertHeicToJpgActivity extends KanvasActivity
 {
     public $tries = 3;
 
-    public function execute(Filesystem $filesystem, AppInterface $app, array $params): array
+    public function execute(Filesystem|FilesystemEntities $filesystem, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        $filesystemEntity = null;
+        if ($filesystem instanceof FilesystemEntities) {
+            $filesystemEntity = $filesystem;
+            $filesystem = $filesystem->filesystem;
+        }
 
         $fileType = strtolower($filesystem->file_type);
         if ($fileType !== 'heic') {
@@ -38,7 +45,7 @@ class ConvertHeicToJpgActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function ($filesystem, $app, $integrationCompany, $additionalParams) use ($params) {
+            integrationOperation: function ($filesystem, $app, $integrationCompany, $additionalParams) use ($params, $filesystemEntity) {
                 // Download the HEIC file
                 $heicPath = $this->downloadFile($filesystem->url);
 
@@ -69,9 +76,13 @@ class ConvertHeicToJpgActivity extends KanvasActivity
                     'url' => $newFilesystem->url,
                     'path' => $newFilesystem->path,
                     'name' => $newFilesystem->name,
-                    'field_name' => $updatedFieldName,
+                    //'field_name' => $updatedFieldName,
                     'file_type' => 'jpg',
                     'size' => $newFilesystem->size,
+                ]);
+
+                $filesystemEntity?->update([
+                    'field_name' => $updatedFieldName,
                 ]);
 
                 // Clean up temp files
