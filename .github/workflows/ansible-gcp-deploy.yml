@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
 
     permissions:
       contents: read
@@ -48,16 +49,21 @@ jobs:
             ${{github.refs_name}} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
-      # - name: Write SSH key
-      #   run: |
-      #     echo '${{ secrets.SSH_PRIVATE_KEY }}' > ssh-key
-      #     chmod 600 ssh-key
+      - name: Write SSH key
+        run: |
+          echo '${{ secrets.GCP_COMPUTE_SSH_PRIVATE_KEY }}' > ssh-key
+          chmod 600 ssh-key
 
-      # - name: Run Ansible playbook
-      #   env:
-      #     ANSIBLE_HOST_KEY_CHECKING: 'false'
-      #   run: |
-      #     ansible-playbook ansible/deploy.yml \
-      #       -i ansible/inventory.gcp.yml \
-      #       --private-key ssh-key \
-      #       -u ${{ vars.SSH_USER }}
+      - name: Run Ansible playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'false'
+        run: |
+          ansible-playbook ansible/playbooks/${{github.refs_name}}-deploy.yml \
+            -i ansible/inventory.gcp.yml \
+            --private-key ssh-key \
+            -u ${{ vars.SSH_USER }}
+            -e '{
+              "app_dir": "/var/www/html",
+              "repo_url": "git@github.com:${{ github.repository }}.git",
+              "branch": "${{ github.ref_name }}"
+            }'
