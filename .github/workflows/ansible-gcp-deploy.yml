@@ -49,19 +49,13 @@ jobs:
             ${{ github.ref_name }} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
-      - name: Write SSH key
-        run: |
-          echo '${{ secrets.GCP_COMPUTE_SSH_PRIVATE_KEY }}' > ssh-key
-          chmod 600 ssh-key
-
       - name: Run Ansible playbook
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'false'
         run: |
           ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yml \
             -i ansible/inventory.gcp.yml \
-            --private-key ssh-key \
-            -u ${{ vars.SSH_USER }}
+            --ssh-common-args="-o StrictHostKeyChecking=no" \
             -e '{
               "app_dir": "/var/www/html",
               "repo_url": "git@github.com:${{ github.repository }}.git",
