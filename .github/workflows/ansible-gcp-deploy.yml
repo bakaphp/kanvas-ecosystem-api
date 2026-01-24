@@ -52,16 +52,16 @@ jobs:
       - name: Verify inventory
         run: |
           echo "Testing inventory discovery..."
-          ansible-inventory -i ansible/inventory.gcp.yml --list
+          ansible-inventory -i ansible/inventory.gcp.yaml --list
           echo "Inventory hosts:"
-          ansible-inventory -i ansible/inventory.gcp.yml --graph
+          ansible-inventory -i ansible/inventory.gcp.yaml --graph
 
       - name: Run Ansible playbook
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'false'
         run: |
           ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yaml \
-            -i ansible/inventory.gcp.yml \
+            -i ansible/inventory.gcp.yaml \
             --ssh-common-args="-o StrictHostKeyChecking=no" \
             -e '{
               "app_dir": "/var/www/html",
