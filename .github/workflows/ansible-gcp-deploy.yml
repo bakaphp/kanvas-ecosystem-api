@@ -31,12 +31,12 @@ jobs:
 
       - name: Install Ansible and GCP collection
         run: |
-          pip install ansible google-auth
-          ansible-galaxy collection install google.cloud
+          pip install ansible google-auth requests google-auth-httplib2
+          ansible-galaxy collection install google.cloud ansible.posix
 
       - name: Create inventory file
         run: |
-          cat > ansible/inventory.gcp.yml << EOF
+          cat > ansible/inventory.gcp.yaml << EOF
           plugin: google.cloud.gcp_compute
           projects:
             - ${{ secrets.GCP_PROJECT_ID }}
@@ -46,8 +46,15 @@ jobs:
             - status = RUNNING
           auth_kind: application
           groups:
-            ${{ github.ref_name }} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
+            ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
+
+      - name: Verify inventory
+        run: |
+          echo "Testing inventory discovery..."
+          ansible-inventory -i ansible/inventory.gcp.yml --list
+          echo "Inventory hosts:"
+          ansible-inventory -i ansible/inventory.gcp.yml --graph
 
       - name: Run Ansible playbook
         env:
