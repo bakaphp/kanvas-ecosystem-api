@@ -1,6 +1,6 @@
 ---
 - name: Deploy app to all instances
-  hosts: myapp
+  hosts: development
   become: true
   strategy: free  # Run on all hosts in parallel
 
@@ -42,7 +42,11 @@
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Restart PHP-FPM
-      service:
-        name: php-fpm
-        state: restarted
+    - name: Redeploy docker containers
+      docker_compose:
+        project_src: "{{ app_dir }}"
+        files:
+          - docker-compose.development.yaml
+        state: present
+        restarted: true
+        build: false

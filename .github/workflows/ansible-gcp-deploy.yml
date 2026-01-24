@@ -1,8 +1,8 @@
-name: Deploy
+name: Ansible GCP Compute Deploy
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    
 
 jobs:
   deploy:
@@ -10,6 +10,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Authenticate to GCP using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,26 +34,25 @@ jobs:
           plugin: google.cloud.gcp_compute
           projects:
             - ${{ secrets.GCP_PROJECT_ID }}
-          zones:
-            - ${{ vars.GCP_ZONE }}
+          regions:
+            - ${{ secrets.GCP_REGION }}
           filters:
             - status = RUNNING
-          auth_kind: serviceaccount
-          service_account_contents: ${{ secrets.GCP_SA_KEY }}
+          auth_kind: application
           groups:
-            myapp: "'${{ vars.INSTANCE_GROUP_NAME }}' in name"
+            ${{github.refs_name}} "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
-      - name: Write SSH key
-        run: |
-          echo '${{ secrets.SSH_PRIVATE_KEY }}' > ssh-key
-          chmod 600 ssh-key
+      # - name: Write SSH key
+      #   run: |
+      #     echo '${{ secrets.SSH_PRIVATE_KEY }}' > ssh-key
+      #     chmod 600 ssh-key
 
-      - name: Run Ansible playbook
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: 'false'
-        run: |
-          ansible-playbook ansible/deploy.yml \
-            -i ansible/inventory.gcp.yml \
-            --private-key ssh-key \
-            -u ${{ vars.SSH_USER }}
+      # - name: Run Ansible playbook
+      #   env:
+      #     ANSIBLE_HOST_KEY_CHECKING: 'false'
+      #   run: |
+      #     ansible-playbook ansible/deploy.yml \
+      #       -i ansible/inventory.gcp.yml \
+      #       --private-key ssh-key \
+      #       -u ${{ vars.SSH_USER }}
