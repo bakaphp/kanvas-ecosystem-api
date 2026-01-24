@@ -64,21 +64,23 @@ jobs:
           # IAP SSH Wrapper - automatically finds instance zone
           HOST=$1
           PROJECT="${{ secrets.GCP_PROJECT_ID }}"
-          REGION="${{ secrets.GCP_REGION }}"
 
-          # Find the zone for this instance
-          ZONE=$(gcloud compute instances list \
+          # HOST is an internal IP, find the instance name and zone
+          INSTANCE_INFO=$(gcloud compute instances list \
             --project="$PROJECT" \
             --filter="networkInterfaces[].networkIP:$HOST AND status=RUNNING" \
-            --format="value(zone)")
+            --format="value(name,zone)")
 
-          if [ -z "$ZONE" ]; then
-            echo "Error: Could not find zone for instance $HOST" >&2
+          INSTANCE_NAME=$(echo "$INSTANCE_INFO" | awk '{print $1}')
+          ZONE=$(echo "$INSTANCE_INFO" | awk '{print $2}')
+
+          if [ -z "$INSTANCE_NAME" ] || [ -z "$ZONE" ]; then
+            echo "Error: Could not find instance for IP $HOST" >&2
             exit 1
           fi
 
-          # Start IAP tunnel
-          exec gcloud compute start-iap-tunnel "$HOST" 22 \
+          # Start IAP tunnel using instance NAME, not IP
+          exec gcloud compute start-iap-tunnel "$INSTANCE_NAME" 22 \
             --listen-on-stdin \
             --project="$PROJECT" \
             --zone="$ZONE" \
