@@ -30,7 +30,7 @@
           - docker-compose.development.yaml
         state: present
         restarted: true
-        build: false
+        build: never # Avoid rebuilding images
 
     - name: Install dependencies inside container
       shell: docker compose exec -T php composer install --optimize-autoloader
