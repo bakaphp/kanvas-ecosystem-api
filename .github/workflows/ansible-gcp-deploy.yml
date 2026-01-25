@@ -73,7 +73,7 @@ jobs:
           fi
 
           # Get first 250 IPs (GCP firewall rule limit is 256)
-          GITHUB_IPS=$(echo "$API_RESPONSE" | jq -r '.actions[]' | head -250 | tr '\n' ',' | sed 's/,$//')
+          GITHUB_IPS=$(echo "$API_RESPONSE" | jq -r '.actions[0:250] | .[]' | tr '\n' ',' | sed 's/,$//')
 
           if [ -z "$GITHUB_IPS" ]; then
             echo "Error: No GitHub Actions IPs found"
@@ -91,30 +91,24 @@ jobs:
 
           echo "Using network: $NETWORK"
 
-          # Check if firewall rule exists
-          RULE_EXISTS=$(gcloud compute firewall-rules list \
+          # Delete existing rule if it exists, then create new one
+          # This avoids issues with update vs create logic
+          echo "Removing existing firewall rule if present..."
+          gcloud compute firewall-rules delete allow-ssh-github-actions \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --filter="name=allow-ssh-github-actions" \
-            --format="value(name)" 2>/dev/null || true)
+            --quiet 2>/dev/null || true
 
-          if [ -n "$RULE_EXISTS" ]; then
-            echo "Updating existing firewall rule..."
-            gcloud compute firewall-rules update allow-ssh-github-actions \
-              --project="${{ secrets.GCP_PROJECT_ID }}" \
-              --source-ranges="$GITHUB_IPS"
-          else
-            echo "Creating firewall rule..."
-            gcloud compute firewall-rules create allow-ssh-github-actions \
-              --project="${{ secrets.GCP_PROJECT_ID }}" \
-              --network="$NETWORK" \
-              --direction=INGRESS \
-              --priority=1000 \
-              --action=ALLOW \
-              --rules=tcp:22 \
-              --source-ranges="$GITHUB_IPS" \
-              --target-tags="${{ secrets.INSTANCE_GROUP_NAME }}" \
-              --description="Allow SSH from GitHub Actions runners"
-          fi
+          echo "Creating firewall rule..."
+          gcloud compute firewall-rules create allow-ssh-github-actions \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --network="$NETWORK" \
+            --direction=INGRESS \
+            --priority=1000 \
+            --action=ALLOW \
+            --rules=tcp:22 \
+            --source-ranges="$GITHUB_IPS" \
+            --target-tags="${{ secrets.INSTANCE_GROUP_NAME }}" \
+            --description="Allow SSH from GitHub Actions runners"
 
       - name: Verify inventory
         run: |
