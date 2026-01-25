@@ -1160,9 +1160,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 $people->app,
                 $people->company,
                 $leadType->getId(),
-                'whatsapp',
+                'Meta',
                 true,
-                'whatsapp'
+                'Meta'
             )
         )->execute();
 
@@ -1231,6 +1231,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             'whatsapp',
             'ai-agent',
         ]);
+        $lead->set('sub_source', 'Meta');
 
         return $lead;
     }
