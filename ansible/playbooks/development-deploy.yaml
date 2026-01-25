@@ -29,6 +29,10 @@
       args:
         chdir: "{{ app_dir }}"
 
+    - name: Show files
+      debug:
+        msg: "{{ ls_output.stdout }}"
+
     # - name: Docker compose deploy
     #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
     #   args:
