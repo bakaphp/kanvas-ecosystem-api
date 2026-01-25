@@ -24,13 +24,9 @@
           - "--exclude=ansible"
       
     - name: Docker compose deploy
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_dir }}"
-        files:
-          - docker-compose.development.yaml
-        state: present
-        recreate: always # Always recreate containers
-        build: never # Avoid rebuilding images
+      shell: docker-compose -f docker-compose.development.yaml up -d --force-recreate
+      args:
+        chdir: "{{ app_dir }}"
 
     - name: Install dependencies inside container
       shell: docker-compose exec -T php composer install --optimize-autoloader
