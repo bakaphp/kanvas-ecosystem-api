@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\Models\BaseModel;
 
 class FollowUpDay extends BaseModel
 {
+    use NoAppRelationshipTrait;
     protected $table = 'follow_up_days';
     protected $guarded = [];
 
