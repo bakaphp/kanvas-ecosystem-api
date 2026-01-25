@@ -28,9 +28,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -1208,7 +1208,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             branch: $people->company->defaultBranch,
             user: $people->user,
             title: $people->name . ' WhatsApp Opp',
-            pipeline_stage_id: 0,
+            pipeline_stage_id: $pipeline?->firstStage?->getId() ?? 0,
             people: new PeopleDTO(
                 $people->app,
                 $people->company->defaultBranch,
@@ -1223,8 +1223,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             status_id: 0,
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
-            receiver_id: $leadReceiver->getId(),
-            pipeline: $pipeline
+            receiver_id: $leadReceiver->getId()
         );
 
         $lead = new CreateLeadAction($leadData)->execute();

@@ -23,7 +23,7 @@ use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
-use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -69,24 +69,15 @@ class CreateLeadAction
             $newLead->description = $this->leadData->description;
             $newLead->leads_status_id = $this->leadData->status_id;
             $newLead->reason_lost = $this->leadData->reason_lost;
+            $newLead->pipeline_stage_id = $this->leadData->pipeline_stage_id;
 
-            // Assign pipeline and stage if pipeline is provided
-            if ($this->leadData->pipeline instanceof Pipeline) {
-                $newLead->pipelines_id = $this->leadData->pipeline->getId();
-
-                // Get the first stage of the pipeline ordered by weight
-                $firstStage = $this->leadData->pipeline->stages()
-                    ->where('is_deleted', 0)
-                    ->orderBy('weight', 'asc')
-                    ->first();
-
-                if ($firstStage) {
-                    $newLead->pipeline_stage_id = $firstStage->id;
-                }
+            if ($newLead->pipeline_stage_id !== 0) {
+                $pipelineStage = PipelineStage::getById($newLead->pipeline_stage_id);
+                $newLead->pipeline_id = $pipelineStage->pipeline_id;
             }
 
             //create people
-            $people = (new CreatePeopleAction($this->leadData->people))->execute();
+            $people = new CreatePeopleAction($this->leadData->people)->execute();
             $newLead->people_id = $people->getId();
             $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
             $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
