@@ -25,16 +25,6 @@
           - "--exclude=storage/logs/*"
           - "--exclude=ansible"
 
-    - name: Ensure Docker Compose plugin is installed
-      shell: |
-        if ! docker compose version > /dev/null 2>&1; then
-          mkdir -p /usr/local/lib/docker/cli-plugins
-          curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-        fi
-      args:
-        creates: /usr/local/lib/docker/cli-plugins/docker-compose
-
     - name: Docker compose deploy
       shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
       args:
