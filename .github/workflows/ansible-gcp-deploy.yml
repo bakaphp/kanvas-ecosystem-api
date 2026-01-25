@@ -158,6 +158,7 @@ jobs:
             -u ubuntu \
             --private-key /home/runner/.ssh/id_rsa \
             -e '{
+              "src_dir": "${{ github.workspace }}",
               "app_dir": "${{ secrets.GCP_INSTANCE_APP_DIR }}",
               "repo_url": "git@github.com:${{ github.repository }}.git",
               "branch": "${{ github.ref_name }}"

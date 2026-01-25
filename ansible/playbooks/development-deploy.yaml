@@ -12,7 +12,7 @@
   tasks:
     - name: Sync app files
       ansible.posix.synchronize:
-        src: ./
+        src: "{{ src_dir }}/"
         dest: "{{ app_dir }}"
         delete: yes
         rsync_opts:
