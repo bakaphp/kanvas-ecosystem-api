@@ -52,7 +52,7 @@ jobs:
             - name
           compose:
             ansible_host: networkInterfaces[0].networkIP
-            ansible_user: sa_${{ secrets.GCP_SERVICE_ACCOUNT_UNIQUE_ID }}
+            ansible_user: ubuntu
           groups:
             ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
@@ -106,10 +106,24 @@ jobs:
           echo "Inventory hosts:"
           ansible-inventory -i ansible/inventory.gcp.yaml --graph
       
-      - name: Setup OS Login SSH
+      - name: Setup SSH key for ubuntu user
         run: |
-          gcloud compute os-login ssh-keys add --key-file=~/.ssh/id_rsa.pub 2>/dev/null || \
-          (ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa && gcloud compute os-login ssh-keys add --key-file=~/.ssh/id_rsa.pub)
+          # Generate SSH key
+          ssh-keygen -t rsa -b 3072 -N '' -f /home/runner/.ssh/id_rsa
+          SSH_PUBLIC_KEY=$(cat /home/runner/.ssh/id_rsa.pub)
+
+          # Get all matching instances (name and zone)
+          gcloud compute instances list \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
+            --format="value(name,zone)" | while read -r INSTANCE_NAME ZONE; do
+
+            echo "Adding SSH key to instance: $INSTANCE_NAME (zone: $ZONE)"
+            gcloud compute instances add-metadata "$INSTANCE_NAME" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="$ZONE" \
+              --metadata "ssh-keys=ubuntu:$SSH_PUBLIC_KEY"
+          done
 
       - name: Run Ansible playbook
         env:
