@@ -105,6 +105,11 @@ jobs:
           ansible-inventory -i ansible/inventory.gcp.yaml --list
           echo "Inventory hosts:"
           ansible-inventory -i ansible/inventory.gcp.yaml --graph
+      
+      - name: Setup OS Login SSH
+        run: |
+          gcloud compute os-login ssh-keys add --key-file=~/.ssh/id_rsa.pub 2>/dev/null || \
+          (ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa && gcloud compute os-login ssh-keys add --key-file=~/.ssh/id_rsa.pub)
 
       - name: Run Ansible playbook
         env:
