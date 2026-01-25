@@ -1208,7 +1208,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             branch: $people->company->defaultBranch,
             user: $people->user,
             title: $people->name . ' WhatsApp Opp',
-            pipeline_stage_id: $pipeline?->firstStage()?->getId() ?? 0,
+            pipeline_stage_id: $pipeline?->firstStage?->getId() ?? 0,
             people: new PeopleDTO(
                 $people->app,
                 $people->company->defaultBranch,
