@@ -30,9 +30,16 @@ class FollowUpEngagementAction
         public Lead $lead
     ) {
         $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
-        if (! $aiFollowUpType || $aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
+
+        if (! $aiFollowUpType) {
+            $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE->value)
+                ?? FollowUpTypeEnum::LEAD_FOLLOW_UP->value;
+        }
+
+        if ($aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
             throw new Exception('No follow up type set on lead');
         }
+
         $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, $aiFollowUpType);
     }
 

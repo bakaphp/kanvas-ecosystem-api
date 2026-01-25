@@ -10,4 +10,5 @@ enum IntelligenceModeEnum: string
     case SUPPORT = 'SUPPORT';
     case OFF = 'OFF';
     case AI_FOLLOW_UP = 'ai_follow_up';
+    case DEFAULT_AI_FOLLOW_UP_TYPE = 'default_ai_follow_up_type';
 }
