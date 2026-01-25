@@ -140,7 +140,7 @@ jobs:
           ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yaml \
             -i ansible/inventory.gcp.yaml \
             -e '{
-              "app_dir": "${{ secrets.APP_DIR }}",
+              "app_dir": "${{ secrets.GCP_INSTANCE_APP_DIR }}",
               "repo_url": "git@github.com:${{ github.repository }}.git",
               "branch": "${{ github.ref_name }}"
             }'
