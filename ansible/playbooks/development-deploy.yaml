@@ -24,7 +24,7 @@
           - "--exclude=ansible"
       
     - name: Docker compose deploy
-      community.docker.docker_compose:
+      community.docker.docker_compose_v2:
         project_src: "{{ app_dir }}"
         files:
           - docker-compose.development.yaml
