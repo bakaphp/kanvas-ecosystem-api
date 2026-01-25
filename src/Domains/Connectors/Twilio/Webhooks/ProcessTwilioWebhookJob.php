@@ -84,6 +84,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
+        $channel->deleteLastMessageLocked();
 
         $existingMessage = Message::where('uuid', $messageSlug)
             ->where('companies_id', $this->receiver->company->getId())

@@ -55,7 +55,7 @@ class ChannelsManagementMutation
     public function deleteChannel(mixed $rootValue, array $request): Channel
     {
         $channel = ChannelRepository::getByIdBuilder(auth()->user())
-            ->where('channel_users.roles_id', 1)
+            //->where('channel_users.roles_id', 1)
             ->findOrFail($request['id']);
 
         $channel->delete();

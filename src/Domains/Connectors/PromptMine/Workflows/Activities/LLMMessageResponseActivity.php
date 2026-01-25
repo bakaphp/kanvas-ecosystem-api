@@ -652,12 +652,17 @@ class LLMMessageResponseActivity extends KanvasActivity
 
     private function generateTitleByPrompt(string $prompt): string
     {
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
-            ->asText();
+        try {
+            $response = Prism::text()
+                ->using(Provider::Gemini, 'gemini-2.0-flash')
+                ->withPrompt('Generate a short concise title from this prompt: ' . $prompt . '.Choose just one title, dont give me suggestions')
+                ->asText();
 
-        return trim(str_replace(['```', 'json'], '', $response->text));
+            return trim(str_replace(['```', 'json'], '', $response->text));
+        } catch (Throwable $e) {
+            report($e);
+            return 'AI Generated Content';
+        }
     }
 
     /**
