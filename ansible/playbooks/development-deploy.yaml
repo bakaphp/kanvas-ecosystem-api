@@ -15,8 +15,6 @@
         src: ../../
         dest: "{{ app_dir }}"
         delete: yes
-        verbose: yes
-        verbosity: 2
         rsync_opts:
           - "--exclude=.git"
           - "--exclude=node_modules"
