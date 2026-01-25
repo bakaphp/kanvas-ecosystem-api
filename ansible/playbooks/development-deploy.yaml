@@ -22,9 +22,18 @@
           - "--exclude=.env"
           - "--exclude=storage/logs/*"
           - "--exclude=ansible"
+      
+    - name: Docker compose deploy
+      community.docker.docker_compose:
+        project_src: "{{ app_dir }}"
+        files:
+          - docker-compose.development.yaml
+        state: present
+        restarted: true
+        build: false
 
-    - name: Install dependencies
-      command: composer install --optimize-autoloader
+    - name: Install dependencies inside container
+      shell: docker compose exec -T php composer install --optimize-autoloader
       args:
         chdir: "{{ app_dir }}"
 
