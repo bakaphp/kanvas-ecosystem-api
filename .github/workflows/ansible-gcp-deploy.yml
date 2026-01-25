@@ -133,17 +133,20 @@ jobs:
           EOF
           chmod 600 /home/runner/.ssh/config
 
-          # Get all matching instances (name and zone)
+          # Get all matching instances (name, zone, and external IP)
           gcloud compute instances list \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
-            --format="value(name,zone)" | while read -r INSTANCE_NAME ZONE; do
+            --format="value(name,zone,networkInterfaces[0].accessConfigs[0].natIP)" | while read -r INSTANCE_NAME ZONE EXTERNAL_IP; do
 
-            echo "Adding SSH key to instance: $INSTANCE_NAME (zone: $ZONE)"
-            gcloud compute instances add-metadata "$INSTANCE_NAME" \
+            echo "Adding SSH key to instance: $INSTANCE_NAME (zone: $ZONE, IP: $EXTERNAL_IP)"
+
+            # Use gcloud compute ssh to add the key directly to authorized_keys
+            gcloud compute ssh ubuntu@"$INSTANCE_NAME" \
               --project="${{ secrets.GCP_PROJECT_ID }}" \
               --zone="$ZONE" \
-              --metadata "ssh-keys=ubuntu:$SSH_PUBLIC_KEY"
+              --command="mkdir -p ~/.ssh && echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys" \
+              --quiet
           done
 
       - name: Run Ansible playbook
