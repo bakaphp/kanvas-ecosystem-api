@@ -22,16 +22,22 @@
           - "--exclude=.env"
           - "--exclude=storage/logs/*"
           - "--exclude=ansible"
-      
-    - name: Docker compose deploy
-      shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
+
+    - name: Verify the files are there
+      shell: ls -la
+      register: ls_output
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Install dependencies inside container
-      shell: docker compose exec -T php composer install --optimize-autoloader
-      args:
-        chdir: "{{ app_dir }}"
+    # - name: Docker compose deploy
+    #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
+    #   args:
+    #     chdir: "{{ app_dir }}"
+
+    # - name: Install dependencies inside container
+    #   shell: docker compose exec -T php composer install --optimize-autoloader
+    #   args:
+    #     chdir: "{{ app_dir }}"
 
     # - name: Clear and cache config
     #   shell: |
