@@ -110,19 +110,20 @@ jobs:
         run: |
           # Generate SSH key
           ssh-keygen -t rsa -b 3072 -N '' -f /home/runner/.ssh/id_rsa
+          SSH_PUBLIC_KEY=$(cat /home/runner/.ssh/id_rsa.pub)
 
-          # Get the instance name
-          INSTANCE_NAME=$(gcloud compute instances list \
+          # Get all matching instances (name and zone)
+          gcloud compute instances list \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
-            --format="value(name)" \
-            --limit=1)
+            --format="value(name,zone)" | while read -r INSTANCE_NAME ZONE; do
 
-          # Add SSH key to instance metadata for ubuntu user
-          gcloud compute instances add-metadata "$INSTANCE_NAME" \
-            --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --zone="${{ secrets.GCP_ZONE }}" \
-            --metadata "ssh-keys=ubuntu:$(cat /home/runner/.ssh/id_rsa.pub)"
+            echo "Adding SSH key to instance: $INSTANCE_NAME (zone: $ZONE)"
+            gcloud compute instances add-metadata "$INSTANCE_NAME" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="$ZONE" \
+              --metadata "ssh-keys=ubuntu:$SSH_PUBLIC_KEY"
+          done
 
       - name: Run Ansible playbook
         env:
