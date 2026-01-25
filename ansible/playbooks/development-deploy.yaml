@@ -26,9 +26,11 @@
           - "--exclude=ansible"
 
     - name: Install dependencies
-      command: composer install --optimize-autoloader
+      shell: /usr/local/bin/composer install --optimize-autoloader
       args:
         chdir: "{{ app_dir }}"
+      environment:
+        PATH: "/usr/local/bin:/usr/bin:/bin:{{ ansible_env.PATH | default('') }}"
 
     # - name: Run migrations
     #   command: php artisan migrate --force
