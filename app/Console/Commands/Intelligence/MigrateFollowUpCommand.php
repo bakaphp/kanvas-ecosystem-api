@@ -149,22 +149,33 @@ class MigrateFollowUpCommand extends Command
                     $this->info('      - Templates: ' . count($templates));
 
                     // Create FollowUpDay
-                    $totalDays++;
                     if (! $isDryRun && $followUp) {
-                        $followUpDay = FollowUpDay::create([
-                            'follow_ups_id' => $followUp->id,
-                            'pipeline_stages_id' => $stage->id,
-                            'name' => "Day {$dayValue}",
-                            'time_value' => $timeValue,
-                            'time_unit' => $timeUnit,
-                            'weight' => $stage->weight,
-                            'calendar_day' => true,
-                            'send_message' => (bool) $sendMessage,
-                        ]);
-                        $this->info("      ✓ Created Follow Up Day: {$followUpDay->name}");
+                        // Check if FollowUpDay already exists
+                        $followUpDay = FollowUpDay::where('follow_ups_id', $followUp->id)
+                            ->where('pipeline_stages_id', $stage->id)
+                            ->where('is_deleted', 0)
+                            ->first();
+
+                        if ($followUpDay) {
+                            $this->warn("      ⚠ Follow Up Day already exists for stage {$stage->name}. Skipping...");
+                        } else {
+                            $totalDays++;
+                            $followUpDay = FollowUpDay::create([
+                                'follow_ups_id' => $followUp->id,
+                                'pipeline_stages_id' => $stage->id,
+                                'name' => "Day {$dayValue}",
+                                'time_value' => $timeValue,
+                                'time_unit' => $timeUnit,
+                                'weight' => $stage->weight,
+                                'calendar_day' => true,
+                                'send_message' => (bool) $sendMessage,
+                            ]);
+                            $this->info("      ✓ Created Follow Up Day: {$followUpDay->name}");
+                        }
                     } else {
                         $this->info("      [DRY-RUN] Would create Follow Up Day: Day {$dayValue}");
                         $followUpDay = null;
+                        $totalDays++;
                     }
 
                     // Create templates
@@ -186,17 +197,28 @@ class MigrateFollowUpCommand extends Command
                         $communicationChannel = $this->mapChannelType($channel);
                         $templateName = ucfirst($channel) . ' Template';
 
-                        $totalTemplates++;
                         if (! $isDryRun && $followUpDay) {
-                            FollowUpTemplate::create([
-                                'follow_up_days_id' => $followUpDay->id,
-                                'communication_channel' => $communicationChannel,
-                                'name' => $templateName,
-                                'template' => $templateContent,
-                            ]);
-                            $this->info("        ✓ Created Template: {$templateName} ({$communicationChannel})");
+                            // Check if template already exists
+                            $existingTemplate = FollowUpTemplate::where('follow_up_days_id', $followUpDay->id)
+                                ->where('communication_channel', $communicationChannel)
+                                ->where('is_deleted', 0)
+                                ->first();
+
+                            if ($existingTemplate) {
+                                $this->warn("        ⚠ Template {$templateName} already exists. Skipping...");
+                            } else {
+                                $totalTemplates++;
+                                FollowUpTemplate::create([
+                                    'follow_up_days_id' => $followUpDay->id,
+                                    'communication_channel' => $communicationChannel,
+                                    'name' => $templateName,
+                                    'template' => $templateContent,
+                                ]);
+                                $this->info("        ✓ Created Template: {$templateName} ({$communicationChannel})");
+                            }
                         } else {
                             $this->info("        [DRY-RUN] Would create Template: {$templateName} ({$communicationChannel})");
+                            $totalTemplates++;
                         }
                     }
                 }
