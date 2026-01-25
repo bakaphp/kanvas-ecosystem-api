@@ -24,14 +24,14 @@
           - "--exclude=ansible"
 
     - name: Verify the files are there
-      shell: ls -la
+      shell: ls -la {{ app_dir }}
       register: ls_output
       args:
         chdir: "{{ app_dir }}"
 
     - name: Show files
       debug:
-        msg: "{{ ls_output.stdout }}"
+        msg: "{{ ls_output.stdout_lines }}"
 
     # - name: Docker compose deploy
     #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
