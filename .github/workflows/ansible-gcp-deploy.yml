@@ -58,12 +58,28 @@ jobs:
           EOF
 
       - name: Create GitHub Actions SSH firewall rule
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Fetch GitHub Actions IP ranges from GitHub's meta API
+          # Fetch GitHub Actions IP ranges from GitHub's meta API (authenticated to avoid rate limits)
           echo "Fetching GitHub Actions IP ranges..."
-          GITHUB_IPS=$(curl -s https://api.github.com/meta | jq -r '.actions[]' | tr '\n' ',' | sed 's/,$//')
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/meta)
 
-          echo "GitHub Actions IP ranges: $GITHUB_IPS"
+          # Check if we got a valid response
+          if ! echo "$API_RESPONSE" | jq -e '.actions' > /dev/null 2>&1; then
+            echo "Error: Failed to fetch GitHub Actions IPs. API response:"
+            echo "$API_RESPONSE"
+            exit 1
+          fi
+
+          GITHUB_IPS=$(echo "$API_RESPONSE" | jq -r '.actions[]' | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$GITHUB_IPS" ]; then
+            echo "Error: No GitHub Actions IPs found"
+            exit 1
+          fi
+
+          echo "GitHub Actions IP ranges fetched successfully ($(echo "$GITHUB_IPS" | tr ',' '\n' | wc -l) ranges)"
 
           # Check if firewall rule exists
           RULE_EXISTS=$(gcloud compute firewall-rules list \
