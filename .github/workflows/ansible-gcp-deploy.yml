@@ -155,6 +155,8 @@ jobs:
         run: |
           ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yaml \
             -i ansible/inventory.gcp.yaml \
+            -u ubuntu \
+            --private-key /home/runner/.ssh/id_rsa \
             -e '{
               "app_dir": "${{ secrets.GCP_INSTANCE_APP_DIR }}",
               "repo_url": "git@github.com:${{ github.repository }}.git",
