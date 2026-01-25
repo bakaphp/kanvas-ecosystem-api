@@ -368,23 +368,30 @@ XML;
             <FamilyName>{$data['lastName']}</FamilyName>
 XML;
 
-        $xml .= <<<XML
-          </SpecifiedPerson>
-        </AppointmentContactParty>
-      </ServiceAppointmentHeader>
-      <ServiceAppointmentDetail>
-        <ServiceAppointmentVehicleLineItem>
-          <Vehicle>
-            <Model>{$data['vehicle']['model']}</Model>
-            <ModelYear>{$data['vehicle']['year']}</ModelYear>
-            <MakeString>{$data['vehicle']['make']}</MakeString>
-          </Vehicle>
-        </ServiceAppointmentVehicleLineItem>
-      </ServiceAppointmentDetail>
-    </ServiceAppointment>
-  </ProcessServiceAppointmentDataArea>
-</ProcessServiceAppointment>
-XML;
+        $xml .= "\n          </SpecifiedPerson>";
+        $xml .= "\n        </AppointmentContactParty>";
+        $xml .= "\n      </ServiceAppointmentHeader>";
+        $xml .= "\n      <ServiceAppointmentDetail>";
+
+        if (! empty($data['vehicle'])) {
+            $xml .= "\n        <ServiceAppointmentVehicleLineItem>";
+            $xml .= "\n          <Vehicle>";
+            $xml .= "\n            <Model>{$data['vehicle']['model']}</Model>";
+            $xml .= "\n            <ModelYear>{$data['vehicle']['year']}</ModelYear>";
+            $xml .= "\n            <MakeString>{$data['vehicle']['make']}</MakeString>";
+
+            if (! empty($data['vehicle']['vin'])) {
+                $xml .= "\n            <VehicleID>{$data['vehicle']['vin']}</VehicleID>";
+            }
+
+            $xml .= "\n          </Vehicle>";
+            $xml .= "\n        </ServiceAppointmentVehicleLineItem>";
+        }
+
+        $xml .= "\n      </ServiceAppointmentDetail>";
+        $xml .= "\n    </ServiceAppointment>";
+        $xml .= "\n  </ProcessServiceAppointmentDataArea>";
+        $xml .= "\n</ProcessServiceAppointment>";
 
         return ltrim($xml);
     }
