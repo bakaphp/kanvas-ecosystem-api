@@ -20,6 +20,7 @@ class FollowUpTemplate extends BaseModel
 {
     protected $table = 'follow_up_templates';
     protected $guarded = [];
+    protected $autoAssignAppsId = false;
 
     public function followUpDay(): BelongsTo
     {

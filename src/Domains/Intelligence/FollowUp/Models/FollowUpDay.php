@@ -25,6 +25,7 @@ class FollowUpDay extends BaseModel
 {
     protected $table = 'follow_up_days';
     protected $guarded = [];
+    protected $autoAssignAppsId = false;
 
     public function followUp(): BelongsTo
     {
