@@ -29,19 +29,13 @@
         files:
           - docker-compose.development.yaml
         state: present
-        restarted: true
+        recreate: always # Always recreate containers
         build: never # Avoid rebuilding images
 
     - name: Install dependencies inside container
-      shell: docker compose exec -T php composer install --optimize-autoloader
+      shell: docker-compose exec -T php composer install --optimize-autoloader
       args:
         chdir: "{{ app_dir }}"
-
-    # - name: Run migrations
-    #   command: php artisan migrate --force
-    #   args:
-    #     chdir: "{{ app_dir }}"
-    #   run_once: true  # Only run on one host
 
     # - name: Clear and cache config
     #   shell: |
@@ -50,12 +44,3 @@
     #     php artisan view:cache
     #   args:
     #     chdir: "{{ app_dir }}"
-
-    # - name: Redeploy docker containers
-    #   docker_compose:
-    #     project_src: "{{ app_dir }}"
-    #     files:
-    #       - docker-compose.development.yaml
-    #     state: present
-    #     restarted: true
-    #     build: false
