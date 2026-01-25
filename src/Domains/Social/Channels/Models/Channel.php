@@ -92,6 +92,19 @@ class Channel extends BaseModel
             ->first();
     }
 
+    public function deleteLastMessageLocked(): bool
+    {
+        $message = $this->getLastMessage();
+        if ($message) {
+            $newLastMessage = $this->getPreviousMessage($message);
+            $this->last_message_id = $newLastMessage?->id;
+
+            return $message->softDelete();
+        }
+
+        return false;
+    }
+
     public function addMessage(
         Message $message,
         ?UserInterface $user = null

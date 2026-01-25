@@ -35,6 +35,9 @@ final class TookanOrderStatusActivityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Tookan integration tests are skipped in CI');
+        }
 
         Notification::fake();
 

@@ -11,10 +11,12 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Services\HandOffNoteService;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class HandOffActivity extends KanvasActivity
@@ -39,6 +41,29 @@ class HandOffActivity extends KanvasActivity
                 $handOffType = strtolower($params['handoff_type'] ?? self::DEFAULT_HANDOFF_TYPE);
                 $handOffUserRole = $this->getHandOffUserRole($lead, $handOffType);
 
+                if (! empty($params['rotation_id'])) {
+                    try {
+                        $rotation = LeadRotation::getById($params['rotation_id'], $app);
+                        if ($rotation && $agent = $rotation->getAgent()) {
+                            $lead->leads_owner_id = $agent->getId();
+                            $lead->saveOrFail();
+                            $leadOwner = $agent;
+                        }
+                    } catch (Exception $e) {
+                    }
+                }
+
+                if ($handOffType == 'human') {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $app,
+                            'trigger_type' => TriggersEnum::HUMAN_HANDOFF->value,
+                        ]
+                    );
+                }
+                //$communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
                 $handOffNotification = $this->createHandOffNotification($lead, $leadOwner, $handOffType, $params);
