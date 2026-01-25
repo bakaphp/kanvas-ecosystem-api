@@ -1,0 +1,52 @@
+---
+- name: Deploy app to all instances
+  hosts: development
+  become: true
+  strategy: free  # Run on all hosts in parallel
+
+  # vars:
+  #   app_dir: /var/www/html
+  #   repo_url: git@github.com:yourorg/yourrepo.git
+  #   branch: development
+
+  tasks:
+    - name: Sync app files
+      ansible.posix.synchronize:
+        src: "{{ src_dir }}/"
+        dest: "{{ app_dir }}"
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=node_modules"
+          - "--exclude=vendor"
+          - "--exclude=.env"
+          - "--exclude=storage/logs/*"
+          - "--exclude=ansible"
+
+    - name: Verify the files are there
+      shell: ls -lash
+      register: ls_output
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Show files
+      debug:
+        msg: "{{ ls_output.stdout_lines }}"
+
+    # - name: Docker compose deploy
+    #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
+    #   args:
+    #     chdir: "{{ app_dir }}"
+
+    # - name: Install dependencies inside container
+    #   shell: docker compose exec -T php composer install --optimize-autoloader
+    #   args:
+    #     chdir: "{{ app_dir }}"
+
+    # - name: Clear and cache config
+    #   shell: |
+    #     php artisan config:cache
+    #     php artisan route:cache
+    #     php artisan view:cache
+    #   args:
+    #     chdir: "{{ app_dir }}"
