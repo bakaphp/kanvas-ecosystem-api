@@ -27,6 +27,8 @@
 
     - name: Install dependencies
       command: composer install --optimize-autoloader
+      verbose: yes
+      verbosity: 2
       args:
         chdir: "{{ app_dir }}"
 
