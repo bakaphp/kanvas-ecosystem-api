@@ -6,8 +6,11 @@ namespace Kanvas\Intelligence\Workflows;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeDto;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadRotation;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Services\HandOffNoteService;
@@ -27,6 +30,7 @@ class HandOffActivity extends KanvasActivity
     private const string DEFAULT_MANAGER_ROLE = 'Manager';
     private const string SERVICE_MANAGER_ROLE = 'ServiceManager';
     private const string DEFAULT_TEMPLATE_NAME = 'lead_handoff';
+    private const string SERVICE_LEAD_TYPE_NAME = 'Service';
 
     public function execute(Lead $lead, Apps $app, array $params): array
     {
@@ -63,6 +67,13 @@ class HandOffActivity extends KanvasActivity
                         ]
                     );
                 }
+
+                if ($handOffType === 'service') {
+                    $serviceLeadType = $this->getOrCreateServiceLeadType($lead);
+                    $lead->leads_types_id = $serviceLeadType->getId();
+                    $lead->saveOrFail();
+                }
+
                 //$communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
@@ -189,5 +200,28 @@ class HandOffActivity extends KanvasActivity
         }
 
         return $notifiedCount;
+    }
+
+    private function getOrCreateServiceLeadType(Lead $lead): LeadType
+    {
+        $leadType = LeadType::where('apps_id', $lead->app->getId())
+            ->where('companies_id', $lead->company->getId())
+            ->where('name', self::SERVICE_LEAD_TYPE_NAME)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($leadType) {
+            return $leadType;
+        }
+
+        $leadTypeDto = new LeadTypeDto(
+            apps: $lead->app,
+            companies: $lead->company,
+            name: self::SERVICE_LEAD_TYPE_NAME,
+            description: 'Service lead type',
+            is_active: 1
+        );
+
+        return new CreateLeadTypeAction($leadTypeDto)->execute();
     }
 }
