@@ -24,7 +24,7 @@
           - "--exclude=ansible"
 
     - name: Verify the files are there
-      shell: ls -la {{ app_dir }}
+      shell: ls -lash
       register: ls_output
       args:
         chdir: "{{ app_dir }}"
