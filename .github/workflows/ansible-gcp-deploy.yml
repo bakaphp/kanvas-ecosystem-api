@@ -51,53 +51,51 @@ jobs:
           hostnames:
             - name
           compose:
-            ansible_host: networkInterfaces[0].networkIP
+            ansible_host: networkInterfaces[0].accessConfigs[0].natIP
             ansible_user: ubuntu
           groups:
             ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
-      - name: Create IAP SSH wrapper
+      - name: Create GitHub Actions SSH firewall rule
         run: |
-          mkdir -p ~/bin
-          cat > ~/bin/iap-ssh-wrapper.sh << 'EOF'
-          #!/bin/bash
-          # IAP SSH Wrapper - automatically finds instance zone
-          HOST=$1
-          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+          # Fetch GitHub Actions IP ranges from GitHub's meta API
+          echo "Fetching GitHub Actions IP ranges..."
+          GITHUB_IPS=$(curl -s https://api.github.com/meta | jq -r '.actions[]' | tr '\n' ',' | sed 's/,$//')
 
-          # HOST is an internal IP, find the instance name and zone
-          INSTANCE_INFO=$(gcloud compute instances list \
-            --project="$PROJECT" \
-            --filter="networkInterfaces[].networkIP:$HOST AND status=RUNNING" \
-            --format="value(name,zone)")
+          echo "GitHub Actions IP ranges: $GITHUB_IPS"
 
-          INSTANCE_NAME=$(echo "$INSTANCE_INFO" | awk '{print $1}')
-          ZONE=$(echo "$INSTANCE_INFO" | awk '{print $2}')
+          # Check if firewall rule exists
+          RULE_EXISTS=$(gcloud compute firewall-rules list \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --filter="name=allow-ssh-github-actions" \
+            --format="value(name)" 2>/dev/null || true)
 
-          if [ -z "$INSTANCE_NAME" ] || [ -z "$ZONE" ]; then
-            echo "Error: Could not find instance for IP $HOST" >&2
-            exit 1
+          if [ -n "$RULE_EXISTS" ]; then
+            echo "Updating existing firewall rule..."
+            gcloud compute firewall-rules update allow-ssh-github-actions \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --source-ranges="$GITHUB_IPS"
+          else
+            echo "Creating new firewall rule..."
+            # Get the network name from the first matching instance
+            NETWORK=$(gcloud compute instances list \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
+              --format="value(networkInterfaces[0].network)" \
+              --limit=1 | awk -F'/' '{print $NF}')
+
+            gcloud compute firewall-rules create allow-ssh-github-actions \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --network="$NETWORK" \
+              --direction=INGRESS \
+              --priority=1000 \
+              --action=ALLOW \
+              --rules=tcp:22 \
+              --source-ranges="$GITHUB_IPS" \
+              --target-tags="${{ secrets.INSTANCE_GROUP_NAME }}" \
+              --description="Allow SSH from GitHub Actions runners"
           fi
-
-          # Start IAP tunnel using instance NAME, not IP
-          exec gcloud compute start-iap-tunnel "$INSTANCE_NAME" 22 \
-            --listen-on-stdin \
-            --project="$PROJECT" \
-            --zone="$ZONE" \
-            --verbosity=warning
-          EOF
-          chmod +x ~/bin/iap-ssh-wrapper.sh
-
-          # Create SSH config
-          mkdir -p ~/.ssh
-          cat > ~/.ssh/config << 'SSHEOF'
-          Host 10.*
-            ProxyCommand ~/bin/iap-ssh-wrapper.sh %h
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          SSHEOF
-          chmod 600 ~/.ssh/config
 
       - name: Verify inventory
         run: |
@@ -109,8 +107,18 @@ jobs:
       - name: Setup SSH key for ubuntu user
         run: |
           # Generate SSH key
+          mkdir -p /home/runner/.ssh
           ssh-keygen -t rsa -b 3072 -N '' -f /home/runner/.ssh/id_rsa
           SSH_PUBLIC_KEY=$(cat /home/runner/.ssh/id_rsa.pub)
+
+          # Configure SSH for direct connections
+          cat > /home/runner/.ssh/config << 'EOF'
+          Host *
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ConnectTimeout 30
+          EOF
+          chmod 600 /home/runner/.ssh/config
 
           # Get all matching instances (name and zone)
           gcloud compute instances list \
