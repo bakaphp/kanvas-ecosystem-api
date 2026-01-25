@@ -57,7 +57,7 @@ jobs:
             ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
           EOF
 
-      - name: Create GitHub Actions SSH firewall rules
+      - name: Create GitHub Actions SSH firewall rule
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -72,21 +72,15 @@ jobs:
             exit 1
           fi
 
-          # Save IPs to a file for processing
-          echo "$API_RESPONSE" | jq -r '.actions[]' > /tmp/github_ips.txt
-          TOTAL_IPS=$(wc -l < /tmp/github_ips.txt)
+          # Get first 250 IPs (GCP firewall rule limit is 256)
+          GITHUB_IPS=$(echo "$API_RESPONSE" | jq -r '.actions[]' | head -250 | tr '\n' ',' | sed 's/,$//')
 
-          if [ "$TOTAL_IPS" -eq 0 ]; then
+          if [ -z "$GITHUB_IPS" ]; then
             echo "Error: No GitHub Actions IPs found"
             exit 1
           fi
 
-          echo "GitHub Actions IP ranges fetched successfully ($TOTAL_IPS ranges)"
-
-          # GCP firewall rules have a limit of 256 source ranges per rule
-          # Split into chunks of 250 to be safe
-          CHUNK_SIZE=250
-          CHUNK_NUM=0
+          echo "Using first 250 GitHub Actions IP ranges"
 
           # Get the network name from the first matching instance
           NETWORK=$(gcloud compute instances list \
@@ -97,44 +91,30 @@ jobs:
 
           echo "Using network: $NETWORK"
 
-          # Delete existing firewall rules for github-actions
-          echo "Cleaning up existing GitHub Actions firewall rules..."
-          gcloud compute firewall-rules list \
+          # Check if firewall rule exists
+          RULE_EXISTS=$(gcloud compute firewall-rules list \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --filter="name~allow-ssh-github-actions" \
-            --format="value(name)" | while read -r RULE_NAME; do
-            if [ -n "$RULE_NAME" ]; then
-              echo "Deleting rule: $RULE_NAME"
-              gcloud compute firewall-rules delete "$RULE_NAME" \
-                --project="${{ secrets.GCP_PROJECT_ID }}" \
-                --quiet
-            fi
-          done
+            --filter="name=allow-ssh-github-actions" \
+            --format="value(name)" 2>/dev/null || true)
 
-          # Create firewall rules in chunks
-          split -l $CHUNK_SIZE /tmp/github_ips.txt /tmp/github_ips_chunk_
-
-          for CHUNK_FILE in /tmp/github_ips_chunk_*; do
-            CHUNK_IPS=$(cat "$CHUNK_FILE" | tr '\n' ',' | sed 's/,$//')
-            RULE_NAME="allow-ssh-github-actions-${CHUNK_NUM}"
-
-            echo "Creating firewall rule: $RULE_NAME ($(wc -l < "$CHUNK_FILE") ranges)"
-
-            gcloud compute firewall-rules create "$RULE_NAME" \
+          if [ -n "$RULE_EXISTS" ]; then
+            echo "Updating existing firewall rule..."
+            gcloud compute firewall-rules update allow-ssh-github-actions \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --source-ranges="$GITHUB_IPS"
+          else
+            echo "Creating firewall rule..."
+            gcloud compute firewall-rules create allow-ssh-github-actions \
               --project="${{ secrets.GCP_PROJECT_ID }}" \
               --network="$NETWORK" \
               --direction=INGRESS \
               --priority=1000 \
               --action=ALLOW \
               --rules=tcp:22 \
-              --source-ranges="$CHUNK_IPS" \
+              --source-ranges="$GITHUB_IPS" \
               --target-tags="${{ secrets.INSTANCE_GROUP_NAME }}" \
-              --description="Allow SSH from GitHub Actions runners (part $CHUNK_NUM)"
-
-            CHUNK_NUM=$((CHUNK_NUM + 1))
-          done
-
-          echo "Created $CHUNK_NUM firewall rules for GitHub Actions IPs"
+              --description="Allow SSH from GitHub Actions runners"
+          fi
 
       - name: Verify inventory
         run: |
