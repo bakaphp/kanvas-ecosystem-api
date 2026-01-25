@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\File;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
 
 class ImageConversionService
@@ -217,12 +220,15 @@ class ImageConversionService
      * Get a viewable image URL by finding the Filesystem by URL and converting if needed.
      *
      * If the URL is a HEIC/HEIF, finds the Filesystem record, converts it to JPG,
-     * and returns the new URL. Otherwise returns the original URL.
+     * and returns the new URL. If no Filesystem exists, creates one from the URL.
+     * Otherwise returns the original URL.
      */
     public static function getViewableUrl(
         string $imageUrl,
         AppInterface $app,
-        ?int $quality = null
+        ?int $quality = null,
+        ?Users $user = null,
+        ?CompanyInterface $company = null
     ): string {
         $extension = self::getExtensionFromUrl($imageUrl);
 
@@ -232,7 +238,12 @@ class ImageConversionService
 
         $filesystem = Filesystem::fromApp($app)->where('url', $imageUrl)->first();
 
-        if (! $filesystem) {
+        if ($filesystem === null && $user !== null && $app instanceof Apps) {
+            $filesystemService = new FilesystemServices($app, $company);
+            $filesystem = $filesystemService->uploadFileFromUrl($imageUrl, $user);
+        }
+
+        if ($filesystem === null) {
             return $imageUrl;
         }
 
