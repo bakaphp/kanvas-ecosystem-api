@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Users\Models\Users;
 use Illuminate\Http\File;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
 
 class ImageConversionService
