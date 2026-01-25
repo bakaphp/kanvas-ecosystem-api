@@ -219,7 +219,7 @@ class ImageConversionService
      * If the URL is a HEIC/HEIF, finds the Filesystem record, converts it to JPG,
      * and returns the new URL. Otherwise returns the original URL.
      */
-    public static function getViewableUrl(string $imageUrl, AppInterface $app,  ?int $quality = null): string
+    public static function getViewableUrl(string $imageUrl, AppInterface $app, ?int $quality = null): string
     {
         $extension = self::getExtensionFromUrl($imageUrl);
 
