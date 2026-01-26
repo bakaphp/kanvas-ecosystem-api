@@ -299,4 +299,57 @@ final class LeadTest extends TestCase
         $this->assertArrayHasKey('customerId', $response);
         $this->assertTrue($response['success']);
     }
+
+    /**
+     * Test that leads with an owner are automatically marked as Store Visit (227)
+     */
+    public function testLeadWithOwnerMarkedAsStoreVisit(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()->withUserId($user->getId())
+             ->withAppId($app->getId())
+             ->withCompanyId($company->getId())
+             ->withContacts(canUseFakeInfo: false)
+             ->create();
+
+        // Create lead with an owner assigned
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'leads_owner_id' => $user->getId(), // Assign owner to trigger Store Visit
+            ]);
+
+        $this->setupDealerSocketConfiguration($company, $app);
+
+        $leadService = new DealerSocketLeadService($app, $company);
+
+        // Verify lead has an owner
+        $this->assertNotNull($lead->owner);
+
+        $response = $leadService->saveLead($lead);
+
+        $this->assertArrayHasKey('leadId', $response);
+        $this->assertTrue($response['success']);
+
+        // Search for the lead to verify status was updated to Store Visit (227)
+        $customerId = $lead->people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
+        $searchResult = $leadService->getLeadByCustomerId($customerId);
+
+        $this->assertNotEmpty($searchResult['events']);
+
+        // Find the event we just created
+        $leadId = $lead->get(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value);
+        $matchingEvent = collect($searchResult['events'])->first(function ($event) use ($leadId) {
+            return $event['eventId'] == $leadId;
+        });
+
+        $this->assertNotNull($matchingEvent, 'Created lead not found in search results');
+        $this->assertEquals(227, $matchingEvent['status'], 'Lead status should be Store Visit (227)');
+    }
 }
