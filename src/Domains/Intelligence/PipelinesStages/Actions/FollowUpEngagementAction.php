@@ -24,7 +24,7 @@ use function Sentry\captureException;
 
 class FollowUpEngagementAction
 {
-    protected FollowUp $followUp;
+    protected ?FollowUp $followUp = null;
 
     public function __construct(
         public Lead $lead
@@ -45,6 +45,10 @@ class FollowUpEngagementAction
 
     public function execute(): ?array
     {
+        if (! $this->followUp) {
+            return null;
+        }
+
         $followUpDay = $this->followUp->days()
             ->where('pipeline_stages_id', $this->lead->stage->getId())
             ->where('is_deleted', 0)
