@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -24,7 +25,7 @@ use function Sentry\captureException;
 
 class FollowUpEngagementAction
 {
-    protected FollowUp $followUp;
+    protected ?FollowUp $followUp = null;
 
     public function __construct(
         public Lead $lead
@@ -37,7 +38,7 @@ class FollowUpEngagementAction
         }
 
         if ($aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
-            throw new Exception('No follow up type set on lead');
+            throw new FollowUpException('No follow up type set on lead');
         }
 
         $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, $aiFollowUpType);
@@ -45,6 +46,10 @@ class FollowUpEngagementAction
 
     public function execute(): ?array
     {
+        if (! $this->followUp) {
+            return null;
+        }
+
         $followUpDay = $this->followUp->days()
             ->where('pipeline_stages_id', $this->lead->stage->getId())
             ->where('is_deleted', 0)
