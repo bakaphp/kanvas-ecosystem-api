@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
@@ -41,7 +40,10 @@ class DealerSocketLeadService
         $isServiceLead = $lead->isServiceLead();
 
         if ($isServiceLead) {
-            $leadData = $this->mapLeadToServiceArray($lead);
+            $leadData = array_merge(
+                $this->mapLeadToArray($lead),
+                $this->mapLeadToServiceArray($lead)
+            );
             $response = $this->leadClient->createServiceLead($leadData);
         } else {
             $leadData = $this->mapLeadToArray($lead);
