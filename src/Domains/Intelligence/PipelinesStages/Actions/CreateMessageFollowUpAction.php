@@ -43,7 +43,7 @@ class CreateMessageFollowUpAction
         protected PipelineStage $pipelineStage,
         protected Session $session,
         protected string $messageTemplate,
-        protected int $day
+        protected float $day
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
