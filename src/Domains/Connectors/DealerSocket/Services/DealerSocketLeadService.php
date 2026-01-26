@@ -37,14 +37,24 @@ class DealerSocketLeadService
             return $this->updateLead($lead);
         }
 
-        $leadData = $this->mapLeadToArray($lead);
+        $isServiceLead = $lead->isServiceLead();
 
-        //$format = config('dealersocket.lead_format', 'star');
-        $format = $lead->company->get('dealersocket_lead_format') ?? 'start';
+        if ($isServiceLead) {
+            $leadData = array_merge(
+                $this->mapLeadToArray($lead),
+                $this->mapLeadToServiceArray($lead)
+            );
+            $response = $this->leadClient->createServiceLead($leadData);
+        } else {
+            $leadData = $this->mapLeadToArray($lead);
 
-        $response = $format === 'adf'
-            ? $this->leadClient->createSalesLeadADF($leadData)
-            : $this->leadClient->createSalesLead($leadData);
+            //$format = config('dealersocket.lead_format', 'star');
+            $format = $lead->company->get('dealersocket_lead_format') ?? 'start';
+
+            $response = $format === 'adf'
+                ? $this->leadClient->createSalesLeadADF($leadData)
+                : $this->leadClient->createSalesLead($leadData);
+        }
 
         if (isset($response['leadId'])) {
             $this->setLeadId($lead, $response['leadId']);
@@ -122,6 +132,44 @@ class DealerSocketLeadService
 
             'description' => $lead->description ?? '',
         ];
+    }
+
+    /**
+     * Map Lead model to DealerSocket Service Lead array format
+     */
+    protected function mapLeadToServiceArray(Lead $lead): array
+    {
+        $people = $lead->people;
+
+        if (! $people) {
+            throw new Exception('Lead must have a People relationship to create in DealerSocket');
+        }
+
+        $data = [
+            'senderNameCode' => $this->getVendorName(),
+            'serviceId' => $this->getServiceId($lead),
+            'bodId' => $this->generateBodId($lead),
+
+            'firstName' => $people->firstname,
+            'lastName' => $people->lastname,
+            'specialRemarks' => $this->getCustomerComments($lead),
+        ];
+
+        // Add vehicle info only if available
+        $vehicle = $this->getInterestedVehicle($lead);
+        if ($vehicle !== null) {
+            $data['vehicle'] = [
+                'make' => $vehicle['make'],
+                'model' => $vehicle['model'],
+                'year' => $vehicle['year'],
+            ];
+
+            if (! empty($vehicle['vin'])) {
+                $data['vehicle']['vin'] = $vehicle['vin'];
+            }
+        }
+
+        return $data;
     }
 
     protected function mapContactMethod(string $method): string
@@ -574,6 +622,7 @@ class DealerSocketLeadService
         }
 
         $updateData = $this->mapLeadToUpdateArray($lead);
+        $isServiceLead = $lead->isServiceLead();
 
         $response = $this->leadClient->updateSalesEvent(
             (int) $eventId,

@@ -12,6 +12,7 @@ use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Tests\Connectors\Traits\HasDealerSocketConfiguration;
 use Tests\TestCase;
 
@@ -249,5 +250,53 @@ final class LeadTest extends TestCase
         )->addSimpleNote($lead, 'This is a test note');
 
         $this->assertArrayHasKey('success', $note);
+    }
+
+    public function testCreateServiceLead(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()->withUserId($user->getId())
+             ->withAppId($app->getId())
+             ->withCompanyId($company->getId())
+             ->withContacts(canUseFakeInfo: false)
+             ->create();
+
+        // Create a service lead type
+        $serviceLeadType = LeadType::firstOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'name' => 'Service',
+            ],
+            [
+                'description' => 'Service Lead Type',
+                'is_active' => 1,
+            ]
+        );
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'leads_types_id' => $serviceLeadType->getId(),
+            ]);
+
+        $this->setupDealerSocketConfiguration($company, $app);
+
+        $leadService = new DealerSocketLeadService($app, $company);
+
+        // Verify this is detected as a service lead
+        $this->assertTrue($lead->isServiceLead());
+
+        $response = $leadService->saveLead($lead);
+
+        $this->assertArrayHasKey('leadId', $response);
+        $this->assertArrayHasKey('customerId', $response);
+        $this->assertTrue($response['success']);
     }
 }
