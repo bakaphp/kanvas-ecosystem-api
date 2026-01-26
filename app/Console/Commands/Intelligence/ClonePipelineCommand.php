@@ -51,7 +51,7 @@ class ClonePipelineCommand extends Command
 
             // Clone stages and keep mapping
             $stageMapping = $this->cloneStages($originalPipeline, $newPipeline);
-            $this->info("✓ Cloned {count($stageMapping)} stages");
+            $this->info("✓ Cloned " . \count($stageMapping) . " stages");
 
             // Clone follow ups, days and templates
             $this->cloneFollowUps($originalPipeline, $newPipeline, $stageMapping);
@@ -61,7 +61,7 @@ class ClonePipelineCommand extends Command
             $this->info('');
             $this->info("✓ Pipeline cloned successfully!");
             $this->info("New Pipeline ID: {$newPipeline->id}");
-            $this->info("Total Stages: " . count($stageMapping));
+            $this->info("Total Stages: " . \count($stageMapping));
         } catch (\Exception $e) {
             \DB::rollBack();
             $this->error("Error cloning pipeline: {$e->getMessage()}");
