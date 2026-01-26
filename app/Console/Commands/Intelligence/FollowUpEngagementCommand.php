@@ -37,7 +37,7 @@ class FollowUpEngagementCommand extends Command
     {
         $apps = $this->argument('apps');
         $stages = PipelineStage::join('pipelines', 'pipelines.id', '=', 'pipelines_stages.pipelines_id')
-            ->whereNotNull('pipelines_stages.config')
+            ->whereHas('followUpDays')
             ->whereIn('pipelines.apps_id', $apps)
             ->when($this->option('company_id'), function (Builder $query) {
                 return $query->where('pipelines.companies_id', '=', $this->option('company_id'));
