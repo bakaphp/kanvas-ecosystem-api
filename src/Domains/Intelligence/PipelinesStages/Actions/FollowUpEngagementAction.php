@@ -147,7 +147,7 @@ class FollowUpEngagementAction
                         $this->lead->stage,
                         $session,
                         $messageTemplateChannel,
-                        $followUpDay->pipelineStage->weight
+                        (float)$followUpDay->pipelineStage->weight
                     )->execute();
                 } catch (Exception $e) {
                     captureException($e);
