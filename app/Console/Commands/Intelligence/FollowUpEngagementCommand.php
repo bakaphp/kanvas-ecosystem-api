@@ -38,9 +38,6 @@ class FollowUpEngagementCommand extends Command
     {
         $apps = $this->argument('apps');
 
-        // Get pipeline stage IDs that have follow up days from the Intelligence DB
-        // This avoids cross-database whereHas which doesn't work when tables are in different databases
-
         $stages = PipelineStage::join('pipelines', 'pipelines.id', '=', 'pipelines_stages.pipelines_id')
             ->whereIn('pipelines.apps_id', $apps)
             ->when($this->option('company_id'), function (Builder $query) {
