@@ -693,4 +693,12 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return ! $this->isAiMuted();
     }
+
+    public function isServiceLead(): bool
+    {
+        return Str::contains(
+            strtolower($this->type?->name ?? ''),
+            'service'
+        );
+    }
 }

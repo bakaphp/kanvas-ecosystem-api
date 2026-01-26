@@ -17,7 +17,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
+use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -118,6 +118,10 @@ class FollowUpEngagementCommand extends Command
                 } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
                     $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
 
+                    continue;
+                } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+
                     break;
                 }
 
@@ -136,6 +140,10 @@ class FollowUpEngagementCommand extends Command
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
                     $result = new FollowUpEngagementAction($lead)->execute();
+                } catch (FollowUpException $e) {
+                    $this->info('Skipping lead ID ' . $lead->id . ': ' . $e->getMessage());
+
+                    continue;
                 } catch (Exception $e) {
                     $this->error('Error processing lead ID ' . $lead->id . ': ' . $e->getMessage());
                     report($e);

@@ -27,10 +27,10 @@ class ConvertHeicToJpgActivity extends KanvasActivity
         }
 
         $fileType = strtolower($filesystem->file_type);
-        if ($fileType !== 'heic') {
+        if ($fileType !== 'heic' && $fileType !== 'heif') {
             return $this->failWorkflow([
                 'success' => false,
-                'message' => 'File is not a HEIC image',
+                'message' => 'File is not a HEIC or HEIF image',
                 'file_type' => $fileType,
             ]);
         }
@@ -40,11 +40,11 @@ class ConvertHeicToJpgActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function ($filesystem, $_app, $_integrationCompany, $_additionalParams) use ($params, $filesystemEntity) {
+            integrationOperation: function ($filesystem, $app, $_integrationCompany, $_additionalParams) use ($params, $filesystemEntity) {
                 $originalUrl = $filesystem->url;
                 $originalSize = $filesystem->size;
 
-                // Convert HEIC to JPG using the ImageConversionService
+                // Convert HEIC/HEIF to JPG using the ImageConversionService
                 $convertedFilesystem = ImageConversionService::convertFilesystem(
                     filesystem: $filesystem,
                     targetFormat: 'jpg',
@@ -53,7 +53,7 @@ class ConvertHeicToJpgActivity extends KanvasActivity
 
                 // Update field_name to have .jpg extension
                 $fieldName = (string) $filesystem->field_name;
-                $updatedFieldName = Str::endsWith($fieldName, ['.heic', '.HEIC'])
+                $updatedFieldName = Str::endsWith($fieldName, ['.heic', '.HEIC', '.heif', '.HEIF'])
                     ? Str::beforeLast($fieldName, '.') . '.jpg'
                     : $fieldName . '.jpg';
 
@@ -63,7 +63,7 @@ class ConvertHeicToJpgActivity extends KanvasActivity
 
                 return [
                     'success' => true,
-                    'message' => 'HEIC successfully converted to JPG',
+                    'message' => 'HEIC/HEIF successfully converted to JPG',
                     'filesystem_id' => $convertedFilesystem->id,
                     'original_url' => $originalUrl,
                     'new_url' => $convertedFilesystem->url,
