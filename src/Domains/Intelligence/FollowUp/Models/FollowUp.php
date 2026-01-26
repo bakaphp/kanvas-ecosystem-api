@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -25,7 +26,7 @@ class FollowUp extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'config' => 'json',
+        'config' => Json::class,
     ];
 
     public function pipeline(): BelongsTo
