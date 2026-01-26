@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -37,7 +38,7 @@ class FollowUpEngagementAction
         }
 
         if ($aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
-            throw new Exception('No follow up type set on lead');
+            throw new FollowUpException('No follow up type set on lead');
         }
 
         $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, $aiFollowUpType);
