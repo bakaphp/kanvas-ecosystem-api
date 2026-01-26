@@ -74,7 +74,6 @@ class CreateLeadAction
             if ($newLead->pipeline_stage_id !== 0) {
                 $pipelineStage = PipelineStage::getById($newLead->pipeline_stage_id);
                 $newLead->pipeline_id = $pipelineStage->pipelines_id;
-                dump($newLead);
             }
 
             //create people
