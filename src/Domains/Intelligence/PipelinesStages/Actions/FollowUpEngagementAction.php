@@ -74,7 +74,7 @@ class FollowUpEngagementAction
 
             // WhatsApp validation: check if last message was not from Lead entity
             if ($isWhatsApp) {
-                $totalMessages = $session->channel->messages()->where('is_deleted', 0)->count();
+                $totalMessages = $session->channel->messages()->where('messages.is_deleted', 0)->count();
 
                 if ($totalMessages > 2 && $lastMessage) {
                     $entity = $lastMessage->entity();
