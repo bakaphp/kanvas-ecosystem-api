@@ -99,7 +99,7 @@ class Agent extends BaseModel
             $sponsorMemberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
             $ownerId = $user->get('ZOHO_USER_OWNER_ID');
 
-            return $query->where('owner_id', $sponsorMemberId)->orWhere('owner_linked_source_id', $ownerId);
+            return $query->where('owner_id', $sponsorMemberId)->when($ownerId, fn ($q) => $q->orWhere('owner_linked_source_id', $ownerId));
         } elseif ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && ! $lookingForSpecificUser) {
             return $query->where('owner_linked_source_id', $userAgent->users_linked_source_id);
         }
