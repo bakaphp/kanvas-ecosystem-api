@@ -64,7 +64,51 @@ class DealerSocketLeadService
             $this->setCustomerId($lead->people, $response['customerId']);
         }
 
+        // If lead has an owner assigned, update status to Store Visit (227)
+        if (isset($response['success']) && $response['success'] === true && $this->shouldMarkAsStoreVisit($lead)) {
+            $this->updateLeadToStoreVisit($lead);
+        }
+
         return $response;
+    }
+
+    /**
+     * Check if lead should be marked as Store Visit
+     * Website leads assigned to a user should be marked as Store Visit
+     */
+    protected function shouldMarkAsStoreVisit(Lead $lead): bool
+    {
+        // Check if lead has an owner assigned
+        try {
+            $owner = $lead->owner;
+
+            return $owner !== null;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Update lead status to Store Visit (227) in DealerSocket
+     */
+    protected function updateLeadToStoreVisit(Lead $lead): void
+    {
+        try {
+            $eventId = $lead->get(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value);
+            $entityId = $lead->people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
+
+            if (! $eventId || ! $entityId) {
+                return;
+            }
+
+            $this->leadClient->updateSalesEvent(
+                (int) $eventId,
+                (int) $entityId,
+                ['leadStatus' => 227] // Store Visit
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public function getLeadByCustomerId(int|string $customerId): array
