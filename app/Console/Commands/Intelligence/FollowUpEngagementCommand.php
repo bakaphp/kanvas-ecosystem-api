@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -50,10 +51,12 @@ class FollowUpEngagementCommand extends Command
 
         foreach ($stages as $stage) {
             $config = $stage->config;
+
             $followUpDay = FollowUpDay::where('pipeline_stages_id', $stage->getId())->first();
             if (! $followUpDay) {
                 continue;
             }
+
             $leads = Lead::where('pipeline_stage_id', '=', $stage->id)
                 ->where('leads_status_id', '<=', 2) // only open leads
                 ->where('is_deleted', '=', 0)
