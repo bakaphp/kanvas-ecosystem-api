@@ -25,7 +25,7 @@ class FollowUp extends BaseModel
     protected $guarded = [];
 
     protected $casts = [
-        'config' => 'array',
+        'config' => 'json',
     ];
 
     public function pipeline(): BelongsTo
