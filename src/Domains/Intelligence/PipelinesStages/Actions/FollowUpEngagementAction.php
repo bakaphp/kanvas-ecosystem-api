@@ -67,6 +67,25 @@ class FollowUpEngagementAction
             $lastMessage = $session->channel->getLastMessage();
             $isWhatsApp = $messageTemplateChannel === 'whatsapp';
 
+            // WhatsApp validation: check if last message was not from Lead entity
+            if ($isWhatsApp) {
+                $totalMessages = $session->channel->messages()->where('is_deleted', 0)->count();
+
+                if ($totalMessages > 2 && $lastMessage) {
+                    $entity = $lastMessage->entity();
+
+                    if ($entity && ! ($entity instanceof Lead)) {
+                        return [
+                            'message' => 'Last message was not responded',
+                            'reason' => 'last_message_not_from_lead',
+                            'channel' => $messageTemplateChannel,
+                            'total_messages' => $totalMessages,
+                            'entity_type' => \get_class($entity),
+                        ];
+                    }
+                }
+            }
+
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
             $timezone = $this->lead->company->timezone ?? 'UTC';
 
@@ -92,7 +111,6 @@ class FollowUpEngagementAction
 
             if ($lastMessageCreatedAt) {
                 if ($followUpDay->calendar_day) {
-                    $timeDiff = $lastMessageTime->diffInDays($now);
                     $this->lead->pipeline_stage_id = $followUpDay->move_to_stage_id ?? $this->lead->pipeline_stage_id;
                     $this->lead->saveOrFail();
                     $followUpDay = $this->followUp->days()

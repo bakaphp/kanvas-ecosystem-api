@@ -17,11 +17,16 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property int $follow_up_type
  * @property int $pipelines_id
  * @property string $name
+ * @property array|null $config
  */
 class FollowUp extends BaseModel
 {
     protected $table = 'follow_ups';
     protected $guarded = [];
+
+    protected $casts = [
+        'config' => 'array',
+    ];
 
     public function pipeline(): BelongsTo
     {

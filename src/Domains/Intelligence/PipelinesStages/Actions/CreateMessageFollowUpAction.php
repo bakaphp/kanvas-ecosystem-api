@@ -42,7 +42,8 @@ class CreateMessageFollowUpAction
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
-        protected string $messageTemplate
+        protected string $messageTemplate,
+        protected int $day
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -106,6 +107,7 @@ class CreateMessageFollowUpAction
             'agent' => $this->session->agent,
             'vehicle_interest' => $vehicleInterest,
             'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
         ];
 
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
