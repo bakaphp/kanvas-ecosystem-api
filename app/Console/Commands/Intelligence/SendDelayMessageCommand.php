@@ -140,39 +140,36 @@ class SendDelayMessageCommand extends Command
                 }
 
                 try {
-                    $tags = $message->tags->pluck('name')->toArray();
-                    if (in_array('first-message', $tags)) {
-                        new SendMessageToLeadAction($lead)->execute(
-                            $communicationChannel,
-                            $messageContent,
-                            $fromNumber,
-                            $title,
-                        );
-                        $message->setUnlock();
-                        $message->is_public = 1;
-                        $message->created_at = date('Y-m-d H:i:s');
-                        $message->saveOrFail();
-                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+                    new SendMessageToLeadAction($lead)->execute(
+                        $communicationChannel,
+                        $messageContent,
+                        $fromNumber,
+                        $title,
+                    );
+                    $message->setUnlock();
+                    $message->is_public = 1;
+                    $message->created_at = date('Y-m-d H:i:s');
+                    $message->saveOrFail();
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
-                        //dispatch workflow
-                        $message->fireWorkflow(
-                            WorkflowEnum::CREATED->value,
-                            true,
-                            [
-                                'app' => $message->app,
-                            ]
-                        );
+                    //dispatch workflow
+                    $message->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                           'app' => $message->app,
+                        ]
+                    );
 
-                        $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
-                        $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
+                    $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
 
-                        DailyReportService::track(
-                            $lead->app,
-                            $lead->company,
-                            'ai_delayed_message_sent'
-                        );
-                    }
+                    DailyReportService::track(
+                        $lead->app,
+                        $lead->company,
+                        'ai_delayed_message_sent'
+                    );
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
                 }
