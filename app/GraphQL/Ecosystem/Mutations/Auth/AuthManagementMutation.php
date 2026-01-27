@@ -58,6 +58,11 @@ class AuthManagementMutation
             ])
         );
 
+        //We need to make sure the user is_active in this app
+        if (! $user->associateUsers()->isActive()) {
+            $user->associateUsers()->active();
+        }
+
         return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
     }
 
