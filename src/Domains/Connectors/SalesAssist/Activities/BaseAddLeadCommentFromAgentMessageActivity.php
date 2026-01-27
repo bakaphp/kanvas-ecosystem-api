@@ -131,6 +131,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     ]);
                 }
 
+                if ($message->get('sent_to_crm')) {
+                    return $this->failWorkflow([
+                        'error' => 'Message has already been sent to CRM',
+                    ]);
+                }
+
                 $note = $message->message['content'] ?? '';
 
                 if (empty($note)) {
@@ -155,6 +161,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 // Add note to the external CRM system
                 $externalResult = $this->addNoteToExternalSystem($lead, $formattedNote, $message, $app);
+                $message->set('sent_to_crm', true);
 
                 // Handle failure from external system
                 if (is_array($externalResult) && isset($externalResult['error'])) {
