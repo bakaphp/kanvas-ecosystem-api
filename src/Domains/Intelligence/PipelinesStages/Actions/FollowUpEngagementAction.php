@@ -138,8 +138,10 @@ class FollowUpEngagementAction
                 $messageTemplateChannel = $followUpDay->templates()
                     ->where('communication_channel', $messageTemplateChannel)
                     ->where('is_deleted', 0)
-                    ->inRandomOrder()
                     ->first()?->template;
+                if (! $messageTemplateChannel) {
+                    continue;
+                }
 
                 try {
                     $message = new CreateMessageFollowUpAction(
