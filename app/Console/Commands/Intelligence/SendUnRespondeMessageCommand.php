@@ -49,6 +49,7 @@ class SendUnRespondeMessageCommand extends Command
                 ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
                 ->cursor();
 
+            $sentCRMInternalNote = [];
             foreach ($messages as $message) {
                 if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
                     $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
@@ -103,23 +104,26 @@ class SendUnRespondeMessageCommand extends Command
                     continue;
                 }
 
-                try {
-                    $eLeadOpportunity = EntitiesLead::getById(
-                        $lead->app,
-                        $lead->company,
-                        (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    );
-                    $eLeadOpportunity->addComment("Sally is sending a follow-up message. The salesperson hasn't responded to the lead yet.");
-                } catch (ClientException $e) {
-                    if (Str::contains($e->getMessage(), 'not active')
-                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
-                        $lead->close();
-                        $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
-                    } else {
-                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-                    }
+                if (! isset($sentCRMInternalNote[$lead->getId()])) {
+                    try {
+                        $eLeadOpportunity = EntitiesLead::getById(
+                            $lead->app,
+                            $lead->company,
+                            (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                        );
+                        $eLeadOpportunity->addComment("The sales agent hasn't responded to the customer's message in 15 minutes. Sally is responding to the customer");
+                        $sentCRMInternalNote[$lead->getId()] = true;
+                    } catch (ClientException $e) {
+                        if (Str::contains($e->getMessage(), 'not active')
+                            || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                            $lead->close();
+                            $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
+                        } else {
+                            $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                        }
 
-                    continue;
+                        continue;
+                    }
                 }
 
                 try {
