@@ -56,6 +56,12 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
 
+                if (! $message->hasTag(['first-message'])) {
+                    $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
+
+                    continue;
+                }
+
                 $communicationChannel = $message->get('communicationChannel');
                 $fromNumber = $message->get('from_number');
                 $title = $message->get('title');
@@ -111,23 +117,26 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
 
-                try {
-                    $eLeadOpportunity = EntitiesLead::getById(
-                        $lead->app,
-                        $lead->company,
-                        (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    );
-                    $eLeadOpportunity->addComment("Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.");
-                } catch (ClientException $e) {
-                    if (Str::contains($e->getMessage(), 'not active')
-                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
-                        $lead->close();
-                        $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
-                    } else {
-                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-                    }
+                if (! $lead->get('delay_message_sent')) {
+                    try {
+                        $eLeadOpportunity = EntitiesLead::getById(
+                            $lead->app,
+                            $lead->company,
+                            (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                        );
+                        $eLeadOpportunity->addComment('Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.');
+                        $lead->set('delay_message_sent', true);
+                    } catch (ClientException $e) {
+                        if (Str::contains($e->getMessage(), 'not active')
+                            || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                            $lead->close();
+                            $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
+                        } else {
+                            $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                        }
 
-                    continue;
+                        continue;
+                    }
                 }
 
                 try {
