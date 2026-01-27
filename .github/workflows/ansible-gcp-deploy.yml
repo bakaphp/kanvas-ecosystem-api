@@ -157,6 +157,7 @@ jobs:
             -i ansible/inventory.gcp.yaml \
             -u ubuntu \
             --private-key /home/runner/.ssh/id_rsa \
+            -v \
             -e '{
               "src_dir": "${{ github.workspace }}",
               "app_dir": "${{ secrets.GCP_INSTANCE_APP_DIR }}",
