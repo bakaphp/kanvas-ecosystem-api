@@ -33,6 +33,13 @@
       debug:
         msg: "{{ ls_output.stdout_lines }}"
 
+    - name: Change ownership of project directory
+      ansible.builtin.file:
+      path: "{{ app_dir }}"
+      owner: ubuntu
+      group: ubuntu
+      recurse: yes
+
     # - name: Docker compose deploy
     #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
     #   args:
