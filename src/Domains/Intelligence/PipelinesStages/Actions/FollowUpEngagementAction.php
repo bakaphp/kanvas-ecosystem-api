@@ -135,11 +135,15 @@ class FollowUpEngagementAction
                 && $contacted === false
                 && $isActive)) {
                 $message = null;
-                $messageTemplateChannel = $followUpDay->templates()
+                $template = $followUpDay->templates()
                     ->where('communication_channel', $messageTemplateChannel)
                     ->where('is_deleted', 0)
                     ->inRandomOrder()
-                    ->first()?->template;
+                    ->first();
+                if (! $template) {
+                    continue;
+                }
+                $messageTemplateChannel = $template->template;
 
                 try {
                     $message = new CreateMessageFollowUpAction(
