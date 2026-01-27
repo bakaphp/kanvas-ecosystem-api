@@ -23,16 +23,6 @@
           - "--exclude=storage/logs/*"
           - "--exclude=ansible"
 
-    - name: Verify the files are there
-      shell: ls -lash
-      register: ls_output
-      args:
-        chdir: "{{ app_dir }}"
-
-    - name: Show files
-      debug:
-        msg: "{{ ls_output.stdout_lines }}"
-
     - name: Change ownership of project directory
       ansible.builtin.file:
         path: "{{ app_dir }}"
@@ -46,15 +36,15 @@
         chdir: "{{ app_dir }}"
 
     - name: Install dependencies inside container
-      shell: docker compose exec -T php composer install --optimize-autoloader
+      shell: docker-compose exec -T php composer install --optimize-autoloader
       args:
         chdir: "{{ app_dir }}"
 
     - name: Clear and cache config
       shell: |
-        docker compose exec -T php artisan config:cache
-        docker compose exec -T php artisan route:cache
-        docker compose exec -T php artisan view:cache
-        docker compose exec -T php artisan octane:reload
+        docker-compose exec -T php artisan config:cache
+        docker-compose exec -T php artisan route:cache
+        docker-compose exec -T php artisan view:cache
+        docker-compose exec -T php artisan octane:reload
       args:
         chdir: "{{ app_dir }}"
