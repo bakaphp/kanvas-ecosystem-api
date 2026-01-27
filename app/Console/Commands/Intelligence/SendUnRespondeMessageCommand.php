@@ -123,6 +123,10 @@ class SendUnRespondeMessageCommand extends Command
                 }
 
                 try {
+                    if ($message->hasTag(['first-message'])) {
+                        continue;
+                    }
+
                     new SendMessageToLeadAction($lead)->execute(
                         $communicationChannel,
                         $message->message['content'],
@@ -144,8 +148,7 @@ class SendUnRespondeMessageCommand extends Command
                     );
 
                     // Check if message does NOT have 'first-message' tag to trigger IA takeover
-                    $tags = $message->tags->pluck('name')->toArray();
-                    if (! in_array('first-message', $tags)) {
+                    if (! $message->hasTag(['first-message'])) {
                         $lead->fireWorkflow(
                             WorkflowEnum::TRIGGER_AI->value,
                             true,
