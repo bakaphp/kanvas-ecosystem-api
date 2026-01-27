@@ -40,20 +40,21 @@
         group: ubuntu
         recurse: yes
 
-    # - name: Docker compose deploy
-    #   shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
-    #   args:
-    #     chdir: "{{ app_dir }}"
+    - name: Docker compose deploy
+      shell: docker-compose -f docker-compose.development.yaml up -d --force-recreate
+      args:
+        chdir: "{{ app_dir }}"
 
-    # - name: Install dependencies inside container
-    #   shell: docker compose exec -T php composer install --optimize-autoloader
-    #   args:
-    #     chdir: "{{ app_dir }}"
+    - name: Install dependencies inside container
+      shell: docker compose exec -T php composer install --optimize-autoloader
+      args:
+        chdir: "{{ app_dir }}"
 
-    # - name: Clear and cache config
-    #   shell: |
-    #     php artisan config:cache
-    #     php artisan route:cache
-    #     php artisan view:cache
-    #   args:
-    #     chdir: "{{ app_dir }}"
+    - name: Clear and cache config
+      shell: |
+        docker compose exec -T php artisan config:cache
+        docker compose exec -T php artisan route:cache
+        docker compose exec -T php artisan view:cache
+        docker compose exec -T php artisan octane:reload
+      args:
+        chdir: "{{ app_dir }}"
