@@ -18,7 +18,7 @@ class RestoreUsersAccountContentActivity extends KanvasActivity
         $this->overwriteAppService($app);
 
         // Search if the user is on the account deletion request table and remove it
-        $requestDeletedAccount = RequestDeletedAccount::fromApp($app)->where('users_id', $user->getId())->first();
+        $requestDeletedAccount = RequestDeletedAccount::fromApp($app)->where('users_id', $user->getId())->where('is_deleted', 0)->first();
         if (! $requestDeletedAccount) {
             return [
                 'message' => 'No account restoration needed',
