@@ -9,8 +9,10 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -43,6 +45,14 @@ class Channels extends BaseModel
 
     protected $table = 'channels';
     protected $guarded = [];
+
+    /**
+     * Company relationship
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id', 'id');
+    }
 
     /**
      * Available products in this channel
