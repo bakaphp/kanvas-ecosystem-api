@@ -2484,16 +2484,16 @@
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.9.1",
+            "version": "v0.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "3bd465400f35081f81b5b42319e2157bb989fc06"
+                "reference": "27f5ecb2d0a03a546f76b68f6714f878ce3d295c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/3bd465400f35081f81b5b42319e2157bb989fc06",
-                "reference": "3bd465400f35081f81b5b42319e2157bb989fc06",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/27f5ecb2d0a03a546f76b68f6714f878ce3d295c",
+                "reference": "27f5ecb2d0a03a546f76b68f6714f878ce3d295c",
                 "shasum": ""
             },
             "require": {
@@ -2528,9 +2528,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.9.1"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.9.2"
             },
-            "time": "2025-10-07T18:41:09+00:00"
+            "time": "2026-01-09T18:56:46+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -19947,5 +19947,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
