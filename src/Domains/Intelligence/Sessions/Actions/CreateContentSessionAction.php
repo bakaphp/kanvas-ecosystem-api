@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -81,6 +82,8 @@ class CreateContentSessionAction
                 'company_language' => $lead->company->get('lang', 'en'),
                 'is_service_lead' => $lead->get('is_service_lead') ?? 0,
                 'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
+                'ai_mode' => $lead->get('ai_mode'),
+                'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
