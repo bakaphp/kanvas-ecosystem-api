@@ -123,29 +123,28 @@ class SendUnRespondeMessageCommand extends Command
                 }
 
                 try {
-                    new SendMessageToLeadAction($lead)->execute(
-                        $communicationChannel,
-                        $message->message['content'],
-                        $fromNumber,
-                        $title,
-                    );
-                    $message->setUnlock();
-                    $message->is_public = 1;
-                    $message->created_at = date('Y-m-d H:i:s');
-                    $message->saveOrFail();
-
-                    //dispatch workflow
-                    $message->fireWorkflow(
-                        WorkflowEnum::CREATED->value,
-                        true,
-                        [
-                           'app' => $message->app,
-                        ]
-                    );
-
                     // Check if message does NOT have 'first-message' tag to trigger IA takeover
                     $tags = $message->tags->pluck('name')->toArray();
                     if (! in_array('first-message', $tags)) {
+                        new SendMessageToLeadAction($lead)->execute(
+                            $communicationChannel,
+                            $message->message['content'],
+                            $fromNumber,
+                            $title,
+                        );
+                        $message->setUnlock();
+                        $message->is_public = 1;
+                        $message->created_at = date('Y-m-d H:i:s');
+                        $message->saveOrFail();
+
+                        //dispatch workflow
+                        $message->fireWorkflow(
+                            WorkflowEnum::CREATED->value,
+                            true,
+                            [
+                               'app' => $message->app,
+                            ]
+                        );
                         $lead->fireWorkflow(
                             WorkflowEnum::TRIGGER_AI->value,
                             true,
