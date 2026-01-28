@@ -62,14 +62,12 @@ class FollowUpEngagementAction
                 ->fromApp($this->lead->app)
                 ->fromCompany($this->lead->company)
                 ->get();
-
         foreach ($sessions as $session) {
-            if (! $session) {
-                continue;
-            }
-
             $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
+            if (! $lastMessage) {
+                continue;
+            }
             $isWhatsApp = $messageTemplateChannel === 'whatsapp';
 
             // WhatsApp validation: check if last message was not from Lead entity
@@ -130,10 +128,10 @@ class FollowUpEngagementAction
                 $isActive = $this->lead->isActive();
             }
 
-            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
-                && $timeDiff >= $followUpDay->time_value
+            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+                && $timeDiff > $followUpDay->time_value
                 && $contacted === false
-                && $isActive)) {
+                && $isActive) {
                 $message = null;
                 $messageTemplate = $followUpDay->templates()
                     ->where('communication_channel', $messageTemplateChannel)
