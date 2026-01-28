@@ -41,6 +41,16 @@ class HandOffActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                //for now to avoid issue with duplicate handoff notifications
+                $deduplicationKey = $this->getDeduplicationKey($lead, $params);
+                if ($this->isDuplicateNotification($lead, $deduplicationKey)) {
+                    return [
+                        'success' => true,
+                        'message' => 'Handoff already processed (duplicate notification prevented)',
+                        'duplicate' => true,
+                    ];
+                }
+
                 $leadOwner = $this->getLeadOwner($lead, $app, $params);
                 $handOffType = strtolower($params['handoff_type'] ?? self::DEFAULT_HANDOFF_TYPE);
                 $handOffUserRole = $this->getHandOffUserRole($lead, $handOffType);
@@ -77,11 +87,28 @@ class HandOffActivity extends KanvasActivity
                 //$communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
 
-                $handOffNotification = $this->createHandOffNotification($lead, $leadOwner, $handOffType, $params);
+                $handOffNotification = $this->createHandOffNotification(
+                    $lead,
+                    $leadOwner,
+                    $handOffType,
+                    $params
+                );
                 $leadOwner->notify($handOffNotification);
 
-                $this->postConversationSummary($lead, $leadOwner, $handOffType, $params);
-                $managersNotified = $this->notifyManagers($lead, $leadOwner, $handOffNotification, $handOffUserRole);
+                /*  $this->postConversationSummary(
+                     $lead,
+                     $leadOwner,
+                     $handOffType,
+                     $params
+                 ); */
+                $managersNotified = $this->notifyManagers(
+                    $lead,
+                    $leadOwner,
+                    $handOffNotification,
+                    $handOffUserRole
+                );
+
+                $this->markNotificationAsProcessed($lead, $deduplicationKey);
 
                 return [
                     'success' => true,
@@ -223,5 +250,27 @@ class HandOffActivity extends KanvasActivity
         );
 
         return new CreateLeadTypeAction($leadTypeDto)->execute();
+    }
+
+    private function getDeduplicationKey(Lead $lead, array $params): string
+    {
+        $dataToHash = [
+            'lead_id' => $lead->getId(),
+            'params' => $params,
+        ];
+
+        return md5((string) json_encode($dataToHash));
+    }
+
+    private function isDuplicateNotification(Lead $lead, string $deduplicationKey): bool
+    {
+        $processedKey = $lead->get('handoff_dedup_' . $deduplicationKey);
+
+        return $processedKey !== null;
+    }
+
+    private function markNotificationAsProcessed(Lead $lead, string $deduplicationKey): void
+    {
+        $lead->set('handoff_dedup_' . $deduplicationKey, time());
     }
 }
