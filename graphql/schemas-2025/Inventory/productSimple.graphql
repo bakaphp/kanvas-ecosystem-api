@@ -10,34 +10,34 @@ input VariantChannelSimpleInput {
     is_published: Boolean
 }
 
-input VariantWithQuantityInput {
+input VariantSimplenput {
+    sku: String!
     name: String!
     quantity: Int!
     description: String
     short_description: String
-    sku: String
     price: Float
     warehouse_id: ID
     channels: [VariantChannelSimpleInput!]
 }
 
-input ProductWithQuantitiesInput {
+input ProductSimpleInput {
     products_types_id: ID
     products_types: String
     name: String!
     description: String
     slug: String
     short_description: String
-    sku: String
+    sku: String @rules(apply: ["required_without:variants"])
     is_published: Boolean
     attributes: [ProductAttributesInput!]
-    variants: [VariantWithQuantityInput!]!
+    variants: [VariantSimplenput!]!
     files: [FilesystemInputUrl!]
     categories: [ProductCategoriesReferenceInput!]
     status: StatusReferenceInput
 }
 
-input ProductWithQuantitiesUpdateInput {
+input ProductSimpleUpdateInput {
     products_types_id: ID
     products_types: String
     name: String
@@ -46,20 +46,20 @@ input ProductWithQuantitiesUpdateInput {
     short_description: String
     is_published: Boolean
     attributes: [ProductAttributesInput!]
-    variants: [VariantWithQuantityInput!]
+    variants: [VariantSimplenput!]
     files: [FilesystemInputUrl!]
     categories: [ProductCategoriesReferenceInput!]
     status: StatusReferenceInput
 }
 
 extend type Mutation @guard {
-    createProductWithQuantities(input: ProductWithQuantitiesInput!): Product!
+    createProductSimple(input: ProductSimpleInput!): Product!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductWithQuantitiesMutation@create"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductSimpleMutation@create"
         )
 
-    updateProductWithQuantities(id: ID!, input: ProductWithQuantitiesUpdateInput!): Product!
+    updateProductSimple(id: ID!, input: ProductSimpleUpdateInput!): Product!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductWithQuantitiesMutation@update"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductSimpleMutation@update"
         )
 }

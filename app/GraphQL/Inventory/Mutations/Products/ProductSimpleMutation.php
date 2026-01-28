@@ -20,7 +20,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class ProductWithQuantitiesMutation
+class ProductSimpleMutation
 {
     /**
      * Create a product with variants and quantities.
@@ -32,24 +32,13 @@ class ProductWithQuantitiesMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        // Handle products_types lookup by name if provided (creates if not exists)
-        if (isset($input['products_types']) && ! isset($input['products_types_id'])) {
-            $productType = ProductsTypes::firstOrCreate(
-                [
-                    'name' => $input['products_types'],
-                    'apps_id' => $app->getId(),
-                ],
-                [
-                    'companies_id' => $user->getCurrentCompany()->getId(),
-                    'users_id' => $user->getId(),
-                    'slug' => Str::slug($input['products_types']),
-                    'description' => $input['products_types'] . ' product type',
-                    'weight' => 0,
-                ]
-            );
-            $input['products_types_id'] = $productType->getId();
-            unset($input['products_types']);
+        if ($user->isAppOwner() && isset($input['company_id'])) {
+            $company = Companies::getById($input['company_id']);
+        } else {
+            $company = $user->getCurrentCompany();
         }
+
+        $this->resolveProductType($input, $app, $company, $user);
 
         // Handle status if provided
         if (isset($input['status'])) {
@@ -59,23 +48,8 @@ class ProductWithQuantitiesMutation
             )->getId();
         }
 
-        // Handle company (for app owners)
-        if ($user->isAppOwner() && isset($input['company_id'])) {
-            $company = Companies::getById($input['company_id']);
-        } else {
-            $company = $user->getCurrentCompany();
-        }
-
-        // Transform variants to include quantity and auto-generate SKU if needed
         if (isset($input['variants'])) {
             foreach ($input['variants'] as $index => &$variant) {
-                // Auto-generate SKU from product slug + variant name if not provided
-                if (empty($variant['sku'])) {
-                    $productSlug = $input['slug'] ?? Str::slug($input['name']);
-                    $variantSlug = Str::slug($variant['name']);
-                    $variant['sku'] = $productSlug . '_' . $variantSlug;
-                }
-
                 // Handle channels: findOrCreate channel by name and convert to channels_id
                 if (isset($variant['channels'])) {
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
@@ -107,24 +81,7 @@ class ProductWithQuantitiesMutation
         // Get the existing product
         $product = ProductsRepository::getById((int) $args['id'], $company);
 
-        // Handle products_types lookup by name if provided (creates if not exists)
-        if (isset($input['products_types']) && ! isset($input['products_types_id'])) {
-            $productType = ProductsTypes::firstOrCreate(
-                [
-                    'name' => $input['products_types'],
-                    'apps_id' => $app->getId(),
-                ],
-                [
-                    'companies_id' => $user->getCurrentCompany()->getId(),
-                    'users_id' => $user->getId(),
-                    'slug' => Str::slug($input['products_types']),
-                    'description' => $input['products_types'] . ' product type',
-                    'weight' => 0,
-                ]
-            );
-            $input['products_types_id'] = $productType->getId();
-            unset($input['products_types']);
-        }
+        $this->resolveProductType($input, $app, $company, $user);
 
         // Handle status if provided
         if (isset($input['status'])) {
@@ -134,16 +91,8 @@ class ProductWithQuantitiesMutation
             )->getId();
         }
 
-        // Transform variants to include quantity and auto-generate SKU if needed
         if (isset($input['variants'])) {
             foreach ($input['variants'] as $index => &$variant) {
-                // Auto-generate SKU from product slug + variant name if not provided
-                if (empty($variant['sku'])) {
-                    $productSlug = $input['slug'] ?? $product->slug;
-                    $variantSlug = Str::slug($variant['name']);
-                    $variant['sku'] = $productSlug . '_' . $variantSlug;
-                }
-
                 // Handle channels: findOrCreate channel by name and convert to channels_id
                 if (isset($variant['channels'])) {
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
@@ -205,5 +154,32 @@ class ProductWithQuantitiesMutation
         }
 
         return $processedChannels;
+    }
+
+    /**
+     * Resolve product type by name: find existing or create new one.
+     */
+    private function resolveProductType(array &$input, Apps $app, Companies $company, $user): void
+    {
+        if (! isset($input['products_types']) || isset($input['products_types_id'])) {
+            return;
+        }
+
+        $productType = ProductsTypes::firstOrCreate(
+            [
+                'slug' => Str::slug($input['products_types']),
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+            ],
+            [
+                'name' => $input['products_types'],
+                'users_id' => $user->getId(),
+                'description' => $input['products_types'] . ' product type',
+                'weight' => 0,
+            ]
+        );
+
+        $input['products_types_id'] = $productType->getId();
+        unset($input['products_types']);
     }
 }
