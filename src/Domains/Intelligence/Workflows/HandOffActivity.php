@@ -95,12 +95,12 @@ class HandOffActivity extends KanvasActivity
                 );
                 $leadOwner->notify($handOffNotification);
 
-                $this->postConversationSummary(
-                    $lead,
-                    $leadOwner,
-                    $handOffType,
-                    $params
-                );
+                /*  $this->postConversationSummary(
+                     $lead,
+                     $leadOwner,
+                     $handOffType,
+                     $params
+                 ); */
                 $managersNotified = $this->notifyManagers(
                     $lead,
                     $leadOwner,
