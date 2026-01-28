@@ -61,7 +61,12 @@ class ProductSimpleMutation
         }
 
         // Create product using standard DTO and Action
-        $productDto = ProductDto::viaRequest($input, $company);
+        $productDto = ProductDto::from(
+            request: $input,
+            company: $company,
+            user: $user,
+            app: $app
+        );
         $action = new CreateProductAction($productDto, $user);
 
         return $action->execute();
@@ -105,7 +110,12 @@ class ProductSimpleMutation
         }
 
         // Update product using standard DTO and Action
-        $productDto = ProductDto::viaRequest($input, $product->company);
+        $productDto = ProductDto::from(
+            request: $input,
+            company: $product->company,
+            user: $user,
+            app: $app
+        );
         $productModel = (new UpdateProductAction($product, $productDto, $user))->execute();
 
         // Process variants if provided
