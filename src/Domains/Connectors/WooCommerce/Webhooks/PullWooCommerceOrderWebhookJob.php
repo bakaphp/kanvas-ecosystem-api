@@ -8,6 +8,7 @@ use Exception;
 use Kanvas\Connectors\WooCommerce\Actions\PullOrderFromWooCommerceAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Affiliates\Models\Affiliate;
+use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -68,7 +69,7 @@ class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
                 $order->addMetadata('affiliate_link_code', $this->webhookRequest->payload['country']);
             }
 
-            $affiliateInfo = Affiliate::fromApp($this->receiver->app)
+            $affiliateInfo = AffiliateLink::fromApp($this->receiver->app)
                 ->where('short_code', $this->webhookRequest->payload['affiliate_id'] ?? '')
                 ->first();
 
@@ -77,8 +78,8 @@ class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
                 && is_array($affiliateInfo->configuration)
                 && ($affiliateInfo->configuration['overwrite_request'] ?? false) == true
             ) {
-                $order->set('affiliate_id', $affiliateInfo->id);
-                $order->addMetadata('affiliate_id', $affiliateInfo->id);
+                $order->set('affiliate_id', $affiliateInfo->affiliates_id);
+                $order->addMetadata('affiliate_id', $affiliateInfo->affiliates_id);
                 $order->addMetadata('affiliate_shortcode', $affiliateInfo->short_code);
                 $order->set('affiliate_shortcode', $affiliateInfo->short_code);
                 $order->addMetadata('affiliate_link_code', $affiliateInfo->short_code);
