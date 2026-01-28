@@ -21,13 +21,13 @@ use Kanvas\Connectors\PromptMine\Services\VideoCreationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -429,9 +429,46 @@ class LLMMessageResponseActivity extends KanvasActivity
         return [];
     }
 
+    /**
+     * Find a valid previous image response by skipping NSFW or error responses.
+     * Looks back up to maxAttempts messages to find a valid one.
+     */
+    private function findValidPreviousImageResponse(?Message $currentMessage, ?Channel $channel, int $maxAttempts = 3): ?Message
+    {
+        $attempts = 0;
+
+        while ($currentMessage !== null && ! $currentMessage->isRoot() && $attempts < $maxAttempts) {
+            $childMessage = $currentMessage->children()?->first();
+
+            if ($this->isValidImageResponse($childMessage)) {
+                return $currentMessage;
+            }
+
+            $currentMessage = $channel->getPreviousMessage($currentMessage);
+            $attempts++;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a message response is valid (not NSFW and no errors).
+     */
+    private function isValidImageResponse(?Message $message): bool
+    {
+        if ($message === null) {
+            return false;
+        }
+
+        $hasNsfwFlag = $message->message['nsfw_flag'] ?? false;
+        $hasNsfwReason = isset($message->message['nsfw_reason']) && $message->message['nsfw_reason'] !== null;
+
+        // Valid if NOT flagged as NSFW/error
+        return ! ($hasNsfwFlag && $hasNsfwReason);
+    }
+
     private function generateImageResponse(Message $message): array
     {
-        $messagesSkipped = 0; // To track how many messages we've skipped due to NSFW or errors in image creation for previous responses search.
         new MessageOrderFulfillmentAction($message)->execute('image');
 
         $promptClient = new PromptClient($message->app);
@@ -448,28 +485,9 @@ class LLMMessageResponseActivity extends KanvasActivity
                 $params['enable_safety_checker'] = true;
             }
 
-            $chatResponseMessageType = MessagesTypesRepository::getByVerb('chat-response', $message->app);
             $channel = $message->channels?->first();
-            $previousChatResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
-
-            if ($previousChatResponse !== null && ! $previousChatResponse->isRoot()) {
-                $previousChatChildMessage = $previousChatResponse->children()?->first();
-                //We need to make sure previous response is not nsfw or error in image creation(for some reason nsfw flag also works for other errors)
-                while ((isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
-                    && (isset($previousChatChildMessage->message['nsfw_reason']) && ! is_null($previousChatChildMessage->message['nsfw_reason']))
-                    && $messagesSkipped < 3
-                ) {
-                    $previousChatResponse = $channel->getPreviousMessage($previousChatResponse);
-                    $previousChatChildMessage = $previousChatResponse?->children()?->first();
-                    $messagesSkipped++;
-                }
-
-                if ($previousChatResponse->isRoot()
-                    && (isset($previousChatChildMessage->message['nsfw_flag']) && $previousChatChildMessage->message['nsfw_flag'])
-                    && (isset($previousChatChildMessage->message['nsfw_reason']) && ! is_null($previousChatChildMessage->message['nsfw_reason']))) {
-                    $previousChatResponse = null;
-                }
-            }
+            $initialPreviousResponse = $channel !== null ? $channel->getPreviousMessage($message) : null;
+            $previousChatResponse = $this->findValidPreviousImageResponse($initialPreviousResponse, $channel);
 
             if ($previousChatResponse instanceof Message && ($previousChatResponse->isRoot() || isset($previousChatResponse->message['remix_parent_id']))) {
                 if (array_key_exists('is_regeneration', $message->message) && $message->message['is_regeneration'] && ! empty($chatHistory) && end($chatHistory)['role'] === 'assistant') {
