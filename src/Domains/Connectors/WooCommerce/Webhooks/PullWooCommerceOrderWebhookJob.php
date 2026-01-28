@@ -77,8 +77,10 @@ class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
                 && is_array($affiliateInfo->configuration)
                 && ($affiliateInfo->configuration['overwrite_request'] ?? false) == true
             ) {
+                $order->set('affiliate_id', $affiliateInfo->id);
                 $order->addMetadata('affiliate_id', $affiliateInfo->id);
                 $order->addMetadata('affiliate_shortcode', $affiliateInfo->short_code);
+                $order->set('affiliate_shortcode', $affiliateInfo->short_code);
                 $order->addMetadata('affiliate_link_code', $affiliateInfo->short_code);
             }
 
