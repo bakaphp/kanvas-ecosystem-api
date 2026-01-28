@@ -429,7 +429,7 @@ class PortalPaymentProcessor
     {
         $referenceId = $order->get('auth_session_id');
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order, includeDetails: true);
-        $pamentData = PaymentDetail::from([
+        $paymentData = PaymentDetail::from([
             'orderCode' => $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
@@ -438,7 +438,7 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                'ipAddress' => $data['metadata']['data']['user_ip'] ?? request()->ip(),
+                'ipAddress' => $order->metadata['data']['user_ip'] ?? request()->ip(),
                 'fingerprintSessionId' => $merchantAuthentication->id . $order->id,
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
@@ -450,7 +450,7 @@ class PortalPaymentProcessor
 
         try {
             $result = $this->client->authorizePayment(
-                $pamentData,
+                $paymentData,
                 $consumerData,
                 $merchantAuthentication
             );
@@ -487,7 +487,7 @@ class PortalPaymentProcessor
                 'message' => $errorMessage,
                 'data' => [
                     'message_body' => $errorBody,
-                    'pamentData' => $pamentData,
+                    'paymentData' => $paymentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
                 ],
@@ -525,7 +525,7 @@ class PortalPaymentProcessor
                 'message' => $errorMessage,
                 'data' => [
                     'message_body' => $messageBody,
-                    'pamentData' => $pamentData,
+                    'paymentData' => $paymentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
                 ],
