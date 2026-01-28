@@ -109,7 +109,6 @@ class CreateMessageFollowUpAction
             'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
             'day' => $this->day,
         ];
-
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
