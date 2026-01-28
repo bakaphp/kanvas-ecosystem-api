@@ -69,6 +69,30 @@ type ProductTranslation {
 
 input ProductInput {
     products_types_id: ID
+    sku: String @rules(apply: ["required_without:variants"])
+    name: String!
+    description: String
+    slug: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    categories: [ProductCategoriesReferenceInput!]
+    warehouses: [Int!]
+    source_id: Mixed
+    variants: [VariantsInput!]
+    status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
+    files: [FilesystemInputUrl!]
+    price: Float
+    weight: Float
+    company_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input ProductSimpleInput {
+    products_types_id: ID
     products_types: String
     sku: String @rules(apply: ["required_without:variants"])
     name: String!
@@ -99,6 +123,23 @@ input ProductAttributesInput {
 }
 
 input ProductInputUpdate {
+    products_types_id: Int
+    name: String
+    slug: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    weight: Float
+    status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+}
+
+input ProductSimpleInputUpdate {
     products_types_id: Int
     products_types: String
     name: String
@@ -156,9 +197,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
         )
+    createProductSimple(input: ProductSimpleInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@createSimple"
+        )
     updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    updateProductSimple(id: ID!, input: ProductSimpleInputUpdate): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@updateSimple"
         )
     updateProductTranslations(
         id: ID!

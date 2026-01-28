@@ -34,6 +34,42 @@ class Products
      */
     public function create(mixed $root, array $req): ProductsModel
     {
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById(
+                (int) $req['input']['status']['id'],
+                auth()->user()->getCurrentCompany()
+            )->getId();
+        }
+
+        $app = app(Apps::class);
+
+        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
+            $company = Companies::getById($req['input']['company_id']);
+        } else {
+            $company = auth()->user()->getCurrentCompany();
+        }
+
+        $productDto = ProductDto::from(
+            request: $req['input'],
+            company: $company,
+            user: auth()->user(),
+            app: $app
+        );
+        $action = new CreateProductAction(
+            $productDto,
+            auth()->user()
+        );
+
+        return $action->execute();
+    }
+
+    /**
+     * createSimple - Creates a product with simplified input handling.
+     * - Auto-creates product types by name if products_types is provided
+     * - Auto-generates SKU for variants if not provided
+     */
+    public function createSimple(mixed $root, array $req): ProductsModel
+    {
         $input = $req['input'];
         $user = auth()->user();
         $app = app(Apps::class);
@@ -88,7 +124,6 @@ class Products
             user: $user,
             app: $app
         );
-        $action = new CreateProductAction($productDto, $user);
         $action = new CreateProductAction(
             $productDto,
             $user
@@ -101,6 +136,46 @@ class Products
      * update.
      */
     public function update(mixed $root, array $req): ProductsModel
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $app = app(Apps::class);
+
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById(
+                (int) $req['input']['status']['id'],
+                $company
+            )->getId();
+        }
+
+        $product = ProductsRepository::getById(
+            (int) $req['id'],
+            $company
+        );
+
+        $productDto = ProductDto::from(
+            request: $req['input'],
+            company: $product->company,
+            user: auth()->user(),
+            app: $app
+        );
+
+        $productModel = new UpdateProductAction(
+            $product,
+            $productDto,
+            auth()->user()
+        )->execute();
+
+        return $productModel;
+    }
+
+    /**
+     * updateSimple - Updates a product with simplified input handling.
+     * - Auto-creates product types by name if products_types is provided
+     * - Auto-generates SKU for variants if not provided
+     * - Processes variants after product update
+     */
+    public function updateSimple(mixed $root, array $req): ProductsModel
     {
         $input = $req['input'];
         $user = auth()->user();

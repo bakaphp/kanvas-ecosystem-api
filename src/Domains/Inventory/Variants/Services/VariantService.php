@@ -100,12 +100,7 @@ class VariantService
                     );
                 }
             } else {
-                // Use specified warehouse_id or default warehouse
-                if (isset($variant['warehouse_id'])) {
-                    $warehouse = WarehouseRepository::getById((int) $variant['warehouse_id'], $company, $product->app);
-                } else {
-                    $warehouse = Warehouses::getDefault($company, $product->app);
-                }
+                $warehouse = Warehouses::getDefault($company, $product->app);
 
                 $variantWarehouseInfo = array_filter([
                     'price' => $variant['price'] ?? null,

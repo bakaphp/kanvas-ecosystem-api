@@ -100,7 +100,6 @@ input VariantsInput {
     status: StatusReferenceInput
     price: Float
     weight: Float
-    warehouse_id: ID
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
     warehouses: [WarehouseReferenceInput!]
