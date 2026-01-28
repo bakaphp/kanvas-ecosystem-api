@@ -32,7 +32,7 @@ class BaseAgentResponderAction
     ) {
     }
 
-    protected function createMessage(string $text, string $to, Message $message, Channel $channel): Message
+    protected function createMessage(string $text, string $to, Message $message, Channel $channel, ?string $from = null): Message
     {
         $user = $message->user;
         $agentUser = $this->channel->app->get('kanvas_agent_user_id');
@@ -60,6 +60,7 @@ class BaseAgentResponderAction
 
         $newMessage = new CreateMessageAction($messageInput)->execute();
         $newMessage->set('communicationChannel', $this->communicationChannel);
+        $newMessage->set('from_number', $from);
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }
