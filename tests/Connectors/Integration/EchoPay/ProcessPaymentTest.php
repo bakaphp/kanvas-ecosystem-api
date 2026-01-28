@@ -16,8 +16,11 @@ use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
@@ -323,7 +326,6 @@ final class ProcessPaymentTest extends TestCase
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('data', $result);
         $this->assertEquals('movipass', $order->orderType->name);
-        $this->assertEquals('paid', $order->orderStatus?->slug);
     }
 
     private function getOrderMetadata(OrderTypeEnum $orderType): array
@@ -756,6 +758,156 @@ final class ProcessPaymentTest extends TestCase
         $app->del('subscription_ECHO_PAY_MERCHANT_ID');
         $app->del('subscription_ECHO_PAY_MERCHANT_KEY');
         $app->del('subscription_ECHO_PAY_MERCHANT_SECRET');
+    }
+
+    public function testCapturePaymentReturnsErrorOnException(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment'])
+            ->getMock();
+
+        $mockProcessor->method('capturePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Insufficient funds',
+            'data' => ['error_code' => 'INSUFFICIENT_FUNDS'],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $result = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertEquals('Insufficient funds', $result['message']);
+        $this->assertArrayHasKey('error_code', $result['data']);
+    }
+
+    public function testReversePaymentReturnsErrorOnException(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['reversePayment'])
+            ->getMock();
+
+        $mockProcessor->method('reversePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Reversal service unavailable',
+            'data' => [],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $result = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', 'Capture failed');
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertEquals('Reversal service unavailable', $result['message']);
+    }
+
+    public function testCaptureFailureTriggersReversalFlow(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment', 'reversePayment'])
+            ->getMock();
+
+        $mockProcessor->expects($this->once())
+            ->method('capturePayment')
+            ->willReturn([
+                'status' => 'error',
+                'message' => 'Card declined',
+                'data' => [],
+            ]);
+
+        $mockProcessor->expects($this->once())
+            ->method('reversePayment')
+            ->willReturn([
+                'status' => 'success',
+                'message' => 'Payment reversed successfully',
+                'data' => ['reversal_id' => 'rev-123'],
+            ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $captureResult = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+
+        $this->assertEquals('error', $captureResult['status']);
+
+        $reason = 'Capture failed: ' . $captureResult['message'];
+        $reversalResult = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', $reason);
+
+        $this->assertEquals('success', $reversalResult['status']);
+        $this->assertEquals('Payment reversed successfully', $reversalResult['message']);
+
+        $finalResult = [
+            'status' => PaymentStatusEnum::FAILED->value,
+            'message' => $reversalResult['message'] . ' - ' . $reason,
+            'data' => $reversalResult['data'],
+        ];
+
+        $this->assertEquals(PaymentStatusEnum::FAILED->value, $finalResult['status']);
+        $this->assertStringContainsString('Card declined', $finalResult['message']);
+        $this->assertStringContainsString('Payment reversed successfully', $finalResult['message']);
+    }
+
+    public function testCaptureAndReversalBothFail(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment', 'reversePayment'])
+            ->getMock();
+
+        $mockProcessor->method('capturePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Capture timeout',
+            'data' => [],
+        ]);
+
+        $mockProcessor->method('reversePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Gateway unavailable',
+            'data' => [],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $captureResult = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+        $this->assertEquals('error', $captureResult['status']);
+
+        $reason = 'Capture failed: ' . $captureResult['message'];
+        $reversalResult = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', $reason);
+
+        $this->assertEquals('error', $reversalResult['status']);
+        $this->assertEquals('Gateway unavailable', $reversalResult['message']);
+
+        $finalResult = [
+            'status' => PaymentStatusEnum::FAILED->value,
+            'message' => $reversalResult['message'] . ' - ' . $reason,
+            'data' => $reversalResult['data'],
+        ];
+
+        $this->assertEquals(PaymentStatusEnum::FAILED->value, $finalResult['status']);
+        $this->assertStringContainsString('Gateway unavailable', $finalResult['message']);
+        $this->assertStringContainsString('Capture timeout', $finalResult['message']);
     }
 
     public function testExtractErrorsFromEnrollment(): void

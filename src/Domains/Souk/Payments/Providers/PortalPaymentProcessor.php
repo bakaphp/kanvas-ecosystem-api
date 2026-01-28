@@ -536,70 +536,108 @@ class PortalPaymentProcessor
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-        $capturePayment = $this->client->capturePayment(
-            PaymentCaptureInput::from([
-                'transactionId' => $transactionId,
-                'orderCode' => $order->id,
-                'currency' => 'DOP',
-                'totalAmount' => $order->getTotalAmount(),
-            ]),
-            $merchantAuthentication
-        );
 
-        $payment->status = PaymentStatusEnum::PAID;
-        $order->updateQuietly([
-            'payment_status' => PaymentStatusEnum::PAID->value,
-        ]);
-        $payment->addMetadata([
-            'data' => [
-                ...$payment->metadata['data'],
-                'capture_data' => $capturePayment,
-            ],
-        ]);
-        $payment->save();
-        $order->checkPayments();
+        try {
+            $capturePayment = $this->client->capturePayment(
+                PaymentCaptureInput::from([
+                    'transactionId' => $transactionId,
+                    'orderCode' => $order->id,
+                    'currency' => 'DOP',
+                    'totalAmount' => $order->getTotalAmount(),
+                ]),
+                $merchantAuthentication
+            );
 
-        return [
-            'status' => 'success',
-            'message' => 'Payment captured successfully',
-            'data' => $capturePayment,
-        ];
+            $payment->status = PaymentStatusEnum::PAID;
+            $order->updateQuietly([
+                'payment_status' => PaymentStatusEnum::PAID->value,
+            ]);
+            $payment->addMetadata([
+                'data' => [
+                    ...$payment->metadata['data'],
+                    'capture_data' => $capturePayment,
+                ],
+            ]);
+            $payment->save();
+            $order->checkPayments();
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment captured successfully',
+                'data' => $capturePayment,
+            ];
+        } catch (EchoPayException $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => $e->getErrorBody(),
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
     }
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-        $reversePayment = $this->client->reversePayment(
-            PaymentCaptureInput::from([
-                'transactionId' => $transactionId,
-                'orderCode' => $order->id,
-                'currency' => 'DOP',
-                'totalAmount' => $order->getTotalAmount(),
-            ]),
-            $merchantAuthentication,
-            $reason
-        );
 
-        $payment->status = PaymentStatusEnum::REVERSED->value;
-        $order->updateQuietly([
-            'payment_status' => PaymentStatusEnum::REVERSED->value,
-            'status' => OrderStatusEnum::FAILED->value,
-            'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-        ]);
+        try {
+            $reversePayment = $this->client->reversePayment(
+                PaymentCaptureInput::from([
+                    'transactionId' => $transactionId,
+                    'orderCode' => $order->id,
+                    'currency' => 'DOP',
+                    'totalAmount' => $order->getTotalAmount(),
+                ]),
+                $merchantAuthentication,
+                $reason
+            );
 
-        $payment->addMetadata([
-            'data' => [
-                ...$payment->metadata['data'],
-                'reverse_data' => $reversePayment,
-            ],
-        ]);
-        $payment->save();
+            $payment->status = PaymentStatusEnum::REVERSED->value;
+            $order->updateQuietly([
+                'payment_status' => PaymentStatusEnum::REVERSED->value,
+                'status' => OrderStatusEnum::FAILED->value,
+                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
+            ]);
 
-        return [
-            'status' => 'success',
-            'message' => 'Payment reversed successfully',
-            'data' => $reversePayment,
-        ];
+            $payment->addMetadata([
+                'data' => [
+                    ...$payment->metadata['data'],
+                    'reverse_data' => $reversePayment,
+                ],
+            ]);
+            $payment->save();
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment reversed successfully',
+                'data' => $reversePayment,
+            ];
+        } catch (EchoPayException $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => $e->getErrorBody(),
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
     }
 
     //  process the request with the device data
