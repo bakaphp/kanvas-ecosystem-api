@@ -11,10 +11,9 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class TwoFactorAuthMutation
 {
