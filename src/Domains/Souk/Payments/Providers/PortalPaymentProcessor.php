@@ -135,6 +135,11 @@ class PortalPaymentProcessor
 
     public function startPaymentIntent(Payments $payment): array
     {
+        $payment->addLog('payment_initiated', [
+            'order_id' => $payment->order->id,
+            'amount' => $payment->amount,
+        ]);
+
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $payment->order);
         $payerAuthentication = $this->client->setupPayer(
             $payment->order->id,
@@ -399,6 +404,13 @@ class PortalPaymentProcessor
             $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
             $intentId = (string) $paymentResponse['data']['id'];
 
+            $payment->addLog('payment_authorized', [
+                'transaction_id' => $transactionId,
+                'intent_id' => $intentId,
+                'order_id' => $order->id,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
             $payment->status = PaymentStatusEnum::AUTHORIZED;
             $payment->addMetadata([
                 'data' => [
@@ -427,6 +439,11 @@ class PortalPaymentProcessor
 
     private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
+        $payment->addLog('payment_processing', [
+            'order_id' => $order->id,
+            'amount' => $order->getTotalAmount(),
+        ]);
+
         $referenceId = $order->get('auth_session_id');
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order, includeDetails: true);
         $paymentData = PaymentDetail::from([
@@ -464,6 +481,13 @@ class PortalPaymentProcessor
             report($e);
             $errorMessage = $e->getMessage();
             $errorBody = $e->getErrorBody();
+
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $errorMessage,
+                'error_body' => $errorBody,
+                'order_id' => $order->id,
+            ]);
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
@@ -503,6 +527,12 @@ class PortalPaymentProcessor
                 $errorMessage = $e->getMessage();
                 $messageBody = [];
             }
+
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $errorMessage,
+                'order_id' => $order->id,
+            ]);
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
@@ -548,6 +578,12 @@ class PortalPaymentProcessor
                 $merchantAuthentication
             );
 
+            $payment->addLog('payment_captured', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
             $payment->status = PaymentStatusEnum::PAID;
             $order->updateQuietly([
                 'payment_status' => PaymentStatusEnum::PAID->value,
@@ -569,6 +605,14 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
 
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'order_id' => $order->id,
+                'context' => 'capture_payment',
+            ]);
+
             return [
                 'status' => 'error',
                 'message' => $e->getMessage(),
@@ -576,6 +620,13 @@ class PortalPaymentProcessor
             ];
         } catch (Throwable $e) {
             report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $e->getMessage(),
+                'order_id' => $order->id,
+                'context' => 'capture_payment',
+            ]);
 
             return [
                 'status' => 'error',
@@ -601,6 +652,13 @@ class PortalPaymentProcessor
                 $reason
             );
 
+            $payment->addLog('payment_reversed', [
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
             $payment->status = PaymentStatusEnum::REVERSED->value;
             $order->updateQuietly([
                 'payment_status' => PaymentStatusEnum::REVERSED->value,
@@ -624,6 +682,16 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
 
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'context' => 'reverse_payment',
+            ]);
+
             return [
                 'status' => 'error',
                 'message' => $e->getMessage(),
@@ -631,6 +699,15 @@ class PortalPaymentProcessor
             ];
         } catch (Throwable $e) {
             report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $e->getMessage(),
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'context' => 'reverse_payment',
+            ]);
 
             return [
                 'status' => 'error',
