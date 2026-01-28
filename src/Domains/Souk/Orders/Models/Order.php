@@ -160,7 +160,7 @@ class Order extends BaseModel
 
     public function payments(): MorphMany
     {
-        return $this->morphMany(Payments::class, 'payable');
+        return $this->morphMany(Payments::class, 'payable')->latest();
     }
 
     public function orderDiscounts(): HasMany
@@ -772,16 +772,19 @@ class Order extends BaseModel
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
-        ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
-        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
+            ->first();
 
-        $discount = $total[0]['discount'] ?? 0;
-        $orderTotal = ($total[0]['price'] ?? 0);
-        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
-        $this->total_net_amount = (float) $orderTotal;
+        $orderTotal = (float) ($total->price ?? 0);
+
+        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+
+        $this->total_gross_amount = $orderTotal;
+        $this->discount_amount = $discountAmount;
+        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
-        $this->discount_amount = (float) $discount;
 
         if ($autoSave) {
             $this->saveOrFail();

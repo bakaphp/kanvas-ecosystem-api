@@ -10,18 +10,6 @@ use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\CustomerService;
 use Kanvas\Guild\Customers\Models\People;
 
-/**
- * PushPeopleAction handles pushing/updating people to DriveCentric.
- *
- * IMPORTANT: In DriveCentric, customers CANNOT be created independently.
- * Customers are only created when a lead/deal is created via LeadService.
- * This action only handles UPDATING existing customers that were created through leads.
- *
- * To create a new customer in DriveCentric:
- * 1. Use PushLeadAction to create a lead (this creates the customer automatically)
- * 2. The customer ID will be stored on the People record
- * 3. Then use this action to update the customer data
- */
 class PushPeopleAction
 {
     protected CustomerService $customerService;
@@ -52,29 +40,42 @@ class PushPeopleAction
         }
 
         $customerData = PeopleDTO::toDriveCentric($this->people);
+        $customerResult = $this->customerService->updateCustomer($customerId, $customerData);
 
-        return $this->customerService->updateCustomer($customerId, $customerData);
+        // Update credit app with driver's license if available
+        $creditAppResult = $this->updateCreditAppIfNeeded($customerId);
+
+        return [
+            'customer' => $customerResult,
+            'creditApp' => $creditAppResult,
+        ];
     }
 
-    /**
-     * Get the DriveCentric customer ID if it exists.
-     */
+    protected function updateCreditAppIfNeeded(string $customerId): ?array
+    {
+        $driverLicenseData = $this->people->getDriverLicenseData();
+
+        if ($driverLicenseData === null) {
+            return null;
+        }
+
+        $creditAppPayload = [
+            'drivingLicense' => $driverLicenseData,
+        ];
+
+        return $this->customerService->addCreditApp($customerId, $creditAppPayload);
+    }
+
     public function getCustomerId(): ?string
     {
         return $this->people->get(CustomFieldEnums::DRIVE_CENTRIC_CUSTOMER_ID->value);
     }
 
-    /**
-     * Get the DriveCentric deal ID if it exists.
-     */
     public function getDealId(): ?string
     {
         return $this->people->get(CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value);
     }
 
-    /**
-     * Check if the person has been synced to DriveCentric (has a customer ID).
-     */
     public function isSynced(): bool
     {
         return $this->getCustomerId() !== null;

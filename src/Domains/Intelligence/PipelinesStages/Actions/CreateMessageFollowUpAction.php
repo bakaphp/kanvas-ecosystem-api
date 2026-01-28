@@ -42,7 +42,8 @@ class CreateMessageFollowUpAction
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
-        protected string $messageTemplateChannel
+        protected string $messageTemplate,
+        protected float $day
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -53,11 +54,7 @@ class CreateMessageFollowUpAction
 
     public function execute(): ?string
     {
-        $config = $this->pipelineStage->config;
-        $rules = $config['notification_engagement_rules'];
-        $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
-
-        if ($messageTemplate === null) {
+        if ($this->messageTemplate === null) {
             // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
 
             return null;
@@ -97,8 +94,7 @@ class CreateMessageFollowUpAction
         $engagement = new CreateEngagementAction($engagementDto, false)->execute();
 
         $data = [
-            'day' => $rules['day'],
-            'templates' => $messageTemplate,
+            'templates' => $this->messageTemplate,
             'conversation_history' => $this->mapConversationHistory(),
             'context' => [
                 'company' => $this->lead->company,
@@ -111,8 +107,8 @@ class CreateMessageFollowUpAction
             'agent' => $this->session->agent,
             'vehicle_interest' => $vehicleInterest,
             'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
         ];
-
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);

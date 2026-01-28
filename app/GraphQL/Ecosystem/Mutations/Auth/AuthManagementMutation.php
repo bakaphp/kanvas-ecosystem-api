@@ -34,7 +34,6 @@ class AuthManagementMutation
     use AuthTrait;
 
     /**
-     *
      * @throws \Exception
      */
     public function loginMutation(
@@ -43,6 +42,7 @@ class AuthManagementMutation
         ?GraphQLContext $context = null,
         ?ResolveInfo $resolveInfo = null
     ): array {
+        $app = app(Apps::class);
         $email = $request['data']['email'];
         $password = $request['data']['password'];
         $deviceId = $request['data']['device_id'] ?? null;
@@ -57,7 +57,10 @@ class AuthManagementMutation
             ])
         );
 
-        return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
+        return $user->createToken(
+            name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(),
+            deviceId: $deviceId
+        )->toArray();
     }
 
     /**
@@ -97,7 +100,6 @@ class AuthManagementMutation
     }
 
     /**
-     *
      * @throws \Exception
      */
     public function register(
@@ -178,7 +180,6 @@ class AuthManagementMutation
     }
 
     /**
-     *
      * @throws \Exception
      */
     public function forgot(

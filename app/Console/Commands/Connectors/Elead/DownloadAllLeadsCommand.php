@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\Elead;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
@@ -16,6 +17,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
@@ -97,60 +99,67 @@ class DownloadAllLeadsCommand extends Command
                             $leadId = (string) ($item['id'] ?? '');
                             $customerId = isset($item['customer']['id']) ? (string) $item['customer']['id'] : null;
 
-                            // Check if lead already exists
-                            $existingLead = ModelsLead::getByCustomField(
-                                CustomFieldEnum::OPPORTUNITY_ID->value,
-                                $leadId,
-                                $company
-                            );
+                            // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
+                            $lockKey = "elead_lead_sync:{$company->getId()}:{$leadId}";
 
-                            if ($existingLead) {
-                                $existingCount++;
-                                $this->line("Lead {$leadId} already exists as {$existingLead->id} - updating");
-
-                                //new SyncLeadAction($existingLead)->execute();
-                            } else {
-                                $this->line("Creating new Lead {$leadId}");
-
-                                // Create new Lead entity
-                                $lead = new Lead();
-                                $lead->company = $company;
-                                $lead->app = $app;
-                                $lead->customerId = $customerId;
-                                $lead->assign($item);
-
-                                // Create DTO and sync
-                                $leadDto = DataTransferObjectLead::fromLeadEntity($lead, $user);
-                                $leadDto->runWorkflow = false; // Disable workflow on initial import
-                                $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
-                                $newLead = $syncAction->execute();
-
-                                new SyncLeadAction($newLead)->execute();
-                                $newLead->set('downloaded_from_eleads', true);
-                                $newLead->refresh();
-                                $hasEmail = $newLead->people?->getEmails()->count() > 0;
-                                $hasCellPhone = $newLead->people?->getCellPhones()->count() > 0;
-
-                                $agentNotificationChannel = match (true) {
-                                    $hasEmail && $hasCellPhone => 'sms',
-                                    $hasEmail => 'email',
-                                    $hasCellPhone => 'sms',
-                                    default => null,
-                                };
-
-                                if ($agentNotificationChannel !== null) {
-                                    $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
-                                }
-
-                                $newLead->fireWorkflow(
-                                    WorkflowEnum::CREATED->value,
-                                    true,
-                                    [
-                                        'app' => $app,
-                                    ]
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $customerId, $item, $company, $app, $user, &$successCount, &$existingCount): void {
+                                // Check if lead already exists
+                                $existingLead = ModelsLead::getByCustomField(
+                                    CustomFieldEnum::OPPORTUNITY_ID->value,
+                                    $leadId,
+                                    $company
                                 );
-                                $successCount++;
-                            }
+
+                                if ($existingLead) {
+                                    $existingCount++;
+                                    $this->line("Lead {$leadId} already exists as {$existingLead->id} - updating");
+
+                                    //new SyncLeadAction($existingLead)->execute();
+                                } else {
+                                    $this->line("Creating new Lead {$leadId}");
+
+                                    // Create new Lead entity
+                                    $lead = new Lead();
+                                    $lead->company = $company;
+                                    $lead->app = $app;
+                                    $lead->customerId = $customerId;
+                                    $lead->assign($item);
+
+                                    // Create DTO and sync
+                                    $leadDto = DataTransferObjectLead::fromLeadEntity($lead, $user);
+                                    $leadDto->runWorkflow = false; // Disable workflow on initial import
+                                    $syncAction = new SyncLeadByThirdPartyCustomFieldAction($leadDto);
+                                    $newLead = $syncAction->execute();
+
+                                    new SyncLeadAction($newLead)->execute();
+                                    $newLead->set('downloaded_from_eleads', true);
+                                    $newLead->refresh();
+                                    $hasEmail = $newLead->people?->getEmails()->count() > 0;
+                                    $hasCellPhone = $newLead->people?->getCellPhones()->count() > 0;
+
+                                    $agentNotificationChannel = match (true) {
+                                        $hasEmail && $hasCellPhone => 'sms',
+                                        $hasEmail => 'email',
+                                        $hasCellPhone => 'sms',
+                                        default => null,
+                                    };
+
+                                    if ($agentNotificationChannel !== null) {
+                                        $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+                                    }
+
+                                    $newLead->fireWorkflow(
+                                        WorkflowEnum::CREATED->value,
+                                        true,
+                                        [
+                                            'app' => $app,
+                                            'company' => $lead->company,
+                                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
+                                        ]
+                                    );
+                                    $successCount++;
+                                }
+                            });
                         } catch (Throwable $e) {
                             $errorCount++;
                             $leadId = isset($item['id']) ? (string) $item['id'] : 'unknown';

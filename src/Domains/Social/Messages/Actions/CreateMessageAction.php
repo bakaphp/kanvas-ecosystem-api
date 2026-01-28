@@ -47,6 +47,7 @@ class CreateMessageAction
                 'ip_address' => $this->messageInput->ip_address,
                 'is_public' => $this->messageInput->is_public,
                 'slug' => $this->messageInput->slug,
+                'is_locked' => $this->messageInput->is_locked,
             ];
 
             $validator = Validator::make($data, [

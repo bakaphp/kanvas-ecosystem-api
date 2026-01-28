@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Souk\Discounts\Factories\DiscountFactory;
 use Kanvas\Souk\Discounts\Observers\DiscountObserver;
@@ -47,6 +50,9 @@ class Discount extends BaseModel
     use UuidTrait;
     use HasFactory;
     use HasCustomFields;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
 
     protected $table = 'discounts';
     protected $guarded = [];
@@ -166,5 +172,59 @@ class Discount extends BaseModel
     protected static function newFactory()
     {
         return new DiscountFactory();
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        $customIndex = $app->get('app_custom_discount_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'discount_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => $this->uuid,
+            'id' => (string) $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'description' => $this->description,
+            'code' => $this->code,
+            'value' => $this->value,
+            'is_percentage' => $this->is_percentage,
+            'is_active' => $this->is_active,
+            'discount_type' => [
+                'id' => $this->discountType?->id,
+                'name' => $this->discountType?->name,
+            ],
+            'company' => [
+                'id' => $this->companies_id,
+                'name' => $this->company?->name,
+            ],
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'start_date' => $this->start_date?->timestamp,
+            'end_date' => $this->end_date?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->is_deleted;
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

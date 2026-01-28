@@ -41,6 +41,7 @@ class People extends Data
         public ?string $organization = null,
         public ?string $created_at = null,
         public ?bool $flushPreviousAddress = false,
+        public ?bool $runWorkflow = true,
     ) {
         $this->cleanFirstNameFromMiddleName();
     }

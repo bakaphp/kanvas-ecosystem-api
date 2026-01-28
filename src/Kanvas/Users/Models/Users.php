@@ -122,6 +122,8 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property string $zip_code
  * @property int    $user_recover_code
  * @property int    $is_deleted
+ * @property string $created_at
+ * @property string $updated_at
  */
 class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable
 {

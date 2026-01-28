@@ -1,0 +1,50 @@
+---
+- name: Deploy app to all instances
+  hosts: development
+  become: true
+  strategy: free  # Run on all hosts in parallel
+
+  # vars:
+  #   app_dir: /var/www/html
+  #   repo_url: git@github.com:yourorg/yourrepo.git
+  #   branch: development
+
+  tasks:
+    - name: Sync app files
+      ansible.posix.synchronize:
+        src: "{{ src_dir }}/"
+        dest: "{{ app_dir }}"
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=node_modules"
+          - "--exclude=vendor"
+          - "--exclude=.env"
+          - "--exclude=storage/logs/*"
+          - "--exclude=ansible"
+
+    - name: Change ownership of project directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+
+    - name: Docker compose deploy
+      shell: docker-compose -f docker-compose.development.yml up -d --force-recreate
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Install dependencies inside container
+      shell: docker-compose exec -T php composer install --optimize-autoloader
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Clear and cache config
+      shell: |
+        docker-compose exec -T php artisan config:cache
+        docker-compose exec -T php artisan route:cache
+        docker-compose exec -T php artisan view:cache
+        docker-compose exec -T php artisan octane:reload
+      args:
+        chdir: "{{ app_dir }}"

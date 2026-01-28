@@ -14,17 +14,11 @@ x-common-queue-settings: &common-queue-settings
     XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
   volumes:
     - ".:/var/www/html"
+    - vendor-volume:/var/www/html/vendor
     - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
     - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
   networks:
     - kanvas_docker_swarm_network
-  deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
 services:
   php:
@@ -48,17 +42,11 @@ services:
       XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
     volumes:
       - ".:/var/www/html"
+      - vendor-volume:/var/www/html/vendor
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
       - kanvas_docker_swarm_network
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue:
     <<: *common-queue-settings
@@ -164,13 +152,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   laravel-scheduler:
     container_name: laravel-scheduler
@@ -189,6 +170,7 @@ services:
       XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
     volumes:
       - ".:/var/www/html"
+      - vendor-volume:/var/www/html/vendor
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
@@ -222,4 +204,6 @@ networks:
 
 volumes:
   sail-redis:
+    driver: local
+  vendor-volume:
     driver: local

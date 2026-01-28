@@ -412,6 +412,7 @@ class OrderManagementMutation
 
         $newOrderStatus = OrderStatus::where([
             'apps_id' => $app->getId(),
+            'order_types_id' => $order->orderType->getId(),
             'slug' => $input['status_slug'],
         ])->first();
 

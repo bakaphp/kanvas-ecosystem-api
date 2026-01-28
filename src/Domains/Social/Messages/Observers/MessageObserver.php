@@ -54,7 +54,7 @@ class MessageObserver
         $message->clearLightHouseCacheJob();
 
         if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
-            $message->searchable();
+            $message->searchableSync();
         }
     }
 

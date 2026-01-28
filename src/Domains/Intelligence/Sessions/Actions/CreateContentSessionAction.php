@@ -10,15 +10,18 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
-use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -77,6 +80,10 @@ class CreateContentSessionAction
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
                 'company_language' => $lead->company->get('lang', 'en'),
+                'is_service_lead' => $lead->get('is_service_lead') ?? 0,
+                'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
+                'ai_mode' => $lead->get('ai_mode'),
+                'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -156,42 +163,18 @@ class CreateContentSessionAction
 
         foreach ($actions as $key => $action) {
             try {
-                //lets check if this leads already has this engagement
-                $engagement = EngagementRepository::findEngagementForLead(
-                    $this->entity,
-                    $action,
-                    'sent',
-                    'ASC'
-                );
-
+                // Try to get or create engagement with retry logic
+                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
                 if ($engagement === null) {
-                    $engagement = new CreateEngagementAction(
-                        Engagement::from(
-                            $this->session->app,
-                            $this->session->company,
-                            $user,
-                            $this->entity,
-                            [
-                                'action' => $action,
-                                'request_id' => Str::uuid()->toString(),
-                                'source' => 'ai',
-                                'status' => 'sent',
-                                'data' => [],
-                            ],
-                            $this->entity->people
-                        ),
-                        false
-                    );
-                    $result = $engagement->execute();
-                } else {
-                    $result = $engagement;
+                    //$results[$key] = null;
+                    continue;
                 }
 
                 //hide the msg
-                $result->message->is_public = 0;
-                $result->message->saveQuietly();
+                $engagement->message->is_public = 0;
+                $engagement->message->saveQuietly();
 
-                $results[$key] = $result->message->message['action_link'] ?? null;
+                $results[$key] = $engagement->message->message['action_link'] ?? null;
             } catch (Exception $e) {
                 //report($e);
                 $results[$key] = null;
@@ -199,6 +182,36 @@ class CreateContentSessionAction
         }
 
         return $results;
+    }
+
+    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
+    {
+        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
+
+        // Use Laravel's cache lock - block() waits for lock to become available
+        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
+            // CreateEngagementAction with allowDuplicate=false will check for existing
+            // engagements and return them instead of creating duplicates
+            $engagementAction = new CreateEngagementAction(
+                Engagement::from(
+                    $this->session->app,
+                    $this->session->company,
+                    $user,
+                    $this->entity,
+                    [
+                        'action' => $action,
+                        'request_id' => Str::uuid()->toString(),
+                        'source' => 'ai',
+                        'status' => 'sent',
+                        'data' => [],
+                    ],
+                    $this->entity->people
+                ),
+                false // allowDuplicate = false
+            );
+
+            return $engagementAction->execute();
+        });
     }
 
     /**
