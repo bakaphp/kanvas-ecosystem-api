@@ -435,6 +435,15 @@ class LLMMessageResponseActivity extends KanvasActivity
      */
     private function findValidPreviousImageResponse(?Message $currentMessage, ?Channel $channel, int $maxAttempts = 3): ?Message
     {
+        if ($currentMessage === null) {
+            return null;
+        }
+
+        // If it's a root message, return it directly (no need to check for NSFW)
+        if ($currentMessage->isRoot()) {
+            return $currentMessage;
+        }
+
         $attempts = 0;
 
         while ($currentMessage !== null && ! $currentMessage->isRoot() && $attempts < $maxAttempts) {
@@ -446,6 +455,14 @@ class LLMMessageResponseActivity extends KanvasActivity
 
             $currentMessage = $channel->getPreviousMessage($currentMessage);
             $attempts++;
+        }
+
+        // If we reached root after skipping NSFW messages, check if root's child is valid
+        if ($currentMessage !== null && $currentMessage->isRoot()) {
+            $childMessage = $currentMessage->children()?->first();
+            if ($this->isValidImageResponse($childMessage)) {
+                return $currentMessage;
+            }
         }
 
         return null;
