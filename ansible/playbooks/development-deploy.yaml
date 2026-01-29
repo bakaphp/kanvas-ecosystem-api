@@ -47,8 +47,8 @@
       args:
         chdir: "{{ app_dir }}"
 
-    - name: Docker compose restart queues
-      shell: docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
+    - name: Docker compose restart queue services
+      shell: docker-compose -f docker-compose.development.yml restart $(docker-compose -f docker-compose.development.yml ps --services | grep queue)
       args:
         chdir: "{{ app_dir }}"
 
