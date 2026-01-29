@@ -26,6 +26,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Silber\Bouncer\Database\Ability;
 
 /**
@@ -87,6 +88,14 @@ class SystemModules extends BaseModel
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parents_id');
+    }
+
+    /**
+     * Kanvas module relationship.
+     */
+    public function kanvasModule(): BelongsTo
+    {
+        return $this->belongsTo(KanvasModule::class, 'modules_id');
     }
 
     /**
