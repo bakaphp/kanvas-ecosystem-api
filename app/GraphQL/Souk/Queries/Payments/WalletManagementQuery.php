@@ -56,7 +56,7 @@ class WalletManagementQuery
 
         if (! $user->hasWallet($tag) && $tag !== 'default') {
             throw new ModelNotFoundException(
-                'Wallet not found for the given tag. '
+                'Wallet not found for the given tag.'
             );
         }
 
