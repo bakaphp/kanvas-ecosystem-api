@@ -52,6 +52,7 @@ class SendDelayMessageCommand extends Command
                 if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
                     $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
                     $message->setUnlock();
+                    $message->setPublic();
 
                     continue;
                 }
@@ -78,6 +79,7 @@ class SendDelayMessageCommand extends Command
                 if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
+                    $message->setPublic();
 
                     continue;
                 }
@@ -89,6 +91,7 @@ class SendDelayMessageCommand extends Command
                         $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     )) {
                         $message->setUnlock();
+                        $message->setPublic();
                         $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
@@ -104,6 +107,7 @@ class SendDelayMessageCommand extends Command
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
+                    $message->setPublic();
 
                     continue;
                 }
@@ -113,6 +117,7 @@ class SendDelayMessageCommand extends Command
                 if (! in_array('first-message', $tags)) {
                     $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
                     $message->setUnlock();
+                    $message->setPublic();
 
                     continue;
                 }
@@ -147,7 +152,7 @@ class SendDelayMessageCommand extends Command
                         $title,
                     );
                     $message->setUnlock();
-                    $message->is_public = 1;
+                    $message->setPublic();
                     $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);

@@ -68,6 +68,7 @@ class BaseAgentResponderAction
 
         if ($this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             $newMessage->setLock();
+            $newMessage->setPrivate();
         }
 
         return $newMessage;
