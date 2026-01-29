@@ -42,9 +42,9 @@
 
     - name: Clear and cache config
       shell: |
-        docker-compose exec -T php artisan config:cache
-        docker-compose exec -T php artisan route:cache
-        docker-compose exec -T php artisan view:cache
-        docker-compose exec -T php artisan octane:reload
+        docker-compose exec -T php php artisan config:cache
+        docker-compose exec -T php php artisan route:cache
+        docker-compose exec -T php php artisan view:cache
+        docker-compose exec -T php php artisan octane:reload
       args:
         chdir: "{{ app_dir }}"
