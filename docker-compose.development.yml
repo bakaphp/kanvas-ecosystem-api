@@ -18,7 +18,7 @@ x-common-queue-settings: &common-queue-settings
     - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
     - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
   networks:
-    - kanvas_docker_swarm_network
+    - sail
 
 services:
   php:
@@ -46,7 +46,7 @@ services:
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - kanvas_docker_swarm_network
+      - sail
 
   queue:
     <<: *common-queue-settings
@@ -153,7 +153,7 @@ services:
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - kanvas_docker_swarm_network
+      - sail
 
   nginx:
     image: nginx:latest
@@ -167,7 +167,7 @@ services:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./docker/global-nginx.conf:/etc/nginx/conf.d/upload_limit.conf
     networks:
-      - kanvas_docker_swarm_network
+      - sail
     depends_on:
       - php
     healthcheck:
@@ -177,8 +177,6 @@ services:
 
 networks:
   sail:
-    driver: bridge
-  kanvas_docker_swarm_network:
     driver: bridge
 
 volumes:
