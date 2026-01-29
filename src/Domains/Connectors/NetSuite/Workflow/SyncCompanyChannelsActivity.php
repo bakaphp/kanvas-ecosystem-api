@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\NetSuite\Workflow;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\NetSuite\Actions\SyncNetsuiteCustomerItemChannels;
-use Kanvas\Workflow\KanvasActivity;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\NetSuite\Actions\SyncNetsuiteCustomerItemChannels;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
 
 class SyncCompanyChannelsActivity extends KanvasActivity
 {
@@ -16,14 +16,14 @@ class SyncCompanyChannelsActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-          return $this->executeIntegration(
+        return $this->executeIntegration(
             entity: $buyerCompany,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
             additionalParams: $params,
             integrationOperation: function ($buyerCompany, $app, $integrationCompany, $additionalParams) {
                 $syncChannels = new SyncNetsuiteCustomerItemChannels(
-                    company: $app->getMainCompany(),
+                    company: $app->getAppCompany(),
                     buyerCompany: $buyerCompany,
                 );
 
@@ -35,17 +35,10 @@ class SyncCompanyChannelsActivity extends KanvasActivity
                     'company_name' => $buyerCompany->name,
                     'action' => $result['action'],
                     'channels_affected' => $result['channel'],
-                    'message' => sprintf(
-                        '%d channel(s) %s for company %s',
-                        $result['channels_affected'],
-                        $result['action'],
-                        $buyerCompany->name
-                    ),
+                    'message' => "Channel {$result['action']} for company {$buyerCompany->name}",
                 ];
             },
             company: $buyerCompany,
         );
-
-
     }
 }

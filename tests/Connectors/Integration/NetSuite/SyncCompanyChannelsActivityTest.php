@@ -20,6 +20,7 @@ final class SyncCompanyChannelsActivityTest extends TestCase
     protected Companies $buyerCompany;
     protected Companies $mainCompany;
     protected Channels $channel;
+    protected Regions $buyerRegion;
     protected Apps $apps;
 
     protected function setUp(): void
@@ -29,15 +30,27 @@ final class SyncCompanyChannelsActivityTest extends TestCase
         $this->apps = app(Apps::class);
         $this->mainCompany = Companies::first();
 
+        $this->apps->setAppCompany($this->mainCompany);
+
         $this->buyerCompany = Companies::factory()->create([
-            'apps_id' => $this->apps->getId(),
             'users_id' => auth()->id(),
             'name' => 'Test Buyer Company',
             'is_active' => 1,
         ]);
 
-        $region = Regions::getDefault($this->mainCompany, $this->apps);
-        $this->setupNetSuiteIntegration($this->buyerCompany, $region);
+        $mainRegion = Regions::getDefault($this->mainCompany, $this->apps);
+
+        $this->buyerRegion = Regions::create([
+            'companies_id' => $this->buyerCompany->getId(),
+            'apps_id' => $this->apps->getId(),
+            'name' => 'Test Buyer Region',
+            'slug' => 'test-buyer-region',
+            'currency_id' => $mainRegion->currency_id,
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->setupNetSuiteIntegration($this->buyerCompany, $this->buyerRegion);
 
         $this->channel = Channels::create([
             'companies_id' => $this->mainCompany->getId(),
