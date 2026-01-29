@@ -50,13 +50,13 @@ class WalletManagementQuery
         $userId = $args['userId'] ?? null;
         $user = auth()->user();
 
-        if ($user->isAdmin() && $userId !== $user->getId()) {
+        if ($user->isAdmin() && $userId !== null && $userId !== $user->getId()) {
             $user = $user->getById($userId);
         }
 
         if (! $user->hasWallet($tag) && $tag !== 'default') {
             throw new ModelNotFoundException(
-                'Wallet not found for the given tag.',
+                'Wallet not found for the given tag. '
             );
         }
 
