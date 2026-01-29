@@ -48,6 +48,13 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'message_id' => $message->getId(),
+                        'message' => 'Message is locked or not public, skipping Elead note push.',
+                    ]);
+                }
+
                 /*   $syncLeadAction = new SyncLeadAction($lead);
                   $eLeadOpportunity = $syncLeadAction->execute(); */
 
