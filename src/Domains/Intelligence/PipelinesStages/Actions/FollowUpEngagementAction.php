@@ -170,7 +170,8 @@ class FollowUpEngagementAction
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
-                        $this->lead->company->get('twilio_phone_number')
+                        $this->lead->company->get('twilio_phone_number'),
+                        $this->lead->company->name
                     );
 
                     DailyReportService::track(
