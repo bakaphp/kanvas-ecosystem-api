@@ -35,7 +35,7 @@ class AppleInAppPurchaseMutation
 
         $region = Regions::getDefault($company, $app);
 
-        $log = activity('create-order-from-cart')
+        $log = activity('create-order-from-iap')
             ->causedBy($user)
             ->withProperties([
                 'request_data' => $request,

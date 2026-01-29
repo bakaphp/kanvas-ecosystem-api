@@ -32,6 +32,16 @@ class GooglePlayInAppPurchaseMutation
 
         $region = Regions::getDefault($company, $app);
 
+        $log = activity('create-order-from-android-iap')
+                 ->causedBy($user)
+                 ->withProperties([
+                     'request_data' => $request,
+                     'user_id' => $user->id,
+                     'apps_id' => $app->getId(),
+                     'companies_id' => $company->getId(),
+                 ])
+                 ->log('IAP Order Creation Initiated');
+
         $googleInAppPurchase = GooglePlayInAppPurchaseReceipt::from(
             $app,
             $company,
@@ -44,7 +54,12 @@ class GooglePlayInAppPurchaseMutation
 
         $order = $createOrderFromInAppPurchase->execute();
 
-        if (! empty($appleInAppPurchase->custom_fields)) {
+        $log->subject_type = get_class($order);
+        $log->subject_id = $order->id;
+        $log->description = 'IAP Order Created Successfully';
+        $log->save();
+
+        if (! empty($googleInAppPurchase->custom_fields)) {
             $order->setCustomFields($googleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
