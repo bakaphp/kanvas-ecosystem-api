@@ -1,6 +1,9 @@
 name: Ansible GCP Compute Deploy
 
 on:
+  push:
+    branches:
+      - "development"
   workflow_dispatch:
     
 
