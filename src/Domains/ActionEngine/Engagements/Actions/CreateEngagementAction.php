@@ -230,14 +230,14 @@ class CreateEngagementAction
     {
         $newActionPages = $this->app->get('new-action-slug-v3') ?? [];
         $newActionPageUrlV3 = is_array($newActionPages) ? in_array($this->actionSlug, $newActionPages) : false;
-        if (! $newActionPageUrlV3) {
-            return null;
-        }
 
         $newCheckoutPage = $this->app->get('new-action-checkout-link') ?? [];
-        $newActionPageUrlV3 = is_array($newCheckoutPage) ? in_array($this->actionSlug, $newCheckoutPage) : false;
-        if ($newActionPageUrlV3) {
+        $newCheckoutActionPageUrlV3 = is_array($newCheckoutPage) ? in_array($this->actionSlug, $newCheckoutPage) : false;
+
+        if ($newCheckoutActionPageUrlV3) {
             return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
+        } elseif (! $newActionPageUrlV3) {
+            return null;
         }
 
         return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
