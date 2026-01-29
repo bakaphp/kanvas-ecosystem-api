@@ -40,7 +40,7 @@
 
     - name: Show docker-compose output
       debug:
-      var: docker_output
+        var: docker_output
 
     - name: Install dependencies inside container
       shell: docker-compose exec -T php composer install --optimize-autoloader
