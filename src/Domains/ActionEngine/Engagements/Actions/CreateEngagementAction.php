@@ -234,6 +234,12 @@ class CreateEngagementAction
             return null;
         }
 
+        $newCheckoutPage = $this->app->get('new-action-checkout-link') ?? [];
+        $newActionPageUrlV3 = is_array($newCheckoutPage) ? in_array($this->actionSlug, $newCheckoutPage) : false;
+        if ($newActionPageUrlV3) {
+            return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
+        }
+
         return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
     }
 
