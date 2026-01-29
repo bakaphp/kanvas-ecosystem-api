@@ -41,11 +41,14 @@ class PushLeadNotesActivity extends KanvasActivity
             ];
         }
 
+        sleep(5); // To avoid locked message being processed
+
         return $this->executeIntegration(
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
+                $message->refresh();
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
