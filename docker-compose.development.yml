@@ -107,13 +107,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=3750"
-    deploy:
-      replicas: 4
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-sync-shopify:
     <<: *common-queue-settings
@@ -122,13 +115,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-scout-worker:
     <<: *common-queue-settings
@@ -137,13 +123,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-workflow:
     <<: *common-queue-settings

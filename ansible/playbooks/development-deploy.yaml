@@ -31,12 +31,17 @@
         recurse: yes
 
     - name: Docker compose deploy
-      shell: docker-compose -f docker-compose.development.yml up -d --force-recreate
+      shell: docker-compose -f docker-compose.development.yml up -d
       args:
         chdir: "{{ app_dir }}"
 
     - name: Install dependencies inside container
       shell: docker-compose exec -T php composer install --optimize-autoloader
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Docker compose restart queues
+      shell: docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
       args:
         chdir: "{{ app_dir }}"
 
