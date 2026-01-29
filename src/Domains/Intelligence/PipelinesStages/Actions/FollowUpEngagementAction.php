@@ -62,8 +62,16 @@ class FollowUpEngagementAction
                 ->fromApp($this->lead->app)
                 ->fromCompany($this->lead->company)
                 ->get();
+        $processedChannels = [];
         foreach ($sessions as $session) {
             $messageTemplateChannel = $session->getChannel();
+
+            // Skip if this channel has already been processed
+            if (in_array($messageTemplateChannel, $processedChannels)) {
+                continue;
+            }
+            $processedChannels[] = $messageTemplateChannel;
+
             $lastMessage = $session->channel->getLastMessage();
             if (! $lastMessage) {
                 continue;
@@ -162,7 +170,8 @@ class FollowUpEngagementAction
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
-                        $this->lead->company->get('twilio_phone_number')
+                        $this->lead->company->get('twilio_phone_number'),
+                        $this->lead->company->name
                     );
 
                     DailyReportService::track(
