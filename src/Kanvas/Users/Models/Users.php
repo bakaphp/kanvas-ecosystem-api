@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Traits\HasModuleAccess;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
@@ -130,6 +131,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFactory;
     use HasApiTokens;
     use HasRolesAndAbilities;
+    use HasModuleAccess;
     use LikableTrait;
     use FollowersTrait;
     use HasFilesystemTrait;
