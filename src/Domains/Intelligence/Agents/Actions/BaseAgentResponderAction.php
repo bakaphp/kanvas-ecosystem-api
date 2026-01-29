@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -30,6 +31,11 @@ class BaseAgentResponderAction
         protected Agent $agent,
         protected ?Session $session = null,
     ) {
+        $lead = $this->session->entity();
+        $aiMode = $lead->get('ai_mode');
+        if ($aiMode == IntelligenceModeEnum::OFF->value) {
+            throw new Exception('Ai Agent Off for this lead');
+        }
     }
 
     protected function createMessage(string $text, string $to, Message $message, Channel $channel, ?string $from = null): Message
