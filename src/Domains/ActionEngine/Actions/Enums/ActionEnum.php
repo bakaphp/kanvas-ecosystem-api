@@ -66,4 +66,6 @@ enum ActionEnum: string
     case FINANCE_AND_INSURANCE = 'finance-and-insurance';
     case MILEAGE_CONFIRMATION = 'mileage-confirmation';
     case CREDIT_UNION_APPLICATION = 'credit-union-application';
+    case RED_FLAG_CHECKLIST = 'red-flag-checklist';
+    case REFER_ME = 'refer-me';
 }
