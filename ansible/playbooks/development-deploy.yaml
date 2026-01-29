@@ -31,9 +31,16 @@
         recurse: yes
 
     - name: Docker compose deploy
-      shell: docker-compose -f docker-compose.development.yml up -d
+      shell: |
+            docker-compose -f docker-compose.development.yml down
+            docker-compose -f docker-compose.development.yml up -d --remove-orphans
       args:
         chdir: "{{ app_dir }}"
+      register: docker_output
+
+    - name: Show docker-compose output
+      debug:
+      var: docker_output
 
     - name: Install dependencies inside container
       shell: docker-compose exec -T php composer install --optimize-autoloader
