@@ -31,7 +31,7 @@
         recurse: yes
 
     - name: Docker compose deploy
-      shell: docker-compose -f docker-compose.development.yml restart
+      shell: docker-compose -f docker-compose.development.yml up -d --force-recreate
       args:
         chdir: "{{ app_dir }}"
 
