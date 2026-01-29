@@ -135,7 +135,7 @@ class CreateContentSessionAction
             //$data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
-        return [
+        $result = [
             'branch' => $this->session->company->branch,
             'people_id' => $people->id,
             'firstname' => $people->firstname,
@@ -153,6 +153,8 @@ class CreateContentSessionAction
             'leadOwnerName' => $data['leadOwnerName'],
             'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
+
+        return array_merge($data, $result);
     }
 
     /**
