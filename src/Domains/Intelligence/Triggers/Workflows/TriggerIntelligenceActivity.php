@@ -10,8 +10,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
-use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Intelligence\Triggers\Actions\PostHandOffNoteAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -101,7 +99,6 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
 
                 // Post handoff note with state changes
-                $this->postTriggerNote($lead, $modsPrevious, $modsCurrent);
 
                 return [
                     'Trigger IA executed',
@@ -110,38 +107,5 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
             }
         );
-    }
-
-    private function postTriggerNote(Lead $lead, array $previousState, array $currentState): void
-    {
-        // Get the most recent active session for the lead
-        $session = Session::where('entity_namespace', Lead::class)
-            ->where('entity_id', $lead->getId())
-            ->where('is_deleted', 0)
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if (! $session) {
-            return;
-        }
-
-        try {
-            $channel = $session->getChannel();
-        } catch (\Exception $e) {
-            // If channel cannot be determined, skip note posting
-            return;
-        }
-
-        $agent = $lead->owner ?? $lead->user;
-
-        $action = new PostHandOffNoteAction(
-            lead: $lead,
-            agent: $agent,
-            channel: $channel,
-            previousState: $previousState,
-            currentState: $currentState
-        );
-
-        $action->execute();
     }
 }
