@@ -40,6 +40,9 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    channels: [SocialChannel!]
+        @cacheRedis
+        @belongsToMany
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
