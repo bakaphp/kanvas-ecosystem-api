@@ -146,6 +146,7 @@ input EventInput {
     class_id: ID
     category_id: ID!
     resources: Mixed
+    config: Mixed
     participants: [String!]
     dates: [EventVersionDateInput!]!
 }
