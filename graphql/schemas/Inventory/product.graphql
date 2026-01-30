@@ -288,6 +288,7 @@ extend type Query @guard {
                 ]
             )
     ): [Product!]!
+        @can(ability: "view", model: "Kanvas\\Inventory\\Products\\Models\\Products")
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
