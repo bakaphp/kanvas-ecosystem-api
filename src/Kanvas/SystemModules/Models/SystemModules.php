@@ -21,12 +21,12 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\Models\BaseModel;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
-use Kanvas\KanvasModules\Models\KanvasModule;
 use Silber\Bouncer\Database\Ability;
 
 /**
