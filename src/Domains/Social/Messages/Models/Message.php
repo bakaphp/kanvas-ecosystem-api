@@ -13,7 +13,6 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
-use Exception;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -37,7 +36,6 @@ use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
@@ -350,22 +348,6 @@ class Message extends BaseModel
 
     public function isLocked(): bool
     {
-        //For now lets make sure all that all messages not linked with orders are unlocked.
-        if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
-            $this->setUnlock();
-
-            return (bool)$this->is_locked;
-        }
-
-        $orderEntity = $this->appModuleMessage->entity;
-        if ($this->is_locked && $orderEntity->isFullyCompleted()) {
-            $this->setUnlock();
-        }
-
-        if ($this->is_locked) {
-            throw new Exception('Message content is locked');
-        }
-
         return (bool)$this->is_locked;
     }
 
