@@ -196,9 +196,18 @@ class RolesManagementMutation
         $title = key_exists('title', $input) ? $input['title'] : null;
         $permissions = RolesRepository::getPermissions($input['name'], $title);
         $role = $role->execute(auth()->user()->getCurrentCompany());
+
+        // Remove existing entity permissions
         foreach ($permissions as $permission) {
             Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
         }
+
+        // Remove existing module permissions
+        $modulePermissionNames = ModulesRepositories::getAllModulePermissionNames();
+        foreach ($modulePermissionNames as $modulePermission) {
+            Bouncer::disallow($role->name)->to($modulePermission);
+        }
+
         $permissions = $input['permissions'];
         (new BulkAllowRoleToPermissionAction(
             app(Apps::class),
