@@ -120,11 +120,14 @@ jobs:
           echo "Inventory hosts:"
           ansible-inventory -i ansible/inventory.gcp.yaml --graph
       
-      - name: Setup SSH key for ubuntu user
+      - name: Setup SSH key
         run: |
-          # Generate SSH key
           mkdir -p /home/runner/.ssh
-          ssh-keygen -t rsa -b 3072 -N '' -f /home/runner/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /home/runner/.ssh/id_rsa
+          chmod 600 /home/runner/.ssh/id_rsa
+
+          # Derive public key from private key
+          ssh-keygen -y -f /home/runner/.ssh/id_rsa > /home/runner/.ssh/id_rsa.pub
           SSH_PUBLIC_KEY=$(cat /home/runner/.ssh/id_rsa.pub)
 
           # Configure SSH for direct connections
@@ -136,19 +139,18 @@ jobs:
           EOF
           chmod 600 /home/runner/.ssh/config
 
-          # Get all matching instances (name, zone, and external IP)
+          # Add public key to instances if not already present
           gcloud compute instances list \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
             --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
-            --format="value(name,zone,networkInterfaces[0].accessConfigs[0].natIP)" | while read -r INSTANCE_NAME ZONE EXTERNAL_IP; do
+            --format="value(name,zone)" | while read -r INSTANCE_NAME ZONE; do
 
-            echo "Adding SSH key to instance: $INSTANCE_NAME (zone: $ZONE, IP: $EXTERNAL_IP)"
+            echo "Ensuring SSH key is on instance: $INSTANCE_NAME"
 
-            # Use gcloud compute ssh (OS Login) then sudo to ubuntu user to add the key
             gcloud compute ssh "$INSTANCE_NAME" \
               --project="${{ secrets.GCP_PROJECT_ID }}" \
               --zone="$ZONE" \
-              --command="sudo -u ubuntu bash -c 'mkdir -p ~/.ssh && echo \"$SSH_PUBLIC_KEY\" >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys'" \
+              --command="sudo -u ubuntu bash -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF \"$SSH_PUBLIC_KEY\" ~/.ssh/authorized_keys 2>/dev/null || echo \"$SSH_PUBLIC_KEY\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'" \
               --quiet
           done
 
