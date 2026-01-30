@@ -34,14 +34,8 @@ class CreateGlobalSystemModulesFromTemplateCommand extends Command
     public function handle(): int
     {
         $appId = 0;
-        $dryRun = $this->option('dry-run');
         $verbose = $this->option('verbose');
         $abilitiesByModule = ModulesRepositories::getAbilitiesByModule();
-
-        if ($dryRun) {
-            warning('DRY RUN MODE - No changes will be made');
-            $this->newLine();
-        }
 
         $createdCount = 0;
         $updatedCount = 0;
@@ -92,12 +86,10 @@ class CreateGlobalSystemModulesFromTemplateCommand extends Command
                     if ($systemModule->modules_id !== $moduleId) {
                         $oldModuleId = $systemModule->modules_id ?? 'NULL';
 
-                        if (! $dryRun) {
-                            $systemModule->modules_id = $moduleId;
-                            $systemModule->save();
-                        }
+                        $systemModule->modules_id = $moduleId;
+                        $systemModule->save();
 
-                        info("    ✓ Updated - {$modelName} - modules_id: {$oldModuleId} → {$moduleId}" . ($dryRun ? ' (dry-run)' : ''));
+                        info("    ✓ Updated - {$modelName} - modules_id: {$oldModuleId} → {$moduleId}");
                         $updatedCount++;
                     } else {
                         if ($verbose) {
@@ -106,19 +98,17 @@ class CreateGlobalSystemModulesFromTemplateCommand extends Command
                         $skippedCount++;
                     }
                 } else {
-                    if (! $dryRun) {
-                        // Create new system module
-                        $systemModule = SystemModules::create([
-                            'model_name' => $modelClass,
-                            'name' => Str::simpleSlug($modelName),
-                            'apps_id' => $appId,
-                            'slug' => Str::simpleSlug($modelName),
-                            'modules_id' => $moduleId,
-                            'use_import' => false,
-                        ]);
-                    }
+                    // Create new system module
+                    $systemModule = SystemModules::create([
+                        'model_name' => $modelClass,
+                        'name' => Str::simpleSlug($modelName),
+                        'apps_id' => $appId,
+                        'slug' => Str::simpleSlug($modelName),
+                        'modules_id' => $moduleId,
+                        'use_import' => false,
+                    ]);
 
-                    info("    ✓ Created - {$modelName} - modules_id: {$moduleId}" . ($dryRun ? ' (dry-run)' : ''));
+                    info("    ✓ Created - {$modelName} - modules_id: {$moduleId}");
                     $createdCount++;
                 }
             }

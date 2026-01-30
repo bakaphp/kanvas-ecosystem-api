@@ -6,8 +6,14 @@ namespace Kanvas\AccessControlList\Traits;
 
 use Kanvas\AccessControlList\Models\ModulePermission;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
-use Kanvas\Exceptions\AuthorizationException;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
+/**
+ * Trait for checking module-level access permissions.
+ * This trait requires the class to have the HasRolesAndAbilities trait from Bouncer.
+ *
+ * @method bool can(string $ability, array|mixed $arguments = [])
+ */
 trait HasModuleAccess
 {
     /**
