@@ -167,11 +167,12 @@ class FollowUpEngagementAction
                 }
 
                 if ($followUpDay->send_message) {
+                    $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
                         $this->lead->company->get('twilio_phone_number'),
-                        $this->lead->company->name
+                        $emailTitle
                     );
 
                     DailyReportService::track(
