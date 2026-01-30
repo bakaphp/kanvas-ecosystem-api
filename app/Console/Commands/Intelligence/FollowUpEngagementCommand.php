@@ -31,7 +31,7 @@ class FollowUpEngagementCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--ignore-have-follow-up=0}';
+    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--ignore-have-follow-up=0} {--ignore-first-message=0}';
 
     protected $description = 'Refresh the content of a session by its ID';
 
@@ -76,7 +76,8 @@ class FollowUpEngagementCommand extends Command
 
                 //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
                 $muteAiAgent = $lead->isAiMuted();
-                $noFirstMessage = $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+                $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
+                $noFirstMessage = ! $ignoreFirstMessage && $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                 $notActive = $lead->isActive() === false;
                 $hasBeenContacted = $lead->hasBeenContacted();
                 $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];

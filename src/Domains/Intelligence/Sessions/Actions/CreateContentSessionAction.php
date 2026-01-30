@@ -52,11 +52,29 @@ class CreateContentSessionAction
 
     public function execute(): array
     {
-        return match ($this->session->entity_namespace) {
+        $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
             default => [],
         };
+
+        $result['background'] = $this->generateBackground($result);
+
+        return $result;
+    }
+
+    protected function generateBackground(array $data): mixed
+    {
+        try {
+            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
+                ? Blade::render(json_encode($this->session->agent->role), $data)
+                : null;
+        } catch (Exception $e) {
+            report($e);
+            $background = $this->session->agent?->role;
+        }
+
+        return Str::isJson($background) ? json_decode($background) : $background;
     }
 
     protected function mapLead(Lead $lead): array
@@ -117,14 +135,7 @@ class CreateContentSessionAction
             //$data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role) ? Blade::render(json_encode($this->session->agent->role), $data) : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
-        }
-
-        return [
+        $result = [
             'branch' => $this->session->company->branch,
             'people_id' => $people->id,
             'firstname' => $people->firstname,
@@ -134,7 +145,6 @@ class CreateContentSessionAction
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
-            'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
@@ -143,6 +153,8 @@ class CreateContentSessionAction
             'leadOwnerName' => $data['leadOwnerName'],
             'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
+
+        return array_merge($data, $result);
     }
 
     /**
