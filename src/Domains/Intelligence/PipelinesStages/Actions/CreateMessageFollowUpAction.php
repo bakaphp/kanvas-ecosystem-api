@@ -192,6 +192,11 @@ class CreateMessageFollowUpAction
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)
+                       ->withClientOptions([
+                           'timeout' => 220,
+                           'connect_timeout' => 220,
+                           'read_timeout' => 220,
+                       ])
                        ->asStructured();
             if (! empty($response->structured)) {
                 return $response->structured;
