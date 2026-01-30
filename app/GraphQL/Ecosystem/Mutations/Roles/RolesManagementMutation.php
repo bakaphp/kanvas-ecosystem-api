@@ -18,6 +18,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\ModulePermission;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
