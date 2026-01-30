@@ -65,6 +65,8 @@ type Order {
     channel: Channel @belongsTo(relation: "channel")
     parent: Order @belongsTo(relation: "parent")
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
+    pipeline_stage: Int! @method(name: "getPipelineStage")
+    total_pipeline_stages: Int! @method(name: "getTotalPipelineStages")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
     orderTransitionHistory: [OrderTransitionHistory!]
@@ -139,6 +141,7 @@ type OrderStatus {
     order_type: OrderType! @belongsTo(relation: "orderType")
     is_default: Boolean!
     is_final: Boolean!
+    sequence: Int!
     metadata: Mixed
 }
 
@@ -335,8 +338,21 @@ input PaymentCustomFieldInput {
 
 input TransitionOrderStatusInput {
     order_id: ID!
-    status_slug: String!
+    status_slug: String
     date: String
+}
+
+type PipelineStage {
+    status: OrderStatus!
+    is_current: Boolean!
+    is_completed: Boolean!
+    sequence: Int!
+}
+
+type OrderPipelineResult {
+    stages: [PipelineStage!]!
+    current_status: OrderStatus
+    available_transitions: [OrderStatus!]!
 }
 
 type OrderStatusTransitionResult {
@@ -676,5 +692,9 @@ extend type Query @guard {
             defaultCount: 25
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
             scopes: ["fromPublicApp", "notDeleted"]
+        )
+    orderPipeline(order_id: ID!): OrderPipelineResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderPipelineQuery@resolve"
         )
 }
