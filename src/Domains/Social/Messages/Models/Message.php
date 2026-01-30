@@ -348,7 +348,7 @@ class Message extends BaseModel
 
     public function isLocked(): bool
     {
-        return (bool)$this->is_locked;
+        return (bool) $this->is_locked;
     }
 
     public function getUniqueId(): string
