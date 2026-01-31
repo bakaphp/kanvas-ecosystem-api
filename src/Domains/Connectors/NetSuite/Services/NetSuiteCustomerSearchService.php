@@ -16,13 +16,13 @@ use NetSuite\NetSuiteService;
 
 class NetSuiteCustomerSearchService
 {
-    protected NetSuiteService $service;
+    protected Client $client;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
+        $this->client = new Client($app, $company);
     }
 
     /**
@@ -52,7 +52,9 @@ class NetSuiteCustomerSearchService
         $searchRequest = new SearchRequest();
         $searchRequest->searchRecord = $search;
 
-        $response = $this->service->search($searchRequest);
+        $response = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
+            return $service->search($searchRequest);
+        });
 
         if (! $response->searchResult->status->isSuccess) {
             throw new Exception('Error searching customers: ' . $response->searchResult->status->statusDetail[0]->message);
@@ -74,7 +76,9 @@ class NetSuiteCustomerSearchService
                 $searchMoreRequest->searchId = $searchId;
                 $searchMoreRequest->pageIndex = $pageIndex;
 
-                $moreResponse = $this->service->searchMoreWithId($searchMoreRequest);
+                $moreResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchMoreRequest) {
+                    return $service->searchMoreWithId($searchMoreRequest);
+                });
 
                 if ($moreResponse->searchResult->status->isSuccess && isset($moreResponse->searchResult->searchRowList->searchRow)) {
                     $moreCustomers = $this->mapSearchResultToCustomer($moreResponse->searchResult->searchRowList->searchRow);
