@@ -151,6 +151,52 @@ final class CustomerTest extends TestCase
         $this->assertIsArray($result);
     }
 
+    public function testSyncNetSuiteCustomerItemsListFromPayload()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+
+        $buyerCompany = Companies::factory()->create();
+        $buyerCompany->associateUser($company->user, true, $buyerCompany->defaultBranch);
+
+        $itemPricingList = [
+            [
+                'item' => '492',
+                'level' => '-1',
+                'price' => '3.14',
+                'sys_id' => '20859524076679148',
+                'currency' => '1',
+                'item_display' => '4511338002063',
+                'sys_parentid' => '20859524069940939',
+                'currency_display' => 'USD',
+            ],
+            [
+                'item' => '494',
+                'level' => '-1',
+                'price' => '3.14',
+                'sys_id' => '20859524076673028',
+                'currency' => '1',
+                'item_display' => '4511338002087',
+                'sys_parentid' => '20859524069940939',
+                'currency_display' => 'USD',
+            ],
+        ];
+
+        $syncCustomerItemsList = new SyncNetSuiteCustomerItemsListAction(
+            $app,
+            $company,
+            $buyerCompany,
+            $itemPricingList
+        );
+        $result = $syncCustomerItemsList->execute();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('channel', $result);
+        $this->assertArrayHasKey('total_processed', $result);
+        $this->assertArrayHasKey('products_not_found', $result);
+        $this->assertEquals(2, $result['total_items']);
+    }
+
     public function testGetCustomerInvoiceByNumber()
     {
         $company = Companies::first();
