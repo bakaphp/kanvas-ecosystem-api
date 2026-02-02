@@ -146,6 +146,7 @@ input EventInput {
     class_id: ID
     category_id: ID!
     resources: Mixed
+    config: Mixed
     participants: [String!]
     dates: [EventVersionDateInput!]!
 }
@@ -165,6 +166,11 @@ type EventResource {
     metadata: Mixed
     created_at: DateTime
     updated_at: DateTime
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 union EventResourceUnion = Variant
@@ -316,6 +322,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["name", "slug", "id"]
                 handler: "App\\GraphQL\\Event\\Handlers\\EventStatusHandler"
+            )
+        hasResourceCustomFields: _
+            @whereHasConditions(
+                relation: "resources.customFields"
+                columns: ["name", "value"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Event!]!

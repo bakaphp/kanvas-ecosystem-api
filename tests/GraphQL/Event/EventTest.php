@@ -98,4 +98,56 @@ class EventTest extends TestCase
                 }
             }')->assertSee('eventVersions');
     }
+
+    public function testCreateEventWithConfig(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $setup = new Setup($app, $user, $company);
+        $setup->run();
+
+        $input = [
+            'name' => 'Test Event With Config',
+            'description' => 'Test event with config field',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'config' => [
+                'setting1' => 'value1',
+                'setting2' => true,
+                'nested' => [
+                    'key' => 'nestedValue',
+                ],
+            ],
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '10:00',
+                    'end_time' => '12:00',
+                ],
+            ],
+        ];
+
+        $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) {
+                    id
+                    name
+                    resources {
+                        id
+                        metadata
+                    }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->assertJson([
+            'data' => [
+                'createEvent' => [
+                    'name' => 'Test Event With Config',
+                ],
+            ],
+        ]);
+    }
 }
