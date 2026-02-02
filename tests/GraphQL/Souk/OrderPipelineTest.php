@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Souk\Orders\Actions\GetOrderPipelineAction;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\Souk\Orders\Repositories\OrderRepository;
 
 class OrderPipelineTest extends OrderBase
 {
@@ -121,7 +121,7 @@ class OrderPipelineTest extends OrderBase
             orderType: $this->orderTypeName,
         );
 
-        $pipeline = (new GetOrderPipelineAction($order))->execute();
+        $pipeline = (new OrderRepository($order))->getPipeline();
 
         $this->assertCount(4, $pipeline['stages']);
         $this->assertNotNull($pipeline['current_status']);

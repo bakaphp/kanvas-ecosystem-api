@@ -24,6 +24,10 @@ class OrderTypes extends BaseModel
     protected $table = 'order_types';
     protected $guarded = [];
 
+    protected $casts = [
+        'total_statuses' => 'integer',
+    ];
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'order_types_id', 'id');

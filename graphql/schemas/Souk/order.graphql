@@ -65,8 +65,6 @@ type Order {
     channel: Channel @belongsTo(relation: "channel")
     parent: Order @belongsTo(relation: "parent")
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
-    pipeline_stage: Int! @method(name: "getPipelineStage")
-    total_pipeline_stages: Int! @method(name: "getTotalPipelineStages")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
     orderTransitionHistory: [OrderTransitionHistory!]
@@ -129,6 +127,7 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    total_statuses: Int!
     created_at: String
     updated_at: String
 }
@@ -342,6 +341,24 @@ input TransitionOrderStatusInput {
     date: String
 }
 
+input CreateOrderStatusInput {
+    order_type_id: ID!
+    name: String!
+    slug: String!
+    is_default: Boolean = false
+    is_final: Boolean = false
+    sequence: Int!
+    transitions_from: [String!]
+}
+
+input UpdateOrderStatusInput {
+    name: String
+    slug: String
+    is_default: Boolean
+    is_final: Boolean
+    sequence: Int
+}
+
 type PipelineStage {
     status: OrderStatus!
     is_current: Boolean!
@@ -457,6 +474,19 @@ extend type Mutation @guard {
     ): OrderStatusTransitionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
+        )
+    createOrderStatus(
+        input: CreateOrderStatusInput!
+    ): OrderStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
+        )
+    updateOrderStatus(
+        id: ID!
+        input: UpdateOrderStatusInput!
+    ): OrderStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
 }
 

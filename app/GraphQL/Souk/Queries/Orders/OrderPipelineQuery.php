@@ -6,8 +6,8 @@ namespace App\GraphQL\Souk\Queries\Orders;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Souk\Orders\Actions\GetOrderPipelineAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Repositories\OrderRepository;
 use Kanvas\Souk\Services\B2BConfigurationService;
 
 class OrderPipelineQuery
@@ -28,6 +28,6 @@ class OrderPipelineQuery
             throw new ValidationException('Order not found');
         }
 
-        return new GetOrderPipelineAction($order)->execute();
+        return (new OrderRepository($order))->getPipeline();
     }
 }

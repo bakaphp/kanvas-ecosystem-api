@@ -720,22 +720,6 @@ class Order extends BaseModel
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
     }
 
-    public function getPipelineStage(): int
-    {
-        return $this->orderStatus?->sequence ?? 0;
-    }
-
-    public function getTotalPipelineStages(): int
-    {
-        if (! $this->orderType) {
-            return 0;
-        }
-
-        return OrderStatus::where('order_types_id', $this->orderType->id)
-            ->where('is_deleted', false)
-            ->count();
-    }
-
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channels::class, 'channel_id', 'id');

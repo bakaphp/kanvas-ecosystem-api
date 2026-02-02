@@ -76,6 +76,8 @@ class CreateOrderStatusesAction
             }
         }
 
+        $orderType->update(['total_statuses' => count($createdStatuses)]);
+
         return [
             'order_type' => $orderType,
             'statuses' => $createdStatuses,
