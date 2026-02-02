@@ -52,6 +52,7 @@ class OrderStatsQuery
         $paidStates = $input['paidStates'] ?? ['paid'];
         $variantId = $input['variantId'] ?? null;
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
+        $providers = $input['providers'] ?? [];
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -63,6 +64,7 @@ class OrderStatsQuery
             $paidStates,
             $variantId,
             $productTypeSlugs,
+            $providers,
         )->execute(
             $date,
             $startDate,
