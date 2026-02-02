@@ -17,6 +17,7 @@ class GetOrderPaymentStatsAction
         protected ?int $variantId = null,
         protected array $productTypeSlugs = [],
         protected array $orderTypeNames = [],
+        protected array $providers = [],
     ) {
         $this->repository = new OrderPaymentRepository($app);
     }
@@ -96,11 +97,29 @@ class GetOrderPaymentStatsAction
         // Get service stats from the already filtered orders
         $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
 
+        // Get provider stats if providers are specified
+        $byProvider = [];
+        if (! empty($this->providers)) {
+            $providerResults = $this->repository->getOrdersByProvider(
+                $start,
+                $end,
+                $this->paidStates,
+                $this->providers,
+                $this->variantId
+            );
+            $byProvider = $providerResults->map(fn ($row) => [
+                'name' => $row->provider_name,
+                'count' => (int) $row->total_count,
+                'totalAmount' => (float) $row->total_amount,
+            ])->values()->toArray();
+        }
+
         return [
             'orderAvg' => $daysInRange->count() > 0 ? $totalEntries / $daysInRange->count() : 0,
             'count' => $totalEntries,
             'totalAmount' => $totalAmount,
             'byServices' => $byServices,
+            'byProvider' => $byProvider,
             'byTransaction' => [
                 'card' => $byDates->sum(fn ($entry) => $entry['states']['card'] ?? 0),
                 'transfer' => $byDates->sum(fn ($entry) => $entry['states']['transaction'] ?? 0),

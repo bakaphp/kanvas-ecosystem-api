@@ -218,6 +218,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                    $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 

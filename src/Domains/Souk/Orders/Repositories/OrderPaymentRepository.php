@@ -66,6 +66,49 @@ class OrderPaymentRepository
     }
 
     /**
+     * Get orders grouped by provider based on user_email patterns
+     */
+    public function getOrdersByProvider(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        array $providers,
+        ?int $variantId = null
+    ): Collection {
+        $query = Order::query()
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
+            ->where('orders.apps_id', $this->app->id)
+            ->whereIn('order_statuses.slug', $paidStates)
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('items', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            });
+
+        // Build CASE WHEN for provider matching
+        $caseStatements = [];
+        $bindings = [];
+        foreach ($providers as $provider) {
+            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $bindings[] = $provider['emailPattern'];
+            $bindings[] = $provider['name'];
+        }
+        $caseStatements[] = "ELSE 'other'";
+        $caseExpression = 'CASE ' . implode(' ', $caseStatements) . ' END';
+
+        return $query
+            ->selectRaw("
+                ({$caseExpression}) AS provider_name,
+                COUNT(DISTINCT orders.id) AS total_count,
+                SUM(orders.total_net_amount) AS total_amount
+            ", $bindings)
+            ->groupByRaw("provider_name")
+            ->get();
+    }
+
+    /**
      * Get order IDs that match the payment criteria
      */
     public function getOrderIdsByPaymentCriteria(
