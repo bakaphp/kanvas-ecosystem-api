@@ -587,6 +587,11 @@ extend type Query @guard {
                 columns: ["name", "slug", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
             )
+        hasOrder: _
+            @whereHasConditions(
+                relation: "order"
+                columns: ["user_email", "user_phone", "status", "reference"]
+            )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
         @paginate(
