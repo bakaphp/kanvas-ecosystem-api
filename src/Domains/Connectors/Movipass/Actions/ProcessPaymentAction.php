@@ -7,7 +7,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
-use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -75,13 +74,7 @@ class ProcessPaymentAction
         }
 
         try {
-            if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
-                new TransitionOrderStateAction(
-                    $this->order,
-                    $this->payment->user,
-                    $orderStatus
-                )->execute(true);
-            }
+            $this->order->markAsPaid($this->payment->user);
 
             new SendPaymentReceiptAction(
                 $this->order,
