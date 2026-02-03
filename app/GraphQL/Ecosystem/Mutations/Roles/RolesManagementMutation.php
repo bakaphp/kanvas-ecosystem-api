@@ -47,6 +47,24 @@ class RolesManagementMutation
         $newRoleIds = is_array($request['roleIds']) ? $request['roleIds'] : [$request['roleIds']];
         $newRoleIds = array_map('intval', $newRoleIds);
 
+        if ($auth->getId() === $user->getId()) {
+            $currentRoles = $this->getCurrentUserAppRoles($user, $app);
+            $hasOwnerRole = $currentRoles->contains(function ($role) {
+                return $role->name === RolesEnums::OWNER->value;
+            });
+
+            if ($hasOwnerRole) {
+                $newRoles = SilberRole::whereIn('id', $newRoleIds)->get();
+                $newRolesHaveOwner = $newRoles->contains(function ($role) {
+                    return $role->name === RolesEnums::OWNER->value;
+                });
+
+                if (! $newRolesHaveOwner) {
+                    throw new AuthorizationException('You cannot remove your own Owner role');
+                }
+            }
+        }
+
         $this->syncRolesEfficiently($user, $app, $newRoleIds);
 
         foreach ($request['roleIds'] as $roleId) {
@@ -75,6 +93,10 @@ class RolesManagementMutation
             $user = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
+        if ($role->name === RolesEnums::OWNER->value && $auth->getId() === $user->getId()) {
+            throw new AuthorizationException('You cannot remove your own Owner role');
         }
 
         $user->retract($role->name);
@@ -256,6 +278,11 @@ class RolesManagementMutation
         $role = SilberRole::find($roleId);
         if (! $role) {
             return;
+        }
+
+        $auth = auth()->user();
+        if ($role->name === RolesEnums::OWNER->value && $auth->getId() === $user->getId()) {
+            throw new AuthorizationException('You cannot remove your own Owner role');
         }
 
         Bouncer::retract($role->name)->from($user);
