@@ -14,6 +14,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
+use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
@@ -90,11 +91,23 @@ class PaymentMutation
             ];
         }
 
-        $formData = $request['input'];
+        if ($order->hasAuthorizedPayment()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order already has an authorized payment',
+            ];
+        }
 
+        $formData = $request['input'];
+        $paymentMethodType = $formData['payment_method'] ?? null;
         $paymentMethodId = $formData['payment_methods_id'] ?? $order->metadata['data']['payment_methods_id'] ?? null;
 
-        if (! $paymentMethodId) {
+        $isDirectPaymentMethod = in_array($paymentMethodType, [
+            PaymentMethodTypesEnum::CASH->value,
+            PaymentMethodTypesEnum::BANK_TRANSFER->value,
+        ]);
+
+        if (! $paymentMethodId && ! $isDirectPaymentMethod) {
             return [
                 'status' => 'error',
                 'message' => 'Payment method not found',
@@ -103,6 +116,12 @@ class PaymentMutation
 
         try {
             $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
+            $formData['payment_method_type'] = $paymentMethodType;
+
+            if ($paymentMethodType === PaymentMethodTypesEnum::CASH->value) {
+                $formData['status'] = PaymentStatusEnum::PAID->value;
+            }
+
             $payment = new CreatePaymentAction($order, $user)->execute($formData);
         } catch (Exception $e) {
             return [
