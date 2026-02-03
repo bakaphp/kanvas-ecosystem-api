@@ -38,3 +38,4 @@ app/Console/Commands/Intelligence/FirstMessageCommand.php
 
 
 ansible/inventory.gcp.yaml
+compose.local.yml
