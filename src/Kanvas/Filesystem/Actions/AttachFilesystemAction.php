@@ -127,7 +127,25 @@ class AttachFilesystemAction
 
             // Fire events after successful database operations
             if ($this->entity->hasWorkflow()) {
-                $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
+                $this->entity->fireWorkflow(
+                    WorkflowEnum::ATTACH_FILE->value,
+                    true,
+                    [
+                        'app' => $this->filesystem->app,
+                        'company' => $this->filesystem->company,
+                    ]
+                );
+            }
+
+            if ($fileEntity->hasWorkflow()) {
+                $fileEntity->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                        'app' => $this->filesystem->app,
+                        'company' => $this->filesystem->company,
+                    ]
+                );
             }
 
             if (method_exists($this->entity, 'clearLightHouseCache')) {

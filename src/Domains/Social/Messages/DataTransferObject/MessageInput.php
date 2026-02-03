@@ -42,6 +42,7 @@ class MessageInput extends Data
         public ?string $channel_slug = null,
         public array $files = [],
         public array $categories = [],
+        public int $is_locked = 0,
     ) {
     }
 
@@ -87,6 +88,7 @@ class MessageInput extends Data
             $data['channel_slug'] ?? null,
             $data['files'] ?? [],
             $data['categories'] ?? [],
+            $data['is_locked'] ?? 0,
         );
     }
 }

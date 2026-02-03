@@ -276,14 +276,23 @@ class CreateEventAction
         foreach ($resources as $resourceData) {
             if (isset($resourceData['resources_id']) && isset($resourceData['resources_type'])) {
                 $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceData['resources_type']);
-                EventResource::create([
+
+                // Use resource-specific metadata, or fall back to global config
+                $metadata = $resourceData['metadata'] ?? $this->event->config;
+
+                $eventResource = EventResource::create([
                     'apps_id' => $event->apps_id,
                     'companies_id' => $event->companies_id,
                     'event_id' => $event->getId(),
                     'resources_id' => $resourceData['resources_id'],
                     'resources_type' => $resourceClass,
-                    'metadata' => $resourceData['metadata'] ?? null,
+                    'metadata' => $metadata,
                 ]);
+
+                if (isset($resourceData['custom_fields']) && is_array($resourceData['custom_fields'])) {
+                    $eventResource->setCustomFields($resourceData['custom_fields']);
+                    $eventResource->saveCustomFields();
+                }
             }
         }
     }

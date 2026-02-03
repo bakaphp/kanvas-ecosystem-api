@@ -11,6 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Souk\Orders\Models\Order;
+use Override;
 
 class DuplicatedMetadata implements ValidationRule
 {
@@ -20,10 +21,11 @@ class DuplicatedMetadata implements ValidationRule
     ) {
     }
 
+    #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         // Check if validation is enabled for this app
-        $enabled = $this->app->get("validate_metadata_duplicated_enabled");
+        $enabled = $this->app->get('validate_metadata_duplicated_enabled');
         if (! $enabled || $enabled !== 1) {
             return;
         }
@@ -78,7 +80,9 @@ class DuplicatedMetadata implements ValidationRule
         $query = Order::fromApp($this->app)
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+            ->where('metadata', '!=', '')
+            ->whereRaw("JSON_VALID(metadata)")
+            ->whereRaw("JSON_LENGTH(metadata) > 0")
             ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
 
         // Exclude certain order statuses if configured

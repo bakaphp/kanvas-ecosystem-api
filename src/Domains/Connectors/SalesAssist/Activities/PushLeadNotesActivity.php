@@ -6,12 +6,15 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\DriveCentric\Actions\AddCoBuyerToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddCreditAppToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddTradeInToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\AddVehicleOfInterestToDealAction;
 use Kanvas\Connectors\DriveCentric\Actions\ProcessPurchaseVehicleAction;
+use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -21,6 +24,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class PushLeadNotesActivity extends KanvasActivity
 {
@@ -34,12 +38,20 @@ class PushLeadNotesActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([
                         'error' => 'Message is not associated with a Lead',
+                    ]);
+                }
+
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'message_id' => $message->getId(),
+                        'message' => 'Message is locked or not public, skipping Elead note push.',
                     ]);
                 }
 
@@ -55,6 +67,16 @@ class PushLeadNotesActivity extends KanvasActivity
                     $note = new AddCommentToDealAction($lead)->execute($message);
 
                     $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
+
+                    try {
+                        $handleCheckList = new ProcessMessageTaskUpdatesAction(
+                            message: $message,
+                            lead: $lead,
+                            user: $message->user,
+                        )->execute();
+                    } catch (Throwable $e) {
+                        $handleCheckList = $e->getMessage();
+                    }
                 }
                 /*  // Process task updates
                  $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);
@@ -72,7 +94,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 return [
                     'note' => $note,
                     'handlerResult' => $handlerResult,
-                    //'taskUpdates' => $processMessageTaskUpdatesAction,
+                    'taskUpdates' => $handleCheckList,
                     'message' => 'Note added to Lead successfully',
                 ];
             },
@@ -127,6 +149,8 @@ class PushLeadNotesActivity extends KanvasActivity
                     return null;
                 }
                 $lead->addCoBuyerParticipant($people);
+                //new AddCoBuyerToDealAction($lead)->execute($people);
+                new PushLeadAction($lead)->execute();
                 $result = new AddCreditAppToDealAction($lead)->execute($message, $people);
 
                 break;

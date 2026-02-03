@@ -41,19 +41,32 @@ class PushLeadNotesActivity extends KanvasActivity
             ];
         }
 
+        sleep(5); // To avoid locked message being processed
+
         return $this->executeIntegration(
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
+                $message->refresh();
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
-                    throw new Exception('Lead not found');
+                    return $this->failWorkflow([
+                        'error' => 'Message is not associated with a Lead',
+                    ]);
                 }
 
                 $syncLeadAction = new SyncLeadAction($lead);
                 $eLeadOpportunity = $syncLeadAction->execute();
+
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'message_id' => $message->getId(),
+                        'message' => 'Message is locked or not public, skipping Elead note push.',
+                    ]);
+                }
 
                 // Add note to lead
                 $addNoteAction = new AddNoteToLeadAction(

@@ -122,12 +122,19 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: $this->getIntegration(),
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams): array {
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([
                         'error' => 'Message is not linked to a Lead entity',
+                    ]);
+                }
+
+                if ($message->get('sent_to_crm')) {
+                    return $this->failWorkflow([
+                        'error' => 'Message has already been sent to CRM',
                     ]);
                 }
 
@@ -155,6 +162,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 // Add note to the external CRM system
                 $externalResult = $this->addNoteToExternalSystem($lead, $formattedNote, $message, $app);
+                $message->set('sent_to_crm', true);
 
                 // Handle failure from external system
                 if (is_array($externalResult) && isset($externalResult['error'])) {
