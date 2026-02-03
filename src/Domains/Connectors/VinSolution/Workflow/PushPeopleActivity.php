@@ -29,6 +29,7 @@ class PushPeopleActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
                 $pushPeopleAction = new PushPeopleAction(
                     people: $people,

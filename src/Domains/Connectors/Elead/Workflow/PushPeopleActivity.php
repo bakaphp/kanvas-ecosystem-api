@@ -29,6 +29,7 @@ class PushPeopleActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
                 try {
                     $syncPeople = new SyncPeopleAction($people)->execute();

@@ -47,6 +47,7 @@ class PushLeadNotesActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams) {
                 $message->refresh();
                 $lead = $message->entity();
