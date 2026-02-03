@@ -75,8 +75,18 @@ type PaymentResult {
     message: Mixed
 }
 
+enum PaymentMethodTypeEnum {
+    MANUAL @enum(value: "manual")
+    CARD @enum(value: "card")
+    CASH @enum(value: "cash")
+    BANK_TRANSFER @enum(value: "bank_transfer")
+    WALLET @enum(value: "wallet")
+    PAYMENT @enum(value: "payment")
+}
+
 input PaymentInput {
-    payment_methods_id: ID!
+    payment_methods_id: ID
+    payment_method: PaymentMethodTypeEnum
     amount: Money
     order_metadata: Mixed
     payment_date: String
