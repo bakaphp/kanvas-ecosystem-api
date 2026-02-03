@@ -11,7 +11,7 @@ type PaymentMethod {
     updated_at: String
 }
 
-type Payment {
+type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     id: ID!
     apps_id: ID!
     company: Company! @belongsTo
@@ -20,6 +20,8 @@ type Payment {
     uuid: String!
     user: User! @belongsTo(relation: "user")
     payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
+    payment_method_type: String @rename(attribute: "payment_method")
+    order: Order @field(resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\PaymentOrderResolver")
     payment_date: String!
     concept: String!
     notes: String
@@ -147,7 +149,52 @@ extend type Mutation @guard {
         )
 }
 
-extend type Query {
+extend type Query @guard {
+    payments(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "payable_id"
+                    "payable_type"
+                    "payment_methods_id"
+                    "status"
+                    "amount"
+                    "currency"
+                    "payment_date"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        hasOrder: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "order_number"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "reference"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasOrderHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+    ): [Payment!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Payments\\Models\\Payments"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+
     paymentMethods(
         orderBy: PaymentMethodOrderByInput
         where: _
