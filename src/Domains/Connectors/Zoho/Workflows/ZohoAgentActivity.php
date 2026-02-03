@@ -195,6 +195,13 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         $companyDefaultOwnerSourceId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value);
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
 
+        if ($ownerMemberNumber) {
+            $ownerInfo = Agent::fromApp($app)
+                ->fromCompany($company)
+                ->where('member_id', $ownerMemberNumber)
+                ->first();
+        }
+
         $agent = new Agent();
         $agent->users_id = $user->getId();
         $agent->apps_id = $app->getId();
@@ -203,6 +210,11 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         $agent->member_id = Agent::getNextAgentNumber($company);
         $agent->owner_id = $ownerMemberNumber ?? $companyDefaultOwnerMemberId;
         $agent->owner_linked_source_id = $ownerId ?? $companyDefaultOwnerSourceId;
+
+        if ($ownerInfo) {
+            $agent->sponsor_name = $ownerInfo->name;
+            $agent->sponsor_user_id = $ownerInfo->users_id;
+        }
         $agent->saveOrFail();
 
         //create in zoho
