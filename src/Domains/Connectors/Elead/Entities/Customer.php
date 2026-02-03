@@ -39,14 +39,31 @@ class Customer
     }
 
     /**
-     * Create a new customer.
+     * Sanitize payload by removing null values and empty arrays.
+     * Fortellis API rejects requests with empty arrays or null values.
      */
+    private static function sanitizePayload(array $data): array
+    {
+        return array_filter($data, function ($value) {
+            // Remove null values
+            if ($value === null) {
+                return false;
+            }
+            // Remove empty arrays
+            if (is_array($value) && empty($value)) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
     public static function create(AppInterface $app, Companies $company, array $data): self
     {
         $client = new Client($app, $company);
         $response = $client->post(
             '/sales/v1/elead/customers/',
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {
@@ -66,7 +83,7 @@ class Customer
         $client = new Client($this->app, $this->company);
         $response = $client->post(
             '/sales/v1/elead/customers/' . $this->id,
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {

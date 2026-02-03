@@ -11,6 +11,11 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
+use Kanvas\Intelligence\FollowUp\Models\FollowUp;
+use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -20,31 +25,78 @@ use function Sentry\captureException;
 
 class FollowUpEngagementAction
 {
+    protected ?FollowUp $followUp = null;
+
     public function __construct(
         public Lead $lead
     ) {
+        $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+
+        if (! $aiFollowUpType) {
+            $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE->value)
+                ?? FollowUpTypeEnum::LEAD_FOLLOW_UP->value;
+        }
+
+        if ($aiFollowUpType === FollowUpTypeEnum::NO_FOLLOW_UP->value) {
+            throw new FollowUpException('No follow up type set on lead');
+        }
+
+        $this->followUp = FollowUpRepository::getFollowUpFromLead($lead, $aiFollowUpType);
     }
 
     public function execute(): ?array
     {
-        $config = $this->lead->stage->config;
+        if (! $this->followUp) {
+            return null;
+        }
+
+        $followUpDay = $this->followUp->days()
+            ->where('pipeline_stages_id', $this->lead->stage->getId())
+            ->where('is_deleted', 0)
+            ->orderBy('weight', 'ASC')
+            ->first();
+
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
                 ->fromApp($this->lead->app)
                 ->fromCompany($this->lead->company)
                 ->get();
-
+        $processedChannels = [];
         foreach ($sessions as $session) {
-            if (! $session) {
+            $messageTemplateChannel = $session->getChannel();
+
+            // Skip if this channel has already been processed
+            if (in_array($messageTemplateChannel, $processedChannels)) {
                 continue;
             }
+            $processedChannels[] = $messageTemplateChannel;
 
-            $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
+            if (! $lastMessage) {
+                continue;
+            }
             $isWhatsApp = $messageTemplateChannel === 'whatsapp';
 
-            $rules = $config['notification_engagement_rules'];
+            // WhatsApp validation: check if last message was not from Lead entity
+            if ($isWhatsApp) {
+                $totalMessages = $session->channel->messages()->where('messages.is_deleted', 0)->count();
+
+                if ($totalMessages > 2 && $lastMessage) {
+                    $entity = $lastMessage->entity();
+
+                    if ($entity && ! ($entity instanceof Lead)) {
+                        return [
+                            'message' => 'Last message was not responded',
+                            'reason' => 'last_message_not_from_lead',
+                            'channel' => $messageTemplateChannel,
+                            'total_messages' => $totalMessages,
+                            'entity_type' => \get_class($entity),
+                        ];
+                    }
+                }
+            }
+
             //$lastMessageTime = $this->lead->get(ConfigurationEnum::LAST_MESSAGE_TIME->value) ?? $content['additional_context_information']['work_hours_status']['current_time'];
             $timezone = $this->lead->company->timezone ?? 'UTC';
 
@@ -69,24 +121,41 @@ class FollowUpEngagementAction
             $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
 
             if ($lastMessageCreatedAt) {
+                if ($followUpDay->calendar_day) {
+                    $this->lead->pipeline_stage_id = $followUpDay->move_to_stage_id ?? $this->lead->pipeline_stage_id;
+                    $this->lead->saveOrFail();
+                    $followUpDay = $this->followUp->days()
+                        ->where('pipeline_stages_id', $this->lead->stage->getId())
+                        ->where('is_deleted', 0)
+                        ->orderBy('weight', 'ASC')
+                        ->first();
+                }
                 $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
                 $timeDiff = $lastMessageTime->diffInMinutes($now);
                 $contacted = $this->lead->hasBeenContacted();
                 $isActive = $this->lead->isActive();
             }
 
-            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
-                && $timeDiff >= $rules['minutes_no_response']
+            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+                && $timeDiff > $followUpDay->time_value
                 && $contacted === false
-                && $isActive)) {
+                && $isActive) {
                 $message = null;
+                $messageTemplate = $followUpDay->templates()
+                    ->where('communication_channel', $messageTemplateChannel)
+                    ->where('is_deleted', 0)
+                    ->first()?->template;
+                if (! $messageTemplate) {
+                    continue;
+                }
 
                 try {
                     $message = new CreateMessageFollowUpAction(
                         $this->lead,
                         $this->lead->stage,
                         $session,
-                        $messageTemplateChannel
+                        $messageTemplate,
+                        (float)$followUpDay->pipelineStage->weight
                     )->execute();
                 } catch (Exception $e) {
                     captureException($e);
@@ -97,11 +166,13 @@ class FollowUpEngagementAction
                     continue;
                 }
 
-                if (isset($rules['send_message']) && $rules['send_message']) {
+                if ($followUpDay->send_message) {
+                    $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
-                        $this->lead->company->get('twilio_phone_number')
+                        $this->lead->company->get('twilio_phone_number'),
+                        $emailTitle
                     );
 
                     DailyReportService::track(
@@ -133,12 +204,12 @@ class FollowUpEngagementAction
     {
         $messages = $channel->messages()
             ->where('message->from_me', false)
-            ->where('is_deleted', 0)
+            ->where('messages.is_deleted', 0)
             ->whereHas('messageType', function ($query): void {
                 $query->where('verb', '=', MessageTypeEnum::TEXT->value);
             })
-            ->where('created_at', '>=', now()->subDay())
-            ->orderBy('created_at', 'DESC')
+            ->where('messages.created_at', '>=', now()->subDay())
+            ->orderBy('messages.created_at', 'DESC')
             ->get();
 
         if (count($messages) === 0) {

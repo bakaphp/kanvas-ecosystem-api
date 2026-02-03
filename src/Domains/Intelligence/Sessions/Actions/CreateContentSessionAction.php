@@ -16,10 +16,13 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
+use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -49,11 +52,29 @@ class CreateContentSessionAction
 
     public function execute(): array
     {
-        return match ($this->session->entity_namespace) {
+        $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
             default => [],
         };
+
+        $result['background'] = $this->generateBackground($result);
+
+        return $result;
+    }
+
+    protected function generateBackground(array $data): mixed
+    {
+        try {
+            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
+                ? Blade::render(json_encode($this->session->agent->role), $data)
+                : null;
+        } catch (Exception $e) {
+            report($e);
+            $background = $this->session->agent?->role;
+        }
+
+        return Str::isJson($background) ? json_decode($background) : $background;
     }
 
     protected function mapLead(Lead $lead): array
@@ -78,6 +99,11 @@ class CreateContentSessionAction
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
                 'company_language' => $lead->company->get('lang', 'en'),
+                'is_service_lead' => $lead->get('is_service_lead') ?? 0,
+                'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
+                'ai_mode' => $lead->get('ai_mode'),
+                'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -109,14 +135,7 @@ class CreateContentSessionAction
             //$data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role) ? Blade::render(json_encode($this->session->agent->role), $data) : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
-        }
-
-        return [
+        $result = [
             'branch' => $this->session->company->branch,
             'people_id' => $people->id,
             'firstname' => $people->firstname,
@@ -126,7 +145,6 @@ class CreateContentSessionAction
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
-            'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
@@ -135,6 +153,8 @@ class CreateContentSessionAction
             'leadOwnerName' => $data['leadOwnerName'],
             'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
+
+        return array_merge($data, $result);
     }
 
     /**

@@ -64,10 +64,7 @@ class Lead extends DataTransferObjectLead
             'status_id' => $leadStatus?->id ?? 0,
             'leads_owner_id' => $leadOwnerId,
             'custom_fields' => [
-                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value => $dealId,
-                CustomFieldEnums::DEAL_STAGE->value => $data['pipelineStage'] ?? $data['stage'] ?? null,
-                CustomFieldEnums::VEHICLE_OF_INTEREST->value => self::extractVehicleOfInterest($data),
-                CustomFieldEnums::TRADE_IN->value => self::extractTradeIn($data),
+                CustomFieldEnums::DRIVE_CENTRIC_DEAL_ID->value => trim($dealId),
             ],
         ]);
     }
@@ -180,7 +177,7 @@ class Lead extends DataTransferObjectLead
             }
         }
 
-        return $user->getId();
+        return 0;
     }
 
     /**

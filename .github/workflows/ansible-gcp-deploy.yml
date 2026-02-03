@@ -1,0 +1,171 @@
+name: Ansible GCP Compute Deploy
+
+on:
+  push:
+    branches:
+      - "development"
+  workflow_dispatch:
+    
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Authenticate to GCP using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and GCP collection
+        run: |
+          pip install ansible google-auth requests google-auth-httplib2
+          ansible-galaxy collection install google.cloud ansible.posix
+
+      - name: Create inventory file
+        run: |
+          cat > ansible/inventory.gcp.yaml << EOF
+          plugin: google.cloud.gcp_compute
+          projects:
+            - ${{ secrets.GCP_PROJECT_ID }}
+          regions:
+            - ${{ secrets.GCP_REGION }}
+          filters:
+            - status = RUNNING
+          auth_kind: application
+          hostnames:
+            - name
+          compose:
+            ansible_host: networkInterfaces[0].accessConfigs[0].natIP
+            ansible_user: ubuntu
+          groups:
+            ${{ github.ref_name }}: "'${{ secrets.INSTANCE_GROUP_NAME }}' in name"
+          EOF
+
+      - name: Create GitHub Actions SSH firewall rule
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Fetch GitHub Actions IP ranges from GitHub's meta API (authenticated to avoid rate limits)
+          echo "Fetching GitHub Actions IP ranges..."
+          API_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" https://api.github.com/meta)
+
+          # Check if we got a valid response
+          if ! echo "$API_RESPONSE" | jq -e '.actions' > /dev/null 2>&1; then
+            echo "Error: Failed to fetch GitHub Actions IPs. API response:"
+            echo "$API_RESPONSE"
+            exit 1
+          fi
+
+          # Get first 250 IPs (GCP firewall rule limit is 256)
+          GITHUB_IPS=$(echo "$API_RESPONSE" | jq -r '.actions[0:250] | .[]' | tr '\n' ',' | sed 's/,$//')
+
+          if [ -z "$GITHUB_IPS" ]; then
+            echo "Error: No GitHub Actions IPs found"
+            exit 1
+          fi
+
+          echo "Using first 250 GitHub Actions IP ranges"
+
+          # Get the network name from the first matching instance
+          NETWORK=$(gcloud compute instances list \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
+            --format="value(networkInterfaces[0].network)" \
+            --limit=1 | awk -F'/' '{print $NF}')
+
+          echo "Using network: $NETWORK"
+
+          # Delete existing rule if it exists, then create new one
+          # This avoids issues with update vs create logic
+          echo "Removing existing firewall rule if present..."
+          gcloud compute firewall-rules delete allow-ssh-github-actions \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --quiet 2>/dev/null || true
+
+          echo "Creating firewall rule..."
+          gcloud compute firewall-rules create allow-ssh-github-actions \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --network="$NETWORK" \
+            --direction=INGRESS \
+            --priority=1000 \
+            --action=ALLOW \
+            --rules=tcp:22 \
+            --source-ranges="$GITHUB_IPS" \
+            --target-tags="${{ secrets.INSTANCE_GROUP_NAME }}" \
+            --description="Allow SSH from GitHub Actions runners"
+
+      - name: Verify inventory
+        run: |
+          echo "Testing inventory discovery..."
+          ansible-inventory -i ansible/inventory.gcp.yaml --list
+          echo "Inventory hosts:"
+          ansible-inventory -i ansible/inventory.gcp.yaml --graph
+      
+      - name: Setup SSH key
+        run: |
+          mkdir -p /home/runner/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /home/runner/.ssh/id_rsa
+          chmod 600 /home/runner/.ssh/id_rsa
+
+          # Derive public key from private key
+          ssh-keygen -y -f /home/runner/.ssh/id_rsa > /home/runner/.ssh/id_rsa.pub
+          SSH_PUBLIC_KEY=$(cat /home/runner/.ssh/id_rsa.pub)
+
+          # Configure SSH for direct connections
+          cat > /home/runner/.ssh/config << 'EOF'
+          Host *
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ConnectTimeout 30
+          EOF
+          chmod 600 /home/runner/.ssh/config
+
+          # Add public key to instances if not already present
+          gcloud compute instances list \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --filter="name~'${{ secrets.INSTANCE_GROUP_NAME }}' AND status=RUNNING" \
+            --format="value(name,zone)" | while read -r INSTANCE_NAME ZONE; do
+
+            echo "Ensuring SSH key is on instance: $INSTANCE_NAME"
+
+            gcloud compute ssh "$INSTANCE_NAME" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="$ZONE" \
+              --command="sudo -u ubuntu bash -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && grep -qxF \"$SSH_PUBLIC_KEY\" ~/.ssh/authorized_keys 2>/dev/null || echo \"$SSH_PUBLIC_KEY\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'" \
+              --quiet
+          done
+
+      - name: Run Ansible playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'false'
+        run: |
+          ansible-playbook ansible/playbooks/${{ github.ref_name }}-deploy.yaml \
+            -i ansible/inventory.gcp.yaml \
+            -u ubuntu \
+            --private-key /home/runner/.ssh/id_rsa \
+            -v \
+            -e '{
+              "src_dir": "${{ github.workspace }}",
+              "app_dir": "${{ secrets.GCP_INSTANCE_APP_DIR }}",
+              "repo_url": "git@github.com:${{ github.repository }}.git",
+              "branch": "${{ github.ref_name }}"
+            }'

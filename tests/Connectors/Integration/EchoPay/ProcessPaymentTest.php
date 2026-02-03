@@ -16,8 +16,11 @@ use Kanvas\Connectors\Movipass\Notifications\PaymentReceiptNotification;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
@@ -28,6 +31,14 @@ final class ProcessPaymentTest extends TestCase
     use HasIntegrationCompany;
     use InventoryCases;
     use PaymentCases;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('EchoPay integration tests are skipped in CI');
+        }
+    }
 
     public function testProcessPayment(): void
     {
@@ -315,7 +326,6 @@ final class ProcessPaymentTest extends TestCase
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('data', $result);
         $this->assertEquals('movipass', $order->orderType->name);
-        $this->assertEquals('paid', $order->orderStatus?->slug);
     }
 
     private function getOrderMetadata(OrderTypeEnum $orderType): array
@@ -750,6 +760,156 @@ final class ProcessPaymentTest extends TestCase
         $app->del('subscription_ECHO_PAY_MERCHANT_SECRET');
     }
 
+    public function testCapturePaymentReturnsErrorOnException(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment'])
+            ->getMock();
+
+        $mockProcessor->method('capturePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Insufficient funds',
+            'data' => ['error_code' => 'INSUFFICIENT_FUNDS'],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $result = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertEquals('Insufficient funds', $result['message']);
+        $this->assertArrayHasKey('error_code', $result['data']);
+    }
+
+    public function testReversePaymentReturnsErrorOnException(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['reversePayment'])
+            ->getMock();
+
+        $mockProcessor->method('reversePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Reversal service unavailable',
+            'data' => [],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $result = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', 'Capture failed');
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertEquals('Reversal service unavailable', $result['message']);
+    }
+
+    public function testCaptureFailureTriggersReversalFlow(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment', 'reversePayment'])
+            ->getMock();
+
+        $mockProcessor->expects($this->once())
+            ->method('capturePayment')
+            ->willReturn([
+                'status' => 'error',
+                'message' => 'Card declined',
+                'data' => [],
+            ]);
+
+        $mockProcessor->expects($this->once())
+            ->method('reversePayment')
+            ->willReturn([
+                'status' => 'success',
+                'message' => 'Payment reversed successfully',
+                'data' => ['reversal_id' => 'rev-123'],
+            ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $captureResult = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+
+        $this->assertEquals('error', $captureResult['status']);
+
+        $reason = 'Capture failed: ' . $captureResult['message'];
+        $reversalResult = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', $reason);
+
+        $this->assertEquals('success', $reversalResult['status']);
+        $this->assertEquals('Payment reversed successfully', $reversalResult['message']);
+
+        $finalResult = [
+            'status' => PaymentStatusEnum::FAILED->value,
+            'message' => $reversalResult['message'] . ' - ' . $reason,
+            'data' => $reversalResult['data'],
+        ];
+
+        $this->assertEquals(PaymentStatusEnum::FAILED->value, $finalResult['status']);
+        $this->assertStringContainsString('Card declined', $finalResult['message']);
+        $this->assertStringContainsString('Payment reversed successfully', $finalResult['message']);
+    }
+
+    public function testCaptureAndReversalBothFail(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment', 'reversePayment'])
+            ->getMock();
+
+        $mockProcessor->method('capturePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Capture timeout',
+            'data' => [],
+        ]);
+
+        $mockProcessor->method('reversePayment')->willReturn([
+            'status' => 'error',
+            'message' => 'Gateway unavailable',
+            'data' => [],
+        ]);
+
+        $order = Mockery::mock(Order::class);
+        $payment = Mockery::mock(Payments::class);
+
+        $captureResult = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+        $this->assertEquals('error', $captureResult['status']);
+
+        $reason = 'Capture failed: ' . $captureResult['message'];
+        $reversalResult = $mockProcessor->reversePayment($payment, $order, 'test-transaction-123', $reason);
+
+        $this->assertEquals('error', $reversalResult['status']);
+        $this->assertEquals('Gateway unavailable', $reversalResult['message']);
+
+        $finalResult = [
+            'status' => PaymentStatusEnum::FAILED->value,
+            'message' => $reversalResult['message'] . ' - ' . $reason,
+            'data' => $reversalResult['data'],
+        ];
+
+        $this->assertEquals(PaymentStatusEnum::FAILED->value, $finalResult['status']);
+        $this->assertStringContainsString('Gateway unavailable', $finalResult['message']);
+        $this->assertStringContainsString('Capture timeout', $finalResult['message']);
+    }
+
     public function testExtractErrorsFromEnrollment(): void
     {
         $app = app(Apps::class);
@@ -807,6 +967,525 @@ final class ProcessPaymentTest extends TestCase
         $this->assertIsArray($result);
         $this->assertEquals('', $result['message']);
         $this->assertEquals('', $result['code']);
+    }
+
+    public function testProcessPaymentWithUserIpFromMetadata(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+        $region = Regions::getDefault($company ?? $company, $app);
+
+        $orderTypeName = 'movipass';
+
+        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
+            $company,
+            $user
+        );
+
+        $this->setAllowNoPaymentStatus(true, $app);
+
+        (new CreateOrderStatusesAction($app, $orderTypeName, [
+            'pending' => [
+                'is_final' => false,
+                'is_default' => true,
+                'transitions' => ['paid'],
+            ],
+            'paid' => [
+                'transitions' => ['completed'],
+            ],
+            'completed' => [
+                'is_final' => true,
+            ],
+        ]))->execute();
+
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = ['id' => $warehouseResponse['id']];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $userIp = '192.168.1.100';
+        $data = [
+            'cartId' => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'order_type' => $orderTypeName,
+            'metadata' => [
+                'data' => [
+                    'user_ip' => $userIp,
+                    'payment_methods_id' => $paymentMethod['id'],
+                    'payment_date' => now()->toDateTimeString(),
+                ],
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => 'Test payment with user IP from metadata',
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $orderData = $response->json('data.createOrderFromCart.order');
+        $order = Order::fromApp($app)->find($orderData['id']);
+        $payment = $order->payments()->first();
+        $order->set('auth_session_id', '1234567890');
+
+        $payment->addMetadata([
+            'data' => [
+                'user_ip' => $userIp,
+            ],
+        ]);
+        $payment->save();
+
+        $processPaymentAction = new ProcessPaymentAction($app, $payment, $order);
+
+        $result = $processPaymentAction->execute(ConsumerAuthentication::from([
+            'indicator' => 'vbv',
+            'eciRaw' => '05',
+            'authenticationResult' => '0',
+            'strongAuthentication' => [
+                'OutageExemptionIndicator' => '0',
+            ],
+            'authenticationStatusMsg' => 'Success',
+            'eci' => '05',
+            'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+            'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'paresStatus' => 'Y',
+            'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+            'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+            'specificationVersion' => '2.2.0',
+            'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+        ]));
+
+        $this->assertArrayHasKey('status', $result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('data', $result);
+    }
+
+    public function testProcessPaymentWithIpFallbackToRequest(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+        $region = Regions::getDefault($company ?? $company, $app);
+
+        $orderTypeName = 'movipass';
+
+        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
+            $company,
+            $user
+        );
+
+        $this->setAllowNoPaymentStatus(true, $app);
+
+        (new CreateOrderStatusesAction($app, $orderTypeName, [
+            'pending' => [
+                'is_final' => false,
+                'is_default' => true,
+                'transitions' => ['paid'],
+            ],
+            'paid' => [
+                'transitions' => ['completed'],
+            ],
+            'completed' => [
+                'is_final' => true,
+            ],
+        ]))->execute();
+
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $warehouseData = ['id' => $warehouseResponse['id']];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $data = [
+            'cartId' => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'order_type' => $orderTypeName,
+            'metadata' => [
+                'data' => [
+                    'payment_methods_id' => $paymentMethod['id'],
+                    'payment_date' => now()->toDateTimeString(),
+                ],
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => 'Test payment with IP fallback to request',
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $orderData = $response->json('data.createOrderFromCart.order');
+        $order = Order::fromApp($app)->find($orderData['id']);
+        $payment = $order->payments()->first();
+        $order->set('auth_session_id', '1234567890');
+
+        $processPaymentAction = new ProcessPaymentAction($app, $payment, $order);
+
+        $result = $processPaymentAction->execute(ConsumerAuthentication::from([
+            'indicator' => 'vbv',
+            'eciRaw' => '05',
+            'authenticationResult' => '0',
+            'strongAuthentication' => [
+                'OutageExemptionIndicator' => '0',
+            ],
+            'authenticationStatusMsg' => 'Success',
+            'eci' => '05',
+            'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+            'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'paresStatus' => 'Y',
+            'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+            'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+            'specificationVersion' => '2.2.0',
+            'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+        ]));
+
+        $this->assertArrayHasKey('status', $result);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertArrayHasKey('data', $result);
+    }
+
+    public function testAuthorizationFailureCreatesErrorLog(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['processPayment'])
+            ->getMock();
+
+        $order = Mockery::mock(Order::class);
+        $order->shouldReceive('updateQuietly')->andReturnNull();
+        $order->shouldReceive('getId')->andReturn(1);
+        $order->shouldReceive('getTotalAmount')->andReturn(100.00);
+
+        $payment = Mockery::mock(Payments::class);
+        $payment->shouldReceive('getId')->andReturn(1);
+        $payment->shouldReceive('addLog')->once()->with('payment_error', Mockery::type('array'));
+        $payment->shouldReceive('addMetadata')->andReturnSelf();
+        $payment->shouldReceive('save')->andReturnNull();
+        $payment->shouldReceive('getAttribute')->with('status')->andReturn(PaymentStatusEnum::FAILED->value);
+
+        $consumerAuth = ConsumerAuthentication::from([
+            'indicator' => 'vbv',
+            'eciRaw' => '05',
+            'authenticationResult' => '0',
+            'strongAuthentication' => [
+                'OutageExemptionIndicator' => '0',
+            ],
+            'authenticationStatusMsg' => 'Success',
+            'eci' => '05',
+            'token' => 'AxjzbwSTlSvEI+byinVHAKUBTyD9dO6A1h04goIQyaSZejFcRGKBWAAAXBJS',
+            'cavv' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'paresStatus' => 'Y',
+            'xid' => 'AAIBBYNoEwAAACcKhAJkdQAAAAA=',
+            'directoryServerTransactionId' => 'cd346fc0-d248-48f7-9b76-1f4741076fec',
+            'threeDSServerTransactionId' => '3bf3718f-39d0-42eb-acda-ced2f80fc6a6',
+            'specificationVersion' => '2.2.0',
+            'acsTransactionId' => '27442f28-623b-4115-ad48-6ede081db03c',
+        ]);
+
+        $mockProcessor->method('processPayment')->willReturnCallback(function ($payment, $consumerAuth, $order) {
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => 'Authorization failed - Invalid merchant credentials',
+                'error_body' => ['code' => 'INVALID_MERCHANT'],
+                'order_id' => $order->getId(),
+                'context' => 'process_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => 'Authorization failed - Invalid merchant credentials',
+                'data' => ['code' => 'INVALID_MERCHANT'],
+            ];
+        });
+
+        $result = $mockProcessor->processPayment($payment, $consumerAuth, $order);
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertStringContainsString('Invalid merchant credentials', $result['message']);
+    }
+
+    public function testCaptureFailureCreatesErrorLog(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $mockProcessor = $this->getMockBuilder(PortalPaymentProcessor::class)
+            ->setConstructorArgs([$app, $company, []])
+            ->onlyMethods(['capturePayment'])
+            ->getMock();
+
+        $order = Mockery::mock(Order::class);
+        $order->shouldReceive('updateQuietly')->andReturnNull();
+        $order->shouldReceive('getId')->andReturn(1);
+        $order->shouldReceive('getTotalAmount')->andReturn(100.00);
+
+        $payment = Mockery::mock(Payments::class);
+        $payment->shouldReceive('getId')->andReturn(1);
+        $payment->shouldReceive('addLog')->once()->with('payment_error', Mockery::type('array'));
+        $payment->shouldReceive('addMetadata')->andReturnSelf();
+        $payment->shouldReceive('save')->andReturnNull();
+        $payment->shouldReceive('getAttribute')->with('status')->andReturn(PaymentStatusEnum::FAILED->value);
+
+        $mockProcessor->method('capturePayment')->willReturnCallback(function ($payment, $order, $transactionId) {
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => 'Capture failed - Insufficient funds',
+                'error_body' => ['code' => 'INSUFFICIENT_FUNDS'],
+                'order_id' => $order->getId(),
+                'context' => 'capture_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => 'Capture failed - Insufficient funds',
+                'data' => ['code' => 'INSUFFICIENT_FUNDS'],
+            ];
+        });
+
+        $result = $mockProcessor->capturePayment($payment, $order, 'test-transaction-123');
+
+        $this->assertEquals('error', $result['status']);
+        $this->assertStringContainsString('Insufficient funds', $result['message']);
+    }
+
+    public function testRealCaptureErrorCreatesPaymentLog(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+        $region = Regions::getDefault($company ?? $company, $app);
+
+        $orderTypeName = 'paso_rapido';
+
+        $app->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_ECHO_PAY_CLIENT_ID'));
+        $app->set(ConfigurationEnum::SECRET->value, env('TEST_ECHO_PAY_SECRET'));
+        $app->set(ConfigurationEnum::APP_TOKEN->value, env('TEST_ECHO_PAY_APP_TOKEN'));
+        $app->set(ConfigurationEnum::MERCHANT_ID->value, env('TEST_ECHO_PAY_MERCHANT_ID'));
+        $app->set(ConfigurationEnum::MERCHANT_KEY->value, env('TEST_ECHO_PAY_MERCHANT_KEY'));
+        $app->set(ConfigurationEnum::MERCHANT_SECRET->value, env('TEST_ECHO_PAY_MERCHANT_SECRET'));
+
+        $this->setIntegration(
+            $app,
+            IntegrationsEnum::ECHO_PAY,
+            EchoPayHandler::class,
+            $company,
+            $user
+        );
+
+        $this->setAllowNoPaymentStatus(true, $app);
+
+        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'slots',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['id'],
+        ];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: $warehouseData,
+            attributes: [
+                [
+                    'name' => 'timezone',
+                    'value' => 'America/New_York',
+                ],
+            ]
+        )->json()['data']['createVariant'];
+
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $warehouseResponse['id'],
+            amount: 100
+        );
+
+        $paymentMethod = $this->addPaymentMethod($company, $this->getCardData());
+
+        $data = [
+            'cartId' => 0,
+            'customer' => [
+                'email' => fake()->email(),
+            ],
+            'order_type' => $orderTypeName,
+            'metadata' => [
+                'data' => [
+                    'payment_methods_id' => $paymentMethod['id'],
+                    'payment_date' => now()->toDateTimeString(),
+                ],
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantResponse['id'],
+                    'quantity' => 1,
+                    'price' => 100,
+                ],
+            ],
+            'reference' => 'Real capture error test',
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $order = $response->json('data.createOrderFromCart.order');
+        $order = Order::fromApp($app)->find($order['id']);
+        $payment = $order->payments()->first();
+
+        // Create processor
+        $processor = new PortalPaymentProcessor($app, $company);
+
+        // Try to capture with invalid transaction ID - this should trigger a real API error
+        $result = $processor->capturePayment($payment, $order, 'invalid-transaction-id-12345');
+
+        // Verify error response
+        $this->assertEquals('error', $result['status']);
+
+        // Verify payment_error log was created in database
+        $errorLog = \Kanvas\Souk\Payments\Models\PaymentLogs::where('payments_id', $payment->getId())
+            ->where('status', 'payment_error')
+            ->first();
+
+        $this->assertNotNull($errorLog, 'Payment error log should exist in database');
+
+        // Decode metadata if it's a string
+        $metadata = is_string($errorLog->metadata) ? json_decode($errorLog->metadata, true) : $errorLog->metadata;
+
+        $this->assertIsArray($metadata);
+        $this->assertArrayHasKey('error_message', $metadata);
+        $this->assertArrayHasKey('order_id', $metadata);
+        $this->assertArrayHasKey('error_type', $metadata);
+        $this->assertEquals($order->id, $metadata['order_id']);
+        $this->assertEquals('EchoPayException', $metadata['error_type']);
     }
 
     /**

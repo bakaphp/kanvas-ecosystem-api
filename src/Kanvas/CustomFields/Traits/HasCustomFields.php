@@ -488,14 +488,26 @@ trait HasCustomFields
     /**
      * Get a model from a custom field.
      */
-    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
-    {
-        return self::getByCustomFieldBuilder($name, $value, $company)->first();
+    public static function getByCustomField(
+        string $name,
+        mixed $value,
+        ?Companies $company = null,
+        bool $useCompanyFilter = true
+    ): ?Model {
+        return self::getByCustomFieldBuilder(
+            $name,
+            $value,
+            $company,
+            $useCompanyFilter
+        )->first();
     }
 
-    public static function getByCustomFieldBuilder(string $name, mixed $value, ?Companies $company = null): Builder
-    {
-        $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+    public static function getByCustomFieldBuilder(
+        string $name,
+        mixed $value,
+        ?Companies $company = null,
+        bool $useCompanyFilter = true
+    ): Builder {
         $table = (new static())->getTable();
         $systemModuleLegacy = SystemModules::getLegacyNamespace(static::class);
         $systemModules = $systemModuleLegacy !== static::class
@@ -503,9 +515,13 @@ trait HasCustomFields
             : [static::class];
 
         $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
-            ->where('apps_custom_fields.companies_id', $company)
             ->whereIn('apps_custom_fields.model_name', $systemModules)
             ->where('apps_custom_fields.name', $name);
+
+        if ($useCompanyFilter) {
+            $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+            $query->where('apps_custom_fields.companies_id', $companyId);
+        }
 
         if ($value !== null) {
             $query->where('apps_custom_fields.value', $value);

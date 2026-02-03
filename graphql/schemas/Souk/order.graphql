@@ -259,7 +259,7 @@ input DraftOrderInput {
     items: [OrderLineItemInput!]!
     note: String
     metadata: Mixed
-    channel_id: ID!
+    channel_id: ID
 }
 
 input OrderLineItemInput {
@@ -586,6 +586,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["name", "slug", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
+        hasOrder: _
+            @whereHasConditions(
+                relation: "order"
+                columns: ["user_email", "user_phone", "status", "reference"]
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!

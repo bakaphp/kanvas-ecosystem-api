@@ -38,6 +38,7 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::ZOHO,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
                 $zohoLead = $syncLeadWithZoho->execute();

@@ -14,4 +14,7 @@ enum ConfigurationEnum: string
     case HAVE_FOLLOW_UP = 'have_follow_up';
     case MESSAGE_MINUTES_INTERVAL = 'message_minutes_interval';
     case MAPPING_STATUS_CRM = 'mapping_status_crm';
+    case UN_RESPONDED_SALESPERSON_MESSAGES = 'un_responded_salesperson_messages';
+    case AI_MODE = 'ai_mode';
+    case ALLOW_CALL_APPOINTMENTS = 'allow_call_appointments';
 }

@@ -10,12 +10,12 @@ use Illuminate\Http\UploadedFile;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateFilesystemAction
 {
-    /**
-     * Construct function.
-     */
+    public bool $runWorkflow = true;
+
     public function __construct(
         protected UploadedFile $file,
         protected Users $user,
@@ -24,9 +24,6 @@ class CreateFilesystemAction
     ) {
     }
 
-    /**
-     * Create a new FileSystem.
-     */
     public function execute(string $uploadUrl, string $uploadPath): Filesystem
     {
         $app = $this->app;
@@ -41,6 +38,13 @@ class CreateFilesystemAction
         $fileSystem->file_type = $this->file->guessExtension() ?? $this->file->getClientOriginalExtension() ?? 'unknown';
         $fileSystem->size = $this->file->getSize();
         $fileSystem->saveOrFail();
+
+        if ($this->runWorkflow) {
+            $fileSystem->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true
+            );
+        }
 
         return $fileSystem;
     }

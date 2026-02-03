@@ -74,7 +74,12 @@ class FilesystemServices
             );
         }
 
-        $createFileSystem = new CreateFilesystemAction($file, $user, $this->app, $this->company);
+        $createFileSystem = new CreateFilesystemAction(
+            $file,
+            $user,
+            $this->app,
+            $this->company
+        );
 
         return $createFileSystem->execute(
             $this->storage->url($uploadedFile),

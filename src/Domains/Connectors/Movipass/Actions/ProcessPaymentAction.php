@@ -7,7 +7,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
-use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -63,32 +62,40 @@ class ProcessPaymentAction
 
         $intentId = $this->order->fresh()->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
         $bankTransaction = explode(':', $intentId)[1];
-        if ($this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
-            $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
-            try {
-                if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
-                    new TransitionOrderStateAction(
-                        $this->order,
-                        $this->payment->user,
-                        $orderStatus
-                    )->execute(true);
-                }
-                new SendPaymentReceiptAction(
-                    $this->order,
-                    $this->payment,
-                    $this->payment->user
-                )->execute();
-            } catch (Exception $e) {
-                report($e);
-            }
-        } else {
-            $reason = $result['message'];
-            $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
-            $result['status'] = PaymentStatusEnum::FAILED->value;
-            $result['message'] = $response['message'] . ' - ' . $reason;
-            $result['data'] = $response['data'];
+
+        if (! $this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
+            return $this->handleReversal($paymentProcessor, $bankTransaction, $result['message']);
+        }
+
+        $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+
+        if ($captureResult['status'] === 'error') {
+            return $this->handleReversal($paymentProcessor, $bankTransaction, 'Capture failed: ' . $captureResult['message']);
+        }
+
+        try {
+            $this->order->markAsPaid($this->payment->user);
+
+            new SendPaymentReceiptAction(
+                $this->order,
+                $this->payment,
+                $this->payment->user
+            )->execute();
+        } catch (Exception $e) {
+            report($e);
         }
 
         return $result;
+    }
+
+    private function handleReversal(PortalPaymentProcessor $paymentProcessor, string $bankTransaction, string $reason): array
+    {
+        $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
+
+        return [
+            'status' => PaymentStatusEnum::FAILED->value,
+            'message' => $response['message'] . ' - ' . $reason,
+            'data' => $response['data'],
+        ];
     }
 }
