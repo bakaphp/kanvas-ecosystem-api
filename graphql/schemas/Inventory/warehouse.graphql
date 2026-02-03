@@ -79,7 +79,6 @@ extend type Query @guard {
             )
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "is_default"])
     ): [Warehouse!]!
-        @can(ability: "view", model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses")
         @paginate(
             model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
             defaultCount: 25
@@ -87,7 +86,6 @@ extend type Query @guard {
         )
 
     warehousesByChannel(channel_id: ID!): [Warehouse!]!
-        @can(ability: "view", model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses")
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Warehouses\\WarehouseBuilder@getByChannel"
