@@ -51,7 +51,10 @@ class ProcessPaymentAction
             $this->order->set(CustomFieldEnum::ECHO_PAY_PAYMENT_RESPONSE->value, json_encode($paymentResult));
         }
 
-        if ($this->order->orderType->name === IntegrationsEnum::PASO_RAPIDO->value) {
+        $orderTypeName = $this->order->orderType?->name;
+        $isPasoRapido = $orderTypeName === IntegrationsEnum::PASO_RAPIDO->value;
+
+        if ($isPasoRapido) {
             $createPasoRapidoOrderAction = new CreatePasoRapidoOrderAction($this->app, $this->order);
             $response = $createPasoRapidoOrderAction->execute();
 
@@ -63,8 +66,19 @@ class ProcessPaymentAction
 
         $intentId = $this->order->fresh()->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
         $bankTransaction = explode(':', $intentId)[1];
+        $shouldCaptureValue = $this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value);
 
-        if (! $this->order->get(CustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value)) {
+        $this->payment->addLog('capture_decision', [
+            'order_id' => $this->order->id,
+            'order_type' => $orderTypeName,
+            'is_paso_rapido' => $isPasoRapido,
+            'intent_id' => $intentId,
+            'should_capture' => $shouldCaptureValue,
+            'should_capture_type' => gettype($shouldCaptureValue),
+            'will_capture' => (bool) $shouldCaptureValue,
+        ]);
+
+        if (! $shouldCaptureValue) {
             return $this->handleReversal($paymentProcessor, $bankTransaction, $result['message']);
         }
 
@@ -97,6 +111,12 @@ class ProcessPaymentAction
 
     private function handleReversal(PortalPaymentProcessor $paymentProcessor, string $bankTransaction, string $reason): array
     {
+        $this->payment->addLog('payment_reversal', [
+            'order_id' => $this->order->id,
+            'bank_transaction' => $bankTransaction,
+            'reason' => $reason,
+        ]);
+
         $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
 
         return [
