@@ -776,16 +776,16 @@
         },
         {
             "name": "brick/math",
-            "version": "0.14.2",
+            "version": "0.14.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "55c950aa71a2cabc1d8f2bec1f8a7020bd244aa2"
+                "reference": "a8b53e6cc4d3a336543f042a4dfa0e3f2f2356a4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/55c950aa71a2cabc1d8f2bec1f8a7020bd244aa2",
-                "reference": "55c950aa71a2cabc1d8f2bec1f8a7020bd244aa2",
+                "url": "https://api.github.com/repos/brick/math/zipball/a8b53e6cc4d3a336543f042a4dfa0e3f2f2356a4",
+                "reference": "a8b53e6cc4d3a336543f042a4dfa0e3f2f2356a4",
                 "shasum": ""
             },
             "require": {
@@ -824,7 +824,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.14.2"
+                "source": "https://github.com/brick/math/tree/0.14.4"
             },
             "funding": [
                 {
@@ -832,7 +832,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-30T14:03:11+00:00"
+            "time": "2026-02-02T16:57:31+00:00"
         },
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -4388,16 +4388,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.53",
+            "version": "1.0.56",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "d8fd01aaa1c859fa658a01f6ffb52329e20c0213"
+                "reference": "0aad1aec469bd0f9a05fce245d4598ca817362cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/d8fd01aaa1c859fa658a01f6ffb52329e20c0213",
-                "reference": "d8fd01aaa1c859fa658a01f6ffb52329e20c0213",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/0aad1aec469bd0f9a05fce245d4598ca817362cb",
+                "reference": "0aad1aec469bd0f9a05fce245d4598ca817362cb",
                 "shasum": ""
             },
             "require": {
@@ -4440,9 +4440,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.53"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.56"
             },
-            "time": "2025-12-09T12:05:13+00:00"
+            "time": "2026-02-02T02:56:54+00:00"
         },
         {
             "name": "laravel/cashier",
