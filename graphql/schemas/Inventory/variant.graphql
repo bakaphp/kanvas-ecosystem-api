@@ -1,4 +1,4 @@
-type Variant {
+type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
     id: ID!
     uuid: String!
     slug: String!

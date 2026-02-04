@@ -46,6 +46,7 @@ class ChannelsManagementMutation
         $channel->name = $request['input']['name'];
         $channel->description = $request['input']['description'];
         $channel->entity_id = $request['input']['entity_id'];
+        $channel->title = $request['input']['title'] ?? $channel->title;
         $channel->entity_namespace = $systemModule->uuid;
         $channel->updateOrFail();
 
