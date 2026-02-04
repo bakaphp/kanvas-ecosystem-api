@@ -4,6 +4,7 @@ namespace App\Mcp\Servers;
 
 use Laravel\Mcp\Server;
 use Kanvas\Social\Messages\Tools\GetMessagesTool;
+use Kanvas\Social\Messages\Tools\GetMessageTool;
 
 class KanvasServer extends Server
 {
@@ -31,6 +32,7 @@ class KanvasServer extends Server
      */
     protected array $tools = [
         GetMessagesTool::class,
+        GetMessageTool::class,
     ];
 
     /**

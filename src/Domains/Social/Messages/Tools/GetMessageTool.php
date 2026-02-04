@@ -16,12 +16,12 @@ use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly(true)]
-class GetMessagesTool extends Tool
+class GetMessageTool extends Tool
 {
-    protected string $name = 'get_messages';
+    protected string $name = 'get_message';
 
     protected string $description = <<<'MARKDOWN'
-        Get a list of messages from Kanvas. Returns structured message data including
+        Get a single message from Kanvas. Returns structured message data including
         user information, message type, tags, categories, channels, and attached files.
     MARKDOWN;
 
@@ -43,13 +43,10 @@ class GetMessagesTool extends Tool
             ]);
         }
 
-        $query = $request->get('query', null);
-
-        $messages = Message::fromApp($app)
+        $message = Message::fromApp($app)
             ->where('users_id', $request->get('users_id'))
             ->where('messages.message_types_id', $messageType->getId())
-            ->where('message', 'LIKE', "%{$query}%")
-            ->orderBy('created_at', 'desc')
+            ->where('messages.uuid', $request->get('message_uuid'))
             ->with([
                 'children',
                 'user',
@@ -58,20 +55,14 @@ class GetMessagesTool extends Tool
                 'categories',
                 'channels',
                 'files',
-            ])
-            ->get();
+            ])->first();
 
         return Response::structured([
-            'data' => $messages->map(fn ($message) => $this->transformMessage($message))->toArray(),
+            'data' => $message ? $this->transformMessage($message) : null,
             'meta' => [
-                'count' => $messages->count(),
+                'count' => $message ? 1 : 0,
                 'apps_id' => $app->getId(),
                 'users_id' => $request->get('users_id'),
-                'message_type' => [
-                    'id' => $messageType->getId(),
-                    'name' => $messageType->name,
-                    'verb' => $messageType->verb,
-                ],
             ],
         ]);
     }
@@ -147,7 +138,7 @@ class GetMessagesTool extends Tool
             'apps_id' => $schema->integer()->description('The application ID.')->required(),
             'users_id' => $schema->integer()->description('The user ID to get messages for.')->required(),
             'message_type_verb' => $schema->string()->description('The verb of the message type to filter messages (e.g., "post", "comment").')->required(),
-            'query' => $schema->string()->description('The search query to filter messages by content.')->required(),
+            'message_uuid' => $schema->string()->description('The UUID of the message to retrieve.')->required(),
         ];
     }
 
@@ -244,12 +235,11 @@ class GetMessagesTool extends Tool
         ]);
 
         return [
-            'data' => $schema->array($messageSchema)->description('Array of message objects'),
+            'data' => $messageSchema->description('The message object (or null if not found)'),
             'meta' => $schema->object([
-                'count' => $schema->integer()->description('Number of messages returned'),
+                'count' => $schema->integer()->description('Number of messages returned (0 or 1)'),
                 'apps_id' => $schema->integer()->description('The application ID'),
                 'users_id' => $schema->integer()->description('The user ID filter applied'),
-                'message_type' => $messageTypeSchema->description('The message type filter applied'),
             ])->description('Metadata about the response'),
         ];
     }
