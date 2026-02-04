@@ -64,7 +64,7 @@ class Event extends Data
             status: self::getEntityByIdOrDefault(EventStatus::class, $app, $company, $data['status_id'] ?? null),
             type: $type,
             category: $category,
-            resource: isset($data["resources_id"]) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data["resources_id"] ?? null) : null,
+            resource: isset($data['resources_id']) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data['resources_id'] ?? null) : null,
             class: self::getEntityByIdOrDefault(EventClass::class, $app, $company, $data['class_id'] ?? null),
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
@@ -78,11 +78,16 @@ class Event extends Data
         );
     }
 
+    /**
+     * @template T of Model
+     * @param class-string<T> $entityClass
+     * @return T
+     */
     protected static function getEntityByIdOrDefault(
         string $entityClass,
         $app,
         $company,
-        ?string $idField,
+        string| int|null $idField,
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {
