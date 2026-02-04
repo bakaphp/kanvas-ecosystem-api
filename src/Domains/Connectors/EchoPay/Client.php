@@ -42,8 +42,8 @@ class Client
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
             ],
-            'timeout' => 30,
-            'connect_timeout' => 10,
+            'timeout' => 90,
+            'connect_timeout' => 15,
         ]);
     }
 
