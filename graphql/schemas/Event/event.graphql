@@ -142,9 +142,9 @@ input EventInput {
     theme_id: ID
     theme_area_id: ID
     status_id: ID
-    type_id: ID!
+    type_id: ID
     class_id: ID
-    category_id: ID!
+    category_id: ID
     resources: Mixed
     config: Mixed
     participants: [String!]
