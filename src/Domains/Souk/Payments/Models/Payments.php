@@ -72,6 +72,27 @@ class Payments extends BaseModel
         app(LogPaymentEventAction::class)->execute($this, $event, $context);
     }
 
+    public function markAsPaid(array $metadata = []): void
+    {
+        $this->status = PaymentStatusEnum::PAID;
+
+        if ($this->payable) {
+            $this->payable->updateQuietly([
+                'payment_status' => PaymentStatusEnum::PAID->value,
+            ]);
+        }
+
+        if (! empty($metadata)) {
+            $this->addMetadata($metadata);
+        }
+
+        $this->save();
+
+        if ($this->payable && method_exists($this->payable, 'checkPayments')) {
+            $this->payable->checkPayments();
+        }
+    }
+
     public function scopePending($query)
     {
         return $query->whereIn('status', [PaymentStatusEnum::PENDING->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
