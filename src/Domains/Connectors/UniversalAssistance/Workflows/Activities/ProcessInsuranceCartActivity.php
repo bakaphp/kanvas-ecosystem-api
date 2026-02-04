@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\UniversalAssistance\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Carbon\Carbon;
 use Exception;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalAssistance\Services\InsuranceWorkflowService;
@@ -24,14 +25,58 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     public function execute(Order $order, AppInterface $app, array $params): array
     {
-        return $this->executeIntegration(
-            entity: $order,
-            app: $app,
-            integration: IntegrationsEnum::UNIVERSAL_ASSISTANCE,
-            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
-                sleep(30);
-                $order->refresh(); // Ensure the order is up-to-date (same as AeroAmbulancia)
-                $data = $this->getActivityData($order, $params);
+        $order->refresh();
+
+        if ($order->get('universal_assistance_processed')) {
+            return [
+                'status' => 'skipped',
+                'message' => 'Order already has Universal Assistance vouchers processed',
+                'order_id' => $order->getId(),
+                'skipped_duplicate' => true,
+            ];
+        }
+
+        if ($order->get('universal_assistance_processing')) {
+            return [
+                'status' => 'skipped',
+                'message' => 'Order is currently being processed for Universal Assistance',
+                'order_id' => $order->getId(),
+                'skipped_in_progress' => true,
+            ];
+        }
+
+        if ($this->orderHasExistingVouchers($order)) {
+            $order->set('universal_assistance_processed', true);
+            return [
+                'status' => 'skipped',
+                'message' => 'Order messages already contain vouchers',
+                'order_id' => $order->getId(),
+                'skipped_existing_vouchers' => true,
+            ];
+        }
+
+        $order->set('universal_assistance_processing', true);
+        $order->set('universal_assistance_processing_started_at', Carbon::now()->toDateTimeString());
+
+        try {
+            return $this->executeIntegration(
+                entity: $order,
+                app: $app,
+                integration: IntegrationsEnum::UNIVERSAL_ASSISTANCE,
+                integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
+                    sleep(30);
+                    $order->refresh();
+
+                    if ($order->get('universal_assistance_processed')) {
+                        return [
+                            'status' => 'skipped',
+                            'message' => 'Order was processed during wait period',
+                            'order_id' => $order->getId(),
+                            'skipped_duplicate' => true,
+                        ];
+                    }
+
+                    $data = $this->getActivityData($order, $params);
 
                 // Process each eSIM separately to create individual vouchers OR grouped vouchers by plan
                 $allResults = [];
@@ -43,6 +88,17 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
                         // Create separate service instance for each eSIM with its specific message_id
                         $messageId = $esimInsuranceData['message_id'] ?? null;
+
+                        if ($messageId && $this->messageHasVoucher((int) $messageId)) {
+                            $allResults["esim_{$index}"] = [
+                                'status' => 'skipped',
+                                'message' => 'Message already has a voucher',
+                                'message_id' => $messageId,
+                                'skipped_existing_voucher' => true,
+                            ];
+                            continue;
+                        }
+
                         $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
 
                         try {
@@ -80,8 +136,10 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
                 $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
 
-                // Mark order as processed successfully
+                // Mark order as processed successfully and clear processing flag
                 $order->set('universal_assistance_processed', true);
+                $order->set('universal_assistance_processing', false);
+                $order->set('universal_assistance_processed_at', Carbon::now()->toDateTimeString());
 
                 // Determine if workflow was successful
                 $workflowSuccess = $this->checkWorkflowSuccess($results);
@@ -112,6 +170,50 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             additionalParams: $params,
             company: $order->company,
         );
+        } catch (Exception $e) {
+            $order->set('universal_assistance_processing', false);
+            throw $e;
+        }
+    }
+
+    protected function orderHasExistingVouchers(Order $order): bool
+    {
+        $orderMetadata = $order->metadata ?? [];
+        $orderMetadata = $this->convertObjectsToArrays($orderMetadata);
+
+        $messageIds = [];
+
+        if (isset($orderMetadata['new_data']['data']['insurancePendingData'])) {
+            foreach ($orderMetadata['new_data']['data']['insurancePendingData'] as $pendingData) {
+                if (isset($pendingData['messageId'])) {
+                    $messageIds[] = (int) $pendingData['messageId'];
+                }
+            }
+        }
+
+        if (isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+            foreach ($orderMetadata['esims'] as $esim) {
+                $esim = $this->convertObjectsToArrays($esim);
+                if (isset($esim['message_id'])) {
+                    $messageIds[] = (int) $esim['message_id'];
+                }
+            }
+        }
+
+        $customFieldMessageId = $order->get(CustomFieldEnum::MESSAGE_ESIM_ID->value);
+        if ($customFieldMessageId) {
+            $messageIds[] = (int) $customFieldMessageId;
+        }
+
+        $messageIds = array_unique(array_filter($messageIds));
+
+        foreach ($messageIds as $messageId) {
+            if ($this->messageHasVoucher($messageId)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -401,15 +503,40 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
             $messageData = $message->message ?? [];
 
-            // Check if universalAssistanceData exists and has a voucher number
+            if (is_object($messageData)) {
+                $messageData = json_decode(json_encode($messageData), true);
+            }
+
             if (isset($messageData['universalAssistanceData']['holder']['nro_voucher']) &&
                 ! empty($messageData['universalAssistanceData']['holder']['nro_voucher'])) {
                 return true;
             }
 
+            if (isset($messageData['universalAssistanceData']['holder']['voucher_id']) &&
+                ! empty($messageData['universalAssistanceData']['holder']['voucher_id'])) {
+                return true;
+            }
+
+            if (isset($messageData['universalAssistanceData']['nro_voucher']) &&
+                ! empty($messageData['universalAssistanceData']['nro_voucher'])) {
+                return true;
+            }
+
+            if (isset($messageData['nro_voucher']) && ! empty($messageData['nro_voucher'])) {
+                return true;
+            }
+
+            if (isset($messageData['universalAssistanceData']['dependents']) &&
+                is_array($messageData['universalAssistanceData']['dependents'])) {
+                foreach ($messageData['universalAssistanceData']['dependents'] as $dependent) {
+                    if (isset($dependent['nro_voucher']) && ! empty($dependent['nro_voucher'])) {
+                        return true;
+                    }
+                }
+            }
+
             return false;
         } catch (Exception $e) {
-            // If message not found or any error, allow processing
             return false;
         }
     }
