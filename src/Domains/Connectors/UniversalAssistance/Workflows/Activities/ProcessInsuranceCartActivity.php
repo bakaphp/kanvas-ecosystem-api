@@ -78,98 +78,98 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                     $data = $this->getActivityData($order, $params);
 
-                // Process each eSIM separately to create individual vouchers OR grouped vouchers by plan
-                $allResults = [];
-                $allVoucherData = [];
+                    // Process each eSIM separately to create individual vouchers OR grouped vouchers by plan
+                    $allResults = [];
+                    $allVoucherData = [];
 
-                // Check if we have multiple eSIMs to process
-                if (! empty($data['all_insurance_data'])) {
-                    // Process each eSIM separately
-                    foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
-                        // Create separate service instance for each eSIM with its specific message_id
-                        $messageId = $esimInsuranceData['message_id'] ?? null;
+                    // Check if we have multiple eSIMs to process
+                    if (! empty($data['all_insurance_data'])) {
+                        // Process each eSIM separately
+                        foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
+                            // Create separate service instance for each eSIM with its specific message_id
+                            $messageId = $esimInsuranceData['message_id'] ?? null;
 
-                        if ($messageId && $this->messageHasVoucher((int) $messageId)) {
-                            $allResults["esim_{$index}"] = [
-                                'status' => 'skipped',
-                                'message' => 'Message already has a voucher',
+                            if ($messageId && $this->messageHasVoucher((int) $messageId)) {
+                                $allResults["esim_{$index}"] = [
+                                    'status' => 'skipped',
+                                    'message' => 'Message already has a voucher',
+                                    'message_id' => $messageId,
+                                    'skipped_existing_voucher' => true,
+                                ];
+                                continue;
+                            }
+
+                            $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
+
+                            try {
+                                $esimResults = $this->processSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
+                            } catch (ValidationException $e) {
+                                return $this->failWorkflow([
+                                    'message' => $e->getMessage(),
+                                ]);
+                            }
+
+                            // Store results with eSIM index for tracking
+                            $allResults["esim_{$index}"] = $esimResults;
+
+                            // Store results in eSim message and order metadata - handle grouped vouchers
+                            $this->storeUniversalAssistanceDataWithGroupSupport($esimResults, (int) ($esimInsuranceData['message_id'] ?? $data['message_id']), $data);
+
+                            // Collect voucher data for this eSIM
+                            $allVoucherData["esim_{$index}"] = [
+                                'esim_index' => $index,
                                 'message_id' => $messageId,
-                                'skipped_existing_voucher' => true,
+                                'voucher_data' => $this->extractVoucherDataFromResults($esimResults),
                             ];
-                            continue;
                         }
 
-                        $service = new InsuranceWorkflowService($app, $order, $messageId ? (int) $messageId : null);
-
-                        try {
-                            $esimResults = $this->processSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
-                        } catch (ValidationException $e) {
-                            return $this->failWorkflow([
-                                'message' => $e->getMessage(),
-                            ]);
-                        }
-
-                        // Store results with eSIM index for tracking
-                        $allResults["esim_{$index}"] = $esimResults;
-
-                        // Store results in eSim message and order metadata - handle grouped vouchers
-                        $this->storeUniversalAssistanceDataWithGroupSupport($esimResults, (int) ($esimInsuranceData['message_id'] ?? $data['message_id']), $data);
-
-                        // Collect voucher data for this eSIM
-                        $allVoucherData["esim_{$index}"] = [
-                            'esim_index' => $index,
-                            'message_id' => $messageId,
-                            'voucher_data' => $this->extractVoucherDataFromResults($esimResults),
-                        ];
+                        // Use combined results
+                        $results = $allResults;
+                    } else {
+                        // No insurance data found - this should have been caught in getActivityData
+                        return $this->failWorkflow([
+                            'message' => 'No insurance data available to process',
+                            'data' => $data,
+                        ]);
                     }
 
-                    // Use combined results
-                    $results = $allResults;
-                } else {
-                    // No insurance data found - this should have been caught in getActivityData
-                    return $this->failWorkflow([
-                        'message' => 'No insurance data available to process',
-                        'data' => $data,
-                    ]);
-                }
+                    // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
+                    $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
 
-                // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
-                $this->createSeparateMessagesForEachESim($data, $results, $order, $app);
+                    // Mark order as processed successfully and clear processing flag
+                    $order->set('universal_assistance_processed', true);
+                    $order->set('universal_assistance_processing', false);
+                    $order->set('universal_assistance_processed_at', Carbon::now()->toDateTimeString());
 
-                // Mark order as processed successfully and clear processing flag
-                $order->set('universal_assistance_processed', true);
-                $order->set('universal_assistance_processing', false);
-                $order->set('universal_assistance_processed_at', Carbon::now()->toDateTimeString());
+                    // Determine if workflow was successful
+                    $workflowSuccess = $this->checkWorkflowSuccess($results);
 
-                // Determine if workflow was successful
-                $workflowSuccess = $this->checkWorkflowSuccess($results);
+                    $workflowResponse = [
+                        'workflow_success' => $workflowSuccess, // Single boolean variable to check workflow success
+                        'workflow_results' => $results,
+                        'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
+                        'original_insurance_data' => $data['insurance_data'],
+                        'all_insurance_data' => $data['all_insurance_data'] ?? [], // Include all processed data
+                        'message_id' => $data['message_id'],
+                        'order_id' => $order->getId(),
+                        'processing_summary' => [
+                            'esims_processed' => count($allVoucherData),
+                            'is_multi_esim' => count($allVoucherData) > 1,
+                            'vouchers_created' => $this->countVouchersCreatedFromMultiResults($results),
+                            'total_cost' => $this->calculateTotalCostFromMultiResults($results),
+                        ],
+                    ];
 
-                $workflowResponse = [
-                    'workflow_success' => $workflowSuccess, // Single boolean variable to check workflow success
-                    'workflow_results' => $results,
-                    'voucher_data' => $allVoucherData, // Now contains all eSIMs' voucher data
-                    'original_insurance_data' => $data['insurance_data'],
-                    'all_insurance_data' => $data['all_insurance_data'] ?? [], // Include all processed data
-                    'message_id' => $data['message_id'],
-                    'order_id' => $order->getId(),
-                    'processing_summary' => [
-                        'esims_processed' => count($allVoucherData),
-                        'is_multi_esim' => count($allVoucherData) > 1,
-                        'vouchers_created' => $this->countVouchersCreatedFromMultiResults($results),
-                        'total_cost' => $this->calculateTotalCostFromMultiResults($results),
-                    ],
-                ];
+                    if (! $workflowSuccess) {
+                        return $this->failWorkflow($workflowResponse);
+                    }
 
-                if (! $workflowSuccess) {
-                    return $this->failWorkflow($workflowResponse);
-                }
-
-                // Return comprehensive results focusing on voucher data and SOAP inputs
-                return $workflowResponse;
-            },
-            additionalParams: $params,
-            company: $order->company,
-        );
+                    // Return comprehensive results focusing on voucher data and SOAP inputs
+                    return $workflowResponse;
+                },
+                additionalParams: $params,
+                company: $order->company,
+            );
         } catch (Exception $e) {
             $order->set('universal_assistance_processing', false);
             throw $e;
