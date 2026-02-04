@@ -39,6 +39,7 @@
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.6.0",
         "laravel/framework": "^12.0",
+        "laravel/mcp": "^0.5.3",
         "laravel/octane": "^2.0",
         "laravel/sanctum": "^4.0",
         "laravel/slack-notification-channel": "^3.5",
@@ -192,20 +193,6 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/bakaphp/ZohoCrmApi.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravel-scout-typesense-driver.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/byErikas/laravel-eloquent-query-cache.git"
-        }
-    ],
     "extra": {
         "laravel": {
             "dont-discover": []
