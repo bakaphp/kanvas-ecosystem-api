@@ -91,7 +91,7 @@ class PullLeadAction
                     'phone' => $lead->people?->getPhones()->first()?->value,
                     'status' => $lead->status()?->first()?->name ?? '',
                     'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name ,
+                    'owner' => $lead->owner?->firstname,
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
