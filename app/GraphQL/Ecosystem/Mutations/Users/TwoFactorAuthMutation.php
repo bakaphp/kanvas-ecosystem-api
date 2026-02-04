@@ -28,7 +28,7 @@ class TwoFactorAuthMutation
         $twilio = Client::getInstance($app);
         $user = auth()->user();
 
-        if (in_array($user->getId(), [11535,40054])) {
+        if (in_array($user->getId(), [11535,40054,10888])) {
             return true;
         }
 
