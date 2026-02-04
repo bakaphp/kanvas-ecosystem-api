@@ -565,9 +565,14 @@ class PortalPaymentProcessor
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-
         try {
+            $payment->addLog('payment_capture_sending', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
+            $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
             $capturePayment = $this->client->capturePayment(
                 PaymentCaptureInput::from([
                     'transactionId' => $transactionId,
@@ -590,7 +595,7 @@ class PortalPaymentProcessor
             ]);
             $payment->addMetadata([
                 'data' => [
-                    ...$payment->metadata['data'],
+                    ...($payment->metadata['data'] ?? []),
                     'capture_data' => $capturePayment,
                 ],
             ]);
@@ -638,9 +643,8 @@ class PortalPaymentProcessor
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-
         try {
+            $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
             $reversePayment = $this->client->reversePayment(
                 PaymentCaptureInput::from([
                     'transactionId' => $transactionId,
@@ -668,7 +672,7 @@ class PortalPaymentProcessor
 
             $payment->addMetadata([
                 'data' => [
-                    ...$payment->metadata['data'],
+                    ...($payment->metadata['data'] ?? []),
                     'reverse_data' => $reversePayment,
                 ],
             ]);

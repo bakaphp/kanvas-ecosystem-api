@@ -36,7 +36,24 @@ class CapturePaymentAction
 
         $intentId = $this->order->get(CustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
         $bankTransaction = explode(':', $intentId)[1];
-        $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+
+        $this->payment->addLog('capture_action_executed', [
+            'order_id' => $this->order->id,
+            'intent_id' => $intentId,
+            'bank_transaction' => $bankTransaction,
+            'source' => 'CapturePaymentAction',
+        ]);
+
+        $captureResult = $paymentProcessor->capturePayment($this->payment, $this->order, $bankTransaction);
+
+        if ($captureResult['status'] === 'error') {
+            return [
+                'status' => 'error',
+                'message' => $captureResult['message'],
+                'data' => $captureResult['data'] ?? [],
+            ];
+        }
+
         try {
             if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
                 new TransitionOrderStateAction(
