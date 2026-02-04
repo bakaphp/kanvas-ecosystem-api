@@ -5,9 +5,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
-use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 
@@ -55,13 +53,8 @@ class CapturePaymentAction
         }
 
         try {
-            if ($orderStatus = $this->order->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
-                new TransitionOrderStateAction(
-                    $this->order,
-                    $this->payment->user,
-                    $orderStatus
-                )->execute(true);
-            }
+            $this->order->markAsPaid($this->payment->user);
+
             new SendPaymentReceiptAction(
                 $this->order,
                 $this->payment,

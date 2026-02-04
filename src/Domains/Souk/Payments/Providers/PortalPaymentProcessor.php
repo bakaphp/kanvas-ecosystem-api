@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -589,23 +590,44 @@ class PortalPaymentProcessor
                 'amount' => $order->getTotalAmount(),
             ]);
 
-            $payment->status = PaymentStatusEnum::PAID;
-            $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::PAID->value,
-            ]);
-            $payment->addMetadata([
+            $payment->markAsPaid([
                 'data' => [
-                    ...($payment->metadata['data'] ?? []),
                     'capture_data' => $capturePayment,
                 ],
             ]);
-            $payment->save();
-            $order->checkPayments();
 
             return [
                 'status' => 'success',
                 'message' => 'Payment captured successfully',
                 'data' => $capturePayment,
+            ];
+        } catch (ConnectException | RequestException $e) {
+            // Timeout occurred - provider likely captured but response didn't arrive
+            // Assume success and mark as backup_capture for reconciliation
+            report($e);
+
+            $payment->addLog('payment_capture_timeout', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+                'error_message' => $e->getMessage(),
+                'assumed_captured' => true,
+            ]);
+
+            $payment->markAsPaid([
+                'data' => [
+                    'backup_capture' => true,
+                    'capture_timeout' => [
+                        'timestamp' => now()->toIso8601String(),
+                        'error' => $e->getMessage(),
+                    ],
+                ],
+            ]);
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment assumed captured (timeout - needs verification)',
+                'data' => ['backup_capture' => true],
             ];
         } catch (EchoPayException $e) {
             report($e);
