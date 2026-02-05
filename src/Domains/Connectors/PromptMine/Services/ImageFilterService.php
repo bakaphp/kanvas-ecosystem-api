@@ -56,10 +56,10 @@ class ImageFilterService
         $messageFiles = $this->entity->getFiles();
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
-        $isOpenAi = Str::contains($imageFilter, 'gpt');
+        $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai');
         $googleGeminiKeywords = ['Banana', 'gemini', 'Gemini'];
         $isGeminiBanana = Str::contains(strtolower($imageFilterName), $googleGeminiKeywords)
                             || Str::contains($imageFilter, $googleGeminiKeywords);
