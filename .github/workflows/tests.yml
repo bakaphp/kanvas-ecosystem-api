@@ -4,7 +4,7 @@ on: ["push"]
 
 jobs:
   run-tests:
-    name: PHP ${{ matrix.php-versions }}
+    name: Tests - ${{ matrix.testsuite }}
     runs-on: ubuntu-latest
     env:
       extensions: mbstring, intl, json, redis, swoole, xdebug, igbinary
@@ -148,7 +148,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.4"]
+        testsuite:
+          - GraphQL
+          - Connectors
+          - Ecosystem
+          - Social
+          - Guild
+          - Inventory
+          - Souk
+          - Workflow
+          - Intelligence
+          - Baka
+          - Event
+          - ActionEngine
+          - Unit
     services:
       mysql:
         image: mysql:8.0
@@ -197,7 +210,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: "8.4"
           extensions: ${{ env.extensions }}
           tools: pecl
 
@@ -265,11 +278,11 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --parallel --processes=4
+        run: php artisan test --testsuite=${{ matrix.testsuite }} --parallel --processes=4
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
         if: failure()
         with:
-          name: Logs
+          name: Logs-${{ matrix.testsuite }}
           path: ./storage/logs
