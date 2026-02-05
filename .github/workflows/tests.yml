@@ -278,7 +278,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --testsuite=${{ matrix.testsuite }} --parallel --processes=4
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
