@@ -327,16 +327,12 @@ class ImageFilterService
         array $params = []
     ): ?Filesystem {
         // Download the image file
-        $imageContents = file_get_contents($imageUrl);
-        $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
-
-        if ($imageContents === false) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
+        $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($imageUrl);
+        // $fileName = basename($tempFilePath);
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');
-        file_put_contents($tempFile, $imageContents);
+        file_put_contents($tempFile, file_get_contents($tempFilePath));
 
         // Get the file's mime type
         $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -360,7 +356,7 @@ class ImageFilterService
                         ['Content-Type' => $mimeType]
                     )
                     ->post($this->openaiApiUrl, [
-                        'model' => 'gpt-image-1',
+                        'model' => $this->entity->message['ai_model']['value'] ?? 'gpt-4-image',
                         'prompt' => $prompt,
                     ]);
 
