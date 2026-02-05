@@ -11,9 +11,10 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
-use Throwable;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class TwoFactorAuthMutation
 {
@@ -28,7 +29,8 @@ class TwoFactorAuthMutation
         $twilio = Client::getInstance($app);
         $user = auth()->user();
 
-        if (in_array($user->getId(), [11535,40054,10888])) {
+        $skipVerification = (array) ($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SKIP_USERS->value) ?? []);
+        if (in_array($user->getId(), $skipVerification)) {
             return true;
         }
 
