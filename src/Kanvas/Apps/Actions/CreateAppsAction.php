@@ -44,7 +44,12 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $this->settings($app);
-            $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated = $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated->firstname = $this->user->firstname;
+            $userAssociated->lastname = $this->user->lastname;
+            $userAssociated->email = $this->user->email;
+            $userAssociated->displayname = $this->user->displayname;
+            $userAssociated->saveOrFail();
 
             $this->systemModules($app);
             $this->acl($app);
