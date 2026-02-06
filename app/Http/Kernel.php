@@ -22,13 +22,14 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\JsonResponse::class,
+        // \App\Http\Middleware\GraphQLSchemaSelectionMiddleware::class,
         \App\Http\Middleware\KanvasAppKeyMiddleware::class,
         \App\Http\Middleware\RefreshTokenMiddleware::class,
         \App\Http\Middleware\RolesMiddleware::class,
         \App\Http\Middleware\RegionMiddleware::class,
         \App\Http\Middleware\LocaleMiddleware::class,
 
-        // \App\Http\Middleware\APIRequestsLogMiddleware::class,
+        \App\Http\Middleware\APIRequestsLogMiddleware::class,
     ];
 
     /**

@@ -24,6 +24,7 @@ return [
                 // Schema-specific middleware.
                 // Add your custom middleware here for this schema:
                 // App\Http\Middleware\ExampleSchemaMiddleware::class,
+                App\Http\Middleware\GraphQLSchemaSelectionMiddleware::class,
             ],
         ],
         // Add additional schemas as needed

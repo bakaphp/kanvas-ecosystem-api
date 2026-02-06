@@ -37,7 +37,7 @@ return [
             'throttle:graphql',
             // Logs every incoming GraphQL query.
             // \Nuwave\Lighthouse\Support\Http\Middleware\LogGraphQLQueries::class,
-        ],
+            ],
 
         /*
          * The `prefix` and `domain` configuration options are optional.
@@ -240,7 +240,7 @@ return [
             'App\\GraphQL\\Inventory\\Mutations',
             'App\\GraphQL\\Event\\Mutations',
             'App\\GraphQL\\Workflow\\Mutations',
-            'App\\GraphQL\\Intelligence\\Mutations'
+            'App\\GraphQL\\Intelligence\\Mutations',
         ],
         'subscriptions' => [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',
