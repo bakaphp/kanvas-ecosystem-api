@@ -413,6 +413,7 @@ class PortalPaymentProcessor
             ]);
 
             $payment->status = PaymentStatusEnum::AUTHORIZED;
+            $payment->payment_intent_id = $intentId;
             $payment->addMetadata([
                 'data' => [
                     'payment_response' => $paymentResponse['data'],
