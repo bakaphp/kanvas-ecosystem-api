@@ -163,8 +163,8 @@ class ImageFilterService
             // Create nugget message and send notification - common for both methods
             return $this->finalizeProcessing(
                 $this->entity,
-                $fileSystemRecord,
                 $fileUrl,
+                $fileSystemRecord,
                 $processedImageUrl,
                 $this->params,
                 $requestId,
@@ -493,8 +493,8 @@ class ImageFilterService
      */
     protected function finalizeProcessing(
         Model $entity,
-        ?Filesystem $fileSystemRecord = null,
         string $originalImageUrl,
+        ?Filesystem $fileSystemRecord = null,
         ?string $processedImageUrl = null,
         array $params = [],
         ?string $requestId = null,
