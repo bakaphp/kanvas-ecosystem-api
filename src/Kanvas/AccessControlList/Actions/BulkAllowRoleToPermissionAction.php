@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
+use Kanvas\AccessControlList\Models\ModulePermission;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -36,9 +38,30 @@ class BulkAllowRoleToPermissionAction
             return;
         }
 
+        $modulesGranted = [];
+
         foreach ($this->permissions as $permission) {
             $modelName = $permission['model_name'];
             $systemModule = SystemModulesRepository::getByModelName($modelName, $this->app);
+
+            // Get the module ID for this model
+            $moduleId = ModulesRepositories::getModuleIdByModelName($modelName);
+
+            // Grant module-level permissions if specified (using compound permission names)
+            if ($moduleId !== null && ! in_array($moduleId, $modulesGranted)) {
+                // Check if module_permissions are provided in the input
+                if (isset($permission['module_permissions']) && is_array($permission['module_permissions'])) {
+                    foreach ($permission['module_permissions'] as $modulePermission) {
+                        // Create compound permission name: e.g., 'view-module-inventory'
+                        $compoundPermission = ModulePermission::getPermissionName($moduleId, $modulePermission);
+                        Bouncer::allow($this->role->name)->to($compoundPermission);
+                    }
+                }
+
+                $modulesGranted[] = $moduleId;
+            }
+
+            // Grant entity-specific permissions
             foreach ($permission['permission'] as $perm) {
                 if (! $systemModule->abilities()->where('name', $perm)->exists()) {
                     continue;

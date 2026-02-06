@@ -21,6 +21,8 @@ class OrderStatsQuery
         $initialStates = $input['initialStates'] ?? [];
         $finalStates = $input['finalStates'] ?? [];
         $currentCountStates = $input['currentCountStates'] ?? [];
+        $productTypeSlugs = $input['productTypeSlugs'] ?? [];
+        $orderTypeNames = $input['orderTypeNames'] ?? [];
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -32,6 +34,8 @@ class OrderStatsQuery
             $initialStates,
             $finalStates,
             $currentCountStates,
+            $productTypeSlugs,
+            $orderTypeNames
         )->execute(
             $date,
             $startDate,

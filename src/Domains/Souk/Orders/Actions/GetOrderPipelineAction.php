@@ -2,27 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Souk\Orders\Repositories;
+namespace Kanvas\Souk\Orders\Actions;
 
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 
-class OrderRepository
+class GetOrderPipelineAction
 {
     public function __construct(
-        protected Order $order
+        protected Order $order,
     ) {
     }
 
-    public function getStatus(
-        string $statusSlug,
-    ): ?object {
-        $status = $this->order->orderType?->statuses()
-                    ->where('slug', $statusSlug)->first();
-        return $status;
-    }
-
-    public function getPipeline(): array
+    public function execute(): array
     {
         $orderType = $this->order->orderType;
 
