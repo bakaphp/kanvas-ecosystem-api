@@ -592,6 +592,11 @@ extend type Query @guard {
                 relation: "order"
                 columns: ["user_email", "user_phone", "status", "reference"]
             )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
         @paginate(
