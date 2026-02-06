@@ -174,8 +174,6 @@ class PullLeadAction
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
 
-                    $filterResults[$lead->id] = $lead->id;
-
                     $results[] = [
                         'id' => $lead->id,
                         'uuid' => $lead->uuid,
@@ -193,6 +191,7 @@ class PullLeadAction
                         'rank' => $customer['rank'],
                         'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
+                    $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
 
