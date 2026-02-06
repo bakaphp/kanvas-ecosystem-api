@@ -9,7 +9,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
+use Kanvas\Connectors\Movipass\Actions\CapturePaymentAction;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
+use Kanvas\Connectors\Movipass\Actions\ValidatePaymentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
@@ -407,6 +409,219 @@ class PaymentMutation
                 'status' => 'error',
                 'message' => 'Error validating payer authentication: ' . $e->getMessage(),
                 'data' => [],
+            ];
+        }
+    }
+
+    public function validatePayment(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment not found',
+            ];
+        }
+
+        $order = $payment->payable;
+
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found for this payment',
+            ];
+        }
+
+        $validateAction = new ValidatePaymentAction($app, $payment, $order);
+        $result = $validateAction->execute();
+
+        return $result;
+    }
+
+    public function validatePaymentByOrder(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $orderId = (int) $request['orderId'];
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $orderId,
+        ])->first();
+
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found',
+            ];
+        }
+
+        $payment = Payments::getLatestForEntity($order, [
+            PaymentStatusEnum::AUTHORIZED->value,
+        ]);
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'No authorized payment found for this order',
+            ];
+        }
+
+        $validateAction = new ValidatePaymentAction($app, $payment, $order);
+        $result = $validateAction->execute();
+
+        return $result;
+    }
+
+    public function capturePayment(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            return [
+                'status' => 'error',
+                'message' => 'Unauthorized. Only administrators can capture payments.',
+            ];
+        }
+
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment not found',
+            ];
+        }
+
+        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment is not in authorized status. Current status: ' . $payment->status,
+            ];
+        }
+
+        try {
+            $order = $payment->payable;
+
+            if (! $order) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Order not found for this payment',
+                ];
+            }
+
+            $captureAction = new CapturePaymentAction($app, $payment, $order);
+            $result = $captureAction->execute();
+
+            return [
+                'status' => $result['status'],
+                'message' => $result['message'] ?? 'Payment captured successfully',
+                'payment' => $payment->fresh(),
+                'data' => $result['data'] ?? [],
+            ];
+        } catch (Exception $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => 'Error capturing payment: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    public function reversePayment(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            return [
+                'status' => 'error',
+                'message' => 'Unauthorized. Only administrators can reverse payments.',
+            ];
+        }
+
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+        $reason = $request['reason'] ?? 'Manual reversal';
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment not found',
+            ];
+        }
+
+        if (! in_array($payment->status, [PaymentStatusEnum::AUTHORIZED->value, PaymentStatusEnum::PAID->value])) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment cannot be reversed. Current status: ' . $payment->status,
+            ];
+        }
+
+        try {
+            $order = $payment->payable;
+
+            if (! $order) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Order not found for this payment',
+                ];
+            }
+
+            if (! $payment->payment_intent_id) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Payment intent ID not found',
+                ];
+            }
+
+            $bankTransaction = $payment->payment_intent_id;
+
+            $paymentProcessor = new PortalPaymentProcessor(
+                $app,
+                $payment->company,
+                []
+            );
+
+            $reversalResult = $paymentProcessor->reversePayment($payment, $order, $bankTransaction, $reason);
+
+            $payment->addLog('payment_reversed', [
+                'order_id' => $order->id,
+                'payment_id' => $payment->id,
+                'reason' => $reason,
+                'reversed_by' => auth()->user()->id ?? null,
+                'reversed_at' => now()->toIso8601String(),
+            ]);
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment reversed successfully',
+                'payment' => $payment->fresh(),
+                'data' => $reversalResult,
+            ];
+        } catch (Exception $e) {
+            report($e);
+
+            return [
+                'status' => 'error',
+                'message' => 'Error reversing payment: ' . $e->getMessage(),
             ];
         }
     }

@@ -108,6 +108,8 @@ input OrderStatsInput {
     initialStates: [String!]
     finalStates: [String!]
     currentCountStates: [String!]
+    productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")
     startDate: String # start of period (e.g., "2025-07-01")
     endDate: String # end of period (e.g., "2025-07-07")

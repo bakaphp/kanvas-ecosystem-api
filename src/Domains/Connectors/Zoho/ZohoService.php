@@ -64,7 +64,7 @@ class ZohoService
             'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
             'Account_Type' => 'Standard',
             'Name' => $agentInfo->name,
-            'Office_Phone' => $user->phone_number ?? '',
+            'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
 
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
@@ -73,12 +73,12 @@ class ZohoService
             $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
-            $data['Phone'] = $user->phone_number ?? '';
+            $data['Phone'] = str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? '');
             if ($agentInfo->sponsor_user_id !== null) {
-                $data['Sponsor_Name'] = Agent::where('users_id', $agentInfo->sponsor_user_id)
-                    ->where('apps_id', $this->app->getId())
-                    ->where('companies_id', $this->company->getId())
-                    ->first()?->users_linked_source_id ?? '';
+                /*  $data['Sponsor_Name'] = Agent::where('users_id', $agentInfo->sponsor_user_id)
+                     ->where('apps_id', $this->app->getId())
+                     ->where('companies_id', $this->company->getId())
+                     ->first()?->users_linked_source_id ?? ''; */
             }
 
             $zohoAgent = $this->zohoCrm->vendors->create($data);

@@ -21,6 +21,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\Models\BaseModel;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
@@ -87,6 +88,14 @@ class SystemModules extends BaseModel
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parents_id');
+    }
+
+    /**
+     * Kanvas module relationship.
+     */
+    public function kanvasModule(): BelongsTo
+    {
+        return $this->belongsTo(KanvasModule::class, 'modules_id');
     }
 
     /**

@@ -9,4 +9,5 @@ abstract class RoleTemplate
     public string $role;
     public array $denied;
     public array $allowed;
+    public bool $hasAllPermissions = false;
 }

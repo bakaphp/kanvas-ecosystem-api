@@ -18,6 +18,7 @@ enum ConfigurationEnum: string
     case REDIRECT_URL = 'ECHO_PAY_REDIRECT_URL';
     case SANDBOX_URL = 'https://api-test.portall.com.do:2053';
     case BYPASS_ECI = 'ECHO_PAY_BYPASS_ECI';
+    case CAPTURE_TIMEOUT = 'ECHO_PAY_CAPTURE_TIMEOUT';
 
     case AUTHORIZATION_PATH = '/api/v2/auth/token';
     case CONSULT_SERVICE_PATH = '/api/v2/echo-pay/service';

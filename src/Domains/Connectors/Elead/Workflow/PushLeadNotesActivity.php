@@ -28,7 +28,7 @@ use Throwable;
 
 class PushLeadNotesActivity extends KanvasActivity
 {
-    public $tries = 3;
+    public $tries = 1;
 
     public function execute(Message $message, Apps $app, array $params): array
     {
