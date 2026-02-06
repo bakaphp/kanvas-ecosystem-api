@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Referrals\Actions;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
@@ -79,8 +81,13 @@ class GenerateReferralCodeAction
             'is_active' => true,
         ]);
 
-        $company = Companies::getById($this->user->currentCompanyId());
-        $app = $this->app instanceof \Kanvas\Apps\Models\Apps ? $this->app : \Kanvas\Apps\Models\Apps::findOrFail($this->app->getId());
+        try {
+            $company = Companies::getById($this->user->currentCompanyId());
+        } catch (Exception $e) {
+            $company = $this->loyaltyProgram->company;
+        }
+
+        $app = $this->app instanceof Apps ? $this->app : Apps::findOrFail($this->app->getId());
         $createDiscountAction = new CreateDiscountAction($app, $company, $discountData);
 
         return $createDiscountAction->execute();
