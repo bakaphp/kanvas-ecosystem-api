@@ -445,7 +445,7 @@ class ImageFilterService
 
         return $filesystemServices->createFileSystemFromBase64(
             $base64ImageData,
-            $filename,
+            basename($imageUrl),
             $entity->user
         );
     }
