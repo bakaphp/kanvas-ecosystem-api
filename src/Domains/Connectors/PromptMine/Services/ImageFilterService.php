@@ -329,7 +329,6 @@ class ImageFilterService
         Model $entity,
         array $params = []
     ): array {
-     
         // Set up retry mechanism
         $maxRetries = 3;
         $retryDelay = 2; // seconds
