@@ -347,17 +347,14 @@ class ImageFilterService
 
         while ($attempt < $maxRetries && ! $success) {
             try {
+                $imageContent = file_get_contents($tempFile);
+                $base64Image = base64_encode($imageContent);
                 // Create a multipart request with extended timeout (180 seconds = 3 minutes)
                 $response = Http::timeout(200)
-                    ->attach(
-                        'image',
-                        file_get_contents($tempFile),
-                        basename($imageUrl),
-                        ['Content-Type' => $mimeType]
-                    )
                     ->post($this->openaiApiUrl, [
                         'model' => $this->entity->message['ai_model']['value'] ?? 'gpt-4-image',
                         'prompt' => $prompt,
+                        'image' => $base64Image,
                     ]);
 
                 // If we get here, we got a response without timeout
