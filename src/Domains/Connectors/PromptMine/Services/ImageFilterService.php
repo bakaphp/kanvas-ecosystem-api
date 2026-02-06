@@ -347,7 +347,6 @@ class ImageFilterService
 
         while ($attempt < $maxRetries && ! $success) {
             try {
-
                 $imageContent = file_get_contents($tempFile);
                 $base64Image = base64_encode($imageContent);
                 // Create a multipart request with extended timeout (180 seconds = 3 minutes)
