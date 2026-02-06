@@ -42,6 +42,8 @@ class Client
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
             ],
+            'timeout' => 90,
+            'connect_timeout' => 15,
         ]);
     }
 
@@ -88,12 +90,16 @@ class Client
     /**
      * Perform a POST request to the API.
      */
-    public function post(string $endpoint, array $data): array
+    public function post(string $endpoint, array $data, ?int $timeout = null): array
     {
         try {
-            $response = $this->client->post($endpoint, [
-                'json' => $data,
-            ]);
+            $options = ['json' => $data];
+
+            if ($timeout !== null) {
+                $options['timeout'] = $timeout;
+            }
+
+            $response = $this->client->post($endpoint, $options);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);

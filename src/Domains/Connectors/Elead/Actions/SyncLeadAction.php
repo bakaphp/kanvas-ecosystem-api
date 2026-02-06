@@ -135,6 +135,8 @@ class SyncLeadAction
         //update status
         if (! $eLeadOpportunity->isActive()) {
             $lead->close();
+        } elseif ($eLeadOpportunity->isActive() && ! $lead->isActive()) {
+            $lead->open();
         }
 
         return $eLeadOpportunity;
