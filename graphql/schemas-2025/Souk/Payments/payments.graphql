@@ -30,6 +30,20 @@ type PaymentIntentResult {
     message: Mixed
 }
 
+type PaymentValidationResult {
+    status: String!
+    message: String!
+    payment: Payment
+    order: Order
+}
+
+type PaymentActionResult {
+    status: String!
+    message: String!
+    payment: Payment
+    data: Mixed
+}
+
 extend type Mutation @guard {
     createPaymentMethod(input: PaymentMethodInput!): PaymentMethod!
         @field(
@@ -42,6 +56,22 @@ extend type Mutation @guard {
     makePaymentIntentFromOrder(orderID: ID!): PaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
+        )
+    validatePayment(paymentId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayment"
+        )
+    validatePaymentByOrder(orderId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePaymentByOrder"
+        )
+    capturePayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@capturePayment"
+        )
+    reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
         )
 }
 
