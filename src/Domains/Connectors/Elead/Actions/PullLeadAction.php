@@ -123,6 +123,7 @@ class PullLeadAction
         $results = [];
         $customers = $eLeadCustomer->search($params);
         $country = Countries::getByCode('US');
+        $filterResults = [];
 
         if ($customers && isset($customers['items'])) {
             foreach ($customers['items'] as $customer) {
@@ -151,6 +152,10 @@ class PullLeadAction
                         )
                     )->execute();
 
+                    if (isset($filterResults[$lead->id])) {
+                        continue; // Skip if this lead has already been processed
+                    }
+
                     $leadStatus = strtolower($lead->status()?->first()?->name ?? '');
                     $isActiveStatus = Str::contains($leadStatus, 'active');
 
@@ -168,6 +173,7 @@ class PullLeadAction
                     }
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
+
                     $results[] = [
                         'id' => $lead->id,
                         'uuid' => $lead->uuid,
@@ -185,6 +191,7 @@ class PullLeadAction
                         'rank' => $customer['rank'],
                         'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
+                    $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
 
