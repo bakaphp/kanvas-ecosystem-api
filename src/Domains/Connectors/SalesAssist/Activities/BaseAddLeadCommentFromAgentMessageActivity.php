@@ -20,7 +20,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
-    public $tries = 3;
+    public $tries = 1;
 
     /**
      * Get the integration enum for this connector.
