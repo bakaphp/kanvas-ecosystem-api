@@ -115,8 +115,11 @@ class SendUnRespondeMessageCommand extends Command
                             $lead->company,
                             (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                         );
-                        $eLeadOpportunity->addComment("The sales agent hasn't responded to the customer's message in 15 minutes. Sally is responding to the customer");
-                        $sentCRMInternalNote[$lead->getId()] = true;
+                        if (! $lead->get('sended_note_un_response')) {
+                            $eLeadOpportunity->addComment("The sales agent hasn't responded to the customer's message in 15 minutes. Sally is responding to the customer");
+                            $sentCRMInternalNote[$lead->getId()] = true;
+                            $lead->set('sended_note_un_response', true);
+                        }
                     } catch (ClientException $e) {
                         if (Str::contains($e->getMessage(), 'not active')
                             || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
