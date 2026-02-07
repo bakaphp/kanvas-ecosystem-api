@@ -172,7 +172,7 @@ class FollowUpEngagementActionTest extends TestCase
             'user_id' => $user->getId(),
             'role' => [],
         ]);
-        
+
         $agent = Agent::factory()->create([
             'name' => 'FollowUpEngagerAgent',
             'apps_id' => $lead->apps_id,
