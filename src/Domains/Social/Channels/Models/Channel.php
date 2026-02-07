@@ -95,7 +95,7 @@ class Channel extends BaseModel
     public function deleteLastMessageLocked(): bool
     {
         $message = $this->getLastMessage();
-        if ($message && $message->is_locked) {
+        if ($message && $message->isLocked()) {
             $newLastMessage = $this->getPreviousMessage($message);
             $this->last_message_id = $newLastMessage?->id;
 
