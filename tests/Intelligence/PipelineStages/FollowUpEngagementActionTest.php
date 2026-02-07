@@ -10,6 +10,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Models\FollowUp;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -19,6 +23,11 @@ use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Prism\Prism\Enums\FinishReason;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\Testing\StructuredResponseFake;
+use Prism\Prism\ValueObjects\Meta;
+use Prism\Prism\ValueObjects\Usage;
 use Tests\TestCase;
 
 class FollowUpEngagementActionTest extends TestCase
@@ -99,6 +108,41 @@ class FollowUpEngagementActionTest extends TestCase
         $pipelineStage = $lead->getCurrentPipelineStage();
         $pipelineStage->config = $config;
         $pipelineStage->saveOrFail();
+
+        // Create FollowUp infrastructure so FollowUpEngagementAction can find it
+        $followUp = FollowUp::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'pipelines_id' => $pipelineStage->pipelines_id,
+            'follow_up_type' => FollowUpTypeEnum::LEAD_FOLLOW_UP->value,
+            'name' => 'Test Lead Follow Up',
+        ]);
+
+        $followUpDay = FollowUpDay::create([
+            'follow_ups_id' => $followUp->id,
+            'pipeline_stages_id' => $pipelineStage->getId(),
+            'name' => 'Day 1',
+            'time_value' => 60,
+            'time_unit' => 'minutes',
+            'weight' => 1,
+            'calendar_day' => false,
+            'send_message' => false,
+        ]);
+
+        FollowUpTemplate::create([
+            'follow_up_days_id' => $followUpDay->id,
+            'communication_channel' => 'sms',
+            'name' => 'SMS Follow Up',
+            'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+        ]);
+
+        FollowUpTemplate::create([
+            'follow_up_days_id' => $followUpDay->id,
+            'communication_channel' => 'email',
+            'name' => 'Email Follow Up',
+            'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+        ]);
+
         $timezone = $lead->company->get('timezone') ?? 'UTC';
         $now = Carbon::now($timezone)->subHour(2);
 
@@ -125,12 +169,15 @@ class FollowUpEngagementActionTest extends TestCase
             'name' => 'firstMessageEngagerAgent',
             'apps_id' => $lead->apps_id,
             'companies_id' => $lead->companies_id,
+            'user_id' => $user->getId(),
             'role' => [],
         ]);
+        
         $agent = Agent::factory()->create([
             'name' => 'FollowUpEngagerAgent',
             'apps_id' => $lead->apps_id,
             'companies_id' => $lead->companies_id,
+            'user_id' => $user->getId(),
             'role' => [
                 'background' => [
                     'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
@@ -168,6 +215,21 @@ class FollowUpEngagementActionTest extends TestCase
         $sessionEmail->uuid = 'email' . fake()->email();
         $sessionEmail->channel_id = $emailChannel->id;
         $sessionEmail->save();
+
+        // Fake Prism AI response so the test doesn't depend on external AI services
+        $fakeStructuredData = [
+            'message' => 'Hi there! Just following up on your interest. Would you like to schedule a visit?',
+            'should_respond' => true,
+        ];
+
+        $fakeResponse = StructuredResponseFake::make()
+            ->withText(json_encode($fakeStructuredData, JSON_THROW_ON_ERROR))
+            ->withStructured($fakeStructuredData)
+            ->withFinishReason(FinishReason::Stop)
+            ->withUsage(new Usage(100, 50))
+            ->withMeta(new Meta('fake-response-id', 'gemini-2.5-pro'));
+
+        Prism::fake([$fakeResponse, $fakeResponse]);
 
         $message = new FollowUpEngagementAction($lead)->execute();
 

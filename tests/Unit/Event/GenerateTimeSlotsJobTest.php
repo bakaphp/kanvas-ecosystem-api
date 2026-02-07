@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Event;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
@@ -20,7 +20,7 @@ use Tests\TestCase;
 class GenerateTimeSlotsJobTest extends TestCase
 {
     use InventoryCases;
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected $variant;
     protected $region;
