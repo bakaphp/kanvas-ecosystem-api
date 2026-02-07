@@ -106,6 +106,13 @@ class FollowUpEngagementActionTest extends TestCase
         $message = new CreateMessageAction($dto)->execute();
 
         $pipelineStage = $lead->getCurrentPipelineStage();
+
+        // Ensure the lead's pipeline_id is set so FollowUpRepository can find the FollowUp
+        if (! $lead->pipeline_id) {
+            $lead->pipeline_id = $pipelineStage->pipelines_id;
+            $lead->saveOrFail();
+        }
+
         $pipelineStage->config = $config;
         $pipelineStage->saveOrFail();
 
