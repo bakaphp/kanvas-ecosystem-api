@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
@@ -114,7 +115,8 @@ class SendMessageToLeadAction
             $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
 
             $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                return preg_replace('/^\+?1/', '', $cellphone);
+                //return preg_replace('/^\+?1/', '', $cellphone);
+                return Str::normalizePhoneNumber($cellphone);
             });
             if (! $phone) {
                 throw new Exception('No hijack number found for this phone number');
