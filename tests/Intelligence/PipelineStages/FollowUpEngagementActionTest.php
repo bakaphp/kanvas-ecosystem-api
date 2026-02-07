@@ -7,6 +7,7 @@ namespace Tests\Intelligence\PipelineStages;
 use Carbon\Carbon;
 use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -62,6 +63,10 @@ class FollowUpEngagementActionTest extends TestCase
             'form_config' => '{}',
         ]];
         new Setup($app, $user, $company, $actions)->run();
+
+        // Ensure inventory infrastructure (channels, warehouses, etc.) exists
+        $inventorySetup = new InventorySetup($app, $user, $company);
+        $inventorySetup->run();
 
         $company->set('timezone', 'America/Los_Angeles');
         $workHours = [
