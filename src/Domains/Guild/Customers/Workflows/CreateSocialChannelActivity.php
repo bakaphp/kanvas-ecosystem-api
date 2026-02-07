@@ -78,7 +78,7 @@ class CreateSocialChannelActivity extends KanvasActivity
                     agentId: (int) $params['agent_id']
                 );
 
-                if ($communicationChannel === 'sms') {
+                if (! empty($params['create_whatsapp'])) {
                     $channel = $this->createChannelAndSession(
                         channelKey: 'whatsapp',//slug
                         communicationChannel: $communicationChannel,

@@ -48,7 +48,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
         $emailRequest = [
             'template_name' => 'agent-email-response',
             'email' => $channelId, //$this->message->message['from_email'],
-            'subject' => 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
+            'subject' => $this->message->entity()->get('title_email_follow_up') ?? 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
         ];
 
         // Define the callback to send each chunk in real time
@@ -109,6 +109,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
     protected function sendEmail(array $request, array $data, Message $message): void
     {
+        $data['signature'] = false;
         $notification = new Blank(
             $request['template_name'],
             $data,
