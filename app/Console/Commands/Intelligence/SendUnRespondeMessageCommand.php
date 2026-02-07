@@ -75,7 +75,7 @@ class SendUnRespondeMessageCommand extends Command
                 if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
-                    $message->setPublic();
+                    //$message->setPublic();
 
                     continue;
                 }
@@ -87,7 +87,7 @@ class SendUnRespondeMessageCommand extends Command
                         $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     )) {
                         $message->setUnlock();
-                        $message->setPublic();
+                        //$message->setPublic();
                         $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
@@ -103,7 +103,7 @@ class SendUnRespondeMessageCommand extends Command
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
-                    $message->setPublic();
+                    //$message->setPublic();
 
                     continue;
                 }
