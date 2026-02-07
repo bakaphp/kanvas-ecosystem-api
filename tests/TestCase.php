@@ -7,11 +7,14 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Inventory\Support\Setup as SupportSetup;
+use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Support\Setup as SocialSupportSetup;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
@@ -74,13 +77,42 @@ class TestCase extends BaseTestCase
         //$user = Users::where('id', '>', 0)->first();
         //$user = Users::factory(1)->create()->first();
         $this->app = $app;
+        $currentApp = app(Apps::class);
+
+        $data = AppInput::from(
+            [
+               'name' => $currentApp->name,
+               'url' => $currentApp->url,
+               'description' => $currentApp->description,
+               'domain' => $currentApp->domain,
+               'is_actived' => 1,
+               'ecosystem_auth' => 1,
+               'payments_active' => 0,
+               'is_public' => 1,
+               'domain_based' => 0,
+            ]
+        );
+        $createApp = new CreateAppsAction($data, new Users());
+        //$app = $createApp->execute();
+        $createApp->acl($currentApp);
+
+        //legacy needs this
+        Roles::firstOrCreate([
+            'name' => 'Admins',
+            'apps_id' => $currentApp->getId(),
+        ], [
+            'companies_id' => 1,
+            'is_active' => 1,
+            'scope' => 0,
+        ]);
+
         $user = $this->createUser();
         $this->actingAs($user, 'api');
 
         //setup CRM
         $company = $user->getCurrentCompany();
         $setupGuild = new Setup(
-            app(Apps::class),
+            $currentApp,
             $user,
             $company
         );
@@ -88,7 +120,7 @@ class TestCase extends BaseTestCase
 
         //setup inventory
         $setupInventory = new SupportSetup(
-            app(Apps::class),
+            $currentApp,
             $user,
             $company
         );
@@ -96,7 +128,7 @@ class TestCase extends BaseTestCase
 
         //setup social
         $setupSocial = new SocialSupportSetup(
-            app(Apps::class),
+            $currentApp,
             $user,
             $company
         );
