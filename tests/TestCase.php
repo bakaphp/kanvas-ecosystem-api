@@ -84,7 +84,7 @@ class TestCase extends BaseTestCase
                'name' => $currentApp->name,
                'url' => $currentApp->url,
                'description' => $currentApp->description,
-               'domain' => $currentApp->domain,
+               'domain' => $currentApp->domain ?? 'kanvas-ecosystem-api.test',
                'is_actived' => 1,
                'ecosystem_auth' => 1,
                'payments_active' => 0,
