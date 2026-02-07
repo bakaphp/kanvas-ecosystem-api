@@ -62,7 +62,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-                $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                //$cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $cellPhone = Str::normalizePhoneNumber($cellPhone);
                 $source = $lead->source?->name ?? '';
 
                 //for now avoid service
