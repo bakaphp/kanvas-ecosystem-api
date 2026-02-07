@@ -46,7 +46,7 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
         Message $message,
         Apps $app
     ): mixed {
-        if ($message->isLocked()) {
+        if ($message->isLocked() || ! $message->isPublic()) {
             return $this->failWorkflow([
                 'error' => 'Message is locked, cannot add comment',
             ]);
