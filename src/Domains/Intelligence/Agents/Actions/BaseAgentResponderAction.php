@@ -71,8 +71,8 @@ class BaseAgentResponderAction
             $newMessage->addEntity($message->entity());
         }
         $channel->addMessage($newMessage);
-
-        if ($this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        $workingHours = $message->entity()->company->isWithinWorkingHours(now());
+        if ($workingHours && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             $newMessage->setLock();
             $newMessage->setPrivate();
         }

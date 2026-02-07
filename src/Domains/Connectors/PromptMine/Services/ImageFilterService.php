@@ -59,7 +59,7 @@ class ImageFilterService
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
-        $isOpenAi = Str::contains($imageFilter, 'gpt');
+        $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai');
         $googleGeminiKeywords = ['Banana', 'gemini', 'Gemini'];
         $isGeminiBanana = Str::contains(strtolower($imageFilterName), $googleGeminiKeywords)
                             || Str::contains($imageFilter, $googleGeminiKeywords);
@@ -106,19 +106,22 @@ class ImageFilterService
         try {
             // Process image based on the model type
             if ($isOpenAi) {
-                $fileSystemRecord = $this->processImageWithOpenAI(
+                $imageProcessingResults = $this->processImageWithOpenAI(
                     $fileUrl,
                     $this->entity->message['prompt'],
                     $this->entity,
                     $this->params
                 );
-                if ($fileSystemRecord === null) {
+                if ($imageProcessingResults['result'] === false) {
                     return [
                         'result' => false,
                         'filter' => $imageFilter,
-                        'message' => 'Failed to retrieve processed image',
+                        'message' => $imageProcessingResults['message'] ?? 'Failed to retrieve processed image',
                     ];
                 }
+
+                $processedImageUrl = $imageProcessingResults['url'];
+                $fileSystemRecord = null;
             } elseif ($isGeminiBanana) {
                 // Process with Gemini-Nano-Banana
                 $imageFilter = str_replace('-remove', '', $imageFilter); //allow us to reuse filters with -remove suffix
@@ -160,8 +163,8 @@ class ImageFilterService
             // Create nugget message and send notification - common for both methods
             return $this->finalizeProcessing(
                 $this->entity,
-                $fileSystemRecord,
                 $fileUrl,
+                $fileSystemRecord,
                 $processedImageUrl,
                 $this->params,
                 $requestId,
@@ -325,23 +328,7 @@ class ImageFilterService
         string $prompt,
         Model $entity,
         array $params = []
-    ): ?Filesystem {
-        // Download the image file
-        $imageContents = file_get_contents($imageUrl);
-        $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
-
-        if ($imageContents === false) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
-
-        // Create a temporary file
-        $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');
-        file_put_contents($tempFile, $imageContents);
-
-        // Get the file's mime type
-        $finfo = new finfo(FILEINFO_MIME_TYPE);
-        $mimeType = $finfo->file($tempFile);
-
+    ): array {
         // Set up retry mechanism
         $maxRetries = 3;
         $retryDelay = 2; // seconds
@@ -353,15 +340,10 @@ class ImageFilterService
             try {
                 // Create a multipart request with extended timeout (180 seconds = 3 minutes)
                 $response = Http::timeout(200)
-                    ->attach(
-                        'image',
-                        file_get_contents($tempFile),
-                        basename($imageUrl),
-                        ['Content-Type' => $mimeType]
-                    )
                     ->post($this->openaiApiUrl, [
-                        'model' => 'gpt-image-1',
+                        'model' => $this->entity->message['ai_model']['value'] ?? 'gpt-4-image',
                         'prompt' => $prompt,
+                        'image_url' => $imageUrl
                     ]);
 
                 // If we get here, we got a response without timeout
@@ -391,9 +373,6 @@ class ImageFilterService
                 $retryDelay *= 2;
             }
         }
-
-        // Delete the original temporary file
-        @unlink($tempFile);
 
         if (! $response->successful()) {
             $endViaList = array_map(
@@ -427,31 +406,21 @@ class ImageFilterService
         // Parse the response
         $responseData = $response->json();
 
-        // Extract the base64 image data from the response
-        $base64ImageData = null;
-
-        if (isset($responseData[0]['b64_json'])) {
-            $base64ImageData = $responseData[0]['b64_json'];
-        } elseif (isset($responseData['data']) && isset($responseData['data']['b64_json'])) {
-            $base64ImageData = $responseData['data']['b64_json'];
-        } elseif (isset($responseData['b64_json'])) {
-            $base64ImageData = $responseData['b64_json'];
-        }
-
-        if (! $base64ImageData) {
+        if (! $responseData || ! isset(current($responseData)['url'])) {
             // Log the entire response structure to help diagnose the issue
             report(new Exception('Unexpected OpenAI API response format: ' . json_encode($responseData)));
 
-            return null;
+            return [
+                'result' => false,
+                'message' => 'Unexpected OpenAI API response format',
+            ];
         }
 
-        $filesystemServices = new FilesystemServices($this->app);
-
-        return $filesystemServices->createFileSystemFromBase64(
-            $base64ImageData,
-            $filename,
-            $entity->user
-        );
+        return [
+            'url' => current($responseData)['url'],
+            'result' => true,
+            'message' => 'Image processed successfully',
+        ];
     }
 
     /**
@@ -524,8 +493,8 @@ class ImageFilterService
      */
     protected function finalizeProcessing(
         Model $entity,
-        Filesystem $fileSystemRecord,
         string $originalImageUrl,
+        ?Filesystem $fileSystemRecord = null,
         ?string $processedImageUrl = null,
         array $params = [],
         ?string $requestId = null,
@@ -547,7 +516,7 @@ class ImageFilterService
         // $isRemix = $entity->message['remix_parent_id'] ?? false;
         $user = Users::getById($entity->users_id);
         $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
-        $cdnImageUrl = $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
+        $cdnImageUrl = $fileSystemRecord ? $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path : $processedImageUrl;
 
         $endViaList = array_map(
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],

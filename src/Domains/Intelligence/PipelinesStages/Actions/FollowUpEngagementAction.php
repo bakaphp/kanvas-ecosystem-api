@@ -62,6 +62,7 @@ class FollowUpEngagementAction
                 ->fromApp($this->lead->app)
                 ->fromCompany($this->lead->company)
                 ->get();
+
         $processedChannels = [];
         foreach ($sessions as $session) {
             $messageTemplateChannel = $session->getChannel();
@@ -145,6 +146,7 @@ class FollowUpEngagementAction
                     ->where('communication_channel', $messageTemplateChannel)
                     ->where('is_deleted', 0)
                     ->first()?->template;
+
                 if (! $messageTemplate) {
                     continue;
                 }

@@ -6,7 +6,10 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Auth\TokenGuard;
+use Kanvas\Users\Models\Users;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -21,10 +24,8 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register any authentication / authorization services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         //$this->registerPolicies();
 
@@ -34,6 +35,37 @@ class AuthServiceProvider extends ServiceProvider
                 Auth::createUserProvider($config['provider']),
                 $app->make('request')
             );
+        });
+
+        $this->registerModuleAccessGate();
+    }
+
+    /**
+     * Register the module access gate.
+     * This automatically checks module-level permissions before entity permissions.
+     */
+    protected function registerModuleAccessGate(): void
+    {
+        Gate::before(function ($user, string $_ability, array $arguments) {
+            if (empty($arguments) || ! is_string($arguments[0])) {
+                return null;
+            }
+
+            $modelClass = $arguments[0];
+
+            $moduleId = ModulesRepositories::getModuleIdByModelName($modelClass);
+
+            // If model doesn't belong to any module, allow normal flow
+            if ($moduleId === null) {
+                return null;
+            }
+
+            // Check if user has access to the module
+            if ($user instanceof Users && ! $user->canAccessModule($moduleId)) {
+                return false;
+            }
+
+            return null;
         });
     }
 }
