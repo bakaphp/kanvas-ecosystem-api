@@ -8,10 +8,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
@@ -77,6 +79,15 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
+
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'app' => $lead->app,
+                        'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
+                    ]
+                );
 
                 $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
