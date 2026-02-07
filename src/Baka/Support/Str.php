@@ -41,4 +41,14 @@ class Str extends IlluminateStr
     {
         return (string) preg_replace('/\s+/', ' ', trim($json));
     }
+
+    public static function normalizePhoneNumber(string $phone): string
+    {
+        return (string) preg_replace('/^\+?1/', '', $phone);
+    }
+
+    public static function sanitizeEmail(string $email): string
+    {
+        return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
+    }
 }
