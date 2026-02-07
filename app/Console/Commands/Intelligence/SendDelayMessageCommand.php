@@ -155,7 +155,10 @@ class SendDelayMessageCommand extends Command
                     $message->setPublic();
                     $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+                    $lead->set(
+                        LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value,
+                        $message->created_at
+                    );
 
                     //dispatch workflow
                     $message->fireWorkflow(
@@ -165,8 +168,6 @@ class SendDelayMessageCommand extends Command
                            'app' => $message->app,
                         ]
                     );
-
-                    $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
 
                     $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
 

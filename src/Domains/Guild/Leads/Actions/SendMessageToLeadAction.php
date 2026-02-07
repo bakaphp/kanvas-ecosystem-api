@@ -20,8 +20,13 @@ class SendMessageToLeadAction
     ) {
     }
 
-    public function execute(string $channel, string $message, ?string $from = '', ?string $title = null, bool $signature = true): array
-    {
+    public function execute(
+        string $channel,
+        string $message,
+        ?string $from = '',
+        ?string $title = null,
+        bool $signature = true
+    ): array {
         //TODO. we need to add this message to the lead channel
 
         return match ($channel) {
@@ -73,8 +78,11 @@ class SendMessageToLeadAction
         return [$message->body];
     }
 
-    protected function sendEmailMessage(string $message, ?string $title = null, bool $signature = true): array
-    {
+    protected function sendEmailMessage(
+        string $message,
+        ?string $title = null,
+        bool $signature = true
+    ): array {
         $notification = new Blank(
             'first-time-agent-engagement',
             [
