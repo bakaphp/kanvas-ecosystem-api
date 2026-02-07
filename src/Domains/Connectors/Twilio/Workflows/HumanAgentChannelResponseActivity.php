@@ -102,6 +102,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
+                    false
                 );
             },
             company: $channel->company,
