@@ -288,6 +288,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
     {
         if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
             return false;
+        } elseif (! $lead->company->isWithinWorkingHours(now())) {
+            return true;
         } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
