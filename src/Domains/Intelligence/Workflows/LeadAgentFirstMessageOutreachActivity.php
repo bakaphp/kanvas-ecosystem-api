@@ -146,7 +146,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 $communicationChannelNumber
                             ),
                         ]);
-                        $channel = (new CreateChannelAction($channel))->execute();
+                        $channel = new CreateChannelAction($channel)->execute();
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
