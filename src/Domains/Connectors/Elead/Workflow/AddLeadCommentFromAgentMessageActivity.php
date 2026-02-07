@@ -63,6 +63,12 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
         Message $message,
         Apps $app
     ): mixed {
+        if ($message->isLocked()) {
+            return $this->failWorkflow([
+                'error' => 'Message is locked, cannot add comment',
+            ]);
+        }
+
         try {
             $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
         } catch (ServerException $e) {
