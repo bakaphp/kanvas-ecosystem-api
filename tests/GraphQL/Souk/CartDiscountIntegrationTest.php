@@ -71,8 +71,12 @@ class CartDiscountIntegrationTest extends TestCase
         ]);
     }
 
-    private function createDiscount(string $code, float $value, bool $isPercentage, array $extra = []): Discount
-    {
+    private function createDiscount(
+        string $code,
+        float $value,
+        bool $isPercentage,
+        array $extra = []
+    ): Discount {
         $discountType = DiscountType::firstOrCreate([
             'name' => $isPercentage ? 'Percentage' : 'Fixed Amount',
         ], [
@@ -113,8 +117,11 @@ class CartDiscountIntegrationTest extends TestCase
         ]);
     }
 
-    private function applyDiscountToCart(string $uuid, array $discountCodes, array $fields = ['subtotal', 'total'])
-    {
+    private function applyDiscountToCart(
+        string $uuid,
+        array $discountCodes,
+        array $fields = ['subtotal', 'total']
+    ) {
         $fieldSelection = implode("\n                    ", $fields);
 
         return $this->graphQL("
@@ -134,7 +141,12 @@ class CartDiscountIntegrationTest extends TestCase
     public function testApplyDiscountToCart(): void
     {
         $uuid = (string) Str::uuid();
-        $discount = $this->createDiscount('TESTCART10', 10, true, ['min_order_value' => 0]);
+        $discount = $this->createDiscount(
+            'TESTCART10',
+            10,
+            true,
+            ['min_order_value' => 0]
+        );
 
         $this->addItemToCart($uuid);
 
@@ -168,7 +180,11 @@ class CartDiscountIntegrationTest extends TestCase
 
         $this->addItemToCart($uuid);
 
-        $response = $this->applyDiscountToCart($uuid, ['INVALID_CODE'], ['total']);
+        $response = $this->applyDiscountToCart(
+            $uuid,
+            ['INVALID_CODE'],
+            ['total']
+        );
 
         $response->assertJsonStructure([
             'errors' => [
@@ -182,11 +198,20 @@ class CartDiscountIntegrationTest extends TestCase
     public function testMinimumOrderValueValidation(): void
     {
         $uuid = (string) Str::uuid();
-        $discount = $this->createDiscount('MIN100', 20, false, ['min_order_value' => 999999]);
+        $discount = $this->createDiscount(
+            'MIN100',
+            20,
+            false,
+            ['min_order_value' => 999999]
+        );
 
         $this->addItemToCart($uuid);
 
-        $response = $this->applyDiscountToCart($uuid, [$discount->code], ['total']);
+        $response = $this->applyDiscountToCart(
+            $uuid,
+            [$discount->code],
+            ['total']
+        );
 
         $response->assertJsonStructure([
             'errors' => [
@@ -200,11 +225,19 @@ class CartDiscountIntegrationTest extends TestCase
     public function testDiscountSavedWithOrder(): void
     {
         $uuid = (string) Str::uuid();
-        $discount = $this->createDiscount('ORDERTEST15', 15, true);
+        $discount = $this->createDiscount(
+            'ORDERTEST15',
+            15,
+            true
+        );
 
         $this->addItemToCart($uuid);
 
-        $cartResponse = $this->applyDiscountToCart($uuid, [$discount->code], ['subtotal', 'total']);
+        $cartResponse = $this->applyDiscountToCart(
+            $uuid,
+            [$discount->code],
+            ['subtotal', 'total']
+        );
 
         $subtotal = (float) $cartResponse->json('data.cartDiscountCodesUpdate.subtotal');
         $total = (float) $cartResponse->json('data.cartDiscountCodesUpdate.total');
