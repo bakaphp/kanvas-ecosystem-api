@@ -47,6 +47,7 @@ class FollowUpEngagementAction
     public function execute(): ?array
     {
         if (! $this->followUp) {
+            echo 'DEBUG: followUp is null, pipeline_id=' . $this->lead->pipeline_id . PHP_EOL;
             return null;
         }
 
@@ -56,6 +57,10 @@ class FollowUpEngagementAction
             ->orderBy('weight', 'ASC')
             ->first();
 
+        if (! $followUpDay) {
+            echo 'DEBUG: followUpDay is null for stage_id=' . $this->lead->stage->getId() . PHP_EOL;
+        }
+
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
@@ -63,12 +68,16 @@ class FollowUpEngagementAction
                 ->fromCompany($this->lead->company)
                 ->get();
 
+        echo 'DEBUG: sessions count=' . $sessions->count() . PHP_EOL;
+
         $processedChannels = [];
         foreach ($sessions as $session) {
             $messageTemplateChannel = $session->getChannel();
+            echo 'DEBUG: processing channel=' . $messageTemplateChannel . PHP_EOL;
 
             // Skip if this channel has already been processed
             if (in_array($messageTemplateChannel, $processedChannels)) {
+                echo 'DEBUG: skipping duplicate channel=' . $messageTemplateChannel . PHP_EOL;
                 continue;
             }
             $processedChannels[] = $messageTemplateChannel;
@@ -160,6 +169,7 @@ class FollowUpEngagementAction
                         (float)$followUpDay->pipelineStage->weight
                     )->execute();
                 } catch (Exception $e) {
+                    echo 'FollowUpEngagementAction ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL;
                     captureException($e);
                 }
 
