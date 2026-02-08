@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -78,7 +79,7 @@ class CreateAppsAction
         return $app;
     }
 
-    protected function settings(Apps $app): void
+    public function settings(Apps $app): void
     {
         if ($app->settings()->count()) {
             return ;
@@ -158,21 +159,24 @@ class CreateAppsAction
         ];
 
         foreach ($roles as $role) {
-            $roles = Roles::firstOrCreate([
-                'name' => $role,
-                'apps_id' => $app->getId(),
-            ], [
-                'companies_id' => 1,
-                'is_active' => 1,
-                'scope' => 0,
-            ]);
+            try {
+                $roles = Roles::firstOrCreate([
+                    'name' => $role,
+                    'apps_id' => $app->getId(),
+                ], [
+                    'companies_id' => 1,
+                    'is_active' => 1,
+                    'scope' => 0,
+                ]);
 
-            $newRole = new CreateRoleAction(
-                $role,
-                $role,
-                $app
-            );
-            $newRole->execute();
+                $newRole = new CreateRoleAction(
+                    $role,
+                    $role,
+                    $app
+                );
+                $newRole->execute();
+            } catch (Exception $e) {
+            }
         }
     }
 }
