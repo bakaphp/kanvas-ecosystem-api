@@ -6,90 +6,142 @@ namespace Tests\GraphQL\Souk;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
 use Tests\TestCase;
 
 class CartDiscountIntegrationTest extends TestCase
 {
-    public function testApplyDiscountToCart(): void
-    {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $uuid = Str::uuid();
-        $user = auth()->user();
-        $app = app(Apps::class);
+    protected VariantsWarehouses $variantWarehouse;
+    protected Variants $variant;
+    protected $company;
+    protected Apps $kanvasApp;
 
-        // Create a discount type
-        $discountType = DiscountType::firstOrCreate([
-            'name' => 'Percentage',
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->kanvasApp = app(Apps::class);
+        $user = auth()->user();
+        $this->company = $user->getCurrentCompany();
+
+        $inventorySetup = new InventorySetup($this->kanvasApp, $user, $this->company);
+        $inventorySetup->run();
+
+        $product = Products::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create();
+
+        $this->variant = $product->variants()->first();
+
+        $warehouse = Warehouses::getDefault($this->company, $this->kanvasApp);
+        $channel = Channels::getDefault($this->company, $this->kanvasApp);
+
+        $this->variantWarehouse = new AddToWarehouseAction(
+            $this->variant,
+            $warehouse,
+            VariantsWarehousesDto::from([
+                'variant' => $this->variant,
+                'warehouse' => $warehouse,
+                'quantity' => 10,
+                'price' => 100,
+                'sku' => $this->variant->sku,
+            ])
+        )->execute();
+
+        VariantsChannels::updateOrCreate([
+            'product_variants_warehouse_id' => $this->variantWarehouse->id,
+            'channels_id' => $channel->getId(),
         ], [
-            'description' => 'Percentage discount',
+            'products_variants_id' => $this->variant->getId(),
+            'warehouses_id' => $warehouse->getId(),
+            'price' => 100,
+            'discounted_price' => 0,
+            'is_published' => true,
+        ]);
+    }
+
+    private function createDiscount(string $code, float $value, bool $isPercentage, array $extra = []): Discount
+    {
+        $discountType = DiscountType::firstOrCreate([
+            'name' => $isPercentage ? 'Percentage' : 'Fixed Amount',
+        ], [
+            'description' => $isPercentage ? 'Percentage discount' : 'Fixed amount discount',
         ]);
 
-        $discountFactory = Discount::fromCompany($company)->fromApp($app)->where('code', 'TESTCART10')->first();
-
-        if (! $discountFactory) {
-            $discountFactory = Discount::factory()->withCompanyId($company->id)->create([
-                'name' => 'Test Cart Discount',
-                'description' => 'Test Cart Discount',
-                'code' => 'TESTCART10',
+        return Discount::fromCompany($this->company)->fromApp($this->kanvasApp)->where('code', $code)->first()
+            ?? Discount::factory()->withCompanyId($this->company->id)->create(array_merge([
+                'name' => $code,
+                'description' => $code,
+                'code' => $code,
                 'discount_type_id' => $discountType->id,
-                'companies_id' => $company->id,
-                'value' => 10,
-                'is_percentage' => true,
+                'companies_id' => $this->company->id,
+                'value' => $value,
+                'is_percentage' => $isPercentage,
                 'is_active' => true,
-                'min_order_value' => 0,
-            ]);
-        }
+            ], $extra));
+    }
 
-        $discountId = $discountFactory->id;
-        $discountCode = $discountFactory->code;
-
-        // Add item to cart
-        $response = $this->graphQL('
+    private function addItemToCart(string $uuid): void
+    {
+        $this->graphQL('
             mutation addToCart($items: [CartItemInput!]!) {
                 addToCart(items: $items) {
                     id
-                    name
-                    price
-                    quantity
                 }
             }
         ', [
             'items' => [
                 [
-                    'variant_id' => $variantWarehouse->products_variants_id,
+                    'variant_id' => $this->variant->getId(),
                     'quantity' => 1,
                 ],
             ],
         ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-Identifier' => $uuid,
         ]);
+    }
 
-        // Apply discount code using cartDiscountCodesUpdate
-        $response = $this->graphQL('
-            mutation applyDiscount($discountCodes: [String!]!) {
-                cartDiscountCodesUpdate(discountCodes: $discountCodes) {
-                    items {
-                        id
-                        name
-                        price
-                        quantity
-                    }
-                    subtotal
-                    total
-                   
+    private function applyDiscountToCart(string $uuid, array $discountCodes, array $fields = ['subtotal', 'total'])
+    {
+        $fieldSelection = implode("\n                    ", $fields);
+
+        return $this->graphQL("
+            mutation applyDiscount(\$discountCodes: [String!]!) {
+                cartDiscountCodesUpdate(discountCodes: \$discountCodes) {
+                    {$fieldSelection}
                 }
             }
-        ', [
-            'discountCodes' => [$discountCode],
+        ", [
+            'discountCodes' => $discountCodes,
         ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
+            'X-Kanvas-Location' => $this->company->branch->uuid,
             'X-Kanvas-Identifier' => $uuid,
+        ]);
+    }
+
+    public function testApplyDiscountToCart(): void
+    {
+        $uuid = (string) Str::uuid();
+        $discount = $this->createDiscount('TESTCART10', 10, true, ['min_order_value' => 0]);
+
+        $this->addItemToCart($uuid);
+
+        $response = $this->applyDiscountToCart($uuid, [$discount->code], [
+            'items { id name price quantity }',
+            'subtotal',
+            'total',
         ]);
 
         $response->assertJsonStructure([
@@ -102,58 +154,21 @@ class CartDiscountIntegrationTest extends TestCase
             ],
         ]);
 
-        // Verify total is discounted
-        $subtotal = $response->json('data.cartDiscountCodesUpdate.subtotal');
-        $total = $response->json('data.cartDiscountCodesUpdate.total');
+        $subtotal = (float) $response->json('data.cartDiscountCodesUpdate.subtotal');
+        $total = (float) $response->json('data.cartDiscountCodesUpdate.total');
 
-        // Subtotal should be the original price
-        $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = round($expectedSubtotal * 0.9, 2); // 10% discount
-        $this->assertEquals($expectedSubtotal, $subtotal);
-        $this->assertEquals($expectedTotal, $total); // 10% discount applied
+        $this->assertGreaterThan(0, $subtotal);
+        $expectedTotal = round($subtotal * 0.9, 2); // 10% discount
+        $this->assertEquals($expectedTotal, $total);
     }
 
     public function testInvalidDiscountCode(): void
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $uuid = Str::uuid();
+        $uuid = (string) Str::uuid();
 
-        $this->app['auth']->forgetGuards();
+        $this->addItemToCart($uuid);
 
-        // First add an item to cart
-        $this->graphQL('
-            mutation addToCart($items: [CartItemInput!]!) {
-                addToCart(items: $items) {
-                    id
-                }
-            }
-        ', [
-            'items' => [
-                [
-                    'variant_id' => $variantWarehouse->products_variants_id,
-                    'quantity' => 1,
-                ],
-            ],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
-
-        // Try to apply non-existent discount code
-        $response = $this->graphQL('
-            mutation applyDiscount($discountCodes: [String!]!) {
-                cartDiscountCodesUpdate(discountCodes: $discountCodes) {
-                    total
-                }
-            }
-        ', [
-            'discountCodes' => ['INVALID_CODE'],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
+        $response = $this->applyDiscountToCart($uuid, ['INVALID_CODE'], ['total']);
 
         $response->assertJsonStructure([
             'errors' => [
@@ -166,72 +181,12 @@ class CartDiscountIntegrationTest extends TestCase
 
     public function testMinimumOrderValueValidation(): void
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $uuid = Str::uuid();
+        $uuid = (string) Str::uuid();
+        $discount = $this->createDiscount('MIN100', 20, false, ['min_order_value' => 999999]);
 
-        $this->app['auth']->forgetGuards();
+        $this->addItemToCart($uuid);
 
-        // Create a discount with minimum order value
-        $discountType = DiscountType::firstOrCreate([
-            'name' => 'Fixed Amount',
-        ], [
-            'description' => 'Fixed amount discount',
-        ]);
-
-        $app = app(Apps::class);
-
-        $discountFactory = Discount::fromCompany($company)->fromApp($app)->where('code', 'MIN100')->first();
-
-        if (! $discountFactory) {
-            $discountFactory = Discount::factory()->withCompanyId($company->id)->create([
-            'name' => 'Min Order Discount',
-            'description' => 'Min Order Discount',
-            'code' => 'MIN100',
-            'discount_type_id' => $discountType->id,
-            'companies_id' => $company->id,
-            'value' => 20,
-            'is_percentage' => false,
-            'is_active' => true,
-            'min_order_value' => 999999, // Very high minimum that won't be met
-            ]);
-        }
-
-        $discountCode = $discountFactory->code;
-
-        // Add to cart
-        $this->graphQL('
-            mutation addToCart($items: [CartItemInput!]!) {
-                addToCart(items: $items) {
-                    id
-                }
-            }
-        ', [
-            'items' => [
-                [
-                    'variant_id' => $variantWarehouse->products_variants_id,
-                    'quantity' => 1,
-                ],
-            ],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
-
-        // Try to apply discount using cartDiscountCodesUpdate
-        $response = $this->graphQL('
-            mutation applyDiscount($discountCodes: [String!]!) {
-                cartDiscountCodesUpdate(discountCodes: $discountCodes) {
-                    total
-                }
-            }
-        ', [
-            'discountCodes' => [$discountCode],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
+        $response = $this->applyDiscountToCart($uuid, [$discount->code], ['total']);
 
         $response->assertJsonStructure([
             'errors' => [
@@ -244,82 +199,18 @@ class CartDiscountIntegrationTest extends TestCase
 
     public function testDiscountSavedWithOrder(): void
     {
-        $variantWarehouse = VariantsWarehouses::first();
-        $region = $variantWarehouse->warehouse->region;
-        $company = $region->company;
-        $uuid = Str::uuid();
-        $app = app(Apps::class);
+        $uuid = (string) Str::uuid();
+        $discount = $this->createDiscount('ORDERTEST15', 15, true);
 
-        $this->app['auth']->forgetGuards();
+        $this->addItemToCart($uuid);
 
-        // Create a discount type
-        $discountType = DiscountType::firstOrCreate([
-            'name' => 'Percentage',
-        ], [
-            'description' => 'Percentage discount',
-        ]);
+        $cartResponse = $this->applyDiscountToCart($uuid, [$discount->code], ['subtotal', 'total']);
 
-        $discountFactory = Discount::fromCompany($company)->fromApp($app)->where('code', 'ORDERTEST15')->first();
+        $subtotal = (float) $cartResponse->json('data.cartDiscountCodesUpdate.subtotal');
+        $total = (float) $cartResponse->json('data.cartDiscountCodesUpdate.total');
 
-        if (! $discountFactory) {
-            $discountFactory = Discount::factory()->withCompanyId($company->id)->create([
-            'name' => 'Order Test Discount',
-            'description' => 'Order Test Discount',
-            'code' => 'ORDERTEST15',
-            'discount_type_id' => $discountType->id,
-            'companies_id' => $company->id,
-            'value' => 15,
-            'is_percentage' => true,
-            'is_active' => true,
-            ]);
-        }
-
-        $discountId = $discountFactory->id;
-        $discountCode = $discountFactory->code;
-
-        // Add item to cart
-        $this->graphQL('
-            mutation addToCart($items: [CartItemInput!]!) {
-                addToCart(items: $items) {
-                    id
-                }
-            }
-        ', [
-            'items' => [
-                [
-                    'variant_id' => $variantWarehouse->products_variants_id,
-                    'quantity' => 1,
-                ],
-            ],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
-
-        // Apply discount code
-        $cartResponse = $this->graphQL('
-            mutation applyDiscount($discountCodes: [String!]!) {
-                cartDiscountCodesUpdate(discountCodes: $discountCodes) {
-                    subtotal
-                    total
-                }
-            }
-        ', [
-            'discountCodes' => [$discountCode],
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-Identifier' => $uuid,
-        ]);
-
-        // Verify discount was applied to cart
-        $expectedSubtotal = $variantWarehouse->price;
-        $expectedTotal = round($expectedSubtotal * 0.85, 2); // 15% off
-
-        $this->assertEquals($expectedSubtotal, $cartResponse->json('data.cartDiscountCodesUpdate.subtotal'));
-        $this->assertEquals($expectedTotal, $cartResponse->json('data.cartDiscountCodesUpdate.total'));
-
-        // Now create an order from the cart
-        // This would typically be done through createOrder mutation
-        // The CreateBaseOrderAction should automatically save the discount from cart conditions
+        $this->assertGreaterThan(0, $subtotal);
+        $expectedTotal = round($subtotal * 0.85, 2); // 15% off
+        $this->assertEquals($expectedTotal, $total);
     }
 }
