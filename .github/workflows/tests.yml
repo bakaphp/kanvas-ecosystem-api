@@ -265,7 +265,6 @@ jobs:
             SET GLOBAL innodb_flush_log_at_trx_commit = 0;
             SET GLOBAL sync_binlog = 0;
             SET GLOBAL innodb_flush_neighbors = 0;
-            SET GLOBAL innodb_doublewrite = OFF;
             SET GLOBAL innodb_log_buffer_size = 67108864;
             SET GLOBAL innodb_buffer_pool_size = 536870912;
           "
