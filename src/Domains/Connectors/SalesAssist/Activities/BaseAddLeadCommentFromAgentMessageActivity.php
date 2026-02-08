@@ -167,7 +167,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 if (is_array($externalResult) && isset($externalResult['error'])) {
                     return $externalResult;
                 }
-                
+
                 $message->set('sent_to_crm', true);
 
                 // Notify managers
