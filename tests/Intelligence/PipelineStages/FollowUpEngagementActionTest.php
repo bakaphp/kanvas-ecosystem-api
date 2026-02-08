@@ -101,6 +101,15 @@ class FollowUpEngagementActionTest extends TestCase
             'languages_id' => 1,
             'name' => 'AI Generated Message',
         ]);
+
+        // Pre-create twilio-sms MessageType with languages_id so CreateMessageFollowUpAction doesn't fail
+        MessageType::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'name' => 'twilio-sms',
+            'verb' => 'twilio-sms',
+        ], [
+            'languages_id' => 1,
+        ]);
         $dto = MessageInput::from([
             'app' => $app,
             'company' => $company,

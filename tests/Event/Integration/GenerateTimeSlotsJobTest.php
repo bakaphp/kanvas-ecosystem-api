@@ -65,6 +65,10 @@ class GenerateTimeSlotsJobTest extends TestCase
             amount: 100
         );
 
+        // Set timezone to UTC to ensure consistent RRULE occurrence generation across environments
+        $this->company->timezone = 'UTC';
+        $this->company->saveOrFail();
+
         $setup = new Setup($this->apps, $this->user, $this->company);
         $setup->run();
     }
@@ -207,7 +211,8 @@ class GenerateTimeSlotsJobTest extends TestCase
     public function testGenerateTimeSlotsRespectsBlackoutPeriods(): void
     {
         $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
-        $endDate = $startDate->copy()->addDays(7);
+        // Use addDays(6)->endOfDay() to create a 7-day window; getOccurrencesBetween() is inclusive on both ends
+        $endDate = $startDate->copy()->addDays(6)->endOfDay();
 
         $scheduleRule = ScheduleRules::create([
             'apps_id' => $this->apps->getId(),
