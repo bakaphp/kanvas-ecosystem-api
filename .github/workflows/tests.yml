@@ -168,9 +168,10 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: password
           MYSQL_DATABASE: kanvas
+          MYSQL_INITDB_SKIP_TZINFO: 1
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 --tmpfs /var/lib/mysql
       redis:
         # Docker Hub image
         image: redis
@@ -259,7 +260,15 @@ jobs:
 
       - name: Configure MySQL
         run: |
-          mysql -uroot -h127.0.0.1 -ppassword -e "SET GLOBAL max_connections = 1000;"
+          mysql -uroot -h127.0.0.1 -ppassword -e "
+            SET GLOBAL max_connections = 1000;
+            SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+            SET GLOBAL sync_binlog = 0;
+            SET GLOBAL innodb_flush_neighbors = 0;
+            SET GLOBAL innodb_doublewrite = OFF;
+            SET GLOBAL innodb_log_buffer_size = 67108864;
+            SET GLOBAL innodb_buffer_pool_size = 536870912;
+          "
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
