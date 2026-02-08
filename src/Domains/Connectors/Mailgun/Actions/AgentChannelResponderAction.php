@@ -109,7 +109,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
     protected function sendEmail(array $request, array $data, Message $message): void
     {
-        $data['signature'] = false;
+        $data['signature'] = true;
         $notification = new Blank(
             $request['template_name'],
             $data,
