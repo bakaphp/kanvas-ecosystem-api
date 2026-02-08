@@ -23,7 +23,7 @@ use Kanvas\Users\Models\Users;
 class BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'text';
-    protected ?string $communicationChannel = null;
+    protected string $communicationChannel;
 
     public function __construct(
         protected Channel $channel,
