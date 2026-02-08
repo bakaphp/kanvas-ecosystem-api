@@ -19,6 +19,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class BaseAgentResponderAction
 {
@@ -69,15 +70,16 @@ class BaseAgentResponderAction
             //slug: Str::slug($text) . '-' . microtime()
         );
 
-        $newMessage = new CreateMessageAction($messageInput)->execute();
+        $newMessage = new CreateMessageAction($messageInput);
+        $newMessage->runWorkflow = false;
+        $newMessage = $newMessage->execute();
+
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
 
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }
-
-        $channel->addMessage($newMessage);
 
         $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
 
@@ -88,6 +90,15 @@ class BaseAgentResponderAction
             $newMessage->setLock();
             $newMessage->setPrivate();
         }
+
+        $newMessage->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                 'app' => $newMessage->app,
+             ]
+        );
+        $channel->addMessage($newMessage);
 
         return $newMessage;
     }
