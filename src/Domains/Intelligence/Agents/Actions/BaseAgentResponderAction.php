@@ -23,7 +23,7 @@ use Kanvas\Users\Models\Users;
 class BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'text';
-    protected string $communicationChannel;
+    protected ?string $communicationChannel = null;
 
     public function __construct(
         protected Channel $channel,
@@ -38,8 +38,13 @@ class BaseAgentResponderAction
         }
     }
 
-    protected function createMessage(string $text, string $to, Message $message, Channel $channel, ?string $from = null): Message
-    {
+    protected function createMessage(
+        string $text,
+        string $to,
+        Message $message,
+        Channel $channel,
+        ?string $from = null
+    ): Message {
         $user = $message->user;
         $agentUser = $this->channel->app->get('kanvas_agent_user_id');
         if ($agentUser !== null) {
@@ -67,12 +72,19 @@ class BaseAgentResponderAction
         $newMessage = new CreateMessageAction($messageInput)->execute();
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
+
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }
+
         $channel->addMessage($newMessage);
-        $workingHours = $message->entity()->company->isWithinWorkingHours(now());
-        if ($workingHours && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+
+        $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
+
+        $agentSupportMode = $isWithinWorkingHours
+            && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
+
+        if ($agentSupportMode) {
             $newMessage->setLock();
             $newMessage->setPrivate();
         }
