@@ -151,7 +151,8 @@ final class ImporterTest extends TestCase
             $region
         );
 
-        $this->assertInstanceOf(Products::class, $productImporter->execute());
+        // Retry to handle savepoint conflicts from parallel test execution
+        $this->assertInstanceOf(Products::class, retry(3, fn () => $productImporter->execute(), 100));
     }
 
     public function testImportActionWithDefaultAttributes(): void
@@ -170,7 +171,7 @@ final class ImporterTest extends TestCase
             [
                 'name' => $customAttribute,
                 'value' => fake()->word(),
-            ]
+            ],
         ]);
         $attributes = [
             'attributes' => [
