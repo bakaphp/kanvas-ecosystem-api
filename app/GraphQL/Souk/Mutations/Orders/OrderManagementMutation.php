@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
@@ -87,8 +89,17 @@ class OrderManagementMutation
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
-
-        $region = Regions::getDefault($company);
+        $region = Regions::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'slug' => Str::slug('Default'),
+        ], [
+            'name' => 'Default',
+            'is_default' => true,
+            'currency_id' => Currencies::where('code', 'USD')->firstOrFail()->getId(),
+            'users_id' => $company->users_id,
+            'short_slug' => Str::slug('Default'),
+        ]);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
