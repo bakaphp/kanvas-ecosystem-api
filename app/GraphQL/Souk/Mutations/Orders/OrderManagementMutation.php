@@ -88,7 +88,7 @@ class OrderManagementMutation
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
-        $region = Regions::getDefault($company);
+        $region = Regions::getDefault($company, $app);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
