@@ -13,7 +13,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
@@ -102,8 +101,6 @@ class ImageFilterService
             //lets add them to params since this is optional
             $this->params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
         }
-
-        \Illuminate\Support\Facades\Log::info('Processing image with filter: ' . $imageFilter . ' | isOpenAi: ' . ($isOpenAi ? 'true' : 'false') . ' | isGeminiBanana: ' . ($isGeminiBanana ? 'true' : 'false'));
 
         try {
             // Process image based on the model type
