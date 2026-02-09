@@ -13,7 +13,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Actions\MessageOrderFulfillmentAction;
@@ -56,7 +55,7 @@ class ImageFilterService
         $messageFiles = $this->entity->getFiles();
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai/');
@@ -588,6 +587,7 @@ class ImageFilterService
         string $model,
         array $params
     ): Response {
+        $imageFilter = Str::of($imageFilter)->replace('fal-ai/', '')->toString();
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);

@@ -308,7 +308,6 @@ class LLMMessageResponseActivity extends KanvasActivity
         );
 
         $imageFilterResult = $imageFilterService->execute();
-
         try {
             if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
                 throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
