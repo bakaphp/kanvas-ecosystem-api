@@ -92,7 +92,7 @@ class OneSignalService
         }
 
         if (isset($data) && is_array($data) && ! empty($data)) {
-            $params['data'] = $data;
+            $params['data'] = $this->truncateDataToFit($data);
         }
 
         if (isset($buttons) && is_array($buttons) && ! empty($buttons)) {
@@ -116,5 +116,41 @@ class OneSignalService
 
         //$this->oneSignalClient->sendNotificationCustom($params)->getBody()->getContents();
         $this->oneSignalClient->sendNotificationCustom($params);
+    }
+
+    protected function truncateDataToFit(array $data, int $maxBytes = 2048): array
+    {
+        $encoded = json_encode($data);
+
+        if (strlen($encoded) <= $maxBytes) {
+            return $data;
+        }
+
+        $data = $this->truncateStringsRecursively($data, 200);
+
+        if (strlen(json_encode($data)) <= $maxBytes) {
+            return $data;
+        }
+
+        $data = $this->truncateStringsRecursively($data, 100);
+
+        if (strlen(json_encode($data)) <= $maxBytes) {
+            return $data;
+        }
+
+        return $this->truncateStringsRecursively($data, 50);
+    }
+
+    protected function truncateStringsRecursively(array $data, int $maxLength): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->truncateStringsRecursively($value, $maxLength);
+            } elseif (is_string($value) && mb_strlen($value) > $maxLength) {
+                $data[$key] = mb_substr($value, 0, $maxLength) . '...';
+            }
+        }
+
+        return $data;
     }
 }
