@@ -56,7 +56,7 @@ class ImageFilterService
         $messageFiles = $this->entity->getFiles();
         $this->apiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $this->entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai/');
@@ -102,6 +102,8 @@ class ImageFilterService
             //lets add them to params since this is optional
             $this->params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
         }
+
+        \Illuminate\Support\Facades\Log::info('Processing image with filter: ' . $imageFilter . ' | isOpenAi: ' . ($isOpenAi ? 'true' : 'false') . ' | isGeminiBanana: ' . ($isGeminiBanana ? 'true' : 'false'));
 
         try {
             // Process image based on the model type
