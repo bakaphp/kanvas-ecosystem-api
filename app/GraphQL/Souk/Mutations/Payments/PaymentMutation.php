@@ -150,6 +150,14 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
+
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
@@ -225,6 +233,14 @@ class PaymentMutation
             'apps_id' => $app->getId(),
             'id' => $orderId,
         ])->first();
+
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
 
         $payment = Payments::getLatestForEntity($order);
 
@@ -328,6 +344,14 @@ class PaymentMutation
             'apps_id' => $app->getId(),
             'id' => $orderId,
         ])->first();
+
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
 
         $payment = Payments::getLatestForEntity($order);
 
