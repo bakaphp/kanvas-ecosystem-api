@@ -12,6 +12,14 @@ enum PaymentMethodType {
     PAYMENT
 }
 
+enum OrderStatusEnum {
+    PENDING @enum(value: "pending")
+    COMPLETED @enum(value: "completed")
+    DRAFT @enum(value: "draft")
+    CANCELED @enum(value: "canceled")
+    FAILED @enum(value: "failed")
+}
+
 type OrderExportResult {
     status: String!
     download_url: String
@@ -420,6 +428,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    updateDraftOrderStatus(order_id: ID!, status: OrderStatusEnum!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@updateStatus"
         )
     updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
         @field(

@@ -9,7 +9,9 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateDraftOrderAction;
+use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DraftOrder;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 class DraftOrderManagementMutation
@@ -52,5 +54,29 @@ class DraftOrderManagementMutation
         $log->save();
 
         return $order;
+    }
+
+    public function updateStatus(mixed $root, array $request): Order
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $order = Order::getById($request['order_id'], $app);
+
+        if ($order->status !== OrderStatusEnum::DRAFT->value) {
+            throw new ValidationException('Only draft orders can have their status updated through this mutation');
+        }
+
+        $newStatus = $request['status'];
+
+        if ($newStatus === OrderStatusEnum::DRAFT->value) {
+            throw new ValidationException('Order is already in draft status');
+        }
+
+        return (new UpdateOrderAction(
+            $order,
+            ['status' => $newStatus],
+            $user
+        ))->execute();
     }
 }
