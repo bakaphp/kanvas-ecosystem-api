@@ -59,7 +59,7 @@ class ImageFilterService
         $imageFilter = Str::of($this->entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
         $imageFilterName = $this->entity->message['ai_model']['name'] ?? 'cartoonify';
 
-        $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai');
+        $isOpenAi = Str::contains($imageFilter, 'gpt') && ! Str::contains($imageFilter, 'fal-ai/');
         $googleGeminiKeywords = ['Banana', 'gemini', 'Gemini'];
         $isGeminiBanana = Str::contains(strtolower($imageFilterName), $googleGeminiKeywords)
                             || Str::contains($imageFilter, $googleGeminiKeywords);
@@ -105,7 +105,7 @@ class ImageFilterService
 
         try {
             // Process image based on the model type
-            if ($isOpenAi) {
+            if ($isOpenAi && ! Str::contains($imageFilter, 'fal-ai/')) {
                 $imageProcessingResults = $this->processImageWithOpenAI(
                     $fileUrl,
                     $this->entity->message['prompt'],
