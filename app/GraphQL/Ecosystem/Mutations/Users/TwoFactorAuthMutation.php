@@ -39,7 +39,7 @@ class TwoFactorAuthMutation
         }
 
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 3)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
 
             withScope(function (Scope $scope) use ($user, $app, $phoneNumber): void {
