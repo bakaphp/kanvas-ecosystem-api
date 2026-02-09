@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Exception;
-use GPBMetadata\Google\Api\Log;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Database\Eloquent\Model;
