@@ -687,11 +687,6 @@ class PortalPaymentProcessor
             ]);
 
             $payment->status = PaymentStatusEnum::REVERSED->value;
-            $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::REVERSED->value,
-                'status' => OrderStatusEnum::FAILED->value,
-                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-            ]);
 
             $payment->addMetadata([
                 'data' => [
