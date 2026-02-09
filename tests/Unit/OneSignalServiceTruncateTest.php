@@ -2,22 +2,11 @@
 
 namespace Tests\Unit;
 
-use Kanvas\Notifications\Services\OneSignalService;
+use Baka\Support\Arr;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 
 class OneSignalServiceTruncateTest extends TestCase
 {
-    protected function callTruncateDataToFit(array $data, int $maxBytes = 2048): array
-    {
-        $stub = $this->createStub(OneSignalService::class);
-
-        $method = new ReflectionMethod(OneSignalService::class, 'truncateDataToFit');
-        $method->setAccessible(true);
-
-        return $method->invoke($stub, $data, $maxBytes);
-    }
-
     public function testSmallDataIsNotTruncated(): void
     {
         $data = [
@@ -26,7 +15,7 @@ class OneSignalServiceTruncateTest extends TestCase
             'title' => 'New Like',
         ];
 
-        $result = $this->callTruncateDataToFit($data);
+        $result = Arr::truncateToFit($data);
 
         $this->assertEquals($data, $result);
     }
@@ -56,7 +45,7 @@ class OneSignalServiceTruncateTest extends TestCase
         $originalSize = strlen(json_encode($data));
         $this->assertGreaterThan(2048, $originalSize, 'Test data should exceed 2048 bytes');
 
-        $result = $this->callTruncateDataToFit($data);
+        $result = Arr::truncateToFit($data);
 
         $resultSize = strlen(json_encode($result));
         $this->assertLessThanOrEqual(2048, $resultSize, 'Truncated data should be under 2048 bytes');
@@ -88,7 +77,7 @@ class OneSignalServiceTruncateTest extends TestCase
             ],
         ];
 
-        $result = $this->callTruncateDataToFit($data);
+        $result = Arr::truncateToFit($data);
 
         $resultSize = strlen(json_encode($result));
         $this->assertLessThanOrEqual(2048, $resultSize);
@@ -98,7 +87,7 @@ class OneSignalServiceTruncateTest extends TestCase
     {
         $data = ['key' => 'val'];
 
-        $result = $this->callTruncateDataToFit($data, 2048);
+        $result = Arr::truncateToFit($data, 2048);
 
         $this->assertEquals($data, $result);
     }
@@ -112,10 +101,28 @@ class OneSignalServiceTruncateTest extends TestCase
             'long_text' => str_repeat('abc ', 600),
         ];
 
-        $result = $this->callTruncateDataToFit($data);
+        $result = Arr::truncateToFit($data);
 
         $this->assertSame(12345, $result['id']);
         $this->assertSame(true, $result['active']);
         $this->assertSame(99.5, $result['score']);
+    }
+
+    public function testTruncateStringsDirectly(): void
+    {
+        $data = [
+            'short' => 'hello',
+            'long' => str_repeat('a', 300),
+            'nested' => [
+                'deep' => str_repeat('b', 500),
+            ],
+        ];
+
+        $result = Arr::truncateStrings($data, 100);
+
+        $this->assertEquals('hello', $result['short']);
+        $this->assertEquals(103, mb_strlen($result['long'])); // 100 + "..."
+        $this->assertStringEndsWith('...', $result['long']);
+        $this->assertEquals(103, mb_strlen($result['nested']['deep']));
     }
 }
