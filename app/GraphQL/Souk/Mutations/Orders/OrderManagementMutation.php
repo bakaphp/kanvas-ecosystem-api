@@ -214,7 +214,7 @@ class OrderManagementMutation
             throw new ValidationException('Extended reservation is not allowed');
         }
 
-        $region = Regions::getDefault($company);
+        $region = Regions::getDefault($company, $app);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
