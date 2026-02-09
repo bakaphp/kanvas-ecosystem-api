@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use GPBMetadata\Google\Api\Log;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ServerException;
 use Illuminate\Database\Eloquent\Model;
@@ -308,7 +309,6 @@ class LLMMessageResponseActivity extends KanvasActivity
         );
 
         $imageFilterResult = $imageFilterService->execute();
-
         try {
             if (isset($imageFilterResult['result']) && $imageFilterResult['result'] === false) {
                 throw new Exception('Image filtering failed: ' . ($imageFilterResult['message'] ?? 'Unknown error'));
