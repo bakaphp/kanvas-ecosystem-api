@@ -590,6 +590,7 @@ class ImageFilterService
         string $model,
         array $params
     ): Response {
+        $imageFilter = Str::of($imageFilter)->replace('fal-ai/', '')->toString();
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);
