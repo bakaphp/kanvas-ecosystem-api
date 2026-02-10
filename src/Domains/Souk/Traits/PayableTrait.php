@@ -34,4 +34,39 @@ trait PayableTrait
 
         return (float) $paidAmount;
     }
+
+    /**
+     * Get the payment method type from the latest paid payment
+     */
+    public function paymentMethodType(): string
+    {
+        $latestPaidPayment = $this->payments()
+            ->where('status', PaymentStatusEnum::PAID->value)
+            ->orderBy('payment_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $latestPaidPayment?->payment_method ?? 'card';
+    }
+
+    /**
+     * Get payment type (physical or digital) based on payment method.
+     * Returns null if order payment_status is not 'paid'.
+     */
+    public function paymentType(): ?string
+    {
+        // Only return payment type if order payment_status is 'paid'
+        if ($this->payment_status !== 'paid') {
+            return null;
+        }
+
+        // Get the payment method to determine if it's digital or physical
+        $paymentMethod = $this->paymentMethodType();
+
+        // Digital payment methods: card, wallet, payment
+        $digitalMethods = ['card', 'wallet', 'payment'];
+
+        // Physical payment methods: cash, bank_transfer, manual
+        return in_array($paymentMethod, $digitalMethods) ? 'digital' : 'physical';
+    }
 }
