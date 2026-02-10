@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -57,7 +58,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             );
 
             $action->execute($this->params);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw $e;
         }
     }
