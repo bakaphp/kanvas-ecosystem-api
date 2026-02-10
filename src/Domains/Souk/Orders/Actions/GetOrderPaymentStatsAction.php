@@ -16,6 +16,7 @@ class GetOrderPaymentStatsAction
         protected array $paidStates = ['paid'],
         protected ?int $variantId = null,
         protected array $productTypeSlugs = [],
+        protected array $orderTypeNames = [],
         protected array $providers = [],
     ) {
         $this->repository = new OrderPaymentRepository($app);
@@ -56,7 +57,8 @@ class GetOrderPaymentStatsAction
             $end,
             $this->paidStates,
             $this->variantId,
-            $timezone
+            $timezone,
+            $this->orderTypeNames
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -135,7 +137,8 @@ class GetOrderPaymentStatsAction
             $start,
             $end,
             $this->paidStates,
-            $this->variantId
+            $this->variantId,
+            $this->orderTypeNames
         );
 
         if ($orderIds->isEmpty()) {
