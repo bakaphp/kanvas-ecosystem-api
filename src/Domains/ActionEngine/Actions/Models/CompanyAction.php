@@ -54,9 +54,12 @@ class CompanyAction extends BaseModel
         'parent_id',
         'path',
         'name',
-        'description' ,
+        'description',
         'form_config',
-        'is_active' ,
+        'config',
+        'status',
+        'weight',
+        'is_active',
         'is_published',
     ];
 

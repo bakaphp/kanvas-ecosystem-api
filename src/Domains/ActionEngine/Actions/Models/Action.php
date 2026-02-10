@@ -8,7 +8,10 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Nevadskiy\Tree\AsTree;
 
 /**
@@ -40,6 +43,24 @@ class Action extends BaseModel
 
     protected $table = 'actions';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'form_fields' => 'array',
+            'form_config' => 'array',
+        ];
+    }
+
+    public function pipeline(): BelongsTo
+    {
+        return $this->belongsTo(Pipeline::class, 'pipelines_id', 'id');
+    }
+
+    public function companyActions(): HasMany
+    {
+        return $this->hasMany(CompanyAction::class, 'actions_id', 'id');
+    }
 
     public static function getBySlug(string $slug, CompanyInterface $company): ?self
     {
