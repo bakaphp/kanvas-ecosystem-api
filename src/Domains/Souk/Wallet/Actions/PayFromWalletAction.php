@@ -52,6 +52,8 @@ class PayFromWalletAction
 
         $wallet->payCart($cart);
 
+        $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
+
         return $wallet;
     }
 }
