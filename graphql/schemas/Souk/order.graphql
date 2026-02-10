@@ -596,6 +596,7 @@ extend type Query @guard {
         )
 
     orderTypes(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderType!]!
@@ -730,6 +731,7 @@ extend type Query @guard {
             # scopes: ["fromApp", "notDeleted"]
         )
     orderStatus(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderStatus!]!
