@@ -134,6 +134,8 @@ type OrderType {
 
 type OrderStatus {
     id: ID!
+    companies_id: ID!
+    company: Company! @belongsTo
     name: String!
     slug: String!
     order_type_id: ID!
@@ -728,7 +730,10 @@ extend type Query @guard {
     orderStatus(
         search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-        where: _ @whereConditions(columns: ["id", "companies_id", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name", "slug", "order_type_id"]
+            )
     ): [OrderStatus!]!
         @paginate(
             defaultCount: 25
