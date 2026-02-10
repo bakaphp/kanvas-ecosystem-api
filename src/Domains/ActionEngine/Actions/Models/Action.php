@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Actions\Models;
 
+use Baka\Casts\Json;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SlugTrait;
@@ -47,8 +48,8 @@ class Action extends BaseModel
     protected function casts(): array
     {
         return [
-            'form_fields' => 'array',
-            'form_config' => 'array',
+            'form_fields' => Json::class,
+            'form_config' => Json::class,
         ];
     }
 
