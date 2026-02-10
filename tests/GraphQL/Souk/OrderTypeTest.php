@@ -96,6 +96,7 @@ class OrderTypeTest extends OrderBase
                 orderStatus(first: 10) {
                     data {
                         id
+                        companies_id
                         name
                         slug
                         order_type_id
@@ -115,6 +116,7 @@ class OrderTypeTest extends OrderBase
         $this->assertNotEmpty($data);
         $this->assertArrayHasKey('name', $data[0]);
         $this->assertArrayHasKey('slug', $data[0]);
+        $this->assertArrayHasKey('companies_id', $data[0]);
     }
 
     public function testListOrderStatusWithWhereFilter(): void
