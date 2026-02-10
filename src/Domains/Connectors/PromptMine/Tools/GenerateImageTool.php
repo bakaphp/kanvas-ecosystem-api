@@ -22,10 +22,12 @@ class CreateImageTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
+        $user = auth()->user();
+        $token = auth()->tokenById($user->getId());
         $apiUrl = 'https://prompt-mine-ai-api-stage.vercel.app/api/image/openai';
         $response = Http::post($apiUrl, [
             'headers' => [
-                // 'Authorization' => 'Bearer ' . config('services.generative_ai.api_key'),
+                'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/json',
             ],
             'json' => [
