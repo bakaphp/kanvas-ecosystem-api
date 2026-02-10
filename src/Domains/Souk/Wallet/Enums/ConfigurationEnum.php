@@ -15,6 +15,7 @@ enum ConfigurationEnum: string
     case PRODUCT_TYPE_WALLET_COIN_AMOUNT = 'wallet-coin-amount';
     case PRODUCT_TYPE_WALLET_COIN_CONSUME = 'wallet-coin-consume';
     case USE_USER_WALLET = 'app_use_user_wallet';
+    case WALLET_CREDIT_TAG = 'wallet_credit';
 
     case PRODUCT_TYPE_WALLET_PROMOTIONAL_SLUG = 'wallet-promotional';
     case PRODUCT_TYPE_WALLET_PROMOTIONAL_AMOUNT = 'wallet-promotional-amount';

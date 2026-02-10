@@ -25,6 +25,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Users\Actions\SendUserNotificationAction;
@@ -312,21 +313,21 @@ class CreateBaseOrderAction
             ]);
 
             // Store wallet transaction info in order metadata
-            $order->addMetadata('wallet_credit', [
+            $order->addMetadata(WalletConfigurationEnum::WALLET_CREDIT_TAG->value, [
                 'tag' => $walletTag,
                 'amount' => $appliedAmount,
                 'transaction_id' => $wallet->getKey(),
                 'applied_at' => now()->toIso8601String(),
             ]);
 
-            $order->set('wallet_credit', [
+            $order->set(WalletConfigurationEnum::WALLET_CREDIT_TAG->value, [
                 'tag' => $walletTag,
                 'amount' => $appliedAmount,
                 'transaction_id' => $wallet->getKey(),
                 'applied_at' => now()->toIso8601String(),
             ]);
 
-            $order->addTag('wallet_credit');
+            $order->addTag(WalletConfigurationEnum::WALLET_CREDIT_TAG->value);
 
             //@todo , need to add it to the order logs
         }
