@@ -46,11 +46,6 @@ class Channels extends BaseModel
     protected $table = 'channels';
     protected $guarded = [];
 
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id', 'id');
-    }
-
     /**
      * Available products in this channel
      */

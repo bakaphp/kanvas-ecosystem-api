@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompaniesEnumsConfigurationEnum;
 use Kanvas\Connectors\Movipass\Actions\GenerateOrderLateFee;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Inventory\Products\Models\Products;
@@ -313,10 +314,10 @@ class OrderLateFeeTest extends TestCase
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
 
         // Configure company with holiday settings
-        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::COUNTRY_CODE->value, 'DO');
+        $this->company->set(CompaniesEnumsConfigurationEnum::COUNTRY_CODE->value, 'DO');
 
         // Add special days: Christmas Eve as half-day, custom company day as full day
-        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+        $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
                 'date' => "2025-12-25",
                 'type' => 'full_day',
@@ -422,7 +423,7 @@ class OrderLateFeeTest extends TestCase
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
 
         // Configure company with special days for Dec 24 and 25
-        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+        $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
                 'date' => "2025-12-24",
                 'type' => 'full_day',
@@ -555,7 +556,7 @@ class OrderLateFeeTest extends TestCase
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
 
         // No special days configured - only weekend rules apply
-        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, []);
+        $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, []);
 
         // Create late fee product
         $lateFeeProductResponse = $this->createProduct(attributes: [
@@ -660,7 +661,7 @@ class OrderLateFeeTest extends TestCase
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
 
         // Configure company with special day for Juan Pablo Duarte's Birthday
-        $this->company->set(\Kanvas\Companies\Enums\ConfigurationEnum::SPECIAL_DAYS->value, [
+        $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             ['date' => '2026-01-26', 'type' => 'full_day', 'name' => 'Día del Natalicio de Juan Pablo Duarte'],
         ]);
 
