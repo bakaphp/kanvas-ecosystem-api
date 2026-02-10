@@ -88,7 +88,7 @@ class PromptIAPOrderActivity extends KanvasActivity
                     }
                 }
 
-                if (! $order->hasTag[WalletConfigurationEnum::WALLET_CREDIT_TAG->value]) {
+                if (! $order->hasTag([WalletConfigurationEnum::WALLET_CREDIT_TAG->value])) {
                     $order->user->set(
                         'order_credits',
                         $orderCredit,
