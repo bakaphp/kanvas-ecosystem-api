@@ -1,0 +1,711 @@
+# Kanvas Ecosystem API - Development Guide
+
+Guidelines for working with the Kanvas Ecosystem API codebase.
+
+## Architecture Overview
+
+- **Multi-database**: Each domain has its own database connection (`action_engine`, `crm`, `inventory`, `social`, `ecosystem`)
+- **Domain-driven design**: Code is organized by domain under `src/Domains/{DomainName}/`
+- **GraphQL API**: Uses Lighthouse PHP framework with schema files in `graphql/schemas/`
+- **PHP 8.4**: Use modern syntax (e.g., `new Foo(...)->execute()` not `(new Foo(...))->execute()`)
+
+## Domain CRUD Pattern
+
+### Project Structure
+
+```
+src/Domains/{DomainName}/{Entity}/
+├── Actions/
+│   ├── Create{Entity}Action.php    # Business logic for creation
+│   └── Update{Entity}Action.php    # Business logic for updates
+├── DataTransferObject/
+│   └── {Entity}.php                # Spatie LaravelData DTO (named after entity, NOT {Entity}Input)
+├── Models/
+│   └── {Entity}.php                # Eloquent model
+└── Enums/                          # Optional enums
+
+app/GraphQL/{DomainName}/Mutations/{Entity}/
+└── {Entity}Mutation.php            # GraphQL mutation resolver
+
+graphql/schemas/{DomainName}/
+└── {entity}.graphql                # GraphQL type, input, mutation, query definitions
+
+tests/GraphQL/{DomainName}/
+└── {Entity}CrudTest.php            # GraphQL CRUD tests
+```
+
+### 1. Data Transfer Object (DTO)
+
+Location: `src/Domains/{Domain}/{Entity}/DataTransferObject/{Entity}.php`
+
+Name the DTO class after the entity (e.g., `Action`, `Pipeline`). When importing in files that also use the model, alias it: `use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\{Domain}\{Entity}\DataTransferObject;
+
+use Spatie\LaravelData\Data;
+
+class {Entity} extends Data
+{
+    public function __construct(
+        public readonly string $name,
+        public readonly ?string $description = null,
+        // ... other fields
+    ) {
+    }
+}
+```
+
+### 2. Create Action
+
+Location: `src/Domains/{Domain}/{Entity}/Actions/Create{Entity}Action.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\{Domain}\{Entity}\Actions;
+
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
+use Kanvas\{Domain}\{Entity}\Models\{Entity};
+
+class Create{Entity}Action
+{
+    public function __construct(
+        protected readonly {Entity}Data $data,
+        protected readonly UserInterface $user,
+        protected readonly AppInterface $app,
+    ) {
+    }
+
+    public function execute(): {Entity}
+    {
+        return DB::connection('{db_connection}')->transaction(function () {
+            $entity = new {Entity}();
+            $entity->apps_id = $this->app->getId();
+            $entity->companies_id = 0; // 0 for global entities
+            $entity->users_id = $this->user->getId();
+            $entity->name = $this->data->name;
+            // ... set other fields
+            $entity->saveOrFail();
+
+            return $entity;
+        });
+    }
+}
+```
+
+### 3. Update Action
+
+Location: `src/Domains/{Domain}/{Entity}/Actions/Update{Entity}Action.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\{Domain}\{Entity}\Actions;
+
+use Illuminate\Support\Facades\DB;
+use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
+use Kanvas\{Domain}\{Entity}\Models\{Entity};
+
+class Update{Entity}Action
+{
+    public function __construct(
+        protected readonly {Entity} $entity,
+        protected readonly {Entity}Data $data,
+    ) {
+    }
+
+    public function execute(): {Entity}
+    {
+        return DB::connection('{db_connection}')->transaction(function () {
+            $this->entity->name = $this->data->name;
+            // ... update other fields
+            $this->entity->saveOrFail();
+
+            return $this->entity;
+        });
+    }
+}
+```
+
+### 4. GraphQL Mutation Resolver
+
+Location: `app/GraphQL/{Domain}/Mutations/{Entity}/{Entity}Mutation.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\{Domain}\Mutations\{Entity};
+
+use Kanvas\{Domain}\{Entity}\Actions\Create{Entity}Action;
+use Kanvas\{Domain}\{Entity}\Actions\Update{Entity}Action;
+use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
+use Kanvas\{Domain}\{Entity}\Models\{Entity};
+use Kanvas\Apps\Models\Apps;
+
+class {Entity}Mutation
+{
+    public function create(mixed $rootValue, array $request): {Entity}
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        return new Create{Entity}Action(
+            {Entity}Data::from($request['input']),
+            $user,
+            $app,
+        )->execute();
+    }
+
+    public function update(mixed $rootValue, array $request): {Entity}
+    {
+        $app = app(Apps::class);
+        // For global entities (no company scoping):
+        $entity = {Entity}::getById((int) $request['id'], $app);
+        // For company-scoped entities:
+        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+
+        return new Update{Entity}Action(
+            $entity,
+            {Entity}Data::from($request['input']),
+        )->execute();
+    }
+
+    public function delete(mixed $rootValue, array $request): bool
+    {
+        $app = app(Apps::class);
+        $entity = {Entity}::getById((int) $request['id'], $app);
+
+        return $entity->softDelete();
+    }
+}
+```
+
+### 5. GraphQL Schema
+
+Location: `graphql/schemas/{Domain}/{entity}.graphql`
+
+```graphql
+input {Entity}Input {
+    name: String!
+    description: String
+    # ... other fields
+}
+
+input Update{Entity}Input {
+    name: String
+    description: String
+    # ... other fields (all optional for partial updates)
+}
+
+# Admin-only CUD operations
+extend type Mutation @guardByAdmin {
+    create{Entity}(input: {Entity}Input!): {Entity}!
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@create")
+    update{Entity}(id: ID!, input: Update{Entity}Input!): {Entity}!
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@update")
+    delete{Entity}(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@delete")
+}
+
+# Read access for all authenticated users
+extend type Query @guard {
+    {entityPlural}(
+        where: _ @whereConditions(columns: ["id", "name", "slug"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [{Entity}!]!
+        @paginate(
+            model: "Kanvas\\{Domain}\\{Entity}\\Models\\{Entity}"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
+```
+
+### 6. Tests
+
+Location: `tests/GraphQL/{Domain}/{Entity}CrudTest.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\GraphQL\{Domain};
+
+use Tests\TestCase;
+
+class {Entity}CrudTest extends TestCase
+{
+    public function testCreate{Entity}(): void
+    {
+        $input = ['name' => 'Test ' . fake()->word()];
+
+        $this->graphQL('
+            mutation($input: {Entity}Input!) {
+                create{Entity}(input: $input) {
+                    id
+                    name
+                }
+            }
+        ', ['input' => $input])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['create{Entity}' => ['name' => $input['name']]]]);
+    }
+
+    public function testUpdate{Entity}(): void
+    {
+        $input = ['name' => 'Test ' . fake()->word()];
+        $createResponse = $this->graphQL('
+            mutation($input: {Entity}Input!) {
+                create{Entity}(input: $input) { id name }
+            }
+        ', ['input' => $input])->assertSuccessful();
+        $id = $createResponse->json('data.create{Entity}.id');
+
+        $updateInput = ['name' => 'Updated ' . fake()->word()];
+        $this->graphQL('
+            mutation($id: ID!, $input: Update{Entity}Input!) {
+                update{Entity}(id: $id, input: $input) { id name }
+            }
+        ', ['id' => $id, 'input' => $updateInput])
+        ->assertSuccessful();
+    }
+
+    public function testDelete{Entity}(): void
+    {
+        $input = ['name' => 'Test ' . fake()->word()];
+        $createResponse = $this->graphQL('
+            mutation($input: {Entity}Input!) {
+                create{Entity}(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+        $id = $createResponse->json('data.create{Entity}.id');
+
+        $this->graphQL('
+            mutation($id: ID!) { delete{Entity}(id: $id) }
+        ', ['id' => $id])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['delete{Entity}' => true]]);
+    }
+
+    public function testList{Entities}(): void
+    {
+        $this->graphQL('query { {entityPlural} { data { id name } } }')
+            ->assertSuccessful()
+            ->assertJsonStructure(['data' => ['{entityPlural}' => ['data' => [['id', 'name']]]]]);
+    }
+}
+```
+
+## Connector Pattern
+
+Connectors integrate Kanvas with external services (Shopify, Stripe, WaSender, etc.). All connectors live under `src/Domains/Connectors/`.
+
+### Project Structure
+
+```
+src/Domains/Connectors/{ConnectorName}/
+├── Handlers/
+│   └── {ConnectorName}Handler.php     # Extends BaseIntegration, implements setup()
+├── Client.php                          # Guzzle HTTP client for external API
+├── DataTransferObject/
+│   └── {ConnectorName}.php             # DTO for configuration/credentials
+├── Enums/
+│   ├── ConfigurationEnum.php           # App/company config keys
+│   └── CustomFieldEnum.php             # Entity custom field names
+├── Actions/                            # Business logic (sync, import, etc.)
+├── Services/                           # Reusable domain services
+├── Webhooks/ or Jobs/                  # ProcessWebhookJob implementations
+└── Workflows/                          # Temporal workflows (optional)
+    └── Activities/                     # Workflow activities
+
+app/GraphQL/Connector/{ConnectorName}/
+└── Mutations/
+    └── {ConnectorName}Mutation.php     # GraphQL setup mutation
+
+graphql/schemas/Connector/
+└── {connector}.graphql                 # GraphQL input/mutation definitions
+
+tests/Connectors/
+├── {ConnectorName}/                    # Integration tests
+└── Traits/
+    └── Has{ConnectorName}Configuration.php  # Test setup trait
+```
+
+### 1. Handler (Required)
+
+Extends `BaseIntegration` — validates credentials and stores configuration.
+
+Location: `src/Domains/Connectors/{ConnectorName}/Handlers/{ConnectorName}Handler.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\{ConnectorName}\Handlers;
+
+use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Exceptions\ValidationException;
+use Override;
+
+class {ConnectorName}Handler extends BaseIntegration
+{
+    #[Override]
+    public function setup(): bool
+    {
+        $apiKey = $this->data['api_key'] ?? null;
+
+        if (empty($apiKey)) {
+            throw new ValidationException('API key is required');
+        }
+
+        // Store credentials in app or company custom fields
+        $this->app->set(ConfigurationEnum::API_KEY->value, $apiKey);
+
+        // Validate by making a test API call
+        return Client::validateCredentials($apiKey);
+    }
+}
+```
+
+The `BaseIntegration` base class (`src/Domains/Connectors/Contracts/BaseIntegration.php`) provides:
+- `$this->app` — current App
+- `$this->company` — current Company
+- `$this->region` — KanvasRegions instance
+- `$this->data` — array of setup data from the request
+
+### 2. Configuration Enums
+
+```php
+// ConfigurationEnum.php — keys for app/company settings
+enum ConfigurationEnum: string
+{
+    case BASE_URL = '{connector}_base_url';
+    case API_KEY = '{connector}_api_key';
+    case API_SECRET = '{connector}_api_secret';
+}
+
+// CustomFieldEnum.php — keys for entity-level custom fields
+enum CustomFieldEnum: string
+{
+    case EXTERNAL_PRODUCT_ID = '{CONNECTOR}_PRODUCT_ID';
+    case EXTERNAL_CUSTOMER_ID = '{CONNECTOR}_CUSTOMER_ID';
+}
+```
+
+**Storage pattern:**
+- App-level: `$app->set(ConfigurationEnum::KEY->value, $value)`
+- Company-level: `$company->set(ConfigurationEnum::KEY->value, $value)`
+- Entity-level: `$model->set(CustomFieldEnum::KEY->value, $value)`
+
+### 3. Client (for External APIs)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\{ConnectorName};
+
+use Baka\Contracts\AppInterface;
+use GuzzleHttp\Client as GuzzleClient;
+use Kanvas\Exceptions\ValidationException;
+
+class Client
+{
+    protected GuzzleClient $client;
+
+    public function __construct(protected AppInterface $app)
+    {
+        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
+        $apiKey = $this->app->get(ConfigurationEnum::API_KEY->value);
+
+        if (empty($baseUrl) || empty($apiKey)) {
+            throw new ValidationException('{ConnectorName} configuration is missing');
+        }
+
+        $this->client = new GuzzleClient([
+            'base_uri' => $baseUrl,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $apiKey,
+            ],
+        ]);
+    }
+
+    public function get(string $endpoint): array
+    {
+        $response = $this->client->get($endpoint);
+        return json_decode($response->getBody()->getContents(), true);
+    }
+
+    public function post(string $endpoint, array $data): array
+    {
+        $response = $this->client->post($endpoint, ['json' => $data]);
+        return json_decode($response->getBody()->getContents(), true);
+    }
+}
+```
+
+### 4. DTO
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\{ConnectorName}\DataTransferObject;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Kanvas\Inventory\Regions\Models\Regions;
+
+class {ConnectorName}
+{
+    public function __construct(
+        public CompanyInterface $company,
+        public AppInterface $app,
+        public Regions $region,
+        public string $apiKey,
+        public string $apiSecret,
+    ) {
+    }
+
+    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
+    {
+        return new self(
+            company: $company,
+            app: $app,
+            region: Regions::getById($data['region_id']),
+            apiKey: $data['api_key'],
+            apiSecret: $data['api_secret'],
+        );
+    }
+}
+```
+
+### 5. Webhook Job (if receiving webhooks)
+
+Extend `ProcessWebhookJob` (`src/Domains/Workflow/Jobs/ProcessWebhookJob.php`). The base class handles auth setup, app context, and status tracking.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\{ConnectorName}\Jobs;
+
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
+
+class Process{ConnectorName}WebhookJob extends ProcessWebhookJob
+{
+    #[Override]
+    public function execute(): array
+    {
+        $payload = $this->webhookRequest->payload;
+        $regionId = $this->receiver->configuration['region_id'];
+
+        // Process the webhook payload
+        $result = new Sync{Entity}Action(
+            $this->receiver->app,
+            $this->receiver->company,
+            Regions::getById($regionId),
+            $payload,
+        )->execute();
+
+        return ['message' => 'Processed successfully', 'id' => $result->getId()];
+    }
+}
+```
+
+The `$this->receiver` (ReceiverWebhook model) provides:
+- `$this->receiver->app` — the App
+- `$this->receiver->company` — the Company
+- `$this->receiver->user` — the User
+- `$this->receiver->configuration` — array of webhook config (region_id, etc.)
+
+### 6. Workflow Activities (for long-running async operations)
+
+Extend `KanvasActivity` which provides `executeIntegration()` for status tracking and history logging.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\{ConnectorName}\Workflows\Activities;
+
+use Kanvas\Workflow\KanvasActivity;
+
+class Sync{Entity}Activity extends KanvasActivity
+{
+    public function execute($entity, Apps $app, array $params): array
+    {
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::{CONNECTOR},
+            integrationOperation: function () use ($entity) {
+                return new Sync{Entity}Action($entity)->execute();
+            },
+            company: $entity->company,
+        );
+    }
+}
+```
+
+### 7. GraphQL Setup Mutation
+
+```graphql
+# graphql/schemas/Connector/{connector}.graphql
+input {ConnectorName}SetupInput {
+    api_key: String!
+    api_secret: String!
+    region_id: ID!
+}
+
+extend type Mutation @guard {
+    {connectorName}Setup(input: {ConnectorName}SetupInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Connector\\{ConnectorName}\\Mutations\\{ConnectorName}Mutation@setup"
+        )
+}
+```
+
+```php
+// app/GraphQL/Connector/{ConnectorName}/Mutations/{ConnectorName}Mutation.php
+class {ConnectorName}Mutation
+{
+    public function setup(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $dto = {ConnectorName}Dto::viaRequest($request['input'], $app, $company);
+        {ConnectorName}Service::setup($dto);
+
+        return true;
+    }
+}
+```
+
+### 8. Register the Integration
+
+Add to `IntegrationsEnum` (`src/Domains/Workflow/Enums/IntegrationsEnum.php`):
+
+```php
+enum IntegrationsEnum: string
+{
+    // ... existing connectors
+    case {CONNECTOR} = '{connector_name}';
+}
+```
+
+Seed a record in the `integrations` table mapping the name to the handler class.
+
+### Connector Checklist
+
+- [ ] **Enums**: `ConfigurationEnum` + `CustomFieldEnum`
+- [ ] **Handler**: Extends `BaseIntegration` with `setup()` method
+- [ ] **Client**: Guzzle HTTP client (if external API)
+- [ ] **DTO**: Configuration/credentials data object
+- [ ] **Service**: Core service class (optional)
+- [ ] **Actions**: Business logic (sync, import, etc.)
+- [ ] **Webhook Job**: Extends `ProcessWebhookJob` (if receiving webhooks)
+- [ ] **Workflow/Activities**: Temporal workflows (if async operations)
+- [ ] **GraphQL**: Schema + mutation for setup
+- [ ] **Register**: Add to `IntegrationsEnum`, seed `integrations` table
+- [ ] **Tests**: Configuration trait + integration tests in `tests/Connectors/`
+
+### Multi-Tenancy Notes
+
+- **App-level** configs (shared endpoints, base URLs): `$app->set()`
+- **Company-level** configs (API keys, tokens): `$company->set()`
+- **Region-scoped** credentials use composite keys: `CREDENTIAL-{appId}-{companyId}-{regionId}`
+- Integration status tracked per company via `IntegrationsCompany` model (ACTIVE, INACTIVE, FAILED, OFFLINE)
+- Every integration operation logged in `EntityIntegrationHistory` for auditing
+
+## Key Conventions
+
+### PHP 8.4 Syntax
+```php
+// Correct (PHP 8.4)
+new CreateActionAction(...)->execute();
+
+// Unnecessary (old style - do NOT use)
+(new CreateActionAction(...))->execute();
+```
+
+### DTO Naming
+- Name DTOs after the entity: `Action.php`, `Pipeline.php` (NOT `ActionInput.php`)
+- Alias when importing alongside the model: `use ...\DataTransferObject\Action as ActionData;`
+
+### Database Connections
+Each domain has its own database connection defined in the domain's BaseModel:
+- `action_engine` - ActionEngine domain
+- `crm` - Guild domain (leads, pipelines, etc.)
+- `inventory` - Inventory domain
+- `social` - Social domain
+
+Use the correct connection in `DB::connection('{connection}')->transaction()`.
+
+### Model Base Classes & Traits
+- **BaseModel** per domain (e.g., `Kanvas\ActionEngine\Models\BaseModel`) - sets DB connection, includes `KanvasModelTrait`
+- **KanvasModelTrait** - provides `fromCompany`, `fromApp`, `notDeleted` scopes, `getById()`, `getByIdFromCompanyApp()`, `softDelete()`
+- **UuidTrait** - auto-generates UUID on creation
+- **SlugTrait** - auto-generates slug from `name` field
+- **AppsIdTrait** - auto-sets `apps_id` from current app context on creation
+
+### Authorization Directives
+- `@guard` - any authenticated user
+- `@guardByAdmin` - admin/owner only (uses `isAdmin()` check)
+- `@guardByAppKey` - app key (super admin / system) only
+
+### Soft Deletes
+All models use `is_deleted` boolean flag (not Laravel's `SoftDeletes` trait). Use `$model->softDelete()` and the `notDeleted` scope.
+
+### Scoping Patterns
+- **Global entities** (companies_id = 0): scope queries with `fromApp` + `notDeleted`
+- **Company-scoped entities**: scope queries with `fromCompany` + `fromApp` + `notDeleted`
+- Lookups: `Model::getById($id, $app)` for global, `Model::getByIdFromCompanyApp($id, $company, $app)` for company-scoped
+
+### JSON/Array Fields
+If a model has JSON columns, add casts:
+```php
+protected function casts(): array
+{
+    return [
+        'form_fields' => 'array',
+        'form_config' => 'array',
+    ];
+}
+```
+
+### GraphQL Query Naming
+Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
+
+## Testing
+
+- Tests run inside Docker: `docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit --filter {TestName}"`
+- ParaTest for parallel execution: `vendor/bin/paratest --testsuite=<name>`
+- **Never** use `RefreshDatabase` trait - use `DatabaseTransactions` instead
+- Test suites: Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
+- Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait
+- User is auto-authenticated in `createApplication()` with admin role

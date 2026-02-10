@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
@@ -32,6 +34,16 @@ class Pipeline extends BaseModel
     public function stages(): HasMany
     {
         return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id');
+    }
+
+    public function companyActions(): HasMany
+    {
+        return $this->hasMany(CompanyAction::class, 'pipelines_id', 'id');
+    }
+
+    public function actions(): HasMany
+    {
+        return $this->hasMany(Action::class, 'pipelines_id', 'id');
     }
 
     public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): self
