@@ -101,6 +101,11 @@ class SuperCarrosVehicleInventoryImportAction
                         )
                     )->execute();
 
+                    // Clean up stale product images — delete old files not in the new set
+                    if (! empty($mappedProductData['files'])) {
+                        $importedProduct->overWriteFiles($mappedProductData['files'], $this->app, true);
+                    }
+
                     // Make the product searchable
                     $importedProduct->searchable();
 
