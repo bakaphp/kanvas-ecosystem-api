@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Pipelines\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\ActionEngine\Pipelines\DataTransferObject\Pipeline as PipelineData;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 
@@ -19,7 +20,7 @@ class CreatePipelineAction
     ];
 
     public function __construct(
-        protected readonly string $name,
+        protected readonly PipelineData $data,
         protected readonly UserInterface $user,
         protected readonly AppInterface $app,
         protected readonly int $companiesId = 0,
@@ -33,11 +34,20 @@ class CreatePipelineAction
         $pipeline->apps_id = $this->app->getId();
         $pipeline->companies_id = $this->companiesId;
         $pipeline->users_id = $this->user->getId();
-        $pipeline->name = $this->name;
-        $pipeline->slug = Str::slug($this->name);
+        $pipeline->name = $this->data->name;
+        $pipeline->slug = $this->data->slug ?? Str::slug($this->data->name);
+        $pipeline->is_default = $this->data->is_default ?? false;
+
+        if ($this->data->weight !== null) {
+            $pipeline->weight = $this->data->weight;
+        }
 
         $stages = ! empty($this->stages) ? $this->stages : self::DEFAULT_STAGES;
-        $pipeline->weight = count($stages);
+
+        if ($pipeline->weight === null) {
+            $pipeline->weight = count($stages);
+        }
+
         $pipeline->saveOrFail();
 
         foreach ($stages as $stage) {

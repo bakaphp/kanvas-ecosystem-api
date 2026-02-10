@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Actions\DataTransferObject\CompanyAction as CompanyActionData;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Pipelines\Actions\CreatePipelineAction;
+use Kanvas\ActionEngine\Pipelines\DataTransferObject\Pipeline as PipelineData;
 use Kanvas\Companies\Models\Companies;
 
 class CreateCompanyActionAction
@@ -28,7 +29,7 @@ class CreateCompanyActionAction
             $action = $this->data->action;
 
             $pipeline = new CreatePipelineAction(
-                name: $this->data->name,
+                data: new PipelineData(name: $this->data->name),
                 user: $this->user,
                 app: $this->app,
                 companiesId: $this->company->getId(),

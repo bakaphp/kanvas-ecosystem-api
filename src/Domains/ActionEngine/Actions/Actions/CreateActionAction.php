@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\ActionEngine\Actions\DataTransferObject\Action as ActionData;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Pipelines\Actions\CreatePipelineAction;
+use Kanvas\ActionEngine\Pipelines\DataTransferObject\Pipeline as PipelineData;
 
 class CreateActionAction
 {
@@ -24,7 +25,7 @@ class CreateActionAction
     {
         return DB::connection('action_engine')->transaction(function () {
             $pipeline = new CreatePipelineAction(
-                name: $this->data->name,
+                data: new PipelineData(name: $this->data->name),
                 user: $this->user,
                 app: $this->app,
             )->execute();
