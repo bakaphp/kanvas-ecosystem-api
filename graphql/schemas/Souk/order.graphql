@@ -475,16 +475,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )
-    createOrderStatus(
-        input: CreateOrderStatusInput!
-    ): OrderStatus!
+    createOrderStatus(input: CreateOrderStatusInput!): OrderStatus!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
         )
-    updateOrderStatus(
-        id: ID!
-        input: UpdateOrderStatusInput!
-    ): OrderStatus!
+    updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
@@ -596,6 +591,7 @@ extend type Query @guard {
         )
 
     orderTypes(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderType!]!
@@ -730,6 +726,7 @@ extend type Query @guard {
             # scopes: ["fromApp", "notDeleted"]
         )
     orderStatus(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderStatus!]!

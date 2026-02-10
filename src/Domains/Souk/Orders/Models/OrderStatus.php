@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\PublicAppScopeTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Models\BaseModel;
 
 /**
@@ -26,6 +28,7 @@ use Kanvas\Souk\Models\BaseModel;
  */
 class OrderStatus extends BaseModel
 {
+    use DynamicSearchableTrait;
     use PublicAppScopeTrait;
 
     protected $guarded = [];
@@ -36,6 +39,26 @@ class OrderStatus extends BaseModel
         'is_final' => 'boolean',
         'sequence' => 'integer',
     ];
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        return config('scout.prefix') . ($app->get('app_custom_order_status_index') ?? 'order_status_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => $this->id,
+            'id' => (string) $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id ?? 0,
+            'order_types_id' => $this->order_types_id,
+        ];
+    }
 
     public function getOrderTypeIdAttribute(): int
     {
