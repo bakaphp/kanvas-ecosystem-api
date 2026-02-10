@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
@@ -28,7 +29,8 @@ class FollowUpEngagementAction
     protected ?FollowUp $followUp = null;
 
     public function __construct(
-        public Lead $lead
+        public Lead $lead,
+        protected ?FollowUpLog $log = null
     ) {
         $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
 
@@ -46,6 +48,24 @@ class FollowUpEngagementAction
 
     public function execute(): ?array
     {
+        // Use existing log or create a new one if not provided
+        if (! $this->log) {
+            $this->log = FollowUpLog::create([
+                'apps_id' => $this->lead->apps_id,
+                'companies_id' => $this->lead->companies_id,
+                'leads_id' => $this->lead->getId(),
+                'follow_ups_id' => $this->followUp?->id,
+                'pipeline_stages_id' => $this->lead->stage->getId(),
+            ]);
+        }
+
+        // Update log entry for this action
+        $this->log->update([
+            'follow_ups_id' => $this->followUp?->id,
+            'entered_follow_up_action' => true,
+            'found_follow_up' => $this->followUp !== null,
+        ]);
+
         if (! $this->followUp) {
             return null;
         }
@@ -55,6 +75,12 @@ class FollowUpEngagementAction
             ->where('is_deleted', 0)
             ->orderBy('weight', 'ASC')
             ->first();
+
+        // Update log with follow up day info
+        $this->log->update([
+            'found_follow_up_day' => $followUpDay !== null,
+            'follow_up_days_id' => $followUpDay?->id,
+        ]);
 
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
@@ -152,14 +178,24 @@ class FollowUpEngagementAction
                 }
 
                 try {
+                    // Update log with session and channel info
+                    $this->log->update([
+                        'sessions_id' => $session->getId(),
+                        'communication_channel' => $messageTemplateChannel,
+                    ]);
+
                     $message = new CreateMessageFollowUpAction(
                         $this->lead,
                         $this->lead->stage,
                         $session,
                         $messageTemplate,
-                        (float)$followUpDay->pipelineStage->weight
+                        (float)$followUpDay->pipelineStage->weight,
+                        $this->log
                     )->execute();
                 } catch (Exception $e) {
+                    $this->log->update([
+                        'error_message' => $e->getMessage(),
+                    ]);
                     captureException($e);
                 }
 
@@ -169,6 +205,9 @@ class FollowUpEngagementAction
                 }
 
                 if ($followUpDay->send_message) {
+                    $this->log->update([
+                        'message_sent' => true,
+                    ]);
                     $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
