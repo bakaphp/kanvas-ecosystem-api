@@ -78,6 +78,7 @@ extend type Mutation @guardByAdmin {
 
 extend type Query @guard {
     actionPipelines(
+        search: String @search
         where: _
             @whereConditions(
                 columns: ["id", "companies_id", "slug", "weight", "is_default"]
