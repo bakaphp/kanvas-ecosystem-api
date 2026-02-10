@@ -100,6 +100,13 @@ class PaymentMutation
             ];
         }
 
+        if ($order->hasProcessingPayment()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order has a payment currently being processed',
+            ];
+        }
+
         $formData = $request['input'];
         $paymentMethodType = $formData['payment_method'] ?? null;
         $paymentMethodId = $formData['payment_methods_id'] ?? $order->metadata['data']['payment_methods_id'] ?? null;
@@ -150,6 +157,14 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
+
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
@@ -171,6 +186,8 @@ class PaymentMutation
         }
 
         try {
+            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
             $paymentProcessor = new PortalPaymentProcessor(
                 $app,
                 $payment->company,
@@ -226,6 +243,14 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
+
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
@@ -235,8 +260,11 @@ class PaymentMutation
         $order = $payment->order;
 
         try {
+            $previousStatus = $payment->status;
+            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
             // If payment is already authorized, jump directly to ProcessPaymentAction
-            if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+            if ($previousStatus === PaymentStatusEnum::AUTHORIZED->value) {
                 $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
                 $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
 
@@ -247,7 +275,7 @@ class PaymentMutation
                 ];
             }
 
-            if (in_array($payment->status, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
+            if (in_array($previousStatus, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
                 $paymentProcessor = new PortalPaymentProcessor(
                     $app,
                     $payment->company,
@@ -329,6 +357,14 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
+
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
@@ -347,7 +383,10 @@ class PaymentMutation
         }
 
         try {
-            if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+            $previousStatus = $payment->status;
+            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
+            if ($previousStatus === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 $paymentProcessor = new PortalPaymentProcessor(
                     $app,
                     $payment->company,

@@ -18,7 +18,7 @@ class CapturePaymentAction
     ) {
     }
 
-    public function execute(): array
+    public function execute(bool $sendEmail = true): array
     {
         $paymentProcessor = new PortalPaymentProcessor(
             $this->app,
@@ -55,11 +55,13 @@ class CapturePaymentAction
         try {
             $this->order->markAsPaid($this->payment->user);
 
-            new SendPaymentReceiptAction(
-                $this->order,
-                $this->payment,
-                $this->payment->user
-            )->execute();
+            if ($sendEmail) {
+                new SendPaymentReceiptAction(
+                    $this->order,
+                    $this->payment,
+                    $this->payment->user
+                )->execute();
+            }
         } catch (Exception $e) {
             report($e);
         }
