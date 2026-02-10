@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 class OrderFinishExpiredCommand extends Command
@@ -59,6 +60,10 @@ class OrderFinishExpiredCommand extends Command
             })?->variant;
             // Mark order as completed
             $order->fulfill();
+            $order->transitionToStatus(
+                $order->user,
+                OrderStatusEnum::COMPLETED->value
+            );
 
             // If the order is not related to another order. it means that is not an extension
             // but a main order, we can update the warehouse quantity when the order is finished

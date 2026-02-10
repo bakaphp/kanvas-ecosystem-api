@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Factories;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Override;
 
 class AgentFactory extends Factory
@@ -20,7 +21,7 @@ class AgentFactory extends Factory
             'uuid' => Str::uuid()->toString(),
             'name' => $this->faker->word(),
             'config' => [],
-            'agent_type_id' => 1,
+            'agent_type_id' => AgentType::factory(),
             'user_id' => 1,
             'role' => [],
             'is_active' => true,

@@ -61,7 +61,7 @@ class MessageManagementMutation
                 'name' => $messageData['message_verb'],
                 'verb' => $messageData['message_verb'],
             ]);
-            $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+            $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
         }
 
         $systemModuleId = $messageData['system_modules_id'] ?? null;

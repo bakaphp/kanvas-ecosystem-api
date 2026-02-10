@@ -56,6 +56,10 @@ class FollowUpEngagementAction
             ->orderBy('weight', 'ASC')
             ->first();
 
+        if (! $followUpDay) {
+            return null;
+        }
+
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
