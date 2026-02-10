@@ -74,7 +74,7 @@ class Payments extends BaseModel
 
     public function markAsPaid(array $metadata = []): void
     {
-        $this->status = PaymentStatusEnum::PAID;
+        $this->status = PaymentStatusEnum::PAID->value;
 
         if ($this->payable) {
             $this->payable->updateQuietly([
