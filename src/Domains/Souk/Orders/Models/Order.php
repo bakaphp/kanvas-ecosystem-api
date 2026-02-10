@@ -270,15 +270,20 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function markAsPaid(UserInterface $user): void
+    public function transitionToStatus(UserInterface $user, string $statusSlug): void
     {
-        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', $statusSlug)->first()) {
             new TransitionOrderStateAction(
                 $this,
                 $user,
                 $orderStatus
             )->execute(true);
         }
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
