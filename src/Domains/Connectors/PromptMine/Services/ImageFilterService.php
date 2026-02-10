@@ -37,7 +37,7 @@ class ImageFilterService
 {
     protected ?string $apiUrl = null;
     protected ?string $openaiApiUrl = null;
-    protected const int MAX_STATUS_CHECKS = 30;
+    protected const int MAX_STATUS_CHECKS = 50;
     protected const int STATUS_CHECK_DELAY = 2;
 
     public $tries = 3;
@@ -625,7 +625,7 @@ class ImageFilterService
 
             $statusResponse = $response->json();
 
-            if ($statusResponse['status'] === 'COMPLETED') {
+            if ($statusResponse['status'] === 'COMPLETED' || isset($statusResponse['data']['images']) && ! empty($statusResponse['data']['images'])) {
                 break;
             }
 
