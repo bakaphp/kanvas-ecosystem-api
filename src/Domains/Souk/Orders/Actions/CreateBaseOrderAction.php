@@ -25,9 +25,9 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Spatie\LaravelData\DataCollection;
 
