@@ -369,6 +369,14 @@ input UpdateOrderStatusInput {
     sequence: Int
 }
 
+input CreateOrderTypeInput {
+    name: String!
+}
+
+input UpdateOrderTypeInput {
+    name: String!
+}
+
 type PipelineStage {
     status: OrderStatus!
     is_current: Boolean!
@@ -496,6 +504,18 @@ extend type Mutation @guard {
     updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
+        )
+    createOrderType(input: CreateOrderTypeInput!): OrderType!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
+        )
+    updateOrderType(id: ID!, input: UpdateOrderTypeInput!): OrderType!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
+        )
+    deleteOrderType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
         )
 }
 
