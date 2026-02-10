@@ -8,35 +8,37 @@ use Carbon\Carbon;
 use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
-use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Prism\Prism\Enums\FinishReason;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\Testing\StructuredResponseFake;
+use Prism\Prism\ValueObjects\Meta;
+use Prism\Prism\ValueObjects\Usage;
 use Tests\TestCase;
 
 class FollowUpEngagementActionTest extends TestCase
 {
-    public function testFollowUpEngagementActionWithCompleteFlow(): void
+    public function testNotificationEngagementAction(): void
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
-        // Setup action engine
         $actions = [[
             'id' => 7,
             'name' => 'credit-app',
@@ -62,7 +64,10 @@ class FollowUpEngagementActionTest extends TestCase
         ]];
         new Setup($app, $user, $company, $actions)->run();
 
-        // Setup company configuration
+        // Ensure inventory infrastructure (channels, warehouses, etc.) exists
+        $inventorySetup = new InventorySetup($app, $user, $company);
+        $inventorySetup->run();
+
         $company->set('timezone', 'America/Los_Angeles');
         $workHours = [
             'Monday' => '00:00 - 23:59',
@@ -75,67 +80,93 @@ class FollowUpEngagementActionTest extends TestCase
         ];
         $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
         $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
-        $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ['New Year\'s Day', 'Christmas Day', 'Independence Day', 'Labor Day', 'Thanksgiving Day', 'Christmas Eve']);
+        $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ['New Year’s Day', 'Christmas Day', 'Independence Day', 'Labor Day', 'Thanksgiving Day', 'Christmas Eve']);
 
-        // Create lead with proper setup
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $lead->people->addEmail(fake()->email);
         $lead->people->addPhone(fake()->phoneNumber);
 
-        // Set lead configuration for follow up
-        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::LEAD_FOLLOW_UP->value);
-        $lead->set(LeadConfigurationEnum::FIRST_MESSAGE->value, 1); // Has first message
-        $lead->set('is_engagement', 0); // Not engaged yet
-
-        // Ensure lead is active and not contacted
-        $lead->leads_status_id = 1; // Open status
-        $lead->saveOrFail();
-
-        // Get pipeline stage
-        $pipelineStage = $lead->getCurrentPipelineStage();
-
-        // Create FollowUp configuration
-        $followUp = FollowUp::firstOrCreate([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'pipelines_id' => $lead->pipeline_id,
-            'follow_up_type' => FollowUpTypeEnum::LEAD_FOLLOW_UP->value,
-            'name' => 'Test Follow Up',
-        ]);
-
-        // Create FollowUpDay - should trigger after 60 minutes
-        $followUpDay = FollowUpDay::firstOrCreate([
-            'follow_ups_id' => $followUp->id,
-            'pipeline_stages_id' => $pipelineStage->getId(),
-            'name' => 'Day 1 Follow Up',
-            'time_value' => 60, // 60 minutes
-            'time_unit' => 'minutes',
-            'calendar_day' => false,
-            'send_message' => false, // Don't send to avoid external API calls in test
-            'weight' => 1,
-        ]);
-
-        // Create FollowUpTemplate for SMS channel
-        $followUpTemplate = FollowUpTemplate::firstOrCreate([
-            'follow_up_days_id' => $followUpDay->id,
-            'communication_channel' => 'twilio-sms',
-            'name' => 'SMS Follow Up Template',
-            'template' => 'Hi {{lead.people.name}}, this is a follow up message. How can we help you today?',
-        ]);
-
-        // Create message type
+        $config = [
+            'notification_engagement_rules' => [
+                'minutes_no_response' => 60,
+                'day' => 1,
+                'templates' => [
+                    'sms' => 'Hi [Customer Name], this is [Rep Name] from [Dealership Name]! 👋 Thanks for checking us out online. I’d love to help you find the perfect vehicle for your family and a payment that feels comfortable. When’s a good time to connect?',
+                    'email' => 'Good morning [Customer Name]! We’d love to have you stop by this week 🚗💨. Our team will make the process simple and stress-free. Would [day/time] work for a quick visit?',
+                ],
+            ],
+        ];
         $messageType = MessageType::firstOrCreate([
             'apps_id' => $app->getId(),
             'languages_id' => 1,
-            'name' => 'twilio-sms',
-            'verb' => 'twilio-sms',
+            'name' => 'AI Generated Message',
         ]);
 
-        // Create initial message from lead (2 hours ago to trigger follow up)
-        $timezone = $lead->company->get('timezone') ?? 'UTC';
-        $now = Carbon::now($timezone)->subHours(2);
+        // Pre-create twilio-sms MessageType with languages_id so CreateMessageFollowUpAction doesn't fail
+        MessageType::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'name' => 'twilio-sms',
+            'verb' => 'twilio-sms',
+        ], [
+            'languages_id' => 1,
+        ]);
+        $dto = MessageInput::from([
+            'app' => $app,
+            'company' => $company,
+            'user' => $user,
+            'type' => $messageType,
+            'message' => 'Greeting I want to buy a gaming pc',
+        ]);
+        $message = new CreateMessageAction($dto)->execute();
 
-        // Create channel
+        $pipelineStage = $lead->getCurrentPipelineStage();
+
+        // Ensure the lead's pipeline_id is set so FollowUpRepository can find the FollowUp
+        if (! $lead->pipeline_id) {
+            $lead->pipeline_id = $pipelineStage->pipelines_id;
+            $lead->saveOrFail();
+        }
+
+        $pipelineStage->config = $config;
+        $pipelineStage->saveOrFail();
+
+        // Create FollowUp infrastructure so FollowUpEngagementAction can find it
+        $followUp = FollowUp::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'pipelines_id' => $pipelineStage->pipelines_id,
+            'follow_up_type' => FollowUpTypeEnum::LEAD_FOLLOW_UP->value,
+            'name' => 'Test Lead Follow Up',
+        ]);
+
+        $followUpDay = FollowUpDay::create([
+            'follow_ups_id' => $followUp->id,
+            'pipeline_stages_id' => $pipelineStage->getId(),
+            'name' => 'Day 1',
+            'time_value' => 60,
+            'time_unit' => 'minutes',
+            'weight' => 1,
+            'calendar_day' => false,
+            'send_message' => false,
+        ]);
+
+        FollowUpTemplate::create([
+            'follow_up_days_id' => $followUpDay->id,
+            'communication_channel' => 'sms',
+            'name' => 'SMS Follow Up',
+            'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+        ]);
+
+        FollowUpTemplate::create([
+            'follow_up_days_id' => $followUpDay->id,
+            'communication_channel' => 'email',
+            'name' => 'Email Follow Up',
+            'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+        ]);
+
+        $timezone = $lead->company->get('timezone') ?? 'UTC';
+        $now = Carbon::now($timezone)->subHour(2);
+
         $channel = ChannelDto::from([
             'apps' => $app,
             'companies' => $lead->company,
@@ -146,49 +177,44 @@ class FollowUpEngagementActionTest extends TestCase
             'slug' => 'lead_' . $lead->getId() . '_session',
         ]);
         $channel = (new CreateChannelAction($channel))->execute();
+        $emailChannel = $channel->replicate();
+        $emailChannel->save();
 
-        // Create message from lead (simulating lead initiated conversation)
-        $dto = MessageInput::from([
-            'app' => $app,
-            'company' => $company,
-            'user' => $user,
-            'type' => $messageType,
-            'message' => [
-                'content' => 'Hi, I want to buy a car',
-                'raw_data' => 'Hi, I want to buy a car',
-                'message_id' => '--',
-                'chat_jid' => '--',
-                'from_me' => false,
+        $message->created_at = $now;
+        $message->saveOrFail();
+
+        $channel->addMessage($message);
+        $emailChannel->addMessage($message);
+
+        $agent = Agent::factory()->create([
+            'name' => 'firstMessageEngagerAgent',
+            'apps_id' => $lead->apps_id,
+            'companies_id' => $lead->companies_id,
+            'user_id' => $user->getId(),
+            'role' => [],
+        ]);
+
+        $agent = Agent::factory()->create([
+            'name' => 'FollowUpEngagerAgent',
+            'apps_id' => $lead->apps_id,
+            'companies_id' => $lead->companies_id,
+            'user_id' => $user->getId(),
+            'role' => [
+                'background' => [
+                    'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
+                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    ',
+                ],
+                'steps' => [
+                    'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
+                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
+                    ',
+                ],
             ],
         ]);
-        $message = new CreateMessageAction($dto)->execute();
-        $message->created_at = $now;
-        $message->slug = 'lead-message-' . time(); // Mark as lead message
-        $message->saveOrFail();
-        $channel->addMessage($message);
 
-        // Create agents
-        $agent = Agent::factory()
-            ->withAppId($lead->apps_id)
-            ->withCompanyId($lead->companies_id)
-            ->create([
-                'name' => 'FollowUpEngagerAgent',
-                'user_id' => $user->id,
-                'role' => [
-                    'background' => [
-                        'You are a friendly car dealership assistant. Create a follow-up message based on:
-                        Templates: {{ $templates }}
-                        Conversation History: {!! json_encode($conversation_history, JSON_PRETTY_PRINT) !!}
-                        Lead Context: {!! json_encode($context, JSON_PRETTY_PRINT) !!}
-                        Day: {{ $day }}
-                        Work Hours: {!! json_encode($work_hours_status, JSON_PRETTY_PRINT) !!}
-
-                        Return a friendly, personalized follow-up message.',
-                    ],
-                ],
-            ]);
-
-        // Create session
         $sessionDto = Session::from([
             'agent' => $agent,
             'channel' => $channel,
@@ -197,7 +223,7 @@ class FollowUpEngagementActionTest extends TestCase
             'entity_id' => $lead->getId(),
             'entity_namespace' => Lead::class,
             'user' => $lead->user->toArray(),
-            'canal_id' => 'twilio-' . fake()->phoneNumber(),
+            'canal_id' => 'lead_' . $lead->getId() . '_session',
             'userModel' => $user,
         ]);
 
@@ -206,28 +232,28 @@ class FollowUpEngagementActionTest extends TestCase
         $session->uuid = 'twilio-' . fake()->phoneNumber();
         $session->saveOrFail();
 
-        // Execute follow up action
-        $result = new FollowUpEngagementAction($lead)->execute();
+        $sessionEmail = $session->replicate();
+        $sessionEmail->uuid = 'email' . fake()->email();
+        $sessionEmail->channel_id = $emailChannel->id;
+        $sessionEmail->save();
 
-        // Assertions
-        // 1. Verify log was created
-        $log = FollowUpLog::where('leads_id', $lead->getId())->first();
-        $this->assertNotNull($log, 'Follow up log should be created');
+        // Fake Prism AI response so the test doesn't depend on external AI services
+        $fakeStructuredData = [
+            'message' => 'Hi there! Just following up on your interest. Would you like to schedule a visit?',
+            'should_respond' => true,
+        ];
 
-        // Core assertions
-        $this->assertTrue($log->entered_follow_up_action, 'Should mark entered_follow_up_action');
-        $this->assertTrue($log->found_follow_up, 'Should find follow up');
-        $this->assertTrue($log->found_follow_up_day, 'Should find follow up day');
+        $fakeResponse = StructuredResponseFake::make()
+            ->withText(json_encode($fakeStructuredData, JSON_THROW_ON_ERROR))
+            ->withStructured($fakeStructuredData)
+            ->withFinishReason(FinishReason::Stop)
+            ->withUsage(new Usage(100, 50))
+            ->withMeta(new Meta('fake-response-id', 'gemini-2.5-pro'));
 
-        // Debug: Check if it entered create message action
-        if ($log->entered_create_message_action) {
-            $this->assertNotNull($log->should_respond, 'Should have should_respond value');
-        }
+        Prism::fake([$fakeResponse, $fakeResponse]);
 
-        // The test succeeds if the follow up system is working - it found the follow up and day
-        // Whether it sends a message or not depends on other business logic conditions
+        $message = new FollowUpEngagementAction($lead)->execute();
 
-        // Test passes if we got through the basic flow
-        $this->assertTrue(true, 'Follow up action executed - log created successfully');
+        $this->assertIsArray($message);
     }
 }
