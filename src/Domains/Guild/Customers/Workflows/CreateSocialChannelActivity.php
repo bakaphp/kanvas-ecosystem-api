@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Workflows;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -78,7 +79,7 @@ class CreateSocialChannelActivity extends KanvasActivity
                     agentId: (int) $params['agent_id']
                 );
 
-                if ($communicationChannel === 'sms') {
+                if (! empty($params['create_whatsapp'])) {
                     $channel = $this->createChannelAndSession(
                         channelKey: 'whatsapp',//slug
                         communicationChannel: $communicationChannel,
@@ -106,6 +107,11 @@ class CreateSocialChannelActivity extends KanvasActivity
         Lead $lead,
         int $agentId
     ): Channel {
+        $contactValue = $contact->value;
+        if ($communicationChannel === 'sms') {
+            $contactValue = Str::normalizePhoneNumber($contact->value);
+        }
+
         $channelDto = ChannelDto::from([
             'apps' => $app,
             'companies' => $lead->company,
@@ -115,7 +121,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             'name' => ucwords($communicationChannel) . ' ' . $lead->getId(),
             'slug' => SessionChannelService::createChannelSlug(
                 $channelKey,
-                $contact->value
+                $contactValue
             ),
         ]);
 
@@ -131,7 +137,7 @@ class CreateSocialChannelActivity extends KanvasActivity
             'user' => $lead->user->toArray(),
             'canal_id' => SessionChannelService::createCanalId(
                 $communicationChannel,
-                $contact->value
+                $contactValue
             ),
         ]);
 

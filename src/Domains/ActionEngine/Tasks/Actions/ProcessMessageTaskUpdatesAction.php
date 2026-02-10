@@ -37,6 +37,17 @@ class ProcessMessageTaskUpdatesAction
 
         $results = [];
 
+        // For esign-docs, only use filename-based matching to avoid processing all esign tasks
+        if ($verb === 'esign-docs') {
+            $signDocsResults = $this->handleSignDocsFiles($messageData);
+
+            return [
+                'success' => ! empty($signDocsResults),
+                'results' => $signDocsResults,
+                'message' => 'Task engagement status updated',
+            ];
+        }
+
         // Handle regular task items
         $taskListItems = $this->findTaskListItems($messageData);
 
@@ -53,10 +64,6 @@ class ProcessMessageTaskUpdatesAction
                 $results[] = $result;
             }
         }
-
-        // Handle sign docs files
-        $signDocsResults = $this->handleSignDocsFiles($messageData);
-        $results = array_merge($results, $signDocsResults);
 
         return [
             'success' => ! empty($results),
@@ -134,26 +141,28 @@ class ProcessMessageTaskUpdatesAction
             return;
         }
 
-        $filename = $data['documentForms'][0]['filename'] ?? null;
-        $companyId = $this->lead->company->getId();
-
-        $conditionsMap = [
-            'privacy-disclosure.pdf' => [
-                8412 => 678837,
-                8485 => 895776,
-            ],
-            'insurance-information.pdf' => [
-                8485 => 895775,
-            ],
-            'working-disclosure-form.pdf' => [
-                8412 => 678838,
-            ],
-        ];
-
-        if ($filename && isset($conditionsMap[$filename][$companyId])) {
-            $configId = $conditionsMap[$filename][$companyId];
-            $query->whereJsonContains('config->id', $configId);
-        }
+        // Now using filename-based matching for all companies in handleSignDocsFiles()
+        // Previous company-specific behavior commented out:
+        // $filename = $data['documentForms'][0]['filename'] ?? null;
+        // $companyId = $this->lead->company->getId();
+        //
+        // $conditionsMap = [
+        //     'privacy-disclosure.pdf' => [
+        //         8412 => 678837,
+        //         8485 => 895776,
+        //     ],
+        //     'insurance-information.pdf' => [
+        //         8485 => 895775,
+        //     ],
+        //     'working-disclosure-form.pdf' => [
+        //         8412 => 678838,
+        //     ],
+        // ];
+        //
+        // if ($filename && isset($conditionsMap[$filename][$companyId])) {
+        //     $configId = $conditionsMap[$filename][$companyId];
+        //     $query->whereJsonContains('config->id', $configId);
+        // }
     }
 
     protected function handleSignDocsFiles(array $messageData): array

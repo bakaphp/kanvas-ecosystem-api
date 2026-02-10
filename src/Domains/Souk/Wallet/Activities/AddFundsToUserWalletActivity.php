@@ -58,7 +58,7 @@ class AddFundsToUserWalletActivity extends KanvasActivity
 
                 $transaction = new AddFundsToUserWalletAction(
                     order: $order,
-                )->execute();
+                )->execute($params['processTransactionsByWalletType'] ?? false);
 
                 return [
                     'result' => true,

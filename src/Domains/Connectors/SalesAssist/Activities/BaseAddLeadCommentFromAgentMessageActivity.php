@@ -20,7 +20,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
-    public $tries = 3;
+    public $tries = 1;
 
     /**
      * Get the integration enum for this connector.
@@ -122,12 +122,19 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: $this->getIntegration(),
+            additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams): array {
                 $lead = $message->entity();
 
                 if (! $lead instanceof Lead) {
                     return $this->failWorkflow([
                         'error' => 'Message is not linked to a Lead entity',
+                    ]);
+                }
+
+                if ($message->get('sent_to_crm')) {
+                    return $this->failWorkflow([
+                        'error' => 'Message has already been sent to CRM',
                     ]);
                 }
 
@@ -160,6 +167,8 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 if (is_array($externalResult) && isset($externalResult['error'])) {
                     return $externalResult;
                 }
+
+                $message->set('sent_to_crm', true);
 
                 // Notify managers
                 $sentManagerNotification = false;

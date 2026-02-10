@@ -10,6 +10,7 @@ type Action {
     is_published: Boolean!
     collects_info: Boolean!
     config: Mixed
+    pipeline: ActionPipeline @belongsTo
     parent: Action @belongsTo(relation: "parent")
     children: [Action!] @hasMany(relation: "children")
 }
@@ -43,11 +44,46 @@ type CompanyAction {
         )
 }
 
+input ActionInput {
+    name: String!
+    description: String
+    icon: Mixed
+    form_fields: Mixed
+    form_config: Mixed
+    is_active: Boolean
+    collects_info: Boolean
+    is_published: Boolean
+    pipelines_id: ID
+    parent_id: ID
+}
+
+input UpdateActionInput {
+    name: String!
+    description: String
+    icon: Mixed
+    form_fields: Mixed
+    form_config: Mixed
+    is_active: Boolean
+    collects_info: Boolean
+    is_published: Boolean
+    pipelines_id: ID
+    parent_id: ID
+}
+
+input CreateCompanyActionInput {
+    actions_id: ID!
+    name: String!
+    description: String
+    form_config: Mixed
+    config: Mixed
+    is_active: Boolean
+    is_published: Boolean
+    weight: Float
+    parent_id: ID
+}
+
 input UpdateCompanyActionInput {
-    id: ID!
-    action_id: ID
-    company_id: ID
-    name: String
+    name: String!
     description: String
     config: Mixed
     form_config: Mixed
@@ -55,19 +91,68 @@ input UpdateCompanyActionInput {
     is_active: Boolean
     is_published: Boolean
     weight: Float
-    pipeline_id: ID
     parent_id: ID
 }
 
-extend type Mutation @guard {
-    updateCompanyAction(input: UpdateCompanyActionInput!): CompanyAction!
+extend type Mutation @guardByAdmin {
+    createAction(input: ActionInput!): Action!
         @field(
-            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\CompanyActionMutation@updateCompanyAction"
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\ActionMutation@create"
+        )
+    updateAction(id: ID!, input: UpdateActionInput!): Action!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\ActionMutation@update"
+        )
+    deleteAction(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\ActionMutation@delete"
+        )
+    createCompanyAction(input: CreateCompanyActionInput!): CompanyAction!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\CompanyActionMutation@create"
+        )
+    updateCompanyAction(id: ID!, input: UpdateCompanyActionInput!): CompanyAction!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\CompanyActionMutation@update"
+        )
+    deleteCompanyAction(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Actions\\CompanyActionMutation@delete"
         )
 }
 
 extend type Query @guard {
+    actionEngineActions(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "is_active"
+                    "is_published"
+                    "pipelines_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                ]
+            )
+    ): [Action!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Actions\\Models\\Action"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
     companyActions(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

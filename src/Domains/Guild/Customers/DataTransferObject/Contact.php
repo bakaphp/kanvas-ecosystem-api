@@ -4,18 +4,31 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\DataTransferObject;
 
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Spatie\LaravelData\Data;
 
 class Contact extends Data
 {
+    public readonly int $contacts_types_id;
+
     public function __construct(
         public readonly string $value,
-        public readonly int $contacts_types_id,
+        ?int $contacts_types_id = null,
         public readonly int $weight = 0,
         public readonly string|int|null $id = null,
         public readonly int $is_opt_out = 0
     ) {
+        $this->contacts_types_id = $contacts_types_id ?? $this->inferContactType($value);
+    }
+
+    protected function inferContactType(string $value): int
+    {
+        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            return ContactTypeEnum::EMAIL->value;
+        }
+
+        return ContactTypeEnum::PHONE->value;
     }
 
     public function getType(): string

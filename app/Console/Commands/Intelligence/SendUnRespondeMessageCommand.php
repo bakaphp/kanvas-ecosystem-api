@@ -49,10 +49,12 @@ class SendUnRespondeMessageCommand extends Command
                 ->whereRaw("DATE_ADD(created_at, INTERVAL {$minutedMessages} MINUTE) <= NOW()")
                 ->cursor();
 
+            $sentCRMInternalNote = [];
             foreach ($messages as $message) {
                 if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
                     $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
                     $message->setUnlock();
+                    $message->setPublic();
 
                     continue;
                 }
@@ -73,6 +75,7 @@ class SendUnRespondeMessageCommand extends Command
                 if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
+                    //$message->setPublic();
 
                     continue;
                 }
@@ -84,6 +87,7 @@ class SendUnRespondeMessageCommand extends Command
                         $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
                     )) {
                         $message->setUnlock();
+                        //$message->setPublic();
                         $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
@@ -99,30 +103,16 @@ class SendUnRespondeMessageCommand extends Command
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
+                    //$message->setPublic();
 
                     continue;
                 }
 
                 try {
-                    $eLeadOpportunity = EntitiesLead::getById(
-                        $lead->app,
-                        $lead->company,
-                        (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    );
-                    $eLeadOpportunity->addComment("Sally is sending a follow-up message. The salesperson hasn't responded to the lead yet.");
-                } catch (ClientException $e) {
-                    if (Str::contains($e->getMessage(), 'not active')
-                        || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
-                        $lead->close();
-                        $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
-                    } else {
-                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                    if ($message->hasTag(['first-message'])) {
+                        continue;
                     }
 
-                    continue;
-                }
-
-                try {
                     new SendMessageToLeadAction($lead)->execute(
                         $communicationChannel,
                         $message->message['content'],
@@ -130,7 +120,7 @@ class SendUnRespondeMessageCommand extends Command
                         $title,
                     );
                     $message->setUnlock();
-                    $message->is_public = 1;
+                    $message->setPublic();
                     $message->created_at = date('Y-m-d H:i:s');
                     $message->saveOrFail();
 
@@ -144,8 +134,7 @@ class SendUnRespondeMessageCommand extends Command
                     );
 
                     // Check if message does NOT have 'first-message' tag to trigger IA takeover
-                    $tags = $message->tags->pluck('name')->toArray();
-                    if (! in_array('first-message', $tags)) {
+                    if (! $message->hasTag(['first-message'])) {
                         $lead->fireWorkflow(
                             WorkflowEnum::TRIGGER_AI->value,
                             true,
@@ -163,6 +152,31 @@ class SendUnRespondeMessageCommand extends Command
                         $lead->company,
                         'ai_unresponde_message_sent'
                     );
+
+                    if (! isset($sentCRMInternalNote[$lead->getId()])) {
+                        try {
+                            if (! $lead->get('sended_note_un_response')) {
+                                $eLeadOpportunity = EntitiesLead::getById(
+                                    $lead->app,
+                                    $lead->company,
+                                    (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                                );
+                                $eLeadOpportunity->addComment("The sales agent hasn't responded to the customer's message in 15 minutes. Sally is responding to the customer");
+                                $sentCRMInternalNote[$lead->getId()] = true;
+                                $lead->set('sended_note_un_response', true);
+                            }
+                        } catch (ClientException $e) {
+                            if (Str::contains($e->getMessage(), 'not active')
+                                || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
+                                $lead->close();
+                                $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
+                            } else {
+                                $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                            }
+
+                            continue;
+                        }
+                    }
                 } catch (Exception $e) {
                     $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
                 }

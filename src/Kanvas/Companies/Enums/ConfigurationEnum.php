@@ -16,4 +16,5 @@ enum ConfigurationEnum: string
     case MAPPING_STATUS_CRM = 'mapping_status_crm';
     case UN_RESPONDED_SALESPERSON_MESSAGES = 'un_responded_salesperson_messages';
     case AI_MODE = 'ai_mode';
+    case ALLOW_CALL_APPOINTMENTS = 'allow_call_appointments';
 }

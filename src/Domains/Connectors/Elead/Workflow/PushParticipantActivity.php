@@ -30,6 +30,7 @@ class PushParticipantActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function ($participant, $app, $integrationCompany, $additionalParams) use ($lead, $people) {
                 //id, crmid, firstname, middlename, lastname, email and phone
 

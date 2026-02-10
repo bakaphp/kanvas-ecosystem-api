@@ -101,6 +101,27 @@ class SuperCarrosVehicleInventoryImportAction
                         )
                     )->execute();
 
+                    // Clean wipe + re-insert: delete all file entities then re-add fresh
+                    // Wrapped in retry to handle transient deadlocks from concurrent imports
+                    if (! empty($mappedProductData['files'])) {
+                        retry(3, function () use ($importedProduct, $mappedProductData) {
+                            $importedProduct->deleteFiles();
+                            foreach ($mappedProductData['files'] as $file) {
+                                $importedProduct->addFileFromUrl($file['url'], $file['field_name'] ?? $file['name'], $this->app);
+                            }
+
+                            foreach ($importedProduct->variants as $variant) {
+                                $variantFiles = $mappedProductData['variants'][0]['files'] ?? [];
+                                if (! empty($variantFiles)) {
+                                    $variant->deleteFiles();
+                                    foreach ($variantFiles as $file) {
+                                        $variant->addFileFromUrl($file['url'], $file['field_name'] ?? $file['name'], $this->app);
+                                    }
+                                }
+                            }
+                        }, 200, fn ($e) => str_contains($e->getMessage(), 'Deadlock'));
+                    }
+
                     // Make the product searchable
                     $importedProduct->searchable();
 

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -87,11 +88,13 @@ class PromptIAPOrderActivity extends KanvasActivity
                     }
                 }
 
+                //if (! $order->hasTag([WalletConfigurationEnum::WALLET_CREDIT_TAG->value])) {
                 $order->user->set(
                     'order_credits',
                     $orderCredit,
                     true
                 );
+                //}
 
                 return [
                     'order_id' => $order->getId(),

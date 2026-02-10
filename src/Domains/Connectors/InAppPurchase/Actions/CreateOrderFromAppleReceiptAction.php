@@ -112,15 +112,34 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw $exception;
         }
 
-        // Validate we have the expected purchase
-        $firstPurchase = $inAppPurchases[0];
-        $firstVariant = $this->getVariant($firstPurchase->getProductId());
+        // Find the purchase that matches the transaction_id from the request
+        $requestedTransactionId = $allReceiptData['transactionId'];
+        $matchingPurchase = null;
+
+        foreach ($inAppPurchases as $purchase) {
+            if ($purchase->getTransactionId() === $requestedTransactionId) {
+                $matchingPurchase = $purchase;
+
+                break;
+            }
+        }
+
+        if ($matchingPurchase === null) {
+            $exception = new ValidationException(
+                "Transaction {$requestedTransactionId} not found in receipt. The receipt may be stale or the transaction was not completed."
+            );
+            report($exception);
+
+            throw $exception;
+        }
+
+        $firstVariant = $this->getVariant($matchingPurchase->getProductId());
         /** @var array<OrderItem> $orderItems */
         $orderItems = [];
 
         $orderItem = $this->createOrderItem(
             $firstVariant,
-            $firstPurchase->getQuantity()
+            $matchingPurchase->getQuantity()
         );
 
         $orderItems[] = $orderItem;

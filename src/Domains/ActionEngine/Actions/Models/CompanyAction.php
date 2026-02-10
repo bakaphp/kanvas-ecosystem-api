@@ -7,10 +7,12 @@ namespace Kanvas\ActionEngine\Actions\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Nevadskiy\Tree\AsTree;
@@ -42,6 +44,7 @@ class CompanyAction extends BaseModel
 {
     use UuidTrait;
     use AsTree;
+    use DatabaseSearchableTrait;
 
     protected $table = 'companies_actions';
     protected $fillable = [
@@ -54,9 +57,12 @@ class CompanyAction extends BaseModel
         'parent_id',
         'path',
         'name',
-        'description' ,
+        'description',
         'form_config',
-        'is_active' ,
+        'config',
+        'status',
+        'weight',
+        'is_active',
         'is_published',
     ];
 
@@ -77,6 +83,28 @@ class CompanyAction extends BaseModel
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipelines_id', 'id');
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_company_action_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'company_action_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
     }
 
     public static function getByAction(

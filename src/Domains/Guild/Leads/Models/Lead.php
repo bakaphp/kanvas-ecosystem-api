@@ -278,6 +278,12 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->saveOrFail();
     }
 
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
+        $this->saveOrFail();
+    }
+
     public function setDuplicate(): self
     {
         $duplicate = LeadStatus::where('name', 'Duplicate')->first();

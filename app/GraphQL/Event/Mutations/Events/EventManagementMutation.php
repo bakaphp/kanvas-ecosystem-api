@@ -19,7 +19,7 @@ class EventManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $event = DataTransferObjectEvent::from($app, $user, $user->getCurrentCompany(), $req['input']);
+        $event = DataTransferObjectEvent::fromMultiple($app, $user, $user->getCurrentCompany(), $req['input']);
 
         $createEvent = new CreateEventAction($event);
 

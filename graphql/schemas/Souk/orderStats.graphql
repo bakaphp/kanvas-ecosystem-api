@@ -19,6 +19,7 @@ type OrdersInPeriodPayment {
     totalAmount: Float
     byServices: [OrderPaymentService!]
     byTransaction: OrderPaymentByTransaction
+    byProvider: [OrderPaymentByProvider!]
     data: [OrderPaymentStateCount!]!
 }
 
@@ -37,6 +38,12 @@ type OrderPaymentByTransaction {
     transfer: Int
     cardAmount: Money
     transferAmount: Money
+}
+
+type OrderPaymentByProvider {
+    name: String!
+    count: Int!
+    totalAmount: Float!
 }
 
 type OrderPaymentStateCount {
@@ -101,6 +108,8 @@ input OrderStatsInput {
     initialStates: [String!]
     finalStates: [String!]
     currentCountStates: [String!]
+    productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")
     startDate: String # start of period (e.g., "2025-07-01")
     endDate: String # end of period (e.g., "2025-07-07")
@@ -108,15 +117,22 @@ input OrderStatsInput {
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
 }
 
+input ProviderInput {
+    name: String!
+    emailPattern: String!
+}
+
 input OrderPaymentStatsInput {
     paidStates: [String!]
     variantId: Int # Filter by specific service/variant
     productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")
     startDate: String # start of period (e.g., "2025-07-01")
     endDate: String # end of period (e.g., "2025-07-07")
     timezone: String # e.g., "America/New_York"
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
+    providers: [ProviderInput!] # Filter and group by provider email patterns
 }
 
 extend type Query @guard {

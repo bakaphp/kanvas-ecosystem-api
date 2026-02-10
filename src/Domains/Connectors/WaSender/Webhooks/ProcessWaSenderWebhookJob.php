@@ -1150,10 +1150,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
+        // Try to get lead type from webhook payload first
+        $payload = $this->webhookRequest->payload;
+        $leadTypeName = $this->receiver->configuration['lead_type'] ?? 'Warm';
+
         $leadType = LeadType::fromApp($people->app)
                     ->fromCompany($people->company)
-                    ->where('name', 'Warm')
-                    ->firstOrFail();
+                    ->where('name', $leadTypeName)
+                    ->first();
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(

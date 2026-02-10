@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -18,6 +19,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class BaseAgentResponderAction
 {
@@ -30,10 +32,20 @@ class BaseAgentResponderAction
         protected Agent $agent,
         protected ?Session $session = null,
     ) {
+        $lead = $this->session->entity();
+        $aiMode = $lead->get('ai_mode');
+        if ($aiMode == IntelligenceModeEnum::OFF->value) {
+            throw new Exception('Ai Agent Off for this lead');
+        }
     }
 
-    protected function createMessage(string $text, string $to, Message $message, Channel $channel): Message
-    {
+    protected function createMessage(
+        string $text,
+        string $to,
+        Message $message,
+        Channel $channel,
+        ?string $from = null
+    ): Message {
         $user = $message->user;
         $agentUser = $this->channel->app->get('kanvas_agent_user_id');
         if ($agentUser !== null) {
@@ -58,16 +70,35 @@ class BaseAgentResponderAction
             //slug: Str::slug($text) . '-' . microtime()
         );
 
-        $newMessage = new CreateMessageAction($messageInput)->execute();
+        $newMessage = new CreateMessageAction($messageInput);
+        $newMessage->runWorkflow = false;
+        $newMessage = $newMessage->execute();
+
         $newMessage->set('communicationChannel', $this->communicationChannel);
+        $newMessage->set('from_number', $from);
+
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }
-        $channel->addMessage($newMessage);
 
-        if ($this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
+
+        $agentSupportMode = $isWithinWorkingHours
+            && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
+
+        if ($agentSupportMode) {
             $newMessage->setLock();
+            $newMessage->setPrivate();
         }
+
+        $newMessage->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                 'app' => $newMessage->app,
+             ]
+        );
+        $channel->addMessage($newMessage);
 
         return $newMessage;
     }

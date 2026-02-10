@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Objects\Cart;
-use Exception;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class PayFromWalletAction
 {
+    use HasWalletHolderTrait;
+
     public function __construct(
         protected Order $order,
     ) {
@@ -21,12 +22,6 @@ class PayFromWalletAction
 
     public function execute(): Wallet
     {
-        /*         $userCompany = $this->order->getMetadata('user_company_id');
-                if (! $userCompany) {
-                    throw new Exception('User company not found in order metadata.');
-                }
-         */
-        //$company = Companies::getById($userCompany);
         $company = $this->order->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
@@ -35,9 +30,9 @@ class PayFromWalletAction
             $company
         );
 
+        $walletHolder = $this->getWalletHolder($this->order->app, $this->order->user);
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
-        $wallet = $company->createAppWallet($this->order->app, ['name' => $tag]);
-        //$total = 0;
+        $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
 
         foreach ($this->order->items as $item) {
@@ -48,7 +43,6 @@ class PayFromWalletAction
             ) {
                 continue;
             }
-            //$total += $item->getTotal();
             $cart = $cart->withItem(
                 product: $item->variant,
                 quantity: (int) $item->quantity,
@@ -56,8 +50,9 @@ class PayFromWalletAction
             );
         }
 
-        // $wallet->withdrawFloat($total);
         $wallet->payCart($cart);
+
+        $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
         return $wallet;
     }

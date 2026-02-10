@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Users\Repositories\UsersRepository;
 use Override;
 
 class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
 {
+    use HasWalletHolderTrait;
+
     #[Override]
     public function execute(): Order
     {
@@ -36,7 +38,6 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
             return;
         }
 
-        //$company = Companies::getById($this->request['input']['metadata']['user_company_id']);
         $company = $this->user->getCurrentCompany();
 
         UsersRepository::belongsToThisApp(
@@ -45,8 +46,9 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
             $company
         );
 
+        $walletHolder = $this->getWalletHolder($this->app, $this->user);
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
-        $wallet = $company->createAppWallet($this->app, ['name' => $tag]);
+        $wallet = $walletHolder->createAppWallet($this->app, ['name' => $tag]);
 
         if ($wallet->balanceFloat < $this->cart->getTotal()) {
             throw new ValidationException(

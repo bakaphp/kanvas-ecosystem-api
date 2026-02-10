@@ -46,6 +46,7 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
         )
+    channels: [SocialChannel!] @cacheRedis @belongsToMany
     files: [Filesystem!]!
         @cacheRedis
         @paginate(

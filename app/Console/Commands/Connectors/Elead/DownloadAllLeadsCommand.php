@@ -17,6 +17,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
@@ -152,6 +153,8 @@ class DownloadAllLeadsCommand extends Command
                                         true,
                                         [
                                             'app' => $app,
+                                            'company' => $lead->company,
+                                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
                                         ]
                                     );
                                     $successCount++;

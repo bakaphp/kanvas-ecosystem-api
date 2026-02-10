@@ -56,6 +56,10 @@ class FollowUpEngagementAction
             ->orderBy('weight', 'ASC')
             ->first();
 
+        if (! $followUpDay) {
+            return null;
+        }
+
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)
@@ -63,13 +67,20 @@ class FollowUpEngagementAction
                 ->fromCompany($this->lead->company)
                 ->get();
 
+        $processedChannels = [];
         foreach ($sessions as $session) {
-            if (! $session) {
+            $messageTemplateChannel = $session->getChannel();
+
+            // Skip if this channel has already been processed
+            if (in_array($messageTemplateChannel, $processedChannels)) {
                 continue;
             }
+            $processedChannels[] = $messageTemplateChannel;
 
-            $messageTemplateChannel = $session->getChannel();
             $lastMessage = $session->channel->getLastMessage();
+            if (! $lastMessage) {
+                continue;
+            }
             $isWhatsApp = $messageTemplateChannel === 'whatsapp';
 
             // WhatsApp validation: check if last message was not from Lead entity
@@ -130,16 +141,17 @@ class FollowUpEngagementAction
                 $isActive = $this->lead->isActive();
             }
 
-            if (! $lastMessageCreatedAt || (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
-                && $timeDiff >= $followUpDay->time_value
+            if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
+                && $timeDiff > $followUpDay->time_value
                 && $contacted === false
-                && $isActive)) {
+                && $isActive) {
                 $message = null;
-                $messageTemplateChannel = $followUpDay->templates()
+                $messageTemplate = $followUpDay->templates()
                     ->where('communication_channel', $messageTemplateChannel)
                     ->where('is_deleted', 0)
                     ->first()?->template;
-                if (! $messageTemplateChannel) {
+
+                if (! $messageTemplate) {
                     continue;
                 }
 
@@ -148,7 +160,7 @@ class FollowUpEngagementAction
                         $this->lead,
                         $this->lead->stage,
                         $session,
-                        $messageTemplateChannel,
+                        $messageTemplate,
                         (float)$followUpDay->pipelineStage->weight
                     )->execute();
                 } catch (Exception $e) {
@@ -161,10 +173,12 @@ class FollowUpEngagementAction
                 }
 
                 if ($followUpDay->send_message) {
+                    $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
                         $message,
-                        $this->lead->company->get('twilio_phone_number')
+                        $this->lead->company->get('twilio_phone_number'),
+                        $emailTitle
                     );
 
                     DailyReportService::track(
