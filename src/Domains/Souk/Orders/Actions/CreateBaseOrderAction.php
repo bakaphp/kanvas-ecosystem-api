@@ -313,14 +313,14 @@ class CreateBaseOrderAction
             ]);
 
             // Store wallet transaction info in order metadata
-            $order->addMetadata(WalletConfigurationEnum::WALLET_CREDIT_TAG->value, [
+            $order->addMetadata(WalletConfigurationEnum::WALLET_CREDIT->value, [
                 'tag' => $walletTag,
                 'amount' => $appliedAmount,
                 'transaction_id' => $wallet->getKey(),
                 'applied_at' => now()->toIso8601String(),
             ]);
 
-            $order->set(WalletConfigurationEnum::WALLET_CREDIT_TAG->value, [
+            $order->set(WalletConfigurationEnum::WALLET_CREDIT->value, [
                 'tag' => $walletTag,
                 'amount' => $appliedAmount,
                 'transaction_id' => $wallet->getKey(),
