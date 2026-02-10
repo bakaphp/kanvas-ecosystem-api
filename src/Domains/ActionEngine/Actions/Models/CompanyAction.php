@@ -104,7 +104,7 @@ class CompanyAction extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->is_deleted == 0;
+        return ! $this->isDeleted();
     }
 
     public static function getByAction(

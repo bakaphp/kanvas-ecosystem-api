@@ -677,7 +677,7 @@ class MyModel extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->is_deleted == 0;
+        return ! $this->isDeleted();
     }
 }
 ```
@@ -711,7 +711,7 @@ class MyModel extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->is_deleted == 0;
+        return ! $this->isDeleted();
     }
 }
 ```
@@ -823,6 +823,7 @@ Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intell
 
 ### Key Rules
 
+- **Always run tests after completing work on a module or connector** — run the relevant test suite to verify nothing is broken before moving on, unless explicitly told otherwise
 - **Never use `RefreshDatabase` trait** — it wipes all shared DB tables across connections. Use `DatabaseTransactions` instead
 - Base `TestCase` loads `.env` (not `.env.testing`), no `RefreshDatabase` by default
 - Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait
