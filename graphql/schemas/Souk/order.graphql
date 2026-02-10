@@ -643,6 +643,11 @@ extend type Query @guard {
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
             )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
         @paginate(
