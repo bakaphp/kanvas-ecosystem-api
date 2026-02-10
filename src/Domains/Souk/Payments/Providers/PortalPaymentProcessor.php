@@ -413,6 +413,7 @@ class PortalPaymentProcessor
             ]);
 
             $payment->status = PaymentStatusEnum::AUTHORIZED;
+            $payment->payment_intent_id = $intentId;
             $payment->addMetadata([
                 'data' => [
                     'payment_response' => $paymentResponse['data'],
@@ -686,11 +687,6 @@ class PortalPaymentProcessor
             ]);
 
             $payment->status = PaymentStatusEnum::REVERSED->value;
-            $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::REVERSED->value,
-                'status' => OrderStatusEnum::FAILED->value,
-                'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-            ]);
 
             $payment->addMetadata([
                 'data' => [

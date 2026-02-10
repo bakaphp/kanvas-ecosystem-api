@@ -20,7 +20,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
-    public $tries = 3;
+    public $tries = 1;
 
     /**
      * Get the integration enum for this connector.
@@ -162,12 +162,13 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 // Add note to the external CRM system
                 $externalResult = $this->addNoteToExternalSystem($lead, $formattedNote, $message, $app);
-                $message->set('sent_to_crm', true);
 
                 // Handle failure from external system
                 if (is_array($externalResult) && isset($externalResult['error'])) {
                     return $externalResult;
                 }
+
+                $message->set('sent_to_crm', true);
 
                 // Notify managers
                 $sentManagerNotification = false;

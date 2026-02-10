@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Arr;
 use Baka\Users\Contracts\UserInterface;
 use Berkayk\OneSignal\OneSignalClient;
 use Exception;
@@ -92,7 +93,7 @@ class OneSignalService
         }
 
         if (isset($data) && is_array($data) && ! empty($data)) {
-            $params['data'] = $data;
+            $params['data'] = Arr::truncateToFit($data);
         }
 
         if (isset($buttons) && is_array($buttons) && ! empty($buttons)) {
