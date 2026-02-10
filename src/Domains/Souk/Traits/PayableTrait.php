@@ -28,6 +28,13 @@ trait PayableTrait
             ->exists();
     }
 
+    public function hasProcessingPayment(): bool
+    {
+        return $this->payments()
+            ->where('status', PaymentStatusEnum::PROCESSING->value)
+            ->exists();
+    }
+
     public function getPaidAmount(): float
     {
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
