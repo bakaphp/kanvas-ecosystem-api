@@ -94,6 +94,33 @@ class GoogleADKService
         string $userId,
         string $sessionId,
         string $message,
+        ?callable $onChunk = null,
+        int $maxRetries = 3
+    ): string {
+        $attempt = 0;
+
+        while (true) {
+            try {
+                return $this->executeChat(
+                    $userId,
+                    $sessionId,
+                    $message,
+                    $onChunk
+                );
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $maxRetries || ! str_contains($e->getMessage(), 'stale session')) {
+                    throw $e;
+                }
+                usleep(500_000 * $attempt); // 0.5s, 1s, 1.5s backoff
+            }
+        }
+    }
+
+    protected function executeChat(
+        string $userId,
+        string $sessionId,
+        string $message,
         ?callable $onChunk = null
     ): string {
         $response = Http::withHeaders([
