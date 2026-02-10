@@ -123,6 +123,7 @@ extend type Mutation @guardByAdmin {
 
 extend type Query @guard {
     actionEngineActions(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -151,6 +152,7 @@ extend type Query @guard {
         )
 
     companyActions(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

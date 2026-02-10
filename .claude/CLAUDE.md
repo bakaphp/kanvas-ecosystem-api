@@ -224,6 +224,7 @@ extend type Mutation @guardByAdmin {
 # Read access for all authenticated users
 extend type Query @guard {
     {entityPlural}(
+        search: String @search
         where: _ @whereConditions(columns: ["id", "name", "slug"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [{Entity}!]!
@@ -642,6 +643,103 @@ Seed a record in the `integrations` table mapping the name to the handler class.
 - Integration status tracked per company via `IntegrationsCompany` model (ACTIVE, INACTIVE, FAILED, OFFLINE)
 - Every integration operation logged in `EntityIntegrationHistory` for auditing
 
+## Adding @search to GraphQL Queries
+
+All list queries should support the `@search` directive for text search. This requires two things:
+
+### 1. Add the Trait to the Model
+
+For simple database-only search (most models):
+```php
+use Baka\Traits\DatabaseSearchableTrait;
+use Kanvas\Apps\Models\Apps;
+
+class MyModel extends BaseModel
+{
+    use DatabaseSearchableTrait;
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_{model}_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? '{model}_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            // ... other searchable fields
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+}
+```
+
+For models that need Algolia/Typesense indexing (Products, Leads, Messages, etc.):
+```php
+use Baka\Traits\DynamicSearchableTrait;
+
+class MyModel extends BaseModel
+{
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
+
+    public function searchableAs(): string
+    {
+        $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $model->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_{model}_index') ?? null;
+        return config('scout.prefix') . ($customIndex ?? '{model}_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            // ... other searchable fields
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+}
+```
+
+### 2. Add `search` Parameter to the GraphQL Query
+
+```graphql
+extend type Query @guard {
+    myEntities(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
+    ): [MyEntity!]!
+        @paginate(
+            model: "Kanvas\\Domain\\Models\\MyModel"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
+```
+
+### Which Trait to Use
+
+| Trait | Use When | Examples |
+|-------|----------|---------|
+| `DatabaseSearchableTrait` | Simple models, no external search engine needed | Categories, Channels, Warehouses, Status, Pipeline, Action |
+| `DynamicSearchableTrait` | Need Algolia/Typesense indexing, full-text search | Products, Leads, Messages, Agents |
+
 ## Key Conventions
 
 ### PHP 8.4 Syntax
@@ -672,6 +770,8 @@ Use the correct connection in `DB::connection('{connection}')->transaction()`.
 - **UuidTrait** - auto-generates UUID on creation
 - **SlugTrait** - auto-generates slug from `name` field
 - **AppsIdTrait** - auto-sets `apps_id` from current app context on creation
+- **DatabaseSearchableTrait** - adds `@search` support using database engine (for simple models)
+- **DynamicSearchableTrait** - adds `@search` support with Algolia/Typesense (for indexed models like Products, Leads)
 
 ### Authorization Directives
 - `@guard` - any authenticated user
@@ -703,9 +803,58 @@ Check existing query names in `graphql/schemas/` before naming yours to avoid Li
 
 ## Testing
 
-- Tests run inside Docker: `docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit --filter {TestName}"`
-- ParaTest for parallel execution: `vendor/bin/paratest --testsuite=<name>`
-- **Never** use `RefreshDatabase` trait - use `DatabaseTransactions` instead
-- Test suites: Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
+### Running Tests
+
+Tests **must run inside the Docker container**, never locally:
+
+```bash
+# Run a specific test by name
+docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit --filter testCreateAction"
+
+# Run a full test suite
+docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/paratest --testsuite=ActionEngine"
+
+# Run a specific test file
+docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit tests/GraphQL/ActionEngine/ActionCrudTest.php"
+```
+
+### Available Test Suites
+Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
+
+### Key Rules
+
+- **Always run tests after completing work on a module or connector** — run the relevant test suite to verify nothing is broken before moving on, unless explicitly told otherwise
+- **Never use `RefreshDatabase` trait** — it wipes all shared DB tables across connections. Use `DatabaseTransactions` instead
+- Base `TestCase` loads `.env` (not `.env.testing`), no `RefreshDatabase` by default
 - Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait
 - User is auto-authenticated in `createApplication()` with admin role
+
+### Common Test Patterns
+
+```php
+// GraphQL mutation test
+$this->graphQL('
+    mutation($input: ActionInput!) {
+        createAction(input: $input) { id name }
+    }
+', ['input' => ['name' => 'Test']])
+->assertSuccessful()
+->assertJson(['data' => ['createAction' => ['name' => 'Test']]]);
+
+// GraphQL query with search
+$this->graphQL('
+    query($search: String) {
+        companyActions(search: $search) { data { id name } }
+    }
+', ['search' => 'keyword'])
+->assertSuccessful();
+```
+
+### Common Test Fix Patterns
+
+- **FK constraint errors in factories**: Check if factory hardcodes IDs (e.g., `agent_type_id => 1`) — use `RelatedModel::factory()` instead
+- **Time-dependent tests**: Use `Carbon::setTestNow()` to freeze time
+- **Silent failures via Sentry**: Actions that catch exceptions with `captureException()` — add temporary `echo` in catch block to debug
+- **AI/Prism calls**: Use `Prism::fake()` with enough responses for all sessions
+- **Duplicate key violations**: Check if action classes already create related records internally
+- **Mock objects**: Set `$mock->exists = true` when the code checks `$this->model->exists`
