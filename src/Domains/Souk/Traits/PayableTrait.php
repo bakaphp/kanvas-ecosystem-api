@@ -43,9 +43,11 @@ trait PayableTrait
     }
 
     /**
-     * Get the payment method type from the latest paid payment
+     * Get the payment method type from the latest paid payment.
+     * Checks for actual paid payment records, regardless of payment_status.
+     * Defaults to 'card' if payment exists but method is not set.
      */
-    public function paymentMethodType(): string
+    public function paymentMethodType(): ?string
     {
         $latestPaidPayment = $this->payments()
             ->where('status', PaymentStatusEnum::PAID->value)
@@ -53,22 +55,38 @@ trait PayableTrait
             ->orderBy('created_at', 'desc')
             ->first();
 
-        return $latestPaidPayment?->payment_method ?? 'card';
+        // If no paid payment exists, return null
+        if (! $latestPaidPayment) {
+            return null;
+        }
+
+        // If payment exists but method is null/empty, default to 'card'
+        return $latestPaidPayment->payment_method ?: 'card';
     }
 
     /**
      * Get payment type (physical or digital) based on payment method.
-     * Returns null if order payment_status is not 'paid'.
+     * Checks for actual paid payment records or fulfillment status.
+     * Returns null if order has no paid payments and is not fulfilled.
      */
     public function paymentType(): ?string
     {
-        // Only return payment type if order payment_status is 'paid'
-        if ($this->payment_status !== 'paid') {
+        // Check if order has paid payment records OR is fulfilled (paid orders are auto-fulfilled)
+        $hasPaidPayment = $this->payments()
+            ->where('status', PaymentStatusEnum::PAID->value)
+            ->exists();
+
+        if (! $hasPaidPayment && $this->fulfillment_status !== 'fulfilled') {
             return null;
         }
 
         // Get the payment method to determine if it's digital or physical
         $paymentMethod = $this->paymentMethodType();
+
+        // If no payment method found but order is fulfilled, default to physical
+        if (! $paymentMethod) {
+            return 'physical';
+        }
 
         // Digital payment methods: card, wallet, payment
         $digitalMethods = ['card', 'wallet', 'payment'];
