@@ -83,16 +83,16 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
 
                     if (! $remixMessage->is_premium || ! $remixMessage->is_locked) {
                         $newMessageNotification = new MessageOwnerPushNotification(
-                        user: $remixMessage->user,
-                        entity: $entity,
-                        message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
-                        title: 'Your prompt has been remixed!',
-                        via: $endViaList,
-                        templates: [
-                            'email_template' => $params['email_template'],
-                            'push_template' => $params['push_template'],
-                        ],
-                    );
+                            user: $remixMessage->user,
+                            entity: $entity,
+                            message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
+                            title: 'Your prompt has been remixed!',
+                            via: $endViaList,
+                            templates: [
+                                'email_template' => $params['email_template'],
+                                'push_template' => $params['push_template'],
+                            ],
+                        );
                     } else {
                         $newMessageNotification = new MessageOwnerPushNotification(
                             user: $remixMessage->user,
