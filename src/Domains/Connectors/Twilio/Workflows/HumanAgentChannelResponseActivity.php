@@ -86,6 +86,11 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     Cache::forget($cacheKey);
                 }
 
+                $lastMessage = $channel->getLastMessage();
+                if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {
+                    $channel->deleteLastMessageLocked();
+                }
+
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,

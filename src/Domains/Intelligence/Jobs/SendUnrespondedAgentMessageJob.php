@@ -14,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -44,6 +45,13 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$this->channel->getId()}";
 
         if (! Cache::has($cacheKey)) {
+            return;
+        }
+
+        $aiMode = $lead->get('ai_mode');
+        if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
+            Cache::forget($cacheKey);
+
             return;
         }
 
