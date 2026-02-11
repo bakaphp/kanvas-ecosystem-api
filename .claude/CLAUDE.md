@@ -47,14 +47,21 @@ declare(strict_types=1);
 
 namespace Kanvas\{Domain}\{Entity}\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Spatie\LaravelData\Data;
 
 class {Entity} extends Data
 {
     public function __construct(
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
+        public readonly UserInterface $user,
         public readonly string $name,
         public readonly ?string $description = null,
         // ... other fields
+        // Use model objects for FKs: public readonly RelatedModel $related,
     ) {
     }
 }
@@ -71,8 +78,6 @@ declare(strict_types=1);
 
 namespace Kanvas\{Domain}\{Entity}\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
 use Kanvas\{Domain}\{Entity}\Models\{Entity};
@@ -81,8 +86,6 @@ class Create{Entity}Action
 {
     public function __construct(
         protected readonly {Entity}Data $data,
-        protected readonly UserInterface $user,
-        protected readonly AppInterface $app,
     ) {
     }
 
@@ -90,11 +93,12 @@ class Create{Entity}Action
     {
         return DB::connection('{db_connection}')->transaction(function () {
             $entity = new {Entity}();
-            $entity->apps_id = $this->app->getId();
-            $entity->companies_id = 0; // 0 for global entities
-            $entity->users_id = $this->user->getId();
+            $entity->apps_id = $this->data->app->getId();
+            $entity->companies_id = $this->data->company->getId(); // 0 for global entities
+            $entity->users_id = $this->data->user->getId();
             $entity->name = $this->data->name;
             // ... set other fields
+            // For FK relationships: $entity->related_id = $this->data->related->getId();
             $entity->saveOrFail();
 
             return $entity;
@@ -162,25 +166,43 @@ class {Entity}Mutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
+        // Look up related models from IDs before constructing DTO
+        // $related = RelatedModel::getByIdFromCompanyApp((int) $input['related_id'], $company, $app);
 
         return new Create{Entity}Action(
-            {Entity}Data::from($request['input']),
-            $user,
-            $app,
+            new {Entity}Data(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: $input['name'],
+                // related: $related,
+            ),
         )->execute();
     }
 
     public function update(mixed $rootValue, array $request): {Entity}
     {
+        $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
         // For global entities (no company scoping):
         $entity = {Entity}::getById((int) $request['id'], $app);
         // For company-scoped entities:
-        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
         return new Update{Entity}Action(
             $entity,
-            {Entity}Data::from($request['input']),
+            new {Entity}Data(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: $input['name'] ?? $entity->name,
+            ),
         )->execute();
     }
 
@@ -754,6 +776,42 @@ new CreateActionAction(...)->execute();
 ### DTO Naming
 - Name DTOs after the entity: `Action.php`, `Pipeline.php` (NOT `ActionInput.php`)
 - Alias when importing alongside the model: `use ...\DataTransferObject\Action as ActionData;`
+
+### DTO Conventions
+- **Always include context objects** (app, company, user) in DTOs that create entities — never pass them as separate action constructor params
+- **Use model objects instead of raw IDs** for foreign key relationships (e.g., `TaskList $taskList` not `int $task_list_id`, `CompanyAction $companyAction` not `int $companies_action_id`)
+- **Mutation resolvers look up models** from IDs and construct DTOs manually with named args — do NOT use `::from($request['input'])` when the DTO has object properties
+- **Actions receive only the DTO** (and optionally the existing model for updates) — they pull IDs via `$this->data->taskList->getId()`
+
+```php
+// DTO with context and model objects
+class TaskListItem extends Data
+{
+    public function __construct(
+        public readonly TaskList $taskList,
+        public readonly CompanyAction $companyAction,
+        public readonly string $name,
+        public readonly ?string $status = null,
+    ) {
+    }
+}
+
+// Mutation resolver constructs DTO manually
+$taskList = TaskList::getByIdFromCompanyApp((int) $input['task_list_id'], $company, $app);
+$companyAction = CompanyAction::getByIdFromCompanyApp((int) $input['companies_action_id'], $company, $app);
+
+return new CreateTaskListItemAction(
+    new TaskListItemData(
+        taskList: $taskList,
+        companyAction: $companyAction,
+        name: $input['name'],
+    ),
+)->execute();
+
+// Action pulls IDs from objects
+$taskListItem->task_list_id = $this->data->taskList->getId();
+$taskListItem->companies_action_id = $this->data->companyAction->getId();
+```
 
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
