@@ -505,6 +505,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
+    deleteOrderStatus(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@delete"
+        )
     createOrderType(input: CreateOrderTypeInput!): OrderType!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
