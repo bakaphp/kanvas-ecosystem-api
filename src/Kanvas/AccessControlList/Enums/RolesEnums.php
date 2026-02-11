@@ -24,9 +24,9 @@ enum RolesEnums: string
      * Roles are scoped by app
      * in the future companies may create there own roles
      */
-    public static function getScope(Apps $app, ?Companies $company = null): string
+    public static function getScope(Apps $app, ?Companies $company = null, bool $global = false): string
     {
-        $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $companyId = $global ? 0 : ($company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue());
 
         return 'app_' . $app->getKey() . '_company_' . $companyId;
     }
