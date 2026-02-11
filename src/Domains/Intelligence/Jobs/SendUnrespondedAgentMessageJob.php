@@ -34,7 +34,6 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         protected array $params = [],
         protected string $actionClass = '',
     ) {
-        $this->onQueue('kanvas-intelligence');
     }
 
     public function handle(): void
