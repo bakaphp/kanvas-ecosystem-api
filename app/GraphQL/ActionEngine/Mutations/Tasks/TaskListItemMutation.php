@@ -53,14 +53,18 @@ class TaskListItemMutation
         $company = $user->getCurrentCompany();
         $input = $request['input'];
 
-        $taskListItem = TaskListItem::findOrFail((int) $request['id']);
-        $taskList = TaskList::getByIdFromCompanyApp(
-            (int) $input['task_list_id'],
-            $company,
-            $app
-        );
+        $taskListItem = TaskListItem::query()
+            ->join('company_task_list', 'company_task_list_items.task_list_id', '=', 'company_task_list.id')
+            ->where('company_task_list.companies_id', $company->getId())
+            ->where('company_task_list.apps_id', $app->getId())
+            ->where('company_task_list.is_deleted', 0)
+            ->select('company_task_list_items.*')
+            ->findOrFail((int) $request['id']);
+        $taskList = isset($input['task_list_id'])
+            ? TaskList::getByIdFromCompanyApp((int) $input['task_list_id'], $company, $app)
+            : $taskListItem->task;
         $companyAction = CompanyAction::getByIdFromCompanyApp(
-            (int) $input['companies_action_id'],
+            (int) ($input['companies_action_id'] ?? $taskListItem->companies_action_id),
             $company,
             $app
         );
@@ -80,7 +84,17 @@ class TaskListItemMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        $taskListItem = TaskListItem::findOrFail((int) $request['id']);
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $taskListItem = TaskListItem::query()
+            ->join('company_task_list', 'company_task_list_items.task_list_id', '=', 'company_task_list.id')
+            ->where('company_task_list.companies_id', $company->getId())
+            ->where('company_task_list.apps_id', $app->getId())
+            ->where('company_task_list.is_deleted', 0)
+            ->select('company_task_list_items.*')
+            ->findOrFail((int) $request['id']);
 
         if (TaskEngagementItem::where('task_list_item_id', $taskListItem->getId())->where('is_deleted', 0)->exists()) {
             throw new ValidationException('Cannot delete task list item that is in use by task engagement items.');
