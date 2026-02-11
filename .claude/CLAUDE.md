@@ -777,6 +777,25 @@ Use the correct connection in `DB::connection('{connection}')->transaction()`.
 - `@guard` - any authenticated user
 - `@guardByAdmin` - admin/owner only (uses `isAdmin()` check)
 - `@guardByAppKey` - app key (super admin / system) only
+- `@can(ability: "create", model: "Kanvas\\Domain\\Models\\Entity")` - Bouncer ability check per model
+
+#### Using `@can` for Model-Level Permissions
+
+Use `@can` on mutations that need model-level permission checks (create, edit, delete):
+
+```graphql
+extend type Mutation @guard {
+    create{Entity}(input: {Entity}Input!): {Entity}!
+        @can(ability: "create", model: "Kanvas\\{Domain}\\{Entity}\\Models\\{Entity}")
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@create")
+    update{Entity}(id: ID!, input: Update{Entity}Input!): {Entity}!
+        @can(ability: "edit", model: "Kanvas\\{Domain}\\{Entity}\\Models\\{Entity}")
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@update")
+    delete{Entity}(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\{Domain}\\{Entity}\\Models\\{Entity}")
+        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@delete")
+}
+```
 
 ### Soft Deletes
 All models use `is_deleted` boolean flag (not Laravel's `SoftDeletes` trait). Use `$model->softDelete()` and the `notDeleted` scope.
@@ -849,6 +868,38 @@ $this->graphQL('
 ', ['search' => 'keyword'])
 ->assertSuccessful();
 ```
+
+### Setting Up Bouncer Permissions in Tests
+
+When mutations use `@can` directives, the test must set up Bouncer scope, assign the role to the user, and grant abilities to the role:
+
+```php
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Silber\Bouncer\BouncerFacade as Bouncer;
+
+class {Entity}CrudTest extends TestCase // or extends OrderBase, etc.
+{
+    public function setUp(): void
+    {
+        parent::setUp();
+
+        // 1. Set Bouncer scope (use global: true for companyId 0)
+        $scope = RolesEnums::getScope($this->apps, global: true);
+        Bouncer::scope()->to($scope);
+
+        // 2. Assign role to the test user
+        Bouncer::assign('Admins')->to($this->user);
+
+        // 3. Grant abilities to the role for each model
+        Bouncer::allow('Admins')->to(['create', 'edit', 'delete'], {Entity}::class);
+    }
+}
+```
+
+**Key points:**
+- `RolesEnums::getScope($app, global: true)` returns scope `app_{id}_company_0` (global scope)
+- `Bouncer::assign('Admins')->to($this->user)` is **required** — without it, `@can` checks will return "unauthorized"
+- `Bouncer::allow('Admins')->to([...], Model::class)` grants abilities to the role, abilities must match schema: `create`, `edit`, `delete`
 
 ### Common Test Fix Patterns
 
