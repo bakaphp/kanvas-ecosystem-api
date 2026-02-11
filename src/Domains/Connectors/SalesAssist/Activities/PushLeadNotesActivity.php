@@ -48,6 +48,13 @@ class PushLeadNotesActivity extends KanvasActivity
                     ]);
                 }
 
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'message_id' => $message->getId(),
+                        'message' => 'Message is locked or not public, skipping Elead note push.',
+                    ]);
+                }
+
                 /*   $syncLeadAction = new SyncLeadAction($lead);
                   $eLeadOpportunity = $syncLeadAction->execute(); */
 
@@ -57,19 +64,24 @@ class PushLeadNotesActivity extends KanvasActivity
                 $note = null;
 
                 if ($isDriveCentric) {
-                    $note = new AddCommentToDealAction($lead)->execute($message);
-
-                    $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
-
                     try {
-                        $handleCheckList = new ProcessMessageTaskUpdatesAction(
-                            message: $message,
-                            lead: $lead,
-                            user: $message->user,
-                        )->execute();
+                        $note = new AddCommentToDealAction($lead)->execute($message);
+
+                        $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
                     } catch (Throwable $e) {
-                        $handleCheckList = $e->getMessage();
+                        $note = 'Failed to add note to DriveCentric: ' . $e->getMessage();
+                        $handlerResult = null;
                     }
+                }
+
+                try {
+                    $handleCheckList = new ProcessMessageTaskUpdatesAction(
+                        message: $message,
+                        lead: $lead,
+                        user: $message->user,
+                    )->execute();
+                } catch (Throwable $e) {
+                    $handleCheckList = $e->getMessage();
                 }
                 /*  // Process task updates
                  $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);

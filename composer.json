@@ -56,7 +56,7 @@
         "neuron-core/neuron-ai": "^2.0",
         "nevadskiy/laravel-tree": "^0.6.0",
         "nuwave/lighthouse": "^6.0",
-        "openai-php/client": "^0.18.0",
+        "openai-php/client": "^0.19.0",
         "php-ffmpeg/php-ffmpeg": "*",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
@@ -85,7 +85,7 @@
         "symfony/http-client": "^8.0",
         "symfony/mailgun-mailer": "^8.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
-        "twilio/sdk": "<8.10.2",
+        "twilio/sdk": "<8.11.1",
         "typesense/laravel-scout-typesense-driver": "dev-l12-compatibility",
         "typesense/typesense-php": "^4.2",
         "vlucas/phpdotenv": "^5.5",
@@ -98,11 +98,11 @@
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
         "larastan/larastan": "^3.0",
-        "laravel/boost": "^1.0",
+        "laravel/boost": "^2.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.5.6"
+        "phpunit/phpunit": "12.5.8"
     },
     "autoload": {
         "psr-4": {

@@ -57,10 +57,16 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
             if ($isCompany && $mainCompanyId) {
                 $mainCompany = Companies::getById($mainCompanyId);
 
+                $itemList = collect($payload['sublists']['itempricing'] ?? [])
+                    ->filter(fn ($value, $key) => is_string($key) && str_starts_with($key, 'line'))
+                    ->values()
+                    ->all();
+
                 $syncNetSuiteCustomerWithCompany = new SyncNetSuiteCustomerItemsListAction(
                     $this->receiver->app,
                     $mainCompany,
-                    $company
+                    $company,
+                    $itemList
                 );
                 $syncNetSuiteCustomerWithCompany->execute();
 

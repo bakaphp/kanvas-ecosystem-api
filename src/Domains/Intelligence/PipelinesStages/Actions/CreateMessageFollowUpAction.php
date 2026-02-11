@@ -42,7 +42,8 @@ class CreateMessageFollowUpAction
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
-        protected string $messageTemplate
+        protected string $messageTemplate,
+        protected float $day
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -106,8 +107,8 @@ class CreateMessageFollowUpAction
             'agent' => $this->session->agent,
             'vehicle_interest' => $vehicleInterest,
             'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
         ];
-
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
@@ -191,6 +192,11 @@ class CreateMessageFollowUpAction
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)
+                       ->withClientOptions([
+                           'timeout' => 220,
+                           'connect_timeout' => 220,
+                           'read_timeout' => 220,
+                       ])
                        ->asStructured();
             if (! empty($response->structured)) {
                 return $response->structured;

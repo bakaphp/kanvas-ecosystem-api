@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
@@ -20,14 +21,19 @@ class SendMessageToLeadAction
     ) {
     }
 
-    public function execute(string $channel, string $message, ?string $from = '', ?string $title = null): array
-    {
+    public function execute(
+        string $channel,
+        string $message,
+        ?string $from = '',
+        ?string $title = null,
+        bool $signature = true
+    ): array {
         //TODO. we need to add this message to the lead channel
 
         return match ($channel) {
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
-            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title),
+            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
     }
@@ -73,8 +79,11 @@ class SendMessageToLeadAction
         return [$message->body];
     }
 
-    protected function sendEmailMessage(string $message, ?string $title = null): array
-    {
+    protected function sendEmailMessage(
+        string $message,
+        ?string $title = null,
+        bool $signature = true
+    ): array {
         $notification = new Blank(
             'first-time-agent-engagement',
             [
@@ -82,13 +91,18 @@ class SendMessageToLeadAction
                 'lead' => $this->lead,
                 'noHi' => true,
                 'company' => $this->lead->company,
+                'signature' => $signature,
             ],
             ['mail'],
             $this->lead
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
-        Notification::route('mail', $this->lead->people->getEmails()->first()->value)->notify($notification);
+        $leadEmail = $this->lead->people->getEmails()->first()?->value;
+        if (! $leadEmail) {
+            throw new Exception('Lead does not have an email address');
+        }
+        Notification::route('mail', $leadEmail)->notify($notification);
 
         return [];
     }
@@ -101,7 +115,8 @@ class SendMessageToLeadAction
             $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
 
             $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                return preg_replace('/^\+?1/', '', $cellphone);
+                //return preg_replace('/^\+?1/', '', $cellphone);
+                return Str::normalizePhoneNumber($cellphone);
             });
             if (! $phone) {
                 throw new Exception('No hijack number found for this phone number');

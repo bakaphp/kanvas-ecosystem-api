@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
@@ -35,7 +34,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -106,6 +105,7 @@ class Order extends BaseModel
     use HasTagsTrait;
     use HasMessagesTrait;
     use AsTree;
+    use PayableTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -156,11 +156,6 @@ class Order extends BaseModel
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
-    }
-
-    public function payments(): MorphMany
-    {
-        return $this->morphMany(Payments::class, 'payable')->latest();
     }
 
     public function orderDiscounts(): HasMany
@@ -275,15 +270,20 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function markAsPaid(UserInterface $user): void
+    public function transitionToStatus(UserInterface $user, string $statusSlug): void
     {
-        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', $statusSlug)->first()) {
             new TransitionOrderStateAction(
                 $this,
                 $user,
                 $orderStatus
             )->execute(true);
         }
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
@@ -691,18 +691,6 @@ class Order extends BaseModel
                 );
             }
         }
-    }
-
-    public function isPaid(): bool
-    {
-        return $this->getPaidAmount() >= $this->total_net_amount;
-    }
-
-    public function getPaidAmount(): float
-    {
-        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
-
-        return (float) $paidAmount;
     }
 
     public function orderType(): BelongsTo

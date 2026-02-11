@@ -93,13 +93,17 @@ class TriggerIntelligenceActivity extends KanvasActivity
                         break;
                 }
 
+                $modsCurrent = [
+                    'ai_mode' => $lead->get('ai_mode'),
+                    'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                ];
+
+                // Post handoff note with state changes
+
                 return [
                     'Trigger IA executed',
                     'mods_previous' => $modsPrevious,
-                    'mods_current' => [
-                        'ai_mode' => $lead->get('ai_mode'),
-                        'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
-                    ],
+                    'mods_current' => $modsCurrent,
                 ];
             }
         );

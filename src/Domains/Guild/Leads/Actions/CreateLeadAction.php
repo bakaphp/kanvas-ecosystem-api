@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -68,9 +69,15 @@ class CreateLeadAction
             $newLead->description = $this->leadData->description;
             $newLead->leads_status_id = $this->leadData->status_id;
             $newLead->reason_lost = $this->leadData->reason_lost;
+            $newLead->pipeline_stage_id = $this->leadData->pipeline_stage_id;
+
+            if ($newLead->pipeline_stage_id !== 0) {
+                $pipelineStage = PipelineStage::getById($newLead->pipeline_stage_id);
+                $newLead->pipeline_id = $pipelineStage->pipelines_id;
+            }
 
             //create people
-            $people = (new CreatePeopleAction($this->leadData->people))->execute();
+            $people = new CreatePeopleAction($this->leadData->people)->execute();
             $newLead->people_id = $people->getId();
             $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
             $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;

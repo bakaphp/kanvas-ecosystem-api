@@ -330,6 +330,11 @@ extend type Query @guard {
     users(
         search: String @search
         where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
+        hasRoles: _
+            @whereHasConditions(
+                relation: "roles"
+                columns: ["id", "name"]
+            )
         orderBy: _
             @orderBy(
                 columns: [

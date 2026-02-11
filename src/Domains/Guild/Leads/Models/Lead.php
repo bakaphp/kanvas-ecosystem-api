@@ -29,6 +29,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -274,6 +275,12 @@ class Lead extends BaseModel implements EventResourceInterface
     public function close(): void
     {
         $this->leads_status_id = 6; //change by dynamic
+        $this->saveOrFail();
+    }
+
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
         $this->saveOrFail();
     }
 
@@ -683,13 +690,21 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isAiMuted(): bool
     {
-        $muteValue = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value);
+        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
 
-        return $muteValue !== null && (int) $muteValue === 0;
+        return $aiMode === IntelligenceModeEnum::OFF->value;
     }
 
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();
+    }
+
+    public function isServiceLead(): bool
+    {
+        return Str::contains(
+            strtolower($this->type?->name ?? ''),
+            'service'
+        );
     }
 }

@@ -21,23 +21,29 @@ class OrderStatsQuery
         $initialStates = $input['initialStates'] ?? [];
         $finalStates = $input['finalStates'] ?? [];
         $currentCountStates = $input['currentCountStates'] ?? [];
+        $productTypeSlugs = $input['productTypeSlugs'] ?? [];
+        $orderTypeNames = $input['orderTypeNames'] ?? [];
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? null;
         $baseDate = $input['baseDate'] ?? null;
+        $groupBy = strtolower($input['groupBy'] ?? 'DAY');
 
         $orderStats = new GetOrderStatsAction(
             $app,
             $initialStates,
             $finalStates,
             $currentCountStates,
+            $productTypeSlugs,
+            $orderTypeNames
         )->execute(
             $date,
             $startDate,
             $endDate,
             $baseDate,
-            $timezone
+            $timezone,
+            $groupBy
         );
 
         return $orderStats;
@@ -52,6 +58,8 @@ class OrderStatsQuery
         $paidStates = $input['paidStates'] ?? ['paid'];
         $variantId = $input['variantId'] ?? null;
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
+        $orderTypeNames = $input['orderTypeNames'] ?? [];
+        $providers = $input['providers'] ?? [];
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -63,6 +71,8 @@ class OrderStatsQuery
             $paidStates,
             $variantId,
             $productTypeSlugs,
+            $orderTypeNames,
+            $providers
         )->execute(
             $date,
             $startDate,

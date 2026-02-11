@@ -20,7 +20,7 @@ class NetSuiteServices
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
+        $this->client = new Client($app, $company);
     }
 
     /**

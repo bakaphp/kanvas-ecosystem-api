@@ -15,8 +15,10 @@ use Kanvas\AccessControlList\Actions\BulkAllowRoleToPermissionAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\ModulePermission;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -44,6 +46,24 @@ class RolesManagementMutation
 
         $newRoleIds = is_array($request['roleIds']) ? $request['roleIds'] : [$request['roleIds']];
         $newRoleIds = array_map('intval', $newRoleIds);
+
+        if ($auth->getId() === $user->getId()) {
+            $currentRoles = $this->getCurrentUserAppRoles($user, $app);
+            $hasOwnerRole = $currentRoles->contains(function ($role) {
+                return $role->name === RolesEnums::OWNER->value;
+            });
+
+            if ($hasOwnerRole) {
+                $newRoles = SilberRole::whereIn('id', $newRoleIds)->get();
+                $newRolesHaveOwner = $newRoles->contains(function ($role) {
+                    return $role->name === RolesEnums::OWNER->value;
+                });
+
+                if (! $newRolesHaveOwner) {
+                    throw new AuthorizationException('You cannot remove your own Owner role');
+                }
+            }
+        }
 
         $this->syncRolesEfficiently($user, $app, $newRoleIds);
 
@@ -73,6 +93,10 @@ class RolesManagementMutation
             $user = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
+        if ($role->name === RolesEnums::OWNER->value && $auth->getId() === $user->getId()) {
+            throw new AuthorizationException('You cannot remove your own Owner role');
         }
 
         $user->retract($role->name);
@@ -195,9 +219,18 @@ class RolesManagementMutation
         $title = key_exists('title', $input) ? $input['title'] : null;
         $permissions = RolesRepository::getPermissions($input['name'], $title);
         $role = $role->execute(auth()->user()->getCurrentCompany());
+
+        // Remove existing entity permissions
         foreach ($permissions as $permission) {
             Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
         }
+
+        // Remove existing module permissions
+        $modulePermissionNames = ModulesRepositories::getAllModulePermissionNames();
+        foreach ($modulePermissionNames as $modulePermission) {
+            Bouncer::disallow($role->name)->to($modulePermission);
+        }
+
         $permissions = $input['permissions'];
         (new BulkAllowRoleToPermissionAction(
             app(Apps::class),
@@ -247,6 +280,11 @@ class RolesManagementMutation
             return;
         }
 
+        $auth = auth()->user();
+        if ($role->name === RolesEnums::OWNER->value && $auth->getId() === $user->getId()) {
+            throw new AuthorizationException('You cannot remove your own Owner role');
+        }
+
         Bouncer::retract($role->name)->from($user);
 
         try {
@@ -283,6 +321,46 @@ class RolesManagementMutation
         foreach ($rolesToAdd as $roleId) {
             $this->assignRoleAction($user, $app, $roleId);
         }
+    }
+
+    public function giveModulePermissionToRole(mixed $rootValue, array $request): bool
+    {
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: app(Apps::class)
+        );
+
+        // Create compound permission name: e.g., 'view-module-inventory'
+        $compoundPermission = ModulePermission::getPermissionName(
+            (int) $request['moduleId'],
+            $request['permission']
+        );
+        Bouncer::allow($role->name)->to($compoundPermission);
+
+        $roles = RolesRepository::getMapAbilityInModules($role->name);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+
+        return true;
+    }
+
+    public function removeModulePermissionFromRole(mixed $rootValue, array $request): bool
+    {
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: app(Apps::class)
+        );
+
+        // Create compound permission name: e.g., 'view-module-inventory'
+        $compoundPermission = ModulePermission::getPermissionName(
+            (int) $request['moduleId'],
+            $request['permission']
+        );
+        Bouncer::disallow($role->name)->to($compoundPermission);
+
+        $roles = RolesRepository::getMapAbilityInModules($role->name);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+
+        return true;
     }
 
     private function getCurrentUserAppRoles(Users $user, Apps $app): Collection

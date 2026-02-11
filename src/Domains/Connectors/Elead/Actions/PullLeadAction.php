@@ -18,7 +18,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
@@ -91,7 +90,7 @@ class PullLeadAction
                     'phone' => $lead->people?->getPhones()->first()?->value,
                     'status' => $lead->status()?->first()?->name ?? '',
                     'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name ,
+                    'owner' => $lead->owner?->firstname,
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
@@ -123,6 +122,7 @@ class PullLeadAction
         $results = [];
         $customers = $eLeadCustomer->search($params);
         $country = Countries::getByCode('US');
+        $filterResults = [];
 
         if ($customers && isset($customers['items'])) {
             foreach ($customers['items'] as $customer) {
@@ -151,6 +151,10 @@ class PullLeadAction
                         )
                     )->execute();
 
+                    if (isset($filterResults[$lead->id])) {
+                        continue; // Skip if this lead has already been processed
+                    }
+
                     $leadStatus = strtolower($lead->status()?->first()?->name ?? '');
                     $isActiveStatus = Str::contains($leadStatus, 'active');
 
@@ -168,6 +172,7 @@ class PullLeadAction
                     }
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
+
                     $results[] = [
                         'id' => $lead->id,
                         'uuid' => $lead->uuid,
@@ -185,6 +190,7 @@ class PullLeadAction
                         'rank' => $customer['rank'],
                         'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
+                    $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
 
@@ -209,7 +215,11 @@ class PullLeadAction
                                 }
 
                                 $internalClosedLeads = $activeLeadsQuery->first();
-                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
+                                $internalClosedLeads->close();
+                            }
+
+                            if (isset($filterResults[$internalClosedLeads->id])) {
+                                continue; // Skip if this lead has already been processed
                             }
 
                             $results[] = [

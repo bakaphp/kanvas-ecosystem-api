@@ -22,6 +22,7 @@ use Override;
 class AgentChannelResponderAction extends BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'twilio-sms';
+    protected string $communicationChannel = 'sms';
 
     #[Override]
     public function execute(array $params = []): array
@@ -78,7 +79,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
         $client = Client::getInstanceByCompany($this->message->company);
         $onChunk = function ($text, $data) use ($client, $to, $params): void {
-            $response = $this->createMessage($text, $to, $this->message, $this->channel);
+            $response = $this->createMessage($text, $to, $this->message, $this->channel, $params['from']);
             // Use the Twilio client to send a message
 
             if (! $response->is_locked) {
