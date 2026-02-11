@@ -12,6 +12,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class PullUserByEmployeeActivity extends KanvasActivity
 {
@@ -81,9 +82,17 @@ class PullUserByEmployeeActivity extends KanvasActivity
                     ]);
                 }
 
+                $error = null;
+
                 foreach ($this->employeePositions as $position) {
                     foreach (Employee::getAll($app, $company, $position) as $employee) {
-                        $email = $employee->firstName . '.' . $employee->lastName . '@' . $params['email_domain'];
+                        //$email = $employee->firstName . '.' . $employee->lastName . '@' . $params['email_domain'];
+                        try {
+                            $email = $employee->getEmails()[0]['address'] ?? null;
+                        } catch (Throwable $e) {
+                            $error = $e->getMessage();
+                        }
+
                         if ($email == $user->email) {
                             $user->set(
                                 ConfigurationEnum::getUserKey($company, $user),
@@ -91,6 +100,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
                             );
 
                             $match = true;
+                            $error = null;
 
                             break;
                         }
@@ -102,6 +112,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
                         'error' => 'User not found in Elead',
                         'looking' => $user->email,
                         'ELeadEmployeeID' => $employee->id,
+                        'exception' => $error,
                     ]);
                 }
 
