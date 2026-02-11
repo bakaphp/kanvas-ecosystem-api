@@ -23,9 +23,9 @@ class CreateOrderStatusAction
     public function execute(): OrderStatus
     {
         return DB::connection('commerce')->transaction(function () {
-            $orderType = OrderTypes::where([
+            $orderType = $this->data->orderType ?? OrderTypes::where([
                 'apps_id' => $this->app->getId(),
-                'id' => $this->data->order_type_id,
+                'id' => $this->data->getOrderTypeId(),
             ])->first();
 
             if (! $orderType) {
