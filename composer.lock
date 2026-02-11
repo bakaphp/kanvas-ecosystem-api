@@ -7446,21 +7446,21 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "2.12.2",
+            "version": "2.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "73532aa424f6b4735a4c19c34ccb520c254c4305"
+                "reference": "18416e8497105916a82bfc9de3b87e8d6efddd1e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/73532aa424f6b4735a4c19c34ccb520c254c4305",
-                "reference": "73532aa424f6b4735a4c19c34ccb520c254c4305",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/18416e8497105916a82bfc9de3b87e8d6efddd1e",
+                "reference": "18416e8497105916a82bfc9de3b87e8d6efddd1e",
                 "shasum": ""
             },
             "require": {
                 "guzzlehttp/guzzle": "^7.9",
-                "inspector-apm/inspector-php": "^3.15.10",
+                "inspector-apm/inspector-php": "^3.16.12",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0",
                 "psr/log": "^1.0|^2.0|^3.0"
@@ -7478,14 +7478,6 @@
                 "rector/rector": "^2.0",
                 "spatie/fork": "^1.2",
                 "tomasvotruba/type-coverage": "^2.0",
-                "typesense/typesense-php": "^5.0"
-            },
-            "suggest": {
-                "aws/aws-sdk-php": "^3.209",
-                "elasticsearch/elasticsearch": "^7.0|^8.0",
-                "php-http/curl-client": "^2.3",
-                "spatie/fork": "^1.2",
-                "symfony/process": "^4.0|^5.0|^6.0|^7.0",
                 "typesense/typesense-php": "^5.0"
             },
             "bin": [
@@ -7510,7 +7502,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.12.2"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.12.3"
             },
             "funding": [
                 {
@@ -7518,7 +7510,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-09T15:16:07+00:00"
+            "time": "2026-02-10T09:17:59+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
