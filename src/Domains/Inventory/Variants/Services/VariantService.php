@@ -104,6 +104,7 @@ class VariantService
                 $variantWarehouseInfo = array_filter([
                     'price' => $variant['price'] ?? null,
                     'quantity' => $variant['quantity'] ?? null,
+                    'max_capacity' => $variant['max_capacity'] ?? null,
                 ]);
 
                 WarehouseService::addToWarehouses(

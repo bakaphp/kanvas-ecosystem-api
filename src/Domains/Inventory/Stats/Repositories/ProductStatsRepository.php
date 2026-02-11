@@ -2,26 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Stats\Actions;
+namespace Kanvas\Inventory\Stats\Repositories;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Inventory\Stats\DataTransferObject\CapacityStats;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
-class GetCapacityStatsAction
+class ProductStatsRepository
 {
-    public function __construct(
-        protected Apps $app,
-        protected Companies $company,
-        protected ?string $productTypeSlug = null,
-        protected ?array $productIds = null,
-        protected ?int $warehouseId = null
-    ) {
-    }
-
-    public function execute(): CapacityStats
-    {
+    public static function getCapacityStats(
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $productTypeSlug = null,
+        ?array $productIds = null,
+        ?int $warehouseId = null
+    ): CapacityStats {
         $query = VariantsWarehouses::query()
             ->join(
                 'products_variants',
@@ -38,25 +34,25 @@ class GetCapacityStatsAction
             ->where('products_variants_warehouses.is_deleted', 0)
             ->where('products_variants.is_deleted', 0)
             ->where('products.is_deleted', 0)
-            ->where('products.apps_id', $this->app->getId())
-            ->where('products.companies_id', $this->company->getId());
+            ->where('products.apps_id', $app->getId())
+            ->where('products.companies_id', $company->getId());
 
-        if ($this->productTypeSlug) {
+        if ($productTypeSlug) {
             $query->join(
                 'products_types',
                 'products_types.id',
                 '=',
                 'products.products_types_id'
             )
-            ->where('products_types.slug', $this->productTypeSlug);
+            ->where('products_types.slug', $productTypeSlug);
         }
 
-        if ($this->productIds && count($this->productIds) > 0) {
-            $query->whereIn('products.id', $this->productIds);
+        if ($productIds && count($productIds) > 0) {
+            $query->whereIn('products.id', $productIds);
         }
 
-        if ($this->warehouseId) {
-            $query->where('products_variants_warehouses.warehouses_id', $this->warehouseId);
+        if ($warehouseId) {
+            $query->where('products_variants_warehouses.warehouses_id', $warehouseId);
         }
 
         $stats = $query->selectRaw('
