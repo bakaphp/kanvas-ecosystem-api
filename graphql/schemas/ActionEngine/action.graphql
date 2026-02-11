@@ -3,6 +3,7 @@ type Action {
     name: String!
     slug: String!
     description: String
+    companies_id: ID
     icon: Mixed
     form_fields: Mixed
     form_config: Mixed
