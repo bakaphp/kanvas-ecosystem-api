@@ -1,5 +1,6 @@
 type Action {
     id: ID!
+    uuid: String!
     name: String!
     slug: String!
     description: String
@@ -18,6 +19,7 @@ type Action {
 
 type CompanyAction {
     id: ID!
+    uuid: String!
     action: Action! @belongsTo
     company: Company! @belongsTo
     name: String!
@@ -129,6 +131,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "name"
                     "slug"
                     "is_active"
@@ -158,6 +161,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "actions_id"
                     "companies_id"
                     "companies_branches_id"
