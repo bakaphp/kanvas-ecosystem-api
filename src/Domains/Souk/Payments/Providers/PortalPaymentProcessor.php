@@ -433,6 +433,10 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
+            if ($payment->status === PaymentStatusEnum::PROCESSING->value || $payment->status === PaymentStatusEnum::PROCESSING) {
+                $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            }
+
             return [
                 'status' => $paymentResponse['status'],
                 'message' => $paymentResponse['message'],

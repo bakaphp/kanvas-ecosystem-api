@@ -316,14 +316,15 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                    'message' => 'Payment is not waiting for device data: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
             $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
             $currentMetadata['echopay_error'] = $errorBody;
@@ -409,6 +410,8 @@ class PaymentMutation
                         'data' => $validationResult['data'],
                     ];
                 } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+                    $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
                     return [
                         'status' => $validationResult['status'],
                         'message' => $validationResult['message'],
@@ -424,14 +427,15 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                    'message' => 'Payment is not waiting for payer authentication: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
             $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
             $currentMetadata['echopay_error'] = $errorBody;
