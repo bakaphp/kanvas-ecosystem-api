@@ -1,3 +1,9 @@
+enum DateGroupBy {
+    DAY
+    WEEK
+    MONTH
+}
+
 type OrderStats {
     period: Period!
     ordersInPeriod: OrdersInPeriod!
@@ -6,6 +12,7 @@ type OrderStats {
     averageRotation: AverageRotation!
     orderRotationAvg: Float
     orderTransactions: String
+    groupBy: String
 }
 type OrderPaymentStats {
     period: Period!
@@ -115,6 +122,7 @@ input OrderStatsInput {
     endDate: String # end of period (e.g., "2025-07-07")
     timezone: String # e.g., "America/New_York"
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
+    groupBy: DateGroupBy # DAY (default), WEEK, or MONTH
 }
 
 input ProviderInput {

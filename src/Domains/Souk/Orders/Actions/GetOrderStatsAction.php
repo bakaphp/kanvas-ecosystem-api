@@ -5,6 +5,8 @@ namespace Kanvas\Souk\Orders\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Enums\DateGroupByEnum;
+use Kanvas\Souk\Orders\Helpers\DateGroupingHelper;
 use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
@@ -26,7 +28,8 @@ class GetOrderStatsAction
         ?string $startDate = null,
         ?string $endDate = null,
         ?string $baseDate = null,
-        string $timezone = 'UTC'
+        string $timezone = 'UTC',
+        string $groupBy = 'day'
     ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
@@ -40,6 +43,13 @@ class GetOrderStatsAction
         $dailyTurnover = $this->getDailyTurnover($start, $end);
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
 
+        $groupByEnum = DateGroupByEnum::from($groupBy);
+
+        if ($groupByEnum !== DateGroupByEnum::DAY) {
+            $ordersInPeriod = DateGroupingHelper::groupOrdersInPeriod($ordersInPeriod, $groupByEnum, $timezone);
+            $dailyTurnover = DateGroupingHelper::groupTurnoverData($dailyTurnover, $groupByEnum, $timezone);
+        }
+
         return [
             'period' => [
                 'start' => $start->format('Y-m-d H:i:s'),
@@ -50,6 +60,7 @@ class GetOrderStatsAction
             'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
             'orderRotationAvg' => $ordersInPeriod['orderAvg'] > 0 ? ($dailyTurnover['totalExits'] / $ordersInPeriod['orderAvg']) : 0,
+            'groupBy' => $groupBy,
         ];
     }
 
