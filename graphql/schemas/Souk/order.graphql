@@ -506,14 +506,17 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
     createOrderType(input: CreateOrderTypeInput!): OrderType!
+        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
         )
     updateOrderType(id: ID!, input: UpdateOrderTypeInput!): OrderType!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
         )
     deleteOrderType(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
         )

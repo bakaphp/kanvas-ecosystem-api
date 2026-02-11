@@ -4,12 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 
 class OrderTypeTest extends OrderBase
 {
+    public function setUp(): void
+    {
+        parent::setUp();
+
+        $scope = RolesEnums::getScope($this->apps, global: true);
+        Bouncer::scope()->to($scope);
+        Bouncer::allow('Admins')->to(['create', 'edit', 'delete'], OrderTypes::class);
+    }
+
     public function testListOrderTypes(): void
     {
         OrderTypes::firstOrCreate([
