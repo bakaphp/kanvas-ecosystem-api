@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Entities\Employee;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -54,7 +55,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
              ];
         }
 
-        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+        if (! $company->get(CustomFieldEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in Elead',
             ];
@@ -74,7 +75,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
                     ]);
                 }
 
-                if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+                if (! $company->get(CustomFieldEnum::COMPANY->value)) {
                     $this->failWorkflow([
                         'error' => 'Company not found in Elead',
                     ]);
