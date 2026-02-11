@@ -228,6 +228,8 @@ class PaymentMutation
 
             throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
         } catch (Exception $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
         }
     }
@@ -339,6 +341,8 @@ class PaymentMutation
                 'data' => [],
             ];
         } catch (Exception $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             return [
                 'status' => 'error',
                 'message' => 'Error completing device data: ' . $e->getMessage(),
@@ -444,6 +448,8 @@ class PaymentMutation
                 'data' => [],
             ];
         } catch (Exception $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             return [
                 'status' => 'error',
                 'message' => 'Error validating payer authentication: ' . $e->getMessage(),
