@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Workflows;
 
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -21,6 +18,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AgentChannelResponderActivity extends KanvasActivity
 {
+    use HandlesSupportModeDelayedResponseTrait;
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -75,57 +73,24 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
-
-                if ($lead instanceof Lead && $lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value && $isWithinWorkingHours) {
-                    $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$channel->getId()}";
-
-                    if (Cache::has($cacheKey)) {
-                        return [
-                            'message' => 'There is already an unresponded message pending in this channel',
-                            'entity' => $lead,
-                        ];
-                    }
-
-                    $delayMinutes = (int) $channel->company->get(
-                        CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value
-                    ) ?? 60;
-
-                    Cache::put($cacheKey, [
-                        'message_id' => $message->getId(),
-                        'channel_id' => $channel->getId(),
-                        'lead_id' => $lead->getId(),
-                        'dispatched_at' => now()->toIso8601String(),
-                    ], now()->addMinutes($delayMinutes + 5));
-
-                    $agentIdForDispatch = $defaultAgentId;
-                    if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
-                        $agentIdForDispatch = $channelAgentMapping[$chatJid]['agent_id'];
-                    }
-
-                    if ($agentIdForDispatch === null) {
-                        Cache::forget($cacheKey);
-                        return [
-                            'message' => 'No agent ID found for this channel',
-                            'entity' => null,
-                        ];
-                    }
-
-                    SendUnrespondedAgentMessageJob::dispatch(
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
                         $channel,
                         $message,
-                        Agent::getById($agentIdForDispatch, $app),
                         $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
                         $params,
                         AgentChannelResponderAction::class
-                    )->delay(now()->addMinutes($delayMinutes));
+                    );
 
-                    return [
-                        'message' => "Unresponded agent message job dispatched with {$delayMinutes} minutes delay",
-                        'entity' => $lead,
-                        'delay_minutes' => $delayMinutes,
-                    ];
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
                 }
+
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
