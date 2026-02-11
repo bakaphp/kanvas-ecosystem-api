@@ -90,6 +90,7 @@ class PullUserByEmployeeActivity extends KanvasActivity
                         try {
                             $email = $employee->getEmails()[0]['address'] ?? null;
                         } catch (Throwable $e) {
+                            $email = null;
                             $error = $e->getMessage();
                         }
 
