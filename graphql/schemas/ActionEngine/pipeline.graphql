@@ -1,5 +1,6 @@
 type ActionPipeline {
     id: ID!
+    uuid: String!
     user: User! @belongsTo
     company: Company! @belongsTo
     stages: [ActionPipelineStage!]! @hasMany
@@ -81,7 +82,7 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "companies_id", "slug", "weight", "is_default"]
+                columns: ["id", "uuid", "companies_id", "slug", "weight", "is_default"]
             )
         orderBy: _
             @orderBy(
