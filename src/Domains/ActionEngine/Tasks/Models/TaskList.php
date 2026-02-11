@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Tasks\Models;
 use Baka\Casts\Json;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Factories\TaskListFactory;
@@ -61,6 +62,17 @@ class TaskList extends BaseModel
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 
     #[Override]

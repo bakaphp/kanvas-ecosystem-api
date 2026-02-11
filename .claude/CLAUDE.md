@@ -762,6 +762,33 @@ extend type Query @guard {
 | `DatabaseSearchableTrait` | Simple models, no external search engine needed | Categories, Channels, Warehouses, Status, Pipeline, Action |
 | `DynamicSearchableTrait` | Need Algolia/Typesense indexing, full-text search | Products, Leads, Messages, Agents |
 
+### 3. Add Search Scoping to Prevent Data Leaks
+
+**Every model that uses `@search` MUST override the `search()` method** to scope results by `apps_id` and `companies_id`. Without this, search queries can leak data across apps and companies.
+
+Both `DatabaseSearchableTrait` and `DynamicSearchableTrait` alias `search as traitSearch`, so the pattern is the same:
+
+```php
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+
+public static function search($query = '', $callback = null)
+{
+    $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+    $user = auth()->user();
+    if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+    }
+
+    return $query;
+}
+```
+
+This ensures:
+- Results are always filtered by the current app
+- Non-app-owners only see their own company's data
+- App owners can see all companies' data within the app
+
 ## Key Conventions
 
 ### PHP 8.4 Syntax
