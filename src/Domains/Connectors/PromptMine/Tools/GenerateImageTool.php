@@ -11,35 +11,35 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tool;
 
-class CreateImageTool extends Tool
+class GenerateImageTool extends Tool
 {
-    protected string $name = 'create_image';
+    protected string $name = 'generate_image';
 
     protected string $description = <<<'MARKDOWN'
-        Create an image from a prompt using Generative AI API. Returns structured image data including
+        Generate an image from a prompt using Generative AI API. Returns structured image data including
         URL, processing status, and metadata.
     MARKDOWN;
 
     public function handle(Request $request): ResponseFactory
     {
-        $user = auth()->user();
-        $token = auth()->tokenById($user->getId());
+        // $user = auth()->user();
+        // $token = auth()->login($user);
         $apiUrl = 'https://prompt-mine-ai-api-stage.vercel.app/api/image/openai';
         $response = Http::post($apiUrl, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
+                // 'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/json',
             ],
             'json' => [
-                'prompt' => $request->input('prompt'),
-                'model' => $request->input('model'),
-                'quality' => $request->input('quality'),
-                "image_url" => $request->input('image_url'),
+                'prompt' => $request->get('prompt'),
+                'model' => "dall-e-3",
+                'quality' => "medium",
+                "image_url" => $request->get('image_url'),
             ],
         ]);
 
         return Response::structured([
-            'data' => $response ? $this->transformResponse($response->toArray()) : null,
+            'data' => $response ? $this->transformResponse($response->json()) : null,
             'meta' => [
                 'success' => $response ? true : false,
             ],
@@ -68,9 +68,7 @@ class CreateImageTool extends Tool
     {
         return [
             "prompt" => $schema->string()->description('Text prompt to generate the image from'),
-            "model" => $schema->string()->description('The model to use for image generation'),
-            "quality" => $schema->string()->description('Quality of the generated image (e.g., low, medium, high)'),
-            "images" => $schema->array()->description('URL of the generated image (output)'),
+            "image_url" => $schema->string()->description('URL of the generated image (output)'),
         ];
     }
 

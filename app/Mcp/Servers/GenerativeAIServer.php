@@ -3,7 +3,7 @@
 namespace App\Mcp\Servers;
 
 use Laravel\Mcp\Server;
-use Kanvas\Connectors\PromptMine\Tools\CreateImageTool;
+use Kanvas\Connectors\PromptMine\Tools\GenerateImageTool;
 
 class GenerativeAIServer extends Server
 {
@@ -30,7 +30,7 @@ class GenerativeAIServer extends Server
      * @var array<int, class-string<\Laravel\Mcp\Server\Tool>>
      */
     protected array $tools = [
-        CreateImageTool::class,
+        GenerateImageTool::class,
     ];
 
     /**
