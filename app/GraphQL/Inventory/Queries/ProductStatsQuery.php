@@ -6,7 +6,7 @@ namespace App\GraphQL\Inventory\Queries;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Stats\Actions\GetCapacityStatsAction;
+use Kanvas\Inventory\Stats\Repositories\ProductStatsRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class ProductStatsQuery
@@ -17,17 +17,14 @@ class ProductStatsQuery
         $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
-        $productTypeSlug = $input['product_type_slug'] ?? null;
-        $productIds = $input['product_ids'] ?? null;
-        $warehouseId = isset($input['warehouse_id']) ? (int) $input['warehouse_id'] : null;
 
-        $capacityStats = new GetCapacityStatsAction(
+        $capacityStats = ProductStatsRepository::getCapacityStats(
             $app,
             $company,
-            $productTypeSlug,
-            $productIds,
-            $warehouseId
-        )->execute();
+            $input['product_type_slug'] ?? null,
+            $input['product_ids'] ?? null,
+            isset($input['warehouse_id']) ? (int) $input['warehouse_id'] : null,
+        );
 
         return [
             'max_capacity' => $capacityStats->maxCapacity,

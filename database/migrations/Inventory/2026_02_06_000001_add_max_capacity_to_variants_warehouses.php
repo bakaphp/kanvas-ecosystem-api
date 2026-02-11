@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::table('products_variants_warehouses', function (Blueprint $table) {
+        Schema::connection('inventory')->table('products_variants_warehouses', function (Blueprint $table) {
             $table->integer('max_capacity')->nullable()->after('quantity');
         });
     }
@@ -20,7 +20,7 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::table('products_variants_warehouses', function (Blueprint $table) {
+        Schema::connection('inventory')->table('products_variants_warehouses', function (Blueprint $table) {
             $table->dropColumn('max_capacity');
         });
     }
