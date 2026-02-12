@@ -85,7 +85,13 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 $error = null;
 
                 foreach ($this->employeePositions as $position) {
-                    foreach (Employee::getAll($app, $company, $position) as $employee) {
+                    try {
+                        $employees = Employee::getAll($app, $company, $position);
+                    } catch (Throwable $e) {
+                        continue;
+                    }
+
+                    foreach ($employees as $employee) {
                         //$email = $employee->firstName . '.' . $employee->lastName . '@' . $params['email_domain'];
                         try {
                             $email = $employee->getEmails()[0]['address'] ?? null;
