@@ -7,10 +7,12 @@ namespace Kanvas\Inventory\Variants\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 
 class VariantPriceService
@@ -26,7 +28,18 @@ class VariantPriceService
         $this->useCompanySpecificPrice = (bool) ($app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false);
     }
 
-    public function getPrice(Variants $variant, ?int $channelId = null): float
+    public function getPriceWithCurrency(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): array
+    {
+        $price = $this->getPrice($variant, $channelId, $warehouseId);
+        $currency = $this->getCurrencyFromWarehouse($variant, $warehouseId);
+
+        return [
+            'price' => $price,
+            'currency' => $currency,
+        ];
+    }
+
+    public function getPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
     {
         // Reset channel before each price calculation
         $this->currentChannel = null;
@@ -128,14 +141,29 @@ class VariantPriceService
         return $this->getInventoryPrice($variant);
     }
 
-    protected function setCurrentChannel(?Channels $channel): void
+    private function getCurrencyFromWarehouse(Variants $variant, ?int $warehouseId = null): Currencies
     {
-        $this->currentChannel = $channel;
+        if ($warehouseId) {
+            $warehouse = Warehouses::where('apps_id', $this->app->getId())->find($warehouseId);
+            if ($currency = $warehouse?->region?->currency) {
+                return $currency;
+            }
+        }
+
+        $defaultWarehouse = $variant->variantWarehouses()
+            ->where('is_default', true)
+            ->first();
+
+        if ($currency = $defaultWarehouse?->warehouse?->region?->currency) {
+            return $currency;
+        }
+
+        return Currencies::getBaseCurrency();
     }
 
-    public function getCurrentChannel(): ?Channels
+    private function setCurrentChannel(?Channels $channel): void
     {
-        return $this->currentChannel;
+        $this->currentChannel = $channel;
     }
 
     public function getCurrentChannelId(): ?int
