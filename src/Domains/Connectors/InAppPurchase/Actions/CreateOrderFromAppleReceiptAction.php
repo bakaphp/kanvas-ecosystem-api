@@ -148,7 +148,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $this->processCustomFieldsVariants($orderItems);
         $allReceiptData['source'] = 'apple';
 
-        if (array_key_exists('custom_fields',$allReceiptData)) {
+        if (array_key_exists('custom_fields', $allReceiptData)) {
             foreach ($allReceiptData['custom_fields'] as $key => $value) {
                 if ($key == "message_id") {
                     $message = Message::fromApp($this->app)
