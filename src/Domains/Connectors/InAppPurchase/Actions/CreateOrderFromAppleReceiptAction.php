@@ -154,6 +154,10 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
                     $message = Message::fromApp($this->app)
                         ->where('id', $value)
                         ->first();
+
+                    if (! $message) {
+                        continue;
+                    }
                     $messageContent = json_decode($message->message);
                     $allReceiptData['message']['users_id'] = $message->user->getId();
                     $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
