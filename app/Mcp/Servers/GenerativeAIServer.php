@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Servers;
 
+use Kanvas\Connectors\PromptMine\Tools\GenerateImageToImageTool;
 use Laravel\Mcp\Server;
 use Kanvas\Connectors\PromptMine\Tools\GenerateImageTool;
 
@@ -21,7 +22,11 @@ class GenerativeAIServer extends Server
      * The MCP server's instructions for the LLM.
      */
     protected string $instructions = <<<'MARKDOWN'
-        Instructions describing how to use the server and its features.
+        This server provides tools for generating images using Generative AI.
+        Use the provided tools to create images based on text prompts or modify existing images.
+        Available tools:
+        - `generate_image`: Generate an image from a text prompt.
+        - `generate_image_to_image`: Generate an image from a text prompt and an existing image
     MARKDOWN;
 
     /**
@@ -31,6 +36,7 @@ class GenerativeAIServer extends Server
      */
     protected array $tools = [
         GenerateImageTool::class,
+        GenerateImageToImageTool::class,
     ];
 
     /**
