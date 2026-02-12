@@ -9,6 +9,7 @@ return new class () extends Migration {
     {
         Schema::table('apps_stripe_customers', function (Blueprint $table) {
             $table->bigInteger('users_id')->unsigned()->default(0)->after('companies_id')->index();
+            $table->string('provider', 50)->default('stripe')->after('stripe_id')->index();
             $table->json('config')->nullable()->after('trial_ends_at');
         });
     }
@@ -16,7 +17,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('apps_stripe_customers', function (Blueprint $table) {
-            $table->dropColumn(['users_id', 'config']);
+            $table->dropColumn(['users_id', 'provider', 'config']);
         });
     }
 };

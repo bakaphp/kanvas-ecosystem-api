@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Subscriptions\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ConfigurationException;
-use Baka\Casts\Json;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Laravel\Cashier\Billable;
@@ -26,6 +26,7 @@ use Stripe\StripeClient;
  * @property int $companies_id
  * @property int $users_id
  * @property string $stripe_id
+ * @property string $provider
  * @property string $trial_ends_at
  * @property ?array $config
  * @property bool $is_deleted
@@ -85,8 +86,6 @@ class AppsStripeCustomer extends BaseModel
 
     /**
      * Get the Stripe SDK client.
-     *
-     * @return \Stripe\StripeClient
      */
     public static function stripe(array $options = []): StripeClient
     {
