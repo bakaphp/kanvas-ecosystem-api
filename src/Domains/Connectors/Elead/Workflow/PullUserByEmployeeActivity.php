@@ -87,30 +87,29 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 foreach ($this->employeePositions as $position) {
                     try {
                         $employees = Employee::getAll($app, $company, $position);
+
+                        foreach ($employees as $employee) {
+                            try {
+                                $email = $employee->getEmails()[0]['address'] ?? null;
+                            } catch (Throwable $e) {
+                                $email = null;
+                                $error = $e->getMessage();
+                            }
+
+                            if ($email == $user->email) {
+                                $user->set(
+                                    ConfigurationEnum::getUserKey($company, $user),
+                                    $employee->id
+                                );
+
+                                $match = true;
+                                $error = null;
+
+                                break;
+                            }
+                        }
                     } catch (Throwable $e) {
                         continue;
-                    }
-
-                    foreach ($employees as $employee) {
-                        //$email = $employee->firstName . '.' . $employee->lastName . '@' . $params['email_domain'];
-                        try {
-                            $email = $employee->getEmails()[0]['address'] ?? null;
-                        } catch (Throwable $e) {
-                            $email = null;
-                            $error = $e->getMessage();
-                        }
-
-                        if ($email == $user->email) {
-                            $user->set(
-                                ConfigurationEnum::getUserKey($company, $user),
-                                $employee->id
-                            );
-
-                            $match = true;
-                            $error = null;
-
-                            break;
-                        }
                     }
                 }
 
