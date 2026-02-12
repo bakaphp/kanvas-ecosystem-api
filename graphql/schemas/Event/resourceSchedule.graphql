@@ -1,0 +1,55 @@
+enum ScheduleType {
+    WEEKLY @enum(value: "weekly")
+    MONTHLY @enum(value: "monthly")
+}
+
+type ResourceSchedule {
+    is_configured: Boolean!
+    schedule_type: ScheduleType
+    days_count: Int!
+    days: [DaySchedule!]!
+    last_modified: DateTime
+    rules: [ScheduleRules!]!
+    exceptions: [ScheduleException!]!
+}
+
+type DaySchedule {
+    day: String!
+    active: Boolean!
+    open: String
+    close: String
+}
+
+input ResourceScheduleInput {
+    resources_id: ID!
+    resources_type: String!
+    schedule_type: ScheduleType!
+    days: [DayScheduleInput!]!
+    slot_duration_min: Int
+    capacity_override: Int
+}
+
+input DayScheduleInput {
+    day: String!
+    active: Boolean!
+    open: String
+    close: String
+}
+
+extend type Mutation @guard {
+    setResourceSchedule(input: ResourceScheduleInput!): ResourceSchedule!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Schedule\\ResourceScheduleMutation@set"
+        )
+}
+
+extend type Query @guard {
+    resourceSchedule(resources_id: ID!, resources_type: String!): ResourceSchedule!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Schedule\\ResourceScheduleQuery@get"
+        )
+    isResourceOpen(resources_id: ID!, resources_type: String!, datetime: DateTime): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Schedule\\ResourceScheduleQuery@isOpen"
+        )
+}
