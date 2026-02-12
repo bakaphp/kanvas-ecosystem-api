@@ -71,45 +71,51 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 $company = $params['company'];
 
                 if (! isset($company) || ! $company instanceof Companies) {
-                    $this->failWorkflow([
+                    return $this->failWorkflow([
                         'error' => 'Company not found',
                     ]);
                 }
 
                 if (! $company->get(CustomFieldEnum::COMPANY->value)) {
-                    $this->failWorkflow([
+                    return $this->failWorkflow([
                         'error' => 'Company not found in Elead',
                     ]);
                 }
 
                 $error = null;
+                $match = false;
 
                 foreach ($this->employeePositions as $position) {
-                    foreach (Employee::getAll($app, $company, $position) as $employee) {
-                        //$email = $employee->firstName . '.' . $employee->lastName . '@' . $params['email_domain'];
-                        try {
-                            $email = $employee->getEmails()[0]['address'] ?? null;
-                        } catch (Throwable $e) {
-                            $email = null;
-                            $error = $e->getMessage();
+                    try {
+                        $employees = Employee::getAll($app, $company, $position);
+
+                        foreach ($employees as $employee) {
+                            try {
+                                $email = $employee->getEmails()[0]['address'] ?? null;
+                            } catch (Throwable $e) {
+                                $email = null;
+                                $error = $e->getMessage();
+                            }
+
+                            if ($email == $user->email) {
+                                $user->set(
+                                    ConfigurationEnum::getUserKey($company, $user),
+                                    $employee->id
+                                );
+
+                                $match = true;
+                                $error = null;
+
+                                break;
+                            }
                         }
-
-                        if ($email == $user->email) {
-                            $user->set(
-                                ConfigurationEnum::getUserKey($company, $user),
-                                $employee->id
-                            );
-
-                            $match = true;
-                            $error = null;
-
-                            break;
-                        }
+                    } catch (Throwable $e) {
+                        continue;
                     }
                 }
 
                 if (! $match) {
-                    $this->failWorkflow([
+                    return $this->failWorkflow([
                         'error' => 'User not found in Elead',
                         'looking' => $user->email,
                         'ELeadEmployeeID' => $employee->id,

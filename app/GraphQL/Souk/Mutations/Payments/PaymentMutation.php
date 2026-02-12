@@ -217,8 +217,9 @@ class PaymentMutation
             ];
         } catch (EchoPayException $e) {
             // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -226,7 +227,7 @@ class PaymentMutation
             $payment->status = PaymentStatusEnum::FAILED->value;
             $payment->save();
 
-            throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
+            throw new ValidationException($e->getUserMessage());
         } catch (Exception $e) {
             $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
 
@@ -315,16 +316,18 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                    'message' => 'Payment is not waiting for device data: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -337,7 +340,7 @@ class PaymentMutation
 
             return [
                 'status' => 'error',
-                'message' => 'Error completing device data: ' . $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => [],
             ];
         } catch (Exception $e) {
@@ -407,6 +410,8 @@ class PaymentMutation
                         'data' => $validationResult['data'],
                     ];
                 } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+                    $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
                     return [
                         'status' => $validationResult['status'],
                         'message' => $validationResult['message'],
@@ -422,16 +427,18 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                    'message' => 'Payment is not waiting for payer authentication: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -444,7 +451,7 @@ class PaymentMutation
 
             return [
                 'status' => 'error',
-                'message' => 'Error validating payer authentication: ' . $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => [],
             ];
         } catch (Exception $e) {

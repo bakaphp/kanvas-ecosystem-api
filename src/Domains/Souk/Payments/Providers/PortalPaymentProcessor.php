@@ -200,6 +200,7 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
             $errorMessage = $e->getMessage();
+            $userMessage = $e->getUserMessage();
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
@@ -217,7 +218,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'response' => $e->getMessage(),
                 'data' => [],
             ];
@@ -288,6 +289,7 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
             $errorMessage = $e->getMessage();
+            $userMessage = $e->getUserMessage();
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $payment->addMetadata([
@@ -305,7 +307,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'response' => $e->getMessage(),
                 'data' => [],
             ];
@@ -431,6 +433,10 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
+            if ($payment->status === PaymentStatusEnum::PROCESSING->value || $payment->status === PaymentStatusEnum::PROCESSING) {
+                $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            }
+
             return [
                 'status' => $paymentResponse['status'],
                 'message' => $paymentResponse['message'],
@@ -483,6 +489,7 @@ class PortalPaymentProcessor
             report($e);
             $errorMessage = $e->getMessage();
             $errorBody = $e->getErrorBody();
+            $userMessage = $e->getUserMessage();
 
             $payment->addLog('payment_error', [
                 'error_type' => 'EchoPayException',
@@ -503,6 +510,7 @@ class PortalPaymentProcessor
                     ...isset($payment->metadata['data']) ? $payment->metadata['data'] : [],
                     'error' => $errorMessage,
                     'echopay_error' => $errorBody,
+                    'user_message' => $userMessage,
                     'echopay_error_timestamp' => now()->toIso8601String(),
                 ],
             ]);
@@ -510,7 +518,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'data' => [
                     'message_body' => $errorBody,
                     'paymentData' => $paymentData,
@@ -762,6 +770,8 @@ class PortalPaymentProcessor
 
             return $enrollmentResult;
         } catch (EchoPayException $e) {
+            $userMessage = $e->getUserMessage();
+
             $order->updateQuietly([
                 'status' => OrderStatusEnum::FAILED->value,
             ]);
@@ -780,7 +790,7 @@ class PortalPaymentProcessor
             return [
                 'payment' => $payment->getId(),
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $userMessage,
                 'report' => 'fail',
                 'data' => null,
                 'trace' => $e->getTraceAsString(),
