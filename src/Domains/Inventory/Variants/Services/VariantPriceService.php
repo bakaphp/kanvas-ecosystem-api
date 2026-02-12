@@ -144,9 +144,9 @@ class VariantPriceService
     private function getCurrencyFromWarehouse(Variants $variant, ?int $warehouseId = null): Currencies
     {
         if ($warehouseId) {
-            $warehouse = Warehouses::getById($warehouseId, $this->app);
-            if ($warehouse && $warehouse->region && $warehouse->region->currency) {
-                return $warehouse->region->currency;
+            $warehouse = Warehouses::where('apps_id', $this->app->getId())->find($warehouseId);
+            if ($currency = $warehouse?->region?->currency) {
+                return $currency;
             }
         }
 
@@ -154,11 +154,8 @@ class VariantPriceService
             ->where('is_default', true)
             ->first();
 
-        if ($defaultWarehouse && $defaultWarehouse->warehouse) {
-            $region = $defaultWarehouse->warehouse->region;
-            if ($region && $region->currency) {
-                return $region->currency;
-            }
+        if ($currency = $defaultWarehouse?->warehouse?->region?->currency) {
+            return $currency;
         }
 
         return Currencies::getBaseCurrency();
