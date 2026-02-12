@@ -43,6 +43,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
@@ -643,6 +644,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 please contact support'
             );
         }
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'users_id' => $this->getId(),
+            'companies_id' => 0,
+            'apps_id' => $app->getId(),
+        ]);
     }
 
     /**
