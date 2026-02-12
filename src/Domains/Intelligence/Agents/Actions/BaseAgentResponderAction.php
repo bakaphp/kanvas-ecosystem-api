@@ -81,15 +81,15 @@ class BaseAgentResponderAction
             $newMessage->addEntity($message->entity());
         }
 
-        $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
+        // $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
 
-        $agentSupportMode = $isWithinWorkingHours
-            && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
+        // $agentSupportMode = $isWithinWorkingHours
+        //     && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
 
-        if ($agentSupportMode) {
-            $newMessage->setLock();
-            $newMessage->setPrivate();
-        }
+        // if ($agentSupportMode) {
+        //     $newMessage->setLock();
+        //     $newMessage->setPrivate();
+        // }
 
         $newMessage->fireWorkflow(
             WorkflowEnum::CREATED->value,

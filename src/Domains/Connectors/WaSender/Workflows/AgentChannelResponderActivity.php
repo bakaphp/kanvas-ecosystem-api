@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -17,6 +18,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AgentChannelResponderActivity extends KanvasActivity
 {
+    use HandlesSupportModeDelayedResponseTrait;
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -71,7 +73,24 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                // Get agent ID from mapping or use default
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
+                }
+
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
