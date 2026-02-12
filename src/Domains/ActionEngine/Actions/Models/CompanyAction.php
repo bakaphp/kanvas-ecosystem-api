@@ -9,6 +9,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
@@ -105,6 +106,17 @@ class CompanyAction extends BaseModel
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 
     public static function getByAction(
