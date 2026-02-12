@@ -58,6 +58,12 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
                     throw new ValidationException('Referral code has expired ');
                 }
 
+                if ($referralCode->users_id === $user->getId()) {
+                    $user->del('user_referral_code');
+
+                    throw new ValidationException('You cannot use your own referral code');
+                }
+
                 return [
                     'message' => 'Referral code validation successful',
                     'code' => $referralCode->code,
