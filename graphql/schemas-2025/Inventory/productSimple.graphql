@@ -1,0 +1,65 @@
+# Simplified Product Creation and Update with Quantities
+# Automatically adds variants to default warehouse with quantities
+
+input VariantChannelSimpleInput {
+    name: String!
+    slug: String
+    price: Float!
+    discounted_price: Float
+    config: Mixed
+    is_published: Boolean
+}
+
+input VariantSimplenput {
+    sku: String!
+    name: String!
+    quantity: Int!
+    description: String
+    short_description: String
+    price: Float
+    warehouse_id: ID
+    channels: [VariantChannelSimpleInput!]
+}
+
+input ProductSimpleInput {
+    products_types_id: ID
+    products_types: String
+    name: String!
+    description: String
+    slug: String
+    short_description: String
+    sku: String @rules(apply: ["required_without:variants"])
+    is_published: Boolean
+    attributes: [ProductAttributesInput!]
+    variants: [VariantSimplenput!]!
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+    status: StatusReferenceInput
+}
+
+input ProductSimpleUpdateInput {
+    products_types_id: ID
+    products_types: String
+    name: String
+    description: String
+    slug: String
+    short_description: String
+    is_published: Boolean
+    attributes: [ProductAttributesInput!]
+    variants: [VariantSimplenput!]
+    files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
+    status: StatusReferenceInput
+}
+
+extend type Mutation @guard {
+    createProductSimple(input: ProductSimpleInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductSimpleMutation@create"
+        )
+
+    updateProductSimple(id: ID!, input: ProductSimpleUpdateInput!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductSimpleMutation@update"
+        )
+}

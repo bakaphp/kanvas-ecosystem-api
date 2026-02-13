@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Workflows;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -79,6 +80,16 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
+
+                $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$channel->getId()}";
+                if (Cache::has($cacheKey)) {
+                    Cache::forget($cacheKey);
+                }
+
+                $lastMessage = $channel->getLastMessage();
+                if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {
+                    $channel->deleteLastMessageLocked();
+                }
 
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,

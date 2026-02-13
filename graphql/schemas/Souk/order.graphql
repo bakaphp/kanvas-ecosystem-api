@@ -127,6 +127,7 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    total_statuses: Int!
     created_at: String
     updated_at: String
 }
@@ -139,6 +140,7 @@ type OrderStatus {
     order_type: OrderType! @belongsTo(relation: "orderType")
     is_default: Boolean!
     is_final: Boolean!
+    sequence: Int!
     metadata: Mixed
 }
 
@@ -335,8 +337,39 @@ input PaymentCustomFieldInput {
 
 input TransitionOrderStatusInput {
     order_id: ID!
-    status_slug: String!
+    status_slug: String
     date: String
+}
+
+input CreateOrderStatusInput {
+    order_type_id: ID!
+    name: String!
+    slug: String!
+    is_default: Boolean = false
+    is_final: Boolean = false
+    sequence: Int!
+    transitions_from: [String!]
+}
+
+input UpdateOrderStatusInput {
+    name: String
+    slug: String
+    is_default: Boolean
+    is_final: Boolean
+    sequence: Int
+}
+
+type PipelineStage {
+    status: OrderStatus!
+    is_current: Boolean!
+    is_completed: Boolean!
+    sequence: Int!
+}
+
+type OrderPipelineResult {
+    stages: [PipelineStage!]!
+    current_status: OrderStatus
+    available_transitions: [OrderStatus!]!
 }
 
 type OrderStatusTransitionResult {
@@ -441,6 +474,19 @@ extend type Mutation @guard {
     ): OrderStatusTransitionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
+        )
+    createOrderStatus(
+        input: CreateOrderStatusInput!
+    ): OrderStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
+        )
+    updateOrderStatus(
+        id: ID!
+        input: UpdateOrderStatusInput!
+    ): OrderStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
 }
 
@@ -681,5 +727,9 @@ extend type Query @guard {
             defaultCount: 25
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
             scopes: ["fromPublicApp", "notDeleted"]
+        )
+    orderPipeline(order_id: ID!): OrderPipelineResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderPipelineQuery@resolve"
         )
 }

@@ -34,7 +34,13 @@ class OrderStatus extends BaseModel
         'metadata' => Json::class,
         'is_default' => 'boolean',
         'is_final' => 'boolean',
+        'sequence' => 'integer',
     ];
+
+    public function getOrderTypeIdAttribute(): int
+    {
+        return $this->order_types_id;
+    }
 
     public function orderType(): BelongsTo
     {

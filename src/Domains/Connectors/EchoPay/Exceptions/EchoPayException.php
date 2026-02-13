@@ -22,4 +22,22 @@ class EchoPayException extends ValidationException
     {
         return $this->errorBody;
     }
+
+    public function getUserMessage(): string
+    {
+        $data = $this->errorBody['data'] ?? $this->errorBody;
+        $reason = $data['errorInformation']['reason'] ?? null;
+        $message = $data['errorInformation']['message'] ?? null;
+
+        if ($reason) {
+            $translationKey = 'payment_errors.' . $reason;
+            $translated = __($translationKey, [], 'es');
+
+            if ($translated !== $translationKey) {
+                return $translated;
+            }
+        }
+
+        return $message ?? $reason ?? $this->getMessage();
+    }
 }

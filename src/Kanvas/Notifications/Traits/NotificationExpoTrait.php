@@ -53,7 +53,8 @@ trait NotificationExpoTrait
 
         $expoMessage = ExpoMessage::create($messageContent['title'])
           ->body($messageContent['message'])
-          ->data($filtered)
+          // Only call ->data($filtered) when $filtered is non-empty. to avoid expo errors about invalid data payloads.
+          ->when(! empty($filtered), fn (ExpoMessage $msg) => $msg->data($filtered))
           ->expiresAt(now()->addHour())
           ->priority('high')
           ->playSound();

@@ -13,6 +13,27 @@ use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 
 abstract class AddFundsToWalletActionBase
 {
+    /**
+     * @var array<string, array{slug: ConfigurationEnum, amount: ConfigurationEnum, wallet: ConfigurationEnum}>
+     */
+    protected array $walletTypeConfig = [
+        'default' => [
+            'slug' => ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG,
+            'amount' => ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_AMOUNT,
+            'wallet' => ConfigurationEnum::WALLET_DEFAULT_NAME,
+        ],
+        'promotional' => [
+            'slug' => ConfigurationEnum::PRODUCT_TYPE_WALLET_PROMOTIONAL_SLUG,
+            'amount' => ConfigurationEnum::PRODUCT_TYPE_WALLET_PROMOTIONAL_AMOUNT,
+            'wallet' => ConfigurationEnum::WALLET_PROMOTIONAL_NAME,
+        ],
+        'subscription' => [
+            'slug' => ConfigurationEnum::PRODUCT_TYPE_WALLET_SUBSCRIPTION_SLUG,
+            'amount' => ConfigurationEnum::PRODUCT_TYPE_WALLET_SUBSCRIPTION_AMOUNT,
+            'wallet' => ConfigurationEnum::WALLET_SUBSCRIPTION_NAME,
+        ],
+    ];
+
     public function __construct(
         protected Order $order,
         protected bool $useOrderTotal = false,
@@ -28,6 +49,47 @@ abstract class AddFundsToWalletActionBase
      * @return Model The model must use HasWalletsTrait
      */
     abstract protected function getWalletHolder(): Model;
+
+    /**
+     * Calculate totals grouped by wallet type.
+     *
+     * @return array<string, float> Wallet type => total amount
+     */
+    protected function calculateTotalsByWalletType(): array
+    {
+        $totals = [];
+
+        foreach ($this->order->items as $item) {
+            $walletType = $this->determineWalletType($item);
+            if ($walletType === null) {
+                continue;
+            }
+
+            $config = $this->walletTypeConfig[$walletType];
+            $amount = (float) ($item->variant->getAttributeBySlug($config['amount']->value)?->value ?? $item->getPrice());
+
+            if (! isset($totals[$walletType])) {
+                $totals[$walletType] = 0.0;
+            }
+            $totals[$walletType] += $amount;
+        }
+
+        return $totals;
+    }
+
+    /**
+     * Determine which wallet type a product belongs to based on its attributes.
+     */
+    protected function determineWalletType(OrderItem $item): ?string
+    {
+        foreach ($this->walletTypeConfig as $type => $config) {
+            if ($item->variant->getAttributeBySlug($config['slug']->value)?->value !== null) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Calculate the total amount to deposit based on:
@@ -64,10 +126,11 @@ abstract class AddFundsToWalletActionBase
     /**
      * Create the transaction metadata.
      */
-    protected function createTransactionMetadata(): array
+    protected function createTransactionMetadata(string $walletType = 'default'): array
     {
         return [
             'order_id' => $this->order->getId(),
+            'wallet_type' => $walletType,
             'variants' => $this->order->items->map(function (OrderItem $item): array {
                 return [
                     'id' => $item->variant->getId(),
@@ -77,6 +140,40 @@ abstract class AddFundsToWalletActionBase
                 ];
             })->toArray(),
         ];
+    }
+
+    /**
+     * Process transactions for all wallet types found in order items.
+     *
+     * @return Transaction[] Array of transactions keyed by wallet type
+     * @throws Exception
+     */
+    protected function processTransactionsByWalletType(): array
+    {
+        $walletHolder = $this->getWalletHolder();
+        $totalsByType = $this->calculateTotalsByWalletType();
+        $transactions = [];
+
+        foreach ($totalsByType as $walletType => $total) {
+            if ($total <= 0) {
+                continue;
+            }
+
+            $config = $this->walletTypeConfig[$walletType];
+            $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $config['wallet']->value]);
+
+            $transaction = $wallet->depositFloat($total);
+            $transaction->meta = $this->createTransactionMetadata($walletType);
+            $transaction->saveOrFail();
+
+            $transactions[$walletType] = $transaction;
+        }
+
+        if (empty($transactions)) {
+            throw new Exception('No valid wallet items found in order.');
+        }
+
+        return $transactions;
     }
 
     /**

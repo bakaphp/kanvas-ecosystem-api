@@ -154,6 +154,11 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
                         report($e);
                     }
                 }
+            } catch (ClientException $e) {
+                if ($e->getResponse()?->getStatusCode() === 403) {
+                    continue;
+                }
+                report($e);
             } catch (Throwable $e) {
                 report($e);
             }

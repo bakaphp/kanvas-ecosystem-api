@@ -20,6 +20,7 @@ use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
+use Throwable;
 
 class PaymentMutation
 {
@@ -100,6 +101,13 @@ class PaymentMutation
             ];
         }
 
+        if ($order->hasProcessingPayment()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order has a payment currently being processed',
+            ];
+        }
+
         $formData = $request['input'];
         $paymentMethodType = $formData['payment_method'] ?? null;
         $paymentMethodId = $formData['payment_methods_id'] ?? $order->metadata['data']['payment_methods_id'] ?? null;
@@ -149,6 +157,14 @@ class PaymentMutation
             'apps_id' => $app->getId(),
             'id' => $orderId,
         ])->first();
+
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
 
         $payment = Payments::getLatestForEntity($order);
 
@@ -200,8 +216,9 @@ class PaymentMutation
             ];
         } catch (EchoPayException $e) {
             // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -209,8 +226,10 @@ class PaymentMutation
             $payment->status = PaymentStatusEnum::FAILED->value;
             $payment->save();
 
-            throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
-        } catch (Exception $e) {
+            throw new ValidationException($e->getUserMessage());
+        } catch (Throwable $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
         }
     }
@@ -226,6 +245,14 @@ class PaymentMutation
             'id' => $orderId,
         ])->first();
 
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
+
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
@@ -235,8 +262,11 @@ class PaymentMutation
         $order = $payment->order;
 
         try {
+            $previousStatus = $payment->status;
+            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
             // If payment is already authorized, jump directly to ProcessPaymentAction
-            if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+            if ($previousStatus === PaymentStatusEnum::AUTHORIZED->value) {
                 $authorizationData = ConsumerAuthentication::from(json_decode($order->get('authorization_data') ?? '{}', true));
                 $result = new ProcessPaymentAction($app, $payment, $order)->execute($authorizationData);
 
@@ -247,7 +277,7 @@ class PaymentMutation
                 ];
             }
 
-            if (in_array($payment->status, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
+            if (in_array($previousStatus, [PaymentStatusEnum::WAITING_DEVICE_DATA->value, PaymentStatusEnum::PENDING_AUTHORIZATION->value, PaymentStatusEnum::PENDING->value])) {
                 $paymentProcessor = new PortalPaymentProcessor(
                     $app,
                     $payment->company,
@@ -285,16 +315,18 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for device data: ' . $payment->status,
+                    'message' => 'Payment is not waiting for device data: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -307,10 +339,12 @@ class PaymentMutation
 
             return [
                 'status' => 'error',
-                'message' => 'Error completing device data: ' . $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => [],
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             return [
                 'status' => 'error',
                 'message' => 'Error completing device data: ' . $e->getMessage(),
@@ -328,6 +362,14 @@ class PaymentMutation
             'apps_id' => $app->getId(),
             'id' => $orderId,
         ])->first();
+
+        if ($order->isPaid()) {
+            return [
+                'status' => 'error',
+                'message' => 'Order is already paid',
+                'data' => [],
+            ];
+        }
 
         $payment = Payments::getLatestForEntity($order);
 
@@ -347,7 +389,10 @@ class PaymentMutation
         }
 
         try {
-            if ($payment->status === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
+            $previousStatus = $payment->status;
+            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
+
+            if ($previousStatus === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
                 $paymentProcessor = new PortalPaymentProcessor(
                     $app,
                     $payment->company,
@@ -364,6 +409,8 @@ class PaymentMutation
                         'data' => $validationResult['data'],
                     ];
                 } elseif ($validationResult['status'] === PaymentStatusEnum::FAILED->value) {
+                    $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
                     return [
                         'status' => $validationResult['status'],
                         'message' => $validationResult['message'],
@@ -379,16 +426,18 @@ class PaymentMutation
                     'data' => $result['data'],
                 ];
             } else {
+                $payment->update(['status' => $previousStatus]);
+
                 return [
                     'status' => 'error',
-                    'message' => 'Payment is not waiting for payer authentication: ' . $payment->status,
+                    'message' => 'Payment is not waiting for payer authentication: ' . $previousStatus,
                     'data' => [],
                 ];
             }
         } catch (EchoPayException $e) {
-            // Save error body to payment metadata
+            $errorBody = $e->getErrorBody();
             $currentMetadata = $payment->metadata ?? [];
-            $currentMetadata['echopay_error'] = $e->getErrorBody();
+            $currentMetadata['echopay_error'] = $errorBody;
             $currentMetadata['echopay_error_message'] = $e->getMessage();
             $currentMetadata['echopay_error_timestamp'] = now()->toIso8601String();
 
@@ -401,10 +450,12 @@ class PaymentMutation
 
             return [
                 'status' => 'error',
-                'message' => 'Error validating payer authentication: ' . $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => [],
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
             return [
                 'status' => 'error',
                 'message' => 'Error validating payer authentication: ' . $e->getMessage(),

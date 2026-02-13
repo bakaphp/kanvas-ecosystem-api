@@ -29,7 +29,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $id
  *  @property string $name
  *  @property string $slug
- *  @property string $description
+ *  @property string|null $title
+ *  @property string|null $description
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
