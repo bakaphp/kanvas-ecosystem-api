@@ -8,6 +8,7 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Affiliates\Enums\AffiliateConversionStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
@@ -25,7 +26,7 @@ use Override;
  * @property int $orders_id
  * @property string $attribution_model
  * @property bool $confirmed
- * @property \Illuminate\Support\Carbon|null $confirmed_at
+ * @property Carbon|null $confirmed_at
  * @property float $order_total
  * @property float $eligible_amount
  * @property string $commission_type
@@ -33,10 +34,10 @@ use Override;
  * @property float $commission_amount
  * @property string $status
  * @property string|null $dispute_reason
- * @property \Illuminate\Support\Carbon|null $dispute_resolved_at
+ * @property Carbon|null $dispute_resolved_at
  * @property string|null $notes
  * @property int|null $commission_payout_id
- * @property \Illuminate\Support\Carbon|null $converted_at
+ * @property Carbon|null $converted_at
  */
 class AffiliateConversion extends BaseModel
 {

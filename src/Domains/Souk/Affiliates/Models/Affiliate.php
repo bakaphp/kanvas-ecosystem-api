@@ -10,6 +10,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Affiliates\Enums\AffiliateStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
@@ -32,7 +33,7 @@ use Override;
  * @property int $affiliate_programs_id
  * @property int|null $affiliate_tiers_id
  * @property string $status
- * @property \Illuminate\Support\Carbon|null $approval_date
+ * @property Carbon|null $approval_date
  * @property string|null $rejection_reason
  * @property int|null $approved_by
  * @property string $commission_type
@@ -52,8 +53,8 @@ use Override;
  * @property array|null $paypal_details
  * @property array|null $stripe_details
  * @property array|null $configuration
- * @property \Illuminate\Support\Carbon|null $last_payout_date
- * @property \Illuminate\Support\Carbon|null $last_activity_at
+ * @property Carbon|null $last_payout_date
+ * @property Carbon|null $last_activity_at
  */
 class Affiliate extends BaseModel
 {

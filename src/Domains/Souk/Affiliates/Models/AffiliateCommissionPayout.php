@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Illuminate\Support\Carbon;
 use Kanvas\Souk\Affiliates\Enums\AffiliatePayoutStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
@@ -21,8 +22,8 @@ use Override;
  * @property int $apps_id
  * @property int $companies_id
  * @property int $affiliates_id
- * @property \Illuminate\Support\Carbon $period_start
- * @property \Illuminate\Support\Carbon $period_end
+ * @property Carbon $period_start
+ * @property Carbon $period_end
  * @property int $total_conversions
  * @property float $total_order_value
  * @property float $gross_commission
@@ -32,15 +33,15 @@ use Override;
  * @property string $payout_status
  * @property string|null $payout_method
  * @property string|null $payout_reference
- * @property \Illuminate\Support\Carbon|null $payout_date
- * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property Carbon|null $payout_date
+ * @property Carbon|null $approved_at
  * @property int|null $approved_by
  * @property string|null $approval_notes
  * @property int|null $transaction_id
  * @property string|null $payment_intent_id
  * @property string|null $failure_reason
  * @property int $retry_count
- * @property \Illuminate\Support\Carbon|null $next_retry_at
+ * @property Carbon|null $next_retry_at
  * @property array|null $configuration
  */
 class AffiliateCommissionPayout extends BaseModel
@@ -179,7 +180,7 @@ class AffiliateCommissionPayout extends BaseModel
      */
     public function scheduleRetry(\DateTimeInterface $retryAt): void
     {
-        $this->next_retry_at = \Illuminate\Support\Carbon::parse($retryAt);
+        $this->next_retry_at = Carbon::parse($retryAt);
         $this->saveOrFail();
     }
 
