@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Affiliates\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Affiliates\Enums\AffiliateConversionStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
@@ -41,6 +43,7 @@ class AffiliateConversion extends BaseModel
     use UuidTrait;
     use NoCompanyRelationshipTrait;
     use CanUseWorkflow;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliate_conversions';
 
@@ -167,5 +170,10 @@ class AffiliateConversion extends BaseModel
         $this->status = AffiliateConversionStatusEnum::CONFIRMED->value;
         $this->dispute_resolved_at = now();
         $this->saveOrFail();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        return self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
     }
 }

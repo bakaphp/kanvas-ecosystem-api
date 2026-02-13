@@ -789,6 +789,8 @@ This ensures:
 - Non-app-owners only see their own company's data
 - App owners can see all companies' data within the app
 
+**Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
+
 ## Key Conventions
 
 ### PHP 8.4 Syntax
@@ -839,6 +841,40 @@ return new CreateTaskListItemAction(
 $taskListItem->task_list_id = $this->data->taskList->getId();
 $taskListItem->companies_action_id = $this->data->companyAction->getId();
 ```
+
+### Enum Usage in DTOs
+When a domain defines PHP enums (e.g., in `src/Domains/{Domain}/{Entity}/Enums/`), **use the enum type in DTOs instead of raw strings**. This provides type safety and prevents invalid values.
+
+```php
+// DTO — use enum types with enum defaults
+class Affiliate extends Data
+{
+    public function __construct(
+        public readonly AffiliateTypeEnum $affiliate_type = AffiliateTypeEnum::BUSINESS,
+        public readonly AffiliateStatusEnum $status = AffiliateStatusEnum::PENDING,
+        public readonly CommissionTypeEnum $commission_type = CommissionTypeEnum::PERCENTAGE,
+        // For nullable enum fields:
+        public readonly ?PayoutMethodEnum $payout_method = null,
+    ) {
+    }
+}
+
+// Mutation — construct enums with ::from()
+affiliate_type: AffiliateTypeEnum::from($input['affiliate_type'] ?? 'business'),
+// For nullable enum fields:
+payout_method: isset($input['payout_method']) ? PayoutMethodEnum::from($input['payout_method']) : null,
+
+// Action — store the string value with ->value
+$model->affiliate_type = $this->data->affiliate_type->value;
+// For nullable enum fields:
+$model->payout_method = $this->data->payout_method?->value;
+```
+
+Key rules:
+- **DTO**: Use the enum type (e.g., `CommissionTypeEnum`) with an enum case as default (e.g., `CommissionTypeEnum::PERCENTAGE`)
+- **Mutation**: Use `EnumClass::from($input['field'] ?? 'default')` to construct the enum from the GraphQL input string
+- **Action**: Use `->value` to extract the string when assigning to the model (e.g., `$this->data->status->value`)
+- **Nullable enums**: Use `?EnumClass` in DTO, `isset()` check in mutation, `?->value` in action
 
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
@@ -904,6 +940,9 @@ protected function casts(): array
 
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
+
+### Code Style
+- **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
 
 ## Testing
 

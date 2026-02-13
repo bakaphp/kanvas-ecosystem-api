@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -48,6 +51,7 @@ use Override;
 class AffiliateLink extends BaseModel
 {
     use UuidTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliate_links';
 
@@ -183,5 +187,16 @@ class AffiliateLink extends BaseModel
         $affiliate = $this->affiliate;
 
         return $affiliate->commission_type;
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('company.id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }
