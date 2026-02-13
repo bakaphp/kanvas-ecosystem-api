@@ -50,6 +50,8 @@ type User {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
+    currentSubscription: UserSubscription
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@currentSubscription")
 }
 
 type AddressType {

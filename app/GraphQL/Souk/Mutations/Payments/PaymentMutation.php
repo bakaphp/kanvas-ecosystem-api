@@ -20,6 +20,7 @@ use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
+use Throwable;
 
 class PaymentMutation
 {
@@ -186,8 +187,6 @@ class PaymentMutation
         }
 
         try {
-            $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
-
             $paymentProcessor = new PortalPaymentProcessor(
                 $app,
                 $payment->company,
@@ -228,7 +227,7 @@ class PaymentMutation
             $payment->save();
 
             throw new ValidationException($e->getUserMessage());
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
 
             throw new ValidationException('Error initiating payer authentication: ' . $e->getMessage());
@@ -343,7 +342,7 @@ class PaymentMutation
                 'message' => $e->getUserMessage(),
                 'data' => [],
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
 
             return [
@@ -454,7 +453,7 @@ class PaymentMutation
                 'message' => $e->getUserMessage(),
                 'data' => [],
             ];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
 
             return [

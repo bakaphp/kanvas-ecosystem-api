@@ -64,6 +64,7 @@ use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -643,6 +644,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 please contact support'
             );
         }
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'users_id' => $this->getId(),
+            'companies_id' => 0,
+            'apps_id' => $app->getId(),
+        ]);
     }
 
     /**
