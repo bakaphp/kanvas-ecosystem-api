@@ -35,7 +35,7 @@ class UpdateRuleAction
             ]);
 
             if ($this->data->conditions !== null && $this->data->conditions->count() > 0) {
-                $this->rule->getRulesConditions()->update(['is_deleted' => 1]);
+                $this->rule->getRulesConditions()->forceDelete();
 
                 /** @var RuleConditionData $condition */
                 foreach ($this->data->conditions as $condition) {
@@ -49,7 +49,7 @@ class UpdateRuleAction
             }
 
             if ($this->data->actions !== null && $this->data->actions->count() > 0) {
-                $this->rule->workflowActivities()->update(['is_deleted' => 1]);
+                $this->rule->workflowActivities()->forceDelete();
 
                 $weight = 0;
                 /** @var RuleActionData $actionData */
