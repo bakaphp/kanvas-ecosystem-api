@@ -1,0 +1,156 @@
+type Rule {
+    id: ID!
+    name: String!
+    description: String
+    pattern: String!
+    params: Mixed
+    is_async: Boolean!
+    system_module: SystemModule @belongsTo(relation: "systemModule")
+    rule_type: RuleType @belongsTo(relation: "type")
+    conditions: [RuleCondition!] @hasMany(relation: "getRulesConditions")
+    actions: [RuleAction!] @hasMany(relation: "workflowActivities")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type RuleType {
+    id: ID!
+    name: String!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type RuleCondition {
+    id: ID!
+    attribute_name: String!
+    operator: String!
+    value: String!
+    is_custom_attributes: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type RuleAction {
+    id: ID!
+    weight: Float!
+    activity: RuleWorkflowAction @belongsTo(relation: "activity")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type RuleWorkflowAction {
+    id: ID!
+    action_name: String! @method(name: "actionName")
+    action_class: String! @method(name: "actionClass")
+    system_module: SystemModule @belongsTo(relation: "systemModule")
+    action: WorkflowAction @belongsTo(relation: "action")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type WorkflowAction {
+    id: ID!
+    name: String!
+    model_name: String!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type SystemModule {
+    id: ID!
+    name: String!
+    slug: String!
+    model_name: String!
+}
+
+input RuleConditionInput {
+    attribute_name: String!
+    operator: String!
+    value: String!
+    is_custom_attributes: Boolean
+}
+
+input RuleActionInput {
+    rules_workflow_actions_id: ID!
+    weight: Float
+}
+
+input RuleInput {
+    name: String!
+    description: String
+    rules_types_id: ID!
+    pattern: String!
+    params: Mixed
+    is_async: Boolean
+    conditions: [RuleConditionInput!]
+    actions: [RuleActionInput!]!
+}
+
+input UpdateRuleInput {
+    name: String
+    description: String
+    rules_types_id: ID
+    pattern: String
+    params: Mixed
+    is_async: Boolean
+    conditions: [RuleConditionInput!]
+    actions: [RuleActionInput!]
+}
+
+extend type Mutation @guard {
+    createRule(input: RuleInput!): Rule!
+        @can(ability: "create", model: "Kanvas\\Workflow\\Rules\\Models\\Rule")
+        @field(resolver: "App\\GraphQL\\Workflow\\Mutations\\Rule\\RuleMutation@create")
+
+    updateRule(id: ID!, input: UpdateRuleInput!): Rule!
+        @can(ability: "edit", model: "Kanvas\\Workflow\\Rules\\Models\\Rule")
+        @field(resolver: "App\\GraphQL\\Workflow\\Mutations\\Rule\\RuleMutation@update")
+
+    deleteRule(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Workflow\\Rules\\Models\\Rule")
+        @field(resolver: "App\\GraphQL\\Workflow\\Mutations\\Rule\\RuleMutation@delete")
+}
+
+extend type Query @guard {
+    workflowRules(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "systems_modules_id", "rules_types_id", "is_async"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Rule!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Rules\\Models\\Rule"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    ruleTypes(
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name"])
+    ): [RuleType!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Rules\\Models\\RuleType"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+
+    workflowActions(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name"])
+    ): [WorkflowAction!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\WorkflowAction"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+
+    ruleWorkflowActions(
+        where: _ @whereConditions(columns: ["id", "system_modules_id", "actions_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [RuleWorkflowAction!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Rules\\Models\\RuleWorkflowAction"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+}
