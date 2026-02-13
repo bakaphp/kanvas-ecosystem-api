@@ -154,6 +154,7 @@ extend type Query @guard {
             defaultCount: 25
         )
     rules(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
