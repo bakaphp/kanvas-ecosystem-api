@@ -90,10 +90,6 @@ class Order extends Data
                 continue;
             }
 
-            $itemCurrency = isset($lineItem['attributes']['currency']['code'])
-                ? Currencies::getByCode($lineItem['attributes']['currency']['code'])
-                : $this->currency;
-
             $item = new OrderItem(
                 app: $this->app,
                 variant: $variant,
@@ -103,7 +99,7 @@ class Order extends Data
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: $itemCurrency,
+                currency: Currencies::getByCode('USD'),
                 quantityShipped: 0,
                 channelId: $lineItem['attributes']['channel_id'] ?? null,
             );

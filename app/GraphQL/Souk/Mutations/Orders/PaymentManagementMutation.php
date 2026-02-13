@@ -56,6 +56,14 @@ class PaymentManagementMutation
         //$totalAmount = $amount === $cart->getTotal() ? $amount : $cart->getTotal();
         $totalAmount = (int) round($cart->getTotal() * 100);
 
+        // Get currency from cart items, fallback to 'usd'
+        $currencyCode = 'usd';
+        $cartContent = $cart->getContent();
+        if ($cartContent && $cartContent->isNotEmpty()) {
+            $firstItem = $cartContent->first();
+            $currencyCode = strtolower($firstItem['attributes']['currency']['code'] ?? 'usd');
+        }
+
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [
                 'status' => 'success',
@@ -64,14 +72,14 @@ class PaymentManagementMutation
                 'message' => [
                 'message' => 'Payment intent generated successfully',
                 'amount' => $amount,
-                'currency' => 'usd',
+                'currency' => $currencyCode,
                 ],
             ];
         }
 
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
-            'currency' => 'usd',
+            'currency' => $currencyCode,
             'customer' => $customer->id,
         ]);
 
@@ -82,7 +90,7 @@ class PaymentManagementMutation
             'message' => [
                 'message' => 'Payment intent generated successfully',
                 'amount' => $amount,
-                'currency' => 'usd',
+                'currency' => $currencyCode,
             ],
         ];
     }

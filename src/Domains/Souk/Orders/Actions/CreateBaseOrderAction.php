@@ -105,9 +105,9 @@ class CreateBaseOrderAction
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
         try {
-            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region?->currency ?? Currencies::getBaseCurrency();
+            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
         } catch (ModelNotFoundException $e) {
-            $currency = $this->region?->currency ?? Currencies::getBaseCurrency();
+            $currency = $this->region->currency;
         }
 
         $order = new Order(
@@ -196,10 +196,6 @@ class CreateBaseOrderAction
                 }
             }
 
-            $itemCurrency = isset($lineItem['attributes']['currency']['code'])
-                ? Currencies::getByCode($lineItem['attributes']['currency']['code'])
-                : $this->region?->currency ?? Currencies::getBaseCurrency();
-
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
@@ -209,7 +205,7 @@ class CreateBaseOrderAction
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: $itemCurrency,
+                currency: Currencies::getByCode('USD'),
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
                 channelId: $lineItem['attributes']['channel_id'] ?? null
