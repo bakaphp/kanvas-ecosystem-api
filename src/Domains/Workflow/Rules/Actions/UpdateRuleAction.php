@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
-use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
