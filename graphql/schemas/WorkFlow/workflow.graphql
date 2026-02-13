@@ -60,7 +60,7 @@ type WorkflowRuleAction {
 
 type WorkflowRuleWorkflowAction {
     id: ID!
-    action: WorkflowAction! @belongsTo
+    action: WorkflowAction @belongsTo
     systemModule: SystemModule @belongsTo(relation: "systemModule")
 }
 
