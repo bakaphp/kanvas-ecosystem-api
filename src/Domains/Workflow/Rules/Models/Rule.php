@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
@@ -25,6 +28,10 @@ use Override;
  */
 class Rule extends BaseModel
 {
+    use DatabaseSearchableTrait {
+        search as public traitSearch;
+    }
+
     protected $table = 'rules';
 
     protected $guarded = [];
@@ -115,22 +122,52 @@ class Rule extends BaseModel
      */
     private function formatValue(string|int|float|bool|null $value): string
     {
-        // If it's numeric, don't quote it
         if (is_int($value) || is_float($value)) {
             return (string) $value;
         }
 
-        // If it's a boolean, convert to string
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
 
-        // If it's null
         if ($value === null) {
             return 'null';
         }
 
-        // Everything else gets quoted (strings)
         return "'" . addslashes($value) . "'";
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_rule_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'workflow_rules_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'pattern' => $this->pattern,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }
