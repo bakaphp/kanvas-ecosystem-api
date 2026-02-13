@@ -34,7 +34,7 @@ type WorkflowRule {
         @hasMany(relation: "getRulesConditions")
     workflowActions: [WorkflowRuleAction!]!
         @hasMany(relation: "workflowActivities")
-    companies_id: ID!
+    company: Company! @belongsTo
     apps_id: ID!
     created_at: DateTime
     updated_at: DateTime
