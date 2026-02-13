@@ -61,7 +61,7 @@ type WorkflowRuleAction {
 type WorkflowRuleWorkflowAction {
     id: ID!
     action: WorkflowAction! @belongsTo
-    systemModule: SystemModule! @belongsTo(relation: "systemModule")
+    systemModule: SystemModule @belongsTo(relation: "systemModule")
 }
 
 enum RuleConditionOperator {
