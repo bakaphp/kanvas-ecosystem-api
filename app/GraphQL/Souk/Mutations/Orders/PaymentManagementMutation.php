@@ -61,7 +61,7 @@ class PaymentManagementMutation
         $cartContent = $cart->getContent();
         if ($cartContent && $cartContent->isNotEmpty()) {
             $firstItem = $cartContent->first();
-            $currencyCode = strtolower($firstItem['attributes']['currency']['code'] ?? 'usd');
+            $currencyCode = strtolower($firstItem->attributes['currency']['code'] ?? 'usd');
         }
 
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
