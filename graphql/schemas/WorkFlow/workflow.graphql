@@ -21,11 +21,103 @@ type WorkflowStatus {
     slug: String
 }
 
+type WorkflowRule {
+    id: ID!
+    name: String!
+    description: String
+    pattern: String
+    params: Mixed
+    is_async: Boolean!
+    type: WorkflowRuleType! @belongsTo(relation: "type")
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
+    conditions: [WorkflowRuleCondition!]!
+        @hasMany(relation: "getRulesConditions")
+    workflowActions: [WorkflowRuleAction!]!
+        @hasMany(relation: "workflowActivities")
+    companies_id: ID!
+    apps_id: ID!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type WorkflowRuleType {
+    id: ID!
+    name: String!
+}
+
+type WorkflowRuleCondition {
+    id: ID!
+    attribute_name: String!
+    operator: String!
+    value: String
+}
+
+type WorkflowRuleAction {
+    id: ID!
+    weight: Float!
+    activity: WorkflowRuleWorkflowAction! @belongsTo
+}
+
+type WorkflowRuleWorkflowAction {
+    id: ID!
+    action: WorkflowAction! @belongsTo
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
+}
+
+enum RuleConditionOperator {
+    EQUAL @enum(value: "==")
+    NOT_EQUAL @enum(value: "!=")
+    GREATER_THAN @enum(value: ">")
+    GREATER_THAN_OR_EQUAL @enum(value: ">=")
+    LESS_THAN @enum(value: "<")
+    LESS_THAN_OR_EQUAL @enum(value: "<=")
+    IN @enum(value: "in")
+    NOT_IN @enum(value: "not in")
+    MATCHES @enum(value: "matches")
+}
+
 input runWorkflowEntityInput {
     entity_namespace: String!
     entity_id: ID!
     action: String!
     params: Mixed
+}
+
+input RuleConditionInput {
+    attribute_name: String!
+    operator: RuleConditionOperator!
+    value: String
+}
+
+input RuleActionInput {
+    action_id: ID!
+    weight: Float
+}
+
+input CreateRuleInput {
+    name: String!
+    description: String
+    rules_types_id: ID!
+    systems_modules_id: ID!
+    companies_id: ID
+    pattern: String
+    params: Mixed
+    is_async: Boolean
+    conditions: [RuleConditionInput!]
+    actions: [RuleActionInput!]
+}
+
+input UpdateRuleInput {
+    name: String
+    description: String
+    rules_types_id: ID
+    systems_modules_id: ID
+    companies_id: ID
+    pattern: String
+    params: Mixed
+    is_async: Boolean
+    conditions: [RuleConditionInput!]
+    actions: [RuleActionInput!]
 }
 
 extend type Mutation @guardByAppKey {
@@ -37,6 +129,18 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Workflows\\WorkflowMutationManagement@runWorkflowFromEntity"
         )
+    createRule(input: CreateRuleInput!): WorkflowRule!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Rules\\RuleMutation@create"
+        )
+    updateRule(id: ID!, input: UpdateRuleInput!): WorkflowRule!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Rules\\RuleMutation@update"
+        )
+    deleteRule(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Rules\\RuleMutation@delete"
+        )
 }
 
 extend type Query @guard {
@@ -46,6 +150,35 @@ extend type Query @guard {
     ): [WorkflowAction!]!
         @paginate(
             model: "Kanvas\\Workflow\\Models\\WorkflowAction"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+    rules(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "companies_id"
+                    "rules_types_id"
+                    "systems_modules_id"
+                    "apps_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [WorkflowRule!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Rules\\Models\\Rule"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+    ruleTypes(
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name"])
+    ): [WorkflowRuleType!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Rules\\Models\\RuleType"
             scopes: ["notDeleted"]
             defaultCount: 25
         )
