@@ -28,8 +28,11 @@ class VariantPriceService
         $this->useCompanySpecificPrice = (bool) ($app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false);
     }
 
-    public function getPriceWithCurrency(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): array
-    {
+    public function getPriceWithCurrency(
+        Variants $variant,
+        ?int $channelId = null,
+        ?int $warehouseId = null
+    ): array {
         $price = $this->getPrice($variant, $channelId, $warehouseId);
         $currency = $this->getCurrencyFromWarehouse($variant, $warehouseId);
 
@@ -39,8 +42,11 @@ class VariantPriceService
         ];
     }
 
-    public function getPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
-    {
+    public function getPrice(
+        Variants $variant,
+        ?int $channelId = null,
+        ?int $warehouseId = null
+    ): float {
         // Reset channel before each price calculation
         $this->currentChannel = null;
 
