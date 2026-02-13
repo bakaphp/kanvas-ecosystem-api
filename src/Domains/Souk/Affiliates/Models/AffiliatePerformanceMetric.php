@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -13,7 +14,7 @@ use Override;
  * @property int $id
  * @property int $apps_id
  * @property int $affiliates_id
- * @property \Illuminate\Support\Carbon $metric_date
+ * @property Carbon $metric_date
  * @property int $clicks
  * @property int $impressions
  * @property int $conversions

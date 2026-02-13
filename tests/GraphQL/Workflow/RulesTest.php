@@ -72,7 +72,6 @@ class RulesTest extends TestCase
                             id
                             weight
                         }
-                        companies_id
                         apps_id
                     }
                 }
@@ -151,9 +150,11 @@ class RulesTest extends TestCase
             }
         ', ['input' => $input], [], $this->getAppKeyHeader());
 
-        $response->assertSuccessful();
+        $response->assertSuccessful()
+            ->assertGraphQLErrorFree();
 
         $data = $response->json('data.createRule');
+        $this->assertNotNull($data, 'createRule returned null — check GraphQL errors');
         $this->assertEquals($input['name'], $data['name']);
         $this->assertEquals($input['description'], $data['description']);
         $this->assertEquals('1', $data['pattern']);
@@ -201,9 +202,11 @@ class RulesTest extends TestCase
             }
         ', ['input' => $input], [], $this->getAppKeyHeader());
 
-        $response->assertSuccessful();
+        $response->assertSuccessful()
+            ->assertGraphQLErrorFree();
 
         $data = $response->json('data.createRule');
+        $this->assertNotNull($data, 'createRule returned null — check GraphQL errors');
         $this->assertEquals('1 AND 2', $data['pattern']);
         $this->assertCount(2, $data['conditions']);
     }
@@ -245,9 +248,11 @@ class RulesTest extends TestCase
             }
         ', ['input' => $input], [], $this->getAppKeyHeader());
 
-        $response->assertSuccessful();
+        $response->assertSuccessful()
+            ->assertGraphQLErrorFree();
 
         $data = $response->json('data.createRule');
+        $this->assertNotNull($data, 'createRule returned null — check GraphQL errors');
         $this->assertEquals('1 OR 2', $data['pattern']);
     }
 
