@@ -66,7 +66,6 @@ class UserManagementQuery
         if (! empty($args['search'])) {
             $searchResults = Users::traitSearch((string) $args['search'])
                 ->whereIn('apps', [$app->getId()])
-                ->whereIn('companies', [$companiesId])
                 ->keys();
 
             $query->whereIn('users.id', $searchResults->toArray());
