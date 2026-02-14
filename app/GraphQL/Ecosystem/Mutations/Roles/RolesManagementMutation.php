@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Redis;
@@ -25,6 +24,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 class RolesManagementMutation
