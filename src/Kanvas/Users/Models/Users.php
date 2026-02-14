@@ -961,8 +961,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if (! auth()->user()->isAdmin()) {
-            $query->whereIn('companies', [auth()->user()->currentCompanyId()]);
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->whereIn('companies', [$user->currentCompanyId()]);
         }
 
         return $query;
