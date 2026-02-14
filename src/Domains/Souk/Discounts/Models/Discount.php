@@ -298,7 +298,6 @@ class Discount extends BaseModel
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
-                    'optional' => true,
                     'sort' => true,
                 ],
             ],
