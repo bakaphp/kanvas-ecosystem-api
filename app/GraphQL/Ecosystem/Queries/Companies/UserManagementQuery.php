@@ -64,7 +64,10 @@ class UserManagementQuery
         ->groupBy('users_associated_apps.users_id');
 
         if (! empty($args['search'])) {
-            $searchResults = Users::search((string) $args['search'])->keys();
+            $searchResults = Users::traitSearch((string) $args['search'])
+                ->whereIn('apps', [$app->getId()])
+                ->whereIn('companies', [$companiesId])
+                ->keys();
 
             $query->whereIn('users.id', $searchResults->toArray());
         }
