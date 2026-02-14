@@ -126,7 +126,7 @@ class FollowUpEngagementAction
             $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
 
             if ($lastMessageCreatedAt) {
-                if ($followUpDay->calendar_day) {
+                if ($followUpDay?->calendar_day !== null) {
                     $this->lead->pipeline_stage_id = $followUpDay->move_to_stage_id ?? $this->lead->pipeline_stage_id;
                     $this->lead->saveOrFail();
                     $followUpDay = $this->followUp->days()
@@ -134,7 +134,12 @@ class FollowUpEngagementAction
                         ->where('is_deleted', 0)
                         ->orderBy('weight', 'ASC')
                         ->first();
+
+                    if (! $followUpDay) {
+                        continue;
+                    }
                 }
+
                 $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
                 $timeDiff = $lastMessageTime->diffInMinutes($now);
                 $contacted = $this->lead->hasBeenContacted();
