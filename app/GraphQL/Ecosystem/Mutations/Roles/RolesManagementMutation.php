@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Bouncer;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Redis;
@@ -100,6 +100,7 @@ class RolesManagementMutation
         }
 
         $user->retract($role->name);
+        Bouncer::refreshFor($user);
 
         return true;
     }
