@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
-use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
+use Carbon\Carbon;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 
@@ -25,7 +25,7 @@ class CreateSessionAction
          * - user_id (in some cases)
          * This ensures proper data isolation and multi-tenancy.
          */
-        $content = $this->session->content ? [] : new CreateContentSessionAction($this->session)->execute();
+        $content = $this->session->content ? $this->session->content : new CreateContentSessionAction($this->session)->execute();
 
         // Legacy UUID format (without company_id): {channel-slug}-{app-id}
         $legacyUuid = $this->session->channel->slug . '-' . $this->session->app->getId();
@@ -44,15 +44,24 @@ class CreateSessionAction
             ->first();
 
         if ($existingSession) {
-            // Update existing session with new UUID format
-            $existingSession->update([
-                'uuid' => $newUuid,
+            // Cutoff date: Feb 13, 2026 at 11:00 PM RD (UTC-4)
+            // Sessions created before this date keep their legacy UUID
+            $cutoffDate = Carbon::create(2026, 2, 13, 23, 0, 0, 'America/Santo_Domingo');
+
+            $updateData = [
                 'canal_id' => $this->session->canal_id,
                 'entity_namespace' => $this->session->entity_namespace,
                 'entity_id' => $this->session->entity_id,
                 'user' => $this->session->user,
                 'content' => $content,
-            ]);
+            ];
+
+            // Only update UUID to new format if session was created after cutoff date
+            if ($existingSession->created_at->gte($cutoffDate)) {
+                $updateData['uuid'] = $newUuid;
+            }
+
+            $existingSession->update($updateData);
 
             return $existingSession;
         }
