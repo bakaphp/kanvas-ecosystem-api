@@ -174,31 +174,6 @@ class Discount extends BaseModel
         return new DiscountFactory();
     }
 
-    public function typesenseCollectionSchema(): array
-    {
-        return [
-            'name' => $this->searchableAs(),
-            'fields' => [
-                ['name' => 'objectID', 'type' => 'string'],
-                ['name' => 'id', 'type' => 'string'],
-                ['name' => 'uuid', 'type' => 'string'],
-                ['name' => 'name', 'type' => 'string'],
-                ['name' => 'description', 'type' => 'string', 'optional' => true],
-                ['name' => 'code', 'type' => 'string', 'optional' => true],
-                ['name' => 'value', 'type' => 'float'],
-                ['name' => 'is_percentage', 'type' => 'bool', 'facet' => true],
-                ['name' => 'is_active', 'type' => 'bool', 'facet' => true],
-                ['name' => 'discount_type', 'type' => 'object', 'optional' => true],
-                ['name' => 'company', 'type' => 'object', 'optional' => true],
-                ['name' => 'apps_id', 'type' => 'int64'],
-                ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
-                ['name' => 'start_date', 'type' => 'int64', 'optional' => true, 'sort' => true],
-                ['name' => 'end_date', 'type' => 'int64', 'optional' => true, 'sort' => true],
-                ['name' => 'created_at', 'type' => 'int64', 'optional' => true, 'sort' => true],
-            ],
-        ];
-    }
-
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
