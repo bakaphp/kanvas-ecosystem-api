@@ -789,6 +789,14 @@ This ensures:
 - Non-app-owners only see their own company's data
 - App owners can see all companies' data within the app
 
+**CRITICAL: `@search` bypasses `@paginate(builder:)` scoping.** When Lighthouse's `@search` directive is active, it calls `Model::search()` and the results come entirely from the search engine (Algolia/Typesense/database). The custom builder specified in `@paginate(builder: ...)` is **NOT applied** as an additional filter. This means:
+- Any company/app scoping in the custom builder is **ignored** during search
+- The `search()` method on the model is the **only** place to enforce multi-tenancy during search
+- Always use `isAppOwner()` (not `isAdmin()`) for the company-scoping check — `isAppOwner()` returns `true` only for `@guardByAppKey` requests with Owner role, ensuring regular `@guard` admins are still company-scoped
+- `isAdmin()` returns `true` for any Admin/Owner role regardless of auth method, which would skip company filtering on `@guard` endpoints like `companyUsers`
+
+**Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
+
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
 
 ## Key Conventions
