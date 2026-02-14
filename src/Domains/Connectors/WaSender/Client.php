@@ -20,9 +20,14 @@ class Client
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
+        protected bool $outboundMode = false
     ) {
-        $this->baseUrl = $app->get(ConfigurationEnum::BASE_URL->value);
+        $baseUrlEnum = $this->outboundMode
+            ? ConfigurationEnum::BASE_URL_OUTBOUND
+            : ConfigurationEnum::BASE_URL;
+
+        $this->baseUrl = $app->get($baseUrlEnum->value);
         $this->apiKey = $company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value);
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
