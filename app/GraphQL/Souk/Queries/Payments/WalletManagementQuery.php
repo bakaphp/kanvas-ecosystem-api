@@ -18,7 +18,6 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class WalletManagementQuery
 {
-
     public function getBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): float|array
     {
         $tag = strtolower($args['tag']);
