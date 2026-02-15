@@ -14,6 +14,8 @@ type MessageType {
     verb: String!
     template: Mixed
     templates_plura: String
+    created_at: DateTime!
+    updated_at: DateTime
 }
 
 extend type Query @guard {
