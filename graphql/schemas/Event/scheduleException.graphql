@@ -1,0 +1,59 @@
+type ScheduleException {
+    id: ID!
+    resources_id: ID!
+    resources_type: String!
+    window_start: DateTime!
+    window_end: DateTime!
+    kind: String!
+    reason: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+enum ScheduleExceptionKind {
+    BLACKOUT @enum(value: "blackout")
+    EXTRA_OPEN @enum(value: "extra_open")
+}
+
+input ScheduleExceptionInput {
+    resources_id: ID!
+    resources_type: String!
+    window_start: DateTime!
+    window_end: DateTime!
+    kind: ScheduleExceptionKind!
+    reason: String
+}
+
+extend type Mutation @guard {
+    createScheduleException(input: ScheduleExceptionInput!): ScheduleException!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleException\\ScheduleExceptionMutation@create"
+        )
+    deleteScheduleException(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleException\\ScheduleExceptionMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    scheduleExceptions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "resources_id"
+                    "resources_type"
+                    "kind"
+                    "window_start"
+                    "window_end"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "window_start", "created_at"])
+    ): [ScheduleException!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\ScheduleException"
+            defaultCount: 25
+        )
+}

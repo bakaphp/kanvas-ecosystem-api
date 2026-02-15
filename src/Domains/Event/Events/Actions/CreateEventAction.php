@@ -34,6 +34,8 @@ use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Event $event,
         protected array $metadata = []
@@ -111,7 +113,10 @@ class CreateEventAction
 
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
-                $this->createEventOrder($eventVersion, $this->event->orderItems);
+                $this->createEventOrder(
+                    $eventVersion,
+                    $this->event->orderItems
+                );
             }
 
             // Store additional resources in pivot table
@@ -121,15 +126,19 @@ class CreateEventAction
 
             $participants = $eventVersion->participants;
 
-            if ($eventVersion && ! $participants->isEmpty()) {
+            if (! $participants->isEmpty()) {
                 $codes = (new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion
                 ))->forAllParticipants();
 
-                new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
-                    'codes' => $codes,
-                ])->execute();
+                new SendEventEmailsAction(
+                    $eventVersion,
+                    EmailTemplateEnum::BOOKING_CREATED->value,
+                    [
+                        'codes' => $codes,
+                    ]
+                )->execute();
             }
 
             return $event;

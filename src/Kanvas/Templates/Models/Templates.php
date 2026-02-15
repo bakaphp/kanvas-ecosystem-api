@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Templates\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Baka\Traits\DynamicSearchableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -13,6 +14,7 @@ use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\TemplatesVariables\Models\TemplatesVariables;
+use Override;
 
 /**
  * Apps Model.
@@ -26,14 +28,16 @@ use Kanvas\TemplatesVariables\Models\TemplatesVariables;
  * @property ?string $title
  * @property int $parent_template_id
  * @property string $template
- * @property string $created_at
- * @property string $updated_at
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon $updated_at
  * @property int $is_deleted
  */
 class Templates extends BaseModel
 {
     use HasCustomFields;
-    // use Cachable;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
 
     /**
      * The table associated with the model.
@@ -87,5 +91,111 @@ class Templates extends BaseModel
     public function templateVariables(): HasMany
     {
         return $this->hasMany(TemplatesVariables::class, 'template_id');
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => "Kanvas\Templates\Models\Templates::{$this->id}",
+            'id' => (string) $this->id,
+            'name' => $this->name,
+            'subject' => $this->subject ?? '',
+            'title' => $this->title ?? '',
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'users_id' => $this->users_id,
+            'is_deleted' => (bool) $this->is_deleted,
+            'created_at' => $this->created_at->timestamp,
+            'updated_at' => $this->updated_at->timestamp,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'subject',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'title',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'users_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_deleted',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+            ],
+        ];
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_templates_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'templates');
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

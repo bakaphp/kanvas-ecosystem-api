@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Config;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
 use Override;
 
@@ -34,6 +37,9 @@ class ReceiverWebhook extends BaseModel
 {
     use UuidTrait;
     use HasFactory;
+    use DatabaseSearchableTrait {
+        search as public traitSearch;
+    }
 
     protected $table = 'receiver_webhooks';
 
@@ -78,8 +84,50 @@ class ReceiverWebhook extends BaseModel
         return $this->run_async;
     }
 
+    public function hasWebhookCalls(): bool
+    {
+        return $this->webhookCalls()->exists();
+    }
+
     public function getUrl(): string
     {
         return (string) Config::get('app.url') . '/v1/receiver/' . $this->uuid;
+    }
+
+    public function searchableAs(): string
+    {
+        $app = app(Apps::class);
+        $customIndex = $app->get('app_custom_receiver_webhook_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'receiver_webhook_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'is_active' => $this->is_active,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

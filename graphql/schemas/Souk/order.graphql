@@ -12,6 +12,14 @@ enum PaymentMethodType {
     PAYMENT
 }
 
+enum OrderStatusEnum {
+    PENDING @enum(value: "pending")
+    COMPLETED @enum(value: "completed")
+    DRAFT @enum(value: "draft")
+    CANCELED @enum(value: "canceled")
+    FAILED @enum(value: "failed")
+}
+
 type OrderExportResult {
     status: String!
     download_url: String
@@ -134,6 +142,8 @@ type OrderType {
 
 type OrderStatus {
     id: ID!
+    companies_id: ID!
+    company: Company! @belongsTo
     name: String!
     slug: String!
     order_type_id: ID!
@@ -359,6 +369,14 @@ input UpdateOrderStatusInput {
     sequence: Int
 }
 
+input CreateOrderTypeInput {
+    name: String!
+}
+
+input UpdateOrderTypeInput {
+    name: String!
+}
+
 type PipelineStage {
     status: OrderStatus!
     is_current: Boolean!
@@ -421,6 +439,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
+    updateDraftOrderStatus(order_id: ID!, status: OrderStatusEnum!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@updateStatus"
+        )
     updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
@@ -475,18 +497,35 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )
-    createOrderStatus(
-        input: CreateOrderStatusInput!
-    ): OrderStatus!
+    createOrderStatus(input: CreateOrderStatusInput!): OrderStatus!
+        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
         )
-    updateOrderStatus(
-        id: ID!
-        input: UpdateOrderStatusInput!
-    ): OrderStatus!
+    updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
+        )
+    deleteOrderStatus(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@delete"
+        )
+    createOrderType(input: CreateOrderTypeInput!): OrderType!
+        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
+        )
+    updateOrderType(id: ID!, input: UpdateOrderTypeInput!): OrderType!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
+        )
+    deleteOrderType(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
         )
 }
 
@@ -596,6 +635,7 @@ extend type Query @guard {
         )
 
     orderTypes(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderType!]!
@@ -637,6 +677,16 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "order"
                 columns: ["user_email", "user_phone", "status", "reference"]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
@@ -720,8 +770,12 @@ extend type Query @guard {
             # scopes: ["fromApp", "notDeleted"]
         )
     orderStatus(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-        where: _ @whereConditions(columns: ["id", "companies_id", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name", "slug", "order_type_id"]
+            )
     ): [OrderStatus!]!
         @paginate(
             defaultCount: 25

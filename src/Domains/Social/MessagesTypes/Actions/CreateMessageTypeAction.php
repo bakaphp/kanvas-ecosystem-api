@@ -9,19 +9,11 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 
 class CreateMessageTypeAction
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
     public function __construct(
         protected MessageTypeInput $messageTypeInput
     ) {
     }
 
-    /**
-     * execute
-     */
     public function execute(): MessageType
     {
         return MessageType::firstOrCreate(
