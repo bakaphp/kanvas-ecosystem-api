@@ -133,7 +133,10 @@ class UpdateEventAction
         });
 
         // Send notification to participants after successful update
-        new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_UPDATED->value)->execute();
+        new SendEventEmailsAction(
+            $eventVersion,
+            EmailTemplateEnum::BOOKING_UPDATED->value
+        )->execute();
 
         return $eventVersion;
     }
