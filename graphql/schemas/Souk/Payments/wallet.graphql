@@ -36,6 +36,18 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getTransactions"
             defaultCount: 25
         )
+    getUserWalletTransactions(
+        tag: String!
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "type", "amount", "confirmed", "status"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "status", "created_at"])
+    ): [WalletTransaction!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getUserTransactions"
+            defaultCount: 25
+        )
 }
 
 extend type Mutation @guardByAppKey {

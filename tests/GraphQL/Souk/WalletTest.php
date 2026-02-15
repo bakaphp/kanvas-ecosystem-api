@@ -80,6 +80,87 @@ class WalletTest extends TestCase
         $this->assertEquals(0, (int) $wallet->refresh()->balanceInt);
     }
 
+    public function testGetUserWalletTransactions(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $wallet = $user->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit(10000, ['description' => 'Test deposit for user transactions']);
+
+        $response = $this->graphQL('
+            query {
+                getUserWalletTransactions(tag: "default") {
+                    data {
+                        id
+                        uuid
+                        type
+                        amount
+                        confirmed
+                        meta
+                        created_at
+                    }
+                }
+            }
+        ');
+
+        $response->assertSuccessful()
+            ->assertJsonStructure([
+                'data' => [
+                    'getUserWalletTransactions' => [
+                        'data' => [
+                            '*' => ['id', 'uuid', 'type', 'amount', 'confirmed', 'meta', 'created_at'],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $transactions = $response->json('data.getUserWalletTransactions.data');
+        $this->assertNotEmpty($transactions);
+        $this->assertEquals('deposit', $transactions[0]['type']);
+    }
+
+    public function testGetCompanyWalletTransactions(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $wallet = $company->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit(20000, ['description' => 'Test deposit for company transactions']);
+
+        $response = $this->graphQL('
+            query {
+                getWalletTransactions(tag: "default") {
+                    data {
+                        id
+                        uuid
+                        type
+                        amount
+                        confirmed
+                        meta
+                        created_at
+                    }
+                }
+            }
+        ');
+
+        $response->assertSuccessful()
+            ->assertJsonStructure([
+                'data' => [
+                    'getWalletTransactions' => [
+                        'data' => [
+                            '*' => ['id', 'uuid', 'type', 'amount', 'confirmed', 'meta', 'created_at'],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $transactions = $response->json('data.getWalletTransactions.data');
+        $this->assertNotEmpty($transactions);
+        $this->assertEquals('deposit', $transactions[0]['type']);
+    }
+
     public function testFlushEmptyWallet(): void
     {
         $app = app(Apps::class);

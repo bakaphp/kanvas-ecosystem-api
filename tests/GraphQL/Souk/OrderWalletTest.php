@@ -12,6 +12,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -592,6 +593,7 @@ class OrderWalletTest extends TestCase
         $variant = $product->variants()->first();
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
         $channel = Channels::fromApp($app)->fromCompany($company)->first();
+
         $variant->updatePriceInWarehouse($warehouse, 100);
         $variant->updatePriceInChannel($channel, 100);
 
@@ -655,9 +657,105 @@ class OrderWalletTest extends TestCase
 
         // Verify user wallet was debited
         $userWallet->refresh();
-        $this->assertLessThan($initialBalance, $userWallet->balanceFloat, 'User wallet balance should be reduced after order');
+        $this->assertLessThan(
+            $initialBalance,
+            $userWallet->balanceFloat,
+            'User wallet balance should be reduced after order'
+        );
 
         // Cleanup: disable user wallet mode
         $app->del(WalletConfigurationEnum::USE_USER_WALLET->value);
+    }
+
+    public function testBuyCoinsAddsToUserWallet()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $coinAmount = 500.00;
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: 'Wallet Coin Pack ' . fake()->word(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 100,
+                'price' => 9.99,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+
+        // Add wallet-coin attributes so the system recognizes this as a coin product
+        $variant->addAttribute('wallet-coin', 'true');
+        $variant->addAttribute('wallet-coin-amount', (string) $coinAmount);
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 9.99);
+        $variant->updatePriceInChannel($channel, 9.99);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        // Get user wallet balance before
+        $userWallet = $user->createAppWallet($app, ['name' => 'default']);
+        $balanceBefore = (float) $userWallet->balanceFloat;
+
+        // Create order with the coin variant using regular cart (not wallet cart)
+        $data = [
+            'cartId' => 'default',
+            'customer' => [
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variant->getId(),
+                    'quantity' => 1,
+                ],
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'metadata' => [
+                'user_company_id' => $company->getId(),
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', ['input' => $data]);
+
+        $response->assertSuccessful();
+        $orderId = $response->json('data.createOrderFromCart.order.id');
+        $this->assertNotNull($orderId);
+
+        // Simulate the workflow activity that runs after payment: AddFundsToUserWalletAction
+        $order = Order::getById((int) $orderId);
+        $transaction = new AddFundsToUserWalletAction(order: $order)->execute();
+
+        $this->assertNotNull($transaction);
+        $this->assertEquals($coinAmount, (float) $transaction->amountFloat);
+
+        // Verify user wallet balance increased
+        $userWallet->refresh();
+        $this->assertEquals(
+            $balanceBefore + $coinAmount,
+            (float) $userWallet->balanceFloat,
+            'User wallet balance should increase by coin amount after purchase'
+        );
     }
 }
