@@ -26,3 +26,14 @@ extend type Query @guard {
             defaultCount: 25
         )
 }
+
+extend type Mutation @guardByAppKey {
+    flushUserWallet(user_id: ID!, tag: String): WalletResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\WalletManagementMutation@flushUserWallet"
+        )
+    flushCompanyWallet(company_id: ID!, tag: String): WalletResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\WalletManagementMutation@flushCompanyWallet"
+        )
+}

@@ -13,11 +13,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Transaction;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class WalletManagementQuery
 {
+    use HasWalletHolderTrait;
     public function getBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): float|array
     {
         $tag = strtolower($args['tag']);
@@ -72,15 +74,16 @@ class WalletManagementQuery
     {
         $tag = strtolower($args['tag']);
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
+        $holder = $this->getWalletHolder($app, $user);
 
-        if (! $company->hasWallet($tag) && $tag !== 'default') {
+        if (! $holder->hasWallet($tag) && $tag !== 'default') {
             throw new ModelNotFoundException(
                 'Wallet not found for the given tag.',
             );
         }
 
-        $wallet = $company->createAppWallet($app, ['name' => $tag]);
+        $wallet = $holder->createAppWallet($app, ['name' => $tag]);
 
         return Transaction::query()
             ->where('wallet_id', $wallet->getKey());
