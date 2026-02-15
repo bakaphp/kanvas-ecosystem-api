@@ -11,10 +11,9 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\DefaultTrait;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
@@ -57,54 +56,9 @@ class Channels extends BaseModel
         );
     }
 
-    /**
-     * Update all variants doesn't matter the location from this channel
-     */
-    public function unPublishAllVariants(): bool
+    public function unPublishAllVariants(): void
     {
-        $dontUnPublishVariantsId = $this->company->get('dont_unpublish_variants', []);
-
-        // Get all variant IDs that need to be unpublished from this channel
-        $query = $this->availableProducts();
-
-        if (! empty($dontUnPublishVariantsId)) {
-            $query->whereNotIn('products_variants_id', $dontUnPublishVariantsId);
-        }
-
-        // Get variant IDs in a single query
-        $variantIds = $query->pluck('products_variants_id')->unique()->toArray();
-
-        if (! empty($variantIds)) {
-            // Remove from search index efficiently - get all variants at once
-            $variants = Variants::whereIn('id', $variantIds)->get();
-            $variants->unsearchable();
-        }
-
-        // Get distinct product IDs from the variants being unpublished
-        $productIds = ! empty($variantIds)
-            ? Variants::whereIn('id', $variantIds)->pluck('products_id')->unique()->toArray()
-            : [];
-
-        // Update all channel products in a single query
-        $result = $query->update(['is_published' => 0]) > 0;
-
-        // If we unpublish all variants from a product we need to unpublish the product as well
-        foreach ($productIds as $productId) {
-            $hasPublishedVariants = VariantsChannels::where('channels_id', $this->getId())
-                ->where('is_published', 1)
-                ->whereHas('variant', fn ($q) => $q->where('products_id', $productId))
-                ->exists();
-
-            if (! $hasPublishedVariants) {
-                $product = Products::find($productId);
-                if ($product) {
-                    $product->unPublish();
-                    $product->unsearchable();
-                }
-            }
-        }
-
-        return $result;
+        new UnPublishAllVariantsAction($this)->execute();
     }
 
     public function pricesHistory(): HasMany
