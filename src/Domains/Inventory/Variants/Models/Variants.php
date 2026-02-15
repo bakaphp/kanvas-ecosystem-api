@@ -622,9 +622,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
     public function updatePriceInWarehouse(Warehouses $warehouse, float $price): void
     {
-        $variantWarehouseDto = VariantsWarehousesDto::viaRequest($this, $warehouse, [
-            'price' => $price,
-        ]);
+        $variantWarehouseDto = VariantsWarehousesDto::viaRequest(
+            $this,
+            $warehouse,
+            [
+                'price' => $price,
+            ]
+        );
 
         new AddToWarehouseAction(
             $this,
@@ -633,10 +637,14 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         )->execute();
     }
 
-    public function updatePriceInChannel(Channels $channel, float $price, ?float $discountPrice = null): void
-    {
+    public function updatePriceInChannel(
+        Channels $channel,
+        float $price,
+        ?float $discountPrice = null,
+        ?VariantsWarehouses $variantWarehouse = null
+    ): void {
         /** @var VariantsWarehouses|null $variantWarehouse */
-        $variantWarehouse = $this->variantWarehouses()->first();
+        $variantWarehouse = $variantWarehouse ?? $this->variantWarehouses()->first();
 
         if (! $variantWarehouse) {
             return;
