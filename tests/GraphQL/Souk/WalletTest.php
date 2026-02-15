@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
