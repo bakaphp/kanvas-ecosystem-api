@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Actions;
 
 use Baka\Support\Str;
-use DateTime;
-use DateTimeZone;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -76,24 +75,26 @@ class ScheduleEleadActivityFromEventAction
 
     protected function resolveDueDate(): string
     {
-        $companyTimezone = ! empty($this->event->company->timezone)
-            ? new DateTimeZone($this->event->company->timezone)
-            : new DateTimeZone('UTC');
+        $timezone = $this->event->company->timezone ?: 'UTC';
 
+        /** @var \Kanvas\Event\Events\Models\EventVersion|null $version */
         $version = $this->event->versions()->latest()->first();
-        if ($version) {
-            $date = $version->dates()->first();
-            if ($date) {
-                $dt = new DateTime($date->event_date . ' ' . ($date->start_time ?? '00:00'), $companyTimezone);
-                $dt->setTimezone(new DateTimeZone('UTC'));
+        if ($version?->start_at !== null) {
+            return $version->start_at->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
+        }
 
-                return $dt->format('Y-m-d\TH:i:s.v\Z');
+        if ($version !== null) {
+            $date = $version->dates()->first();
+            if ($date !== null) {
+                return Carbon::parse((string) $date->event_date . ' ' . ((string) ($date->start_time ?? '00:00')), $timezone)
+                    ->utc()
+                    ->format('Y-m-d\TH:i:s.v\Z');
             }
         }
 
-        $dt = new DateTime('now +1 hour', $companyTimezone);
-        $dt->setTimezone(new DateTimeZone('UTC'));
-
-        return $dt->format('Y-m-d\TH:i:s.v\Z');
+        return Carbon::now($timezone)
+            ->addHour()
+            ->utc()
+            ->format('Y-m-d\TH:i:s.v\Z');
     }
 }
