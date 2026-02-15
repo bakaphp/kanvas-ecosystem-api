@@ -22,7 +22,12 @@ class FlushWalletAction
 
     public function execute(): Wallet
     {
-        $wallet = $this->holder->createAppWallet($this->app, ['name' => $this->tag]);
+        $wallet = $this->holder->createAppWallet(
+            $this->app,
+            [
+                'name' => $this->tag,
+            ]
+        );
         $balance = (int) $wallet->balanceInt;
 
         if ($balance > 0) {

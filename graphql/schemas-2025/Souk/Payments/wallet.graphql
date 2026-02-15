@@ -25,6 +25,11 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getTransactions"
             defaultCount: 25
         )
+    getUserWalletTransactions(tag: String!): [WalletTransaction!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getUserTransactions"
+            defaultCount: 25
+        )
 }
 
 extend type Mutation @guardByAppKey {

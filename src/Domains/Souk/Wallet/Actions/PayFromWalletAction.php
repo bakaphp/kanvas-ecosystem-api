@@ -43,12 +43,20 @@ class PayFromWalletAction
             ) {
                 continue;
             }
+
             $cart = $cart->withItem(
                 product: $item->variant,
                 quantity: (int) $item->quantity,
                 pricePerItem: (string) ($item->getPrice() * 100)
             );
         }
+
+        $cart = $cart->withMeta([
+            'order_id' => $this->order->getId(),
+            'order_number' => (string) $this->order->number,
+            'type' => 'order_payment',
+            'description' => 'Wallet payment for order #' . (string) $this->order->number,
+        ]);
 
         $wallet->payCart($cart);
 
