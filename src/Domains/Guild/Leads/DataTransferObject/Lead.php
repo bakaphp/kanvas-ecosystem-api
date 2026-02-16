@@ -53,16 +53,24 @@ class Lead extends Data
             $user
         );
 
-        $firstname = $request['people']['firstname'] ?? '';
-        $lastname = $request['people']['lastname'] ?? '';
+        $peopleData = isset($request['people']) && is_array($request['people'])
+            ? $request['people']
+            : [];
+
+        $firstname = $peopleData['firstname'] ?? '';
+        $lastname = $peopleData['lastname'] ?? '';
         $title = $request['title'] ?? $firstname . ' ' . $lastname;
 
-        $request['people']['contacts'] = array_filter($request['people']['contacts'], function ($contact) {
+        $contacts = isset($peopleData['contacts']) && is_array($peopleData['contacts'])
+            ? $peopleData['contacts']
+            : [];
+
+        $contacts = array_filter($contacts, function ($contact) {
             return isset($contact['value']) && ! empty($contact['value']);
         });
 
         // Re-index the array if needed
-        $request['people']['contacts'] = array_values($request['people']['contacts']);
+        $contacts = array_values($contacts);
 
         $organization = isset($request['organization'])
         ? Organization::from(array_merge(
@@ -88,15 +96,15 @@ class Lead extends Data
                 'user' => $user,
                 'firstname' => $firstname,
                 'lastname' => $lastname,
-                'contacts' => Contact::collect($request['people']['contacts'], DataCollection::class),
-                'address' => Address::collect($request['people']['address'] ?? [], DataCollection::class),
-                'id' => $request['people']['id'] ?? 0,
-                'dob' => $request['people']['dob'] ?? null,
-                'facebook_contact_id' => $request['people']['facebook_contact_id'] ?? null,
-                'google_contact_id' => $request['people']['google_contact_id'] ?? null,
-                'apple_contact_id' => $request['people']['apple_contact_id'] ?? null,
-                'linkedin_contact_id' => $request['people']['linkedin_contact_id'] ?? null,
-                'custom_fields' => $request['people']['custom_fields'] ?? [],
+                'contacts' => Contact::collect($contacts, DataCollection::class),
+                'address' => Address::collect($peopleData['address'] ?? [], DataCollection::class),
+                'id' => $peopleData['id'] ?? 0,
+                'dob' => $peopleData['dob'] ?? null,
+                'facebook_contact_id' => $peopleData['facebook_contact_id'] ?? null,
+                'google_contact_id' => $peopleData['google_contact_id'] ?? null,
+                'apple_contact_id' => $peopleData['apple_contact_id'] ?? null,
+                'linkedin_contact_id' => $peopleData['linkedin_contact_id'] ?? null,
+                'custom_fields' => $peopleData['custom_fields'] ?? [],
             ]),
             (int) ($request['leads_owner_id'] ?? 0),
             (int) ($request['type_id'] ?? 0),

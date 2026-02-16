@@ -274,6 +274,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function close(): void
     {
+        //LeadStatus::getByName('close')->id
         $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
     }
