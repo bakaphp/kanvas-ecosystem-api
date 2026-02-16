@@ -35,7 +35,7 @@ class EventVersion extends Data
         UserInterface $user,
         Currencies $currencies,
         array $data
-    ) {
+    ): EventVersion {
         return new self(
             event: $event,
             user: $user,

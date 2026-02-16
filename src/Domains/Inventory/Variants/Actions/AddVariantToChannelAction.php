@@ -49,11 +49,20 @@ class AddVariantToChannelAction
                 );
 
             if ($this->variantChannelDto->price) {
-                (new CreatePriceHistoryAction(
+                new CreatePriceHistoryAction(
                     $this->variantsWarehouses,
                     $this->channel,
                     $variantChannel->price
-                ))->execute();
+                )->execute();
+            }
+
+            // If a variant is being published, re-publish the parent product if it was unpublished
+            if ($this->variantChannelDto->is_published) {
+                $product = $this->variantsWarehouses->variant->product;
+                if ($product && ! $product->is_published) {
+                    $product->publish();
+                    $product->searchable();
+                }
             }
 
             return $variantChannel;

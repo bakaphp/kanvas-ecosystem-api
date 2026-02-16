@@ -56,6 +56,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     templates(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -67,10 +68,15 @@ extend type Query @guard {
                     "is_system"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "name"]
+                direction: "DESC"
+            )
     ): [Template!]!
         @paginate(
             model: "Kanvas\\Templates\\Models\\Templates"
             scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
         )
 }

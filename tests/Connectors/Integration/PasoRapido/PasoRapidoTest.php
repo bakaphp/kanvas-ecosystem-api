@@ -18,6 +18,15 @@ use Tests\TestCase;
 
 final class PasoRapidoTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('PasoRapido tests require external API credentials and are skipped in CI.');
+        }
+    }
+
     private function getPasoRapidoConfig(): array
     {
         return [

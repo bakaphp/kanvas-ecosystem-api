@@ -16,9 +16,33 @@ type WorkflowReceiver {
     uuid: String!
     name: String!
     description: String
+    url: String @method(name: "getUrl")
+    is_active: Boolean!
+    run_async: Boolean!
+    configuration: Mixed
     company: Company
     action: WorkflowAction!
+    webhookCalls: [WorkflowReceiversHistory!] @hasMany(relation: "webhookCalls")
     created_at: DateTime
+    updated_at: DateTime
+}
+
+input ReceiverWebhookInput {
+    action_id: Int!
+    name: String!
+    description: String
+    configuration: Mixed
+    is_active: Boolean
+    run_async: Boolean
+}
+
+input UpdateReceiverWebhookInput {
+    action_id: Int
+    name: String
+    description: String
+    configuration: Mixed
+    is_active: Boolean
+    run_async: Boolean
 }
 
 enum WorkflowReceiversHistoryEnumColumn {
@@ -41,7 +65,32 @@ enum workflowReceiverHistoryEnumColumn {
     STATUS @enum(value: "receiver_webhook_calls.status")
 }
 
+extend type Mutation @guardByAdmin {
+    createReceiverWebhook(input: ReceiverWebhookInput!): WorkflowReceiver!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@create"
+        )
+    updateReceiverWebhook(id: ID!, input: UpdateReceiverWebhookInput!): WorkflowReceiver!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@update"
+        )
+    deleteReceiverWebhook(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@delete"
+        )
+}
+
 extend type Query @guard {
+    receiverWebhooks(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "action_id", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [WorkflowReceiver!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\ReceiverWebhook"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
     workflowReceiverHistory(
         where: _
             @whereConditions(columnsEnum: WorkflowReceiversHistoryEnumColumn)

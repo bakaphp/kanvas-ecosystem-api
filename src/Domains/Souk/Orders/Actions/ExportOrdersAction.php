@@ -67,6 +67,7 @@ class ExportOrdersAction
             'orderStatus',
             'allItems',
             'allItems.variant',
+            'payments',
         ]) : null;
 
         $export = new OrderExportExcel($data, $query, $this->timezone);

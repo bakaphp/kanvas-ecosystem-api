@@ -665,7 +665,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     #[Override]
     public static function newFactory(): ProductFactory
     {
-        return new ProductFactory();
+        return ProductFactory::new();
     }
 
     public function hasStock(Warehouses $warehouses): bool

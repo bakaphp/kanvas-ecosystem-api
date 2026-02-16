@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -38,6 +41,7 @@ use Override;
 class AffiliateProgram extends BaseModel
 {
     use UuidTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliate_programs';
 
@@ -87,5 +91,16 @@ class AffiliateProgram extends BaseModel
     public function requiresApproval(): bool
     {
         return $this->require_approval;
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('company.id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

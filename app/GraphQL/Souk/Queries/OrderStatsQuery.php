@@ -28,6 +28,7 @@ class OrderStatsQuery
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? null;
         $baseDate = $input['baseDate'] ?? null;
+        $groupBy = strtolower($input['groupBy'] ?? 'DAY');
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -41,7 +42,8 @@ class OrderStatsQuery
             $startDate,
             $endDate,
             $baseDate,
-            $timezone
+            $timezone,
+            $groupBy
         );
 
         return $orderStats;

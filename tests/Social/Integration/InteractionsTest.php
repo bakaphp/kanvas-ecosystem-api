@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Jobs\GenerateUserMessageJob;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
@@ -16,6 +17,27 @@ use Tests\TestCase;
 
 final class InteractionsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $inventorySetup = new InventorySetup(
+            $app,
+            $user,
+            $company
+        );
+        $inventorySetup->run();
+
+        // Ensure a product exists
+        if (! Products::first()) {
+            Products::factory()->create();
+        }
+    }
+
     public function testEntityLikeOtherEntity(): void
     {
         $company = auth()->user()->getCurrentCompany();
@@ -92,7 +114,8 @@ final class InteractionsTest extends TestCase
 
     public function testEntityNewInteraction()
     {
-        $people = People::firstOrFail();
+        $app = app(Apps::class);
+        $people = People::where('apps_id', $app->getId())->firstOrFail();
         $product = Products::firstOrFail();
 
         $this->assertInstanceOf(

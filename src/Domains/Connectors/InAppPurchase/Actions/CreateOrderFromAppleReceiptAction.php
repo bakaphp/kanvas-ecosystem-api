@@ -12,7 +12,6 @@ use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -61,7 +60,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             $verifiedReceipt->getReceipt()
         );
 
-        $order = (new CreateOrderAction($orderData))->execute();
+        $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
 
@@ -147,6 +146,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         $this->processCustomFieldsVariants($orderItems);
         $allReceiptData['source'] = 'apple';
+        $this->addMessageMetadataFromCustomFields($allReceiptData);
 
         if (array_key_exists('custom_fields', $allReceiptData)) {
             foreach ($allReceiptData['custom_fields'] as $key => $value) {
@@ -169,6 +169,10 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             }
         }
 
-        return $this->createOrderDto($orderItems, $people, $allReceiptData);
+        return $this->createOrderDto(
+            $orderItems,
+            $people,
+            $allReceiptData
+        );
     }
 }

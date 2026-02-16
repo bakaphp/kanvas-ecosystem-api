@@ -38,7 +38,7 @@ class PullNetSuiteProductPriceAction
     ) {
         $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
         $this->productService = new NetSuiteProductService($app, $mainAppCompany);
-        $this->shouldUseLegacySearch = $this->app->get(ConfigurationEnum::NET_SUITE_USE_LEGACY_PRODUCT_SEARCH->value);
+        $this->shouldUseLegacySearch = (bool) $this->app->get(ConfigurationEnum::NET_SUITE_USE_LEGACY_PRODUCT_SEARCH->value);
         $this->searchService = new NetSuiteProductSearchService($app, $mainAppCompany);
     }
 

@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -22,7 +23,7 @@ use Override;
  * @property string $link_type
  * @property array|null $config_template
  * @property int $usage_count
- * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property Carbon|null $last_used_at
  */
 class AffiliateLinkTemplate extends BaseModel
 {
