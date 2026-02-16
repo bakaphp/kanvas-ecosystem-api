@@ -17801,16 +17801,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.1.4",
+            "version": "v2.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "acf33b7c17b51307837d3d63ce1795fc1bd12e4b"
+                "reference": "c31e7e3d387f6d278549b46afe255ab13840e697"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/acf33b7c17b51307837d3d63ce1795fc1bd12e4b",
-                "reference": "acf33b7c17b51307837d3d63ce1795fc1bd12e4b",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/c31e7e3d387f6d278549b46afe255ab13840e697",
+                "reference": "c31e7e3d387f6d278549b46afe255ab13840e697",
                 "shasum": ""
             },
             "require": {
@@ -17863,7 +17863,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-02-13T12:09:09+00:00"
+            "time": "2026-02-16T13:33:22+00:00"
         },
         {
             "name": "laravel/mcp",
@@ -19952,5 +19952,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
