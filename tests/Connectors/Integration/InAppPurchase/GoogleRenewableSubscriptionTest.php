@@ -27,7 +27,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        (new Setup($app, $user, $company))->run();
+        new Setup($app, $user, $company)->run();
         $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
 
         $this->createProduct($app, $company, $user, 'google_sub_monthly_001');
@@ -86,7 +86,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        (new Setup($app, $user, $company))->run();
+        new Setup($app, $user, $company)->run();
         $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
 
         $this->createProduct($app, $company, $user, 'google_sub_monthly_002');
@@ -129,7 +129,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        (new Setup($app, $user, $company))->run();
+        new Setup($app, $user, $company)->run();
         $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
 
         $this->createProduct($app, $company, $user, 'google_sub_monthly_003');
@@ -202,7 +202,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        (new Setup($app, $user, $company))->run();
+        new Setup($app, $user, $company)->run();
         $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
 
         $this->createProduct($app, $company, $user, 'google_sub_monthly_004');
@@ -232,7 +232,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
 
     private function createProduct(Apps $app, mixed $company, mixed $user, string $sku): void
     {
-        (new CreateProductAction(
+        new CreateProductAction(
             new Product(
                 app: $app,
                 company: $company,
@@ -245,7 +245,7 @@ class GoogleRenewableSubscriptionTest extends TestCase
                 ]]
             ),
             $user
-        ))->execute();
+        )->execute();
     }
 
     private function mockedRenewableAction(
