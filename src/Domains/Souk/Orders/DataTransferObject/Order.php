@@ -90,6 +90,12 @@ class Order extends Data
                 continue;
             }
 
+            // Extract currency from line item attributes, fall back to region currency, then USD
+            $itemCurrencyCode = $lineItem['attributes']['currency']['code'] ?? null;
+            $itemCurrency = ! empty($itemCurrencyCode)
+                ? Currencies::getByCode($itemCurrencyCode)
+                : ($this->region->currency ?? Currencies::getByCode('USD'));
+
             $item = new OrderItem(
                 app: $this->app,
                 variant: $variant,
@@ -99,7 +105,7 @@ class Order extends Data
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: Currencies::getByCode('USD'),
+                currency: $itemCurrency,
                 quantityShipped: 0,
                 channelId: $lineItem['attributes']['channel_id'] ?? null,
             );

@@ -105,7 +105,23 @@ class CreateBaseOrderAction
         $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
 
         try {
-            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
+            if (isset($this->request['input']['currency']) && ! empty($this->request['input']['currency'])) {
+                $currency = Currencies::getByCode($this->request['input']['currency']);
+            } elseif ($hasItemsInCart) {
+                // Extract currency from the first cart item's attributes
+                $firstCartItem = $this->cart->getContent()->first();
+                $cartCurrencyCode = null;
+                if ($firstCartItem) {
+                    $attrs = $firstCartItem->attributes;
+                    $cartCurrency = is_array($attrs) || $attrs instanceof \ArrayAccess ? ($attrs['currency'] ?? null) : null;
+                    $cartCurrencyCode = is_array($cartCurrency) ? ($cartCurrency['code'] ?? null) : null;
+                }
+                $currency = ! empty($cartCurrencyCode)
+                    ? Currencies::getByCode($cartCurrencyCode)
+                    : $this->region->currency;
+            } else {
+                $currency = $this->region->currency;
+            }
         } catch (ModelNotFoundException $e) {
             $currency = $this->region->currency;
         }
@@ -196,6 +212,12 @@ class CreateBaseOrderAction
                 }
             }
 
+            // Extract currency from cart item attributes, fall back to region currency, then USD
+            $itemCurrencyCode = $lineItem['attributes']['currency']['code'] ?? null;
+            $itemCurrency = ! empty($itemCurrencyCode)
+                ? Currencies::getByCode($itemCurrencyCode)
+                : ($this->region->currency ?? Currencies::getByCode('USD'));
+
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
@@ -205,7 +227,7 @@ class CreateBaseOrderAction
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: Currencies::getByCode('USD'),
+                currency: $itemCurrency,
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
                 channelId: $lineItem['attributes']['channel_id'] ?? null
