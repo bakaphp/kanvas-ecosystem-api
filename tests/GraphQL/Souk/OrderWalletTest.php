@@ -758,4 +758,87 @@ class OrderWalletTest extends TestCase
             'User wallet balance should increase by coin amount after purchase'
         );
     }
+
+    public function testCreateOrderFromWalletUsesVariantWalletCreditAmount()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $app->set(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value, true);
+        try {
+            $productData = new Product(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: fake()->name(),
+                sku: fake()->unique()->word(),
+                warehouses: [[
+                    'quantity' => 10,
+                    'price' => 100.00,
+                ]]
+            );
+            $product = (new CreateProductAction($productData, $user))->execute();
+            $variant = $product->variants()->first();
+            $variant->addAttribute(WalletConfigurationEnum::VARIANT_WALLET_CREDIT_AMOUNT->value, '25');
+
+            $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+            $channel = Channels::fromApp($app)->fromCompany($company)->first();
+            $variant->updatePriceInWarehouse($warehouse, 100);
+            $variant->updatePriceInChannel($channel, 100);
+
+            $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+            $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+            $wallet = $company->createAppWallet($app, ['name' => 'default']);
+            $wallet->deposit(100000, [
+                'description' => 'Initial deposit for variant credit wallet test',
+                'slug' => 'variant-credit-wallet-test',
+            ]);
+            $initialBalance = (float) $wallet->balanceFloat;
+
+            $response = $this->graphQL('
+                mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                    createOrderFromWalletCart(input: $input) {
+                        order {
+                            id
+                        }
+                    }
+                }
+            ', [
+                'input' => [
+                    'cartId' => 'default',
+                    'customer' => [
+                        'email' => $user->email,
+                        'phone' => $user->phone,
+                    ],
+                    'items' => [
+                        [
+                            'variant_id' => $variant->getId(),
+                            'quantity' => 2,
+                        ],
+                    ],
+                    'shipping_address' => [
+                        'address' => fake()->address(),
+                        'address_2' => fake()->postcode(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                    ],
+                    'metadata' => [
+                        'user_company_id' => $company->getId(),
+                    ],
+                ],
+            ]);
+
+            $response->assertSuccessful();
+
+            $wallet->refresh();
+            $this->assertEquals(
+                $initialBalance - 50.0,
+                (float) $wallet->balanceFloat,
+                'Wallet should be debited by variant wallet credit amount (25 x 2), not variant price'
+            );
+        } finally {
+            $app->del(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
+        }
+    }
 }
