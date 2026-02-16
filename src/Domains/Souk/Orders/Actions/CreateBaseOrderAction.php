@@ -196,7 +196,9 @@ class CreateBaseOrderAction
         // Currency is fixed per order — resolve once from the first item
         $firstItem = reset($cartContent);
         $currencyCode = $firstItem['attributes']['currency']['code'] ?? null;
-        $currency = ! empty($currencyCode) ? Currencies::getByCode($currencyCode) : $this->region->currency;
+        $currency = ! empty($currencyCode) && Currencies::where('code', $currencyCode)->exists()
+            ? Currencies::getByCode($currencyCode)
+            : $this->region->currency;
 
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
