@@ -12,7 +12,6 @@ use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -61,7 +60,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             $verifiedReceipt->getReceipt()
         );
 
-        $order = (new CreateOrderAction($orderData))->execute();
+        $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
 
@@ -147,28 +146,12 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         $this->processCustomFieldsVariants($orderItems);
         $allReceiptData['source'] = 'apple';
+        $this->addMessageMetadataFromCustomFields($allReceiptData);
 
-        if (array_key_exists('custom_fields', $allReceiptData)) {
-            foreach ($allReceiptData['custom_fields'] as $key => $value) {
-                if ($key == "message_id") {
-                    $message = Message::fromApp($this->app)
-                        ->where('id', $value)
-                        ->first();
-
-                    if (! $message) {
-                        continue;
-                    }
-                    $messageContent = json_decode($message->message);
-                    $allReceiptData['message']['users_id'] = $message->user->getId();
-                    $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
-                    $allReceiptData['message']['creator_email'] = $message->user->email;
-                    $allReceiptData['message']['id'] = $message->getId();
-                    $allReceiptData['message']['user_subscription_tier'] = $message->getId();
-                    $allReceiptData['message']['prompt_title'] = $messageContent['title'] ?? $message->slug;
-                }
-            }
-        }
-
-        return $this->createOrderDto($orderItems, $people, $allReceiptData);
+        return $this->createOrderDto(
+            $orderItems,
+            $people,
+            $allReceiptData
+        );
     }
 }
