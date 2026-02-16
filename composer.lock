@@ -7726,16 +7726,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.64.3",
+            "version": "v6.65.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "ab6990d52c3992548784d0a14be3b0c7f5631626"
+                "reference": "994038374ed1f94d33a0a4af272040fc07c6639b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/ab6990d52c3992548784d0a14be3b0c7f5631626",
-                "reference": "ab6990d52c3992548784d0a14be3b0c7f5631626",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/994038374ed1f94d33a0a4af272040fc07c6639b",
+                "reference": "994038374ed1f94d33a0a4af272040fc07c6639b",
                 "shasum": ""
             },
             "require": {
@@ -7852,7 +7852,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-02-05T08:59:33+00:00"
+            "time": "2026-02-14T15:42:43+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -19952,5 +19952,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
