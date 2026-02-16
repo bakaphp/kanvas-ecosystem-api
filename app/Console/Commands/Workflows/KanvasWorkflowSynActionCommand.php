@@ -17,12 +17,16 @@ use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadCommentFromAgentMessageActivity as ActivitiesAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
+use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
+use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
+use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
+use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -84,6 +88,11 @@ use Kanvas\Connectors\SalesAssist\Activities\ProcessMessageVehicleImageActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PullPeopleLeadFromSearchActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
+use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
@@ -127,7 +136,9 @@ use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
+use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -148,6 +159,7 @@ use Kanvas\Souk\Wallet\Activities\AddFundsToUserWalletActivity;
 use Kanvas\Souk\Wallet\Activities\AddFundsToWalletActivity;
 use Kanvas\Souk\Wallet\Activities\PayFromWalletActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
+use Kanvas\Users\Workflows\Activities\RestoreUsersAccountContentActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 
 class KanvasWorkflowSynActionCommand extends Command
@@ -196,6 +208,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreatePeopleFromGhostReceiverJob::class,
             CashierStripeWebhookJob::class,
             CreateOrderInESimActivity::class,
+            ConvertHeicToJpgActivity::class,
             AmplitudeEventStreamWebhookJob::class,
             CreateShopifyDraftOrderActivity::class,
             DeleteVariantFromShopifyActivity::class,
@@ -298,6 +311,8 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessUserSignupLoyaltyActivity::class,
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
+            PullUserByEmployeeActivity::class,
+            ScheduleActivityFromEventActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
@@ -308,6 +323,15 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesAddLeadCommentFromAgentMessageActivity::class,
             ProcessADFAgentInboundLeadJob::class,
             DealerAppCenterSubSourcesActivity::class,
+            SyncLeadWithLegacyCRMActivity::class,
+            DriveCentricWorkflowPushLeadActivity::class,
+            DriveCentricWorkflowPushPeopleActivity::class,
+            PullUserFromCRMActivity::class,
+            TriggerIntelligenceActivity::class,
+            ActivitiesPushLeadNotesActivity::class,
+            SalesAssistActivitiesPushLeadActivity::class,
+            SalesAssistActivitiesPushPeopleActivity::class,
+            RestoreUsersAccountContentActivity::class,
         ];
 
         $createdActions = [];

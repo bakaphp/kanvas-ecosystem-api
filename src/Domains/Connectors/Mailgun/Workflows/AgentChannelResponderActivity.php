@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -17,6 +17,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AgentChannelResponderActivity extends KanvasActivity
 {
+    use HandlesSupportModeDelayedResponseTrait;
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -34,6 +35,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::MAILGUN,
+            additionalParams: $params,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [
@@ -44,6 +46,7 @@ class AgentChannelResponderActivity extends KanvasActivity
 
                 $chatJid = $message->message['chat_jid'] ?? null;
                 $lead = $message->entity();
+                $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
@@ -53,14 +56,31 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead && $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) !== null && (int) $lead->get(ConfigurationEnum::MUTE_AI_AGENT->value) === 0) {
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
                     return [
                         'message' => 'Lead turned off AI agent responses',
                         'entity' => null,
                     ];
                 }
 
-                // Get agent ID from mapping or use default
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
+                }
+
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];

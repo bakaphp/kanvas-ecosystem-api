@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
@@ -22,6 +23,8 @@ use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -32,9 +35,6 @@ class CreateLeadAction
     protected CompanyInterface $company;
     protected bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected readonly LeadDataInput $leadData,
         protected ?LeadAttempt $leadAttempt = null
@@ -42,9 +42,6 @@ class CreateLeadAction
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Lead
     {
         return DB::transaction(function () {
@@ -72,9 +69,15 @@ class CreateLeadAction
             $newLead->description = $this->leadData->description;
             $newLead->leads_status_id = $this->leadData->status_id;
             $newLead->reason_lost = $this->leadData->reason_lost;
+            $newLead->pipeline_stage_id = $this->leadData->pipeline_stage_id;
+
+            if ($newLead->pipeline_stage_id !== 0) {
+                $pipelineStage = PipelineStage::getById($newLead->pipeline_stage_id);
+                $newLead->pipeline_id = $pipelineStage->pipelines_id;
+            }
 
             //create people
-            $people = (new CreatePeopleAction($this->leadData->people))->execute();
+            $people = new CreatePeopleAction($this->leadData->people)->execute();
             $newLead->people_id = $people->getId();
             $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
             $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
@@ -115,6 +118,27 @@ class CreateLeadAction
                 $newLead->fireWorkflow(
                     WorkflowEnum::CREATED->value,
                     true
+                );
+
+                //@todo improve this for create social channels
+                $newLead->people->contacts->each(function (Contact $contact) use ($newLead) {
+                    $contact->fireWorkflow(
+                        WorkflowEnum::CONTACT_SAVED->value,
+                        true,
+                        [
+                            'company' => $this->company,
+                            'app' => $newLead->app,
+                        ]
+                    );
+                });
+                $newLead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'company' => $this->company,
+                        'app' => $newLead->app,
+                        'trigger_type' => TriggersEnum::NEW_LEAD->value,
+                    ]
                 );
             }
 

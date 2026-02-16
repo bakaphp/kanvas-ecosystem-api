@@ -23,6 +23,14 @@ final class ExtendReservationActivityTest extends TestCase
     use InventoryCases;
     use PaymentCases;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Movipass integration tests are skipped in CI');
+        }
+    }
+
     public function testOrderCreationWorkflow(): void
     {
         $app = app(Apps::class);

@@ -12,13 +12,13 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -34,7 +34,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -48,6 +48,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $apps_id
  * @property int companies_id
  * @property int $region_id
+ * @property int|null $channel_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $ip_address
@@ -104,6 +105,7 @@ class Order extends BaseModel
     use HasTagsTrait;
     use HasMessagesTrait;
     use AsTree;
+    use PayableTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -154,11 +156,6 @@ class Order extends BaseModel
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
-    }
-
-    public function payments(): MorphMany
-    {
-        return $this->morphMany(Payments::class, 'payable');
     }
 
     public function orderDiscounts(): HasMany
@@ -226,6 +223,7 @@ class Order extends BaseModel
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
         $orderItem->metadata = $item->metadata;
+        $orderItem->channel_id = $item->channelId;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -272,15 +270,20 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function markAsPaid(UserInterface $user): void
+    public function transitionToStatus(UserInterface $user, string $statusSlug): void
     {
-        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', $statusSlug)->first()) {
             new TransitionOrderStateAction(
                 $this,
                 $user,
                 $orderStatus
             )->execute(true);
         }
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
@@ -667,6 +670,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setChannelId(int $channelId): void
+    {
+        $this->channel_id = $channelId;
+        $this->saveOrFail();
+    }
+
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
@@ -684,18 +693,6 @@ class Order extends BaseModel
         }
     }
 
-    public function isPaid(): bool
-    {
-        return $this->getPaidAmount() >= $this->total_net_amount;
-    }
-
-    public function getPaidAmount(): float
-    {
-        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
-
-        return (float) $paidAmount;
-    }
-
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
@@ -709,6 +706,11 @@ class Order extends BaseModel
     public function orderTransitionHistory(): HasMany
     {
         return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channel_id', 'id');
     }
 
     /**
@@ -758,16 +760,19 @@ class Order extends BaseModel
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
-        ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
-        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
+            ->first();
 
-        $discount = $total[0]['discount'] ?? 0;
-        $orderTotal = ($total[0]['price'] ?? 0);
-        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
-        $this->total_net_amount = (float) $orderTotal;
+        $orderTotal = (float) ($total->price ?? 0);
+
+        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+
+        $this->total_gross_amount = $orderTotal;
+        $this->discount_amount = $discountAmount;
+        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
-        $this->discount_amount = (float) $discount;
 
         if ($autoSave) {
             $this->saveOrFail();

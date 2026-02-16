@@ -287,8 +287,6 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
-
         return $contact;
     }
 
@@ -302,8 +300,6 @@ class People extends BaseModel
             ]
         );
 
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
-
         return $contact;
     }
 
@@ -316,8 +312,6 @@ class People extends BaseModel
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
             ]
         );
-
-        $contact->fireWorkflow(WorkflowEnum::CONTACT_SAVED->value);
 
         return $contact;
     }
@@ -374,10 +368,15 @@ class People extends BaseModel
     ): self {
         $app = $app ?? app(Apps::class);
 
-        // Try to find existing person by phone (using regex to match digits only)
-        $person = self::whereHas('contacts', function ($query) use ($phone) {
+        $phoneContactTypeIds = [
+            ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            //ContactType::getByName(ContactTypeEnum::WORK_PHONE->getName())->getId(),
+        ];
+
+        $person = self::whereHas('contacts', function ($query) use ($phone, $phoneContactTypeIds) {
             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
-                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId());
+                  ->whereIn('contacts_types_id', $phoneContactTypeIds);
         })->where('apps_id', $app->getId())
           ->first();
 
@@ -677,5 +676,48 @@ class People extends BaseModel
         }
 
         return $query;
+    }
+
+    /**
+     * @return array{driversLicenseNumber: string, driversLicenseState: string|null}|null
+     */
+    public function getDriverLicenseData(): ?array
+    {
+        $licenseNumber = null;
+        $licenseState = null;
+
+        if (! empty($this->license_number)) {
+            $licenseNumber = $this->license_number;
+        }
+
+        if (empty($licenseNumber)) {
+            $licenseNumber = $this->get('drivers_license_number');
+        }
+
+        $legacyLicense = $this->get('get_docs_drivers_license');
+        if (! empty($legacyLicense) && is_array($legacyLicense)) {
+            if (empty($licenseNumber) && ! empty($legacyLicense['license'])) {
+                $licenseNumber = $legacyLicense['license'];
+            }
+            if (! empty($legacyLicense['state'])) {
+                $licenseState = $legacyLicense['state'];
+            }
+        }
+
+        if (empty($licenseState)) {
+            $defaultAddress = $this->address()->where('is_default', true)->first();
+            if ($defaultAddress && ! empty($defaultAddress->state)) {
+                $licenseState = $defaultAddress->state;
+            }
+        }
+
+        if (empty($licenseNumber)) {
+            return null;
+        }
+
+        return [
+            'driversLicenseNumber' => $licenseNumber,
+            'driversLicenseState' => $licenseState,
+        ];
     }
 }

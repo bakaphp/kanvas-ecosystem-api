@@ -34,6 +34,8 @@ use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Event $event,
         protected array $metadata = []
@@ -111,7 +113,10 @@ class CreateEventAction
 
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
-                $this->createEventOrder($eventVersion, $this->event->orderItems);
+                $this->createEventOrder(
+                    $eventVersion,
+                    $this->event->orderItems
+                );
             }
 
             // Store additional resources in pivot table
@@ -121,15 +126,19 @@ class CreateEventAction
 
             $participants = $eventVersion->participants;
 
-            if ($eventVersion && ! $participants->isEmpty()) {
+            if (! $participants->isEmpty()) {
                 $codes = (new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion
                 ))->forAllParticipants();
 
-                new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
-                    'codes' => $codes,
-                ])->execute();
+                new SendEventEmailsAction(
+                    $eventVersion,
+                    EmailTemplateEnum::BOOKING_CREATED->value,
+                    [
+                        'codes' => $codes,
+                    ]
+                )->execute();
             }
 
             return $event;
@@ -276,14 +285,23 @@ class CreateEventAction
         foreach ($resources as $resourceData) {
             if (isset($resourceData['resources_id']) && isset($resourceData['resources_type'])) {
                 $resourceClass = SystemModules::getSystemModuleNameSpaceBySlug($resourceData['resources_type']);
-                EventResource::create([
+
+                // Use resource-specific metadata, or fall back to global config
+                $metadata = $resourceData['metadata'] ?? $this->event->config;
+
+                $eventResource = EventResource::create([
                     'apps_id' => $event->apps_id,
                     'companies_id' => $event->companies_id,
                     'event_id' => $event->getId(),
                     'resources_id' => $resourceData['resources_id'],
                     'resources_type' => $resourceClass,
-                    'metadata' => $resourceData['metadata'] ?? null,
+                    'metadata' => $metadata,
                 ]);
+
+                if (isset($resourceData['custom_fields']) && is_array($resourceData['custom_fields'])) {
+                    $eventResource->setCustomFields($resourceData['custom_fields']);
+                    $eventResource->saveCustomFields();
+                }
             }
         }
     }

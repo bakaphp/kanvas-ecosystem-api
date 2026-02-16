@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\SuperCarros;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SuperCarros\Actions\SuperCarrosVehicleInventoryImportAction;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -30,7 +32,8 @@ class SuperCarrosVehicleInventoryCommand extends Command
                             {--channel_id= : Optional channel ID to use instead of the company\'s default channel}
                             {--unpublish-all : Unpublish all variants from the channel before importing}
                             {--customer_id= : Optional customer ID to filter vehicles by customer}
-                            {--weight= : Optional weight to assign to imported products}';
+                            {--weight= : Optional weight to assign to imported products}
+                            {--email=* : Email addresses to send the import report to}';
 
     /**
      * The console command description.
@@ -118,6 +121,8 @@ class SuperCarrosVehicleInventoryCommand extends Command
 
         $this->info('');
 
+        $emails = $this->option('email');
+
         try {
             // Create and execute the import action
             $importAction = new SuperCarrosVehicleInventoryImportAction(
@@ -140,6 +145,13 @@ class SuperCarrosVehicleInventoryCommand extends Command
                 foreach ($result['errors'] as $error) {
                     $this->error('• ' . $error);
                 }
+
+                $this->sendReportEmail(
+                    $app,
+                    $company,
+                    $emails,
+                    $result
+                );
 
                 return;
             }
@@ -167,9 +179,16 @@ class SuperCarrosVehicleInventoryCommand extends Command
                 $this->info('');
                 $this->info('Imported Products:');
                 foreach ($result['products'] as $product) {
-                    $this->info('• ' . $product->name . ' (SKU: ' . $product->variants->first()->sku . ')');
+                    $this->info('• ' . $product->name . ' (SKU: ' . $product->variants?->first()?->sku . ')');
                 }
             }
+
+            $this->sendReportEmail(
+                $app,
+                $company,
+                $emails,
+                $result
+            );
         } catch (Throwable $e) {
             $this->error('An unexpected error occurred: ' . $e->getMessage());
             $this->error('File: ' . $e->getFile() . ':' . $e->getLine());
@@ -177,6 +196,52 @@ class SuperCarrosVehicleInventoryCommand extends Command
             if ($this->getOutput()->isVerbose()) {
                 $this->error('Stack trace:');
                 $this->error($e->getTraceAsString());
+            }
+        }
+    }
+
+    /**
+     * Send import report via email.
+     */
+    private function sendReportEmail(
+        Apps $app,
+        Companies $company,
+        array $emails,
+        array $result
+    ): void {
+        if (empty($emails)) {
+            return;
+        }
+
+        $reportData = [
+            'app' => $app,
+            'company' => $company,
+            'success' => $result['success'],
+            'total_processed' => $result['total_processed'],
+            'imported' => $result['imported'],
+            'failed' => $result['failed'],
+            'errors' => $result['errors'] ?? [],
+            'date' => now()->format('Y-m-d H:i:s'),
+        ];
+
+        $subject = $result['success']
+            ? 'SuperCarros Import Report - ' . $result['imported'] . ' imported, ' . $result['failed'] . ' failed'
+            : 'SuperCarros Import Report - FAILED';
+
+        foreach ($emails as $email) {
+            try {
+                $notification = new Blank(
+                    'supercarros-import-report',
+                    $reportData,
+                    ['mail'],
+                    $app
+                );
+                $notification->setSubject($subject);
+
+                Notification::route('mail', $email)->notify($notification);
+                $this->info('Report sent to ' . $email);
+            } catch (Throwable $e) {
+                $this->warn('Failed to send report to ' . $email . ': ' . $e->getMessage());
             }
         }
     }

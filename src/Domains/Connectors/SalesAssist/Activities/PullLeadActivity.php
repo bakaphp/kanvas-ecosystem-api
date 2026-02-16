@@ -10,6 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
+use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
@@ -38,21 +40,25 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $this->app = $app;
         $leadId = $params['entity_id'] ?? null;
         $user = $params['user'] ?? null;
+        $phone = $this->extractPhone($params['phone'] ?? null);
+        $email = $params['email'] ?? null;
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
         $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
         $isDealerSocket = $company->get(DealerSocketEnumsCustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value) !== null;
+        $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
 
         //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
+        $pullLead = [];
 
         if ($isElead) {
-            return new PullLeadAction(
+            $pullLead = new PullLeadAction(
                 $app,
                 $company,
                 $user
             )->execute($params, $entity->id > 0 ? $entity : null);
         } elseif ($isVinSolutions) {
-            return new ActionsPullLeadAction(
+            $pullLead = new ActionsPullLeadAction(
                 $app,
                 $company,
                 $user
@@ -61,16 +67,53 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 leadId: (int) $leadId,
             );
         } elseif ($isDealerSocket) {
-            return new PullPeopleAction(
+            $pullLead = new PullPeopleAction(
                 $app,
                 $company,
                 $user
             )->execute(
-                lead: $entity->id > 0 ? $entity : null,
-                customerId: (int) $leadId,
+                email: $email,
+                phoneNumber: $phone,
+                customerId: $entity->id > 0 ? $entity->id : ((int) $leadId ?? null),
+            )->toArray();
+        } elseif ($isDriveCentric) {
+            $pullLead = new PullPeopleLeadAction(
+                $app,
+                $company,
+                $user
+            )->execute(
+                phone: $phone,
+                email: $email,
             );
+
+            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
         }
 
-        return [];
+        return $pullLead;
+    }
+
+    private function extractPhone(mixed $phone): ?string
+    {
+        if ($phone === null) {
+            return null;
+        }
+
+        if (is_string($phone)) {
+            return $phone;
+        }
+
+        if (is_array($phone)) {
+            if (isset($phone['cell'])) {
+                return (string) $phone['cell'];
+            }
+            if (isset($phone['home'])) {
+                return (string) $phone['home'];
+            }
+            $first = reset($phone);
+
+            return $first !== false ? (string) $first : null;
+        }
+
+        return (string) $phone;
     }
 }

@@ -18,9 +18,6 @@ use Spatie\LaravelData\DataCollection;
 
 class Lead extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompaniesBranches $branch,
@@ -40,7 +37,7 @@ class Lead extends Data
         public readonly array $custom_fields = [],
         public readonly array $files = [],
         public bool $runWorkflow = true,
-        public readonly array $followers = [],
+        public readonly array $followers = []
     ) {
     }
 

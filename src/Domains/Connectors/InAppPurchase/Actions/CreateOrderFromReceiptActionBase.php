@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
@@ -171,5 +172,61 @@ abstract class CreateOrderFromReceiptActionBase
             $order->setCustomFields($customFields);
             $order->saveCustomFields();
         }
+    }
+
+    protected function addMessageMetadataFromCustomFields(array &$allReceiptData): void
+    {
+        if (! isset($allReceiptData['custom_fields']) || ! is_array($allReceiptData['custom_fields'])) {
+            return;
+        }
+
+        $messageId = $this->extractMessageIdFromCustomFields($allReceiptData['custom_fields']);
+        if ($messageId === null) {
+            return;
+        }
+
+        $message = Message::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('id', $messageId)
+            ->first();
+
+        if (! $message) {
+            return;
+        }
+
+        $messageContent = $message->getMessage();
+        $messageUser = $message->user;
+
+        $allReceiptData['message'] = [
+            'users_id' => $messageUser?->getId(),
+            'creator_display_name' => $messageUser?->displayname,
+            'creator_email' => $messageUser?->email,
+            'id' => $message->getId(),
+            'user_subscription_tier' => $message->getId(),
+            'prompt_title' => (string) ($messageContent['title'] ?? $message->slug),
+        ];
+    }
+
+    protected function extractMessageIdFromCustomFields(array $customFields): ?int
+    {
+        if (array_key_exists('message_id', $customFields)) {
+            $messageId = filter_var($customFields['message_id'], FILTER_VALIDATE_INT);
+
+            return $messageId === false ? null : $messageId;
+        }
+
+        foreach ($customFields as $field) {
+            if (
+                is_array($field)
+                && ($field['name'] ?? null) === 'message_id'
+                && array_key_exists('value', $field)
+            ) {
+                $messageId = filter_var($field['value'], FILTER_VALIDATE_INT);
+
+                return $messageId === false ? null : $messageId;
+            }
+        }
+
+        return null;
     }
 }

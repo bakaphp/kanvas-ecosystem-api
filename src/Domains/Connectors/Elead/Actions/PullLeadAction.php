@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Customer;
@@ -17,7 +18,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
@@ -68,9 +68,15 @@ class PullLeadAction
                 $entityId
             );
 
-            $eLead = new SyncLeadAction($lead)->execute();
-
-            $this->setContactStatus($lead, $eLead->subStatus);
+            try {
+                $eLead = new SyncLeadAction($lead)->execute();
+                $this->setContactStatus($lead, $eLead->subStatus);
+            } catch (ClientException $e) {
+                // If the opportunity doesn't exist in Elead (404), close the lead and return it
+                if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
+                    $lead->close();
+                }
+            }
 
             return [
                 [
@@ -84,7 +90,7 @@ class PullLeadAction
                     'phone' => $lead->people?->getPhones()->first()?->value,
                     'status' => $lead->status()?->first()?->name ?? '',
                     'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name ,
+                    'owner' => $lead->owner?->firstname,
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
@@ -116,6 +122,7 @@ class PullLeadAction
         $results = [];
         $customers = $eLeadCustomer->search($params);
         $country = Countries::getByCode('US');
+        $filterResults = [];
 
         if ($customers && isset($customers['items'])) {
             foreach ($customers['items'] as $customer) {
@@ -130,12 +137,23 @@ class PullLeadAction
                         $this->company
                     );
 
-                    $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
+                    $eLead = Lead::getByCustomerId(
+                        $this->app,
+                        $this->company,
+                        $customer['id']
+                    );
                     $eLead->customerId = $customer['id'];
 
                     $lead = new SyncLeadByThirdPartyCustomFieldAction(
-                        DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
+                        DataTransferObjectLead::fromLeadEntity(
+                            $eLead,
+                            $this->user
+                        )
                     )->execute();
+
+                    if (isset($filterResults[$lead->id])) {
+                        continue; // Skip if this lead has already been processed
+                    }
 
                     $leadStatus = strtolower($lead->status()?->first()?->name ?? '');
                     $isActiveStatus = Str::contains($leadStatus, 'active');
@@ -154,6 +172,7 @@ class PullLeadAction
                     }
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
+
                     $results[] = [
                         'id' => $lead->id,
                         'uuid' => $lead->uuid,
@@ -171,6 +190,7 @@ class PullLeadAction
                         'rank' => $customer['rank'],
                         'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
+                    $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
 
@@ -195,7 +215,11 @@ class PullLeadAction
                                 }
 
                                 $internalClosedLeads = $activeLeadsQuery->first();
-                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
+                                $internalClosedLeads->close();
+                            }
+
+                            if (isset($filterResults[$internalClosedLeads->id])) {
+                                continue; // Skip if this lead has already been processed
                             }
 
                             $results[] = [
@@ -230,38 +254,16 @@ class PullLeadAction
         if ($lead->hasBeenContacted()) {
             return;
         }
-        $data = SalesActivities::getHistoryByOpportunityId(
+        $hasReachOut = SalesActivities::hasSalesAgentReachedOut(
             $lead->app,
             $lead->company,
             $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
         );
 
-        if (! isset($data['items']) || ! is_array($data['items'])) {
+        if ($hasReachOut) {
+            $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
+        } else {
             $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
         }
-
-        foreach ($data['items'] as $item) {
-            if (! isset($item['createdBy'])) {
-                continue;
-            }
-
-            $status = strtolower($status);
-
-            $createdBy = strtolower($item['createdBy']);
-            $isSystem = $createdBy === 'system' ||
-                str_contains($createdBy, 'fortellis') || $item['name'] == 'Appointment' || $status == 'appointment set';
-
-            $isSystem = $createdBy === 'system' ||
-                            str_contains($createdBy, 'fortellis') ;
-            $onlyStatus = $item['name'] == 'Appointment' || $status == 'appointment set';
-
-            if (! $isSystem && $onlyStatus) {
-                $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
-
-                return ;
-            }
-        }
-
-        $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
     }
 }

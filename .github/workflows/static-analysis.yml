@@ -133,6 +133,7 @@ jobs:
       TEST_DEALER_SOCKET_USERNAME: ${{ secrets.TEST_DEALER_SOCKET_USERNAME }}
       TEST_DEALER_SOCKET_PASSWORD: ${{ secrets.TEST_DEALER_SOCKET_PASSWORD }}
       TEST_DEALER_SOCKET_VENDOR_NAME: ${{ secrets.TEST_DEALER_SOCKET_VENDOR_NAME }}
+      TEST_DEALER_CRM_CONFIG: ${{ secrets.TEST_DEALER_CRM_CONFIG }}
     strategy:
       fail-fast: false
       matrix:
@@ -163,7 +164,14 @@ jobs:
           - 5672:5672
     steps:
       - uses: actions/checkout@v6
+      - name: Load Aditional Test Secrets
+        run: |
+          echo "$TEST_DEALER_CRM_CONFIG" > dealer_crm.json
 
+          echo "TEST_DRIVE_CENTRIC_BASE_URL=$(jq -r .drivecentric.BASE_URL dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_API_KEY=$(jq -r .drivecentric.API_KEY dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_API_SECRET_KEY=$(jq -r .drivecentric.API_SECRET_KEY dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_STORE_ID=$(jq -r .drivecentric.STORE_ID dealer_crm.json)" >> $GITHUB_ENV
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:

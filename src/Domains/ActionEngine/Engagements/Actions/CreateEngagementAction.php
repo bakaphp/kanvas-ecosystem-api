@@ -228,13 +228,21 @@ class CreateEngagementAction
 
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
-        $newActionPages = $this->app->get('new-action-slug-v3') ?? [];
-        $newActionPageUrlV3 = is_array($newActionPages) ? in_array($this->actionSlug, $newActionPages) : false;
-        if (! $newActionPageUrlV3) {
-            return null;
+        $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
+        $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
+
+        if ($isCheckoutAction) {
+            return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
         }
 
-        return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
+        $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];
+        $isLandingPageAction = is_array($landingPageActions) && in_array($this->actionSlug, $landingPageActions);
+
+        if ($isLandingPageAction) {
+            return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
+        }
+
+        return null;
     }
 
     /**
@@ -370,9 +378,9 @@ class CreateEngagementAction
             'name' => $this->actionSlug,
             'verb' => $this->actionSlug,
         ]);
-        $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+        $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
 
-        $message = (new CreateMessageAction(
+        $message = new CreateMessageAction(
             MessageInput::fromArray(
                 $messageInput,
                 $this->user,
@@ -382,7 +390,7 @@ class CreateEngagementAction
             ),
             SystemModulesRepository::getByModelName(Lead::class, $this->app),
             $this->lead->getId()
-        ))->execute();
+        )->execute();
 
         //@todo move this to a workflow activity (Async)
         $this->replaceLink(

@@ -22,13 +22,13 @@ use NetSuite\NetSuiteService;
 
 class NetSuiteProductSearchService
 {
-    protected NetSuiteService $service;
+    protected Client $client;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
+        $this->client = new Client($app, $company);
     }
 
     /**
@@ -102,7 +102,9 @@ class NetSuiteProductSearchService
         $searchRequest = new SearchRequest();
         $searchRequest->searchRecord = $search;
 
-        $response = $this->service->search($searchRequest);
+        $response = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
+            return $service->search($searchRequest);
+        });
 
         if (! $response->searchResult->status->isSuccess) {
             throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
@@ -124,7 +126,9 @@ class NetSuiteProductSearchService
                 $searchMoreRequest->searchId = $searchId;
                 $searchMoreRequest->pageIndex = $pageIndex;
 
-                $moreResponse = $this->service->searchMoreWithId($searchMoreRequest);
+                $moreResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchMoreRequest) {
+                    return $service->searchMoreWithId($searchMoreRequest);
+                });
 
                 if ($moreResponse->searchResult->status->isSuccess && isset($moreResponse->searchResult->searchRowList->searchRow)) {
                     $moreProducts = $this->mapSearchResultToProduct($moreResponse->searchResult->searchRowList->searchRow);

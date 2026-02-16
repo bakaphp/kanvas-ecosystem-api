@@ -31,6 +31,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $ipAddresses = $this->webhookRequest->headers['x-real-ip'] ?? [];
         $realIp = is_array($ipAddresses) && ! empty($ipAddresses) ? reset($ipAddresses) : '127.0.0.1';
+        $showCustomFields = (bool) ($this->receiver->configuration['show_custom_fields'] ?? false);
 
         $leadAttempt = new CreateLeadAttemptAction(
             $this->webhookRequest->payload,
@@ -110,7 +111,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             ]
         );
 
-        if ($lead->company->get('ai')) {
+        if ($lead->company->isAIEnabled()) {
             $lead->fireWorkflow(
                 WorkflowEnum::FAKE_CONTEXT->value,
                 true,
@@ -128,6 +129,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             'lead_id' => $lead->getId(),
             'lead' => $lead->toArray(),
             'sent_email' => $sentEmail,
+            'custom_fields' => $showCustomFields ? $lead->getAll() : []
         ];
     }
 

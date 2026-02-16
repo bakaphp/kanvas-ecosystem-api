@@ -10,14 +10,19 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
+use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
+use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -47,11 +52,29 @@ class CreateContentSessionAction
 
     public function execute(): array
     {
-        return match ($this->session->entity_namespace) {
+        $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
             default => [],
         };
+
+        $result['background'] = $this->generateBackground($result);
+
+        return $result;
+    }
+
+    protected function generateBackground(array $data): mixed
+    {
+        try {
+            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
+                ? Blade::render(json_encode($this->session->agent->role), $data)
+                : null;
+        } catch (Exception $e) {
+            report($e);
+            $background = $this->session->agent?->role;
+        }
+
+        return Str::isJson($background) ? json_decode($background) : $background;
     }
 
     protected function mapLead(Lead $lead): array
@@ -76,6 +99,11 @@ class CreateContentSessionAction
                 'intent_number' => $lead->get('intent_number') ?? 0,
                 'max_intent_number' => $lead->pipeline?->stages->count() ?? 0,
                 'company_language' => $lead->company->get('lang', 'en'),
+                'is_service_lead' => $lead->get('is_service_lead') ?? 0,
+                'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
+                'ai_mode' => $lead->get('ai_mode'),
+                'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -107,14 +135,7 @@ class CreateContentSessionAction
             //$data = array_merge($data, $this->generateValuesForRole($lead));
         }
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role) ? Blade::render(json_encode($this->session->agent->role), $data) : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
-        }
-
-        return [
+        $result = [
             'branch' => $this->session->company->branch,
             'people_id' => $people->id,
             'firstname' => $people->firstname,
@@ -124,7 +145,6 @@ class CreateContentSessionAction
             'leads' => $people->leads->toArray(),
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
-            'background' => Str::isJson($background) ? json_decode($background) : $background,
             'checklist' => $checkList,
             'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
@@ -133,6 +153,8 @@ class CreateContentSessionAction
             'leadOwnerName' => $data['leadOwnerName'],
             'leadOwnerEmail' => $data['leadOwnerEmail'],
         ];
+
+        return array_merge($data, $result);
     }
 
     /**
@@ -155,25 +177,18 @@ class CreateContentSessionAction
 
         foreach ($actions as $key => $action) {
             try {
-                $engagement = new CreateEngagementAction(
-                    Engagement::from(
-                        $this->session->app,
-                        $this->session->company,
-                        $user,
-                        $this->entity,
-                        [
-                            'action' => $action,
-                            'request_id' => Str::uuid()->toString(),
-                            'source' => 'ai',
-                            'status' => 'sent',
-                            'data' => [],
-                        ],
-                        $this->entity->people
-                    ),
-                    false
-                );
-                $result = $engagement->execute();
-                $results[$key] = $result->message->message['action_link'] ?? null;
+                // Try to get or create engagement with retry logic
+                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
+                if ($engagement === null) {
+                    //$results[$key] = null;
+                    continue;
+                }
+
+                //hide the msg
+                $engagement->message->is_public = 0;
+                $engagement->message->saveQuietly();
+
+                $results[$key] = $engagement->message->message['action_link'] ?? null;
             } catch (Exception $e) {
                 //report($e);
                 $results[$key] = null;
@@ -181,6 +196,36 @@ class CreateContentSessionAction
         }
 
         return $results;
+    }
+
+    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
+    {
+        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
+
+        // Use Laravel's cache lock - block() waits for lock to become available
+        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
+            // CreateEngagementAction with allowDuplicate=false will check for existing
+            // engagements and return them instead of creating duplicates
+            $engagementAction = new CreateEngagementAction(
+                Engagement::from(
+                    $this->session->app,
+                    $this->session->company,
+                    $user,
+                    $this->entity,
+                    [
+                        'action' => $action,
+                        'request_id' => Str::uuid()->toString(),
+                        'source' => 'ai',
+                        'status' => 'sent',
+                        'data' => [],
+                    ],
+                    $this->entity->people
+                ),
+                false // allowDuplicate = false
+            );
+
+            return $engagementAction->execute();
+        });
     }
 
     /**

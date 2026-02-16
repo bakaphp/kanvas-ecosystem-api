@@ -140,16 +140,20 @@ class ProductBuilder
             // Product-to-product recommendations (default)
             $product = Products::getById($productId, $app);
 
-            $itemRecommendationService = new RecombeeItemRecommendationService(
-                $app,
-            );
+            try {
+                $itemRecommendationService = new RecombeeItemRecommendationService(
+                    $app,
+                );
 
-            $recommendations = $itemRecommendationService->getItemRecommendation(
-                $user,
-                $product,
-                count: $limit,
-                scenario: $scenario
-            );
+                $recommendations = $itemRecommendationService->getItemRecommendation(
+                    $user,
+                    $product,
+                    count: $limit,
+                    scenario: $scenario
+                );
+            } catch (Exception $e) {
+                report($e);
+            }
         }
 
         // Extract product IDs from recommendations and look them up in database
@@ -160,7 +164,7 @@ class ProductBuilder
             ->toArray();
 
         if (empty($recommendedIds)) {
-            return Products::fromApp($app)->fromCompany($company)->whereIn('id', [0]);
+            return Products::fromApp($app)->fromCompany($company)->where('id', '>', 0); //no empty result
         }
 
         return Products::fromApp($app)->fromCompany($company)->whereIn('id', $recommendedIds)

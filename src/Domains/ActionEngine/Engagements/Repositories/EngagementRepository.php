@@ -19,17 +19,30 @@ class EngagementRepository
         string $stage,
         string $order = 'DESC'
     ): ?Engagement {
-        return self::findEngagementForLeadBuilder($lead, $actionSlug, $stage, $order)->first();
+        return self::findEngagementForLeadBuilder(
+            $lead,
+            $actionSlug,
+            $stage,
+            $order
+        )->first();
     }
 
-    public static function findEngagementForLeaAndEntity(
+    public static function findEngagementForLeadAndEntity(
         Lead $lead,
         string $actionSlug,
         string $stage,
         string $entityUuid,
         string $order = 'DESC'
     ): ?Engagement {
-        return self::findEngagementForLeadBuilder($lead, $actionSlug, $stage, $order)->where('entity_uuid', $entityUuid)->first();
+        return self::findEngagementForLeadBuilder(
+            $lead,
+            $actionSlug,
+            $stage,
+            $order
+        )->where(
+            'entity_uuid',
+            $entityUuid
+        )->first();
     }
 
     public static function findEngagementForLeadBuilder(

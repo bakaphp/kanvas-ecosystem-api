@@ -12,11 +12,9 @@
   tasks:
     - name: Sync app files
       ansible.posix.synchronize:
-        src: ../../
+        src: "{{ src_dir }}/"
         dest: "{{ app_dir }}"
         delete: yes
-        verbose: yes
-        verbosity: 2
         rsync_opts:
           - "--exclude=.git"
           - "--exclude=node_modules"
@@ -25,35 +23,40 @@
           - "--exclude=storage/logs/*"
           - "--exclude=ansible"
 
+    - name: Change ownership of project directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        owner: ubuntu
+        group: ubuntu
+        recurse: yes
+
     - name: Docker compose deploy
-      shell: docker compose -f docker-compose.development.yaml up -d --force-recreate
+      shell: |
+            docker-compose -f docker-compose.development.yml down
+            docker-compose -f docker-compose.development.yml up -d --remove-orphans
       args:
         chdir: "{{ app_dir }}"
+      register: docker_output
+
+    - name: Show docker-compose output
+      debug:
+        var: docker_output
 
     - name: Install dependencies inside container
-      shell: docker compose -f docker-compose.development.yaml exec -T php composer install --optimize-autoloader
+      shell: docker-compose exec -T php composer install --optimize-autoloader
       args:
         chdir: "{{ app_dir }}"
 
-    # - name: Run migrations
-    #   command: php artisan migrate --force
-    #   args:
-    #     chdir: "{{ app_dir }}"
-    #   run_once: true  # Only run on one host
+    - name: Docker compose restart queue services
+      shell: docker-compose -f docker-compose.development.yml restart $(docker-compose -f docker-compose.development.yml ps --services | grep queue)
+      args:
+        chdir: "{{ app_dir }}"
 
-    # - name: Clear and cache config
-    #   shell: |
-    #     php artisan config:cache
-    #     php artisan route:cache
-    #     php artisan view:cache
-    #   args:
-    #     chdir: "{{ app_dir }}"
-
-    # - name: Redeploy docker containers
-    #   docker_compose:
-    #     project_src: "{{ app_dir }}"
-    #     files:
-    #       - docker-compose.development.yaml
-    #     state: present
-    #     restarted: true
-    #     build: false
+    - name: Clear and cache config
+      shell: |
+        docker-compose exec -T php php artisan config:cache
+        docker-compose exec -T php php artisan route:cache
+        docker-compose exec -T php php artisan view:cache
+        docker-compose exec -T php php artisan octane:reload
+      args:
+        chdir: "{{ app_dir }}"

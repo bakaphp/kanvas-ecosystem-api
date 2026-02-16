@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\DealerSocket\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
+use RuntimeException;
 
 class LeadClient extends BaseClient
 {
@@ -29,7 +30,7 @@ class LeadClient extends BaseClient
     {
         $xml = $this->buildServiceLeadXML($data);
 
-        return $this->postLead($xml);
+        return $this->postLead($xml, 'service');
     }
 
     public function createPartsLead(array $data): array
@@ -368,23 +369,59 @@ XML;
             <FamilyName>{$data['lastName']}</FamilyName>
 XML;
 
-        $xml .= <<<XML
-          </SpecifiedPerson>
-        </AppointmentContactParty>
-      </ServiceAppointmentHeader>
-      <ServiceAppointmentDetail>
-        <ServiceAppointmentVehicleLineItem>
-          <Vehicle>
-            <Model>{$data['vehicle']['model']}</Model>
-            <ModelYear>{$data['vehicle']['year']}</ModelYear>
-            <MakeString>{$data['vehicle']['make']}</MakeString>
-          </Vehicle>
-        </ServiceAppointmentVehicleLineItem>
-      </ServiceAppointmentDetail>
-    </ServiceAppointment>
-  </ProcessServiceAppointmentDataArea>
-</ProcessServiceAppointment>
-XML;
+        // Add phone if available
+        if (! empty($data['phone'])) {
+            $phoneType = $data['phoneType'] ?? 'Cell Phone';
+            $xml .= "\n            <TelephoneCommunication>";
+            $xml .= "\n              <ChannelCode>{$phoneType}</ChannelCode>";
+            $xml .= "\n              <LocalNumber>{$data['phone']}</LocalNumber>";
+            $xml .= "\n            </TelephoneCommunication>";
+        }
+
+        // Add email if available
+        if (! empty($data['email'])) {
+            $xml .= "\n            <URICommunication>";
+            $xml .= "\n              <URIID>{$data['email']}</URIID>";
+            $xml .= "\n              <ChannelCode>email</ChannelCode>";
+            $xml .= "\n            </URICommunication>";
+        }
+
+        // Add address if available
+        if (! empty($data['address'])) {
+            $xml .= "\n            <ResidenceAddress>";
+            $xml .= "\n              <AddressType>home</AddressType>";
+            $xml .= "\n              <LineOne>{$data['address']['street']}</LineOne>";
+            $xml .= "\n              <CityName>{$data['address']['city']}</CityName>";
+            $xml .= "\n              <CountryID>US</CountryID>";
+            $xml .= "\n              <Postcode>{$data['address']['zipCode']}</Postcode>";
+            $xml .= "\n              <StateOrProvinceCountrySub-DivisionID>{$data['address']['state']}</StateOrProvinceCountrySub-DivisionID>";
+            $xml .= "\n            </ResidenceAddress>";
+        }
+
+        $xml .= "\n          </SpecifiedPerson>";
+        $xml .= "\n        </AppointmentContactParty>";
+        $xml .= "\n      </ServiceAppointmentHeader>";
+        $xml .= "\n      <ServiceAppointmentDetail>";
+
+        if (! empty($data['vehicle'])) {
+            $xml .= "\n        <ServiceAppointmentVehicleLineItem>";
+            $xml .= "\n          <Vehicle>";
+            $xml .= "\n            <Model>{$data['vehicle']['model']}</Model>";
+            $xml .= "\n            <ModelYear>{$data['vehicle']['year']}</ModelYear>";
+            $xml .= "\n            <MakeString>{$data['vehicle']['make']}</MakeString>";
+
+            if (! empty($data['vehicle']['vin'])) {
+                $xml .= "\n            <VehicleID>{$data['vehicle']['vin']}</VehicleID>";
+            }
+
+            $xml .= "\n          </Vehicle>";
+            $xml .= "\n        </ServiceAppointmentVehicleLineItem>";
+        }
+
+        $xml .= "\n      </ServiceAppointmentDetail>";
+        $xml .= "\n    </ServiceAppointment>";
+        $xml .= "\n  </ProcessServiceAppointmentDataArea>";
+        $xml .= "\n</ProcessServiceAppointment>";
 
         return ltrim($xml);
     }
@@ -397,24 +434,24 @@ XML;
     private function getDirectPostUrl(string $format): string
     {
         $format = strtolower($format);
-        $environment = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? 'production';
+        $environment = (int) $this->app->get(ConfigurationEnum::DEALER_SOCKET_ENV_PRODUCTION->value) === 1 ? 'production' : 'testing';
         $dealerId = $this->authService->getDealerId();
-        $baseUrl = 'https://oemwebsecure.dealersocket.com/DSOEMLead/US/DCP';
+        $dealerNumber = $this->company->get(CustomFieldEnum::DEALER_SOCKET_DEALER_NUMBER->value) ?? '223IIV3839';
+        $baseUrl = $this->app->get(ConfigurationEnum::DEALER_SOCKET_DEFAULT_URL->value) . '/DSOEMLead/US/DCP';
 
-        // --- TESTING ENVIRONMENT (OEM) ---
-        if ($environment === 'testing') {
-            if ($format === 'adf') {
-                return "{$baseUrl}/ADF/1/SalesLead/223IIV3839";
-            } else {
-                return "{$baseUrl}/STAR/554/SalesLead/223IIV3839";
-            }
+        if ($environment === 'testing' && $dealerNumber === '') {
+            $dealerNumber = $this->app->get(ConfigurationEnum::DEALER_SOCKET_USE_OEM_TESTING_URL->value) ?? '';
         }
 
-        if ($format === 'adf') {
-            return "{$baseUrl}/ADF/1/SalesLead/" . $dealerId;
-        } else {
-            return "{$baseUrl}/STAR/554/SalesLead/" . $dealerId;
+        if ($dealerNumber === '') {
+            throw new RuntimeException('Dealer Number is not configured for the company.');
         }
+
+        return match ($format) {
+            'adf' => "{$baseUrl}/ADF/1/SalesLead/" . $dealerNumber,
+            'service' => "{$baseUrl}/STAR/554/ServiceAppointment/" . $dealerNumber,
+            default => "{$baseUrl}/STAR/554/SalesLead/" . $dealerNumber,
+        };
     }
 
     public function searchLeadsByEntityId(int|string $entityId, string $eventCategory = 'Sales'): array

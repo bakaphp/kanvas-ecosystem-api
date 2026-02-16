@@ -171,17 +171,21 @@ class OrderTransitionHistory extends BaseModel
     }
 
     /**
-     * Get payment type (physical or digital).
-     * Returns null if order payment_status is not 'paid'.
+     * Get payment method type from the order's latest paid payment.
+     * Defaults to 'card' if payment exists but method is not set.
+     */
+    public function getPaymentMethodType(): ?string
+    {
+        return $this->order->paymentMethodType();
+    }
+
+    /**
+     * Get payment type (physical or digital) based on payment method.
+     * Checks for actual paid payment records or fulfillment status.
+     * Returns null if order has no paid payments and is not fulfilled.
      */
     public function getPaymentType(): ?string
     {
-        // Only return payment type if order payment_status is 'paid'
-        if ($this->order->payment_status !== 'paid') {
-            return null;
-        }
-
-        // If paid, check if it has a paid payment record
-        return $this->isPaid() ? 'digital' : 'physical';
+        return $this->order->paymentType();
     }
 }

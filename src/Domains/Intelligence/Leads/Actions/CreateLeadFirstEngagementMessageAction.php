@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Leads\Actions;
 
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Prism\Prism\Enums\Provider;
+use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
+use Prism\Prism\Structured\Response;
 use RuntimeException;
 
 /**
@@ -54,6 +58,9 @@ class CreateLeadFirstEngagementMessageAction
                 ['lead' => $this->lead->toArray()]
             ),
             'template' => $this->template,
+            'ai_mode' => $this->lead->get('ai_mode'),
+            'follow_up_mode' => $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+            'allow_call_appointments' => $this->lead->company->get(CompanyConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
         ];
 
         $data['leadOwnerEmail'] = $this->lead->owner?->email;
@@ -73,19 +80,31 @@ class CreateLeadFirstEngagementMessageAction
         );
 
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
-        $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-pro')
-                   ->withMaxTokens(7000) // Increase from default
-                   ->withSchema($schema)
-                   ->withPrompt($prompt)
-                   ->withClientOptions([
-                       'timeout' => 220,          // Total timeout in seconds (2 minutes)
-                        'connect_timeout' => 220,   // Connection timeout in seconds
-                        'read_timeout' => 220,      // Read timeout in seconds
-                    ])
-                   ->asStructured();
+
+        try {
+            $response = $this->callPrism($schema, $prompt);
+        } catch (PrismException $e) {
+            $response = $this->callPrism($schema, $prompt);
+        }
 
         // Return the structured data containing title and message
         return [...$response->structured ?? [], ['background' => $prompt]];
+    }
+
+    public function callPrism(ObjectSchema $schema, string $prompt): Response
+    {
+        $response = Prism::structured()
+           ->using(Provider::Gemini, 'gemini-2.5-pro')
+           ->withMaxTokens(7000) // Increase from default
+           ->withSchema($schema)
+           ->withPrompt($prompt)
+           ->withClientOptions([
+               'timeout' => 220,
+                'connect_timeout' => 220,
+                'read_timeout' => 220,
+            ])
+           ->asStructured();
+
+        return $response;
     }
 }

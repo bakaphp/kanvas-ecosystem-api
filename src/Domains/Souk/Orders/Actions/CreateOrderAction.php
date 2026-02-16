@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
@@ -59,6 +61,8 @@ class CreateOrderAction
                 throw new ValidationException($validator->messages()->__toString());
             }
 
+            $this->validateScheduleAvailability();
+
             $order = new ModelsOrder();
             $order->apps_id = $this->orderData->app->getId();
             $order->region_id = $this->orderData->region->getId();
@@ -92,6 +96,10 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+
+            if ($this->orderData->items->first()->channelId) {
+                $order->setChannelId($this->orderData->items->first()->channelId);
+            }
 
             if ($this->orderData->orderType) {
                 $order->setOrderType($this->orderData->orderType);
@@ -159,20 +167,18 @@ class CreateOrderAction
         return $this;
     }
 
-    // public function simulateWorkflow(ModelsOrder $order)
-    // {
-    //     $activity = new CreateTookanOrderActivity(
-    //         0,
-    //         now()->toDateTimeString(),
-    //         StoredWorkflow::make(),
-    //         []
-    //     );
+    private function validateScheduleAvailability(): void
+    {
+        $startAt = $this->orderData->metadata['data']['start_at'] ?? null;
 
-    //     $result = $activity->execute($order, $order->app, [
-    //         'currentEventTypeName' =>  WorkflowEnum::CREATED->value,
-    //         'app' => $order->app,
-    //     ]);
+        if ($startAt === null) {
+            return;
+        }
 
-    //     print_r($result);
-    // }
+        $startTime = Carbon::parse($startAt);
+
+        foreach ($this->orderData->items as $item) {
+            ResourceScheduleValidator::validateResourceAvailability($item->variant, $startTime);
+        }
+    }
 }

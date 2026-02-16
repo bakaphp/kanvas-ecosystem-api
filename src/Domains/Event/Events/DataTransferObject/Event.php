@@ -42,11 +42,23 @@ class Event extends Data
         public readonly array $orderItems = [],
         public readonly ?string $meeting_link = null,
         public readonly ?int $timeSlotId = null,
+        public readonly ?array $config = null,
     ) {
     }
 
     public static function fromMultiple(AppInterface $app, UserInterface $user, CompanyInterface $company, array $data): self
     {
+        $category = self::getEntityByIdOrDefault(
+            EventCategory::class,
+            $app,
+            $company,
+            $data['category_id'] ?? null
+        );
+
+        $type = isset($data['type_id'])
+            ? EventType::fromApp($app)->fromCompany($company)->where('id', $data['type_id'])->firstOrFail()
+            : EventType::fromApp($app)->fromCompany($company)->where('id', $category->event_type_id)->firstOrFail();
+
         return new self(
             app: $app,
             user: $user,
@@ -55,9 +67,9 @@ class Event extends Data
             theme: self::getEntityByIdOrDefault(Theme::class, $app, $company, $data['theme_id'] ?? null),
             themeArea: self::getEntityByIdOrDefault(ThemeArea::class, $app, $company, $data['theme_area_id'] ?? null),
             status: self::getEntityByIdOrDefault(EventStatus::class, $app, $company, $data['status_id'] ?? null),
-            type: EventType::getByIdFromCompanyApp($data['type_id'], $company, $app),
-            category: EventCategory::getByIdFromCompanyApp($data['category_id'], $company, $app),
-            resource: isset($data["resources_id"]) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data["resources_id"] ?? null) : null,
+            type: $type,
+            category: $category,
+            resource: isset($data['resources_id']) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data['resources_id'] ?? null) : null,
             class: self::getEntityByIdOrDefault(EventClass::class, $app, $company, $data['class_id'] ?? null),
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
@@ -66,15 +78,21 @@ class Event extends Data
             resources: $data['resources'] ?? [],
             orderItems: $data['order_items'] ?? [],
             meeting_link: $data['meeting_link'] ?? null,
-            timeSlotId: $data['time_slot_id'] ?? null
+            timeSlotId: $data['time_slot_id'] ?? null,
+            config: $data['config'] ?? null
         );
     }
 
+    /**
+     * @template T of Model
+     * @param class-string<T> $entityClass
+     * @return T
+     */
     protected static function getEntityByIdOrDefault(
         string $entityClass,
         $app,
         $company,
-        ?string $idField,
+        string| int|null $idField,
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {

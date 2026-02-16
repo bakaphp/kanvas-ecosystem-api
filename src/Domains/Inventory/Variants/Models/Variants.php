@@ -38,6 +38,11 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
+use Kanvas\Inventory\Variants\Factories\VariantFactory;
 use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
@@ -617,23 +622,45 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
     public function updatePriceInWarehouse(Warehouses $warehouse, float $price): void
     {
-        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+        $variantWarehouseDto = VariantsWarehousesDto::viaRequest(
+            $this,
+            $warehouse,
+            [
+                'price' => $price,
+            ]
+        );
 
-        if ($warehouseInfo) {
-            $warehouseInfo->price = $price;
-            $warehouseInfo->saveOrFail();
-        }
+        new AddToWarehouseAction(
+            $this,
+            $warehouse,
+            $variantWarehouseDto
+        )->execute();
     }
 
-    public function updatePriceInChannel(Channels $channel, float $price, ?float $discountPrice = null): void
-    {
-        $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+    public function updatePriceInChannel(
+        Channels $channel,
+        float $price,
+        ?float $discountPrice = null,
+        ?VariantsWarehouses $variantWarehouse = null
+    ): void {
+        /** @var VariantsWarehouses|null $variantWarehouse */
+        $variantWarehouse = $variantWarehouse ?? $this->variantWarehouses()->first();
 
-        if ($channelInfo) {
-            $channelInfo->discounted_price = $discountPrice ?? $channelInfo->discounted_price;
-            $channelInfo->price = $price;
-            $channelInfo->saveOrFail();
+        if (! $variantWarehouse) {
+            return;
         }
+
+        $variantChannelDto = new VariantChannelDto(
+            price: $price,
+            discounted_price: $discountPrice ?? 0.00,
+            is_published: true,
+        );
+
+        new AddVariantToChannelAction(
+            $variantWarehouse,
+            $channel,
+            $variantChannelDto
+        )->execute();
     }
 
     /**
@@ -925,5 +952,11 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
         // Select only variant columns to avoid ambiguity
         return $query->select('products_variants.*')->distinct();
+    }
+
+    #[Override]
+    public static function newFactory(): VariantFactory
+    {
+        return new VariantFactory();
     }
 }

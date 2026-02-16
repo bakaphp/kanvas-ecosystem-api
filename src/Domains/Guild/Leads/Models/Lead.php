@@ -28,6 +28,8 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -79,7 +81,10 @@ class Lead extends BaseModel implements EventResourceInterface
     use CanUseWorkflow;
     use HasLightHouseCache;
     use EventResourceTrait;
-
+    protected $observables = [
+        'softDeleting',
+        'softDeleted',
+    ];
     protected $table = 'leads';
     protected $guarded = [];
 
@@ -270,6 +275,12 @@ class Lead extends BaseModel implements EventResourceInterface
     public function close(): void
     {
         $this->leads_status_id = 6; //change by dynamic
+        $this->saveOrFail();
+    }
+
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
         $this->saveOrFail();
     }
 
@@ -675,5 +686,25 @@ class Lead extends BaseModel implements EventResourceInterface
     public function setContactStatus(LeadGroupStatusEnum $status): void
     {
         $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
+    }
+
+    public function isAiMuted(): bool
+    {
+        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
+
+        return $aiMode === IntelligenceModeEnum::OFF->value;
+    }
+
+    public function canRunAiAgent(): bool
+    {
+        return ! $this->isAiMuted();
+    }
+
+    public function isServiceLead(): bool
+    {
+        return Str::contains(
+            strtolower($this->type?->name ?? ''),
+            'service'
+        );
     }
 }

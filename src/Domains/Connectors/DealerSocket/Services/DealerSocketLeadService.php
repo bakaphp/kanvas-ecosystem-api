@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\DealerSocket\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\DealerSocket\CustomerClient;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\LeadClient;
@@ -38,14 +37,24 @@ class DealerSocketLeadService
             return $this->updateLead($lead);
         }
 
-        $leadData = $this->mapLeadToArray($lead);
+        $isServiceLead = $lead->isServiceLead();
 
-        //$format = config('dealersocket.lead_format', 'star');
-        $format = $lead->company->get('dealersocket_lead_format') ?? 'start';
+        if ($isServiceLead) {
+            $leadData = array_merge(
+                $this->mapLeadToArray($lead),
+                $this->mapLeadToServiceArray($lead)
+            );
+            $response = $this->leadClient->createServiceLead($leadData);
+        } else {
+            $leadData = $this->mapLeadToArray($lead);
 
-        $response = $format === 'adf'
-            ? $this->leadClient->createSalesLeadADF($leadData)
-            : $this->leadClient->createSalesLead($leadData);
+            //$format = config('dealersocket.lead_format', 'star');
+            $format = $lead->company->get('dealersocket_lead_format') ?? 'start';
+
+            $response = $format === 'adf'
+                ? $this->leadClient->createSalesLeadADF($leadData)
+                : $this->leadClient->createSalesLead($leadData);
+        }
 
         if (isset($response['leadId'])) {
             $this->setLeadId($lead, $response['leadId']);
@@ -55,7 +64,51 @@ class DealerSocketLeadService
             $this->setCustomerId($lead->people, $response['customerId']);
         }
 
+        // If lead has an owner assigned, update status to Store Visit (227)
+        if (isset($response['success']) && $response['success'] === true && $this->shouldMarkAsStoreVisit($lead)) {
+            $this->updateLeadToStoreVisit($lead);
+        }
+
         return $response;
+    }
+
+    /**
+     * Check if lead should be marked as Store Visit
+     * Website leads assigned to a user should be marked as Store Visit
+     */
+    protected function shouldMarkAsStoreVisit(Lead $lead): bool
+    {
+        // Check if lead has an owner assigned
+        try {
+            $owner = $lead->owner;
+
+            return $owner !== null;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Update lead status to Store Visit (227) in DealerSocket
+     */
+    protected function updateLeadToStoreVisit(Lead $lead): void
+    {
+        try {
+            $eventId = $lead->get(CustomFieldEnum::DEALER_SOCKET_LEAD_ID->value);
+            $entityId = $lead->people->get(CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value);
+
+            if (! $eventId || ! $entityId) {
+                return;
+            }
+
+            $this->leadClient->updateSalesEvent(
+                (int) $eventId,
+                (int) $entityId,
+                ['leadStatus' => 227] // Store Visit
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public function getLeadByCustomerId(int|string $customerId): array
@@ -125,6 +178,44 @@ class DealerSocketLeadService
         ];
     }
 
+    /**
+     * Map Lead model to DealerSocket Service Lead array format
+     */
+    protected function mapLeadToServiceArray(Lead $lead): array
+    {
+        $people = $lead->people;
+
+        if (! $people) {
+            throw new Exception('Lead must have a People relationship to create in DealerSocket');
+        }
+
+        $data = [
+            'senderNameCode' => $this->getVendorName(),
+            'serviceId' => $this->getServiceId($lead),
+            'bodId' => $this->generateBodId($lead),
+
+            'firstName' => $people->firstname,
+            'lastName' => $people->lastname,
+            'specialRemarks' => $this->getCustomerComments($lead),
+        ];
+
+        // Add vehicle info only if available
+        $vehicle = $this->getInterestedVehicle($lead);
+        if ($vehicle !== null) {
+            $data['vehicle'] = [
+                'make' => $vehicle['make'],
+                'model' => $vehicle['model'],
+                'year' => $vehicle['year'],
+            ];
+
+            if (! empty($vehicle['vin'])) {
+                $data['vehicle']['vin'] = $vehicle['vin'];
+            }
+        }
+
+        return $data;
+    }
+
     protected function mapContactMethod(string $method): string
     {
         return match (strtolower($method)) {
@@ -138,25 +229,20 @@ class DealerSocketLeadService
     /**
      * Get email from People model
      */
-    protected function getEmailFromPeople(People $people): string
+    protected function getEmailFromPeople(People $people): ?string
     {
-        try {
-            $emails = $people->getEmails();
+        //try {
+        $emails = $people->getEmails();
 
-            if ($emails->isEmpty()) {
-                throw new Exception("People {$people->id} has no email address");
-            }
+        /*  if ($emails->isEmpty()) {
+             throw new Exception("People {$people->id} has no email address");
+         } */
 
-            // Get first email
-            return $emails->first()->value;
-        } catch (Throwable $e) {
-            Log::error('Failed to get email from People', [
-                'people_id' => $people->id,
-                'error' => $e->getMessage(),
-            ]);
-
+        // Get first email
+        return $emails->first()?->value ?? null;
+        /* } catch (Throwable $e) {
             throw new Exception("Customer must have an email address. People ID: {$people->id}");
-        }
+        } */
     }
 
     /**
@@ -580,6 +666,7 @@ class DealerSocketLeadService
         }
 
         $updateData = $this->mapLeadToUpdateArray($lead);
+        $isServiceLead = $lead->isServiceLead();
 
         $response = $this->leadClient->updateSalesEvent(
             (int) $eventId,

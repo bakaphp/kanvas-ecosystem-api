@@ -65,7 +65,7 @@ class ProductsTest extends TestCase
                      name: \"$attributeName\", 
                      sort: \"DESC\" ,
                      format: NUMERIC
-                }                    
+                }
                 ) {
                     data {
                         name
@@ -74,8 +74,11 @@ class ProductsTest extends TestCase
                 }
             }"
         );
-        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
-        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+
+        $response->assertSuccessful();
+        $products = $response->json('data.products.data');
+        $this->assertNotEmpty($products, 'No products returned from attributeOrderBy query');
+        $this->assertEquals($data['name'], $products[0]['name']);
     }
 
     public function testSortByVariantAttributes(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -44,7 +45,12 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $this->settings($app);
-            $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated = $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated->firstname = $this->user->firstname;
+            $userAssociated->lastname = $this->user->lastname;
+            $userAssociated->email = $this->user->email;
+            $userAssociated->displayname = $this->user->displayname;
+            $userAssociated->saveOrFail();
 
             $this->systemModules($app);
             $this->acl($app);
@@ -73,7 +79,7 @@ class CreateAppsAction
         return $app;
     }
 
-    protected function settings(Apps $app): void
+    public function settings(Apps $app): void
     {
         if ($app->settings()->count()) {
             return ;
@@ -153,21 +159,24 @@ class CreateAppsAction
         ];
 
         foreach ($roles as $role) {
-            $roles = Roles::firstOrCreate([
-                'name' => $role,
-                'apps_id' => $app->getId(),
-            ], [
-                'companies_id' => 1,
-                'is_active' => 1,
-                'scope' => 0,
-            ]);
+            try {
+                $roles = Roles::firstOrCreate([
+                    'name' => $role,
+                    'apps_id' => $app->getId(),
+                ], [
+                    'companies_id' => 1,
+                    'is_active' => 1,
+                    'scope' => 0,
+                ]);
 
-            $newRole = new CreateRoleAction(
-                $role,
-                $role,
-                $app
-            );
-            $newRole->execute();
+                $newRole = new CreateRoleAction(
+                    $role,
+                    $role,
+                    $app
+                );
+                $newRole->execute();
+            } catch (Exception $e) {
+            }
         }
     }
 }

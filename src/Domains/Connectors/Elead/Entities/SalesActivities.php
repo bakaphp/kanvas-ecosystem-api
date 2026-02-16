@@ -362,10 +362,26 @@ class SalesActivities
         if (isset($activities['items'])) {
             foreach ($activities['items'] as $activity) {
                 $phoneOutReach = $activity['activityType'] === 'Phone Call'
-                    && $activity['outcome'] === 'Completed'
+                    && $activity['category'] === 'Completed'
                     && $activity['name'] === 'Outbound Call';
 
-                if ($phoneOutReach) {
+                $dayOneCall = $activity['activityType'] === 'Phone Call'
+                    && $activity['name'] === 'Day 1 Call/Text'
+                    && strtolower($activity['outcome']) === 'contacted';
+
+                //make it work email
+                $sendWorkSheet = $activity['activityType'] === 'Phone Call'
+                   && strtolower($activity['name']) === 'send worksheet'
+                   && strtolower($activity['outcome']) === 'contacted';
+
+                $textMessage = $activity['activityType'] === 'Phone Call'
+                   && strtolower($activity['name']) === 'send worksheet'
+                   && strtolower($activity['outcome']) === 'contacted';
+
+                $contacted = strtolower($activity['outcome'] ?? '') === 'contacted';
+                //&& $activity['name'] === 'Outbound Call';
+
+                if ($phoneOutReach || $dayOneCall || $sendWorkSheet || $textMessage || $contacted) {
                     return true;
                 }
             }

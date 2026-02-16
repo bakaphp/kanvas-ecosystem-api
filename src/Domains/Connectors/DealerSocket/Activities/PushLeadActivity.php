@@ -22,6 +22,7 @@ class PushLeadActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::DEALERSOCKET,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
                 $data = new PushLeadAction(
                     lead: $lead

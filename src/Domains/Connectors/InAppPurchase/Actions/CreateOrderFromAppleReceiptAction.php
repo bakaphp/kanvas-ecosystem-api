@@ -60,7 +60,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             $verifiedReceipt->getReceipt()
         );
 
-        $order = (new CreateOrderAction($orderData))->execute();
+        $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
 
@@ -112,22 +112,67 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw $exception;
         }
 
-        // Validate we have the expected purchase
-        $firstPurchase = $inAppPurchases[0];
-        $firstVariant = $this->getVariant($firstPurchase->getProductId());
+        // Find the purchase that matches the transaction_id from the request
+        $requestedTransactionId = $allReceiptData['transactionId'];
+        $matchingPurchase = null;
+
+        foreach ($inAppPurchases as $purchase) {
+            if ($purchase->getTransactionId() === $requestedTransactionId) {
+                $matchingPurchase = $purchase;
+
+                break;
+            }
+        }
+
+        if ($matchingPurchase === null) {
+            $exception = new ValidationException(
+                "Transaction {$requestedTransactionId} not found in receipt. The receipt may be stale or the transaction was not completed."
+            );
+            report($exception);
+
+            throw $exception;
+        }
+
+        $firstVariant = $this->getVariant($matchingPurchase->getProductId());
         /** @var array<OrderItem> $orderItems */
         $orderItems = [];
 
         $orderItem = $this->createOrderItem(
             $firstVariant,
-            $firstPurchase->getQuantity()
+            $matchingPurchase->getQuantity()
         );
 
         $orderItems[] = $orderItem;
 
         $this->processCustomFieldsVariants($orderItems);
         $allReceiptData['source'] = 'apple';
+        $this->addMessageMetadataFromCustomFields($allReceiptData);
 
-        return $this->createOrderDto($orderItems, $people, $allReceiptData);
+        if (array_key_exists('custom_fields', $allReceiptData)) {
+            foreach ($allReceiptData['custom_fields'] as $key => $value) {
+                if ($key == "message_id") {
+                    $message = Message::fromApp($this->app)
+                        ->where('id', $value)
+                        ->first();
+
+                    if (! $message) {
+                        continue;
+                    }
+                    $messageContent = $message->message;
+                    $allReceiptData['message']['users_id'] = $message->user->getId();
+                    $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
+                    $allReceiptData['message']['creator_email'] = $message->user->email;
+                    $allReceiptData['message']['id'] = $message->getId();
+                    $allReceiptData['message']['user_subscription_tier'] = $message->getId();
+                    $allReceiptData['message']['prompt_title'] = $messageContent['title'] ?? $message->slug;
+                }
+            }
+        }
+
+        return $this->createOrderDto(
+            $orderItems,
+            $people,
+            $allReceiptData
+        );
     }
 }

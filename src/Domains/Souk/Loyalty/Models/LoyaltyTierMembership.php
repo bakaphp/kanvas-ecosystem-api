@@ -17,8 +17,8 @@ use Override;
  * @property int $users_id
  * @property int $loyalty_tiers_id
  * @property int $loyalty_programs_id
- * @property int $lifetime_points
- * @property int $current_points
+ * @property float $lifetime_points
+ * @property float $current_points
  * @property \DateTime|null $tier_promoted_at
  */
 class LoyaltyTierMembership extends BaseModel
@@ -46,8 +46,8 @@ class LoyaltyTierMembership extends BaseModel
     protected function casts(): array
     {
         return [
-            'lifetime_points' => 'integer',
-            'current_points' => 'integer',
+            'lifetime_points' => 'float',
+            'current_points' => 'float',
             'tier_promoted_at' => 'datetime',
         ];
     }
@@ -70,7 +70,7 @@ class LoyaltyTierMembership extends BaseModel
     /**
      * Add points to this membership.
      */
-    public function addPoints(int $points): self
+    public function addPoints(float $points): self
     {
         $this->increment('current_points', $points);
         $this->increment('lifetime_points', $points);
@@ -81,7 +81,7 @@ class LoyaltyTierMembership extends BaseModel
     /**
      * Subtract points from this membership.
      */
-    public function subtractPoints(int $points): self
+    public function subtractPoints(float $points): self
     {
         $this->decrement('current_points', $points);
 
@@ -91,7 +91,7 @@ class LoyaltyTierMembership extends BaseModel
     /**
      * Check if user can afford to spend these points.
      */
-    public function canAfford(int $points): bool
+    public function canAfford(float $points): bool
     {
         return $this->current_points >= $points;
     }

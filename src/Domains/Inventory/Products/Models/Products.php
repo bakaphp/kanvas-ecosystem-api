@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
@@ -178,7 +179,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'products_warehouses',
             'products_id',
             'warehouses_id'
-        );
+        )->where('products_warehouses.is_deleted', 0);
     }
 
     /**
@@ -332,27 +333,46 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function scopeFilterByNearLocation(Builder $query, array $location): Builder
     {
         $EarthRadius = 6371; // km
+        $lat = $location['lat'];
+        $long = $location['long'];
+        $radius = $location['radius'];
+
+        // Data is stored as double-encoded JSON: {"en": "{\"lat\": \"18.560100\",\"long\": \"-68.372500\"}"}
+        // First JSON_UNQUOTE(JSON_EXTRACT(value, '$.en')) gives us the inner JSON string
+        // Then we extract lat/long from that inner JSON
+        $innerJson = "JSON_UNQUOTE(JSON_EXTRACT(value, '$.en'))";
+        $latExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.lat')) AS DECIMAL(10,6))";
+        $longExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.long')) AS DECIMAL(10,6))";
+
+        $distanceSubquery = DB::connection('inventory')->table('products_attributes')
+            ->selectRaw("
+                products_id,
+                ({$EarthRadius} * acos(
+                    least(1, cos(radians(?)) *
+                    cos(radians({$latExtract})) *
+                    cos(radians({$longExtract}) - radians(?)) +
+                    sin(radians(?)) *
+                    sin(radians({$latExtract}))
+                    )
+                )) AS distance
+            ", [$lat, $long, $lat])
+            ->whereRaw("JSON_VALID(value)")
+            ->whereRaw("JSON_EXTRACT(value, '$.en') IS NOT NULL")
+            ->whereRaw("JSON_VALID({$innerJson})")
+            ->whereRaw("JSON_EXTRACT({$innerJson}, '$.lat') IS NOT NULL")
+            ->whereRaw("JSON_EXTRACT({$innerJson}, '$.long') IS NOT NULL")
+            ->whereRaw("{$latExtract} != 0")
+            ->whereRaw("{$longExtract} != 0")
+            ->havingRaw("distance <= ?", [$radius]);
 
         return $query
             ->where('products.is_deleted', 0)
-            ->whereHas('attributes', function ($query) use ($location, $EarthRadius) {
-                $query->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.lat') IS NOT NULL")
-                    ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.long') IS NOT NULL")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)) != 0")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6)) != 0")
-                    ->selectRaw("(
-                {$EarthRadius} * acos(
-                    least(1, cos(radians(?)) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)))) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6))) - radians(?)) +
-                    sin(radians(?)) *
-                    sin(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6))))
-                    )
-                )
-                    ) AS distance", [$location['lat'], $location['long'], $location['lat']])
-                ->having('distance', '<=', $location['radius'])
-                ->orderBy('distance');
-            });
+            ->joinSub($distanceSubquery, 'location_distance', function ($join) {
+                $join->on('products.id', '=', 'location_distance.products_id');
+            })
+            ->select('products.*', 'location_distance.distance')
+            ->reorder()
+            ->orderByRaw('location_distance.distance ASC');
     }
 
     /**
@@ -643,9 +663,9 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     }
 
     #[Override]
-    public static function newFactory()
+    public static function newFactory(): ProductFactory
     {
-        return new ProductFactory();
+        return ProductFactory::new();
     }
 
     public function hasStock(Warehouses $warehouses): bool
@@ -949,7 +969,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     public function recalculateWeightByImageCount(): void
     {
-        if (! $this->app->get('product_increase_weight_by_image_count')) {
+        if (! $this->company->get('product_increase_weight_by_image_count')) {
             return;
         }
 

@@ -13,6 +13,7 @@ use Kanvas\Souk\Discounts\Enums\DiscountConditionTypeEnum;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountCondition;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Referrals\Models\ReferralCode;
 
 class DiscountService
 {
@@ -235,6 +236,18 @@ class DiscountService
 
         if (! $discount || ! $this->canApplyToOrder($discount, $order)) {
             return null;
+        }
+
+        if ($order->users_id) {
+            $referralCode = ReferralCode::fromApp($this->app)
+                ->where('code', $code)
+                ->where('is_active', true)
+                ->where('users_id', $order->users_id)
+                ->first();
+
+            if ($referralCode) {
+                return null;
+            }
         }
 
         $action = new ApplyDiscountToOrderAction($order, $discount);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -135,6 +136,11 @@ class PortalPaymentProcessor
 
     public function startPaymentIntent(Payments $payment): array
     {
+        $payment->addLog('payment_initiated', [
+            'order_id' => $payment->order->id,
+            'amount' => $payment->amount,
+        ]);
+
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $payment->order);
         $payerAuthentication = $this->client->setupPayer(
             $payment->order->id,
@@ -194,6 +200,7 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
             $errorMessage = $e->getMessage();
+            $userMessage = $e->getUserMessage();
 
             $payment->status = PaymentStatusEnum::FAILED;
             $payment->addMetadata([
@@ -211,7 +218,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'response' => $e->getMessage(),
                 'data' => [],
             ];
@@ -282,6 +289,7 @@ class PortalPaymentProcessor
         } catch (EchoPayException $e) {
             report($e);
             $errorMessage = $e->getMessage();
+            $userMessage = $e->getUserMessage();
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $payment->addMetadata([
@@ -299,7 +307,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'response' => $e->getMessage(),
                 'data' => [],
             ];
@@ -399,7 +407,15 @@ class PortalPaymentProcessor
             $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
             $intentId = (string) $paymentResponse['data']['id'];
 
+            $payment->addLog('payment_authorized', [
+                'transaction_id' => $transactionId,
+                'intent_id' => $intentId,
+                'order_id' => $order->id,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
             $payment->status = PaymentStatusEnum::AUTHORIZED;
+            $payment->payment_intent_id = $intentId;
             $payment->addMetadata([
                 'data' => [
                     'payment_response' => $paymentResponse['data'],
@@ -417,6 +433,10 @@ class PortalPaymentProcessor
                 'data' => $paymentResponse['data'],
             ];
         } else {
+            if ($payment->status === PaymentStatusEnum::PROCESSING->value || $payment->status === PaymentStatusEnum::PROCESSING) {
+                $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            }
+
             return [
                 'status' => $paymentResponse['status'],
                 'message' => $paymentResponse['message'],
@@ -427,9 +447,14 @@ class PortalPaymentProcessor
 
     private function processPaymentCall(Payments $payment, ConsumerAuthentication $consumerData, Order $order): array
     {
+        $payment->addLog('payment_processing', [
+            'order_id' => $order->id,
+            'amount' => $order->getTotalAmount(),
+        ]);
+
         $referenceId = $order->get('auth_session_id');
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order, includeDetails: true);
-        $pamentData = PaymentDetail::from([
+        $paymentData = PaymentDetail::from([
             'orderCode' => $order->id,
             'paymentInstrumentId' => $payment->paymentMethod->stripe_card_id,
             'orderInformation' => OrderInformation::from([
@@ -438,7 +463,7 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                'ipAddress' => $data['metadata']['data']['user_ip'] ?? request()->ip(),
+                'ipAddress' => $order->metadata['data']['user_ip'] ?? request()->ip(),
                 'fingerprintSessionId' => $merchantAuthentication->id . $order->id,
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
@@ -450,7 +475,7 @@ class PortalPaymentProcessor
 
         try {
             $result = $this->client->authorizePayment(
-                $pamentData,
+                $paymentData,
                 $consumerData,
                 $merchantAuthentication
             );
@@ -464,6 +489,14 @@ class PortalPaymentProcessor
             report($e);
             $errorMessage = $e->getMessage();
             $errorBody = $e->getErrorBody();
+            $userMessage = $e->getUserMessage();
+
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $errorMessage,
+                'error_body' => $errorBody,
+                'order_id' => $order->id,
+            ]);
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
@@ -477,6 +510,7 @@ class PortalPaymentProcessor
                     ...isset($payment->metadata['data']) ? $payment->metadata['data'] : [],
                     'error' => $errorMessage,
                     'echopay_error' => $errorBody,
+                    'user_message' => $userMessage,
                     'echopay_error_timestamp' => now()->toIso8601String(),
                 ],
             ]);
@@ -484,10 +518,10 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $errorMessage,
+                'message' => $userMessage,
                 'data' => [
                     'message_body' => $errorBody,
-                    'pamentData' => $pamentData,
+                    'paymentData' => $paymentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
                 ],
@@ -504,6 +538,12 @@ class PortalPaymentProcessor
                 $messageBody = [];
             }
 
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $errorMessage,
+                'order_id' => $order->id,
+            ]);
+
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
                 'payment_status' => PaymentStatusEnum::FAILED->value,
@@ -525,7 +565,7 @@ class PortalPaymentProcessor
                 'message' => $errorMessage,
                 'data' => [
                     'message_body' => $messageBody,
-                    'pamentData' => $pamentData,
+                    'paymentData' => $paymentData,
                     'consumerData' => $consumerData,
                     'merchantAuthentication' => $merchantAuthentication,
                 ],
@@ -535,71 +575,176 @@ class PortalPaymentProcessor
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-        $capturePayment = $this->client->capturePayment(
-            PaymentCaptureInput::from([
-                'transactionId' => $transactionId,
-                'orderCode' => $order->id,
-                'currency' => 'DOP',
-                'totalAmount' => $order->getTotalAmount(),
-            ]),
-            $merchantAuthentication
-        );
+        try {
+            $payment->addLog('payment_capture_sending', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+            ]);
 
-        $payment->status = PaymentStatusEnum::PAID;
-        $order->updateQuietly([
-            'payment_status' => PaymentStatusEnum::PAID->value,
-        ]);
-        $payment->addMetadata([
-            'data' => [
-                ...$payment->metadata['data'],
-                'capture_data' => $capturePayment,
-            ],
-        ]);
-        $payment->save();
-        $order->checkPayments();
+            $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
+            $capturePayment = $this->client->capturePayment(
+                PaymentCaptureInput::from([
+                    'transactionId' => $transactionId,
+                    'orderCode' => $order->id,
+                    'currency' => 'DOP',
+                    'totalAmount' => $order->getTotalAmount(),
+                ]),
+                $merchantAuthentication
+            );
 
-        return [
-            'status' => 'success',
-            'message' => 'Payment captured successfully',
-            'data' => $capturePayment,
-        ];
+            $payment->addLog('payment_captured', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+            ]);
+
+            $payment->markAsPaid([
+                'data' => [
+                    'capture_data' => $capturePayment,
+                ],
+            ]);
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment captured successfully',
+                'data' => $capturePayment,
+            ];
+        } catch (ConnectException | RequestException $e) {
+            // Timeout occurred - provider likely captured but response didn't arrive
+            // Assume success and mark as backup_capture for reconciliation
+            report($e);
+
+            $payment->addLog('payment_capture_timeout', [
+                'order_id' => $order->id,
+                'transaction_id' => $transactionId,
+                'amount' => $order->getTotalAmount(),
+                'error_message' => $e->getMessage(),
+                'assumed_captured' => true,
+            ]);
+
+            $payment->markAsPaid([
+                'data' => [
+                    'backup_capture' => true,
+                    'capture_timeout' => [
+                        'timestamp' => now()->toIso8601String(),
+                        'error' => $e->getMessage(),
+                    ],
+                ],
+            ]);
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment assumed captured (timeout - needs verification)',
+                'data' => ['backup_capture' => true],
+            ];
+        } catch (EchoPayException $e) {
+            report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'order_id' => $order->id,
+                'context' => 'capture_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => $e->getErrorBody(),
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $e->getMessage(),
+                'order_id' => $order->id,
+                'context' => 'capture_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
     }
 
     public function reversePayment(Payments $payment, Order $order, string $transactionId, string $reason): array
     {
-        $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-        $reversePayment = $this->client->reversePayment(
-            PaymentCaptureInput::from([
-                'transactionId' => $transactionId,
-                'orderCode' => $order->id,
-                'currency' => 'DOP',
-                'totalAmount' => $order->getTotalAmount(),
-            ]),
-            $merchantAuthentication,
-            $reason
-        );
+        try {
+            $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
+            $reversePayment = $this->client->reversePayment(
+                PaymentCaptureInput::from([
+                    'transactionId' => $transactionId,
+                    'orderCode' => $order->id,
+                    'currency' => 'DOP',
+                    'totalAmount' => $order->getTotalAmount(),
+                ]),
+                $merchantAuthentication,
+                $reason
+            );
 
-        $payment->status = PaymentStatusEnum::REVERSED->value;
-        $order->updateQuietly([
-            'payment_status' => PaymentStatusEnum::REVERSED->value,
-            'status' => OrderStatusEnum::FAILED->value,
-            'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
-        ]);
+            $payment->addLog('payment_reversed', [
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'amount' => $order->getTotalAmount(),
+            ]);
 
-        $payment->addMetadata([
-            'data' => [
-                ...$payment->metadata['data'],
-                'reverse_data' => $reversePayment,
-            ],
-        ]);
-        $payment->save();
+            $payment->status = PaymentStatusEnum::REVERSED->value;
 
-        return [
-            'status' => 'success',
-            'message' => 'Payment reversed successfully',
-            'data' => $reversePayment,
-        ];
+            $payment->addMetadata([
+                'data' => [
+                    ...($payment->metadata['data'] ?? []),
+                    'reverse_data' => $reversePayment,
+                ],
+            ]);
+            $payment->save();
+
+            return [
+                'status' => 'success',
+                'message' => 'Payment reversed successfully',
+                'data' => $reversePayment,
+            ];
+        } catch (EchoPayException $e) {
+            report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => 'EchoPayException',
+                'error_message' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'context' => 'reverse_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => $e->getErrorBody(),
+            ];
+        } catch (Throwable $e) {
+            report($e);
+
+            $payment->addLog('payment_error', [
+                'error_type' => get_class($e),
+                'error_message' => $e->getMessage(),
+                'transaction_id' => $transactionId,
+                'reason' => $reason,
+                'order_id' => $order->id,
+                'context' => 'reverse_payment',
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
     }
 
     //  process the request with the device data
@@ -625,6 +770,8 @@ class PortalPaymentProcessor
 
             return $enrollmentResult;
         } catch (EchoPayException $e) {
+            $userMessage = $e->getUserMessage();
+
             $order->updateQuietly([
                 'status' => OrderStatusEnum::FAILED->value,
             ]);
@@ -643,7 +790,7 @@ class PortalPaymentProcessor
             return [
                 'payment' => $payment->getId(),
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $userMessage,
                 'report' => 'fail',
                 'data' => null,
                 'trace' => $e->getTraceAsString(),

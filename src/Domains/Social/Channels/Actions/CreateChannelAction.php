@@ -48,14 +48,18 @@ class CreateChannelAction
             ]);
         }
 
-        $channel->users()->syncWithoutDetaching([
-            $this->channelDto->users->id => [
-                'roles_id' => RolesRepository::getByNameFromCompany(
-                    name: RolesEnums::ADMIN->value,
-                    app: $this->channelDto->apps,
-                )->id,
-            ],
-        ]);
+        // Check if user is already attached to avoid duplicate entry error
+        if (! $channel->users()->where('users_id', $this->channelDto->users->id)->exists()) {
+            $channel->users()->attach(
+                $this->channelDto->users->id,
+                [
+                    'roles_id' => RolesRepository::getByNameFromCompany(
+                        name: RolesEnums::ADMIN->value,
+                        app: $this->channelDto->apps,
+                    )->id,
+                ]
+            );
+        }
 
         return $channel;
     }
