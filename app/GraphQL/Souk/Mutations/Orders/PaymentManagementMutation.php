@@ -68,8 +68,6 @@ class PaymentManagementMutation
             }
         }
 
-        Log::info('generatePaymentIntent currency: ' . $currencyCode);
-
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [
                 'status' => 'success',
