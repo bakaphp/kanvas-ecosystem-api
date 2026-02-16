@@ -117,7 +117,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         $order = (new CreateOrderAction($orderData))->execute();
 
         $this->handleCustomFieldsOnOrder($order);
-        $this->upsertGoogleSubscription($receipt, $verifiedReceipt);
+        $this->upsertGoogleSubscription($receipt, $verifiedReceipt, $order);
         $this->tagOrderAsIapSubscription($order);
 
         return $order;
@@ -210,7 +210,11 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         return $this->createOrderDto($orderItems, $people, $allReceiptData);
     }
 
-    private function upsertGoogleSubscription(array $receipt, SubscriptionPurchase $subscriptionPurchase): void
+    private function upsertGoogleSubscription(
+        array $receipt,
+        SubscriptionPurchase $subscriptionPurchase,
+        ModelsOrder $order
+    ): void
     {
         $subscriptionExternalId = $receipt['purchaseToken'];
 
@@ -226,6 +230,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
                 'config' => [
                     'product_id' => $receipt['productId'],
                     'latest_order_id' => $subscriptionPurchase->getOrderId(),
+                    'order_id' => $order->getId(),
                 ],
             ]
         );

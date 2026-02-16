@@ -76,6 +76,7 @@ class AppleRenewableSubscriptionTest extends TestCase
 
         $this->assertNotNull($appsStripeCustomer);
         $this->assertEquals('original_tx_1', $appsStripeCustomer->stripe_id);
+        $this->assertEquals($order->getId(), (int) ($appsStripeCustomer->config['order_id'] ?? 0));
 
         $subscription = CashierSubscription::where('apps_stripe_customer_id', $appsStripeCustomer->getId())
             ->where('stripe_id', 'original_tx_1')

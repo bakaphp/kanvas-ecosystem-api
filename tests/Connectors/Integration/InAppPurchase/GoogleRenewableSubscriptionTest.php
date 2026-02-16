@@ -70,6 +70,8 @@ class GoogleRenewableSubscriptionTest extends TestCase
 
         $this->assertNotNull($appsStripeCustomer);
         $this->assertEquals($purchaseToken, $appsStripeCustomer->stripe_id);
+        $this->assertEquals($order->getId(), (int) ($appsStripeCustomer->config['order_id'] ?? 0));
+        $this->assertEquals('GPA.1000-2000-3000-40000..0', (string) ($appsStripeCustomer->config['latest_order_id'] ?? ''));
 
         $subscription = CashierSubscription::where('apps_stripe_customer_id', $appsStripeCustomer->getId())
             ->where('stripe_id', $purchaseToken)

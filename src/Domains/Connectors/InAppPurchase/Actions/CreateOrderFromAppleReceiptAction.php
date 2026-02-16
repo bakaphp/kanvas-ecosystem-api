@@ -151,7 +151,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
-        $this->upsertAppleSubscription($resolvedReceiptInfo, $verifiedReceipt);
+        $this->upsertAppleSubscription($resolvedReceiptInfo, $verifiedReceipt, $order);
         $this->tagOrderAsIapSubscription($order);
 
         return $order;
@@ -334,7 +334,11 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         ];
     }
 
-    private function upsertAppleSubscription(LatestReceiptInfo $receiptInfo, ReceiptResponse $verifiedReceipt): void
+    private function upsertAppleSubscription(
+        LatestReceiptInfo $receiptInfo,
+        ReceiptResponse $verifiedReceipt,
+        ModelsOrder $order
+    ): void
     {
         $appsStripeCustomer = AppsStripeCustomer::updateOrCreate(
             [
@@ -348,6 +352,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
                 'config' => [
                     'environment' => $verifiedReceipt->getEnvironment(),
                     'product_id' => $receiptInfo->getProductId(),
+                    'order_id' => $order->getId(),
                 ],
             ]
         );
