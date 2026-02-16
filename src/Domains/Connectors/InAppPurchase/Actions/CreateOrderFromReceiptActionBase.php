@@ -19,6 +19,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Laravel\Cashier\Subscription as CashierSubscription;
 use Spatie\LaravelData\DataCollection;
 
 abstract class CreateOrderFromReceiptActionBase
@@ -228,5 +229,46 @@ abstract class CreateOrderFromReceiptActionBase
         }
 
         return null;
+    }
+
+    protected function findExistingOrderByAppleTransactionId(string $transactionId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->apple_subscription->transaction_id', $transactionId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findExistingAppleSubscriptionOrder(string $transactionId): ?ModelsOrder
+    {
+        return $this->findExistingOrderByAppleTransactionId($transactionId);
+    }
+
+    protected function findExistingOrderByGoogleSubscriptionOrderId(string $orderId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->google_subscription->order_id', $orderId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findAppleCashierSubscription(
+        int $appsStripeCustomerId,
+        string $originalTransactionId
+    ): ?CashierSubscription {
+        $existingSubscription = CashierSubscription::query()
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
+
+        if ($existingSubscription instanceof CashierSubscription) {
+            return $existingSubscription;
+        }
+
+        return CashierSubscription::query()
+            ->where('apps_stripe_customer_id', $appsStripeCustomerId)
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
     }
 }

@@ -79,6 +79,7 @@ final class AppleInAppPurchaseTest extends TestCase
         $order = $createOrderFromReceipt->execute($receipt);
 
         $this->assertInstanceOf(Order::class, $order);
+        $this->assertTrue($order->hasTag(['iap']));
     }
 
     public function testAppleInAppPurchaseReceiptChannel()
@@ -151,6 +152,7 @@ final class AppleInAppPurchaseTest extends TestCase
         );
 
         $order = $createOrderFromReceipt->execute($receipt);
+        $this->assertTrue($order->hasTag(['iap']));
 
         $integration = Integrations::firstOrCreate([
             'apps_id' => $app->getId(),

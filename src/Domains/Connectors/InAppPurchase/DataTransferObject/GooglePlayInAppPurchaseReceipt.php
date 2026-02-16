@@ -20,7 +20,8 @@ class GooglePlayInAppPurchaseReceipt extends Data
         public readonly string $product_id,
         public readonly string $order_id,
         public readonly string $purchase_token,
-        public readonly array $custom_fields = []
+        public readonly array $custom_fields = [],
+        public readonly bool $is_renewable_subscription = false
     ) {
     }
 
@@ -39,7 +40,8 @@ class GooglePlayInAppPurchaseReceipt extends Data
             $data['product_id'],
             $data['order_id'],
             $data['purchase_token'],
-            $data['custom_fields'] ?? []
+            $data['custom_fields'] ?? [],
+            (bool) ($data['is_renewable_subscription'] ?? false)
         );
     }
 }
