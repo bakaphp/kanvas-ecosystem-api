@@ -82,6 +82,11 @@ class Order extends Data
             throw new InvalidArgumentException('Not the correct item structure to generate a line item');
         }
 
+        $currencyCode = $lineItems[0]['attributes']['currency']['code'] ?? null;
+        $orderCurrency = ! empty($currencyCode) && Currencies::where('code', $currencyCode)->exists()
+            ? Currencies::getByCode($currencyCode)
+            : $this->region?->currency;
+
         foreach ($lineItems as $lineItem) {
             $variant = Variants::getById($lineItem['id'], $this->app);
 
@@ -89,12 +94,6 @@ class Order extends Data
             if (! $variant) {
                 continue;
             }
-
-            // Extract currency from line item attributes, fall back to region currency, then USD
-            $itemCurrencyCode = $lineItem['attributes']['currency']['code'] ?? null;
-            $itemCurrency = ! empty($itemCurrencyCode)
-                ? Currencies::getByCode($itemCurrencyCode)
-                : ($this->region->currency ?? Currencies::getByCode('USD'));
 
             $item = new OrderItem(
                 app: $this->app,
@@ -105,7 +104,7 @@ class Order extends Data
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: $itemCurrency,
+                currency: $orderCurrency,
                 quantityShipped: 0,
                 channelId: $lineItem['attributes']['channel_id'] ?? null,
             );

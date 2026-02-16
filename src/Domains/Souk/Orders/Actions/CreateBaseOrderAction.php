@@ -193,6 +193,11 @@ class CreateBaseOrderAction
     {
         $orderItems = [];
 
+        // Currency is fixed per order — resolve once from the first item
+        $firstItem = reset($cartContent);
+        $currencyCode = $firstItem['attributes']['currency']['code'] ?? null;
+        $currency = ! empty($currencyCode) ? Currencies::getByCode($currencyCode) : $this->region->currency;
+
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
 
@@ -212,12 +217,6 @@ class CreateBaseOrderAction
                 }
             }
 
-            // Extract currency from cart item attributes, fall back to region currency, then USD
-            $itemCurrencyCode = $lineItem['attributes']['currency']['code'] ?? null;
-            $itemCurrency = ! empty($itemCurrencyCode)
-                ? Currencies::getByCode($itemCurrencyCode)
-                : ($this->region->currency ?? Currencies::getByCode('USD'));
-
             $orderItems[] = new OrderItem(
                 app: $app,
                 variant: $variant,
@@ -227,7 +226,7 @@ class CreateBaseOrderAction
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: $itemCurrency,
+                currency: $currency,
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
                 channelId: $lineItem['attributes']['channel_id'] ?? null
