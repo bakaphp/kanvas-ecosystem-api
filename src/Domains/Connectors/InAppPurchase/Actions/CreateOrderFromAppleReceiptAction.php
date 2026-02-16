@@ -15,6 +15,7 @@ use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -228,7 +229,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         if (array_key_exists('custom_fields', $allReceiptData)) {
             foreach ($allReceiptData['custom_fields'] as $key => $value) {
-                if ($key == "message_id") {
+                if ($key == 'message_id') {
                     $message = Message::fromApp($this->app)
                         ->where('id', $value)
                         ->first();
