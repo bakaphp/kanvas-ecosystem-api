@@ -68,6 +68,8 @@ class PaymentManagementMutation
             }
         }
 
+        \Log::info('generatePaymentIntent', ['currency' => $currencyCode, 'attributes' => $cartContent && $cartContent->isNotEmpty() ? $cartContent->first()->attributes : null]);
+
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [
                 'status' => 'success',
