@@ -158,7 +158,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
                     if (! $message) {
                         continue;
                     }
-                    $messageContent = json_decode($message->message);
+                    $messageContent = $message->message;
                     $allReceiptData['message']['users_id'] = $message->user->getId();
                     $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
                     $allReceiptData['message']['creator_email'] = $message->user->email;
