@@ -24,6 +24,9 @@ use Spatie\LaravelData\DataCollection;
 
 abstract class CreateOrderFromReceiptActionBase
 {
+    protected const string IAP_TAG = 'iap';
+    protected const string IAP_SUBSCRIPTION_TAG = 'iap-subscription';
+
     protected AppInterface $app;
     protected CompanyInterface $company;
     protected UserInterface $user;
@@ -46,11 +49,11 @@ abstract class CreateOrderFromReceiptActionBase
 
     protected function createPeople(): People
     {
-        return (new CreatePeopleFromUserAction(
+        return new CreatePeopleFromUserAction(
             $this->app,
             $this->company->defaultBranch,
             $this->user
-        ))->execute();
+        )->execute();
     }
 
     protected function createOrderItem(Variants $variant, int $quantity): OrderItem
@@ -254,7 +257,7 @@ abstract class CreateOrderFromReceiptActionBase
             ->first();
     }
 
-    protected function findAppleCashierSubscription(
+    protected function findCashierSubscription(
         int $appsStripeCustomerId,
         string $originalTransactionId
     ): ?CashierSubscription {
@@ -270,5 +273,25 @@ abstract class CreateOrderFromReceiptActionBase
             ->where('apps_stripe_customer_id', $appsStripeCustomerId)
             ->where('stripe_id', $originalTransactionId)
             ->first();
+    }
+
+    protected function tagOrderAsIap(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
+    }
+
+    protected function tagOrderAsIapSubscription(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_SUBSCRIPTION_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
     }
 }

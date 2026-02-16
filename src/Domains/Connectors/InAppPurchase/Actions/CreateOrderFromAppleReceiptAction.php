@@ -26,8 +26,6 @@ use Override;
 class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 {
     private const string DEFAULT_CURRENCY = 'USD';
-    private const string IAP_TAG = 'iap';
-    private const string IAP_SUBSCRIPTION_TAG = 'iap-subscription';
 
     public function __construct(
         protected readonly AppleInAppPurchaseReceipt $appleInAppPurchase,
@@ -360,7 +358,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $expiresDate = $receiptInfo->getExpiresDate()?->toCarbon();
         $trialEndsAt = $receiptInfo->getIsTrialPeriod() ? $expiresDate : null;
 
-        $subscription = $this->findAppleCashierSubscription(
+        $subscription = $this->findCashierSubscription(
             $appsStripeCustomer->getId(),
             $receiptInfo->getOriginalTransactionId()
         ) ?? new CashierSubscription();
@@ -390,23 +388,4 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         return 'active';
     }
 
-    private function tagOrderAsIap(ModelsOrder $order): void
-    {
-        $order->addTag(
-            self::IAP_TAG,
-            $this->app,
-            $this->user,
-            $this->company
-        );
-    }
-
-    private function tagOrderAsIapSubscription(ModelsOrder $order): void
-    {
-        $order->addTag(
-            self::IAP_SUBSCRIPTION_TAG,
-            $this->app,
-            $this->user,
-            $this->company
-        );
-    }
 }

@@ -26,9 +26,6 @@ use Override;
 
 class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBase
 {
-    private const string IAP_TAG = 'iap';
-    private const string IAP_SUBSCRIPTION_TAG = 'iap-subscription';
-
     public function __construct(
         protected readonly GooglePlayInAppPurchaseReceipt $googlePlayInAppPurchase
     ) {
@@ -77,7 +74,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
             $people
         );
 
-        $order = (new CreateOrderAction($orderData))->execute();
+        $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
         $this->tagOrderAsIap($order);
@@ -114,7 +111,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
 
         $people = $this->createPeople();
         $orderData = $this->createRenewableOrderData($receipt, $people, $verifiedReceipt);
-        $order = (new CreateOrderAction($orderData))->execute();
+        $order = new CreateOrderAction($orderData)->execute();
 
         $this->handleCustomFieldsOnOrder($order);
         $this->upsertGoogleSubscription($receipt, $verifiedReceipt, $order);
@@ -234,7 +231,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
             ]
         );
 
-        $subscription = $this->findAppleCashierSubscription(
+        $subscription = $this->findCashierSubscription(
             $appsStripeCustomer->getId(),
             $subscriptionExternalId
         ) ?? new CashierSubscription();
@@ -270,23 +267,4 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         return 'active';
     }
 
-    private function tagOrderAsIap(ModelsOrder $order): void
-    {
-        $order->addTag(
-            self::IAP_TAG,
-            $this->app,
-            $this->user,
-            $this->company
-        );
-    }
-
-    private function tagOrderAsIapSubscription(ModelsOrder $order): void
-    {
-        $order->addTag(
-            self::IAP_SUBSCRIPTION_TAG,
-            $this->app,
-            $this->user,
-            $this->company
-        );
-    }
 }
