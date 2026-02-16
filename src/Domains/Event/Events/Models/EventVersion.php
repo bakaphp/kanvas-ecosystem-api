@@ -17,6 +17,7 @@ use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 use Spatie\LaravelData\DataCollection;
 
 #[ObservedBy([EventVersionObserver::class])]
@@ -63,6 +64,7 @@ class EventVersion extends BaseModel
         return $this->hasMany(EventVersionParticipant::class, 'event_version_id');
     }
 
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -100,7 +102,7 @@ class EventVersion extends BaseModel
                 ['name' => 'Attendee'],
                 [
                     'name' => 'Attendee',
-                    'users_id' => $defaultParticipantType->users_id
+                    'users_id' => $defaultParticipantType->users_id,
                 ]
             );
 

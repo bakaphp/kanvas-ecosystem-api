@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\NetSuite;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Console\Command;
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Users\Models\Users;
 
 class NetSuiteSyncAllProductStockCommand extends Command
@@ -25,7 +24,7 @@ class NetSuiteSyncAllProductStockCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:netsuite-sync-all-stock {app_id} {company_id} {user_id} {--delay=100 : Delay in milliseconds between each product sync} {--skip=0 : Number of products to skip from the start} {--limit= : Maximum number of products to sync}';
+    protected $signature = 'kanvas:netsuite-sync-all-stock {app_id} {company_id} {user_id} {--delay=100 : Delay in milliseconds between each product sync} {--skip=0 : Number of products to skip from the start} {--limit= : Maximum number of products to sync} {--email= : Email address to send summary report to}';
 
     /**
      * The console command description.
@@ -87,6 +86,7 @@ class NetSuiteSyncAllProductStockCommand extends Command
         foreach ($variants as $variant) {
             try {
                 $barcode = (string) $variant->barcode;
+
                 $this->info("Processing variant #{$currentIndex}: {$variant->name} (Barcode: {$barcode})");
 
                 $result = $syncNetSuiteProduct->execute($barcode);
@@ -128,8 +128,10 @@ class NetSuiteSyncAllProductStockCommand extends Command
         $this->output->progressFinish();
 
         // Summary
+        $runDate = Carbon::now()->format('Y-m-d H:i:s T');
+
         $this->newLine();
-        $this->info('=== Sync Summary ===');
+        $this->info("=== Sync Summary ({$runDate}) ===");
         $this->info("Total variants processed: {$totalProducts}");
         $this->info('Successfully synced: ' . count($syncedProducts));
         $this->info('Errors: ' . count($errorProducts));
@@ -160,13 +162,37 @@ class NetSuiteSyncAllProductStockCommand extends Command
             );
         }
 
-        // Send notification
-        /*         new SendUserNotificationAction(
-                    $app,
-                    $company,
-                    $user,
-                    RolesEnums::INVENTORY_MANAGER,
-                )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []); */
+        // Send email summary
+        /** @var string|null $email */
+        $email = $this->option('email');
+        if ($email !== null && $email !== '') {
+            $summaryBody = "NetSuite Stock Sync Summary - {$runDate}\n";
+            $summaryBody .= "Company: {$company->name}\n\n";
+            $summaryBody .= "Total variants processed: {$totalProducts}\n";
+            $summaryBody .= 'Successfully synced: ' . count($syncedProducts) . "\n";
+            $summaryBody .= 'Errors: ' . count($errorProducts) . "\n";
+
+            if (count($syncedProducts) > 0) {
+                $summaryBody .= "\n--- Successfully Synced Products ---\n";
+                foreach ($syncedProducts as $item) {
+                    $summaryBody .= "  {$item['barcode']} | {$item['name']} | Qty: {$item['quantity']}\n";
+                }
+            }
+
+            if (count($errorProducts) > 0) {
+                $summaryBody .= "\n--- Products with Errors ---\n";
+                foreach ($errorProducts as $item) {
+                    $summaryBody .= "  {$item['barcode']} | {$item['name']} | Error: {$item['error']}\n";
+                }
+            }
+
+            Mail::raw($summaryBody, function (\Illuminate\Mail\Message $message) use ($email, $runDate, $company) {
+                $message->to($email)
+                    ->subject("NetSuite Stock Sync Summary - {$company->name} - {$runDate}");
+            });
+
+            $this->info("Summary email sent to {$email}");
+        }
 
         $this->newLine();
         $this->info('Stock sync completed!');

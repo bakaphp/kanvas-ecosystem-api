@@ -231,7 +231,7 @@ class CreateBaseOrderAction
                 currency: $currency,
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
-                channelId: $lineItem['attributes']['channel_id'] ?? null
+                channelId: ! empty($lineItem['attributes']['channel_id']) ? (int) $lineItem['attributes']['channel_id'] : null
             );
         }
 

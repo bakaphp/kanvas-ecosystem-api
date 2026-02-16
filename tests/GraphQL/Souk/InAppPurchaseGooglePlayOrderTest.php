@@ -12,6 +12,7 @@ use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Tests\TestCase;
 
@@ -81,6 +82,9 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
                 ],
             ],
         ]);
+
+        $order = Order::fromApp($app)->findOrFail((int) $response->json('data.createOrderFromGooglePlayInAppPurchase.id'));
+        $this->assertTrue($order->hasTag(['iap']));
     }
 
     public function testCreateOrderFromGooglePlayInAppPurchaseWithCustomFields()
