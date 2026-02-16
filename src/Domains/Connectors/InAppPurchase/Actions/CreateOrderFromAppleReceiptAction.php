@@ -338,8 +338,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         LatestReceiptInfo $receiptInfo,
         ReceiptResponse $verifiedReceipt,
         ModelsOrder $order
-    ): void
-    {
+    ): void {
         $appsStripeCustomer = AppsStripeCustomer::updateOrCreate(
             [
                 'apps_id' => $this->app->getId(),

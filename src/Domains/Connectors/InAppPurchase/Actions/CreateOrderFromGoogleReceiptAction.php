@@ -214,8 +214,7 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
         array $receipt,
         SubscriptionPurchase $subscriptionPurchase,
         ModelsOrder $order
-    ): void
-    {
+    ): void {
         $subscriptionExternalId = $receipt['purchaseToken'];
 
         $appsStripeCustomer = AppsStripeCustomer::updateOrCreate(
