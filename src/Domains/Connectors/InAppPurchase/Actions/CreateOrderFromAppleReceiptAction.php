@@ -387,5 +387,4 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         return 'active';
     }
-
 }

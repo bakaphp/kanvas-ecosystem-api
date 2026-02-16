@@ -266,5 +266,4 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
 
         return 'active';
     }
-
 }
