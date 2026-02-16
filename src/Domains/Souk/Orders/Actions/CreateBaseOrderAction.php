@@ -93,7 +93,12 @@ class CreateBaseOrderAction
             $lineItems = [];
 
             foreach ($this->request['input']['items'] as $key => $lineItem) {
-                $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
+                $lineItems[$key] = OrderItem::viaRequest(
+                    $this->app,
+                    $this->company,
+                    $this->region,
+                    $lineItem
+                );
                 $total += $lineItems[$key]->getTotal();
                 $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = 0.0;
@@ -102,29 +107,11 @@ class CreateBaseOrderAction
             $lineItems = OrderItem::collect($lineItems, DataCollection::class);
         }
 
-        $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
+        $orderCurrency = $this->resolveOrderCurrency();
 
-        try {
-            if (isset($this->request['input']['currency']) && ! empty($this->request['input']['currency'])) {
-                $currency = Currencies::getByCode($this->request['input']['currency']);
-            } elseif ($hasItemsInCart) {
-                // Extract currency from the first cart item's attributes
-                $firstCartItem = $this->cart->getContent()->first();
-                $cartCurrencyCode = null;
-                if ($firstCartItem) {
-                    $attrs = $firstCartItem->attributes;
-                    $cartCurrency = is_array($attrs) || $attrs instanceof \ArrayAccess ? ($attrs['currency'] ?? null) : null;
-                    $cartCurrencyCode = is_array($cartCurrency) ? ($cartCurrency['code'] ?? null) : null;
-                }
-                $currency = ! empty($cartCurrencyCode)
-                    ? Currencies::getByCode($cartCurrencyCode)
-                    : $this->region->currency;
-            } else {
-                $currency = $this->region->currency;
-            }
-        } catch (ModelNotFoundException $e) {
-            $currency = $this->region->currency;
-        }
+        $items = $hasItemsInCart
+            ? $this->getOrderItems($lineItems, $this->app, $orderCurrency)
+            : $lineItems;
 
         $order = new Order(
             app: $this->app,
@@ -144,7 +131,7 @@ class CreateBaseOrderAction
             status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
             shippingMethod: null,
-            currency: $currency,
+            currency: $orderCurrency,
             fulfillmentStatus: OrderStatusEnum::PENDING->value,
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,
@@ -189,16 +176,9 @@ class CreateBaseOrderAction
         return $order;
     }
 
-    protected function getOrderItems(array $cartContent, AppInterface $app): DataCollection
+    protected function getOrderItems(array $cartContent, AppInterface $app, Currencies $currency): DataCollection
     {
         $orderItems = [];
-
-        // Currency is fixed per order — resolve once from the first item
-        $firstItem = reset($cartContent);
-        $currencyCode = $firstItem['attributes']['currency']['code'] ?? null;
-        $currency = ! empty($currencyCode) && Currencies::where('code', $currencyCode)->exists()
-            ? Currencies::getByCode($currencyCode)
-            : $this->region->currency;
 
         foreach ($cartContent as $lineItem) {
             $variant = Variants::getById($lineItem['id']);
@@ -257,6 +237,19 @@ class CreateBaseOrderAction
         }
 
         return $total;
+    }
+
+    protected function resolveOrderCurrency(): Currencies
+    {
+        try {
+            if (isset($this->request['input']['currency']) && ! empty($this->request['input']['currency'])) {
+                return Currencies::getByCode($this->request['input']['currency']);
+            }
+        } catch (ModelNotFoundException $e) {
+            // Fallback below.
+        }
+
+        return $this->region->currency;
     }
 
     /**
