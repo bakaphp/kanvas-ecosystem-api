@@ -148,6 +148,27 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         $allReceiptData['source'] = 'apple';
         $this->addMessageMetadataFromCustomFields($allReceiptData);
 
+        if (array_key_exists('custom_fields', $allReceiptData)) {
+            foreach ($allReceiptData['custom_fields'] as $key => $value) {
+                if ($key == "message_id") {
+                    $message = Message::fromApp($this->app)
+                        ->where('id', $value)
+                        ->first();
+
+                    if (! $message) {
+                        continue;
+                    }
+                    $messageContent = $message->message;
+                    $allReceiptData['message']['users_id'] = $message->user->getId();
+                    $allReceiptData['message']['creator_display_name'] = $message->user->displayname ?? null;
+                    $allReceiptData['message']['creator_email'] = $message->user->email;
+                    $allReceiptData['message']['id'] = $message->getId();
+                    $allReceiptData['message']['user_subscription_tier'] = $message->getId();
+                    $allReceiptData['message']['prompt_title'] = $messageContent['title'] ?? $message->slug;
+                }
+            }
+        }
+
         return $this->createOrderDto(
             $orderItems,
             $people,
