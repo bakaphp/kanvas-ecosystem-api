@@ -19,10 +19,14 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Laravel\Cashier\Subscription as CashierSubscription;
 use Spatie\LaravelData\DataCollection;
 
 abstract class CreateOrderFromReceiptActionBase
 {
+    protected const string IAP_TAG = 'iap';
+    protected const string IAP_SUBSCRIPTION_TAG = 'iap-subscription';
+
     protected AppInterface $app;
     protected CompanyInterface $company;
     protected UserInterface $user;
@@ -45,11 +49,11 @@ abstract class CreateOrderFromReceiptActionBase
 
     protected function createPeople(): People
     {
-        return (new CreatePeopleFromUserAction(
+        return new CreatePeopleFromUserAction(
             $this->app,
             $this->company->defaultBranch,
             $this->user
-        ))->execute();
+        )->execute();
     }
 
     protected function createOrderItem(Variants $variant, int $quantity): OrderItem
@@ -228,5 +232,66 @@ abstract class CreateOrderFromReceiptActionBase
         }
 
         return null;
+    }
+
+    protected function findExistingOrderByAppleTransactionId(string $transactionId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->apple_subscription->transaction_id', $transactionId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findExistingAppleSubscriptionOrder(string $transactionId): ?ModelsOrder
+    {
+        return $this->findExistingOrderByAppleTransactionId($transactionId);
+    }
+
+    protected function findExistingOrderByGoogleSubscriptionOrderId(string $orderId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->google_subscription->order_id', $orderId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findCashierSubscription(
+        int $appsStripeCustomerId,
+        string $originalTransactionId
+    ): ?CashierSubscription {
+        $existingSubscription = CashierSubscription::query()
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
+
+        if ($existingSubscription instanceof CashierSubscription) {
+            return $existingSubscription;
+        }
+
+        return CashierSubscription::query()
+            ->where('apps_stripe_customer_id', $appsStripeCustomerId)
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
+    }
+
+    protected function tagOrderAsIap(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
+    }
+
+    protected function tagOrderAsIapSubscription(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_SUBSCRIPTION_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
     }
 }
