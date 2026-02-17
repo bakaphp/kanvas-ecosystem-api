@@ -23,6 +23,7 @@ class OrderStatsQuery
         $currentCountStates = $input['currentCountStates'] ?? [];
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
+        $productId = isset($input['productId']) ? (int) $input['productId'] : null;
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -36,7 +37,8 @@ class OrderStatsQuery
             $finalStates,
             $currentCountStates,
             $productTypeSlugs,
-            $orderTypeNames
+            $orderTypeNames,
+            $productId
         )->execute(
             $date,
             $startDate,
@@ -57,6 +59,7 @@ class OrderStatsQuery
         $input = $args['input'];
         $paidStates = $input['paidStates'] ?? ['paid'];
         $variantId = $input['variantId'] ?? null;
+        $productId = isset($input['productId']) ? (int) $input['productId'] : null;
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
         $providers = $input['providers'] ?? [];
@@ -72,7 +75,8 @@ class OrderStatsQuery
             $variantId,
             $productTypeSlugs,
             $orderTypeNames,
-            $providers
+            $providers,
+            $productId
         )->execute(
             $date,
             $startDate,

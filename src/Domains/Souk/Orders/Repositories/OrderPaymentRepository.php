@@ -26,7 +26,8 @@ class OrderPaymentRepository
         array $paidStates,
         ?int $variantId = null,
         string $timezone = 'UTC',
-        array $orderTypeNames = []
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -44,6 +45,11 @@ class OrderPaymentRepository
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             })
             ->with(['items'])
@@ -73,7 +79,8 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         array $providers,
-        ?int $variantId = null
+        ?int $variantId = null,
+        array $productVariantIds = []
     ): Collection {
         $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -84,6 +91,11 @@ class OrderPaymentRepository
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             });
 
@@ -116,7 +128,8 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         ?int $variantId = null,
-        array $orderTypeNames = []
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -131,6 +144,11 @@ class OrderPaymentRepository
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             })
             ->with(['items'])
