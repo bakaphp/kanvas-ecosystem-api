@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
@@ -113,13 +112,6 @@ class VariantPriceService
         }
 
         $this->resolvedWarehouseId = (int) $channelVariant->warehouses_id;
-
-        if ($variant->app->get(AppEnums::CAN_USE_COMMERCE_DISCOUNT_PRICE->getValue())) {
-            // Try to get the discount price if available and greater than 0
-            if ($channelVariant->discounted_price !== null && (float) $channelVariant->discounted_price > 0) {
-                return (float) $channelVariant->discounted_price;
-            }
-        }
 
         return (float) $channelVariant->price;
     }
