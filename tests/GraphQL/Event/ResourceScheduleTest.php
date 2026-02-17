@@ -313,6 +313,146 @@ class ResourceScheduleTest extends TestCase
         $this->assertFalse($validator->isOpen($mondayLate));
     }
 
+    public function testSetScheduleWithMultiplePeriods(): void
+    {
+        Queue::fake();
+
+        $days = [
+            'monday' => [
+                'active' => true,
+                'periods' => [
+                    ['open' => '08:00', 'close' => '12:00'],
+                    ['open' => '14:00', 'close' => '18:00'],
+                ],
+            ],
+            'tuesday' => ['active' => false, 'open' => null, 'close' => null],
+            'wednesday' => ['active' => false, 'open' => null, 'close' => null],
+            'thursday' => ['active' => false, 'open' => null, 'close' => null],
+            'friday' => ['active' => false, 'open' => null, 'close' => null],
+            'saturday' => ['active' => false, 'open' => null, 'close' => null],
+            'sunday' => ['active' => false, 'open' => null, 'close' => null],
+        ];
+
+        $rules = new SetResourceScheduleAction(
+            resource: $this->product,
+            app: $this->apps,
+            company: $this->company,
+            days: $days,
+            scheduleType: ScheduleTypeEnum::WEEKLY,
+        )->execute();
+
+        $this->assertCount(1, $rules);
+        $mondayRule = $rules[0];
+        $this->assertEquals('monday', $mondayRule->metadata['operation_day']);
+        $this->assertArrayHasKey('periods', $mondayRule->metadata);
+        $this->assertCount(2, $mondayRule->metadata['periods']);
+        $this->assertEquals('08:00', $mondayRule->metadata['periods'][0]['open']);
+        $this->assertEquals('12:00', $mondayRule->metadata['periods'][0]['close']);
+        $this->assertEquals('14:00', $mondayRule->metadata['periods'][1]['open']);
+        $this->assertEquals('18:00', $mondayRule->metadata['periods'][1]['close']);
+    }
+
+    public function testValidationWithSplitScheduleClosedDuringRestPeriod(): void
+    {
+        Queue::fake();
+
+        $days = [
+            'monday' => [
+                'active' => true,
+                'periods' => [
+                    ['open' => '08:00', 'close' => '12:00'],
+                    ['open' => '14:00', 'close' => '18:00'],
+                ],
+            ],
+            'tuesday' => ['active' => false, 'open' => null, 'close' => null],
+            'wednesday' => ['active' => false, 'open' => null, 'close' => null],
+            'thursday' => ['active' => false, 'open' => null, 'close' => null],
+            'friday' => ['active' => false, 'open' => null, 'close' => null],
+            'saturday' => ['active' => false, 'open' => null, 'close' => null],
+            'sunday' => ['active' => false, 'open' => null, 'close' => null],
+        ];
+
+        new SetResourceScheduleAction(
+            resource: $this->product,
+            app: $this->apps,
+            company: $this->company,
+            days: $days,
+            scheduleType: ScheduleTypeEnum::WEEKLY,
+        )->execute();
+
+        $validator = new ResourceScheduleValidator($this->product, $this->apps);
+
+        // Open during first period
+        $mondayMorning = Carbon::parse('next monday 10:00');
+        $this->assertTrue($validator->isOpen($mondayMorning));
+
+        // Closed during rest period
+        $mondayRestPeriod = Carbon::parse('next monday 13:00');
+        $this->assertFalse($validator->isOpen($mondayRestPeriod));
+
+        // Open during second period
+        $mondayAfternoon = Carbon::parse('next monday 15:00');
+        $this->assertTrue($validator->isOpen($mondayAfternoon));
+    }
+
+    public function testBuildScheduleResponseIncludesPeriodsArray(): void
+    {
+        Queue::fake();
+
+        $days = [
+            'monday' => [
+                'active' => true,
+                'periods' => [
+                    ['open' => '08:00', 'close' => '12:00'],
+                    ['open' => '14:00', 'close' => '18:00'],
+                ],
+            ],
+            'tuesday' => ['active' => true, 'open' => '09:00', 'close' => '17:00'],
+            'wednesday' => ['active' => false, 'open' => null, 'close' => null],
+            'thursday' => ['active' => false, 'open' => null, 'close' => null],
+            'friday' => ['active' => false, 'open' => null, 'close' => null],
+            'saturday' => ['active' => false, 'open' => null, 'close' => null],
+            'sunday' => ['active' => false, 'open' => null, 'close' => null],
+        ];
+
+        new SetResourceScheduleAction(
+            resource: $this->product,
+            app: $this->apps,
+            company: $this->company,
+            days: $days,
+            scheduleType: ScheduleTypeEnum::WEEKLY,
+        )->execute();
+
+        $response = new BuildScheduleResponseAction($this->product, $this->apps)->execute();
+
+        $this->assertTrue($response['is_configured']);
+        $this->assertEquals(2, $response['days_count']);
+
+        // Find Monday in the days array
+        $monday = collect($response['days'])->firstWhere('day', 'monday');
+        $this->assertNotNull($monday);
+        $this->assertTrue($monday['active']);
+        $this->assertArrayHasKey('periods', $monday);
+        $this->assertCount(2, $monday['periods']);
+        $this->assertEquals('08:00', $monday['periods'][0]['open']);
+        $this->assertEquals('12:00', $monday['periods'][0]['close']);
+        $this->assertEquals('14:00', $monday['periods'][1]['open']);
+        $this->assertEquals('18:00', $monday['periods'][1]['close']);
+        $this->assertNull($monday['open']); // Multi-period: open/close stay null
+        $this->assertNull($monday['close']);
+
+        // Find Tuesday - single period should have both formats (backward compatibility)
+        $tuesday = collect($response['days'])->firstWhere('day', 'tuesday');
+        $this->assertNotNull($tuesday);
+        $this->assertTrue($tuesday['active']);
+        $this->assertArrayHasKey('periods', $tuesday);
+        $this->assertCount(1, $tuesday['periods']);
+        $this->assertEquals('9:00 AM', $tuesday['periods'][0]['open']); // Formatted from day_rrule
+        $this->assertEquals('5:00 PM', $tuesday['periods'][0]['close']); // Formatted from day_rrule
+        $this->assertEquals('9:00 AM', $tuesday['open']); // Backward compatibility
+        $this->assertEquals('5:00 PM', $tuesday['close']); // Backward compatibility
+    }
+
     private function createWeeklySchedule(Products $product, array $days): array
     {
         $fullDays = [];
