@@ -28,6 +28,7 @@ use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -90,7 +91,28 @@ class PullLeadAction
                     $this->user
                 );
 
+                // Check if lead already exists to determine if we need to fire the CREATED workflow
+                $existingLead = ModelsLead::getByCustomField(
+                    CustomFieldEnum::LEADS->value,
+                    $currentLead['LeadId'],
+                    $this->company
+                );
+                $isNewLead = $existingLead === null;
+
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($vinLead)->execute();
+
+                // Fire workflow if this is a newly created lead
+                if ($isNewLead) {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::CREATED->value,
+                        true,
+                        [
+                            'app' => $this->app,
+                            'company' => $this->company,
+                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
+                        ]
+                    );
+                }
 
                 //set communication channel
                 if ($lead->company->get('ai', false) || $triggerFirstMessage) {
