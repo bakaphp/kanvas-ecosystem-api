@@ -70,7 +70,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             $action->execute($this->params);
             $entity = $this->message->entity();
             if ($entity instanceof Lead) {
-                $lead->fireWorkflow(
+                $entity->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,
                     [
