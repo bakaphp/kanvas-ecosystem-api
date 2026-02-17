@@ -27,6 +27,7 @@ class ResourceScheduleMutation
             'active' => $d['active'],
             'open' => $d['open'] ?? null,
             'close' => $d['close'] ?? null,
+            'periods' => $d['periods'] ?? null,
         ])->all();
 
         $scheduleType = ScheduleTypeEnum::from(strtolower($input['schedule_type']));
