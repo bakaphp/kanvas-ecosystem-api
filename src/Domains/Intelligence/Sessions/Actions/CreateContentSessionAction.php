@@ -65,6 +65,8 @@ class CreateContentSessionAction
 
     protected function generateBackground(array $data): mixed
     {
+        $data = array_merge($data, $this->generateValuesForRole($this->entity instanceof Lead ? $this->entity : null));
+
         try {
             $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
                 ? Blade::render(json_encode($this->session->agent->role), $data)
