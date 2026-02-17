@@ -388,7 +388,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $user = auth()->user();
 
         // If user CANNOT view all companies, limit to their companies only
-        if ($user->can('limited-company-access')) {
+        if (! $user->isAdmin()) {
             return $query->whereIn('companies.id', function ($subquery) use ($app, $user) {
                 $subquery->select('companies_id')
                     ->from('users_associated_apps')
