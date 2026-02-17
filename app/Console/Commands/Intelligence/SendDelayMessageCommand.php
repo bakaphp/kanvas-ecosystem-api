@@ -74,34 +74,37 @@ class SendDelayMessageCommand extends Command
 
                     continue;
                 }
-
-                // for now only work with elead, missing determining if lead was contacted
-                if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
-                    $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
-                    $message->setUnlock();
-                    //$message->setPublic();
-
-                    continue;
-                }
-
-                try {
-                    if (SalesActivities::hasSalesAgentReachedOut(
-                        $lead->app,
-                        $lead->company,
-                        $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    )) {
+                $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+                if ($isElead) {
+                    // for now only work with elead, missing determining if lead was contacted
+                    if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
+                        $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                         $message->setUnlock();
                         //$message->setPublic();
-                        $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
                     }
-                } catch (Exception $e) {
-                    $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
 
-                    continue;
+                    try {
+                        if (
+                            SalesActivities::hasSalesAgentReachedOut(
+                                $lead->app,
+                                $lead->company,
+                                $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            )
+                        ) {
+                            $message->setUnlock();
+                            //$message->setPublic();
+                            $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
+
+                            continue;
+                        }
+                    } catch (Exception $e) {
+                        $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+
+                        continue;
+                    }
                 }
-
                 $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
 
                 if ($messageContent === '' || empty($messageContent)) {
@@ -122,7 +125,7 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
 
-                if (! $lead->get('delay_message_sent')) {
+                if (! $lead->get('delay_message_sent') && $isElead) {
                     try {
                         $eLeadOpportunity = EntitiesLead::getById(
                             $lead->app,
