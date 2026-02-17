@@ -13,8 +13,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Cart\Enums\CartConditionEnum;
 use Kanvas\Souk\Cart\Services\CartService;
-use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
+use Kanvas\Souk\Discounts\Services\DiscountService;
 
 class CartManagementMutation
 {
@@ -90,15 +90,11 @@ class CartManagementMutation
             return $cartService->getCart();
         }
 
-        // Process discount codes using the new discount system
+        $discountService = new DiscountService($app, $company);
+
         foreach ($discountCodes as $discountCode) {
             try {
-                // Find the discount by code
-                $discount = Discount::where('code', $discountCode)
-                    ->fromApp($app)
-                    ->fromCompany($company)
-                    ->where('is_active', true)
-                    ->first();
+                $discount = $discountService->findActiveByCode($discountCode, $user);
 
                 if (! $discount) {
                     throw new ModelNotFoundException('Discount code not found: ' . $discountCode);
