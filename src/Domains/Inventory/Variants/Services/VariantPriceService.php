@@ -56,7 +56,7 @@ class VariantPriceService
                 }
             }
 
-            return $this->getChannelPrice($variant, $channelId, $warehouseId);
+            return $this->getChannelPrice($variant, $channelId);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             return $this->getFallbackPrice($variant);
         }
@@ -82,7 +82,7 @@ class VariantPriceService
         return (float) $variantChannel->price;
     }
 
-    private function getChannelPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
+    private function getChannelPrice(Variants $variant, ?int $channelId = null): float
     {
         $channel = null;
 
@@ -95,26 +95,17 @@ class VariantPriceService
 
         $this->setCurrentChannel($channel);
 
-        $channelVariant = null;
+        $channelVariant = $variant->variantChannels()
+            ->where('channels_id', $channelId)
+            ->whereHas('warehouse', function ($query) {
+                $query->where('is_default', false);
+            })
+            ->first();
 
-        if ($warehouseId) {
+        if (! $channelVariant) {
             $channelVariant = $variant->variantChannels()
                 ->where('channels_id', $channelId)
-                ->where('warehouses_id', $warehouseId)
                 ->first();
-        } else {
-            $channelVariant = $variant->variantChannels()
-                ->where('channels_id', $channelId)
-                ->whereHas('warehouse', function ($query) {
-                    $query->where('is_default', false);
-                })
-                ->first();
-
-            if (! $channelVariant) {
-                $channelVariant = $variant->variantChannels()
-                    ->where('channels_id', $channelId)
-                    ->first();
-            }
         }
 
         if (! $channelVariant) {
@@ -166,7 +157,7 @@ class VariantPriceService
 
     private function getCurrencyFromWarehouse(Variants $variant, ?int $warehouseId = null): Currencies
     {
-        $warehouseToUse = $warehouseId ?? $this->resolvedWarehouseId;
+        $warehouseToUse = $this->resolvedWarehouseId;
 
         if ($warehouseToUse) {
             $warehouse = Warehouses::where('apps_id', $this->app->getId())->find($warehouseToUse);
