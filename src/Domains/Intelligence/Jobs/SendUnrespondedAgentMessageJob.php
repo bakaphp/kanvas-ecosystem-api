@@ -13,10 +13,13 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class SendUnrespondedAgentMessageJob implements ShouldQueue
 {
@@ -65,6 +68,16 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
             );
 
             $action->execute($this->params);
+            $entity = $this->message->entity();
+            if ($entity instanceof Lead) {
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::AI_TAKEOVER->value,
+                    ]
+                );
+            }
         } catch (Exception $e) {
             throw $e;
         }
