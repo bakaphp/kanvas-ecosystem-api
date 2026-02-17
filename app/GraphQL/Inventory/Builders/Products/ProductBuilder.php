@@ -57,6 +57,10 @@ class ProductBuilder
             $query->filterByNearLocation($args['nearByLocation']);
         }
 
+        // Apply role-based company scoping for Movipass multi-company support
+        $roleBasedBuilder = new RoleBasedProductBuilder();
+        $query = $roleBasedBuilder->applyRoleScope($query, $args);
+
         return $query;
     }
 
