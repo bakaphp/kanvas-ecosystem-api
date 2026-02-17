@@ -263,7 +263,7 @@ class DiscountService
      */
     public function applyDiscountCode(string $code, Order $order): ?Discount
     {
-        $user = $order->users_id !== null ? $order->user : null;
+        $user = $order->user;
         $discount = $this->findActiveByCode($code, $user);
 
         if (! $discount || ! $this->canApplyToOrder($discount, $order)) {
