@@ -82,7 +82,8 @@ class ResourceScheduleValidator
         }
 
         if (! $this->isOpen($startTime)) {
-            throw new ValidationException('Resource is closed at the requested time');
+            $message = $this->buildClosedErrorMessage($startTime);
+            throw new ValidationException($message);
         }
     }
 
@@ -171,6 +172,13 @@ class ResourceScheduleValidator
 
     private function isWithinOperatingHours(ScheduleRules $rule, Carbon $datetime): bool
     {
+        // Check if rule has multiple periods (split schedule support)
+        $metadata = $rule->metadata ?? [];
+        if (isset($metadata['periods']) && is_array($metadata['periods'])) {
+            return $this->isWithinAnyPeriod($metadata['periods'], $datetime);
+        }
+
+        // Fallback to legacy single period validation
         $dayRrule = $rule->day_rrule;
 
         if (! $dayRrule) {
@@ -196,5 +204,77 @@ class ResourceScheduleValidator
         }
 
         return true;
+    }
+
+    private function isWithinAnyPeriod(array $periods, Carbon $datetime): bool
+    {
+        $currentMinutes = (int) $datetime->format('H') * 60 + (int) $datetime->format('i');
+
+        foreach ($periods as $period) {
+            $openTime = Carbon::parse('today ' . $period['open']);
+            $closeTime = Carbon::parse('today ' . $period['close']);
+
+            $openMinutes = (int) $openTime->format('H') * 60 + (int) $openTime->format('i');
+            $closeMinutes = (int) $closeTime->format('H') * 60 + (int) $closeTime->format('i');
+
+            if ($currentMinutes >= $openMinutes && $currentMinutes < $closeMinutes) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function buildClosedErrorMessage(Carbon $requestedTime): string
+    {
+        $resourceName = $this->scheduled->name ?? 'Resource';
+        $normalizedTime = $this->normalizeToResourceTimezone($requestedTime);
+        $formattedTime = $normalizedTime->format('Y-m-d H:i');
+
+        $rule = $this->findRuleForDay($normalizedTime);
+
+        if (! $rule) {
+            $dayName = $normalizedTime->format('l');
+            return "{$resourceName} is closed on {$dayName}s. Requested time: {$formattedTime}";
+        }
+
+        $operatingHours = $this->extractOperatingHours($rule);
+
+        return "{$resourceName} is closed at the requested time ({$formattedTime}). Operating hours: {$operatingHours}";
+    }
+
+    private function extractOperatingHours(ScheduleRules $rule): string
+    {
+        // Check if rule has multiple periods (split schedule)
+        $metadata = $rule->metadata ?? [];
+        if (isset($metadata['periods']) && is_array($metadata['periods'])) {
+            $periodStrings = [];
+            foreach ($metadata['periods'] as $period) {
+                $periodStrings[] = $period['open'] . ' - ' . $period['close'];
+            }
+            return implode(', ', $periodStrings);
+        }
+
+        // Fallback to legacy single period extraction
+        $dayRrule = $rule->day_rrule;
+
+        if (! $dayRrule) {
+            return 'not configured';
+        }
+
+        if (preg_match('/BYHOUR=([0-9,]+)/', $dayRrule, $matches)) {
+            $hours = array_map('intval', explode(',', $matches[1]));
+            $openHour = min($hours);
+            $closeHour = max($hours) + 1;
+
+            return sprintf('%02d:00 - %02d:00', $openHour, $closeHour);
+        }
+
+        if (preg_match('/DTSTART:(\d{8}T\d{6})/', $dayRrule, $matches)) {
+            $startTime = Carbon::createFromFormat('Ymd\THis', $matches[1]);
+            return $startTime->format('H:i') . ' onwards';
+        }
+
+        return 'not configured';
     }
 }

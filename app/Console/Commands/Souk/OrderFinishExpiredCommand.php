@@ -70,6 +70,13 @@ class OrderFinishExpiredCommand extends Command
             if (! $order->parent_id && $variant) {
                 $channel = $variant->variantChannels()->first();
                 $variantWarehouse = $channel?->productVariantWarehouse()->first();
+
+                if (! $variantWarehouse) {
+                    $this->warn('No variant warehouse found for order ' . $order->id . ' variant ' . $variant->id);
+
+                    return;
+                }
+
                 $available = $variantWarehouse->quantity + 1;
                 $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
                 $product = $variant->product;

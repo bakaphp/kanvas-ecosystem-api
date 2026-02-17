@@ -18,6 +18,12 @@ type DaySchedule {
     active: Boolean!
     open: String
     close: String
+    periods: [TimePeriod!]
+}
+
+type TimePeriod {
+    open: String!
+    close: String!
 }
 
 input ResourceScheduleInput {
@@ -34,6 +40,12 @@ input DayScheduleInput {
     active: Boolean!
     open: String
     close: String
+    periods: [TimePeriodInput!]
+}
+
+input TimePeriodInput {
+    open: String!
+    close: String!
 }
 
 extend type Mutation @guard {

@@ -72,7 +72,7 @@ class BuildScheduleResponseAction
     {
         if (! $isConfigured) {
             return array_map(
-                fn (string $day) => ['day' => $day, 'active' => false, 'open' => null, 'close' => null],
+                fn (string $day) => ['day' => $day, 'active' => false, 'open' => null, 'close' => null, 'periods' => null],
                 self::DAY_ORDER
             );
         }
@@ -84,12 +84,37 @@ class BuildScheduleResponseAction
                 continue;
             }
 
-            [$open, $close] = $this->parseHoursFromRule($rule);
-            $activeDays[$dayName] = ['day' => $dayName, 'active' => true, 'open' => $open, 'close' => $close];
+            $metadata = $rule->metadata ?? [];
+            $periods = $metadata['periods'] ?? null;
+
+            $open = null;
+            $close = null;
+
+            // Normalize to periods format for consistency
+            if (! $periods) {
+                // Legacy single period: convert to periods array
+                [$open, $close] = $this->parseHoursFromRule($rule);
+                if ($open && $close) {
+                    $periods = [['open' => $open, 'close' => $close]];
+                }
+            } elseif (count($periods) === 1) {
+                // Single period: populate both open/close AND periods (backward compatibility)
+                $open = $periods[0]['open'];
+                $close = $periods[0]['close'];
+            }
+            // Multi-period: open/close stay null, only use periods
+
+            $activeDays[$dayName] = [
+                'day' => $dayName,
+                'active' => true,
+                'open' => $open,
+                'close' => $close,
+                'periods' => $periods
+            ];
         }
 
         return array_map(
-            fn (string $day) => $activeDays[$day] ?? ['day' => $day, 'active' => false, 'open' => null, 'close' => null],
+            fn (string $day) => $activeDays[$day] ?? ['day' => $day, 'active' => false, 'open' => null, 'close' => null, 'periods' => null],
             self::DAY_ORDER
         );
     }
