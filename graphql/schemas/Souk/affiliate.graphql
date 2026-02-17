@@ -1,8 +1,202 @@
+enum AffiliateTypeEnum {
+    INDIVIDUAL @enum(value: "individual")
+    BUSINESS @enum(value: "business")
+    INFLUENCER @enum(value: "influencer")
+    AGENCY @enum(value: "agency")
+}
+
+enum AffiliateStatusEnum {
+    PENDING @enum(value: "pending")
+    APPROVED @enum(value: "approved")
+    ACTIVE @enum(value: "active")
+    SUSPENDED @enum(value: "suspended")
+    INACTIVE @enum(value: "inactive")
+    REJECTED @enum(value: "rejected")
+}
+
+enum CommissionTypeEnum {
+    PERCENTAGE @enum(value: "percentage")
+    FIXED @enum(value: "fixed")
+    HYBRID @enum(value: "hybrid")
+    TIERED @enum(value: "tiered")
+    COMPANY_WALLET @enum(value: "company_wallet")
+    USER_WALLET @enum(value: "user_wallet")
+}
+
+enum PayoutFrequencyEnum {
+    WEEKLY @enum(value: "weekly")
+    MONTHLY @enum(value: "monthly")
+    QUARTERLY @enum(value: "quarterly")
+}
+
+enum PayoutMethodEnum {
+    WALLET @enum(value: "wallet")
+    BANK_TRANSFER @enum(value: "bank_transfer")
+    PAYPAL @enum(value: "paypal")
+    STRIPE @enum(value: "stripe")
+}
+
+enum AttributionModelEnum {
+    FIRST_CLICK @enum(value: "first_click")
+    LAST_CLICK @enum(value: "last_click")
+    LINEAR @enum(value: "linear")
+    TIME_DECAY @enum(value: "time_decay")
+}
+
+enum AffiliateConversionStatusEnum {
+    PENDING @enum(value: "pending")
+    CONFIRMED @enum(value: "confirmed")
+    PAID @enum(value: "paid")
+    REVERSED @enum(value: "reversed")
+    DISPUTED @enum(value: "disputed")
+}
+
+enum AffiliatePayoutStatusEnum {
+    PENDING_APPROVAL @enum(value: "pending_approval")
+    APPROVED @enum(value: "approved")
+    PROCESSING @enum(value: "processing")
+    COMPLETED @enum(value: "completed")
+    FAILED @enum(value: "failed")
+    CANCELLED @enum(value: "cancelled")
+}
+
+type AffiliateProgram {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    slug: String!
+    is_active: Boolean!
+    accepts_new_affiliates: Boolean!
+    require_approval: Boolean!
+    default_commission_type: String!
+    default_commission_rate: Float!
+    tier_based_commission: Boolean!
+    default_cookie_duration_days: Int!
+    default_attribution_window_days: Int!
+    min_payout_amount: Float!
+    payout_frequency: String
+    payout_methods_allowed: Mixed
+    restricted_countries: Mixed
+    restricted_categories: Mixed
+    restricted_products: Mixed
+    configuration: Mixed
+    company: Company! @belongsTo
+    tiers: [AffiliateTier!] @hasMany(relation: "tiers")
+    affiliates: [Affiliate!] @hasMany(relation: "affiliates")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AffiliateTier {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    level: Int!
+    weight: Float!
+    min_referrals: Int!
+    min_monthly_sales: Float
+    min_conversion_rate: Float
+    min_days_active: Int!
+    base_commission_rate: Float!
+    commission_multiplier: Float!
+    bonus_commission_rate: Float
+    early_payout_eligibility: Boolean!
+    marketing_material_access: Boolean!
+    dedicated_manager: Boolean!
+    priority_support: Boolean!
+    advanced_reporting: Boolean!
+    benefits: Mixed
+    is_active: Boolean!
+    program: AffiliateProgram! @belongsTo(relation: "program")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type Affiliate {
+    id: ID!
+    uuid: String!
+    name: String!
+    email: String!
+    phone: String
+    website_url: String
+    social_profiles: Mixed
+    bio: String
+    profile_image_url: String
+    affiliate_type: String!
+    status: String!
+    approval_date: DateTime
+    rejection_reason: String
+    commission_type: String!
+    commission_rate: Float!
+    min_payout_threshold: Float!
+    payout_method: String!
+    payout_frequency: String!
+    unique_identifier: String!
+    tracking_method: String!
+    cookie_duration_days: Int!
+    attribution_window_days: Int!
+    total_clicks: Int!
+    total_conversions: Int!
+    total_commission_earned: Float!
+    total_commission_paid: Float!
+    banking_details: Mixed
+    paypal_details: Mixed
+    stripe_details: Mixed
+    configuration: Mixed
+    last_payout_date: DateTime
+    last_activity_at: DateTime
+    company: Company! @belongsTo
+    program: AffiliateProgram! @belongsTo(relation: "program")
+    tier: AffiliateTier @belongsTo(relation: "tier")
+    links: [AffiliateLink!] @hasMany(relation: "links")
+    conversions: [AffiliateConversion!] @hasMany(relation: "conversions")
+    payouts: [AffiliateCommissionPayout!] @hasMany(relation: "payouts")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AffiliateLink {
+    id: ID!
+    uuid: String!
+    name: String
+    description: String
+    custom_slug: String
+    short_code: String!
+    destination_url: String
+    link_type: String!
+    config: Mixed
+    tracking_method: String!
+    cookie_duration_days: Int!
+    attribution_window_days: Int!
+    attribution_model: String!
+    override_commission: Boolean!
+    commission_type: String
+    commission_rate: Float
+    commission_note: String
+    impression_count: Int!
+    click_count: Int!
+    conversion_count: Int!
+    total_order_value: Float!
+    total_commission: Float!
+    is_active: Boolean!
+    is_approved: Boolean!
+    approval_notes: String
+    configuration: Mixed
+    affiliate: Affiliate! @belongsTo(relation: "affiliate")
+    conversions: [AffiliateConversion!] @hasMany(relation: "conversions")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
 type AffiliateConversion {
     id: ID!
     uuid: String!
-    #affiliate: Affiliate @belongsTo(relation: "affiliate")
+    affiliate: Affiliate! @belongsTo(relation: "affiliate")
+    link: AffiliateLink @belongsTo(relation: "link")
     order: Order @belongsTo(relation: "order")
+    payout: AffiliateCommissionPayout @belongsTo(relation: "payout")
     attribution_model: String!
     confirmed: Boolean!
     confirmed_at: String
@@ -18,4 +212,534 @@ type AffiliateConversion {
     converted_at: String
     created_at: DateTime!
     updated_at: DateTime
+}
+
+type AffiliateCommissionPayout {
+    id: ID!
+    uuid: String!
+    period_start: String!
+    period_end: String!
+    total_conversions: Int!
+    total_order_value: Float!
+    gross_commission: Float!
+    fees: Float!
+    adjustments: Float!
+    net_commission: Float!
+    payout_status: String!
+    payout_method: String
+    payout_reference: String
+    payout_date: String
+    approved_at: DateTime
+    approved_by: Int
+    approval_notes: String
+    transaction_id: Int
+    payment_intent_id: String
+    failure_reason: String
+    retry_count: Int!
+    next_retry_at: DateTime
+    configuration: Mixed
+    affiliate: Affiliate! @belongsTo(relation: "affiliate")
+    conversions: [AffiliateConversion!] @hasMany(relation: "conversions")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input AffiliateProgramInput {
+    name: String!
+    description: String
+    is_active: Boolean = true
+    accepts_new_affiliates: Boolean = true
+    require_approval: Boolean = true
+    default_commission_type: CommissionTypeEnum = PERCENTAGE
+    default_commission_rate: Float!
+    tier_based_commission: Boolean = false
+    default_cookie_duration_days: Int = 30
+    default_attribution_window_days: Int = 30
+    min_payout_amount: Float = 0
+    payout_frequency: PayoutFrequencyEnum = MONTHLY
+    payout_methods_allowed: Mixed
+    restricted_countries: Mixed
+    restricted_categories: Mixed
+    restricted_products: Mixed
+    configuration: Mixed
+}
+
+input UpdateAffiliateProgramInput {
+    name: String
+    description: String
+    is_active: Boolean
+    accepts_new_affiliates: Boolean
+    require_approval: Boolean
+    default_commission_type: CommissionTypeEnum
+    default_commission_rate: Float
+    tier_based_commission: Boolean
+    default_cookie_duration_days: Int
+    default_attribution_window_days: Int
+    min_payout_amount: Float
+    payout_frequency: PayoutFrequencyEnum
+    payout_methods_allowed: Mixed
+    restricted_countries: Mixed
+    restricted_categories: Mixed
+    restricted_products: Mixed
+    configuration: Mixed
+}
+
+input AffiliateTierInput {
+    affiliate_program_id: ID!
+    name: String!
+    description: String
+    level: Int!
+    weight: Float = 0
+    min_referrals: Int = 0
+    min_monthly_sales: Float
+    min_conversion_rate: Float
+    min_days_active: Int = 0
+    base_commission_rate: Float!
+    commission_multiplier: Float = 1.00
+    bonus_commission_rate: Float
+    early_payout_eligibility: Boolean = false
+    marketing_material_access: Boolean = false
+    dedicated_manager: Boolean = false
+    priority_support: Boolean = false
+    advanced_reporting: Boolean = false
+    benefits: Mixed
+    is_active: Boolean = true
+}
+
+input UpdateAffiliateTierInput {
+    name: String
+    description: String
+    level: Int
+    weight: Float
+    min_referrals: Int
+    min_monthly_sales: Float
+    min_conversion_rate: Float
+    min_days_active: Int
+    base_commission_rate: Float
+    commission_multiplier: Float
+    bonus_commission_rate: Float
+    early_payout_eligibility: Boolean
+    marketing_material_access: Boolean
+    dedicated_manager: Boolean
+    priority_support: Boolean
+    advanced_reporting: Boolean
+    benefits: Mixed
+    is_active: Boolean
+}
+
+input AffiliateInput {
+    affiliate_program_id: ID!
+    affiliate_tier_id: ID
+    users_id: ID
+    name: String!
+    email: String!
+    phone: String
+    website_url: String
+    social_profiles: Mixed
+    bio: String
+    profile_image_url: String
+    affiliate_type: AffiliateTypeEnum = BUSINESS
+    status: AffiliateStatusEnum = PENDING
+    commission_type: CommissionTypeEnum = PERCENTAGE
+    commission_rate: Float!
+    min_payout_threshold: Float = 0
+    payout_method: PayoutMethodEnum = WALLET
+    payout_frequency: PayoutFrequencyEnum = MONTHLY
+    unique_identifier: String
+    tracking_method: String = "utm_params"
+    cookie_duration_days: Int = 30
+    attribution_window_days: Int = 30
+    banking_details: Mixed
+    paypal_details: Mixed
+    stripe_details: Mixed
+    configuration: Mixed
+}
+
+input UpdateAffiliateInput {
+    affiliate_tier_id: ID
+    name: String
+    email: String
+    phone: String
+    website_url: String
+    social_profiles: Mixed
+    bio: String
+    profile_image_url: String
+    affiliate_type: AffiliateTypeEnum
+    status: AffiliateStatusEnum
+    commission_type: CommissionTypeEnum
+    commission_rate: Float
+    min_payout_threshold: Float
+    payout_method: PayoutMethodEnum
+    payout_frequency: PayoutFrequencyEnum
+    unique_identifier: String
+    tracking_method: String
+    cookie_duration_days: Int
+    attribution_window_days: Int
+    banking_details: Mixed
+    paypal_details: Mixed
+    stripe_details: Mixed
+    configuration: Mixed
+}
+
+input AffiliateLinkInput {
+    affiliate_id: ID!
+    name: String
+    description: String
+    custom_slug: String
+    short_code: String
+    destination_url: String
+    link_type: String = "general"
+    config: Mixed
+    tracking_method: String = "utm_params"
+    cookie_duration_days: Int = 30
+    attribution_window_days: Int = 30
+    attribution_model: AttributionModelEnum = LAST_CLICK
+    override_commission: Boolean = false
+    commission_type: CommissionTypeEnum
+    commission_rate: Float
+    commission_note: String
+    is_active: Boolean = true
+    is_approved: Boolean = false
+    approval_notes: String
+    configuration: Mixed
+}
+
+input UpdateAffiliateLinkInput {
+    name: String
+    description: String
+    custom_slug: String
+    short_code: String
+    destination_url: String
+    link_type: String
+    config: Mixed
+    tracking_method: String
+    cookie_duration_days: Int
+    attribution_window_days: Int
+    attribution_model: AttributionModelEnum
+    override_commission: Boolean
+    commission_type: CommissionTypeEnum
+    commission_rate: Float
+    commission_note: String
+    is_active: Boolean
+    is_approved: Boolean
+    approval_notes: String
+    configuration: Mixed
+}
+
+input AffiliateConversionInput {
+    affiliate_id: ID!
+    affiliate_link_id: ID
+    order_id: ID!
+    attribution_model: AttributionModelEnum = LAST_CLICK
+    order_total: Float!
+    eligible_amount: Float!
+    commission_type: CommissionTypeEnum!
+    commission_rate: Float!
+    commission_amount: Float!
+    status: AffiliateConversionStatusEnum = PENDING
+    notes: String
+    converted_at: DateTime
+}
+
+input UpdateAffiliateConversionInput {
+    status: AffiliateConversionStatusEnum
+    confirmed: Boolean
+    notes: String
+    dispute_reason: String
+}
+
+input AffiliateCommissionPayoutInput {
+    affiliate_id: ID!
+    period_start: String!
+    period_end: String!
+    total_conversions: Int!
+    total_order_value: Float!
+    gross_commission: Float!
+    fees: Float = 0
+    adjustments: Float = 0
+    net_commission: Float!
+    payout_status: AffiliatePayoutStatusEnum = PENDING_APPROVAL
+    payout_method: PayoutMethodEnum
+    approval_notes: String
+    configuration: Mixed
+}
+
+input UpdateAffiliateCommissionPayoutInput {
+    payout_status: AffiliatePayoutStatusEnum
+    payout_method: PayoutMethodEnum
+    payout_reference: String
+    approval_notes: String
+    failure_reason: String
+}
+
+extend type Mutation @guardByAdmin {
+    createAffiliateProgram(input: AffiliateProgramInput!): AffiliateProgram!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateProgramMutation@create"
+        )
+    updateAffiliateProgram(
+        id: ID!
+        input: UpdateAffiliateProgramInput!
+    ): AffiliateProgram!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateProgramMutation@update"
+        )
+    deleteAffiliateProgram(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateProgramMutation@delete"
+        )
+
+    createAffiliateTier(input: AffiliateTierInput!): AffiliateTier!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateTierMutation@create"
+        )
+    updateAffiliateTier(
+        id: ID!
+        input: UpdateAffiliateTierInput!
+    ): AffiliateTier!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateTierMutation@update"
+        )
+    deleteAffiliateTier(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateTierMutation@delete"
+        )
+
+    createAffiliate(input: AffiliateInput!): Affiliate!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateMutation@create"
+        )
+    updateAffiliate(id: ID!, input: UpdateAffiliateInput!): Affiliate!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateMutation@update"
+        )
+    deleteAffiliate(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateMutation@delete"
+        )
+
+    createAffiliateLink(input: AffiliateLinkInput!): AffiliateLink!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateLinkMutation@create"
+        )
+    updateAffiliateLink(
+        id: ID!
+        input: UpdateAffiliateLinkInput!
+    ): AffiliateLink!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateLinkMutation@update"
+        )
+    deleteAffiliateLink(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateLinkMutation@delete"
+        )
+
+    createAffiliateConversion(
+        input: AffiliateConversionInput!
+    ): AffiliateConversion!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateConversionMutation@create"
+        )
+    updateAffiliateConversion(
+        id: ID!
+        input: UpdateAffiliateConversionInput!
+    ): AffiliateConversion!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateConversionMutation@update"
+        )
+    deleteAffiliateConversion(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateConversionMutation@delete"
+        )
+
+    createAffiliateCommissionPayout(
+        input: AffiliateCommissionPayoutInput!
+    ): AffiliateCommissionPayout!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateCommissionPayoutMutation@create"
+        )
+    updateAffiliateCommissionPayout(
+        id: ID!
+        input: UpdateAffiliateCommissionPayoutInput!
+    ): AffiliateCommissionPayout!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateCommissionPayoutMutation@update"
+        )
+    deleteAffiliateCommissionPayout(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Affiliates\\AffiliateCommissionPayoutMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    affiliatePrograms(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "name", "slug", "is_active"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AffiliateProgram!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\AffiliateProgram"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    affiliateTiers(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "affiliate_programs_id"
+                    "is_active"
+                    "level"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "level"
+                    "weight"
+                ]
+            )
+    ): [AffiliateTier!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\AffiliateTier"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    affiliates(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "email"
+                    "affiliate_programs_id"
+                    "affiliate_tiers_id"
+                    "status"
+                    "affiliate_type"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "email"
+                    "status"
+                ]
+            )
+    ): [Affiliate!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\Affiliate"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    affiliateLinks(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "affiliates_id"
+                    "name"
+                    "short_code"
+                    "custom_slug"
+                    "is_active"
+                    "is_approved"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "click_count"
+                    "conversion_count"
+                ]
+            )
+    ): [AffiliateLink!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\AffiliateLink"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    affiliateConversions(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "affiliates_id"
+                    "affiliate_links_id"
+                    "orders_id"
+                    "status"
+                    "confirmed"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
+    ): [AffiliateConversion!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\AffiliateConversion"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
+    affiliateCommissionPayouts(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "affiliates_id"
+                    "payout_status"
+                    "payout_method"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "net_commission"
+                    "payout_date"
+                ]
+            )
+    ): [AffiliateCommissionPayout!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Affiliates\\Models\\AffiliateCommissionPayout"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
 }

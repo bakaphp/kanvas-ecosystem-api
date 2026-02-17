@@ -21,7 +21,7 @@ class UserManagementQuery
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
 
-        return Users::select(
+        $query = Users::select(
             'users_associated_apps.users_id as id', // User ID
             'users.uuid',
             'users.dob',
@@ -56,13 +56,22 @@ class UserManagementQuery
             'users.id'
         )
         ->where('users_associated_company.companies_id', $companiesId)
-        ->where('users_associated_company.companies_id', $companiesId)
         ->where('users_associated_apps.apps_id', $app->getId())
         ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_active', StateEnums::YES->getValue())
-        ->with(['companies', 'roles']) // Add eager loading
-        ->groupBy('users_associated_apps.users_id'); // Group by the correct user ID
+        ->with(['companies', 'roles'])
+        ->groupBy('users_associated_apps.users_id');
+
+        if (! empty($args['search'])) {
+            $searchResults = Users::traitSearch((string) $args['search'])
+                ->whereIn('apps', [$app->getId()])
+                ->keys();
+
+            $query->whereIn('users.id', $searchResults->toArray());
+        }
+
+        return $query;
     }
 
     /**

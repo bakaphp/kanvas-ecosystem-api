@@ -389,23 +389,20 @@ class Companies extends BaseModel implements CompanyInterface, Customer
 
         // If user CANNOT view all companies, limit to their companies only
         if ($user->can('limited-company-access')) {
-            return $query->join(
-                'users_associated_apps',
-                'users_associated_apps.companies_id',
-                '=',
-                'companies.id'
-            )->where('users_associated_apps.apps_id', '=', $app->getId())
-            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->where('users_associated_apps.users_id', $user->getId())
-            ->select('companies.*');
+            return $query->whereIn('companies.id', function ($subquery) use ($app, $user) {
+                $subquery->select('companies_id')
+                    ->from('users_associated_apps')
+                    ->where('apps_id', $app->getId())
+                    ->where('is_deleted', StateEnums::NO->getValue())
+                    ->where('users_id', $user->getId());
+            });
         }
 
-        return $query->join(
-            'user_company_apps',
-            'user_company_apps.companies_id',
-            '=',
-            'companies.id'
-        )->where('user_company_apps.apps_id', '=', $app->getId());
+        return $query->whereIn('companies.id', function ($subquery) use ($app) {
+            $subquery->select('companies_id')
+                ->from('user_company_apps')
+                ->where('apps_id', $app->getId());
+        });
     }
 
     public static function search($query = '', $callback = null)

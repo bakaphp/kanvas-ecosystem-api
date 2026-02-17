@@ -7,6 +7,8 @@ namespace Kanvas\Social\MessagesTypes\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
 use Kanvas\Social\Models\BaseModel;
 use Override;
@@ -42,6 +44,16 @@ class MessageType extends BaseModel
         return [
             'template' => Json::class,
         ];
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'message_types_id');
+    }
+
+    public function hasMessages(): bool
+    {
+        return $this->messages()->exists();
     }
 
     protected static function newFactory()

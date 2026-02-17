@@ -14,11 +14,18 @@ class DefaultMessageActivityTest extends TestCase
 {
     public function testExecute(): void
     {
-        $lead = Lead::factory()->create();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $lead = Lead::factory()
+            ->withUserId($user->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
         $lead->set('address', '1234 Fake St');
         $lead->set('city', 'Springfield');
         $lead->set('custom_comments', 'This is a test comment');
-        $app = app(Apps::class);
         $activity = new DefaultMessageActivity(
             0,
             now()->toDateTimeString(),

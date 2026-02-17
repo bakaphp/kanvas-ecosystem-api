@@ -32,6 +32,7 @@ class LeadProcessDriverLicenseImageActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Use the new action class
                 $action = new ProcessLeadDriverLicenseVerificationAction(
