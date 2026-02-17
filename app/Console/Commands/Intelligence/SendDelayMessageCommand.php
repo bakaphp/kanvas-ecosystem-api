@@ -15,6 +15,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -74,34 +76,40 @@ class SendDelayMessageCommand extends Command
 
                     continue;
                 }
+                $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+                $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
 
-                // for now only work with elead, missing determining if lead was contacted
-                if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
-                    $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
-                    $message->setUnlock();
-                    //$message->setPublic();
-
-                    continue;
-                }
-
-                try {
-                    if (SalesActivities::hasSalesAgentReachedOut(
-                        $lead->app,
-                        $lead->company,
-                        $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    )) {
+                if ($isElead) {
+                    // for now only work with elead, missing determining if lead was contacted
+                    if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
+                        $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                         $message->setUnlock();
                         //$message->setPublic();
-                        $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
                     }
-                } catch (Exception $e) {
-                    $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
 
-                    continue;
+                    try {
+                        if (
+                            SalesActivities::hasSalesAgentReachedOut(
+                                $lead->app,
+                                $lead->company,
+                                $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            )
+                        ) {
+                            $message->setUnlock();
+                            //$message->setPublic();
+                            $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
+
+                            continue;
+                        }
+                    } catch (Exception $e) {
+                        $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+
+                        continue;
+                    }
                 }
-
+                // @todo we need to determine if the lead was contacted for vin solution
                 $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
 
                 if ($messageContent === '' || empty($messageContent)) {
@@ -124,12 +132,20 @@ class SendDelayMessageCommand extends Command
 
                 if (! $lead->get('delay_message_sent')) {
                     try {
-                        $eLeadOpportunity = EntitiesLead::getById(
-                            $lead->app,
-                            $lead->company,
-                            (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                        );
-                        $eLeadOpportunity->addComment('Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.');
+                        $note = 'Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.';
+                        if ($isElead) {
+                            $eLeadOpportunity = EntitiesLead::getById(
+                                $lead->app,
+                                $lead->company,
+                                (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            );
+                            $eLeadOpportunity->addComment($note);
+                        } elseif ($isVinSolutions) {
+                            new PushNoteToLeadAction(
+                                lead: $lead,
+                                message: $message,
+                            )->execute($note);
+                        }
                         $lead->set('delay_message_sent', true);
                     } catch (ClientException $e) {
                         if (Str::contains($e->getMessage(), 'not active')
