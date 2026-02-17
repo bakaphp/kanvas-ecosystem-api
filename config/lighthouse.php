@@ -164,6 +164,14 @@ return [
         'enable' => env('LIGHTHOUSE_QUERY_CACHE_ENABLE', true),
 
         /*
+         * Configures which mechanism to use for the query cache.
+         * - store: use an external shared cache through a Laravel cache store like Redis or Memcached
+         * - opcache: store parsed queries in PHP files on the local filesystem to leverage OPcache
+         * - hybrid: leverage OPcache, but use a shared cache store when local files are not found
+         */
+        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'store'),
+
+        /*
          * Allows using a specific cache store, uses the app's default if set to null.
          */
         'store' => env('LIGHTHOUSE_QUERY_CACHE_STORE', null),
@@ -171,12 +179,7 @@ return [
         /*
          * Duration in seconds (minutes for Laravel pre-5.8) the query should remain cached, null means forever.
          */
-        'ttl' => env(
-            'LIGHTHOUSE_QUERY_CACHE_TTL',
-            \Nuwave\Lighthouse\Support\AppVersion::atLeast(5.8)
-                ? 24 * 60 * 60 // 1 day in seconds
-                : 24 * 60 // 1 day in minutes
-        ),
+        'ttl' => env('LIGHTHOUSE_QUERY_CACHE_TTL', 24 * 60 * 60),
     ],
 
      /*
@@ -240,7 +243,7 @@ return [
             'App\\GraphQL\\Inventory\\Mutations',
             'App\\GraphQL\\Event\\Mutations',
             'App\\GraphQL\\Workflow\\Mutations',
-            'App\\GraphQL\\Intelligence\\Mutations'
+            'App\\GraphQL\\Intelligence\\Mutations',
         ],
         'subscriptions' => [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',
