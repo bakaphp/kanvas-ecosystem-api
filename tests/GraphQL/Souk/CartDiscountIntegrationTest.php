@@ -17,6 +17,8 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
+use Kanvas\Souk\Loyalty\Models\LoyaltyProgram;
+use Kanvas\Souk\Referrals\Actions\GenerateReferralCodeAction;
 use Tests\TestCase;
 
 class CartDiscountIntegrationTest extends TestCase
@@ -245,5 +247,41 @@ class CartDiscountIntegrationTest extends TestCase
         $this->assertGreaterThan(0, $subtotal);
         $expectedTotal = round($subtotal * 0.85, 2); // 15% off
         $this->assertEquals($expectedTotal, $total);
+    }
+
+    public function testRejectsOwnReferralCodeAsDiscount(): void
+    {
+        $uuid = (string) Str::uuid();
+        $user = auth()->user();
+
+        $loyaltyProgram = LoyaltyProgram::factory()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+        ]);
+
+        $referralCode = new GenerateReferralCodeAction(
+            $user,
+            $loyaltyProgram,
+            $this->kanvasApp,
+        )->execute();
+
+        $this->addItemToCart($uuid);
+
+        $response = $this->applyDiscountToCart(
+            $uuid,
+            [$referralCode->code],
+            ['total']
+        );
+
+        $response->assertJsonStructure([
+            'errors' => [
+                '*' => ['message'],
+            ],
+        ]);
+
+        $this->assertStringContainsString(
+            'Discount code not found',
+            $response->json('errors.0.message')
+        );
     }
 }

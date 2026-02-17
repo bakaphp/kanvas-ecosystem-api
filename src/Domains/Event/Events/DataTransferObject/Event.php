@@ -48,7 +48,12 @@ class Event extends Data
 
     public static function fromMultiple(AppInterface $app, UserInterface $user, CompanyInterface $company, array $data): self
     {
-        $category = self::getEntityByIdOrDefault(EventCategory::class, $app, $company, $data['category_id'] ?? null);
+        $category = self::getEntityByIdOrDefault(
+            EventCategory::class,
+            $app,
+            $company,
+            $data['category_id'] ?? null
+        );
 
         $type = isset($data['type_id'])
             ? EventType::fromApp($app)->fromCompany($company)->where('id', $data['type_id'])->firstOrFail()

@@ -61,7 +61,11 @@ class PaymentManagementMutation
         $cartContent = $cart->getContent();
         if ($cartContent && $cartContent->isNotEmpty()) {
             $firstItem = $cartContent->first();
-            $currencyCode = strtolower($firstItem->attributes['currency']['code'] ?? 'usd');
+            $attributes = $firstItem->attributes;
+            $currency = is_array($attributes) || $attributes instanceof \ArrayAccess ? ($attributes['currency'] ?? null) : null;
+            if (is_array($currency) && ! empty($currency['code'])) {
+                $currencyCode = strtolower($currency['code']);
+            }
         }
 
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
@@ -134,7 +138,7 @@ class PaymentManagementMutation
         )->execute();
 
         $amount = $order->getTotalAmount();
-        $currencyCode = strtolower($order->currency) ?? 'usd';
+        $currencyCode = ! empty($order->currency) ? strtolower($order->currency) : 'usd';
 
         $totalAmount = (int) round($amount * 100);
 
