@@ -20,12 +20,14 @@ use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPu
 use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
+use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -311,6 +313,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
             PullUserByEmployeeActivity::class,
+            ScheduleActivityFromEventActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
@@ -330,6 +333,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushLeadActivity::class,
             SalesAssistActivitiesPushPeopleActivity::class,
             RestoreUsersAccountContentActivity::class,
+            ScheduleEleadActivityFromEventAction::class,
         ];
 
         $createdActions = [];

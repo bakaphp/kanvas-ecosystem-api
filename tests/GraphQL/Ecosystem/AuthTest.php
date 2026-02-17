@@ -69,6 +69,7 @@ class AuthTest extends TestCase
      */
     public function testSocialLogin(): void
     {
+        $this->markTestSkipped('Requires social login token generation — see @todo above');
     }
 
     /**

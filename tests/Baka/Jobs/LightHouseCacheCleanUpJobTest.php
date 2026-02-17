@@ -39,6 +39,8 @@ class LightHouseCacheCleanUpJobTest extends TestCase
             ->onlyMethods(['clearLightHouseCache'])
             ->getMock();
 
+        // Simulate that the model exist, if not it will fail
+        $product->exists = true;
         $product->expects($this->once())
             ->method('clearLightHouseCache');
 

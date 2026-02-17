@@ -81,13 +81,15 @@ class SendDelayMessageCommand extends Command
 
                     continue;
                 }
-                $crmIntegration = $this->resolveCrmIntegration($company);
+                $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+                $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
 
-                if ($crmIntegration === IntegrationsEnum::ELEAD) {
+                if ($isElead) {
                     // for now only work with elead, missing determining if lead was contacted
                     if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
                         $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                         $message->setUnlock();
+                        //$message->setPublic();
 
                         continue;
                     }
@@ -101,6 +103,7 @@ class SendDelayMessageCommand extends Command
                             )
                         ) {
                             $message->setUnlock();
+                            //$message->setPublic();
                             $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                             continue;
@@ -111,7 +114,6 @@ class SendDelayMessageCommand extends Command
                         continue;
                     }
                 }
-
                 // @todo we need to determine if the lead was contacted for vin solution
                 $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
 
@@ -125,7 +127,19 @@ class SendDelayMessageCommand extends Command
                 if (! $lead->get('delay_message_sent')) {
                     try {
                         $note = 'Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.';
-                        $this->addDelayNoteToCrm($lead, $message, $crmIntegration, $note);
+                        if ($isElead) {
+                            $eLeadOpportunity = EntitiesLead::getById(
+                                $lead->app,
+                                $lead->company,
+                                (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            );
+                            $eLeadOpportunity->addComment($note);
+                        } elseif ($isVinSolutions) {
+                            new PushNoteToLeadAction(
+                                lead: $lead,
+                                message: $message,
+                            )->execute($note);
+                        }
                         $lead->set('delay_message_sent', true);
                     } catch (ClientException $e) {
                         if (Str::contains($e->getMessage(), 'not active')

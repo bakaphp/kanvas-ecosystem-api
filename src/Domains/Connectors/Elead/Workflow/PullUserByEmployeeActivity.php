@@ -83,13 +83,15 @@ class PullUserByEmployeeActivity extends KanvasActivity
                 }
 
                 $error = null;
-                $match = false;
+                $matchedEmployee = null;
+                $nameMatchEmployee = null;
 
                 foreach ($this->employeePositions as $position) {
                     try {
                         $employees = Employee::getAll($app, $company, $position);
 
                         foreach ($employees as $employee) {
+                            // First try email match
                             try {
                                 $email = $employee->getEmails()[0]['address'] ?? null;
                             } catch (Throwable $e) {
@@ -97,16 +99,23 @@ class PullUserByEmployeeActivity extends KanvasActivity
                                 $error = $e->getMessage();
                             }
 
-                            if ($email == $user->email) {
-                                $user->set(
-                                    ConfigurationEnum::getUserKey($company, $user),
-                                    $employee->id
-                                );
-
-                                $match = true;
+                            if ($email !== null && $email == $user->email) {
+                                $matchedEmployee = $employee;
                                 $error = null;
 
-                                break;
+                                break 2;
+                            }
+
+                            // Exact first+last name match as fallback
+                            if (
+                                $employee->firstName !== null
+                                && $employee->lastName !== null
+                                && mb_strtolower(trim($employee->firstName)) === mb_strtolower(trim($user->firstname))
+                                && mb_strtolower(trim($employee->lastName)) === mb_strtolower(trim($user->lastname))
+                            ) {
+                                $nameMatchEmployee = $employee;
+
+                                break 2;
                             }
                         }
                     } catch (Throwable $e) {
@@ -114,21 +123,31 @@ class PullUserByEmployeeActivity extends KanvasActivity
                     }
                 }
 
-                if (! $match) {
-                    return $this->failWorkflow([
-                        'error' => 'User not found in Elead',
-                        'looking' => $user->email,
-                        'ELeadEmployeeID' => $employee->id,
-                        'exception' => $error,
-                    ]);
+                // Fall back to name match if no email match found
+                if ($matchedEmployee === null && $nameMatchEmployee !== null) {
+                    $matchedEmployee = $nameMatchEmployee;
+                    $error = null;
                 }
 
-                return [
-                    'success' => $match,
-                    'message' => 'User information pulled successfully',
-                    'user' => $user,
-                    'ELeadEmployeeID' => $employee->id,
-                ];
+                if ($matchedEmployee !== null) {
+                    $user->set(
+                        ConfigurationEnum::getUserKey($company, $user),
+                        $matchedEmployee->id
+                    );
+
+                    return [
+                        'success' => true,
+                        'message' => 'User information pulled successfully',
+                        'user' => $user,
+                        'ELeadEmployeeID' => $matchedEmployee->id,
+                    ];
+                }
+
+                return $this->failWorkflow([
+                    'error' => 'User not found in Elead',
+                    'looking' => $user->email,
+                    'exception' => $error,
+                ]);
             },
             company: $company,
         );
