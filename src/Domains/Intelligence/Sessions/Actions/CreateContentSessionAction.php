@@ -27,6 +27,7 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjec
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
@@ -246,6 +247,8 @@ class CreateContentSessionAction
         $companyWorkHours = (new CompanyWorkHoursTool($lead))->execute();
         $vehicleInterest = $additionalContext['vehicle_interest'] ?? null;
         $relatedVehiclesOfPotentialInterest = $this->getRelatedVehicles($vehicleInterest ?? []);
+        $intentTool = new LeadIntentTool($lead);
+        $leadIntent = $intentTool->execute();
 
         return [
             'company_name' => $lead->company->name,
@@ -253,8 +256,8 @@ class CreateContentSessionAction
             'branch_state' => $lead->company->branch->state,
             'branch_address' => $lead->company->branch->address . ' ' . $lead->company->branch->address2,
             'company_timezone' => $lead->company->get('timezone', 'UTC'),
-            'lead_intent' => $additionalContext['lead_intent']['lead_intent'] ?? null,
-            'completion_status' => $additionalContext['completion_status']['intent_completion_status'] ?? null,
+            'lead_intent' => $additionalContext['lead_intent']['lead_intent'] ?? $leadIntent['lead_intent'] ?? null,
+            'completion_status' => $additionalContext['completion_status']['intent_completion_status'] ?? $leadIntent['intent_completion_status'] ?? null,
             'holiday_status' => $companyIsHoliday['is_holiday'] ?? null,
             'work_hours_status' => $companyWorkHours['status'] ?? null,
             'next_open_iso' => $companyWorkHours['next_open_iso'] ?? null,
