@@ -20,6 +20,7 @@ use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPu
 use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
@@ -332,6 +333,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushLeadActivity::class,
             SalesAssistActivitiesPushPeopleActivity::class,
             RestoreUsersAccountContentActivity::class,
+            ScheduleEleadActivityFromEventAction::class,
         ];
 
         $createdActions = [];
