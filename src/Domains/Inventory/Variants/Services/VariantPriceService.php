@@ -19,6 +19,7 @@ class VariantPriceService
 {
     protected bool $useCompanySpecificPrice = false;
     protected ?Channels $currentChannel = null;
+    protected ?int $resolvedWarehouseId = null;
 
     public function __construct(
         protected AppInterface $app,
@@ -43,6 +44,7 @@ class VariantPriceService
     {
         // Reset channel before each price calculation
         $this->currentChannel = null;
+        $this->resolvedWarehouseId = null;
 
         try {
             if ($this->useCompanySpecificPrice && $this->currentUserCompany) {
@@ -54,7 +56,7 @@ class VariantPriceService
                 }
             }
 
-            return $this->getChannelPrice($variant, $channelId);
+            return $this->getChannelPrice($variant, $channelId, $warehouseId);
         } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             return $this->getFallbackPrice($variant);
         }
@@ -74,12 +76,13 @@ class VariantPriceService
              })
              ->firstOrFail();
 
+        $this->resolvedWarehouseId = (int) $variantChannel->warehouses_id;
         $this->setCurrentChannel($variantChannel->channel);
 
         return (float) $variantChannel->price;
     }
 
-    private function getChannelPrice(Variants $variant, ?int $channelId = null): float
+    private function getChannelPrice(Variants $variant, ?int $channelId = null, ?int $warehouseId = null): float
     {
         $channel = null;
 
@@ -92,29 +95,49 @@ class VariantPriceService
 
         $this->setCurrentChannel($channel);
 
-        if ($variant->app->get(AppEnums::CAN_USE_COMMERCE_DISCOUNT_PRICE->getValue())) {
-            // Try to get the discount price if available and greater than 0
-            $discountedPrice = $variant->channels()
-                ->where('channels_id', $channelId)
-                ->value('discounted_price');
+        $channelVariant = null;
 
-            if ($discountedPrice !== null && $discountedPrice > 0) {
-                return (float) $discountedPrice;
+        if ($warehouseId) {
+            $channelVariant = $variant->variantChannels()
+                ->where('channels_id', $channelId)
+                ->where('warehouses_id', $warehouseId)
+                ->first();
+        } else {
+            $channelVariant = $variant->variantChannels()
+                ->where('channels_id', $channelId)
+                ->whereHas('warehouse', function ($query) {
+                    $query->where('is_default', false);
+                })
+                ->first();
+
+            if (! $channelVariant) {
+                $channelVariant = $variant->variantChannels()
+                    ->where('channels_id', $channelId)
+                    ->first();
             }
         }
 
-        // Try to get channel-specific price
-        $channelPrice = $variant->channels()
-            ->where('channels_id', $channelId)
-            ->value('price'); // Gets the price directly instead of the whole object
+        if (! $channelVariant) {
+            return $this->getDefaultChannelPrice($variant);
+        }
 
-        return $channelPrice ? (float) $channelPrice : $this->getDefaultChannelPrice($variant);
+        $this->resolvedWarehouseId = (int) $channelVariant->warehouses_id;
+
+        if ($variant->app->get(AppEnums::CAN_USE_COMMERCE_DISCOUNT_PRICE->getValue())) {
+            // Try to get the discount price if available and greater than 0
+            if ($channelVariant->discounted_price !== null && (float) $channelVariant->discounted_price > 0) {
+                return (float) $channelVariant->discounted_price;
+            }
+        }
+
+        return (float) $channelVariant->price;
     }
 
     private function getDefaultChannelPrice(Variants $variant): float
     {
         $variantChannel = $variant->getPriceInfoFromDefaultChannel();
         $this->setCurrentChannel($variantChannel->channel);
+        $this->resolvedWarehouseId = isset($variantChannel->pivot->warehouses_id) ? (int) $variantChannel->pivot->warehouses_id : null;
 
         return (float) $variantChannel->price;
     }
@@ -143,8 +166,10 @@ class VariantPriceService
 
     private function getCurrencyFromWarehouse(Variants $variant, ?int $warehouseId = null): Currencies
     {
-        if ($warehouseId) {
-            $warehouse = Warehouses::where('apps_id', $this->app->getId())->find($warehouseId);
+        $warehouseToUse = $warehouseId ?? $this->resolvedWarehouseId;
+
+        if ($warehouseToUse) {
+            $warehouse = Warehouses::where('apps_id', $this->app->getId())->find($warehouseToUse);
             if ($currency = $warehouse?->region?->currency) {
                 return $currency;
             }
