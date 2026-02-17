@@ -48,23 +48,39 @@ class CreateScheduleRulesFromOperationDaysAction
                 continue;
             }
 
-            $openTime = $this->parseTime($dayConfig['open'] ?? null);
-            $closeTime = $this->parseTime($dayConfig['close'] ?? null);
-
-            if (! $openTime || ! $closeTime) {
-                continue;
-            }
-
             $dayCode = self::DAY_MAP[strtolower($dayName)] ?? null;
             if (! $dayCode) {
                 continue;
             }
 
-            $scheduleRule = $this->createScheduleRuleForDay($dayName, $dayCode, $openTime, $closeTime);
+            // Check if using new periods format (multiple time windows per day)
+            if (isset($dayConfig['periods']) && is_array($dayConfig['periods'])) {
+                $periods = $this->parsePeriods($dayConfig['periods']);
+                if (empty($periods)) {
+                    continue;
+                }
 
-            if ($scheduleRule) {
-                $createdRules[] = $scheduleRule;
-                $this->dispatchTimeSlotGeneration($scheduleRule);
+                $scheduleRule = $this->createScheduleRuleForDayWithPeriods($dayName, $dayCode, $periods);
+
+                if ($scheduleRule) {
+                    $createdRules[] = $scheduleRule;
+                    $this->dispatchTimeSlotGeneration($scheduleRule);
+                }
+            } else {
+                // Backward compatibility: single open/close format
+                $openTime = $this->parseTime($dayConfig['open'] ?? null);
+                $closeTime = $this->parseTime($dayConfig['close'] ?? null);
+
+                if (! $openTime || ! $closeTime) {
+                    continue;
+                }
+
+                $scheduleRule = $this->createScheduleRuleForDay($dayName, $dayCode, $openTime, $closeTime);
+
+                if ($scheduleRule) {
+                    $createdRules[] = $scheduleRule;
+                    $this->dispatchTimeSlotGeneration($scheduleRule);
+                }
             }
         }
 
@@ -147,6 +163,84 @@ class CreateScheduleRulesFromOperationDaysAction
         }
     }
 
+    protected function parsePeriods(array $periodsConfig): array
+    {
+        $periods = [];
+
+        foreach ($periodsConfig as $period) {
+            $open = $this->parseTime($period['open'] ?? null);
+            $close = $this->parseTime($period['close'] ?? null);
+
+            if ($open && $close) {
+                $periods[] = ['open' => $open, 'close' => $close];
+            }
+        }
+
+        return $periods;
+    }
+
+    protected function createScheduleRuleForDayWithPeriods(
+        string $dayName,
+        string $dayCode,
+        array $periods
+    ): ?ScheduleRules {
+        // Use the first period's open time as the rule start time
+        $firstPeriod = $periods[0];
+        $startAt = Carbon::parse('today ' . $firstPeriod['open']);
+        $dtstart = $startAt->format('Ymd\THis');
+        $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
+
+        // Build BYHOUR string covering ALL periods
+        $allHours = [];
+        foreach ($periods as $period) {
+            $openCarbon = Carbon::parse('today ' . $period['open']);
+            $closeCarbon = Carbon::parse('today ' . $period['close']);
+
+            $startHour = (int) $openCarbon->format('H');
+            $endHour = (int) $closeCarbon->format('H');
+            $hours = range($startHour, $endHour - 1);
+            $allHours = array_merge($allHours, $hours);
+        }
+        $allHours = array_unique($allHours);
+        sort($allHours);
+        $hoursString = implode(',', $allHours);
+
+        $minutes = [];
+        for ($m = 0; $m < 60; $m += $this->slotDurationMinutes) {
+            $minutes[] = $m;
+        }
+        $minutesString = implode(',', $minutes);
+
+        $dayDtstart = $startAt->format('Ymd\THis');
+        $dayRrule = "DTSTART:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
+
+        $metadata = [
+            'operation_day' => $dayName,
+            'created_from' => 'operation_days',
+            'periods' => $periods, // Store all periods for validation
+        ];
+
+        if ($this->scheduleType) {
+            $metadata['schedule_type'] = $this->scheduleType;
+        }
+
+        return ScheduleRules::create([
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->resource->getId(),
+            'resources_type' => $this->resource->getMorphClass(),
+            'start_at' => $startAt,
+            'end_at' => null,
+            'rrule' => $rrule,
+            'day_rrule' => $dayRrule,
+            'slot_duration_min' => $this->slotDurationMinutes,
+            'lead_time_min' => $this->leadTimeMin,
+            'cutoff_time_min' => $this->cutoffTimeMin,
+            'capacity_override' => $this->capacityOverride,
+            'metadata' => $metadata,
+        ]);
+    }
+
     public function clearExistingRules(): void
     {
         $existingRules = ScheduleRules::where('resources_id', $this->resource->getId())
@@ -158,7 +252,7 @@ class CreateScheduleRulesFromOperationDaysAction
 
         foreach ($existingRules as $rule) {
             $rule->deleteUpcomingTimeSlots();
-            $rule->delete();
+            $rule->forceDelete(); // Permanently delete instead of soft delete
         }
     }
 }
