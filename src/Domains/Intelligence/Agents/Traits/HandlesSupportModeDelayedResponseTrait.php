@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -25,7 +26,8 @@ trait HandlesSupportModeDelayedResponseTrait
         array $channelAgentMapping,
         ?string $chatJid,
         array $params,
-        string $actionClass
+        string $actionClass,
+        ?Session $session = null
     ): ?array {
         $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
 
@@ -73,7 +75,8 @@ trait HandlesSupportModeDelayedResponseTrait
             Agent::getById($agentIdForDispatch, $app),
             $app,
             $params,
-            $actionClass
+            $actionClass,
+            $session
         )->delay(now()->addMinutes($delayMinutes));
 
         return [
