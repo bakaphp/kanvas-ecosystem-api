@@ -2125,16 +2125,16 @@
         },
         {
             "name": "genealabs/laravel-model-caching",
-            "version": "12.0.2",
+            "version": "12.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mikebronner/laravel-model-caching.git",
-                "reference": "90901c7edd2934304d1d6c55bf8cce132c90fa5d"
+                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/90901c7edd2934304d1d6c55bf8cce132c90fa5d",
-                "reference": "90901c7edd2934304d1d6c55bf8cce132c90fa5d",
+                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/ae605a862d0d3d23463edc46c67d58e0b4faec6c",
+                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c",
                 "shasum": ""
             },
             "require": {
@@ -2187,9 +2187,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mikebronner/laravel-model-caching/issues",
-                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.2"
+                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.3"
             },
-            "time": "2025-02-27T00:34:22+00:00"
+            "time": "2026-02-17T23:07:25+00:00"
         },
         {
             "name": "google/apiclient",
