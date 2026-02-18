@@ -20,7 +20,7 @@ class CreateMessageTypeAction
             [
                 'verb' => $this->messageTypeInput->verb,
                 'apps_id' => $this->messageTypeInput->apps_id,
-                'languages_id' => $this->messageTypeInput->languages_id,
+                //'languages_id' => $this->messageTypeInput->languages_id,
             ],
             [
             'apps_id' => $this->messageTypeInput->apps_id,
