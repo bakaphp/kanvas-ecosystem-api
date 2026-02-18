@@ -7,8 +7,22 @@ type Engagement {
     message: Message @belongsTo(relation: "message")
     lead: Lead @belongsTo(relation: "lead")
     people: People @belongsTo(relation: "people")
+    stage: ActionPipelineStage @belongsTo(relation: "stage")
+    parent: Engagement @belongsTo(relation: "parent")
+    children: [Engagement!] @hasMany(relation: "children")
+    stage_history: [Engagement!]!
+        @field(resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@stageHistory")
     entity_uuid: String!
     slug: String!
+    is_complete: Boolean!
+        @field(resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@isComplete")
+    completion_progress: EngagementCompletionProgress!
+        @field(resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@completionProgress")
+}
+
+type EngagementCompletionProgress {
+    completed: Int!
+    total: Int!
 }
 
 enum EngagementEntityType {
@@ -29,6 +43,7 @@ input CreateEngagementInput {
     people_id: ID
     receiver_id: ID
     task_id: ID
+    parent_id: ID
     action: String!
     data: Mixed
     source: String!
@@ -56,6 +71,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "uuid"
+                    "parent_id"
                     "companies_id"
                     "companies_actions_id"
                     "message_id"
