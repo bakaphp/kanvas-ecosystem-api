@@ -69,7 +69,7 @@ class FollowUpEngagementAction
         }
 
         // Get available channels from follow-up config
-        $followUpConfig = $this->followUp->config ?? [];
+        $followUpConfig = $this->followUp?->config ?? [];
         $channelsAvailable = $followUpConfig['channels_available'] ?? ['sms', 'email', 'whatsapp'];
 
         // Get lead's preferred channel
