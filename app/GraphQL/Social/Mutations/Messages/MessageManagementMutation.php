@@ -16,10 +16,10 @@ use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
+use Kanvas\Social\Messages\Actions\UpdateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -128,49 +128,43 @@ class MessageManagementMutation
 
     public function update(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
-        if (! $message->canEdit(auth()->user())) {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        /** @var Message $message */
+        $message = Message::getById((int) $request['id'], $app);
+
+        if (! $message->canEdit($user)) {
             throw new AuthenticationException('You are not allowed to edit this message');
         }
 
-        $validator = Validator::make($request, [
-            'parent_id' => [new ValidParentMessage($message->app->getId())],
-        ]);
+        $input = $request['input'];
 
-        if ($validator->fails()) {
-            throw new ValidationException($validator->messages()->__toString());
-        }
-
-        if (! empty($request['input']['message_verb'] ?? null)) {
+        if (! empty($input['message_verb'] ?? null)) {
             try {
-                $messageType = MessagesTypesRepository::getByVerb($request['input']['message_verb'], $message->app);
+                $messageType = MessagesTypesRepository::getByVerb($input['message_verb'], $message->app);
             } catch (ModelNotFoundException $e) {
                 $messageTypeDto = MessageTypeInput::from([
                     'apps_id' => $message->app->getId(),
-                    'name' => $request['input']['message_verb'],
-                    'verb' => $request['input']['message_verb'],
+                    'name' => $input['message_verb'],
+                    'verb' => $input['message_verb'],
                 ]);
-                $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+                $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
             }
-
-            unset($request['input']['message_verb']);
-            $request['input']['message_types_id'] = $messageType->getId();
         }
 
-        /**
-         * @todo move to action
-         */
-        $message->update($request['input']);
-
-        if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
-            $message->syncTags($request['input']['tags']);
-        }
-
-        if (array_key_exists('categories', $request['input']) && ! empty($request['input']['categories'])) {
-            $message->syncCategories($request['input']['categories']);
-        }
-
-        return $message;
+        return new UpdateMessageAction(
+            $message,
+            new MessageInput(
+                app: $message->app,
+                company: $message->company,
+                user: $message->user,
+                type: $messageType ?? $message->messageType,
+                message: $input['message'] ?? $message->message,
+                is_public: $input['is_public'] ?? $message->is_public,
+                tags: $input['tags'] ?? [],
+                categories: $input['categories'] ?? [],
+            ),
+        )->execute();
     }
 
     public function delete(mixed $root, array $request): bool
