@@ -55,7 +55,7 @@ class CreateSessionAction
     protected function buildSessionUuid(): string
     {
         return $this->session->channel->slug
-            . '-' . $this->session->app->getId();
-        // . '-' . $this->session->company->getId();
+            . '-' . $this->session->app->getId()
+            . '-' . $this->session->company->getId();
     }
 }

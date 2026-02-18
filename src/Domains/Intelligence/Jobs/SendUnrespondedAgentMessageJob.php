@@ -21,6 +21,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
@@ -66,11 +67,21 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         Cache::forget($cacheKey);
 
         try {
+            // Get the session for this channel, agent, and entity
+            $session = Session::query()
+                ->where('apps_id', $this->app->getId())
+                ->where('agents_id', $this->agent->getId())
+                ->where('channel_id', $this->channel->getId())
+                ->where('companies_id', $lead->company->getId())
+                ->where('entity_namespace', get_class($lead))
+                ->where('entity_id', $lead->getId())
+                ->first();
+
             $action = new $this->actionClass(
                 $this->channel,
                 $this->message,
                 $this->agent,
-                null
+                $session
             );
 
             $action->execute($this->params);
