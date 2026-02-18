@@ -6,14 +6,11 @@ namespace Tests\Souk\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
-use Kanvas\Souk\Discounts\Models\Discount;
-use Kanvas\Souk\Discounts\Models\DiscountType;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Loyalty\Models\LoyaltyProgram;
 use Kanvas\Souk\Loyalty\Models\LoyaltyTier;
 use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Orders\Factories\OrderFactory;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Referrals\Actions\GenerateReferralCodeAction;
 use Kanvas\Souk\Referrals\Actions\ProcessReferralCodeRedemptionAction;
 use Kanvas\Souk\Referrals\Factories\ReferralRedemptionFactory;
@@ -74,23 +71,8 @@ final class ReferralCodeRedemptionTest extends TestCase
         );
         $referralCode = $generateAction->execute();
 
-        // Create discount type and discount
-        $discountType = DiscountType::factory()->create([
-            'apps_id' => $app->getId(),
-        ]);
-
-        $discount = Discount::factory()->create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'discount_type_id' => $discountType->id,
-            'code' => $referralCode->code,
-            'value' => 10.0,
-            'is_percentage' => true,
-            'is_active' => true,
-        ]);
-
-        // Update referral code to link to discount
-        $referralCode->update(['discounts_id' => $discount->id]);
+        // Use the discount already created by GenerateReferralCodeAction
+        $discount = $referralCode->discount;
 
         $createPeopleAction = new CreatePeopleFromUserAction(
             $app,
@@ -182,22 +164,8 @@ final class ReferralCodeRedemptionTest extends TestCase
         );
         $referralCode = $generateAction->execute();
 
-        // Create discount
-        $discountType = DiscountType::factory()->create([
-            'apps_id' => $app->getId(),
-        ]);
-
-        $discount = Discount::factory()->create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'discount_type_id' => $discountType->id,
-            'code' => $referralCode->code,
-            'value' => 10.0,
-            'is_percentage' => true,
-            'is_active' => true,
-        ]);
-
-        $referralCode->update(['discounts_id' => $discount->id]);
+        // Use the discount already created by GenerateReferralCodeAction
+        $discount = $referralCode->discount;
 
         // Create order for same user (self-referral attempt)
         $order = OrderFactory::new()
@@ -276,22 +244,8 @@ final class ReferralCodeRedemptionTest extends TestCase
                 'referee_user_id' => $referee->id,
             ]);
 
-        // Create new order with same referral code
-        $discountType = DiscountType::factory()->create([
-            'apps_id' => $app->getId(),
-        ]);
-
-        $discount = Discount::factory()->create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'discount_type_id' => $discountType->id,
-            'code' => $referralCode->code,
-            'value' => 10.0,
-            'is_percentage' => true,
-            'is_active' => true,
-        ]);
-
-        $referralCode->update(['discounts_id' => $discount->id]);
+        // Use the discount already created by GenerateReferralCodeAction
+        $discount = $referralCode->discount;
 
         $order = OrderFactory::new()
             ->withAppId($app->getId())

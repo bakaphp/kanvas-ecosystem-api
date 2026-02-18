@@ -205,9 +205,41 @@ final class LeadContextCreationTest extends TestCase
         ]];
 
         new SupportSetup($app, $user, $company, $actions)->run();
+
+        $company->set('adf_sources', [
+            [
+                'Source' => 'Default',
+                'Sub_Source' => 'Website',
+                'Backend' => 'ADVANCED_REQUEST',
+                'Default_Completion_Status' => 'Incomplete',
+                'is_default' => true,
+            ],
+        ]);
+
         // Create lead with necessary setup
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $leadType = LeadType::firstOrCreate([
+            'name' => 'Internet',
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+        ], [
+            'description' => 'Internet Lead',
+        ]);
+        $lead->leads_types_id = $leadType->id;
+
+        $leadSource = LeadSource::firstOrCreate([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'name' => 'Default',
+        ], [
+            'description' => 'Default Source',
+            'is_active' => 1,
+            'leads_types_id' => $leadType->id,
+        ]);
+        $lead->leads_sources_id = $leadSource->id;
+        $lead->saveOrFail();
 
         $app->associateUser($user, 1, null, null);
 

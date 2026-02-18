@@ -62,6 +62,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 $isVinSolutions = $lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
                 $isDriveCentric = $lead->company->get(ConfigurationEnum::STORE_ID->value) !== null;
                 $note = null;
+                $handlerResult = null;
 
                 if ($isDriveCentric) {
                     try {

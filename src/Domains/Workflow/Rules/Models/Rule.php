@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
@@ -25,6 +28,8 @@ use Override;
  */
 class Rule extends BaseModel
 {
+    use DatabaseSearchableTrait;
+
     protected $table = 'rules';
 
     protected $guarded = [];
@@ -33,6 +38,17 @@ class Rule extends BaseModel
         'params' => 'array',
         'is_async' => 'boolean',
     ];
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('company.id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
 
     public function type(): BelongsTo
     {

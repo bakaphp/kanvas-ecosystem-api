@@ -12,14 +12,21 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketCustomFieldEnum;
+use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
+use Kanvas\Connectors\DriveCentric\Actions\AddCommentToDealAction;
+use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum as DriveCentricConfigurationEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class SendDelayMessageCommand extends Command
@@ -52,13 +59,13 @@ class SendDelayMessageCommand extends Command
                 if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
                     $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
                     $message->setUnlock();
-                    //$message->setPublic();
 
                     continue;
                 }
 
                 if (! $message->hasTag(['first-message'])) {
                     $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
+                    $message->setUnlock();
 
                     continue;
                 }
@@ -74,62 +81,65 @@ class SendDelayMessageCommand extends Command
 
                     continue;
                 }
+                $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+                $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
 
-                // for now only work with elead, missing determining if lead was contacted
-                if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
-                    $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
-                    $message->setUnlock();
-                    //$message->setPublic();
-
-                    continue;
-                }
-
-                try {
-                    if (SalesActivities::hasSalesAgentReachedOut(
-                        $lead->app,
-                        $lead->company,
-                        $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    )) {
+                if ($isElead) {
+                    // for now only work with elead, missing determining if lead was contacted
+                    if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
+                        $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
                         $message->setUnlock();
                         //$message->setPublic();
-                        $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
                     }
-                } catch (Exception $e) {
-                    $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
 
-                    continue;
+                    try {
+                        if (
+                            SalesActivities::hasSalesAgentReachedOut(
+                                $lead->app,
+                                $lead->company,
+                                $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            )
+                        ) {
+                            $message->setUnlock();
+                            //$message->setPublic();
+                            $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
+
+                            continue;
+                        }
+                    } catch (Exception $e) {
+                        $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+
+                        continue;
+                    }
                 }
-
+                // @todo we need to determine if the lead was contacted for vin solution
                 $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
 
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
                     $message->setUnlock();
-                    //$message->setPublic();
-
-                    continue;
-                }
-
-                // Check if message has 'first-message' tag before sending
-                $tags = $message->tags->pluck('name')->toArray();
-                if (! in_array('first-message', $tags)) {
-                    $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
-                    $message->setUnlock();
-                    //$message->setPublic();
 
                     continue;
                 }
 
                 if (! $lead->get('delay_message_sent')) {
                     try {
-                        $eLeadOpportunity = EntitiesLead::getById(
-                            $lead->app,
-                            $lead->company,
-                            (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                        );
-                        $eLeadOpportunity->addComment('Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.');
+                        $note = 'Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.';
+                        if ($isElead) {
+                            $eLeadOpportunity = EntitiesLead::getById(
+                                $lead->app,
+                                $lead->company,
+                                (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                            );
+                            $eLeadOpportunity->addComment($note);
+                        } elseif ($isVinSolutions) {
+                            new PushNoteToLeadAction(
+                                lead: $lead,
+                                message: $message,
+                            )->execute($note);
+                        }
                         $lead->set('delay_message_sent', true);
                     } catch (ClientException $e) {
                         if (Str::contains($e->getMessage(), 'not active')
@@ -139,6 +149,10 @@ class SendDelayMessageCommand extends Command
                         } else {
                             $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
                         }
+
+                        continue;
+                    } catch (Exception $e) {
+                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
 
                         continue;
                     }
@@ -182,5 +196,54 @@ class SendDelayMessageCommand extends Command
             }
             $this->info('Processed messages for company: ' . $company->name);
         }
+    }
+
+    protected function resolveCrmIntegration(Companies $company): ?IntegrationsEnum
+    {
+        if ($company->get(CustomFieldEnum::COMPANY->value) !== null) {
+            return IntegrationsEnum::ELEAD;
+        }
+
+        if ($company->get(EnumsCustomFieldEnum::COMPANY->value) !== null) {
+            return IntegrationsEnum::VIN_SOLUTION;
+        }
+
+        if ($company->get(DealerSocketCustomFieldEnum::DEALER_SOCKET_CREDENTIAL->value) !== null) {
+            return IntegrationsEnum::DEALERSOCKET;
+        }
+
+        if ($company->get(DriveCentricConfigurationEnum::STORE_ID->value) !== null) {
+            return IntegrationsEnum::DRIVE_CENTRIC;
+        }
+
+        return null;
+    }
+
+    protected function addDelayNoteToCrm(
+        Lead $lead,
+        Message $message,
+        ?IntegrationsEnum $crmIntegration,
+        string $note
+    ): mixed {
+        return match ($crmIntegration) {
+            IntegrationsEnum::ELEAD => tap(
+                EntitiesLead::getById(
+                    $lead->app,
+                    $lead->company,
+                    (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                ),
+                fn (EntitiesLead $eLeadOpportunity) => $eLeadOpportunity->addComment($note)
+            ),
+            IntegrationsEnum::VIN_SOLUTION => new PushNoteToLeadAction(
+                lead: $lead,
+                message: $message,
+            )->execute($note),
+            IntegrationsEnum::DEALERSOCKET => new DealerSocketWorkNoteService(
+                $lead->app,
+                $lead->company
+            )->addSimpleNote($lead, $note),
+            IntegrationsEnum::DRIVE_CENTRIC => new AddCommentToDealAction($lead)->execute($note),
+            default => null,
+        };
     }
 }

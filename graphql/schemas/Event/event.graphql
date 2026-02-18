@@ -281,7 +281,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
         )
-    
+
     bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\TimeSlotBookingMutation@book"
@@ -317,7 +317,16 @@ extend type Query @guard {
     events(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id", "resources_id", "resources_type"])
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "companies_id"
+                    "resources_id"
+                    "resources_type"
+                ]
+            )
         status: _
             @whereConditions(
                 columns: ["name", "slug", "id"]
