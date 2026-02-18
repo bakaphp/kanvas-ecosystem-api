@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Connectors\NetSuite\Enums\SavedSearchEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Estimate;
@@ -20,14 +22,14 @@ use NetSuite\NetSuiteService;
 class NetSuiteQuoteService
 {
     protected Client $client;
-    protected NetSuiteProductService $productService;
+    protected NetSuiteProductSearchService $productSearchService;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
         $this->client = new Client($app, $company);
-        $this->productService = new NetSuiteProductService($app, $company);
+        $this->productSearchService = new NetSuiteProductSearchService($app, $company);
     }
 
     /**
@@ -60,20 +62,31 @@ class NetSuiteQuoteService
             $estimate->currency = $currencyRef;
         }
 
+        // Fetch all NetSuite products once and index by itemId for fast lookup
+        $savedSearchId = $this->app->get(ConfigurationEnum::NET_SUITE_QUOTE_PRODUCT_SAVED_SEARCH_ID->value)
+            ?? SavedSearchEnum::QUOTE_PRODUCT_SEARCH->value;
+
+        $netsuiteProducts = $this->productSearchService->searchWithSavedSearch($savedSearchId);
+        $netsuiteIndex = array_column($netsuiteProducts, null, 'itemId');
+
         // Create estimate items from order items
         $estimateItems = [];
         foreach ($order->items as $orderItem) {
             $estimateItem = new EstimateItem();
-            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
+            $barcode = $orderItem->variant->barcode ?? $orderItem->product_sku;
+            $netsuiteProduct = $netsuiteIndex[$barcode] ?? null;
+
+            if ($netsuiteProduct === null) {
+                throw new Exception("Product with barcode/SKU '{$barcode}' not found in NetSuite.");
+            }
 
             $variantWarehouse = $orderItem->variant->variantWarehouses()->firstOrFail();
             $locationID = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? 4;
 
-            // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
             $itemRef->type = 'inventoryItem';
-            $itemRef->internalId = $searchNetsuiteProductInfo[0]->internalId;
+            $itemRef->internalId = $netsuiteProduct['internalId'];
             $estimateItem->item = $itemRef;
 
             $estimateItem->location = new RecordRef();
