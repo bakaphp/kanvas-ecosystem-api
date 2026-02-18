@@ -33,7 +33,7 @@ class GenerateImageToImageTool extends Tool
         $app = app(Apps::class);
         $apiUrl = 'https://prompt-mine-ai-api-stage.vercel.app/api/image/openai';
 
-        Log::info('GenerateImageTool request', ['prompt' => $request->get('prompt')]);
+        Log::info('GenerateImageToImageTool request', ['prompt' => $request->get('prompt')]);
 
         while ($attempt < $maxRetries && ! $success) {
             try {

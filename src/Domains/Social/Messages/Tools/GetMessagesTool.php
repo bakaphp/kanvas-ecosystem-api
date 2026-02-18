@@ -27,15 +27,8 @@ class GetMessagesTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        $app = Apps::find($request->get('apps_id'));
-        if (! $app) {
-            return Response::structured([
-                'error' => 'App not found',
-                'code' => 404,
-            ]);
-        }
-
-        $messageType = MessagesTypesRepository::getByVerb($request->get('message_type_verb'), $app);
+        $app = app(Apps::class);
+        $messageType = MessagesTypesRepository::getByVerb($request->get('message_type'), $app);
         if (! $messageType) {
             return Response::structured([
                 'error' => 'Message type not found',
@@ -44,6 +37,12 @@ class GetMessagesTool extends Tool
         }
 
         $query = $request->get('query', null);
+
+        Log::info('GetMessagesTool request', [
+            'users_id' => $request->get('users_id'),
+            'message_type' => $request->get('message_type'),
+            'apps_id' => $app->getId(),
+        ]);
 
         $messages = Message::fromApp($app)
             ->where('users_id', $request->get('users_id'))
@@ -144,9 +143,8 @@ class GetMessagesTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'apps_id' => $schema->integer()->description('The application ID.')->required(),
             'users_id' => $schema->integer()->description('The user ID to get messages for.')->required(),
-            'message_type_verb' => $schema->string()->description('The verb of the message type to filter messages (e.g., "post", "comment").')->required(),
+            'message_type' => $schema->string()->description('The verb of the message type to filter messages (e.g., "post", "comment").')->required(),
             'query' => $schema->string()->description('The search query to filter messages by content.')->required(),
         ];
     }

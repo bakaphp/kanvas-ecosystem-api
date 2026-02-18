@@ -15,6 +15,8 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+use function Symfony\Component\Translation\t;
+
 #[IsReadOnly(true)]
 class GetMessageTool extends Tool
 {
@@ -27,23 +29,30 @@ class GetMessageTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        $app = Apps::find($request->get('apps_id'));
-        if (! $app) {
-            return Response::structured([
-                'error' => 'App not found',
-                'code' => 404,
-            ]);
-        }
+        $app = app(Apps::class);
 
-        $messageType = MessagesTypesRepository::getByVerb($request->get('message_type_verb'), $app);
+        Log::info('GetMessageTool request', [
+            'users_id' => $request->get('users_id'),
+            'message_type' => $request->get('message_type'),
+            'message_uuid' => $request->get('message_uuid'),
+            'apps_id' => $app->getId(),
+        ]);
+        $messageType = MessagesTypesRepository::getByVerb($request->get('message_type'), $app);
         if (! $messageType) {
             return Response::structured([
+                'data' => null,
                 'error' => 'Message type not found',
-                'code' => 404,
             ]);
         }
 
-        $message = Message::fromApp($app)
+        try {
+
+            Log::info('GetMessageTool query', [
+                'users_id' => $request->get('users_id'),
+                'message_type_id' => $messageType->getId(),
+                'message_uuid' => $request->get('message_uuid'),
+            ]);
+             $message = Message::fromApp($app)
             ->where('users_id', $request->get('users_id'))
             ->where('messages.message_types_id', $messageType->getId())
             ->where('messages.uuid', $request->get('message_uuid'))
@@ -57,13 +66,18 @@ class GetMessageTool extends Tool
                 'files',
             ])->first();
 
+        } catch (\Exception $e) {
+            Log::error('GetMessageTool error', ['error' => $e->getMessage(), 'stack' => $e->getTraceAsString()]);
+            return Response::structured([
+                'data' => null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+       
+
         return Response::structured([
             'data' => $message ? $this->transformMessage($message) : null,
-            'meta' => [
-                'count' => $message ? 1 : 0,
-                'apps_id' => $app->getId(),
-                'users_id' => $request->get('users_id'),
-            ],
+            'error' => null,
         ]);
     }
 
@@ -135,9 +149,8 @@ class GetMessageTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'apps_id' => $schema->integer()->description('The application ID.')->required(),
             'users_id' => $schema->integer()->description('The user ID to get messages for.')->required(),
-            'message_type_verb' => $schema->string()->description('The verb of the message type to filter messages (e.g., "post", "comment").')->required(),
+            'message_type' => $schema->string()->description('The verb of the message type to filter messages (e.g., "post", "comment").')->required(),
             'message_uuid' => $schema->string()->description('The UUID of the message to retrieve.')->required(),
         ];
     }
@@ -235,12 +248,8 @@ class GetMessageTool extends Tool
         ]);
 
         return [
-            'data' => $messageSchema->description('The message object (or null if not found)'),
-            'meta' => $schema->object([
-                'count' => $schema->integer()->description('Number of messages returned (0 or 1)'),
-                'apps_id' => $schema->integer()->description('The application ID'),
-                'users_id' => $schema->integer()->description('The user ID filter applied'),
-            ])->description('Metadata about the response'),
+            'data' => $messageSchema->description('The message object (or null if not found)')->nullable(true),
+            'error' => $schema->string()->description('Error message in case there is an error.')->nullable(true),
         ];
     }
 }

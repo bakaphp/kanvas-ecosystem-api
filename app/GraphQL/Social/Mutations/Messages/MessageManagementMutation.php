@@ -24,6 +24,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageManagementMutation
@@ -32,10 +33,10 @@ class MessageManagementMutation
 
     public function create(mixed $root, array $request): Message
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
         $messageData = $request['input'];
+        $app = app(Apps::class);
+        $user = $request['users_id'] ? Users::find($request['users_id']) : auth()->user();
+        $company = $user->getCurrentCompany();
 
         $rules = [
             'system_modules_id' => 'nullable',

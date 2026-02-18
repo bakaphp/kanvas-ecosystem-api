@@ -9,7 +9,6 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -27,24 +26,13 @@ class CreateMessageTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        Log::info('User authenticated for CreateMessageTool', ['user_id' => auth()->user()->getId(), 'company_id' => auth()->user()->getCurrentCompany()->getId()]);
         Log::info('CreateMessageTool received request', ['request' => $request->all()]);
 
         try {
-            $message = (new MessageManagementMutation())->create(null, ['input' => $request->get('input')]);
+            $message = (new MessageManagementMutation())->create(null, ['input' => $request->get('input'), 'users_id' => $request->get('users_id')]);
         } catch (\Exception $e) {
             return Response::structured(['error' => 'Failed to create message: ' . $e->getMessage() . ' ' . $e->getTraceAsString()], 500);
         }
-        // $message = new MessageManagementMutation();
-        // $message = $message->create(null, [
-        //     'input' => [
-        //         'is_public' => $request->get('is_public', false),
-        //         'message_verb' => $request->get('message_verb'),
-        //         'message' => $request->get('message'),
-        //         'tags' => $request->get('tags', []),
-        //         'parent_id' => $request->get('parent_id', null),
-        //     ],
-        // ]);
 
         Log::info('CreateMessageTool created message', ['message' => $message->toArray()]);
         return Response::structured([
@@ -118,11 +106,8 @@ class CreateMessageTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            // 'message_verb' => $schema->string()->description('The verb of the message type to create messages (e.g., "post", "comment").')->required(),
+            'users_id' => $schema->integer()->description('The user ID creating the message.')->required(),
             'input' => $schema->object([])->description('The message content as a JSON object')->required(),
-            // 'is_public' => $schema->boolean()->description('Whether the message should be public')->default(false),
-            // 'tags' => $schema->array($schema->string())->description('An array of tag names to associate with the message')->default([]),
-            // 'parent_id' => $schema->integer()->description('The ID of the parent message if this is a child message')->nullable(),
         ];
     }
 
