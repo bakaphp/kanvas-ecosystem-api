@@ -43,6 +43,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         protected Apps $app,
         protected array $params = [],
         protected string $actionClass = '',
+        protected ?Session $session = null,
     ) {
     }
 
@@ -67,21 +68,11 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         Cache::forget($cacheKey);
 
         try {
-            // Get the session for this channel, agent, and entity
-            $session = Session::query()
-                ->where('apps_id', $this->app->getId())
-                ->where('agents_id', $this->agent->getId())
-                ->where('channel_id', $this->channel->getId())
-                ->where('companies_id', $lead->company->getId())
-                ->where('entity_namespace', get_class($lead))
-                ->where('entity_id', $lead->getId())
-                ->first();
-
             $action = new $this->actionClass(
                 $this->channel,
                 $this->message,
                 $this->agent,
-                $session
+                $this->session
             );
 
             $action->execute($this->params);
