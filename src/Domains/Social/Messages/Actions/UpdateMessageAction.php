@@ -21,7 +21,7 @@ class UpdateMessageAction
         return DB::connection('social')->transaction(function () {
             $this->message->message = $this->data->message;
             $this->message->message_types_id = $this->data->type->getId();
-            $this->message->is_public = $this->data->is_public;
+            $this->message->is_public = (int) $this->data->is_public;
             $this->message->saveOrFail();
 
             if (count($this->data->tags)) {
