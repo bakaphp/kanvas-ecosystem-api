@@ -30,7 +30,7 @@ use Override;
  * @property int $max_capacity
  * @property float $price
  * @property string $sku
- * @property int $status_id
+ * @property int|null $status_id
  * @property int $position
  * @property string $serial_number
  * @property int $is_default

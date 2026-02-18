@@ -762,6 +762,19 @@ extend type Query @guard {
 | `DatabaseSearchableTrait` | Simple models, no external search engine needed | Categories, Channels, Warehouses, Status, Pipeline, Action |
 | `DynamicSearchableTrait` | Need Algolia/Typesense indexing, full-text search | Products, Leads, Messages, Agents |
 
+### Algolia Index Configuration Requirement
+
+When a model uses `DynamicSearchableTrait` with Algolia and the `search()` method filters by numeric attributes (e.g., `apps_id`, `companies_id`), those attributes **must be configured in the Algolia dashboard** for the index:
+
+1. Go to the Algolia dashboard > select the index (e.g., `dev-prompt_messages`)
+2. Navigate to **Configuration** > **Filtering and Faceting** > **Attributes for faceting**
+3. Add `filterOnly(apps_id)` and `filterOnly(companies_id)`
+4. If the attribute is purely numeric, also check **numericAttributesForFiltering** — by default all numeric attributes are filterable, but if a custom list is set, the attribute must be included
+
+Without this, Algolia returns: `"invalid numeric attribute(apps_id), attribute not specified in numericAttributesForFiltering setting"`
+
+**Note:** Each app can have a custom index name (e.g., `app_custom_message_index`), so this must be configured per-index in the Algolia UI.
+
 ### 3. Add Search Scoping to Prevent Data Leaks
 
 **Every model that uses `@search` MUST override the `search()` method** to scope results by `apps_id` and `companies_id`. Without this, search queries can leak data across apps and companies.

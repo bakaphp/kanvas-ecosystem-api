@@ -154,6 +154,236 @@ class MessageTest extends TestCase
         ]);
     }
 
+    public function testUpdateMessageAddTags(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'alpha'],
+                    ['name' => 'beta'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'alpha'],
+                            ['name' => 'beta'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateMessageReplaceTags(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'old-tag-one'],
+                    ['name' => 'old-tag-two'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'new-tag'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'new-tag'],
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertJsonMissing(['name' => 'old-tag-one'])
+        ->assertJsonMissing(['name' => 'old-tag-two']);
+    }
+
+    public function testUpdateMessageWithoutTagsKeepsExisting(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'keep-me'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $newMessage = fake()->text();
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    message
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'message' => $newMessage,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'message' => $newMessage,
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'keep-me'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateMessageRemoveOneTagKeepOthers(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'tag-a'],
+                    ['name' => 'tag-b'],
+                    ['name' => 'tag-c'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'tag-a'],
+                    ['name' => 'tag-c'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'tag-a'],
+                            ['name' => 'tag-c'],
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertJsonMissing(['name' => 'tag-b']);
+    }
+
     public function testUpdateVerbMessage()
     {
         $messageType = MessageType::factory()->create();
