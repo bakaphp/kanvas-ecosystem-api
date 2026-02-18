@@ -317,6 +317,26 @@ class Message extends BaseModel
         return $query->where('is_public', 0);
     }
 
+    /**
+     * Scope to control cross-company message visibility.
+     *
+     * By default messages are public across all companies within the app (current behavior).
+     * Set app setting 'restrict_messages_by_company' to true to filter messages
+     * by the current user's company (company-scoped feed behavior).
+     */
+    public function scopeCompanyVisibility(Builder $query): Builder
+    {
+        $app = app(Apps::class);
+
+        if ($app->get('restrict_messages_by_company')) {
+            $user = auth()->user();
+
+            return $query->where($this->getTable() . '.companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
+
     public function setLock(): void
     {
         $this->is_locked = 1;
@@ -623,5 +643,24 @@ class Message extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    /**
+     * Override search to enforce app and company visibility scoping.
+     * @search bypasses @paginate scopes, so this is the only place to enforce multi-tenancy during search.
+     * Respects the same 'restrict_messages_by_company' app setting as scopeCompanyVisibility.
+     */
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && $app->get('restrict_messages_by_company')) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $searchQuery;
     }
 }
