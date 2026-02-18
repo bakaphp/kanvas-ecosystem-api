@@ -21,6 +21,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
@@ -42,6 +43,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         protected Apps $app,
         protected array $params = [],
         protected string $actionClass = '',
+        protected ?Session $session = null,
     ) {
     }
 
@@ -70,7 +72,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
                 $this->channel,
                 $this->message,
                 $this->agent,
-                null
+                $this->session
             );
 
             $action->execute($this->params);
