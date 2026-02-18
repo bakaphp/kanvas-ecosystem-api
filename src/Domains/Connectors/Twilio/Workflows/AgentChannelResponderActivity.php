@@ -71,24 +71,6 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                if ($lead instanceof Lead) {
-                    $delayedResponse = $this->handleSupportModeDelayedResponse(
-                        $lead,
-                        $channel,
-                        $message,
-                        $app,
-                        $defaultAgentId,
-                        $channelAgentMapping,
-                        $chatJid,
-                        $params,
-                        AgentChannelResponderAction::class
-                    );
-
-                    if ($delayedResponse !== null) {
-                        return $delayedResponse;
-                    }
-                }
-
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
@@ -120,6 +102,25 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'agent' => Agent::getById($agentId, $app),
                         ])
                     )->execute();
+                }
+
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class,
+                        $chatSession
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
                 }
 
                 return new AgentChannelResponderAction(
