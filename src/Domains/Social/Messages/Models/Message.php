@@ -76,7 +76,9 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
