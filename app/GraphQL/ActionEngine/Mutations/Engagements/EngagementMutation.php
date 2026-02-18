@@ -31,10 +31,8 @@ class EngagementMutation
         $user->follow($lead);
 
         $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
-        $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
-        $requestId = $request['request_id'];
-        //$parentAction = $this->getActionInfo($app, $request['action']);
-        //$action = $parentAction['parent']ddfad;
+        /** @var Engagement|null $parentEngagement */
+        $parentEngagement = ! empty($request['parent_id']) ? Engagement::getByIdFromCompanyApp((int) $request['parent_id'], $company, $app) : null;
 
         return new CreateEngagementAction(
             DataTransferObjectEngagement::from(
@@ -43,7 +41,8 @@ class EngagementMutation
                 $user,
                 $lead,
                 $request,
-                $people
+                $people,
+                $parentEngagement,
             )
         )->execute();
     }
@@ -61,14 +60,8 @@ class EngagementMutation
 
         $lead = Lead::getByIdFromCompanyApp($request['lead_id'], $company, $app);
         $people = ! empty($request['people_id']) ? People::getByIdFromCompanyApp($request['people_id'], $company, $app) : $lead->people;
-        $receiver = ! empty($request['receiver_id']) ? LeadReceiver::getByIdFromCompanyApp($request['receiver_id'], $company, $app) : ($lead->receiver ?? LeadReceiver::getDefault($company, $app));
-        $requestId = $request['request_id'];
-        $action = $request['action'];
-        $checkListId = $request['task_id'] ?? 0;
-        $source = $request['source'];
-        $via = $request['via'] ?? 'copy';
-        $data = $request['data'] ?? [];
-        $status = $request['status'];
+        /** @var Engagement|null $parentEngagement */
+        $parentEngagement = ! empty($request['parent_id']) ? Engagement::getByIdFromCompanyApp((int) $request['parent_id'], $company, $app) : null;
 
         return new ContinueEngagementAction(
             DataTransferObjectEngagement::from(
@@ -77,7 +70,8 @@ class EngagementMutation
                 $user,
                 $lead,
                 $request,
-                $people
+                $people,
+                $parentEngagement,
             )
         )->execute();
     }

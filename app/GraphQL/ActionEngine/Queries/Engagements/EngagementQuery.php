@@ -65,4 +65,14 @@ class EngagementQuery
 
         return $engagement;
     }
+
+    public function isComplete(Engagement $engagement): bool
+    {
+        return $engagement->isComplete();
+    }
+
+    public function completionProgress(Engagement $engagement): array
+    {
+        return $engagement->completionProgress();
+    }
 }
