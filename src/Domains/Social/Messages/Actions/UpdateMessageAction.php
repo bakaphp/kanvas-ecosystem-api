@@ -32,6 +32,8 @@ class UpdateMessageAction
                 $this->message->syncCategories($this->data->categories);
             }
 
+            $this->message->clearLightHouseCache();
+
             return $this->message;
         });
     }
