@@ -24,7 +24,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
@@ -326,6 +328,10 @@ class Message extends BaseModel
      */
     public function scopeCompanyVisibility(Builder $query): Builder
     {
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $query;
+        }
+
         $app = app(Apps::class);
 
         if ($app->get('restrict_messages_by_company')) {
@@ -654,6 +660,10 @@ class Message extends BaseModel
     {
         $app = app(Apps::class);
         $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $searchQuery;
+        }
 
         $user = auth()->user();
 
