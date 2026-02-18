@@ -16,11 +16,6 @@ use Spatie\LaravelData\Data;
 
 class MessageInput extends Data
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
     public function __construct(
         public AppInterface $app,
         public CompanyInterface $company,
