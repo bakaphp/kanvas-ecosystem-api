@@ -113,10 +113,18 @@ class Engagement extends BaseModel
 
     public function childEngagements(): HasMany
     {
-        return $this->children()
+        return $this->children()->with('stage');
+    }
+
+    public function stageHistory(): HasMany
+    {
+        return $this->hasMany(self::class, 'entity_uuid', 'entity_uuid')
+            ->where('apps_id', $this->apps_id)
+            ->where('companies_id', $this->companies_id)
             ->where('leads_id', $this->leads_id)
             ->where('people_id', $this->people_id)
-            ->with('stage');
+            ->with('stage')
+            ->orderBy('created_at');
     }
 
     public function isParent(): bool

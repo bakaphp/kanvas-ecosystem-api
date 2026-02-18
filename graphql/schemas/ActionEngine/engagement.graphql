@@ -10,6 +10,8 @@ type Engagement {
     stage: ActionPipelineStage @belongsTo(relation: "stage")
     parent: Engagement @belongsTo(relation: "parent")
     children: [Engagement!] @hasMany(relation: "children")
+    stage_history: [Engagement!]!
+        @field(resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@stageHistory")
     entity_uuid: String!
     slug: String!
     is_complete: Boolean!
