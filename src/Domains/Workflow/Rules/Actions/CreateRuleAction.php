@@ -72,7 +72,7 @@ class CreateRuleAction
                 }
             }
 
-            return $rule;
+            return $rule->refresh();
         });
     }
 }
