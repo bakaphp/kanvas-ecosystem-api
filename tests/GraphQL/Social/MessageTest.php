@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -1043,5 +1044,136 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testMessagesDefaultCompanyVisibility(): void
+    {
+        $app = app(Apps::class);
+        $app->set('restrict_messages_by_company', true);
+
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        companies_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        )->assertSuccessful();
+
+        $createdMessageId = $response->json('data.createMessage.id');
+
+        $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $createdMessageId . ' }
+                ) {
+                    data {
+                        id
+                        message
+                    }
+                }
+            }
+            '
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'id' => $createdMessageId,
+                            'message' => $message,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $app->set('restrict_messages_by_company', false);
+    }
+
+    public function testMessagesCompanyVisibilityFiltersOtherCompanies(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $messageType = MessageType::factory()->create();
+
+        $ownMessage = Message::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['text' => 'own-company-msg-' . fake()->uuid()],
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $otherCompanyMessage = Message::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => 99999,
+            'users_id' => $user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['text' => 'other-company-msg-' . fake()->uuid()],
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $app->set('restrict_messages_by_company', true);
+
+        $response = $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $otherCompanyMessage->getId() . ' }
+                ) {
+                    data {
+                        id
+                    }
+                }
+            }
+            '
+        )->assertSuccessful();
+
+        $this->assertEmpty(
+            $response->json('data.messages.data'),
+            'Other company message should NOT be visible when restrict_messages_by_company is on'
+        );
+
+        $response = $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $ownMessage->getId() . ' }
+                ) {
+                    data {
+                        id
+                    }
+                }
+            }
+            '
+        )->assertSuccessful();
+
+        $this->assertNotEmpty(
+            $response->json('data.messages.data'),
+            'Own company message should be visible when restrict_messages_by_company is on'
+        );
+
+        $app->set('restrict_messages_by_company', false);
     }
 }
