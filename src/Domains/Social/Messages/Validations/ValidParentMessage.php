@@ -23,10 +23,12 @@ class ValidParentMessage implements ValidationRule
             return;
         }
 
-        $parentMessage = ModelsMessage::where('id', $value)
-            ->where('apps_id', $this->appId);
+        $exists = ModelsMessage::withTrashed()
+            ->where('id', $value)
+            ->where('apps_id', $this->appId)
+            ->exists();
 
-        if (! $parentMessage->exists()) {
+        if (! $exists) {
             $fail('The parent message is invalid');
         }
     }

@@ -9,8 +9,10 @@ use Baka\Traits\UuidTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Observers\EngagementObserver;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStageMessage;
@@ -18,12 +20,15 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 
 /**
  * Class Engagement.
  *
  * @property int $id
  * @property string $uuid
+ * @property int|null $parent_id
+ * @property string|null $path
  * @property int $apps_id
  * @property int $companies_id
  * @property int $users_id
@@ -39,12 +44,13 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 class Engagement extends BaseModel
 {
     use UuidTrait;
+    use AsTree;
     use CanUseWorkflow;
     use SoftDeletesTrait;
 
     protected $table = 'engagements';
     protected $guarded = [];
-    public const DELETED_AT = 'is_deleted';
+    public const string DELETED_AT = 'is_deleted';
 
     public function companyAction(): BelongsTo
     {
@@ -103,5 +109,59 @@ class Engagement extends BaseModel
         return self::query()
             ->where('message_id', $messageId)
             ->firstOrFail();
+    }
+
+    public function childEngagements(): HasMany
+    {
+        return $this->children()->with('stage');
+    }
+
+    public function stageHistory(): HasMany
+    {
+        return $this->hasMany(self::class, 'entity_uuid', 'entity_uuid')
+            ->where('apps_id', $this->apps_id)
+            ->where('companies_id', $this->companies_id)
+            ->where('leads_id', $this->leads_id)
+            ->where('people_id', $this->people_id)
+            ->with('stage')
+            ->orderBy('created_at');
+    }
+
+    public function isParent(): bool
+    {
+        return $this->parent_id === null && $this->childEngagements()->exists();
+    }
+
+    public function isComplete(): bool
+    {
+        if (! $this->isParent()) {
+            return false;
+        }
+
+        $children = $this->childEngagements()->get();
+
+        if ($children->isEmpty()) {
+            return false;
+        }
+
+        return $children->every(function ($child) {
+            /** @var Engagement $child */
+            return $child->stage?->slug === ActionStatusEnum::SUBMITTED->value;
+        });
+    }
+
+    public function completionProgress(): array
+    {
+        $children = $this->childEngagements()->get();
+        $total = $children->count();
+        $completed = $children->filter(function ($child) {
+            /** @var Engagement $child */
+            return $child->stage?->slug === ActionStatusEnum::SUBMITTED->value;
+        })->count();
+
+        return [
+            'completed' => $completed,
+            'total' => $total,
+        ];
     }
 }

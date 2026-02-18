@@ -56,10 +56,13 @@ class CreateEventAction
             if (isset($this->metadata['slug_suffix'])) {
                 $slug = $slug . '-' . $this->metadata['slug_suffix'];
             }
+
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
+                'slug' => $slug,
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),
+            ], [
                 'users_id' => $this->event->user->getId(),
                 'name' => $this->event->name,
                 'theme_id' => $this->event->theme->getId(),
@@ -71,7 +74,6 @@ class CreateEventAction
                 'description' => $this->event->description,
                 'resources_id' => $this->event->resource?->id ?? null,
                 'resources_type' => $this->event->resource?->getMorphClass() ?? null,
-                'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
 
