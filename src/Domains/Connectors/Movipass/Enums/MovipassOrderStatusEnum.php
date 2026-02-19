@@ -4,6 +4,7 @@ namespace Kanvas\Connectors\Movipass\Enums;
 
 enum MovipassOrderStatusEnum: string
 {
+    case REQUEST_SUBMITTED = 'request_submitted';
     case IN_TRANSIT = 'in_transit';
     case PENDING = 'pending';
     case AWAITING_DELIVERY_CONFIRMATION = 'awaiting_delivery_confirmation';
