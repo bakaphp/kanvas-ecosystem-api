@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Souk\Orders\Models\OrderStatus;
-use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
-use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 
 class ExportOrderTest extends OrderBase
 {
@@ -16,69 +13,16 @@ class ExportOrderTest extends OrderBase
     public function setUp(): void
     {
         parent::setUp();
-        $orderType = OrderTypes::firstOrCreate([
-            'name' => $this->orderTypeName,
-            'apps_id' => $this->apps->id,
-        ]);
-
-        $this->createStatuses($this->apps, $orderType, [
+        new CreateOrderStatusesAction(
+            $this->apps,
+            $this->orderTypeName,
             [
-                'slug' => 'draft',
-                'name' => 'Draft',
-                'is_default' => true,
-                'is_final' => false,
-                'transitions' => [],
-            ],
-            [
-                'slug' => 'pending',
-                'name' => 'Pending',
-                'is_default' => false,
-                'is_final' => false,
-                'transitions' => ['draft'],
-            ],
-            [
-                'slug' => 'paid',
-                'name' => 'Paid',
-                'is_default' => false,
-                'is_final' => true,
-                'transitions' => ['pending'],
-            ],
-            [
-                'slug' => 'cancelled',
-                'name' => 'Cancelled',
-                'is_default' => false,
-                'is_final' => true,
-                'transitions' => ['pending', 'paid'],
-            ],
-        ]);
-    }
-
-    public function createStatuses(Apps $app, OrderTypes $orderType, array $statuses)
-    {
-        $savedStatuses = [];
-        foreach ($statuses as $status) {
-            $createdStatus = OrderStatus::firstOrCreate([
-                'order_types_id' => $orderType->id,
-                'apps_id' => $app->id,
-                'slug' => $status['slug'],
-                'name' => $status['name'],
-                'is_default' => $status['is_default'],
-                'is_final' => $status['is_final'],
-            ]);
-
-            $savedStatuses[$status['slug']] = $createdStatus->id;
-        }
-
-        foreach ($statuses as $status) {
-            foreach ($status['transitions'] as $transition) {
-                OrderStatusTransitions::firstOrCreate([
-                    'order_types_id' => $orderType->id,
-                    'from_status_id' => $savedStatuses[$transition],
-                    'to_status_id' => $savedStatuses[$status['slug']],
-                    'name' => $status['name'],
-                ]);
-            }
-        }
+                'draft' => ['is_default' => true, 'is_final' => false, 'transitions' => ['pending']],
+                'pending' => ['is_default' => false, 'is_final' => false, 'transitions' => ['paid', 'cancelled']],
+                'paid' => ['is_default' => false, 'is_final' => true, 'transitions' => ['cancelled']],
+                'cancelled' => ['is_default' => false, 'is_final' => true, 'transitions' => []],
+            ]
+        )->execute();
     }
 
 

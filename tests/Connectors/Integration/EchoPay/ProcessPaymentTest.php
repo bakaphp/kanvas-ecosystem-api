@@ -203,7 +203,7 @@ final class ProcessPaymentTest extends TestCase
 
         $this->setAllowNoPaymentStatus(true, $app);
 
-        (new CreateOrderStatusesAction($app, $orderTypeName, [
+        new CreateOrderStatusesAction($app, $orderTypeName, [
             'pending' => [
                 'is_final' => false,
                 'is_default' => true,
@@ -215,7 +215,7 @@ final class ProcessPaymentTest extends TestCase
             'completed' => [
                 'is_final' => true,
             ],
-        ]))->execute();
+        ])->execute();
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct(attributes: [
@@ -995,7 +995,7 @@ final class ProcessPaymentTest extends TestCase
 
         $this->setAllowNoPaymentStatus(true, $app);
 
-        (new CreateOrderStatusesAction($app, $orderTypeName, [
+        new CreateOrderStatusesAction($app, $orderTypeName, [
             'pending' => [
                 'is_final' => false,
                 'is_default' => true,
@@ -1007,7 +1007,7 @@ final class ProcessPaymentTest extends TestCase
             'completed' => [
                 'is_final' => true,
             ],
-        ]))->execute();
+        ])->execute();
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
@@ -1138,7 +1138,7 @@ final class ProcessPaymentTest extends TestCase
 
         $this->setAllowNoPaymentStatus(true, $app);
 
-        (new CreateOrderStatusesAction($app, $orderTypeName, [
+        new CreateOrderStatusesAction($app, $orderTypeName, [
             'pending' => [
                 'is_final' => false,
                 'is_default' => true,
@@ -1150,7 +1150,7 @@ final class ProcessPaymentTest extends TestCase
             'completed' => [
                 'is_final' => true,
             ],
-        ]))->execute();
+        ])->execute();
 
         $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
