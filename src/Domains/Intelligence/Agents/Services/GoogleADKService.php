@@ -240,6 +240,17 @@ class GoogleADKService
         return json_decode($response->getBody()->getContents(), true) ?? [];
     }
 
+    public function sendData(string $userId, string $sessionId, array $data): void
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        $response = $this->client->post($endpoint, [
+            'json' => [
+                'data' => $data,
+            ],
+        ]);
+    }
+
     /**
      * Delete a session
      *
