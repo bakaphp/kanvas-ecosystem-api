@@ -9,7 +9,9 @@ use Exception;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
@@ -40,6 +42,13 @@ class SendMessageToLeadAction
 
     protected function sendWhatsAppMessage(string $message): array
     {
+        $isFromWhatsapp = (bool) $this->lead->get(ConfigurationEnum::IS_FROM_WHATSAPP->value);
+        $hasOutboundConfigured = ! empty($this->lead->app->get(WaSenderConfigurationEnum::BASE_URL_OUTBOUND->value));
+
+        if (! $isFromWhatsapp && $hasOutboundConfigured) {
+            return $this->sendWhatsappMessageByOutbound($message);
+        }
+
         $whatsAppMessageService = new MessageService(
             $this->lead->app,
             $this->lead->company
@@ -52,7 +61,24 @@ class SendMessageToLeadAction
         }
         $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
 
-        // Define the callback to send each chunk in real time
+        return $whatsAppMessageService->sendTextMessage($cellphone, $message);
+    }
+
+    protected function sendWhatsappMessageByOutbound(string $message): array
+    {
+        $whatsAppMessageService = new MessageService(
+            $this->lead->app,
+            $this->lead->company,
+            outbound: true
+        );
+
+        $cellphone = $this->lead->people->getCellPhones()->first()?->value;
+
+        if (! $cellphone) {
+            throw new InvalidArgumentException('Lead does not have a cellphone number');
+        }
+        $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
+
         return $whatsAppMessageService->sendTextMessage($cellphone, $message);
     }
 

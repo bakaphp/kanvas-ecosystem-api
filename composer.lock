@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dfa3ade51343461483aae5c10a81fbbe",
+    "content-hash": "88447f7655f19258a4fc5c9926c75cb8",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2125,16 +2125,16 @@
         },
         {
             "name": "genealabs/laravel-model-caching",
-            "version": "12.0.2",
+            "version": "12.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mikebronner/laravel-model-caching.git",
-                "reference": "90901c7edd2934304d1d6c55bf8cce132c90fa5d"
+                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/90901c7edd2934304d1d6c55bf8cce132c90fa5d",
-                "reference": "90901c7edd2934304d1d6c55bf8cce132c90fa5d",
+                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/ae605a862d0d3d23463edc46c67d58e0b4faec6c",
+                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c",
                 "shasum": ""
             },
             "require": {
@@ -2187,9 +2187,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mikebronner/laravel-model-caching/issues",
-                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.2"
+                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.3"
             },
-            "time": "2025-02-27T00:34:22+00:00"
+            "time": "2026-02-17T23:07:25+00:00"
         },
         {
             "name": "google/apiclient",
@@ -7448,16 +7448,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "2.12.5",
+            "version": "2.12.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "40629a3c7412b3989ee76a525feb7e212272192c"
+                "reference": "1b4a7337dee0a1cab7b8994eb587bf768faab140"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/40629a3c7412b3989ee76a525feb7e212272192c",
-                "reference": "40629a3c7412b3989ee76a525feb7e212272192c",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/1b4a7337dee0a1cab7b8994eb587bf768faab140",
+                "reference": "1b4a7337dee0a1cab7b8994eb587bf768faab140",
                 "shasum": ""
             },
             "require": {
@@ -7504,7 +7504,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/2.12.5"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/2.12.6"
             },
             "funding": [
                 {
@@ -7512,7 +7512,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-15T10:01:42+00:00"
+            "time": "2026-02-18T16:33:06+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -16510,16 +16510,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.11.0",
+            "version": "8.11.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "e3b9248f556ed522ce841ba2b7e9228ff1c8276a"
+                "reference": "7061dc4f080787660ae2a442db620e6afad99c5a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/e3b9248f556ed522ce841ba2b7e9228ff1c8276a",
-                "reference": "e3b9248f556ed522ce841ba2b7e9228ff1c8276a",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/7061dc4f080787660ae2a442db620e6afad99c5a",
+                "reference": "7061dc4f080787660ae2a442db620e6afad99c5a",
                 "shasum": ""
             },
             "require": {
@@ -16556,7 +16556,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2026-02-05T12:32:52+00:00"
+            "time": "2026-02-18T08:25:57+00:00"
         },
         {
             "name": "typesense/laravel-scout-typesense-driver",
@@ -17801,16 +17801,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.1.6",
+            "version": "v2.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "b8923e6131e5b705da299891284d327562445618"
+                "reference": "3f999986f9dc0f1faa9a6607739e938d551e27df"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/b8923e6131e5b705da299891284d327562445618",
-                "reference": "b8923e6131e5b705da299891284d327562445618",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/3f999986f9dc0f1faa9a6607739e938d551e27df",
+                "reference": "3f999986f9dc0f1faa9a6607739e938d551e27df",
                 "shasum": ""
             },
             "require": {
@@ -17863,7 +17863,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-02-16T23:53:14+00:00"
+            "time": "2026-02-18T12:19:28+00:00"
         },
         {
             "name": "laravel/mcp",
