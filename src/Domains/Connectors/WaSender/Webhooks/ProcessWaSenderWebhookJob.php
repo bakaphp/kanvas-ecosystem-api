@@ -187,7 +187,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     }
                     //status = 2 , means user delivery, status = 1 means api delivery
                 }
-                
+
                 //status 1 mean api response
                 $shouldBlockAndPrivate = (int) $status === 1;
                 if ((int) $status === 2) {
