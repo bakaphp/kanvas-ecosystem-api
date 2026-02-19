@@ -75,7 +75,6 @@ class FollowUpEngagementAction
         // Get lead's preferred channel
         $preferredChannel = $this->lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value);
 
-        return null;
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
                 ->where('is_deleted', 0)

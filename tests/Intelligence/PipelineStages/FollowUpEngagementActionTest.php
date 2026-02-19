@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\PipelineStages;
 
 use Carbon\Carbon;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline as ActionEnginePipeline;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage as ActionEnginePipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -149,6 +153,54 @@ class FollowUpEngagementActionTest extends TestCase
 
             $pipelineStage->config = $config;
             $pipelineStage->saveOrFail();
+
+            // Create ActionEngine infrastructure for engagement creation
+            $actionEnginePipeline = ActionEnginePipeline::firstOrCreate([
+                'slug' => 'view-vehicle',
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'name' => 'view-vehicle',
+                'weight' => 0,
+            ]);
+
+            ActionEnginePipelineStage::firstOrCreate([
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'slug' => 'sent',
+            ], [
+                'name' => 'Sent',
+                'weight' => 1,
+            ]);
+
+            ActionEnginePipelineStage::firstOrCreate([
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'slug' => 'submitted',
+            ], [
+                'name' => 'Submitted',
+                'weight' => 2,
+            ]);
+
+            $viewVehicleAction = Action::firstOrCreate([
+                'slug' => 'view-vehicle',
+            ], [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'users_id' => $user->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
+
+            CompanyAction::firstOrCreate([
+                'actions_id' => $viewVehicleAction->getId(),
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'companies_branches_id' => $company->defaultBranch->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
 
             // Create FollowUp infrastructure so FollowUpEngagementAction can find it
             $followUp = FollowUp::create([
