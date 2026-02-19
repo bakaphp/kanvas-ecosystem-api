@@ -187,7 +187,9 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     }
                     //status = 2 , means user delivery, status = 1 means api delivery
                 }
-                $shouldBlockAndPrivate = (int) $status === 2;
+                
+                //status 1 mean api response
+                $shouldBlockAndPrivate = (int) $status === 1;
                 if ((int) $status === 2) {
                     $lead->fireWorkflow(
                         WorkflowEnum::TRIGGER_AI->value,
