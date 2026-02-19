@@ -92,4 +92,19 @@ class ADKAgent
     {
         return $this->content;
     }
+
+    public function sendDataToAgent(
+        string $sessionId,
+        array $data,
+    ): void {
+        $googleADKService = new GoogleADKService(
+            $this->app,
+            $this->company
+        );
+        $googleADKService->sendData(
+            (string) $this->agent->users_id,
+            $sessionId,
+            $data
+        );
+    }
 }
