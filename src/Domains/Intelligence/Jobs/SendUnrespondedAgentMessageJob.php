@@ -14,6 +14,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
@@ -95,8 +96,8 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
                 try {
                     $isElead = $entity->company->get(CustomFieldEnum::COMPANY->value) !== null;
                     $isVinSolutions = $entity->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
-
-                    $note = "The sales agent hasn't responded to the customer's message in 15 minutes. Sally is responding to the customer.";
+                    $unrespondedMessageMinutes = $entity->company->get(ConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value) ?? 15;
+                    $note = "The sales agent hasn't responded to the customer's message in {$unrespondedMessageMinutes} minutes. Sally is responding to the customer.";
                     if ($isElead) {
                         $eLeadOpportunity = EntitiesLead::getById(
                             $lead->app,
