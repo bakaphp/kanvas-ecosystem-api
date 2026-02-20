@@ -62,7 +62,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-                $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                //$cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $cellPhone = Str::normalizePhoneNumber($cellPhone);
                 $source = $lead->source?->name ?? '';
 
                 //for now avoid service
@@ -146,7 +147,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 $communicationChannelNumber
                             ),
                         ]);
-                        $channel = (new CreateChannelAction($channel))->execute();
+                        $channel = new CreateChannelAction($channel)->execute();
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
@@ -288,6 +289,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
     {
         if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
             return false;
+        } elseif (! $lead->company->isWithinWorkingHours(now())) {
+            return true;
         } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
@@ -354,7 +357,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
-        $agentUser = $lead->app->get('kanvas_agent_user_id');
+        $agentUser = $lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }

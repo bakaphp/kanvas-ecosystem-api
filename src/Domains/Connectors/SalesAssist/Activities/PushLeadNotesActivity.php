@@ -62,21 +62,27 @@ class PushLeadNotesActivity extends KanvasActivity
                 $isVinSolutions = $lead->company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
                 $isDriveCentric = $lead->company->get(ConfigurationEnum::STORE_ID->value) !== null;
                 $note = null;
+                $handlerResult = null;
 
                 if ($isDriveCentric) {
-                    $note = new AddCommentToDealAction($lead)->execute($message);
-
-                    $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
-
                     try {
-                        $handleCheckList = new ProcessMessageTaskUpdatesAction(
-                            message: $message,
-                            lead: $lead,
-                            user: $message->user,
-                        )->execute();
+                        $note = new AddCommentToDealAction($lead)->execute($message);
+
+                        $handlerResult = $this->handleActionByVerbForDriveCentric($message, $lead);
                     } catch (Throwable $e) {
-                        $handleCheckList = $e->getMessage();
+                        $note = 'Failed to add note to DriveCentric: ' . $e->getMessage();
+                        $handlerResult = null;
                     }
+                }
+
+                try {
+                    $handleCheckList = new ProcessMessageTaskUpdatesAction(
+                        message: $message,
+                        lead: $lead,
+                        user: $message->user,
+                    )->execute();
+                } catch (Throwable $e) {
+                    $handleCheckList = $e->getMessage();
                 }
                 /*  // Process task updates
                  $processMessageTaskUpdatesAction = $this->setTaskEngagementStatus($message, $lead);

@@ -12,6 +12,14 @@ enum PaymentMethodType {
     PAYMENT
 }
 
+enum OrderStatusEnum {
+    PENDING @enum(value: "pending")
+    COMPLETED @enum(value: "completed")
+    DRAFT @enum(value: "draft")
+    CANCELED @enum(value: "canceled")
+    FAILED @enum(value: "failed")
+}
+
 type OrderExportResult {
     status: String!
     download_url: String
@@ -127,18 +135,22 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    total_statuses: Int!
     created_at: String
     updated_at: String
 }
 
 type OrderStatus {
     id: ID!
+    companies_id: ID!
+    company: Company! @belongsTo
     name: String!
     slug: String!
     order_type_id: ID!
     order_type: OrderType! @belongsTo(relation: "orderType")
     is_default: Boolean!
     is_final: Boolean!
+    sequence: Int!
     metadata: Mixed
 }
 
@@ -295,6 +307,8 @@ input AppleInAppPurchaseReceipt {
     transaction_date: Mixed!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    is_renewable_subscription: Boolean = false
+    original_transaction_id: String
 }
 
 input GooglePlayInAppPurchaseReceipt {
@@ -303,6 +317,7 @@ input GooglePlayInAppPurchaseReceipt {
     purchase_token: String!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    is_renewable_subscription: Boolean = false
 }
 
 type PaymentLinkResult {
@@ -335,8 +350,47 @@ input PaymentCustomFieldInput {
 
 input TransitionOrderStatusInput {
     order_id: ID!
-    status_slug: String!
+    status_slug: String
     date: String
+}
+
+input CreateOrderStatusInput {
+    order_type_id: ID!
+    name: String!
+    slug: String!
+    is_default: Boolean = false
+    is_final: Boolean = false
+    sequence: Int!
+    transitions_from: [String!]
+}
+
+input UpdateOrderStatusInput {
+    name: String
+    slug: String
+    is_default: Boolean
+    is_final: Boolean
+    sequence: Int
+}
+
+input CreateOrderTypeInput {
+    name: String!
+}
+
+input UpdateOrderTypeInput {
+    name: String!
+}
+
+type PipelineStage {
+    status: OrderStatus!
+    is_current: Boolean!
+    is_completed: Boolean!
+    sequence: Int!
+}
+
+type OrderPipelineResult {
+    stages: [PipelineStage!]!
+    current_status: OrderStatus
+    available_transitions: [OrderStatus!]!
 }
 
 type OrderStatusTransitionResult {
@@ -387,6 +441,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    updateDraftOrderStatus(order_id: ID!, status: OrderStatusEnum!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@updateStatus"
         )
     updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
         @field(
@@ -442,6 +500,36 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )
+    createOrderStatus(input: CreateOrderStatusInput!): OrderStatus!
+        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
+        )
+    updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
+        )
+    deleteOrderStatus(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@delete"
+        )
+    createOrderType(input: CreateOrderTypeInput!): OrderType!
+        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
+        )
+    updateOrderType(id: ID!, input: UpdateOrderTypeInput!): OrderType!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
+        )
+    deleteOrderType(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
+        )
 }
 
 extend type Mutation @guardByAppKey {
@@ -486,6 +574,8 @@ extend type Query @guard {
                     "updated_at"
                     "token"
                     "ip_address"
+                    "payment_status"
+                    "total_net_amount"
                 ]
             )
         orderType: _
@@ -550,6 +640,7 @@ extend type Query @guard {
         )
 
     orderTypes(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
         where: _ @whereConditions(columns: ["id", "companies_id", "name"])
     ): [OrderType!]!
@@ -591,6 +682,16 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "order"
                 columns: ["user_email", "user_phone", "status", "reference"]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
@@ -674,12 +775,20 @@ extend type Query @guard {
             # scopes: ["fromApp", "notDeleted"]
         )
     orderStatus(
+        search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-        where: _ @whereConditions(columns: ["id", "companies_id", "name"])
+        where: _
+            @whereConditions(
+                columns: ["id", "companies_id", "name", "slug", "order_type_id"]
+            )
     ): [OrderStatus!]!
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
             scopes: ["fromPublicApp", "notDeleted"]
+        )
+    orderPipeline(order_id: ID!): OrderPipelineResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderPipelineQuery@resolve"
         )
 }

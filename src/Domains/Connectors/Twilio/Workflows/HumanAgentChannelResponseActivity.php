@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Workflows;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
@@ -78,6 +81,25 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
+                $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$channel->getId()}";
+                if (Cache::has($cacheKey)) {
+                    Cache::forget($cacheKey);
+                }
+
+                $lastMessage = $channel->getLastMessage();
+                if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {
+                    $channel->deleteLastMessageLocked();
+                }
+
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'app' => $lead->app,
+                        'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
+                    ]
+                );
+
                 $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
 
@@ -102,6 +124,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
+                    false
                 );
             },
             company: $channel->company,

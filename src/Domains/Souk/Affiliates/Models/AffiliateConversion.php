@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Affiliates\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Affiliates\Enums\AffiliateConversionStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Models\Order;
@@ -23,7 +26,7 @@ use Override;
  * @property int $orders_id
  * @property string $attribution_model
  * @property bool $confirmed
- * @property \Illuminate\Support\Carbon|null $confirmed_at
+ * @property Carbon|null $confirmed_at
  * @property float $order_total
  * @property float $eligible_amount
  * @property string $commission_type
@@ -31,16 +34,17 @@ use Override;
  * @property float $commission_amount
  * @property string $status
  * @property string|null $dispute_reason
- * @property \Illuminate\Support\Carbon|null $dispute_resolved_at
+ * @property Carbon|null $dispute_resolved_at
  * @property string|null $notes
  * @property int|null $commission_payout_id
- * @property \Illuminate\Support\Carbon|null $converted_at
+ * @property Carbon|null $converted_at
  */
 class AffiliateConversion extends BaseModel
 {
     use UuidTrait;
     use NoCompanyRelationshipTrait;
     use CanUseWorkflow;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliate_conversions';
 
@@ -167,5 +171,10 @@ class AffiliateConversion extends BaseModel
         $this->status = AffiliateConversionStatusEnum::CONFIRMED->value;
         $this->dispute_resolved_at = now();
         $this->saveOrFail();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        return self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
     }
 }

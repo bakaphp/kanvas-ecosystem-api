@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\ActionEngine\Queries\Engagements;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
@@ -14,7 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class EngagementQuery
 {
-    public function engagementByFilter($root, array $args)
+    public function engagementByFilter(mixed $root, array $args): Engagement
     {
         $data = $args['filter'];
         $user = auth()->user();
@@ -64,5 +65,20 @@ class EngagementQuery
         }
 
         return $engagement;
+    }
+
+    public function stageHistory(Engagement $engagement): Collection
+    {
+        return $engagement->stageHistory()->get();
+    }
+
+    public function isComplete(Engagement $engagement): bool
+    {
+        return $engagement->isComplete();
+    }
+
+    public function completionProgress(Engagement $engagement): array
+    {
+        return $engagement->completionProgress();
     }
 }

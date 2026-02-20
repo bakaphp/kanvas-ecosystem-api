@@ -70,7 +70,10 @@ class GoogleADKService
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
             $responseData = json_decode($responseBody, true);
 
-            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
+            if ($e->getResponse()
+                && in_array($e->getResponse()->getStatusCode(), [400, 409])
+                && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')
+            ) {
                 // Return a specific response or handle as needed
                 return [
                     'error' => true,
@@ -91,6 +94,33 @@ class GoogleADKService
      * @throws GuzzleException
      */
     public function chat(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?callable $onChunk = null,
+        int $maxRetries = 3
+    ): string {
+        $attempt = 0;
+
+        while (true) {
+            try {
+                return $this->executeChat(
+                    $userId,
+                    $sessionId,
+                    $message,
+                    $onChunk
+                );
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $maxRetries || ! str_contains($e->getMessage(), 'stale session')) {
+                    throw $e;
+                }
+                usleep(500_000 * $attempt); // 0.5s, 1s, 1.5s backoff
+            }
+        }
+    }
+
+    protected function executeChat(
         string $userId,
         string $sessionId,
         string $message,

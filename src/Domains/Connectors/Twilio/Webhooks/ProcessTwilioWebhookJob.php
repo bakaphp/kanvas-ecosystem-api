@@ -84,7 +84,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
 
         $channel = $this->getOrCreateChannel($request['From'], lead: $lead);
-        $channel->deleteLastMessageLocked();
 
         $existingMessage = Message::where('uuid', $messageSlug)
             ->where('companies_id', $this->receiver->company->getId())
@@ -287,7 +286,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
     public function processContactFromMessage(array $request): PeopleModel
     {
-        $phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
+        //$phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
+        $phoneNumber = Str::normalizePhoneNumber($request['From']);
         $phoneNumberWithCountryCode = str_replace('+', '', $request['From']);
         /* $existingCustomer = People::getByCustomField(
             'twilio_jid',
@@ -356,7 +356,8 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
          * The +1 is the country code for USA, PR, CA and Dominican Republic,
          * when we need use the agent in LATAM o Europe we go to have problems, for example for mexico is +52
          */
-        $cleanedPhone = preg_replace('/^\+?1/', '', $from);
+        //$cleanedPhone = preg_replace('/^\+?1/', '', $from);
+        $cleanedPhone = Str::normalizePhoneNumber($from);
         $slug = Str::slug('twilio-' . $cleanedPhone);
 
         return DB::transaction(function () use ($slug, $name, $from, $lead): Channel {

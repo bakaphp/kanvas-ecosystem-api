@@ -77,6 +77,20 @@ type PaymentResult {
     message: Mixed
 }
 
+type PaymentValidationResult {
+    status: String!
+    message: String!
+    payment: Payment
+    order: Order
+}
+
+type PaymentActionResult {
+    status: String!
+    message: String!
+    payment: Payment
+    data: Mixed
+}
+
 enum PaymentMethodTypeEnum {
     MANUAL @enum(value: "manual")
     CARD @enum(value: "card")
@@ -146,6 +160,22 @@ extend type Mutation @guard {
     validatePayerAuthResult(orderId: ID!): PayerAuthStatus!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
+        )
+    validatePayment(paymentId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayment"
+        )
+    validatePaymentByOrder(orderId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePaymentByOrder"
+        )
+    capturePayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@capturePayment"
+        )
+    reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
         )
 }
 

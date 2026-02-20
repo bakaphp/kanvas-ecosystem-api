@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Mutations\Channels;
 
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
+use Kanvas\Inventory\Channels\Jobs\UnPublishAllVariantsJob;
 use Kanvas\Inventory\Channels\Models\Channels as ChannelsModel;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 
@@ -59,6 +60,8 @@ class ChannelMutation
         $id = $request['id'];
         $channel = ChannelRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
-        return $channel->unPublishAllVariants();
+        UnPublishAllVariantsJob::dispatch($channel);
+
+        return true;
     }
 }

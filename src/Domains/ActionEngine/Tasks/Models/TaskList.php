@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Factories\TaskListFactory;
+use Kanvas\Apps\Models\Apps;
 use Override;
 
 /**
@@ -25,6 +28,7 @@ use Override;
 class TaskList extends BaseModel
 {
     use UuidTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'company_task_list';
     protected $guarded = [];
@@ -36,6 +40,39 @@ class TaskList extends BaseModel
     public function tasks(): HasMany
     {
         return $this->hasMany(TaskListItem::class, 'task_list_id')->orderBy('weight');
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_task_list_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'task_list_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 
     #[Override]

@@ -454,7 +454,10 @@ class EchoPayService
                 'secretKey' => $merchant->secretKey,
             ],
         ];
-        $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData);
+
+        // Get timeout from config, default to 55s (5s before Octane's 60s timeout)
+        $timeout = (int) ($this->app->get(ConfigurationEnum::CAPTURE_TIMEOUT->value) ?? 55);
+        $response = $this->client->post(ConfigurationEnum::CAPTURE_PAYMENT_PATH->value, $formData, $timeout);
 
         return $response['data'];
     }

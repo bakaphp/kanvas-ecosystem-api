@@ -188,6 +188,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     //status = 2 , means user delivery, status = 1 means api delivery
                 }
 
+                //status 1 mean api response
+                $shouldBlockAndPrivate = (int) $status === 1;
                 if ((int) $status === 2) {
                     $lead->fireWorkflow(
                         WorkflowEnum::TRIGGER_AI->value,
@@ -208,7 +210,6 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 jid: $chatJid,
                 lead: $lead
             );
-            $channel->deleteLastMessageLocked();
 
             // Find existing message or create a new one using CreateMessageAction
             $existingMessage = Message::where('uuid', $messageSlug)
@@ -250,6 +251,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
                 $createMessageAction = new CreateMessageAction($messageInput);
                 $message = $createMessageAction->execute();
+                if (isset($shouldBlockAndPrivate) && $shouldBlockAndPrivate) {
+                    $message->setLock();
+                    $message->setPrivate();
+                }
             }
 
             $previousMessage = $channel->getPreviousMessage($message);
@@ -1150,10 +1155,14 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
+        // Try to get lead type from webhook payload first
+        $payload = $this->webhookRequest->payload;
+        $leadTypeName = $this->receiver->configuration['lead_type'] ?? 'Warm';
+
         $leadType = LeadType::fromApp($people->app)
                     ->fromCompany($people->company)
-                    ->where('name', 'Warm')
-                    ->firstOrFail();
+                    ->where('name', $leadTypeName)
+                    ->first();
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(

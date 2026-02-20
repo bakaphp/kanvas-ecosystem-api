@@ -12,6 +12,7 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use RuntimeException;
 
 class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -20,7 +21,7 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
     {
         $this->overwriteAppService($app);
 
-        return $this->executeIntegration(
+        $response = $this->executeIntegration(
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
@@ -50,5 +51,31 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
             },
             company: $order->company,
         );
+
+        if ($this->isNetSuiteRateLimitError($response['error'] ?? $response['message'] ?? '')) {
+            throw new RuntimeException('NetSuite concurrent request limit exceeded. Retrying...');
+        }
+
+        return $response;
+    }
+
+    protected function isNetSuiteRateLimitError(string $message): bool
+    {
+        $rateLimitPatterns = [
+            'concurrent request limit exceeded',
+            'request blocked',
+            'rate limit',
+            'too many requests',
+        ];
+
+        $lowerMessage = strtolower($message);
+
+        foreach ($rateLimitPatterns as $pattern) {
+            if (str_contains($lowerMessage, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
