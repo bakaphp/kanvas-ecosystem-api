@@ -96,13 +96,14 @@ class ADKAgent
     public function sendDataToAgent(
         string $sessionId,
         array $data,
+        ?string $userId = null
     ): void {
         $googleADKService = new GoogleADKService(
             $this->app,
             $this->company
         );
         $googleADKService->sendData(
-            (string) $this->agent->users_id,
+            $userId ?? (string) $this->agent->user_id,
             $sessionId,
             $data
         );
