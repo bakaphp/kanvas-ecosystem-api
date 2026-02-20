@@ -2647,10 +2647,17 @@ class InsuranceWorkflowService
 
         // Get travel dates
         $activationDate = $primaryPerson['activationDate'] ?? null;
-        $expirationDate = $primaryPerson['expirationDate'] ?? null;
+        $duration = $this->getProductDuration($primaryPerson);
 
-        $fechaInicio = $activationDate ? \DateTime::createFromFormat('Y-m-d', $activationDate)->format('m/d/Y') : '';
-        $fechaFin = $expirationDate ? \DateTime::createFromFormat('Y-m-d', $expirationDate)->format('m/d/Y') : '';
+        if ($activationDate) {
+            $startDate = Carbon::parse($activationDate);
+            $endDate = (clone $startDate)->addDays($duration - 1);
+            $fechaInicio = $startDate->format('m/d/Y');
+            $fechaFin = $endDate->format('m/d/Y');
+        } else {
+            $fechaInicio = '';
+            $fechaFin = '';
+        }
 
         // Get destination info
         $originCountryName = $this->countryCodeToName($originCountryCode);
