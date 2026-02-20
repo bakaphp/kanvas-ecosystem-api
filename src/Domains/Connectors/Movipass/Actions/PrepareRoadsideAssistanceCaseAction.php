@@ -12,7 +12,6 @@ use Kanvas\Users\Models\Users;
 
 class PrepareRoadsideAssistanceCaseAction
 {
-
     public function execute(array $metadata, Users $user): array
     {
         $assistanceCase = $this->resolveAssistanceCasePayload($metadata);
