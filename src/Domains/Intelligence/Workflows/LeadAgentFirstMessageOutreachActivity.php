@@ -357,7 +357,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
-        $agentUser = $lead->app->get('kanvas_agent_user_id');
+        $agentUser = $lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
