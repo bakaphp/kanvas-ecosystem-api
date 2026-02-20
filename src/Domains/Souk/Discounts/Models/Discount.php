@@ -308,12 +308,20 @@ class Discount extends BaseModel
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
+
         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-            $query->where('companies_id', $user->getCurrentCompany()->getId());
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
-        return $query;
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'name,description,code',
+            ]);
+        }
+
+        return $searchQuery;
     }
 }
