@@ -153,7 +153,7 @@ class CreateMessageFollowUpAction
             'verb' => 'twilio-sms',
         ]);
 
-        $agentUser = $this->lead->app->get('kanvas_agent_user_id');
+        $agentUser = $this->lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById($agentUser);
         } else {

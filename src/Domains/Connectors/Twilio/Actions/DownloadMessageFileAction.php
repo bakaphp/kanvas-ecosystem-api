@@ -53,7 +53,7 @@ class DownloadMessageFileAction
 
         $tempPath = 'temp/' . $filename;
 
-        $agentUser = $this->message->app->get('kanvas_agent_user_id');
+        $agentUser = $this->message->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById($this->message->user_id);
         } else {
