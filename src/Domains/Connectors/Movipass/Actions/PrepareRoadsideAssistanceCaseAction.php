@@ -12,11 +12,7 @@ use Kanvas\Users\Models\Users;
 
 class PrepareRoadsideAssistanceCaseAction
 {
-    /**
-     * Enrich order metadata with normalized assistance case data.
-     *
-     * @return array The enriched metadata array
-     */
+
     public function execute(array $metadata, Users $user): array
     {
         $assistanceCase = $this->resolveAssistanceCasePayload($metadata);
