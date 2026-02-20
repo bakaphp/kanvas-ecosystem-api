@@ -4,6 +4,28 @@ enum DateGroupBy {
     MONTH
 }
 
+enum PeriodType {
+    DAY
+    WEEK
+    MONTH
+    YEAR
+}
+
+type OrderPaymentBreakdownItem {
+    label: String!
+    total_transactions: Int!
+    total_amount: Float!
+}
+
+type OrderPeriodData {
+    period_type: String!
+    count: Int!
+    avg_count: Float!
+    total: Float!
+    amount_avg: Float!
+    periods_in_range: Int!
+}
+
 type OrderStats {
     period: Period!
     ordersInPeriod: OrdersInPeriod!
@@ -18,6 +40,8 @@ type OrderPaymentStats {
     period: Period!
     ordersInPeriod: OrdersInPeriodPayment!
     currentCount: Int!
+    byPeriod: [OrderPaymentBreakdownItem!]!
+    periods: [OrderPeriodData!]!
 }
 
 type OrdersInPeriodPayment {
@@ -143,6 +167,18 @@ input OrderPaymentStatsInput {
     timezone: String # e.g., "America/New_York"
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
     providers: [ProviderInput!] # Filter and group by provider email patterns
+    groupPeriods: [PeriodType!] # Period types for averages summary (DAY, WEEK, MONTH, YEAR)
+    periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
+}
+
+input ExportOrderPaymentsInput {
+    paidStates: [String!]
+    orderTypeNames: [String!]
+    startDate: String
+    endDate: String
+    timezone: String
+    language: String # "en" (default) or "es"
+    fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
 }
 
 extend type Query @guard {
@@ -153,5 +189,9 @@ extend type Query @guard {
     orderPaymentStats(input: OrderPaymentStatsInput): OrderPaymentStats!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getPaymentStats"
+        )
+    exportOrderPayments(input: ExportOrderPaymentsInput!, format: ExportFormat!): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@exportPayments"
         )
 }

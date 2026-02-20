@@ -33,11 +33,15 @@ class GetOrderPaymentStatsAction
         }
     }
 
+    private const ALL_PERIODS = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
+
     public function execute(
         ?string $date = null,
         ?string $startDate = null,
         ?string $endDate = null,
-        string $timezone = 'UTC'
+        string $timezone = 'UTC',
+        ?array $groupPeriods = null,
+        string $periodBreakdown = 'MONTH',
     ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
@@ -46,6 +50,8 @@ class GetOrderPaymentStatsAction
             $start = $startDate ? Carbon::parse($startDate, $timezone)->startOfDay()->timezone('UTC') : now()->startOfDay()->timezone('UTC');
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
         }
+
+        $groupPeriods ??= self::ALL_PERIODS;
 
         $currentCount = 0;
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount, $timezone);
@@ -58,6 +64,8 @@ class GetOrderPaymentStatsAction
             ],
             'ordersInPeriod' => $ordersInPeriod,
             'currentCount' => $currentCount,
+            'byPeriod' => $this->getByPeriod($periodBreakdown, $start, $end, $timezone),
+            'periods' => $this->computePeriods($groupPeriods, $start, $end, $currentCount, (float) ($ordersInPeriod['totalAmount'] ?? 0)),
         ];
     }
 
@@ -141,6 +149,51 @@ class GetOrderPaymentStatsAction
             ],
             'data' => $byDates->toArray(),
         ];
+    }
+
+    private function getByPeriod(string $periodType, Carbon $start, Carbon $end, string $timezone): array
+    {
+        $rows = $this->repository->getBreakdownByPeriod(
+            $periodType,
+            $start,
+            $end,
+            $this->paidStates,
+            $timezone,
+            $this->orderTypeNames,
+        );
+
+        return $rows->map(fn ($row) => [
+            'label'              => $row->label,
+            'total_transactions' => (int) $row->total_transactions,
+            'total_amount'       => (float) $row->total_amount,
+        ])->values()->toArray();
+    }
+
+    private function computePeriods(array $groupPeriods, Carbon $start, Carbon $end, int $count, float $total): array
+    {
+        $days = max((int) $start->diffInDays($end) + 1, 1);
+        $periods = [];
+
+        foreach ($groupPeriods as $type) {
+            $periodsInRange = match (strtoupper($type)) {
+                'DAY'   => $days,
+                'WEEK'  => max((int) ceil($days / 7.0), 1),
+                'MONTH' => max($start->copy()->startOfMonth()->diffInMonths($end->copy()->startOfMonth()) + 1, 1),
+                'YEAR'  => max($start->copy()->startOfYear()->diffInYears($end->copy()->startOfYear()) + 1, 1),
+                default => $days,
+            };
+
+            $periods[] = [
+                'period_type'      => strtoupper($type),
+                'count'            => $count,
+                'avg_count'        => $periodsInRange > 0 ? round($count / $periodsInRange, 2) : 0,
+                'total'            => $total,
+                'amount_avg'       => $periodsInRange > 0 ? round($total / $periodsInRange, 2) : 0,
+                'periods_in_range' => (int) $periodsInRange,
+            ];
+        }
+
+        return $periods;
     }
 
     private function getServiceStatsFromOrders($start, $end): array
