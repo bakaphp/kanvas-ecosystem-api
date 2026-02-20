@@ -162,6 +162,44 @@ class OrderPaymentRepository
     }
 
     /**
+     * Get orders grouped by the given period type (DAY, WEEK, MONTH, YEAR)
+     */
+    public function getBreakdownByPeriod(
+        string $periodType,
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        string $timezone = 'UTC',
+        array $orderTypeNames = []
+    ): Collection {
+        $format = match (strtoupper($periodType)) {
+            'DAY'   => '%Y-%m-%d',
+            'WEEK'  => '%x-W%v',
+            'YEAR'  => '%Y',
+            default => '%Y-%m',   // MONTH
+        };
+
+        return Order::query()
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
+            ->where('orders.apps_id', $this->app->id)
+            ->whereIn('order_statuses.slug', $paidStates)
+            ->selectRaw("
+                DATE_FORMAT(CONVERT_TZ(order_transitions_history.changed_at, 'UTC', ?), ?) AS label,
+                COUNT(DISTINCT orders.id) AS total_transactions,
+                SUM(orders.total_net_amount) AS total_amount
+            ", [$timezone, $format])
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+    }
+
+    /**
      * Get variant and product information from inventory DB
      */
     public function getVariantsWithProductInfo(

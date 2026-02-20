@@ -574,6 +574,8 @@ extend type Query @guard {
                     "updated_at"
                     "token"
                     "ip_address"
+                    "payment_status"
+                    "total_net_amount"
                 ]
             )
         orderType: _
