@@ -126,7 +126,7 @@ class SendDelayMessageCommand extends Command
 
                 if (! $lead->get('delay_message_sent')) {
                     try {
-                        $note = 'Sally sent the first message after the lead had been open for 14 minutes with no contact from a sales agent.';
+                        $note = 'Sally sent the first message after the lead had been open for ' . $minutedMessages . ' minutes with no contact from a sales agent.';
                         if ($isElead) {
                             $eLeadOpportunity = EntitiesLead::getById(
                                 $lead->app,
