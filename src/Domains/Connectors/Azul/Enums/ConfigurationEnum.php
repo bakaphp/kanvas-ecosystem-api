@@ -15,6 +15,11 @@ enum ConfigurationEnum: string
     case AZUL_FAILOVER_URL = 'AZUL_FAILOVER_URL';
     case AZUL_CERT_PATH = 'AZUL_CERT_PATH'; // Path to client certificate file (mTLS)
     case AZUL_KEY_PATH = 'AZUL_KEY_PATH';   // Path to private key file (mTLS)
+    case AZUL_PFX_PATH = 'AZUL_PFX_PATH';   // Path to PKCS#12 file (preferred over cert/key)
+    case AZUL_PFX_PASSWORD = 'AZUL_PFX_PASSWORD'; // Password for PFX file
+    case AZUL_KEY_PASSWORD = 'AZUL_KEY_PASSWORD'; // Password for private key (optional)
+    case AZUL_CA_PATH = 'AZUL_CA_PATH';     // Path to CA certificate for server verification
+    case AZUL_VERIFY_SSL = 'AZUL_VERIFY_SSL'; // Whether to verify SSL (true/false)
 
     // Hardcoded URLs used as defaults
     case SANDBOX_URL = 'https://pruebas.azul.com.do/WebServices/JSON/Default.aspx';
