@@ -92,10 +92,10 @@ class Client
         $this->client = new GuzzleClient($guzzleConfig);
     }
 
-    public function post(array $data): array
+    public function post(array $data, ?string $url = null): array
     {
         try {
-            $response = $this->client->post($this->baseUrl, ['json' => $data]);
+            $response = $this->client->post($url ?? $this->baseUrl, ['json' => $data]);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
@@ -104,8 +104,13 @@ class Client
         } catch (RequestException $e) {
             $res = $e->getResponse();
             $body = $res ? (string) $res->getBody() : null;
-            throw new AzulException('Request failed: '.$e->getMessage(), $res?->getStatusCode() ?? 0, $e, $body ? json_decode($body, true) : []);
+            throw new AzulException('Request failed: '.$e->getMessage(), $res?->getStatusCode() ?? 0, $e, $body ? (json_decode($body, true) ?? []) : []);
         }
+    }
+
+    public function getDataVaultUrl(): string
+    {
+        return $this->baseUrl . '?ProcessDatavault';
     }
 
     public function getGuzzleClient(): GuzzleClient

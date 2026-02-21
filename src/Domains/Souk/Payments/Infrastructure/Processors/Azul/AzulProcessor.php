@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\Azul;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentRequest;
@@ -207,22 +208,29 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      * Store card details in Azul DataVault via a $0 hold and return the vault token.
      * The token is saved on the PaymentMethod metadata for future charges.
      */
-    public function tokenize(array $cardDetails): TokenizeResult
+    public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult
     {
         try {
+            $expiration = $this->normalizeExpiration(
+                $cardDetails['expiration_date'] ?? $cardDetails['expiration'] ?? ''
+            );
+
             $response = $this->service->processDataVault(
-                cardNumber: $cardDetails['number'] ?? '',
-                expiration: $cardDetails['expiration'] ?? '',
-                cvc: $cardDetails['cvc'] ?? null,
+                cardNumber: preg_replace('/\s+/', '', $cardDetails['number'] ?? ''),
+                expiration: $expiration,
+                cvc: $cardDetails['cvv'] ?? $cardDetails['cvc'] ?? null,
             );
 
             return new TokenizeResult(
                 success: true,
                 message: 'Card tokenized successfully.',
                 token: $response->dataVaultToken ?? '',
-                lastFour: substr((string) ($cardDetails['number'] ?? ''), -4),
-                brand: $response->brand ?: ($cardDetails['brand'] ?? ''),
-                raw: $response->toArray(),
+                lastFour: substr(preg_replace('/\s+/', '', $cardDetails['number'] ?? ''), -4),
+                brand: strtolower($response->brand ?: ($cardDetails['brand'] ?? '')),
+                raw: array_merge($response->toArray(), [
+                    CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value => $response->dataVaultToken,
+                    'expiration' => $expiration,
+                ]),
             );
         } catch (AzulException $e) {
             return new TokenizeResult(
@@ -234,6 +242,22 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 raw: $e->getErrorBody(),
             );
         }
+    }
+
+    /**
+     * Convert MM/YY or MMYY expiration to YYYYMM format expected by Azul API.
+     */
+    private function normalizeExpiration(string $expiration): string
+    {
+        $clean = str_replace(['/', '-', ' '], '', $expiration);
+
+        if (strlen($clean) === 4) {
+            // MMYY → YYYYMM
+            return '20' . substr($clean, 2, 2) . substr($clean, 0, 2);
+        }
+
+        // Already YYYYMM or other format — return as-is
+        return $clean;
     }
 
     public function deleteToken(string $token): bool

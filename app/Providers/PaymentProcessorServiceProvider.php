@@ -13,13 +13,19 @@ class PaymentProcessorServiceProvider extends ServiceProvider
     #[Override]
     public function register()
     {
-        // Legacy EchoPay binding — used by PaymentMethodMutation for card tokenization
+        // TokenizationProcessorInterface bindings — resolved via payment.{processor} in PaymentMethodMutation
         $this->app->bind('payment.portal', function ($app) {
-            $user = request()->user();
-            $company = $user->getCurrentCompany();
-            $app = $app->make(Apps::class);
+            $appModel = $app->make(Apps::class);
+            $company = request()->user()->getCurrentCompany();
 
-            return new EchoPayService($app, $company);
+            return new EchoPayService($appModel, $company);
+        });
+
+        $this->app->bind('payment.azul', function ($app) {
+            $appModel = $app->make(Apps::class);
+            $company = request()->user()->getCurrentCompany();
+
+            return new AzulProcessor($appModel, $company);
         });
 
         // PaymentProcessorInterface bindings — resolved via ProcessorFactory::make()

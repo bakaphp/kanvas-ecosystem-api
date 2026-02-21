@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Contracts;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 
 interface TokenizationProcessorInterface
@@ -14,7 +15,7 @@ interface TokenizationProcessorInterface
      *
      * @param array $cardDetails  Raw card data: number, expiration, cvc, billing info
      */
-    public function tokenize(array $cardDetails): TokenizeResult;
+    public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult;
 
     /**
      * Delete a previously stored token from the processor's vault.

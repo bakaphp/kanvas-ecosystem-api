@@ -21,24 +21,28 @@ class AzulBase extends TestCase
             $this->markTestSkipped('Azul integration tests are skipped in CI');
         }
 
-        if (empty(env('TEST_AZUL_AUTH1'))) {
-            $this->markTestSkipped('Azul test credentials not configured');
+        if (empty(env('TEST_AZUL_AUTH1')) && empty(env('AZUL_AUTH1'))) {
+            $this->markTestSkipped('Azul test credentials not configured (TEST_AZUL_AUTH1 or AZUL_AUTH1)');
         }
 
-        if (empty(env('TEST_AZUL_CERT_PATH')) || empty(env('TEST_AZUL_KEY_PATH'))) {
-            $this->markTestSkipped('Azul mTLS certificate paths not configured (TEST_AZUL_CERT_PATH, TEST_AZUL_KEY_PATH)');
+        $certPath = env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH');
+        $keyPath  = env('TEST_AZUL_KEY_PATH')  ?? env('AZUL_KEY_PATH');
+
+        if (empty($certPath) || empty($keyPath)) {
+            $this->markTestSkipped('Azul mTLS certificate paths not configured (TEST_AZUL_CERT_PATH / AZUL_CERT_PATH)');
         }
     }
 
     protected function getCredentials(): array
     {
         return [
-            'auth1'     => env('TEST_AZUL_AUTH1'),
-            'auth2'     => env('TEST_AZUL_AUTH2'),
-            'store'     => env('TEST_AZUL_STORE'),
-            'channel'   => env('TEST_AZUL_CHANNEL', 'EC'),
-            'cert_path' => env('TEST_AZUL_CERT_PATH'),
-            'key_path'  => env('TEST_AZUL_KEY_PATH'),
+            'auth1'      => env('TEST_AZUL_AUTH1')    ?? env('AZUL_AUTH1'),
+            'auth2'      => env('TEST_AZUL_AUTH2')    ?? env('AZUL_AUTH2'),
+            'store'      => env('TEST_AZUL_STORE')    ?? env('AZUL_STORE'),
+            'channel'    => env('TEST_AZUL_CHANNEL')  ?? env('AZUL_CHANNEL', 'EC'),
+            'cert_path'  => env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH'),
+            'key_path'   => env('TEST_AZUL_KEY_PATH')  ?? env('AZUL_KEY_PATH'),
+            'verify_ssl' => false,
         ];
     }
 

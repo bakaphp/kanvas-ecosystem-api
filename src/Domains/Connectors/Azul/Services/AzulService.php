@@ -25,8 +25,8 @@ class AzulService
         protected array $config = []
     ) {
         $this->client  = new Client($app, $company, $config);
-        $this->store   = $this->app->get(ConfigurationEnum::AZUL_STORE->value)   ?? $config['store']   ?? '';
-        $this->channel = $this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? $config['channel'] ?? '';
+        $this->store   = (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value)   ?? $config['store']   ?? '');
+        $this->channel = (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? $config['channel'] ?? '');
     }
 
     public function processDataVault(
@@ -46,7 +46,7 @@ class AzulService
             $payload['CVC'] = $cvc;
         }
 
-        $response = $this->client->post($payload);
+        $response = $this->client->post($payload, $this->client->getDataVaultUrl());
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
@@ -70,7 +70,7 @@ class AzulService
             'TrxType'        => TransactionTypeEnum::DELETE->value,
         ];
 
-        $response = $this->client->post($payload);
+        $response = $this->client->post($payload, $this->client->getDataVaultUrl());
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
