@@ -108,6 +108,7 @@ input PaymentInput {
     order_metadata: Mixed
     payment_date: String
     concept: String
+    use_hold: Boolean
 }
 
 type PayerAuthResponse {

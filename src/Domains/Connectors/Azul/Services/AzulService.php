@@ -121,6 +121,82 @@ class AzulService
         return $result;
     }
 
+    /**
+     * Post (capture) a previously held transaction.
+     * Must be called within 7 days of the Hold.
+     * Amount may be equal, less, or up to 15% greater than the original Hold amount.
+     */
+    public function capture(
+        string $azulOrderId,
+        string $amount,
+        string $itbis,
+        string $customOrderId = ''
+    ): AzulPaymentResponse {
+        $payload = [
+            'Channel'         => $this->channel,
+            'Store'           => $this->store,
+            'TrxType'         => TransactionTypeEnum::POST->value,
+            'AzulOrderId'     => $azulOrderId,
+            'Amount'          => $amount,
+            'Itbis'           => $itbis,
+            'CurrencyPosCode' => '$',
+            'Payments'        => '1',
+            'Plan'            => '0',
+            'AcquirerRefData' => '1',
+            'CustomOrderId'   => $customOrderId,
+            'PosInputMode'    => 'E-Commerce',
+        ];
+
+        $response = $this->client->post($payload);
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: 'Post (capture) transaction declined',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Void a Hold or authorized transaction, releasing the reserved funds.
+     */
+    public function void(
+        string $azulOrderId,
+        string $customOrderId = ''
+    ): AzulPaymentResponse {
+        $payload = [
+            'Channel'         => $this->channel,
+            'Store'           => $this->store,
+            'TrxType'         => TransactionTypeEnum::VOID->value,
+            'AzulOrderId'     => $azulOrderId,
+            'CurrencyPosCode' => '$',
+            'Payments'        => '1',
+            'Plan'            => '0',
+            'AcquirerRefData' => '1',
+            'CustomOrderId'   => $customOrderId,
+            'PosInputMode'    => 'E-Commerce',
+        ];
+
+        $response = $this->client->post($payload);
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: 'Void transaction declined',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
     public function refund(
         string $azulOrderId,
         string $amount,

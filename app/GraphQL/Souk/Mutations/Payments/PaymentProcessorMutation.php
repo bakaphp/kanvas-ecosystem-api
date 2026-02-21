@@ -50,8 +50,13 @@ class PaymentProcessorMutation
         try {
             $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
 
+            $context = [];
+            if (isset($payment->metadata['use_hold'])) {
+                $context['use_hold'] = (bool) $payment->metadata['use_hold'];
+            }
+
             $processor = ProcessorFactory::make($processorName, $app, $payment->company);
-            $result = $processor->authorize($payment, $order);
+            $result = $processor->authorize($payment, $order, $context);
 
             return [
                 'status' => $result->success ? 'success' : 'error',

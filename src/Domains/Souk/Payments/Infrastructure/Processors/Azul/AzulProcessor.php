@@ -29,8 +29,14 @@ use Kanvas\Souk\Payments\Models\Payments;
  * Azul payment processor (Banco Popular, Dominican Republic).
  *
  * Capabilities:
- *   - PaymentProcessorInterface  : authorize (immediate charge), capture (no-op), refund, void (unsupported)
+ *   - PaymentProcessorInterface  : authorize (Sale or Hold), capture (Post), refund, void (cancels a Hold)
  *   - TokenizationProcessorInterface : tokenize via DataVault, deleteToken
+ *
+ * Flow modes (controlled by AZUL_USE_HOLD app config):
+ *   - Sale mode (default): authorize() = immediate charge; capture() is a no-op.
+ *   - Hold mode           : authorize() = pre-authorization (AUTHORIZED status);
+ *                           capture()   = Post to settle funds (PAID status);
+ *                           void()      = cancels the hold (CANCELLED status).
  *
  * Does NOT implement ThreeDSProcessorInterface — Azul has no 3DS challenge flow.
  */
@@ -56,15 +62,29 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     // -------------------------------------------------------------------------
 
     /**
-     * Azul is synchronous: authorize = immediate charge (auth + capture in one step).
+     * Authorize the payment.
+     *
+     * Sale mode (default): immediate charge — payment moves to PAID.
+     * Hold mode: pre-authorization — funds reserved, payment moves to AUTHORIZED.
+     *            Call capture() within 7 days to settle, or void() to release.
+     *
+     * Mode resolution (first match wins):
+     *   1. $context['use_hold'] (per-transaction override)
+     *   2. AZUL_USE_HOLD app config (default for all transactions in the app)
      */
     public function authorize(Payments $payment, Order $order, array $context = []): AuthorizeResult
     {
+        $useHold = array_key_exists('use_hold', $context)
+            ? (bool) $context['use_hold']
+            : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
         $request = $this->buildSaleRequest($payment, $order);
         $start = hrtime(true);
 
         try {
-            $response = $this->service->sale($request);
+            $response = $useHold
+                ? $this->service->hold($request)
+                : $this->service->sale($request);
+
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $order->set(CustomFieldEnum::AZUL_ORDER_ID->value, $response->azulOrderId);
@@ -92,7 +112,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
             }
 
-            $payment->markAsPaid([
+            $responseData = [
                 'data' => [
                     'azul_order_id' => $response->azulOrderId,
                     'authorization_code' => $response->authorizationCode,
@@ -105,9 +125,20 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                     'datetime' => $response->dateTime,
                     'masked_card_number' => $response->maskedCardNumber,
                 ],
-            ]);
+            ];
 
-            $payment->addLog('authorize_success', [
+            if ($useHold) {
+                // Funds reserved — not yet captured. Order payment_status stays unchanged.
+                $payment->status = PaymentStatusEnum::AUTHORIZED->value;
+                $payment->addMetadata($responseData);
+                $payment->save();
+                $paymentStatus = PaymentStatusEnum::AUTHORIZED;
+            } else {
+                $payment->markAsPaid($responseData);
+                $paymentStatus = PaymentStatusEnum::PAID;
+            }
+
+            $payment->addLog($useHold ? 'hold_success' : 'authorize_success', [
                 'processor' => $this->name(),
                 'order_id' => $order->id,
                 'azul_order_id' => $response->azulOrderId,
@@ -122,7 +153,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: true,
                 message: $response->responseMessage,
                 transactionId: $response->azulOrderId,
-                paymentStatus: PaymentStatusEnum::PAID,
+                paymentStatus: $paymentStatus,
                 raw: $response->toArray(),
             );
         } catch (AzulException $e) {
@@ -155,15 +186,99 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     }
 
     /**
-     * Azul captures immediately at authorize time — this is a no-op.
+     * Post (capture) a previously held transaction.
+     * No-op when the payment was charged immediately (Sale) — Azul already settled those funds.
+     * In Hold mode, settles the reserved funds (Post transaction). Must be called within 7 days of Hold.
+     * Amount may be equal, less, or up to 15% greater than the original Hold amount.
      */
     public function capture(Payments $payment, Order $order, ?float $amount = null, array $context = []): CaptureResult
     {
-        return new CaptureResult(
-            success: true,
-            message: 'Azul captures immediately at authorization; no separate capture step.',
-            transactionId: (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? ''),
-        );
+        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+
+        // If the payment was not put on hold, funds were already captured at authorize time.
+        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return new CaptureResult(
+                success: true,
+                message: 'Payment was not pre-authorized (Hold); no separate capture step needed.',
+                transactionId: $azulOrderId,
+            );
+        }
+
+        if (empty($azulOrderId)) {
+            return new CaptureResult(
+                success: false,
+                message: 'AzulOrderId not found on order. Cannot capture.',
+                transactionId: '',
+            );
+        }
+
+        $start = hrtime(true);
+
+        try {
+            $captureAmount = $amount ?? $order->getTotalAmount();
+            $response = $this->service->post(
+                azulOrderId: $azulOrderId,
+                amount: $this->toCents($captureAmount),
+                itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+                customOrderId: (string) $order->id,
+            );
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->authorization_code = $response->authorizationCode;
+            $payment->number = $response->ticket;
+
+            if (! empty($response->dateTime)) {
+                $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
+            }
+
+            $payment->markAsPaid([
+                'data' => [
+                    'capture_azul_order_id' => $response->azulOrderId,
+                    'authorization_code' => $response->authorizationCode,
+                    'response_message' => $response->responseMessage,
+                    'response_code' => $response->responseCode,
+                    'iso_code' => $response->isoCode,
+                    'ticket' => $response->ticket,
+                    'rrn' => $response->rrn,
+                    'lot_number' => $response->lotNumber,
+                    'datetime' => $response->dateTime,
+                ],
+            ]);
+
+            $payment->addLog('capture_success', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'hold_azul_order_id' => $azulOrderId,
+                'capture_azul_order_id' => $response->azulOrderId,
+                'amount' => $captureAmount,
+                'response_time_ms' => $responseTimeMs,
+                'response' => $response->toArray(),
+            ]);
+
+            return new CaptureResult(
+                success: true,
+                message: $response->responseMessage,
+                transactionId: $response->azulOrderId,
+                raw: $response->toArray(),
+            );
+        } catch (AzulException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->addLog('capture_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new CaptureResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+                raw: $e->getErrorBody(),
+            );
+        }
     }
 
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
@@ -231,15 +346,72 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     }
 
     /**
-     * Azul does not support void operations.
+     * Void a Hold or authorized transaction, releasing the reserved funds back to the cardholder.
+     * Only valid for payments in AUTHORIZED status (Hold mode). For settled payments use refund().
      */
     public function void(Payments $payment, Order $order, array $context = []): VoidResult
     {
-        return new VoidResult(
-            success: false,
-            message: 'Azul does not support void. Use refund() instead.',
-            transactionId: '',
-        );
+        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+
+        if (empty($azulOrderId)) {
+            return new VoidResult(
+                success: false,
+                message: 'AzulOrderId not found on order. Cannot void.',
+                transactionId: '',
+            );
+        }
+
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->void(
+                azulOrderId: $azulOrderId,
+                customOrderId: (string) $order->id,
+            );
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
+            $payment->addMetadata([
+                'data' => [
+                    'void_azul_order_id' => $response->azulOrderId,
+                    'void_ticket' => $response->ticket,
+                    'response_message' => $response->responseMessage,
+                ],
+            ]);
+
+            $payment->addLog('void_success', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'original_azul_order_id' => $azulOrderId,
+                'void_azul_order_id' => $response->azulOrderId,
+                'response_time_ms' => $responseTimeMs,
+                'response' => $response->toArray(),
+            ]);
+
+            return new VoidResult(
+                success: true,
+                message: $response->responseMessage,
+                transactionId: $response->azulOrderId,
+                raw: $response->toArray(),
+            );
+        } catch (AzulException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->addLog('void_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new VoidResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+                raw: $e->getErrorBody(),
+            );
+        }
     }
 
     // -------------------------------------------------------------------------
