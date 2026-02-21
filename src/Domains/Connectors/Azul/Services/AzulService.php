@@ -87,7 +87,7 @@ class AzulService
 
     public function sale(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = array_merge($request->toArray(), ['TrxType' => TransactionTypeEnum::SALE->value]);
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
@@ -105,7 +105,7 @@ class AzulService
 
     public function hold(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = array_merge($request->toArray(), ['TrxType' => TransactionTypeEnum::HOLD->value]);
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 

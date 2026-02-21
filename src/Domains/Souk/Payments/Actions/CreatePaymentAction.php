@@ -57,6 +57,7 @@ class CreatePaymentAction
             'currency' => $this->order->currency,
             'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value,
             'payment_method' => $paymentMethodType ?? 'card',
+            'processor' => $paymentMethod?->processor,
             'metadata' => $paymentMethodType ? ['payment_method_type' => $paymentMethodType] : null,
         ];
 

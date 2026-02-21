@@ -25,6 +25,9 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string $currency_code
  * @property float $currency_rate
  * @property string $status
+ * @property string|null $processor
+ * @property string|null $authorization_code
+ * @property string|null $number
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */

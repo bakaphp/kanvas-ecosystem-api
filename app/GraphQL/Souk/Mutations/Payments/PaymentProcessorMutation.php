@@ -36,7 +36,7 @@ class PaymentProcessorMutation
             ];
         }
 
-        $order = $payment->payable;
+        $order = $payment->order;
 
         if (! $order) {
             return [
@@ -94,7 +94,7 @@ class PaymentProcessorMutation
             ];
         }
 
-        $order = $payment->payable;
+        $order = $payment->order;
 
         if (! $order) {
             return [

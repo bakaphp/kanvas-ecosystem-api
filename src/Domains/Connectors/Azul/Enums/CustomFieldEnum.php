@@ -10,4 +10,6 @@ enum CustomFieldEnum: string
     case AZUL_DATA_VAULT_TOKEN = 'azul_data_vault_token';
     case AZUL_AUTHORIZATION_CODE = 'azul_authorization_code';
     case AZUL_TICKET = 'azul_ticket';
+    case AZUL_RRN = 'azul_rrn';
+    case AZUL_LOT_NUMBER = 'azul_lot_number';
 }

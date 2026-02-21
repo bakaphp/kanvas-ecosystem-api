@@ -56,10 +56,12 @@ class AzulPaymentRequest extends Data
             'SaveToDataVault'      => $this->saveToDataVault,
         ];
 
-        // Include card fields only when not using DataVault
+        if ($this->expiration !== null) {
+            $data['Expiration'] = $this->expiration;
+        }
+
         if ($this->cardNumber !== null) {
             $data['CardNumber'] = $this->cardNumber;
-            $data['Expiration'] = $this->expiration;
             $data['CVC']        = $this->cvc;
         }
 
