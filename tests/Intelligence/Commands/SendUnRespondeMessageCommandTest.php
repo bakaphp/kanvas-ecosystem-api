@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Commands;
 
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -116,7 +116,7 @@ class SendUnRespondeMessageCommandTest extends TestCase
                 $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
             })
             ->whereDate('created_at', now()->toDateString())
-            ->whereRaw("DATE_ADD(created_at, INTERVAL 60 MINUTE) <= NOW()")
+            ->whereRaw('DATE_ADD(created_at, INTERVAL 60 MINUTE) <= NOW()')
             ->get();
 
         $this->assertGreaterThan(0, $foundMessages->count(), 'Message should be found by command query');
