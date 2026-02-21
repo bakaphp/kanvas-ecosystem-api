@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Commands;
 
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -30,6 +31,9 @@ class SendUnRespondeMessageCommandTest extends TestCase
 {
     public function testCreatesLockedMessageCorrectly(): void
     {
+        // Freeze time at noon to prevent subHours(2) from crossing a day boundary
+        Carbon::setTestNow(Carbon::today()->setHour(12));
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
@@ -119,6 +123,8 @@ class SendUnRespondeMessageCommandTest extends TestCase
 
         $foundMessage = $foundMessages->firstWhere('id', $message->id);
         $this->assertNotNull($foundMessage, 'Our test message should be in results');
+
+        Carbon::setTestNow();
     }
 
     public function testMessageWithoutOpportunityIdSetup(): void
