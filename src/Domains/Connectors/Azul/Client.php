@@ -118,6 +118,11 @@ class Client
         return $this->baseUrl . '?ProcessPost';
     }
 
+    public function getVerifyUrl(): string
+    {
+        return $this->baseUrl . '?VerifyPayment';
+    }
+
     public function getGuzzleClient(): GuzzleClient
     {
         return $this->client;

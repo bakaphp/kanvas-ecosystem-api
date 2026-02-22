@@ -92,6 +92,14 @@ type PaymentActionResult {
     data: Mixed
 }
 
+type PaymentVerifyResult {
+    status: String!
+    message: String!
+    iso_code: String
+    transaction_id: String
+    data: Mixed
+}
+
 enum PaymentMethodTypeEnum {
     MANUAL @enum(value: "manual")
     CARD @enum(value: "card")
@@ -186,6 +194,10 @@ extend type Mutation @guard {
     refundPayment(paymentId: ID!, amount: Float): PaymentActionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@refundPayment"
+        )
+    verifyPayment(orderId: ID, paymentId: ID): PaymentVerifyResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@verifyPayment"
         )
 }
 

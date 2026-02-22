@@ -6,6 +6,7 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
@@ -183,6 +184,63 @@ class PaymentProcessorMutation
                 'status' => 'error',
                 'message' => $e->getMessage(),
                 'data' => [],
+            ];
+        }
+    }
+
+    public function verifyPayment(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+
+        if (isset($request['paymentId'])) {
+            $payment = Payments::where([
+                'apps_id' => $app->getId(),
+                'id' => (int) $request['paymentId'],
+            ])->first();
+
+            if (! $payment) {
+                return ['status' => 'error', 'message' => 'Payment not found'];
+            }
+
+            $order = $payment->order;
+        } else {
+            $order = Order::where([
+                'apps_id' => $app->getId(),
+                'id' => (int) $request['orderId'],
+            ])->first();
+
+            if (! $order) {
+                return ['status' => 'error', 'message' => 'Order not found'];
+            }
+
+            $payment = Payments::getLatestForEntity($order, [PaymentStatusEnum::PAID->value]);
+
+            if (! $payment) {
+                return ['status' => 'error', 'message' => 'No payment found for this order'];
+            }
+        }
+
+        if (! $order) {
+            return ['status' => 'error', 'message' => 'Order not found for this payment'];
+        }
+
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+
+        try {
+            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $result = $processor->verify($payment, $order);
+
+            return [
+                'status' => $result->success ? 'success' : 'error',
+                'message' => $result->message,
+                'iso_code' => $result->isoCode,
+                'transaction_id' => $result->transactionId,
+                'data' => $result->raw,
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
             ];
         }
     }

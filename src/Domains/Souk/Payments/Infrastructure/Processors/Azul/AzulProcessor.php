@@ -21,6 +21,7 @@ use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
+use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -409,6 +410,73 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: false,
                 message: $e->getMessage(),
                 transactionId: '',
+                raw: $e->getErrorBody(),
+            );
+        }
+    }
+
+    /**
+     * Verify a payment's current status via Azul's VerifyPayment endpoint.
+     * Use this to reconcile payments when a sale response was lost or ambiguous.
+     * If Azul confirms the payment was approved and the local status is not yet PAID,
+     * the payment and order are marked as paid automatically.
+     */
+    public function verify(Payments $payment, Order $order): VerifyResult
+    {
+        $customOrderId = (string) $order->id;
+
+        if (empty($customOrderId)) {
+            return new VerifyResult(
+                success: false,
+                message: 'Order ID is required for VerifyPayment.',
+                transactionId: '',
+                isoCode: '',
+                responseCode: '',
+            );
+        }
+
+        try {
+            $response = $this->service->verifyPayment($customOrderId);
+
+            $responseData = [
+                'data' => [
+                    'azul_order_id' => $response->azulOrderId,
+                    'authorization_code' => $response->authorizationCode,
+                    'response_message' => $response->responseMessage,
+                    'response_code' => $response->responseCode,
+                    'iso_code' => $response->isoCode,
+                    'ticket' => $response->ticket,
+                    'rrn' => $response->rrn,
+                ],
+            ];
+
+            if ($response->isoCode === '00' && $payment->status !== PaymentStatusEnum::PAID->value) {
+                $payment->markAsPaid($responseData);
+                $order->markAsPaid();
+            }
+
+            $payment->addLog('verify_payment', $responseData);
+
+            return new VerifyResult(
+                success: true,
+                message: $response->responseMessage,
+                transactionId: $response->azulOrderId,
+                isoCode: $response->isoCode,
+                responseCode: $response->responseCode,
+                raw: $response->toArray(),
+            );
+        } catch (AzulException $e) {
+            $payment->addLog('verify_payment_failed', [
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+            ]);
+
+            return new VerifyResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+                isoCode: '',
+                responseCode: '',
                 raw: $e->getErrorBody(),
             );
         }

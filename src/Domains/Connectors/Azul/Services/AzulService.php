@@ -172,6 +172,29 @@ class AzulService
         return $result;
     }
 
+    public function verifyPayment(string $customOrderId): AzulPaymentResponse
+    {
+        $payload = [
+            'Channel'       => $this->channel,
+            'Store'         => $this->store,
+            'CustomOrderId' => $customOrderId,
+        ];
+
+        $response = $this->client->post($payload, $this->client->getVerifyUrl());
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: 'VerifyPayment failed',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
     public function refund(AzulPaymentRequest $request): AzulPaymentResponse
     {
         $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::REFUND->value];
