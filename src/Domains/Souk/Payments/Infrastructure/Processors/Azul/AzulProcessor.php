@@ -106,6 +106,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             }
 
             $payment->processor = $this->name();
+            $payment->payment_intent_id = $response->azulOrderId;
             $payment->authorization_code = $response->authorizationCode;
             $payment->number = $response->ticket;
 
@@ -194,7 +195,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function capture(Payments $payment, Order $order, ?float $amount = null, array $context = []): CaptureResult
     {
-        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+        $azulOrderId = (string) ($payment->payment_intent_id ?? '');
 
         // If the payment was not put on hold, funds were already captured at authorize time.
         if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
@@ -208,7 +209,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         if (empty($azulOrderId)) {
             return new CaptureResult(
                 success: false,
-                message: 'AzulOrderId not found on order. Cannot capture.',
+                message: 'AzulOrderId not found on payment. Cannot capture.',
                 transactionId: '',
             );
         }
@@ -282,12 +283,12 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
     {
-        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+        $azulOrderId = (string) ($payment->payment_intent_id ?? '');
 
         if (empty($azulOrderId)) {
             return new RefundResult(
                 success: false,
-                message: 'AzulOrderId not found on order. Cannot process refund.',
+                message: 'AzulOrderId not found on payment. Cannot process refund.',
                 transactionId: '',
             );
         }
@@ -347,22 +348,23 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     }
 
     /**
-     * Void a Hold or authorized transaction, releasing the reserved funds back to the cardholder.
-     * Only valid for payments in AUTHORIZED status (Hold mode). For settled payments use refund().
+     * Void a transaction, releasing the reserved or charged funds back to the cardholder.
+     * - Hold (AUTHORIZED): no time limit.
+     * - Sale or Post (PAID): within 20 minutes of approval only (Azul enforces this window).
      */
     public function void(Payments $payment, Order $order, array $context = []): VoidResult
     {
-        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+        $azulOrderId = (string) ($payment->payment_intent_id ?? '');
 
         if (empty($azulOrderId)) {
             return new VoidResult(
                 success: false,
-                message: 'AzulOrderId not found on order. Cannot void.',
+                message: 'AzulOrderId not found on payment. Cannot void.',
                 transactionId: '',
             );
         }
 
-        $request = $this->buildVoidRequest($azulOrderId, $order);
+        $request = $this->buildVoidRequest($azulOrderId);
         $start = hrtime(true);
 
         try {
@@ -570,7 +572,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         );
     }
 
-    private function buildVoidRequest(string $azulOrderId, Order $order): AzulPaymentRequest
+    private function buildVoidRequest(string $azulOrderId): AzulPaymentRequest
     {
         return new AzulPaymentRequest(
             channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
@@ -578,7 +580,6 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             trxType: TransactionTypeEnum::VOID,
             amount: '000',
             itbis: '000',
-            customOrderId: (string) $order->id,
             azulOrderId: $azulOrderId,
         );
     }

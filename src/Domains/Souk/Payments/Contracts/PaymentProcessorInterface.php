@@ -38,7 +38,8 @@ interface PaymentProcessorInterface
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult;
 
     /**
-     * Void an authorized (but not yet captured) payment.
+     * Void a payment, releasing funds back to the cardholder.
+     * Status eligibility and time limits are processor-specific.
      * Processors that do not support void should throw \DomainException.
      */
     public function void(Payments $payment, Order $order, array $context = []): VoidResult;

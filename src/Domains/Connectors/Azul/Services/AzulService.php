@@ -156,8 +156,12 @@ class AzulService
      */
     public function void(AzulPaymentRequest $request): AzulPaymentResponse
     {
-        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::VOID->value];
-        $response = $this->client->post($payload);
+        $payload = [
+            'Channel'     => $request->channel,
+            'Store'       => $request->store,
+            'AzulOrderId' => $request->azulOrderId,
+        ];
+        $response = $this->client->post($payload, $this->client->getVoidUrl());
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {

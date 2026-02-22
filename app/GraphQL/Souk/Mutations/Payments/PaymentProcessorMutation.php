@@ -188,6 +188,53 @@ class PaymentProcessorMutation
         }
     }
 
+    public function voidPayment(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment not found',
+            ];
+        }
+
+        $order = $payment->order;
+
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found for this payment',
+            ];
+        }
+
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+
+        try {
+            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $result = $processor->void($payment, $order);
+
+            return [
+                'status' => $result->success ? 'success' : 'error',
+                'message' => $result->message,
+                'payment' => $payment->fresh(),
+                'data' => $result->raw,
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
+    }
+
     public function verifyPayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);

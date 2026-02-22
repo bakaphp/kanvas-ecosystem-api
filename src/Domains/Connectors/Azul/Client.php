@@ -118,6 +118,11 @@ class Client
         return $this->baseUrl . '?ProcessPost';
     }
 
+    public function getVoidUrl(): string
+    {
+        return $this->baseUrl . '?ProcessVoid';
+    }
+
     public function getVerifyUrl(): string
     {
         return $this->baseUrl . '?VerifyPayment';
