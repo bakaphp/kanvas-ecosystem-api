@@ -1,5 +1,7 @@
 type UserSubscription {
     id: ID!
+    type: String
+    provider: String
     stripe_id: ID!
     stripe_status: String!
     stripe_price: String
@@ -9,4 +11,11 @@ type UserSubscription {
     ends_at: DateTime
     created_at: String
     updated_at: String
+}
+
+extend type Query @guard {
+    userSubscription(id: ID!): UserSubscription!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Queries\\UserSubscriptionQuery@getById"
+        )
 }

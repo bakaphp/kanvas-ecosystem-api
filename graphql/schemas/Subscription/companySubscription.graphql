@@ -1,5 +1,7 @@
 type CompanySubscription {
     id: ID!
+    type: String
+    provider: String
     stripe_id: ID!
     stripe_status: String!
     stripe_price: String
