@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -74,6 +75,18 @@ class FollowUpEngagementCommand extends Command
 
                 $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
+                // Create initial log entry at command level
+                $log = FollowUpLog::create([
+                    'apps_id' => $lead->apps_id,
+                    'companies_id' => $lead->companies_id,
+                    'leads_id' => $lead->getId(),
+                    'pipeline_stages_id' => $lead->stage->getId(),
+                    'metadata' => [
+                        'command_started_at' => now()->toDateTimeString(),
+                        'stage_name' => $stage->name,
+                    ],
+                ]);
+
                 //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
                 $muteAiAgent = $lead->isAiMuted();
                 $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
@@ -118,13 +131,53 @@ class FollowUpEngagementCommand extends Command
                     );
                     $this->line('  - Skip Reason: ' . $key);
 
-                    continue;
-                } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
-                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+                    // Log skip reason
+                    $log->update([
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'skipped' => true,
+                                'skip_reason' => $key,
+                                'conditions' => [
+                                    'mute_ai_agent' => $muteAiAgent,
+                                    'no_first_message' => $noFirstMessage,
+                                    'not_active' => $notActive,
+                                    'has_been_contacted' => $hasBeenContacted,
+                                    'not_internet_type' => $notInternet,
+                                ],
+                            ]
+                        ),
+                    ]);
 
                     continue;
                 } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
                     $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+
+                    // Log skip reason
+                    $log->update([
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'skipped' => true,
+                                'skip_reason' => 'company_has_follow_up',
+                            ]
+                        ),
+                    ]);
+
+                    continue;
+                } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+
+                    // Log skip reason
+                    $log->update([
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'skipped' => true,
+                                'skip_reason' => 'company_has_follow_up',
+                            ]
+                        ),
+                    ]);
 
                     break;
                 }
@@ -137,20 +190,55 @@ class FollowUpEngagementCommand extends Command
                     $this->line('  Hours: ' . $hoursTool['opens_at_local'] . ' - ' . $hoursTool['closes_at_local']);
                     $this->line('  Next open: ' . $hoursTool['next_open_human']);
 
+                    // Log outside work hours
+                    $log->update([
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'skipped' => true,
+                                'skip_reason' => 'outside_work_hours',
+                                'work_hours_status' => $hoursTool,
+                            ]
+                        ),
+                    ]);
+
                     continue;
                 }
 
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $result = new FollowUpEngagementAction($lead)->execute();
+                    $result = new FollowUpEngagementAction($lead, $log)->execute();
                 } catch (FollowUpException $e) {
                     $this->info('Skipping lead ID ' . $lead->id . ': ' . $e->getMessage());
+
+                    // Log the exception
+                    $log->update([
+                        'error_message' => $e->getMessage(),
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'exception_type' => 'FollowUpException',
+                            ]
+                        ),
+                    ]);
 
                     continue;
                 } catch (Exception $e) {
                     $this->error('Error processing lead ID ' . $lead->id . ': ' . $e->getMessage());
                     report($e);
+
+                    // Log the exception
+                    $log->update([
+                        'error_message' => $e->getMessage(),
+                        'metadata' => array_merge(
+                            $log->metadata ?? [],
+                            [
+                                'exception_type' => get_class($e),
+                                'exception_trace' => $e->getTraceAsString(),
+                            ]
+                        ),
+                    ]);
 
                     continue;
                 }

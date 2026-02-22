@@ -276,4 +276,77 @@ class OrderStatsGroupingTest extends OrderBase
         $this->assertEquals(8, $states['paid']['count']);
         $this->assertEquals(7, $states['active']['count']);
     }
+
+    public function testOrderStatsFilterByProductId(): void
+    {
+        $response = $this->graphQL($this->orderStatsQuery, [
+            'input' => [
+                'initialStates' => ['paid'],
+                'finalStates' => ['completed'],
+                'currentCountStates' => ['paid'],
+                'productId' => 1,
+                'startDate' => '2026-02-01',
+                'endDate' => '2026-02-03',
+                'timezone' => 'UTC',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        $data = $response->json('data.orderStats');
+        $this->assertArrayHasKey('period', $data);
+        $this->assertArrayHasKey('ordersInPeriod', $data);
+        $this->assertArrayHasKey('currentCount', $data);
+        $this->assertArrayHasKey('dailyTurnover', $data);
+        $this->assertArrayHasKey('averageRotation', $data);
+    }
+
+    public function testOrderPaymentStatsFilterByProductId(): void
+    {
+        $response = $this->graphQL('
+            query OrderPaymentStats($input: OrderPaymentStatsInput) {
+                orderPaymentStats(input: $input) {
+                    period {
+                        start
+                        end
+                    }
+                    ordersInPeriod {
+                        orderAvg
+                        count
+                        totalAmount
+                        byServices {
+                            variantId
+                            productName
+                            variantName
+                            serviceName
+                            orderCount
+                            totalQuantity
+                            totalAmount
+                        }
+                        data {
+                            date
+                            count
+                            states
+                        }
+                    }
+                    currentCount
+                }
+            }
+        ', [
+            'input' => [
+                'paidStates' => ['paid'],
+                'productId' => 1,
+                'startDate' => '2026-02-01',
+                'endDate' => '2026-02-03',
+                'timezone' => 'UTC',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        $data = $response->json('data.orderPaymentStats');
+        $this->assertArrayHasKey('period', $data);
+        $this->assertArrayHasKey('ordersInPeriod', $data);
+        $this->assertArrayHasKey('currentCount', $data);
+    }
 }

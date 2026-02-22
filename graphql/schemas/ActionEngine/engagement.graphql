@@ -37,6 +37,13 @@ input EngagementFilterInput {
     status: String!
 }
 
+input UpdateEngagementInput {
+    status: String
+    data: Mixed!
+    description: String
+    via: String
+}
+
 input CreateEngagementInput {
     lead_id: ID!
     request_id: ID!
@@ -60,6 +67,10 @@ extend type Mutation @guard {
     continueLeadEngagement(input: CreateEngagementInput!): Engagement!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@continueEngagement"
+        )
+    updateEngagement(uuid: ID!, input: UpdateEngagementInput!): Engagement!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\EngagementMutation@update"
         )
 }
 
