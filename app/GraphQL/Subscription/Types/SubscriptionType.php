@@ -16,4 +16,24 @@ class SubscriptionType
 
         return $customer?->provider;
     }
+
+    public function status(Subscription $subscription): string
+    {
+        return $subscription->stripe_status;
+    }
+
+    public function planName(Subscription $subscription): string
+    {
+        return $subscription->type;
+    }
+
+    public function startedAt(Subscription $subscription): string
+    {
+        return $subscription->created_at->format('Y-m-d H:i:s');
+    }
+
+    public function isActive(Subscription $subscription): bool
+    {
+        return $subscription->active();
+    }
 }
