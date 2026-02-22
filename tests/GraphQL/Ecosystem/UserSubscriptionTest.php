@@ -38,12 +38,17 @@ class UserSubscriptionTest extends TestCase
                     id
                     currentSubscription {
                         id
+                        user_id
                         type
                         provider
                         stripe_id
                         stripe_status
+                        status
+                        plan_name
                         stripe_price
                         quantity
+                        started_at
+                        is_active
                     }
                 }
             }
@@ -57,7 +62,10 @@ class UserSubscriptionTest extends TestCase
                             'id' => (string) $subscription->id,
                             'type' => 'default',
                             'stripe_status' => 'active',
+                            'status' => 'active',
+                            'plan_name' => 'default',
                             'stripe_price' => 'price_test_123',
+                            'is_active' => true,
                         ],
                     ],
                 ],
@@ -88,12 +96,17 @@ class UserSubscriptionTest extends TestCase
             query($id: ID!) {
                 userSubscription(id: $id) {
                     id
+                    user_id
                     type
                     provider
                     stripe_id
                     stripe_status
+                    status
+                    plan_name
                     stripe_price
                     quantity
+                    started_at
+                    is_active
                 }
             }
         ', ['id' => $subscription->id]);
@@ -105,7 +118,10 @@ class UserSubscriptionTest extends TestCase
                         'id' => (string) $subscription->id,
                         'type' => 'default',
                         'stripe_status' => 'active',
+                        'status' => 'active',
+                        'plan_name' => 'default',
                         'stripe_price' => 'price_test_456',
+                        'is_active' => true,
                     ],
                 ],
             ]);

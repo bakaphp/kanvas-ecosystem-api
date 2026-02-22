@@ -1,5 +1,6 @@
 type UserSubscription {
     id: ID!
+    user_id: ID @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@userId")
     type: String
     provider: String @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@provider")
     stripe_id: ID!

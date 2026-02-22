@@ -11,10 +11,25 @@ class SubscriptionType
 {
     public function provider(Subscription $subscription): ?string
     {
+        return $this->getCustomer($subscription)?->provider;
+    }
+
+    public function userId(Subscription $subscription): ?int
+    {
+        return $this->getCustomer($subscription)?->users_id;
+    }
+
+    public function companyId(Subscription $subscription): ?int
+    {
+        return $this->getCustomer($subscription)?->companies_id;
+    }
+
+    private function getCustomer(Subscription $subscription): ?AppsStripeCustomer
+    {
         /** @var AppsStripeCustomer|null $customer */
         $customer = AppsStripeCustomer::find($subscription->apps_stripe_customer_id);
 
-        return $customer?->provider;
+        return $customer;
     }
 
     public function status(Subscription $subscription): string
