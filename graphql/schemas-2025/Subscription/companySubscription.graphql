@@ -1,7 +1,7 @@
 type CompanySubscription {
     id: ID!
     type: String
-    provider: String
+    provider: String @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@provider")
     stripe_id: ID!
     stripe_status: String!
     stripe_price: String
