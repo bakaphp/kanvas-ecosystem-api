@@ -213,7 +213,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
         $row++;
 
         foreach ($headers as $i => $header) {
-            $sheet->setCellValueByColumnAndRow($i + 1, $row, $header);
+            $sheet->setCellValue([$i + 1, $row], $header);
         }
         $this->applyHeaderStyle($sheet, "A{$row}:{$lastCol}{$row}");
         $row++;
@@ -221,7 +221,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
         foreach ($this->orders as $order) {
             foreach ($paths as $i => $path) {
                 $value = $this->resolveFieldPath($order, $path);
-                $sheet->setCellValueByColumnAndRow($i + 1, $row, $value);
+                $sheet->setCellValue([$i + 1, $row], $value);
             }
             $this->applyDataStyle($sheet, "A{$row}:{$lastCol}{$row}");
             $row++;

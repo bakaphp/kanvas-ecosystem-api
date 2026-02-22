@@ -3,6 +3,7 @@
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Enums\DateGroupByEnum;
@@ -13,6 +14,8 @@ use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 
 class GetOrderStatsAction
 {
+    protected ?Collection $productVariantIds = null;
+
     public function __construct(
         protected Apps $app,
         protected array $initialStates,
@@ -20,7 +23,14 @@ class GetOrderStatsAction
         protected array $currentCountStates = [],
         protected array $productTypeSlugs = [],
         protected array $orderTypeNames = [],
+        protected ?int $productId = null,
     ) {
+        if ($this->productId) {
+            $this->productVariantIds = DB::connection('inventory')
+                ->table('products_variants')
+                ->where('products_id', $this->productId)
+                ->pluck('id');
+        }
     }
 
     public function execute(
@@ -82,6 +92,13 @@ class GetOrderStatsAction
                     });
                 });
             })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -96,6 +113,13 @@ class GetOrderStatsAction
                 $query->whereHas('order', function ($q) {
                     $q->whereHas('orderType', function ($typeQuery) {
                         $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
                     });
                 });
             })
@@ -144,13 +168,25 @@ class GetOrderStatsAction
             )";
         }
 
+        $productFilter = '';
+        if ($this->productVariantIds && $this->productVariantIds->isNotEmpty()) {
+            $variantIdsString = $this->productVariantIds->implode(', ');
+            $productFilter = "AND EXISTS (
+                SELECT 1 FROM order_items
+                WHERE order_items.order_id = order_transitions_history.order_id
+                AND order_items.variant_id IN ({$variantIdsString})
+                AND order_items.is_deleted = 0
+            )";
+        }
+
         $activeOrders = DB::raw("
             (SELECT DISTINCT order_id
              FROM order_transitions_history
              WHERE apps_id = {$this->app->id}
                AND is_deleted = 0
                AND changed_at <= '{$end} 23:59:59'
-               {$orderTypeFilter}) AS active_orders
+               {$orderTypeFilter}
+               {$productFilter}) AS active_orders
         ");
 
         $latestStatus = DB::raw("
@@ -240,6 +276,11 @@ class GetOrderStatsAction
                     $q->whereIn('name', $this->orderTypeNames);
                 });
             })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('items', function ($q) {
+                    $q->whereIn('variant_id', $this->productVariantIds);
+                });
+            })
             ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
@@ -259,6 +300,13 @@ class GetOrderStatsAction
                     });
                 });
             })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -275,6 +323,13 @@ class GetOrderStatsAction
                 $query->whereHas('order', function ($q) {
                     $q->whereHas('orderType', function ($typeQuery) {
                         $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
                     });
                 });
             })

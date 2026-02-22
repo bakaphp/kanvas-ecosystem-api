@@ -26,7 +26,8 @@ class OrderPaymentRepository
         array $paidStates,
         ?int $variantId = null,
         string $timezone = 'UTC',
-        array $orderTypeNames = []
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -46,6 +47,11 @@ class OrderPaymentRepository
                     $q->where('variant_id', $variantId);
                 });
             })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
             ->with(['items'])
             ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
@@ -54,11 +60,11 @@ class OrderPaymentRepository
                 DATE(CONVERT_TZ(order_transitions_history.changed_at, 'UTC', ?)) AS date,
                 COUNT(DISTINCT orders.id) AS total,
                 SUM(orders.total_net_amount) AS amount,
-                COUNT(DISTINCT payments.id) AS card,
+                COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
                 GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
-                COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction,
-                SUM(CASE WHEN payments.id IS NULL THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
-                SUM(CASE WHEN payments.id IS NOT NULL THEN orders.total_net_amount ELSE 0 END) AS card_amount
+                COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
+                SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+                SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
             ", [$timezone])
             ->groupBy('date')
             ->orderBy('date')
@@ -73,7 +79,8 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         array $providers,
-        ?int $variantId = null
+        ?int $variantId = null,
+        array $productVariantIds = []
     ): Collection {
         $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -84,6 +91,11 @@ class OrderPaymentRepository
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             });
 
@@ -116,7 +128,8 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         ?int $variantId = null,
-        array $orderTypeNames = []
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -131,6 +144,11 @@ class OrderPaymentRepository
             ->when($variantId, function ($query) use ($variantId) {
                 $query->whereHas('items', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             })
             ->with(['items'])
