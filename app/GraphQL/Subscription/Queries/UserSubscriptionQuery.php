@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Subscription\Queries;
 
-use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Cashier\Subscription;
 
 class UserSubscriptionQuery
