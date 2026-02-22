@@ -40,6 +40,7 @@ class UserSubscriptionTest extends TestCase
                         id
                         stripe_id
                         stripe_status
+                        stripe_price
                         quantity
                     }
                 }
@@ -53,6 +54,7 @@ class UserSubscriptionTest extends TestCase
                         'currentSubscription' => [
                             'id' => (string) $subscription->id,
                             'stripe_status' => 'active',
+                            'stripe_price' => 'price_test_123',
                         ],
                     ],
                 ],
