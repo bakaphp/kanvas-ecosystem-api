@@ -75,6 +75,62 @@ class PaymentProcessorMutation
         }
     }
 
+    public function capturePayment(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment not found',
+            ];
+        }
+
+        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment is not in authorized status. Current status: ' . $payment->status,
+            ];
+        }
+
+        $order = $payment->order;
+
+        if (! $order) {
+            return [
+                'status' => 'error',
+                'message' => 'Order not found for this payment',
+            ];
+        }
+
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+
+        try {
+            $amount = isset($request['amount']) ? (float) $request['amount'] : null;
+
+            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $result = $processor->capture($payment, $order, $amount);
+
+            return [
+                'status' => $result->success ? 'success' : 'error',
+                'message' => $result->message,
+                'payment' => $payment->fresh(),
+                'data' => $result->raw,
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [],
+            ];
+        }
+    }
+
     public function refundPayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);

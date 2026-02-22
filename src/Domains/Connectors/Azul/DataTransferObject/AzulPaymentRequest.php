@@ -26,6 +26,7 @@ class AzulPaymentRequest extends Data
         public readonly ?string $expiration = null,
         public readonly ?string $cvc = null,
         public readonly ?string $dataVaultToken = null,
+        public readonly ?string $azulOrderId = null,
         public readonly ?string $rrn = null,
         public readonly string $customerServicePhone = '',
         public readonly string $orderNumber = '',
@@ -67,6 +68,10 @@ class AzulPaymentRequest extends Data
 
         if ($this->dataVaultToken !== null) {
             $data['DataVaultToken'] = $this->dataVaultToken;
+        }
+
+        if ($this->azulOrderId !== null) {
+            $data['AzulOrderId'] = $this->azulOrderId;
         }
 
         return $data;

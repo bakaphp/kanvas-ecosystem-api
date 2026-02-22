@@ -113,6 +113,11 @@ class Client
         return $this->baseUrl . '?ProcessDatavault';
     }
 
+    public function getPostUrl(): string
+    {
+        return $this->baseUrl . '?ProcessPost';
+    }
+
     public function getGuzzleClient(): GuzzleClient
     {
         return $this->client;

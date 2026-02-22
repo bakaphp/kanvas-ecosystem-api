@@ -126,28 +126,17 @@ class AzulService
      * Must be called within 7 days of the Hold.
      * Amount may be equal, less, or up to 15% greater than the original Hold amount.
      */
-    public function capture(
-        string $azulOrderId,
-        string $amount,
-        string $itbis,
-        string $customOrderId = ''
-    ): AzulPaymentResponse {
+    public function capture(AzulPaymentRequest $request): AzulPaymentResponse
+    {
         $payload = [
-            'Channel'         => $this->channel,
-            'Store'           => $this->store,
-            'TrxType'         => TransactionTypeEnum::POST->value,
-            'AzulOrderId'     => $azulOrderId,
-            'Amount'          => $amount,
-            'Itbis'           => $itbis,
-            'CurrencyPosCode' => '$',
-            'Payments'        => '1',
-            'Plan'            => '0',
-            'AcquirerRefData' => '1',
-            'CustomOrderId'   => $customOrderId,
-            'PosInputMode'    => 'E-Commerce',
+            'Channel'     => $request->channel,
+            'Store'       => $request->store,
+            'TrxType'     => TransactionTypeEnum::POST->value,
+            'AzulOrderId' => $request->azulOrderId,
+            'Amount'      => $request->amount,
+            'Itbis'       => $request->itbis,
         ];
-
-        $response = $this->client->post($payload);
+        $response = $this->client->post($payload, $this->client->getPostUrl());
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {
@@ -165,23 +154,9 @@ class AzulService
     /**
      * Void a Hold or authorized transaction, releasing the reserved funds.
      */
-    public function void(
-        string $azulOrderId,
-        string $customOrderId = ''
-    ): AzulPaymentResponse {
-        $payload = [
-            'Channel'         => $this->channel,
-            'Store'           => $this->store,
-            'TrxType'         => TransactionTypeEnum::VOID->value,
-            'AzulOrderId'     => $azulOrderId,
-            'CurrencyPosCode' => '$',
-            'Payments'        => '1',
-            'Plan'            => '0',
-            'AcquirerRefData' => '1',
-            'CustomOrderId'   => $customOrderId,
-            'PosInputMode'    => 'E-Commerce',
-        ];
-
+    public function void(AzulPaymentRequest $request): AzulPaymentResponse
+    {
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::VOID->value];
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
@@ -197,27 +172,9 @@ class AzulService
         return $result;
     }
 
-    public function refund(
-        string $azulOrderId,
-        string $amount,
-        string $itbis,
-        string $customOrderId = ''
-    ): AzulPaymentResponse {
-        $payload = [
-            'Channel'         => $this->channel,
-            'Store'           => $this->store,
-            'TrxType'         => TransactionTypeEnum::REFUND->value,
-            'AzulOrderId'     => $azulOrderId,
-            'Amount'          => $amount,
-            'Itbis'           => $itbis,
-            'CurrencyPosCode' => '$',
-            'Payments'        => '1',
-            'Plan'            => '0',
-            'AcquirerRefData' => '1',
-            'CustomOrderId'   => $customOrderId,
-            'PosInputMode'    => 'E-Commerce',
-        ];
-
+    public function refund(AzulPaymentRequest $request): AzulPaymentResponse
+    {
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::REFUND->value];
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 

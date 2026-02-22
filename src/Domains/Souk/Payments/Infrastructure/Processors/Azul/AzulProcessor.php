@@ -212,16 +212,12 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
+        $captureAmount = $amount ?? $order->getTotalAmount();
+        $request = $this->buildCaptureRequest($azulOrderId, $captureAmount, $order);
         $start = hrtime(true);
 
         try {
-            $captureAmount = $amount ?? $order->getTotalAmount();
-            $response = $this->service->post(
-                azulOrderId: $azulOrderId,
-                amount: $this->toCents($captureAmount),
-                itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
-                customOrderId: (string) $order->id,
-            );
+            $response = $this->service->capture($request);
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->authorization_code = $response->authorizationCode;
@@ -252,6 +248,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'capture_azul_order_id' => $response->azulOrderId,
                 'amount' => $captureAmount,
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
                 'response' => $response->toArray(),
             ]);
 
@@ -270,6 +267,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'error' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
             ]);
 
             return new CaptureResult(
@@ -283,22 +281,22 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
     {
+        $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
+
+        if (empty($azulOrderId)) {
+            return new RefundResult(
+                success: false,
+                message: 'AzulOrderId not found on order. Cannot process refund.',
+                transactionId: '',
+            );
+        }
+
+        $refundAmount = $amount ?? $order->getTotalAmount();
+        $request = $this->buildRefundRequest($azulOrderId, $refundAmount, $order);
         $start = hrtime(true);
 
         try {
-            $azulOrderId = (string) ($order->get(CustomFieldEnum::AZUL_ORDER_ID->value) ?? '');
-
-            if (empty($azulOrderId)) {
-                throw new AzulException('AzulOrderId not found on order. Cannot process refund.', 0, null, []);
-            }
-
-            $refundAmount = $amount ?? $order->getTotalAmount();
-            $response = $this->service->refund(
-                azulOrderId: $azulOrderId,
-                amount: $this->toCents($refundAmount),
-                itbis: $this->toCents($order->getTotalTaxAmount()),
-                customOrderId: (string) $order->id,
-            );
+            $response = $this->service->refund($request);
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
@@ -316,6 +314,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'original_azul_order_id' => $azulOrderId,
                 'refund_azul_order_id' => $response->azulOrderId,
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
                 'response' => $response->toArray(),
             ]);
 
@@ -334,6 +333,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'error' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
             ]);
 
             return new RefundResult(
@@ -361,13 +361,11 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
+        $request = $this->buildVoidRequest($azulOrderId, $order);
         $start = hrtime(true);
 
         try {
-            $response = $this->service->void(
-                azulOrderId: $azulOrderId,
-                customOrderId: (string) $order->id,
-            );
+            $response = $this->service->void($request);
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
@@ -385,6 +383,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'original_azul_order_id' => $azulOrderId,
                 'void_azul_order_id' => $response->azulOrderId,
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
                 'response' => $response->toArray(),
             ]);
 
@@ -403,6 +402,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'error' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
+                'request' => $request->toArray(),
             ]);
 
             return new VoidResult(
@@ -488,6 +488,45 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private function buildCaptureRequest(string $azulOrderId, float $captureAmount, Order $order): AzulPaymentRequest
+    {
+        return new AzulPaymentRequest(
+            channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
+            store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
+            trxType: TransactionTypeEnum::POST,
+            amount: $this->toCents($captureAmount),
+            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            customOrderId: (string) $order->id,
+            azulOrderId: $azulOrderId,
+        );
+    }
+
+    private function buildVoidRequest(string $azulOrderId, Order $order): AzulPaymentRequest
+    {
+        return new AzulPaymentRequest(
+            channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
+            store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
+            trxType: TransactionTypeEnum::VOID,
+            amount: '000',
+            itbis: '000',
+            customOrderId: (string) $order->id,
+            azulOrderId: $azulOrderId,
+        );
+    }
+
+    private function buildRefundRequest(string $azulOrderId, float $refundAmount, Order $order): AzulPaymentRequest
+    {
+        return new AzulPaymentRequest(
+            channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
+            store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
+            trxType: TransactionTypeEnum::REFUND,
+            amount: $this->toCents($refundAmount),
+            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            customOrderId: (string) $order->id,
+            azulOrderId: $azulOrderId,
+        );
+    }
 
     private function buildSaleRequest(Payments $payment, Order $order): AzulPaymentRequest
     {
