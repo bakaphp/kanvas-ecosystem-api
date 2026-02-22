@@ -4,13 +4,17 @@ type UserSubscription {
     provider: String @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@provider")
     stripe_id: ID!
     stripe_status: String!
+    status: String! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@status")
+    plan_name: String! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@planName")
     stripe_price: String
     items: [SubscriptionItem!]! @hasMany(relation: "items")
     quantity: Int!
     trial_ends_at: DateTime
     ends_at: DateTime
+    started_at: DateTime @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@startedAt")
     created_at: String
     updated_at: String
+    is_active: Boolean! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@isActive")
 }
 
 extend type Query @guard {
