@@ -241,7 +241,7 @@ class GoogleADKService
     {
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
 
-        $response = $this->client->post($endpoint, [
+        $response = $this->client->patch($endpoint, [
             'json' => [
                 'data' => $data,
             ],
