@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Connectors\WordPress\AlgoliaClient;
 use Kanvas\Connectors\WordPress\Client;
+use Kanvas\Connectors\WordPress\WidgetClient;
 use League\Csv\Writer;
 
 class DownloadInventoryAction
@@ -25,6 +26,8 @@ class DownloadInventoryAction
         protected ?string $algoliaAppId = null,
         protected ?string $algoliaApiKey = null,
         protected ?string $algoliaIndexName = null,
+        protected ?string $widgetSiteId = null,
+        protected ?string $widgetListingConfigId = null,
         ?Closure $onPage = null,
     ) {
         $this->onPage = $onPage;
@@ -32,9 +35,11 @@ class DownloadInventoryAction
 
     public function execute(): array
     {
-        $result = $this->provider === 'algolia'
-            ? $this->fetchFromAlgolia()
-            : $this->fetchFromWordPress();
+        $result = match ($this->provider) {
+            'algolia' => $this->fetchFromAlgolia(),
+            'widget' => $this->fetchFromWidget(),
+            default => $this->fetchFromWordPress(),
+        };
 
         $vehicles = $result['vehicles'];
 
@@ -51,9 +56,11 @@ class DownloadInventoryAction
         /** @var list<array<string, string>> $rows */
         $rows = [];
         foreach ($vehicles as $vehicle) {
-            $rows[] = $this->provider === 'algolia'
-                ? $this->mapAlgoliaVehicleToRow($vehicle)
-                : $this->mapVehicleToRow($vehicle);
+            $rows[] = match ($this->provider) {
+                'algolia' => $this->mapAlgoliaVehicleToRow($vehicle),
+                'widget' => $this->mapWidgetVehicleToRow($vehicle),
+                default => $this->mapVehicleToRow($vehicle),
+            };
         }
 
         $filePath = $this->writeCsv($rows);
@@ -80,6 +87,17 @@ class DownloadInventoryAction
             (string) $this->algoliaAppId,
             (string) $this->algoliaApiKey,
             (string) $this->algoliaIndexName,
+        );
+
+        return $client->getAllVehicles($this->onPage);
+    }
+
+    protected function fetchFromWidget(): array
+    {
+        $client = new WidgetClient(
+            $this->baseUrl,
+            (string) $this->widgetSiteId,
+            $this->widgetListingConfigId ?? 'auto-new',
         );
 
         return $client->getAllVehicles($this->onPage);
@@ -163,6 +181,105 @@ class DownloadInventoryAction
             'body_style' => (string) ($vehicle['body'] ?? ''),
             'description' => "{$condition} {$year} {$make} {$model} - {$stockNumber}",
         ];
+    }
+
+    protected function mapWidgetVehicleToRow(array $vehicle): array
+    {
+        $year = (string) ($vehicle['year'] ?? '');
+        $make = (string) ($vehicle['make'] ?? '');
+        $model = (string) ($vehicle['model'] ?? '');
+        $condition = ucfirst((string) ($vehicle['type'] ?? $vehicle['condition'] ?? 'Used'));
+        $stockNumber = (string) ($vehicle['stockNumber'] ?? '');
+        $vin = (string) ($vehicle['vin'] ?? '');
+        $title = is_array($vehicle['title'] ?? null) ? (string) ($vehicle['title'][0] ?? '') : (string) ($vehicle['title'] ?? '');
+        $link = (string) ($vehicle['link'] ?? '');
+        if ($link !== '' && ! str_starts_with($link, 'http')) {
+            $link = rtrim($this->baseUrl, '/') . '/' . ltrim($link, '/');
+        }
+
+        $tracking = $this->getWidgetTrackingMap($vehicle);
+        $attrs = $this->getWidgetAttributeMap($vehicle);
+
+        $image = '';
+        $images = $vehicle['images'] ?? [];
+        if (is_array($images) && isset($images[0]['uri'])) {
+            $image = (string) $images[0]['uri'];
+        }
+
+        return [
+            'rooftop_id' => $this->rooftopId ?? '',
+            'name' => $title,
+            'price' => $this->extractWidgetPrice($vehicle),
+            'condition' => $condition,
+            'mileage' => $tracking['odometer'] ?? '',
+            'stock' => $stockNumber,
+            'vin' => $vin,
+            'image_url' => $image,
+            'reference_url' => $link,
+            'year' => $year,
+            'make' => $make,
+            'model' => $model,
+            'mpg_city' => $tracking['cityFuelEconomy'] ?? $tracking['cityMpg'] ?? '',
+            'mpg_hwy' => $tracking['highwayFuelEconomy'] ?? $tracking['highwayMpg'] ?? '',
+            'engine' => $attrs['engine'] ?? trim((string) ($tracking['engineSize'] ?? '') . ' ' . (string) ($tracking['engine'] ?? '')),
+            'transmission' => $attrs['transmission'] ?? $tracking['transmission'] ?? '',
+            'exterior_color' => $attrs['exteriorColor'] ?? $tracking['exteriorColor'] ?? '',
+            'horsepower' => '',
+            'torque' => '',
+            'drivetrain' => $tracking['driveLine'] ?? '',
+            'cylinders' => '',
+            'fuel_tank' => '',
+            'body_style' => (string) ($vehicle['bodyStyle'] ?? ''),
+            'description' => "{$condition} {$year} {$make} {$model} - {$stockNumber}",
+        ];
+    }
+
+    protected function extractWidgetPrice(array $vehicle): string
+    {
+        $pricing = $vehicle['pricing'] ?? [];
+        if (! is_array($pricing)) {
+            return '';
+        }
+
+        $retailPrice = (string) ($pricing['retailPrice'] ?? '');
+        if ($retailPrice !== '') {
+            return (string) preg_replace('/[^0-9.]/', '', $retailPrice);
+        }
+
+        $dprice = $pricing['dprice'] ?? [];
+        if (is_array($dprice)) {
+            foreach ($dprice as $entry) {
+                if (is_array($entry) && isset($entry['value'])) {
+                    return (string) preg_replace('/[^0-9.]/', '', (string) $entry['value']);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    protected function getWidgetTrackingMap(array $vehicle): array
+    {
+        $map = [];
+        foreach ($vehicle['trackingAttributes'] ?? [] as $attr) {
+            if (is_array($attr) && isset($attr['name'], $attr['value'])) {
+                $map[(string) $attr['name']] = (string) $attr['value'];
+            }
+        }
+
+        return $map;
+    }
+
+    protected function getWidgetAttributeMap(array $vehicle): array
+    {
+        $map = [];
+        foreach ($vehicle['attributes'] ?? [] as $attr) {
+            if (is_array($attr) && isset($attr['name'], $attr['value'])) {
+                $map[(string) $attr['name']] = (string) $attr['value'];
+            }
+        }
+
+        return $map;
     }
 
     protected function extractCondition(array $vehicle): string

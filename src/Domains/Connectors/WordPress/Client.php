@@ -14,11 +14,11 @@ use Throwable;
 class Client
 {
     protected const int PER_PAGE = 24;
-    protected const int MAX_RETRIES = 3;
-    protected const int RETRY_DELAY_429_MS = 10000;
+    protected const int MAX_RETRIES = 5;
+    protected const int RETRY_DELAY_429_MS = 15000;
     protected const int RETRY_DELAY_TIMEOUT_MS = 5000;
     protected const int REQUEST_TIMEOUT_SECONDS = 45;
-    protected const int PAGE_DELAY_SECONDS = 2;
+    protected const int PAGE_DELAY_SECONDS = 3;
 
     public function __construct(
         protected string $baseUrl,

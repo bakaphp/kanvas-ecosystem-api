@@ -139,6 +139,28 @@ class DownloadWordPressInventoryCommand extends Command
             );
         }
 
+        if ($provider === 'widget') {
+            $baseUrl = (string) ($dealer['base_url'] ?? '');
+            if ($baseUrl === '') {
+                throw new ValidationException(
+                    "Dealer '{$dealerName}': missing base_url for widget provider."
+                );
+            }
+
+            return new DownloadInventoryAction(
+                dealerName: $dealerName,
+                baseUrl: $baseUrl,
+                apiPath: '',
+                rooftopId: $dealer['rooftop_id'] ?? null,
+                inventoryCatcherName: $dealer['inventory_catcher_name'] ?? null,
+                filterMake: is_string($dealerMake) ? $dealerMake : null,
+                provider: 'widget',
+                widgetSiteId: $dealer['widget_site_id'] ?? null,
+                widgetListingConfigId: $dealer['widget_listing_config_id'] ?? null,
+                onPage: $onPage,
+            );
+        }
+
         $baseUrl = (string) ($dealer['base_url'] ?? '');
         $apiPath = (string) ($dealer['api_path'] ?? '');
 
