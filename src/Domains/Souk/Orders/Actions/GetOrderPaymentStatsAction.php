@@ -160,6 +160,8 @@ class GetOrderPaymentStatsAction
             $this->paidStates,
             $timezone,
             $this->orderTypeNames,
+            $this->variantId,
+            $this->productVariantIds,
         );
 
         return $rows->map(fn ($row) => [

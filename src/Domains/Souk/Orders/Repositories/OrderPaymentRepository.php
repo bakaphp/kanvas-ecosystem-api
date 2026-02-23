@@ -29,7 +29,7 @@ class OrderPaymentRepository
         array $orderTypeNames = [],
         array $productVariantIds = []
     ): Collection {
-        return Order::query()
+        $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
             ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
             ->leftJoin('payments', function ($join) {
@@ -43,12 +43,12 @@ class OrderPaymentRepository
                     ->whereIn('order_types.name', $orderTypeNames);
             })
             ->when($variantId, function ($query) use ($variantId) {
-                $query->whereHas('items', function ($q) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
                 });
             })
             ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
-                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
             })
@@ -67,8 +67,9 @@ class OrderPaymentRepository
                 SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
             ", [$timezone])
             ->groupBy('date')
-            ->orderBy('date')
-            ->get();
+            ->orderBy('date');
+
+        return $query->get();
     }
 
     /**
@@ -89,12 +90,12 @@ class OrderPaymentRepository
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
             ->when($variantId, function ($query) use ($variantId) {
-                $query->whereHas('items', function ($q) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
                 });
             })
             ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
-                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
             });
@@ -142,16 +143,15 @@ class OrderPaymentRepository
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
             ->when($variantId, function ($query) use ($variantId) {
-                $query->whereHas('items', function ($q) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
                 });
             })
             ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
-                $query->whereHas('items', function ($q) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
             })
-            ->with(['items'])
             ->pluck('orders.id');
     }
 
@@ -188,7 +188,9 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         string $timezone = 'UTC',
-        array $orderTypeNames = []
+        array $orderTypeNames = [],
+        ?int $variantId = null,
+        array $productVariantIds = []
     ): Collection {
         $format = match (strtoupper($periodType)) {
             'DAY'   => '%Y-%m-%d',
@@ -203,6 +205,16 @@ class OrderPaymentRepository
             ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
                 $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
                     ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
             })
             ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
