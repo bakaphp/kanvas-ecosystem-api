@@ -241,11 +241,23 @@ class GoogleADKService
     {
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
 
-        $response = $this->client->patch($endpoint, [
-            'json' => [
-                'data' => $data,
-            ],
-        ]);
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => [
+                    'data' => $data,
+                ],
+            ]);
+        } catch (ClientException $e) {
+            $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
+            $responseData = json_decode($responseBody, true);
+
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
+                // Return a specific response or handle as needed
+                return;
+            }
+
+            throw $e;
+        }
     }
 
     /**
