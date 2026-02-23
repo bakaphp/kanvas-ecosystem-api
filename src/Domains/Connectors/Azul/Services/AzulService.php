@@ -199,6 +199,52 @@ class AzulService
         return $result;
     }
 
+    /**
+     * Initiate a 3DS-enabled Sale.
+     * Unlike sale(), this does NOT throw when Azul returns a 3DS challenge —
+     * a challenge response (is3DSChallenge()) is a valid intermediate state.
+     * Only throws on actual declines.
+     */
+    public function sale3DS(AzulPaymentRequest $request): AzulPaymentResponse
+    {
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::SALE->value];
+        $response = $this->client->post($payload);
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved() && ! $result->is3DSChallenge()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: 'Sale transaction declined',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Initiate a 3DS-enabled Hold (pre-authorization).
+     * Unlike hold(), this does NOT throw when Azul returns a 3DS challenge.
+     */
+    public function hold3DS(AzulPaymentRequest $request): AzulPaymentResponse
+    {
+        $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::HOLD->value];
+        $response = $this->client->post($payload);
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved() && ! $result->is3DSChallenge()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: 'Hold transaction declined',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
     public function refund(AzulPaymentRequest $request): AzulPaymentResponse
     {
         $payload  = [...$request->toArray(), 'TrxType' => TransactionTypeEnum::REFUND->value];

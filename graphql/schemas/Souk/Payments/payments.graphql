@@ -100,6 +100,13 @@ type PaymentVerifyResult {
     data: Mixed
 }
 
+type ThreeDSChallengeResult {
+    success: Boolean!
+    message: String!
+    status: String!
+    data: Mixed
+}
+
 enum PaymentMethodTypeEnum {
     MANUAL @enum(value: "manual")
     CARD @enum(value: "card")
@@ -202,6 +209,14 @@ extend type Mutation @guard {
     verifyPayment(orderId: ID, paymentId: ID): PaymentVerifyResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@verifyPayment"
+        )
+    startPaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallenge"
+        )
+    finalizePaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@finalizeChallenge"
         )
 }
 

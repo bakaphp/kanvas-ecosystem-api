@@ -40,14 +40,14 @@ final class AzulTest extends AzulBase
         // Second sale: use the DataVault token (no raw card fields)
         $credentials     = $this->getCredentials();
         $tokenOnlyRequest = new AzulPaymentRequest(
-            channel:        $credentials['channel'],
-            store:          $credentials['store'],
-            trxType:        TransactionTypeEnum::SALE,
-            amount:         '100',
-            itbis:          '18',
-            customOrderId:  'TEST-TOKEN-' . time(),
+            channel: $credentials['channel'],
+            store: $credentials['store'],
+            trxType: TransactionTypeEnum::SALE,
+            amount: '100',
+            itbis: '18',
+            customOrderId: 'TEST-TOKEN-' . time(),
             dataVaultToken: $firstResponse->dataVaultToken,
-            forceNo3DS:     '1',
+            forceNo3DS: '1',
         );
 
         $tokenResponse = $service->sale($tokenOnlyRequest);
@@ -75,9 +75,9 @@ final class AzulTest extends AzulBase
         $this->assertTrue($saleResponse->isApproved());
 
         $refundResponse = $service->refund(
-            azulOrderId:  $saleResponse->azulOrderId,
-            amount:       '100',
-            itbis:        '18',
+            azulOrderId: $saleResponse->azulOrderId,
+            amount: '100',
+            itbis: '18',
             customOrderId: 'REFUND-' . time(),
         );
 

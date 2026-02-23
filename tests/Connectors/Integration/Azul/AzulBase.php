@@ -60,18 +60,18 @@ class AzulBase extends TestCase
         $dataVaultToken = $overrides['dataVaultToken'] ?? null;
 
         return new AzulPaymentRequest(
-            channel:         $credentials['channel'],
-            store:           $credentials['store'],
-            trxType:         TransactionTypeEnum::SALE,
-            amount:          '100',
-            itbis:           '18',
-            customOrderId:   'TEST-' . time(),
-            cardNumber:      $dataVaultToken !== null ? null : '6011000000000004',
-            expiration:      $dataVaultToken !== null ? null : '202812',
-            cvc:             $dataVaultToken !== null ? null : '818',
-            forceNo3DS:      '1',
+            channel: $credentials['channel'],
+            store: $credentials['store'],
+            trxType: TransactionTypeEnum::SALE,
+            amount: '100',
+            itbis: '18',
+            customOrderId: 'TEST-' . time(),
+            cardNumber: $dataVaultToken !== null ? null : '6011000000000004',
+            expiration: $dataVaultToken !== null ? null : '202812',
+            cvc: $dataVaultToken !== null ? null : '818',
+            forceNo3DS: '1',
             saveToDataVault: $overrides['saveToDataVault'] ?? '0',
-            dataVaultToken:  $dataVaultToken,
+            dataVaultToken: $dataVaultToken,
         );
     }
 }

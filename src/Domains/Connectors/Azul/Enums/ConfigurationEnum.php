@@ -21,6 +21,8 @@ enum ConfigurationEnum: string
     case AZUL_CA_PATH = 'AZUL_CA_PATH';     // Path to CA certificate for server verification
     case AZUL_VERIFY_SSL = 'AZUL_VERIFY_SSL'; // Whether to verify SSL (true/false)
     case AZUL_USE_HOLD = 'AZUL_USE_HOLD';     // Use Hold+Post (two-step) instead of immediate Sale
+    case AZUL_3DS_TERM_URL = 'AZUL_3DS_TERM_URL';         // TermUrl for 3DS redirect after challenge
+    case AZUL_3DS_METHOD_URL = 'AZUL_3DS_METHOD_URL';     // MethodNotificationUrl for 3DS method data
 
     // Hardcoded URLs used as defaults
     case SANDBOX_URL = 'https://pruebas.azul.com.do/WebServices/JSON/Default.aspx';

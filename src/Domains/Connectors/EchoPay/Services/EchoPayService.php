@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\EchoPay\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\EchoPay\Client;
@@ -16,7 +17,6 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
-use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;

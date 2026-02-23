@@ -26,6 +26,10 @@ class AzulPaymentResponse extends Data
         public readonly string $maskedCardNumber = '',
         public readonly string $expiration = '',
         public readonly bool $hasCvv = false,
+        // 3DS challenge fields (present when IsoCode != '00' and 3DS challenge is required)
+        public readonly string $acsUrl = '',
+        public readonly string $paReq = '',
+        public readonly string $threeDSTransId = '',
     ) {
     }
 
@@ -49,11 +53,24 @@ class AzulPaymentResponse extends Data
             maskedCardNumber: $response['CardNumber'] ?? '',
             expiration: $response['Expiration'] ?? '',
             hasCvv: (bool) ($response['HasCVV'] ?? false),
+            acsUrl: $response['ACSUrl'] ?? '',
+            paReq: $response['PAReq'] ?? $response['CReq'] ?? '',
+            threeDSTransId: $response['ThreeDSTransID'] ?? $response['ThreeDSServerTransID'] ?? '',
         );
     }
 
     public function isApproved(): bool
     {
         return $this->isoCode === '00';
+    }
+
+    /**
+     * Returns true when Azul requires a 3DS challenge before completing the transaction.
+     * A challenge response includes an ACS URL (redirect for cardholder authentication)
+     * but has not yet been approved (IsoCode != '00').
+     */
+    public function is3DSChallenge(): bool
+    {
+        return ! empty($this->acsUrl) || $this->responseCode === '3DS';
     }
 }

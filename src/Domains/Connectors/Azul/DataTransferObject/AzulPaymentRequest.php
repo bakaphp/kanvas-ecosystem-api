@@ -32,6 +32,8 @@ class AzulPaymentRequest extends Data
         public readonly string $orderNumber = '',
         public readonly string $forceNo3DS = '1',
         public readonly string $saveToDataVault = '0',
+        public readonly ?array $threeDSAuth = null,
+        public readonly ?array $cardHolderInfo = null,
     ) {
     }
 
@@ -72,6 +74,14 @@ class AzulPaymentRequest extends Data
 
         if ($this->azulOrderId !== null) {
             $data['AzulOrderId'] = $this->azulOrderId;
+        }
+
+        if ($this->threeDSAuth !== null) {
+            $data['ThreeDSAuth'] = $this->threeDSAuth;
+        }
+
+        if ($this->cardHolderInfo !== null) {
+            $data['CardHolderInfo'] = $this->cardHolderInfo;
         }
 
         return $data;

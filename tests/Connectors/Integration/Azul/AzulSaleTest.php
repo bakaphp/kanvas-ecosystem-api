@@ -35,6 +35,7 @@ class AzulSaleTest extends AzulBase
         parent::setUp();
 
         $this->apps = app(Apps::class);
+        // $this->apps = Apps::find(128); // Force reload to clear any cached config from other tests
 
         $existingMethod = PaymentMethods::fromApp($this->apps)
             ->where('processor', 'azul')
@@ -60,6 +61,8 @@ class AzulSaleTest extends AzulBase
         $this->apps->set(ConfigurationEnum::AZUL_CHANNEL->value, env('TEST_AZUL_CHANNEL') ?? env('AZUL_CHANNEL', 'EC'));
         $this->apps->set(ConfigurationEnum::AZUL_CERT_PATH->value, env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH'));
         $this->apps->set(ConfigurationEnum::AZUL_KEY_PATH->value, env('TEST_AZUL_KEY_PATH') ?? env('AZUL_KEY_PATH'));
+        $this->apps->set(ConfigurationEnum::AZUL_3DS_TERM_URL->value, env('TEST_AZUL_3DS_TERM_URL') ?? env('AZUL_3DS_TERM_URL'));
+        $this->apps->set(ConfigurationEnum::AZUL_3DS_METHOD_URL->value, env('TEST_AZUL_3DS_METHOD_URL') ?? env('AZUL_3DS_METHOD_URL'));
 
         $this->setAllowNoPaymentStatus(true, $this->apps);
 
@@ -92,9 +95,9 @@ class AzulSaleTest extends AzulBase
     protected function getAzulCardData(): array
     {
         return [
-            'number'          => '4260550061845872',
+            'number'          => '5424180279791732',
             'expiration_date' => '12/28',
-            'cvv'             => '872',
+            'cvv'             => '732',
             'processor'       => 'azul',
         ];
     }

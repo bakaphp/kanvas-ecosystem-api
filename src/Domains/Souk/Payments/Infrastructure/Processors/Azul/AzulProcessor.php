@@ -16,10 +16,12 @@ use Kanvas\Connectors\Azul\Exceptions\AzulException;
 use Kanvas\Connectors\Azul\Services\AzulService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
+use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
+use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
@@ -39,9 +41,13 @@ use Kanvas\Souk\Payments\Models\Payments;
  *                           capture()   = Post to settle funds (PAID status);
  *                           void()      = cancels the hold (CANCELLED status).
  *
- * Does NOT implement ThreeDSProcessorInterface — Azul has no 3DS challenge flow.
+ * Implements ThreeDSProcessorInterface:
+ *   - startChallenge()    : sends a 3DS-enabled Sale/Hold; returns challenge URL data if Azul requires it,
+ *                           or marks the payment as PAID immediately if the card is not enrolled.
+ *   - finalizeChallenge() : called after the cardholder completes the browser challenge; uses
+ *                           VerifyPayment to confirm the final status.
  */
-class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface
+class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ThreeDSProcessorInterface
 {
     protected AzulService $service;
 
@@ -485,6 +491,155 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     }
 
     // -------------------------------------------------------------------------
+    // ThreeDSProcessorInterface
+    // -------------------------------------------------------------------------
+
+    /**
+     * Initiate a 3DS-enabled payment.
+     *
+     * - If the card is NOT enrolled in 3DS, Azul approves immediately (IsoCode=00)
+     *   and the payment is marked PAID — no challenge needed.
+     * - If a challenge IS required, Azul returns the ACS URL and PAReq.
+     *   The payment is set to PENDING_AUTHORIZATION and the caller must
+     *   redirect the cardholder to `data['acs_url']` with `data['pa_req']`.
+     *
+     * Context keys:
+     *   - use_hold (bool)                     : use Hold instead of Sale (default: AZUL_USE_HOLD config)
+     *   - requestor_challenge_indicator (string): Azul challenge preference (default: '01' = no preference)
+     *   - card_holder_info (array)             : optional CardHolderInfo block (billing/shipping/contact)
+     */
+    public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
+    {
+        $useHold = array_key_exists('use_hold', $context)
+            ? (bool) $context['use_hold']
+            : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
+
+        $request = $this->build3DSSaleRequest($payment, $order, $context);
+        $start   = hrtime(true);
+
+        try {
+            $response = $useHold
+                ? $this->service->hold3DS($request)
+                : $this->service->sale3DS($request);
+
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            // Store the AzulOrderId immediately so finalizeChallenge / verify can use it
+            $payment->payment_intent_id  = $response->azulOrderId;
+            $payment->authorization_code = $response->authorizationCode;
+
+            if ($response->isApproved()) {
+                // Card not enrolled — direct approval, no challenge needed
+                $responseData = [
+                    'data' => [
+                        'azul_order_id'      => $response->azulOrderId,
+                        'authorization_code' => $response->authorizationCode,
+                        'response_message'   => $response->responseMessage,
+                        'iso_code'           => $response->isoCode,
+                    ],
+                ];
+
+                if (! empty($response->dateTime)) {
+                    $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
+                }
+
+                $payment->number = $response->ticket;
+                $payment->markAsPaid($responseData);
+
+                $payment->addLog('3ds_direct_approval', [
+                    'processor'      => $this->name(),
+                    'order_id'       => $order->id,
+                    'azul_order_id'  => $response->azulOrderId,
+                    'response_time_ms' => $responseTimeMs,
+                ]);
+
+                return new ThreeDSResult(
+                    success: true,
+                    message: $response->responseMessage,
+                    status: PaymentStatusEnum::PAID->value,
+                    data: ['azul_order_id' => $response->azulOrderId],
+                    raw: $response->toArray(),
+                );
+            }
+
+            // 3DS challenge required
+            $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
+
+            $payment->addLog('3ds_challenge_initiated', [
+                'processor'      => $this->name(),
+                'order_id'       => $order->id,
+                'azul_order_id'  => $response->azulOrderId,
+                'acs_url'        => $response->acsUrl,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: true,
+                message: '3DS challenge required — redirect cardholder to acs_url',
+                status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+                data: [
+                    'azul_order_id'    => $response->azulOrderId,
+                    'acs_url'          => $response->acsUrl,
+                    'pa_req'           => $response->paReq,
+                    'three_ds_trans_id' => $response->threeDSTransId,
+                ],
+                raw: $response->toArray(),
+            );
+        } catch (AzulException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_challenge_failed', [
+                'processor'      => $this->name(),
+                'order_id'       => $order->id,
+                'error'          => $e->getMessage(),
+                'error_body'     => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: $e->getMessage(),
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $e->getErrorBody(),
+            );
+        }
+    }
+
+    /**
+     * Finalize a 3DS challenge after the cardholder completes browser authentication.
+     * Uses VerifyPayment to check Azul's final decision and marks the payment accordingly.
+     */
+    public function finalizeChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
+    {
+        $verifyResult = $this->verify($payment, $order);
+
+        if ($verifyResult->success) {
+            return new ThreeDSResult(
+                success: true,
+                message: $verifyResult->message,
+                status: PaymentStatusEnum::PAID->value,
+                data: ['azul_order_id' => $verifyResult->transactionId],
+                raw: $verifyResult->raw,
+            );
+        }
+
+        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        $payment->addLog('3ds_finalize_failed', [
+            'processor' => $this->name(),
+            'order_id'  => $order->id,
+            'error'     => $verifyResult->message,
+        ]);
+
+        return new ThreeDSResult(
+            success: false,
+            message: $verifyResult->message ?: '3DS challenge verification failed',
+            status: PaymentStatusEnum::FAILED->value,
+            raw: $verifyResult->raw,
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // TokenizationProcessorInterface
     // -------------------------------------------------------------------------
 
@@ -594,6 +749,45 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
             customOrderId: (string) $order->id,
             azulOrderId: $azulOrderId,
+        );
+    }
+
+    private function build3DSSaleRequest(Payments $payment, Order $order, array $context = []): AzulPaymentRequest
+    {
+        $paymentMethod  = $payment->paymentMethod;
+        $dataVaultToken = $paymentMethod->getMetadata(CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value);
+
+        $expiration = $dataVaultToken ? null : (
+            $paymentMethod->getMetadata('expiration')
+            ?? $this->normalizeExpiration($paymentMethod->expiration_date ?? '')
+        );
+
+        $termUrl   = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
+        $methodUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_METHOD_URL->value) ?? '');
+
+        $threeDSAuth = [
+            'TermUrl'                      => $termUrl,
+            'MethodNotificationUrl'        => $methodUrl,
+            'RequestorChallengeIndicator'  => $context['requestor_challenge_indicator'] ?? '01',
+        ];
+
+        return new AzulPaymentRequest(
+            channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
+            store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
+            cardNumber: $dataVaultToken ? null : $paymentMethod->getMetadata('card_number'),
+            expiration: $expiration ?? '',
+            cvc: $dataVaultToken ? null : $paymentMethod->getMetadata('cvc'),
+            posInputMode: 'E-Commerce',
+            trxType: TransactionTypeEnum::SALE,
+            amount: $this->toCents($order->getTotalAmount()),
+            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            orderNumber: (string) $order->order_number,
+            customOrderId: (string) $order->id,
+            dataVaultToken: $dataVaultToken,
+            saveToDataVault: $dataVaultToken ? '0' : '1',
+            forceNo3DS: '', // empty = enable 3DS
+            threeDSAuth: $threeDSAuth,
+            cardHolderInfo: $context['card_holder_info'] ?? null,
         );
     }
 

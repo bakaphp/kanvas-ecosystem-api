@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Connectors\Azul;
 
 use Exception;
 use GuzzleHttp\Exception\ConnectException;
@@ -12,7 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Azul\Client;
 use Kanvas\Exceptions\ValidationException;
 
-class TestAzulMTLS extends Command
+class TestAzulMTLSCommand extends Command
 {
     protected $signature = 'azul:test-mtls';
 
@@ -57,7 +57,6 @@ class TestAzulMTLS extends Command
             $response = $client->getGuzzleClient()->get('https://pruebas.azul.com.do');
 
             $this->line('✓ Connection successful!');
-            // $this->info("Status: {$response->getStatusCode()}");
 
             $this->newLine();
             $this->comment('=== Response ===');

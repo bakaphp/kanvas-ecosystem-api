@@ -100,11 +100,11 @@ class Client
 
             return json_decode($body, true);
         } catch (ConnectException $e) {
-            throw new AzulException('Connection failed (possible IP whitelist or TLS issue): '.$e->getMessage(), 0, $e);
+            throw new AzulException('Connection failed (possible IP whitelist or TLS issue): ' . $e->getMessage(), 0, $e);
         } catch (RequestException $e) {
             $res = $e->getResponse();
             $body = $res ? (string) $res->getBody() : null;
-            throw new AzulException('Request failed: '.$e->getMessage(), $res?->getStatusCode() ?? 0, $e, $body ? (json_decode($body, true) ?? []) : []);
+            throw new AzulException('Request failed: ' . $e->getMessage(), $res?->getStatusCode() ?? 0, $e, $body ? (json_decode($body, true) ?? []) : []);
         }
     }
 

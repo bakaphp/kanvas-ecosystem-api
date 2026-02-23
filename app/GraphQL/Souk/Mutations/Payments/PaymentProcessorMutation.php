@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
@@ -232,6 +233,90 @@ class PaymentProcessorMutation
                 'message' => $e->getMessage(),
                 'data' => [],
             ];
+        }
+    }
+
+    public function startChallenge(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return ['success' => false, 'message' => 'Payment not found', 'status' => 'error', 'data' => null];
+        }
+
+        $order = $payment->order;
+
+        if (! $order) {
+            return ['success' => false, 'message' => 'Order not found for this payment', 'status' => 'error', 'data' => null];
+        }
+
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+
+        try {
+            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+
+            if (! ($processor instanceof ThreeDSProcessorInterface)) {
+                return ['success' => false, 'message' => "Processor '{$processorName}' does not support 3DS", 'status' => 'error', 'data' => null];
+            }
+
+            $result = $processor->startChallenge($payment, $order);
+
+            return [
+                'success' => $result->success,
+                'message' => $result->message,
+                'status' => $result->status,
+                'data' => array_merge($result->data, ['raw' => $result->raw]),
+            ];
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'status' => PaymentStatusEnum::FAILED->value, 'data' => null];
+        }
+    }
+
+    public function finalizeChallenge(mixed $root, array $request): array
+    {
+        $app = app(Apps::class);
+        $paymentId = (int) $request['paymentId'];
+
+        $payment = Payments::where([
+            'apps_id' => $app->getId(),
+            'id' => $paymentId,
+        ])->first();
+
+        if (! $payment) {
+            return ['success' => false, 'message' => 'Payment not found', 'status' => 'error', 'data' => null];
+        }
+
+        $order = $payment->order;
+
+        if (! $order) {
+            return ['success' => false, 'message' => 'Order not found for this payment', 'status' => 'error', 'data' => null];
+        }
+
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+
+        try {
+            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+
+            if (! ($processor instanceof ThreeDSProcessorInterface)) {
+                return ['success' => false, 'message' => "Processor '{$processorName}' does not support 3DS", 'status' => 'error', 'data' => null];
+            }
+
+            $result = $processor->finalizeChallenge($payment, $order);
+
+            return [
+                'success' => $result->success,
+                'message' => $result->message,
+                'status' => $result->status,
+                'data' => array_merge($result->data, ['raw' => $result->raw]),
+            ];
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'status' => PaymentStatusEnum::FAILED->value, 'data' => null];
         }
     }
 
