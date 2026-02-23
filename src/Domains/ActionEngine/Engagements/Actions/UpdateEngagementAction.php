@@ -32,8 +32,7 @@ class UpdateEngagementAction
 
             if ($message) {
                 $messageData = is_array($message->message) ? $message->message : [];
-                $existingData = is_array($messageData['data'] ?? null) ? $messageData['data'] : [];
-                $messageData['data'] = array_merge($existingData, $this->data->data);
+                $messageData['data'] = $this->data->data;
 
                 if ($this->data->description !== null) {
                     $messageData['description'] = $this->data->description;
