@@ -40,7 +40,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
-                    return $this->handleCreated($order);
+                    return $this->handleCreated($order, $app);
                 }
 
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
@@ -57,7 +57,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         );
     }
 
-    private function handleCreated($order): array
+    private function handleCreated($order, $app): array
     {
         $metadata = new PrepareRoadsideAssistanceCaseAction()->execute(
             $order->metadata ?? [],
@@ -69,7 +69,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $photos = $metadata['assistance_case']['photos'] ?? [];
         if ($photos !== []) {
-            new AttachRoadsideAssistancePhotosAction()->execute($order, $photos);
+            new AttachRoadsideAssistancePhotosAction()->execute($order, $photos, $app);
         }
 
         return [
