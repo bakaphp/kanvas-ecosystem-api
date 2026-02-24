@@ -52,6 +52,7 @@ class PeopleManagementMutation
             'peopleEmploymentHistory' => $data['peopleEmploymentHistory'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -98,6 +99,7 @@ class PeopleManagementMutation
             'custom_fields' => $data['custom_fields'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);

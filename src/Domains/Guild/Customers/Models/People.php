@@ -45,6 +45,7 @@ use Override;
  * @property string|null $middlename = null
  * @property string $lastname
  * @property string $license_number
+ * @property string|null $license_expiration_date
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -71,6 +72,7 @@ class People extends BaseModel
 
     protected $casts = [
         'dob' => 'datetime:Y-m-d',
+        'license_expiration_date' => 'datetime:Y-m-d',
     ];
 
     #[Override]

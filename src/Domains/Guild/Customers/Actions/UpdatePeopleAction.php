@@ -43,6 +43,7 @@ class UpdatePeopleAction
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
             'license_number' => $this->peopleData->license_number,
+            'license_expiration_date' => $this->peopleData->license_expiration_date,
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?
