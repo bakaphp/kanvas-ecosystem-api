@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Support\UnrespondedAgentMessageCache;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -81,7 +81,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
-                UnrespondedAgentMessageCache::clear($lead, $channel);
+                UnrespondedLeadAgentMessageCache::clear($lead, $channel);
 
                 $lastMessage = $channel->getLastMessage();
                 if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {

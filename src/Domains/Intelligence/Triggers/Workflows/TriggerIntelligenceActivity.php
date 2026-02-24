@@ -112,7 +112,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
 
     protected function sentDataToOrchestration(Lead $lead, string $aiMode): void
     {
-        $data = ['stateDelta' => ['ai_mode' => $aiMode]];
+        $data = ['stateDelta' => ['mode' => $aiMode]];
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
             $handle->setConfiguration($session->agent, $session->entity());

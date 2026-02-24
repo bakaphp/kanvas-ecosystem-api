@@ -9,7 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
-class UnrespondedAgentMessageCache
+class UnrespondedLeadAgentMessageCache
 {
     public static function generateKey(Lead $lead, Channel $channel): string
     {
