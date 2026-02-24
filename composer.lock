@@ -12109,28 +12109,28 @@
         },
         {
             "name": "spatie/laravel-translatable",
-            "version": "6.12.0",
+            "version": "6.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-translatable.git",
-                "reference": "8fc0c1dd5ab4013c27a28e5d5590f2ce849bd349"
+                "reference": "f2c5b8805a2dd22799c9aa8ce66cd98ce3170dcb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-translatable/zipball/8fc0c1dd5ab4013c27a28e5d5590f2ce849bd349",
-                "reference": "8fc0c1dd5ab4013c27a28e5d5590f2ce849bd349",
+                "url": "https://api.github.com/repos/spatie/laravel-translatable/zipball/f2c5b8805a2dd22799c9aa8ce66cd98ce3170dcb",
+                "reference": "f2c5b8805a2dd22799c9aa8ce66cd98ce3170dcb",
                 "shasum": ""
             },
             "require": {
-                "illuminate/database": "^11.0|^12.0",
-                "illuminate/support": "^11.0|^12.0",
+                "illuminate/database": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
                 "php": "^8.3",
-                "spatie/laravel-package-tools": "^1.92.7"
+                "spatie/laravel-package-tools": "^1.93.0"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.90",
                 "mockery/mockery": "^1.6.12",
-                "orchestra/testbench": "^9.0|^10.0",
+                "orchestra/testbench": "^9.0|^10.0|^11.0",
                 "pestphp/pest": "^4.0.0"
             },
             "type": "library",
@@ -12180,7 +12180,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-translatable/issues",
-                "source": "https://github.com/spatie/laravel-translatable/tree/6.12.0"
+                "source": "https://github.com/spatie/laravel-translatable/tree/6.13.0"
             },
             "funding": [
                 {
@@ -12188,7 +12188,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-11-24T15:57:48+00:00"
+            "time": "2026-02-21T14:20:19+00:00"
         },
         {
             "name": "spatie/laravel-webhook-server",
