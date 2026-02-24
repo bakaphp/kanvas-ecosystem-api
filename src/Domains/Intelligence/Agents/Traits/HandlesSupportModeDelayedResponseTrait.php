@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Support\UnrespondedAgentMessageCache;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -35,9 +35,7 @@ trait HandlesSupportModeDelayedResponseTrait
             return null;
         }
 
-        $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$channel->getId()}";
-
-        if (Cache::has($cacheKey)) {
+        if (UnrespondedAgentMessageCache::exists($lead, $channel)) {
             return [
                 'message' => 'There is already an unresponded message pending in this channel',
                 'entity' => $lead,
@@ -48,12 +46,7 @@ trait HandlesSupportModeDelayedResponseTrait
             CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value
         ) ?? 60;
 
-        Cache::put($cacheKey, [
-            'message_id' => $message->getId(),
-            'channel_id' => $channel->getId(),
-            'lead_id' => $lead->getId(),
-            'dispatched_at' => now()->toIso8601String(),
-        ], now()->addMinutes($delayMinutes + 5));
+        UnrespondedAgentMessageCache::set($lead, $channel, $message, $delayMinutes + 5);
 
         $agentIdForDispatch = $defaultAgentId;
         if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
@@ -61,7 +54,7 @@ trait HandlesSupportModeDelayedResponseTrait
         }
 
         if ($agentIdForDispatch === null) {
-            Cache::forget($cacheKey);
+            UnrespondedAgentMessageCache::clear($lead, $channel);
 
             return [
                 'message' => 'No agent ID found for this channel',

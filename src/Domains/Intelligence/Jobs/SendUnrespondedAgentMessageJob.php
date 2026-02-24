@@ -12,8 +12,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Support\UnrespondedAgentMessageCache;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
@@ -52,20 +52,19 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         $this->overwriteAppService($this->app);
 
         $lead = $this->message->entity();
-        $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$this->channel->getId()}";
 
-        if (! Cache::has($cacheKey)) {
+        if (! UnrespondedAgentMessageCache::exists($lead, $this->channel)) {
             return;
         }
 
         $aiMode = $lead->get('ai_mode');
         if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
-            Cache::forget($cacheKey);
+            UnrespondedAgentMessageCache::clear($lead, $this->channel);
 
             return;
         }
 
-        Cache::forget($cacheKey);
+        UnrespondedAgentMessageCache::clear($lead, $this->channel);
 
         try {
             $action = new $this->actionClass(
