@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\PipelineStages;
 
 use Carbon\Carbon;
-use Kanvas\ActionEngine\Support\Setup;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline as ActionEnginePipeline;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage as ActionEnginePipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -54,31 +57,6 @@ class FollowUpEngagementActionTest extends TestCase
             $company = $user->getCurrentCompany();
             $app = app(Apps::class);
 
-            $actions = [[
-                'id' => 7,
-                'name' => 'credit-app',
-                'description' => 'Credit App',
-                'title' => 'Credit App',
-                'enable' => true,
-                'icon' => '',
-                'reasonEn' => 'apply for financing',
-                'reasonEs' => 'apply for financing',
-                'form_fields' => '{"personal":{"type":"object","required":1},"housing":{"type":"object","required":1},"financial":{"type":"object","required":1}}',
-                'form_config' => '{"require_credit-app_signature":true}',
-            ],[
-                'id' => 8,
-                'name' => 'view-vehicle',
-                'description' => 'View Vehicle',
-                'title' => 'View Vehicle',
-                'enable' => true,
-                'icon' => '',
-                'reasonEn' => 'follow up message to lead',
-                'reasonEs' => 'follow up message to lead',
-                'form_fields' => '{}',
-                'form_config' => '{}',
-            ]];
-            new Setup($app, $user, $company, $actions)->run();
-
             // Ensure inventory infrastructure (channels, warehouses, etc.) exists
             $inventorySetup = new InventorySetup($app, $user, $company);
             $inventorySetup->run();
@@ -95,7 +73,7 @@ class FollowUpEngagementActionTest extends TestCase
             ];
             $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
             $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
-            $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ["New Year's Day", 'Christmas Day', 'Independence Day', 'Labor Day', 'Thanksgiving Day', 'Christmas Eve']);
+            $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ['New Year\'s Day', 'Christmas Day', 'Independence Day', 'Labor Day', 'Thanksgiving Day', 'Christmas Eve']);
             $company->set('adf_sources', [
                 [
                     'Source' => 'Default',
@@ -176,6 +154,54 @@ class FollowUpEngagementActionTest extends TestCase
             $pipelineStage->config = $config;
             $pipelineStage->saveOrFail();
 
+            // Create ActionEngine infrastructure for engagement creation
+            $actionEnginePipeline = ActionEnginePipeline::firstOrCreate([
+                'slug' => 'view-vehicle',
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'name' => 'view-vehicle',
+                'weight' => 0,
+            ]);
+
+            ActionEnginePipelineStage::firstOrCreate([
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'slug' => 'sent',
+            ], [
+                'name' => 'Sent',
+                'weight' => 1,
+            ]);
+
+            ActionEnginePipelineStage::firstOrCreate([
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'slug' => 'submitted',
+            ], [
+                'name' => 'Submitted',
+                'weight' => 2,
+            ]);
+
+            $viewVehicleAction = Action::firstOrCreate([
+                'slug' => 'view-vehicle',
+            ], [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'users_id' => $user->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
+
+            CompanyAction::firstOrCreate([
+                'actions_id' => $viewVehicleAction->getId(),
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'companies_branches_id' => $company->defaultBranch->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
+
             // Create FollowUp infrastructure so FollowUpEngagementAction can find it
             $followUp = FollowUp::create([
                 'apps_id' => $app->getId(),
@@ -231,14 +257,6 @@ class FollowUpEngagementActionTest extends TestCase
 
             $channel->addMessage($message);
             $emailChannel->addMessage($message);
-
-            $agent = Agent::factory()->create([
-                'name' => 'firstMessageEngagerAgent',
-                'apps_id' => $lead->apps_id,
-                'companies_id' => $lead->companies_id,
-                'user_id' => $user->getId(),
-                'role' => [],
-            ]);
 
             $agent = Agent::factory()->create([
                 'name' => 'FollowUpEngagerAgent',

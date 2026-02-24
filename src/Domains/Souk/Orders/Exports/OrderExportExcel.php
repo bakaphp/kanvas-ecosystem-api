@@ -420,7 +420,7 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
         // Insert empty rows for logos (rows 1-4)
         for ($row = 1; $row <= 4; $row++) {
             for ($col = 1; $col <= count($this->data['headers']); $col++) {
-                $sheet->setCellValueByColumnAndRow($col, $row, '');
+                $sheet->setCellValue([$col, $row], '');
             }
         }
 
@@ -445,13 +445,13 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
 
         // Empty row before column headers
         for ($col = 1; $col <= count($this->data['headers']); $col++) {
-            $sheet->setCellValueByColumnAndRow($col, $currentRow, '');
+            $sheet->setCellValue([$col, $currentRow], '');
         }
         $currentRow++;
 
         // Column headers row
         foreach ($this->data['headers'] as $index => $header) {
-            $sheet->setCellValueByColumnAndRow($index + 1, $currentRow, $header);
+            $sheet->setCellValue([$index + 1, $currentRow], $header);
         }
 
         // Update the data starting position

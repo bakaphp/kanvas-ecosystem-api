@@ -220,6 +220,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                     $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
+                                    // Set preferred channel to the first channel that successfully sent a message
+                                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+                                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+                                    }
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 
@@ -357,7 +361,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
-        $agentUser = $lead->app->get('kanvas_agent_user_id');
+        $agentUser = $lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }

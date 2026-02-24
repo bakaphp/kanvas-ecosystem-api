@@ -51,9 +51,9 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
             return $note;
         }
 
-        $shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
-
-        return $note . " \n\n View Full Conversation here: {$shortUrl}";
+        //$shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
+        //return $note . " \n\n View Full Conversation here: {$shortUrl}";
+        return $note;
     }
 
     #[Override]

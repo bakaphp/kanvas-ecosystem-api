@@ -299,6 +299,8 @@ extend type Query @guard {
                     "order_number"
                     "reference"
                     "order_types_id"
+                    "payment_status"
+                    "total_net_amount"
                 ]
             )
         orderType: _
