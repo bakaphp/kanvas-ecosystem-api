@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
