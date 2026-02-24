@@ -2011,16 +2011,16 @@
         },
         {
             "name": "genealabs/laravel-model-caching",
-            "version": "12.0.3",
+            "version": "12.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mikebronner/laravel-model-caching.git",
-                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c"
+                "reference": "0f384b51980fddf6fc54845747937e5786233cad"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/ae605a862d0d3d23463edc46c67d58e0b4faec6c",
-                "reference": "ae605a862d0d3d23463edc46c67d58e0b4faec6c",
+                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/0f384b51980fddf6fc54845747937e5786233cad",
+                "reference": "0f384b51980fddf6fc54845747937e5786233cad",
                 "shasum": ""
             },
             "require": {
@@ -2073,9 +2073,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mikebronner/laravel-model-caching/issues",
-                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.3"
+                "source": "https://github.com/mikebronner/laravel-model-caching/tree/12.0.4"
             },
-            "time": "2026-02-17T23:07:25+00:00"
+            "time": "2026-02-21T14:51:35+00:00"
         },
         {
             "name": "google/apiclient",
@@ -4485,16 +4485,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.52.0",
+            "version": "v12.53.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "d5511fa74f4608dbb99864198b1954042aa8d5a7"
+                "reference": "f57f035c0d34503d9ff30be76159bb35a003cd1f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/d5511fa74f4608dbb99864198b1954042aa8d5a7",
-                "reference": "d5511fa74f4608dbb99864198b1954042aa8d5a7",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/f57f035c0d34503d9ff30be76159bb35a003cd1f",
+                "reference": "f57f035c0d34503d9ff30be76159bb35a003cd1f",
                 "shasum": ""
             },
             "require": {
@@ -4703,7 +4703,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-02-17T17:07:04+00:00"
+            "time": "2026-02-24T14:35:15+00:00"
         },
         {
             "name": "laravel/octane",
@@ -4999,16 +4999,16 @@
         },
         {
             "name": "laravel/serializable-closure",
-            "version": "v2.0.9",
+            "version": "v2.0.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/serializable-closure.git",
-                "reference": "8f631589ab07b7b52fead814965f5a800459cb3e"
+                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/serializable-closure/zipball/8f631589ab07b7b52fead814965f5a800459cb3e",
-                "reference": "8f631589ab07b7b52fead814965f5a800459cb3e",
+                "url": "https://api.github.com/repos/laravel/serializable-closure/zipball/870fc81d2f879903dfc5b60bf8a0f94a1609e669",
+                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669",
                 "shasum": ""
             },
             "require": {
@@ -5056,7 +5056,7 @@
                 "issues": "https://github.com/laravel/serializable-closure/issues",
                 "source": "https://github.com/laravel/serializable-closure"
             },
-            "time": "2026-02-03T06:55:34+00:00"
+            "time": "2026-02-20T19:59:49+00:00"
         },
         {
             "name": "laravel/slack-notification-channel",
