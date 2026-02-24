@@ -36,6 +36,8 @@ use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
+use Kanvas\Connectors\InAppPurchase\Jobs\ProcessAppleSubscriptionWebhookJob;
+use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
@@ -334,6 +336,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushPeopleActivity::class,
             RestoreUsersAccountContentActivity::class,
             ScheduleEleadActivityFromEventAction::class,
+            ProcessAppleSubscriptionWebhookJob::class,
+            ProcessGoogleSubscriptionWebhookJob::class,
         ];
 
         $createdActions = [];
