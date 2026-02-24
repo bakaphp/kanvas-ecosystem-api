@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -12,6 +11,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
@@ -35,9 +35,7 @@ trait HandlesSupportModeDelayedResponseTrait
             return null;
         }
 
-        $cacheKey = "unresponded_agent_message:{$lead->getId()}:{$channel->getId()}";
-
-        if (Cache::has($cacheKey)) {
+        if (UnrespondedLeadAgentMessageCache::exists($lead, $channel)) {
             return [
                 'message' => 'There is already an unresponded message pending in this channel',
                 'entity' => $lead,
@@ -48,12 +46,7 @@ trait HandlesSupportModeDelayedResponseTrait
             CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value
         ) ?? 60;
 
-        Cache::put($cacheKey, [
-            'message_id' => $message->getId(),
-            'channel_id' => $channel->getId(),
-            'lead_id' => $lead->getId(),
-            'dispatched_at' => now()->toIso8601String(),
-        ], now()->addMinutes($delayMinutes + 5));
+        UnrespondedLeadAgentMessageCache::set($lead, $channel, $message, $delayMinutes + 5);
 
         $agentIdForDispatch = $defaultAgentId;
         if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
@@ -61,7 +54,7 @@ trait HandlesSupportModeDelayedResponseTrait
         }
 
         if ($agentIdForDispatch === null) {
-            Cache::forget($cacheKey);
+            UnrespondedLeadAgentMessageCache::clear($lead, $channel);
 
             return [
                 'message' => 'No agent ID found for this channel',
