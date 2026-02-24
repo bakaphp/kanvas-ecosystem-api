@@ -14,8 +14,6 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Kanvas\Workflow\SyncWorkflowStub;
 use Tests\TestCase;
-use Workflow\States\WorkflowCompletedStatus;
-use Workflow\States\WorkflowCreatedStatus;
 
 final class SyncWorkflowStubTest extends TestCase
 {
