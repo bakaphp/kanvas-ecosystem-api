@@ -57,6 +57,7 @@ class GenerateReferralCodeAction
             'referrer_reward' => $this->referrerReward,
             'referee_reward' => $this->refereeReward,
             'referee_discount' => $this->refereeDiscount,
+            'max_uses' => 1,
             'is_active' => true,
             'strategy' => $this->loyaltyProgram->referral_strategy,
         ]);
@@ -79,6 +80,7 @@ class GenerateReferralCodeAction
             'is_one_per_customer' => true,
             'code' => $code,
             'is_active' => true,
+            'usage_limit' => 1,
         ]);
 
         try {
