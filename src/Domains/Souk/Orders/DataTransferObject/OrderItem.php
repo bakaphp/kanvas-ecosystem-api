@@ -68,11 +68,12 @@ class OrderItem extends Data
             // Strategy 2: Fallback to product's default warehouse from its own company (region-aware)
             if (! $warehouse) {
                 $variantWarehouse = $variant->variantWarehouses()
-                    ->whereHas('warehouse', fn ($q) =>
+                    ->whereHas(
+                        'warehouse',
+                        fn ($q) =>
                         $q->where('companies_id', $variant->product->companies_id)
                           ->where('is_deleted', 0)
                     )
-                    ->where('price', '>', 0) // Only select warehouses with pricing
                     ->orderBy('is_default', 'desc')
                     ->first();
 
@@ -122,15 +123,6 @@ class OrderItem extends Data
                 if ($variantWarehouse && $variantWarehouse->price > 0) {
                     $price = (float) $variantWarehouse->price;
                 }
-            }
-
-            // No price found - throw detailed error
-            if ($price == 0.0) {
-                throw new ValidationException(
-                    "No price found for product '{$variant->name}' (SKU: {$variant->sku}) " .
-                    "in warehouse '{$warehouse->name}' (ID: {$warehouse->id}, Company: {$warehouse->companies_id}). " .
-                    "Please configure pricing for this product in the warehouse or provide an explicit price."
-                );
             }
         } else {
             $price = (float) $request['price'];

@@ -20,13 +20,19 @@ class SyncOrderProvidersAction
     public function execute(): void
     {
         $platformCompanyId = $this->order->app->get('B2B_MAIN_COMPANY_ID');
+        $orderCompanyId = $this->order->companies_id;
 
-        // Extract unique provider companies from order items
+        // Extract unique provider companies from order items,
+        // excluding the order's own company and the configured platform company
         $providerIds = $this->order->items()
             ->with('variant.product')
             ->get()
             ->pluck('variant.product.companies_id')
-            ->filter(fn ($id) => $id && $id !== $platformCompanyId)
+            ->filter(
+                fn ($id) => $id
+                && $id !== $orderCompanyId
+                && ($platformCompanyId === null || $id !== $platformCompanyId)
+            )
             ->unique()
             ->values();
 

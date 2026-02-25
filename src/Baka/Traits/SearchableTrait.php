@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 trait SearchableTrait
 {
@@ -24,6 +26,31 @@ trait SearchableTrait
                 ->notDeleted()
                 ->where('id', $id)
                 ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByIdOrGlobal(int $id, ?CompanyInterface $company = null, ?AppInterface $app = null): Model
+    {
+        $company = $company ?? auth()->user()->getCurrentCompany();
+        $companyId = $company->getId();
+
+        try {
+            $query = self::getModel()::when($app, fn ($q, $a) => $q->fromApp($a))
+                ->notDeleted()
+                ->where('id', $id);
+
+            if (($app ?? app(Apps::class))->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
+                $query->where(function ($q) use ($companyId) {
+                    $q->where('companies_id', 0)
+                      ->orWhere('companies_id', $companyId);
+                });
+            } else {
+                $query->where('companies_id', $companyId);
+            }
+
+            return $query->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }

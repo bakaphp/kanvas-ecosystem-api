@@ -25,7 +25,8 @@ class ProductsTypes
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
+        $isGlobal = $user->isAdmin() && (int) ($request['companies_id'] ?? -1) === 0;
+        if (! $user->isAppOwner() || $isGlobal) {
             unset($request['companies_id']);
         }
 
@@ -33,6 +34,11 @@ class ProductsTypes
             ProductsTypesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
+
+        if ($isGlobal) {
+            $productType->companies_id = 0;
+            $productType->saveOrFail();
+        }
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
@@ -60,9 +66,9 @@ class ProductsTypes
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], $company);
 
         (new UpdateProductTypeAction(
             $productType,
@@ -98,7 +104,7 @@ class ProductsTypes
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], auth()->user()->getCurrentCompany());
 
         if (isset($request['input']['products_attributes'])) {
             $productType->productsTypesAttributes()->where('to_variants', 0)->delete();
@@ -119,7 +125,7 @@ class ProductsTypes
      */
     public function delete(mixed $root, array $request): bool
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], auth()->user()->getCurrentCompany());
         return $productType->delete();
     }
 
@@ -130,7 +136,7 @@ class ProductsTypes
     {
         $company = auth()->user()->getCurrentCompany();
 
-        $productType = ProductsTypesRepository::getById((int) $req['id'], $company);
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $req['id'], $company);
         $productTypeTranslateDto = Translate::fromMultiple($req['input'], $company);
 
         $response = TranslationService::updateTranslation(

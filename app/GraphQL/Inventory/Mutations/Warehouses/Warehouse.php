@@ -40,7 +40,7 @@ class Warehouse
         $warehouse = WarehouseRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $request = $request['input'];
         if (key_exists('regions_id', $request)) {
-            $request['regions_id'] = RegionRepository::getById(
+            $request['regions_id'] = RegionRepository::getByIdOrGlobal(
                 (int) $request['regions_id'],
                 auth()->user()->getCurrentCompany()
             )->getKey();

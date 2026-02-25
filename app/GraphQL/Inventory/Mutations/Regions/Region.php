@@ -24,7 +24,8 @@ class Region
     {
         $request = $request['input'];
         $user = auth()->user();
-        if (! $user->isAppOwner()) {
+        $isGlobal = $user->isAdmin() && (int) ($request['companies_id'] ?? -1) === 0;
+        if (! $user->isAppOwner() || $isGlobal) {
             unset($request['companies_id']);
         }
 
@@ -39,7 +40,14 @@ class Region
             throw new ValidationException($validator->messages()->__toString());
         }
 
-        return (new CreateRegionAction($regionDto, $user))->execute();
+        $region = (new CreateRegionAction($regionDto, $user))->execute();
+
+        if ($isGlobal) {
+            $region->companies_id = 0;
+            $region->saveOrFail();
+        }
+
+        return $region;
     }
 
     /**
@@ -51,7 +59,7 @@ class Region
     {
         $id = (int) $request['id'];
         $request = $request['input'];
-        $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());
+        $region = RegionRepository::getByIdOrGlobal($id, auth()->user()->getCurrentCompany());
         $region->update($request);
 
         return $region;
@@ -63,7 +71,7 @@ class Region
     public function delete(mixed $root, array $request): bool
     {
         $id = (int) $request['id'];
-        $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());
+        $region = RegionRepository::getByIdOrGlobal($id, auth()->user()->getCurrentCompany());
         $region->delete();
 
         return true;
