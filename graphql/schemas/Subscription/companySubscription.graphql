@@ -16,6 +16,7 @@ type CompanySubscription {
     created_at: String
     updated_at: String
     is_active: Boolean! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@isActive")
+    config: Mixed @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@appsStripeCustomerConfig")
 }
 
 type SubscriptionItem {

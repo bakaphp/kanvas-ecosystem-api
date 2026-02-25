@@ -18,11 +18,15 @@ class CompanySubscriptionTest extends TestCase
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
 
+        $configData = ['plan' => 'enterprise', 'seats' => 10];
+
         $stripeCustomer = AppsStripeCustomer::firstOrCreate([
             'users_id' => 0,
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
         ]);
+        $stripeCustomer->config = $configData;
+        $stripeCustomer->saveOrFail();
 
         $subscription = Subscription::create([
             'apps_stripe_customer_id' => $stripeCustomer->id,
@@ -49,6 +53,7 @@ class CompanySubscriptionTest extends TestCase
                         quantity
                         started_at
                         is_active
+                        config
                     }
                 }
             }
@@ -59,7 +64,7 @@ class CompanySubscriptionTest extends TestCase
                 'data' => [
                     'companySubscriptions' => [
                         'data' => [
-                            ['id', 'company_id', 'type', 'provider', 'stripe_id', 'stripe_status', 'status', 'plan_name', 'stripe_price', 'quantity', 'started_at', 'is_active'],
+                            ['id', 'company_id', 'type', 'provider', 'stripe_id', 'stripe_status', 'status', 'plan_name', 'stripe_price', 'quantity', 'started_at', 'is_active', 'config'],
                         ],
                     ],
                 ],
@@ -75,5 +80,6 @@ class CompanySubscriptionTest extends TestCase
         $this->assertEquals('default', $found['plan_name']);
         $this->assertEquals('price_test_company_123', $found['stripe_price']);
         $this->assertTrue($found['is_active']);
+        $this->assertEquals($configData, $found['config']);
     }
 }

@@ -51,4 +51,9 @@ class SubscriptionType
     {
         return $subscription->active();
     }
+
+    public function appsStripeCustomerConfig(Subscription $subscription): ?array
+    {
+        return $this->getCustomer($subscription)?->config;
+    }
 }
