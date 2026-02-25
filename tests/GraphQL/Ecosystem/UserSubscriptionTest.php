@@ -64,7 +64,7 @@ class UserSubscriptionTest extends TestCase
                 'data' => [
                     'me' => [
                         'currentSubscription' => [
-                            'id' => (string) $subscription->id,
+                            'id' => (string) $stripeCustomer->id,
                             'type' => 'default',
                             'stripe_status' => 'active',
                             'status' => 'active',
@@ -126,7 +126,7 @@ class UserSubscriptionTest extends TestCase
             ->assertJson([
                 'data' => [
                     'userSubscription' => [
-                        'id' => (string) $subscription->id,
+                        'id' => (string) $stripeCustomer->id,
                         'type' => 'default',
                         'stripe_status' => 'active',
                         'status' => 'active',

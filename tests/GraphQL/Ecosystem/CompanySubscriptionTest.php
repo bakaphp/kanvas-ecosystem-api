@@ -71,7 +71,7 @@ class CompanySubscriptionTest extends TestCase
             ]);
 
         $subscriptions = $response->json('data.companySubscriptions.data');
-        $found = collect($subscriptions)->firstWhere('id', (string) $subscription->id);
+        $found = collect($subscriptions)->firstWhere('id', (string) $stripeCustomer->id);
 
         $this->assertNotNull($found);
         $this->assertEquals((string) $company->getId(), $found['company_id']);

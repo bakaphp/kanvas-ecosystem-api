@@ -1,5 +1,5 @@
 type UserSubscription {
-    id: ID!
+    id: ID! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@id")
     user_id: ID @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@userId")
     type: String
     provider: String @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@provider")
