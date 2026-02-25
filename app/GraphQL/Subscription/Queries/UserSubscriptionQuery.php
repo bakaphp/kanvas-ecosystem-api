@@ -20,7 +20,7 @@ class UserSubscriptionQuery
             ->join('apps_stripe_customers', 'apps_stripe_customers.id', '=', 'subscriptions.apps_stripe_customer_id')
             ->where('apps_stripe_customers.apps_id', $app->getId())
             ->where('apps_stripe_customers.companies_id', 0)
-            ->where('subscriptions.id', $args['id']);
+            ->where('apps_stripe_customers.id', $args['id']);
 
         if (! $user->isAppOwner()) {
             $query->where('apps_stripe_customers.users_id', $user->getId());

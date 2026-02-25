@@ -120,7 +120,7 @@ class UserSubscriptionTest extends TestCase
                     config
                 }
             }
-        ', ['id' => $subscription->id]);
+        ', ['id' => $stripeCustomer->id]);
 
         $response->assertSuccessful()
             ->assertJson([
