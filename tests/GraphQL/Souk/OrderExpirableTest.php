@@ -574,6 +574,7 @@ class OrderExpirableTest extends TestCase
         );
 
         // Create first order with tracking ID
+        $uniqueTrackingId = 'TEST-CANCELLED-' . fake()->uuid();
         $firstOrderData = [
             "cartId" => 0,
             'customer' => [
@@ -588,7 +589,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => 'TEST-CANCELLED-001',
+                    'tracking_id' => $uniqueTrackingId,
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
@@ -618,10 +619,17 @@ class OrderExpirableTest extends TestCase
         $order = Order::findOrFail($orderId);
         $cancelledStatus = $order->orderType->statuses()->where('slug', 'cancelled')->first();
 
-        if ($cancelledStatus) {
-            $order->order_status_id = $cancelledStatus->id;
-            $order->save();
+        if (! $cancelledStatus) {
+            $cancelledStatus = $order->orderType->statuses()->create([
+                'name' => 'Cancelled',
+                'slug' => 'cancelled',
+                'apps_id' => $app->getId(),
+                'is_deleted' => 0,
+            ]);
         }
+
+        $order->order_status_id = $cancelledStatus->id;
+        $order->save();
 
         // Try to create second order with same tracking ID (lowercase) - should SUCCEED because first order is cancelled
         $duplicateOrderData = [
@@ -637,7 +645,7 @@ class OrderExpirableTest extends TestCase
             ],
             'metadata' => [
                 'data' => [
-                    'tracking_id' => 'test-cancelled-001', // lowercase - but should be allowed because first order is cancelled
+                    'tracking_id' => strtolower($uniqueTrackingId), // lowercase - but should be allowed because first order is cancelled
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
                 ]
