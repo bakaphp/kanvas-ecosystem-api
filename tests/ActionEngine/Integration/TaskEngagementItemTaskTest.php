@@ -7,6 +7,7 @@ namespace Tests\ActionEngine\Integration;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -322,5 +323,88 @@ final class TaskEngagementItemTaskTest extends TestCase
         $taskEngagementItem->completeRelatedItems();
 
         $this->assertCount(2, TaskEngagementItem::where('status', 'completed')->fromCompany($company)->where('lead_id', $lead->getId())->get());
+    }
+
+    public function testCompleteSiblingChecklistItems(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        // Enable the feature flag
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Trade In Action',
+            'slug' => 'trade-in-action',
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Trade In',
+        ]);
+
+        // Create two separate checklists
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        // Same name + same companies_action_id in both checklists
+        $itemInA = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Trade In',
+            'config' => [],
+            'weight' => 1,
+        ]);
+
+        $itemInB = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Trade In',
+            'config' => [],
+            'weight' => 1,
+        ]);
+
+        // Complete item in checklist A via the action
+        $result = new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $itemInA,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+        )->execute();
+
+        $this->assertEquals('completed', $result->status);
+
+        // Item in checklist B should also be completed
+        $siblingEngagement = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $itemInB->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+
+        $this->assertNotNull($siblingEngagement);
+        $this->assertEquals('completed', $siblingEngagement->status);
+
+        // Clean up
+        $company->del('checklist_auto_complete_siblings');
     }
 }
