@@ -12,4 +12,5 @@ enum CustomFieldEnum: string
     case AZUL_TICKET = 'azul_ticket';
     case AZUL_RRN = 'azul_rrn';
     case AZUL_LOT_NUMBER = 'azul_lot_number';
+    case AZUL_3DS_PA_RES = 'azul_3ds_pa_res';
 }

@@ -200,6 +200,39 @@ class AzulService
     }
 
     /**
+     * Complete a 3DS challenge by submitting the cRes returned by the ACS.
+     * Must be called after the cardholder completes authentication and the ACS
+     * POSTs the cRes to the TermUrl.
+     */
+    public function processThreeDSMethod(string $azulOrderId, string $cRes, string $methodNotificationStatus = 'Y', ?string $sessionData = null): AzulPaymentResponse
+    {
+        $payload = [
+            'Channel'                  => $this->channel,
+            'Store'                    => $this->store,
+            'AzulOrderId'              => $azulOrderId,
+            'cRes'                     => $cRes,
+            'MethodNotificationStatus' => $methodNotificationStatus ?? "RECEIVED",
+            'ThreeDSMethodNotificationStatus' => $methodNotificationStatus ?? "RECEIVED",
+            'threeDSSessionData'       => $sessionData ?? "",
+        ];
+
+
+        $response = $this->client->post($payload, $this->client->getThreeDSMethodUrl());
+        $result   = AzulPaymentResponse::fromAzulResponse($response);
+
+        if (! $result->isApproved()) {
+            throw new AzulException(
+                $result->responseMessage ?: $result->errorDescription ?: '3DS challenge finalization failed',
+                0,
+                null,
+                $response
+            );
+        }
+
+        return $result;
+    }
+
+    /**
      * Initiate a 3DS-enabled Sale.
      * Unlike sale(), this does NOT throw when Azul returns a 3DS challenge —
      * a challenge response (is3DSChallenge()) is a valid intermediate state.
@@ -211,7 +244,7 @@ class AzulService
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
-        if (! $result->isApproved() && ! $result->is3DSChallenge()) {
+        if (! $result->isApproved() && ! $result->is3DSMethod() && ! $result->is3DSChallenge()) {
             throw new AzulException(
                 $result->responseMessage ?: $result->errorDescription ?: 'Sale transaction declined',
                 0,
@@ -233,7 +266,7 @@ class AzulService
         $response = $this->client->post($payload);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
-        if (! $result->isApproved() && ! $result->is3DSChallenge()) {
+        if (! $result->isApproved() && ! $result->is3DSMethod() && ! $result->is3DSChallenge()) {
             throw new AzulException(
                 $result->responseMessage ?: $result->errorDescription ?: 'Hold transaction declined',
                 0,

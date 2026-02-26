@@ -17,39 +17,21 @@ class PaymentProcessorMutation
     public function processPayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
-
-        if ($payment->status === PaymentStatusEnum::PAID->value) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment is already paid',
-            ];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return [
-                'status' => 'error',
-                'message' => 'Order not found for this payment',
-            ];
-        }
-
-        $processorName = $payment->paymentMethod?->processor;
+        $user = auth()->user();
 
         try {
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+
+            if ($payment->isPaid()) {
+                return ['status' => 'error', 'message' => 'Payment is already paid'];
+            }
+
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+
+            if ($order->isPaid()) {
+                return ['status' => 'error', 'message' => 'Order is already paid'];
+            }
+
             $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
 
             $context = [];
@@ -57,7 +39,7 @@ class PaymentProcessorMutation
                 $context['use_hold'] = (bool) $payment->metadata['use_hold'];
             }
 
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
             $result = $processor->authorize($payment, $order, $context);
 
             return [
@@ -67,55 +49,28 @@ class PaymentProcessorMutation
                 'data' => $result->raw,
             ];
         } catch (Exception $e) {
-            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment?->update(['status' => PaymentStatusEnum::FAILED->value]);
 
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'data' => [],
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage(), 'data' => []];
         }
     }
 
     public function capturePayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
-
-        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment is not in authorized status. Current status: ' . $payment->status,
-            ];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return [
-                'status' => 'error',
-                'message' => 'Order not found for this payment',
-            ];
-        }
-
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $user = auth()->user();
 
         try {
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+
+            if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+                return ['status' => 'error', 'message' => 'Payment is not in authorized status. Current status: ' . $payment->status];
+            }
+
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
             $result = $processor->capture($payment, $order, $amount);
 
             return [
@@ -125,53 +80,26 @@ class PaymentProcessorMutation
                 'data' => $result->raw,
             ];
         } catch (Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'data' => [],
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage(), 'data' => []];
         }
     }
 
     public function refundPayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
-
-        if (! in_array($payment->status, [PaymentStatusEnum::PAID->value, PaymentStatusEnum::AUTHORIZED->value])) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment cannot be refunded. Current status: ' . $payment->status,
-            ];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return [
-                'status' => 'error',
-                'message' => 'Order not found for this payment',
-            ];
-        }
-
-        $processorName = $payment->paymentMethod?->processor;
+        $user = auth()->user();
 
         try {
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+
+            if (! in_array($payment->status, [PaymentStatusEnum::PAID->value, PaymentStatusEnum::AUTHORIZED->value])) {
+                return ['status' => 'error', 'message' => 'Payment cannot be refunded. Current status: ' . $payment->status];
+            }
+
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
             $result = $processor->refund($payment, $order, $amount);
 
             return [
@@ -181,44 +109,20 @@ class PaymentProcessorMutation
                 'data' => $result->raw,
             ];
         } catch (Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'data' => [],
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage(), 'data' => []];
         }
     }
 
     public function voidPayment(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return [
-                'status' => 'error',
-                'message' => 'Order not found for this payment',
-            ];
-        }
-
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $user = auth()->user();
 
         try {
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
             $result = $processor->void($payment, $order);
 
             return [
@@ -228,44 +132,29 @@ class PaymentProcessorMutation
                 'data' => $result->raw,
             ];
         } catch (Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'data' => [],
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage(), 'data' => []];
         }
     }
 
     public function startChallenge(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return ['success' => false, 'message' => 'Payment not found', 'status' => 'error', 'data' => null];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return ['success' => false, 'message' => 'Order not found for this payment', 'status' => 'error', 'data' => null];
-        }
-
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $user = auth()->user();
 
         try {
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
 
-            if (! ($processor instanceof ThreeDSProcessorInterface)) {
-                return ['success' => false, 'message' => "Processor '{$processorName}' does not support 3DS", 'status' => 'error', 'data' => null];
+            if ($payment->isPaid()) {
+                return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $result = $processor->startChallenge($payment, $order);
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+
+            if ($order->isPaid()) {
+                return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
+            }
+
+            $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order);
 
             return [
                 'success' => $result->success,
@@ -281,33 +170,22 @@ class PaymentProcessorMutation
     public function finalizeChallenge(mixed $root, array $request): array
     {
         $app = app(Apps::class);
-        $paymentId = (int) $request['paymentId'];
-
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return ['success' => false, 'message' => 'Payment not found', 'status' => 'error', 'data' => null];
-        }
-
-        $order = $payment->order;
-
-        if (! $order) {
-            return ['success' => false, 'message' => 'Order not found for this payment', 'status' => 'error', 'data' => null];
-        }
-
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $user = auth()->user();
 
         try {
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
 
-            if (! ($processor instanceof ThreeDSProcessorInterface)) {
-                return ['success' => false, 'message' => "Processor '{$processorName}' does not support 3DS", 'status' => 'error', 'data' => null];
+            if ($payment->isPaid()) {
+                return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $result = $processor->finalizeChallenge($payment, $order);
+            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+
+            if ($order->isPaid()) {
+                return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
+            }
+
+            $result = $this->resolveThreeDSProcessor($payment, $app)->finalizeChallenge($payment, $order);
 
             return [
                 'success' => $result->success,
@@ -324,42 +202,22 @@ class PaymentProcessorMutation
     {
         $app = app(Apps::class);
 
-        if (isset($request['paymentId'])) {
-            $payment = Payments::where([
-                'apps_id' => $app->getId(),
-                'id' => (int) $request['paymentId'],
-            ])->first();
-
-            if (! $payment) {
-                return ['status' => 'error', 'message' => 'Payment not found'];
-            }
-
-            $order = $payment->order;
-        } else {
-            $order = Order::where([
-                'apps_id' => $app->getId(),
-                'id' => (int) $request['orderId'],
-            ])->first();
-
-            if (! $order) {
-                return ['status' => 'error', 'message' => 'Order not found'];
-            }
-
-            $payment = Payments::getLatestForEntity($order, [PaymentStatusEnum::PAID->value]);
-
-            if (! $payment) {
-                return ['status' => 'error', 'message' => 'No payment found for this order'];
-            }
-        }
-
-        if (! $order) {
-            return ['status' => 'error', 'message' => 'Order not found for this payment'];
-        }
-
-        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
-
         try {
-            $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+            if (isset($request['paymentId'])) {
+                $user = auth()->user();
+                $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
+                $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            } else {
+                $order = Order::where([
+                    'apps_id' => $app->getId(),
+                    'id' => (int) $request['orderId'],
+                ])->firstOrFail();
+
+                $payment = Payments::getLatestForEntity($order, [PaymentStatusEnum::PAID->value])
+                    ?? throw new \RuntimeException('No payment found for this order');
+            }
+
+            $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
             $result = $processor->verify($payment, $order);
 
             return [
@@ -370,10 +228,19 @@ class PaymentProcessorMutation
                 'data' => $result->raw,
             ];
         } catch (Exception $e) {
-            return [
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ];
+            return ['status' => 'error', 'message' => $e->getMessage()];
         }
+    }
+
+    private function resolveThreeDSProcessor(Payments $payment, Apps $app): ThreeDSProcessorInterface
+    {
+        $processorName = $payment->paymentMethod?->processor ?? $payment->processor;
+        $processor = ProcessorFactory::make($processorName, $app, $payment->company);
+
+        if (! ($processor instanceof ThreeDSProcessorInterface)) {
+            throw new \RuntimeException("Processor '{$processorName}' does not support 3DS");
+        }
+
+        return $processor;
     }
 }

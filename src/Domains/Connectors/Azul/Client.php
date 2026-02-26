@@ -128,6 +128,11 @@ class Client
         return $this->baseUrl . '?VerifyPayment';
     }
 
+    public function getThreeDSMethodUrl(): string
+    {
+        return $this->baseUrl . '?ProcessThreeDSMethod';
+    }
+
     public function getGuzzleClient(): GuzzleClient
     {
         return $this->client;

@@ -62,7 +62,7 @@ class AzulSaleTest extends AzulBase
         $this->apps->set(ConfigurationEnum::AZUL_CERT_PATH->value, env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH'));
         $this->apps->set(ConfigurationEnum::AZUL_KEY_PATH->value, env('TEST_AZUL_KEY_PATH') ?? env('AZUL_KEY_PATH'));
         $this->apps->set(ConfigurationEnum::AZUL_3DS_TERM_URL->value, env('TEST_AZUL_3DS_TERM_URL') ?? env('AZUL_3DS_TERM_URL'));
-        $this->apps->set(ConfigurationEnum::AZUL_3DS_METHOD_URL->value, env('TEST_AZUL_3DS_METHOD_URL') ?? env('AZUL_3DS_METHOD_URL'));
+        $this->apps->set(ConfigurationEnum::AZUL_3DS_METHOD_NOTIFICATION_URL->value, env('TEST_AZUL_3DS_METHOD_NOTIFICATION_URL') ?? env('AZUL_3DS_METHOD_NOTIFICATION_URL'));
 
         $this->setAllowNoPaymentStatus(true, $this->apps);
 

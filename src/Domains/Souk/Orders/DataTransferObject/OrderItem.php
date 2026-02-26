@@ -42,8 +42,12 @@ class OrderItem extends Data
             $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
         }
 
-        $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
-        $price = (float) ($request['price'] ?? $variant->getPrice($warehouse, Channels::getDefault($company, $app)));
+        if (isset($request['price'])) {
+            $price = (float) $request['price'];
+        } else {
+            $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with stock
+            $price = (float) $variant->getPrice($warehouse, Channels::getDefault($company, $app));
+        }
 
         $channelId = $request['channel_id'] ?? $request['attributes']['channel_id'] ?? null;
         if ($channelId !== null) {

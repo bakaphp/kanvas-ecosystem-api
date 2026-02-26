@@ -27,15 +27,9 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $paymentId = (int) $request['paymentID'];
+        $user = auth()->user();
 
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            throw new Exception('Payment not found');
-        }
+        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
 
         $paymentIntent = new MakePaymentIntentAction($payment);
 
@@ -462,18 +456,9 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $paymentId = (int) $request['paymentId'];
+        $user = auth()->user();
 
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
+        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
 
         $order = $payment->payable;
 
@@ -538,17 +523,7 @@ class PaymentMutation
         $app = app(Apps::class);
         $paymentId = (int) $request['paymentId'];
 
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
+        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
 
         if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
             return [
@@ -601,17 +576,7 @@ class PaymentMutation
         $paymentId = (int) $request['paymentId'];
         $reason = $request['reason'] ?? 'Manual reversal';
 
-        $payment = Payments::where([
-            'apps_id' => $app->getId(),
-            'id' => $paymentId,
-        ])->first();
-
-        if (! $payment) {
-            return [
-                'status' => 'error',
-                'message' => 'Payment not found',
-            ];
-        }
+        $payment = Payments::getByIdFromCompanyApp($paymentId, $user->getCurrentCompany(), $app);
 
         if (! in_array($payment->status, [PaymentStatusEnum::AUTHORIZED->value, PaymentStatusEnum::PAID->value])) {
             return [

@@ -50,7 +50,6 @@ class AzulPaymentRequest extends Data
             'Payments'             => $this->payments,
             'Plan'                 => $this->plan,
             'AcquirerRefData'      => $this->acquirerRefData,
-            'RRN'                  => $this->rrn,
             'CustomerServicePhone' => $this->customerServicePhone,
             'OrderNumber'          => $this->orderNumber,
             'ECommerceUrl'         => $this->eCommerceUrl,
@@ -74,6 +73,10 @@ class AzulPaymentRequest extends Data
 
         if ($this->azulOrderId !== null) {
             $data['AzulOrderId'] = $this->azulOrderId;
+        }
+
+        if ($this->rrn !== null) {
+            $data['RRN'] = $this->rrn;
         }
 
         if ($this->threeDSAuth !== null) {

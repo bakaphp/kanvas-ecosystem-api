@@ -162,7 +162,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 message: $response->responseMessage,
                 transactionId: $response->azulOrderId,
                 paymentStatus: $paymentStatus,
-                raw: $response->toArray(),
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
@@ -264,7 +264,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: true,
                 message: $response->responseMessage,
                 transactionId: $response->azulOrderId,
-                raw: $response->toArray(),
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
@@ -330,7 +330,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: true,
                 message: $response->responseMessage,
                 transactionId: $response->azulOrderId,
-                raw: $response->toArray(),
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
@@ -400,7 +400,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 success: true,
                 message: $response->responseMessage,
                 transactionId: $response->azulOrderId,
-                raw: $response->toArray(),
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
@@ -471,7 +471,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 transactionId: $response->azulOrderId,
                 isoCode: $response->isoCode,
                 responseCode: $response->responseCode,
-                raw: $response->toArray(),
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $payment->addLog('verify_payment_failed', [
@@ -514,6 +514,11 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             ? (bool) $context['use_hold']
             : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
 
+        $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
+        $termUrl     = $baseTermUrl
+            ? $baseTermUrl . (str_contains($baseTermUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
+            : '';
+
         $request = $this->build3DSSaleRequest($payment, $order, $context);
         $start   = hrtime(true);
 
@@ -527,6 +532,29 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             // Store the AzulOrderId immediately so finalizeChallenge / verify can use it
             $payment->payment_intent_id  = $response->azulOrderId;
             $payment->authorization_code = $response->authorizationCode;
+
+            if ($response->is3DSMethod()) {
+                // 3DS v2 method step — browser fingerprinting required before challenge
+                $payment->update(['status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value]);
+
+                $payment->addLog('3ds_method_required', [
+                    'processor'      => $this->name(),
+                    'order_id'       => $order->id,
+                    'azul_order_id'  => $response->azulOrderId,
+                    'response_time_ms' => $responseTimeMs,
+                ]);
+
+                return new ThreeDSResult(
+                    success: true,
+                    message: '3DS method data collection required — render method_form in hidden iFrame, then retry',
+                    status: PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                    data: [
+                        'azul_order_id' => $response->azulOrderId,
+                        'method_form'   => $response->methodForm,
+                    ],
+                    raw: $response->raw,
+                );
+            }
 
             if ($response->isApproved()) {
                 // Card not enrolled — direct approval, no challenge needed
@@ -558,32 +586,57 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                     message: $response->responseMessage,
                     status: PaymentStatusEnum::PAID->value,
                     data: ['azul_order_id' => $response->azulOrderId],
-                    raw: $response->toArray(),
+                    raw: $response->raw,
                 );
             }
 
-            // 3DS challenge required
-            $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
+            if ($response->is3DSChallenge()) {
+                // 3DS challenge required — issuer demands cardholder authentication.
+                // This can happen in two ways:
+                //   (A) After the 3DS method (fingerprinting) step was completed first.
+                //   (B) Directly, when the issuer skips the method step entirely.
+                // In both cases, redirect the cardholder to acs_url with pa_req.
+                $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
 
-            $payment->addLog('3ds_challenge_initiated', [
-                'processor'      => $this->name(),
-                'order_id'       => $order->id,
-                'azul_order_id'  => $response->azulOrderId,
-                'acs_url'        => $response->acsUrl,
+                $payment->addLog('3ds_challenge_initiated', [
+                    'processor'        => $this->name(),
+                    'order_id'         => $order->id,
+                    'azul_order_id'    => $response->azulOrderId,
+                    'acs_url'          => $response->acsUrl,
+                    'response_time_ms' => $responseTimeMs,
+                ]);
+
+                return new ThreeDSResult(
+                    success: true,
+                    message: '3DS challenge required — redirect cardholder to acs_url',
+                    status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+                    data: [
+                        'azul_order_id'     => $response->azulOrderId,
+                        'acs_url'           => $response->acsUrl,
+                        'pa_req'            => $response->paReq,
+                        'term_url'          => $termUrl,
+                        'three_ds_trans_id' => $response->threeDSTransId,
+                        'challenge_form'    => $this->buildChallengeForm($response->acsUrl, $response->paReq, $termUrl),
+                    ],
+                    raw: $response->raw,
+                );
+            }
+
+            // Unrecognized response — treat as failure
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_unrecognized_response', [
+                'processor'        => $this->name(),
+                'order_id'         => $order->id,
+                'iso_code'         => $response->isoCode,
+                'response_message' => $response->responseMessage,
                 'response_time_ms' => $responseTimeMs,
             ]);
 
             return new ThreeDSResult(
-                success: true,
-                message: '3DS challenge required — redirect cardholder to acs_url',
-                status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-                data: [
-                    'azul_order_id'    => $response->azulOrderId,
-                    'acs_url'          => $response->acsUrl,
-                    'pa_req'           => $response->paReq,
-                    'three_ds_trans_id' => $response->threeDSTransId,
-                ],
-                raw: $response->toArray(),
+                success: false,
+                message: $response->responseMessage ?: 'Unrecognized 3DS response (IsoCode: ' . $response->isoCode . ')',
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $response->raw,
             );
         } catch (AzulException $e) {
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
@@ -595,6 +648,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'error'          => $e->getMessage(),
                 'error_body'     => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
+                'request'        => $request->toArray(),
             ]);
 
             return new ThreeDSResult(
@@ -612,31 +666,81 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function finalizeChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
-        $verifyResult = $this->verify($payment, $order);
+        $azulOrderId = $payment->payment_intent_id ?? '';
+        $cRes        = $payment->getMetadata('3ds_pa_res') ?? '';
+        $sessionData = $payment->getMetadata('3ds_session_data');
 
-        if ($verifyResult->success) {
+        if (empty($azulOrderId)) {
             return new ThreeDSResult(
-                success: true,
-                message: $verifyResult->message,
-                status: PaymentStatusEnum::PAID->value,
-                data: ['azul_order_id' => $verifyResult->transactionId],
-                raw: $verifyResult->raw,
+                success: false,
+                message: 'Missing AzulOrderId — challenge was never initiated for this payment',
+                status: PaymentStatusEnum::FAILED->value,
             );
         }
 
-        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
-        $payment->addLog('3ds_finalize_failed', [
-            'processor' => $this->name(),
-            'order_id'  => $order->id,
-            'error'     => $verifyResult->message,
-        ]);
+        if (empty($cRes)) {
+            return new ThreeDSResult(
+                success: false,
+                message: 'Missing cRes — TermUrl callback has not been received yet',
+                status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            );
+        }
 
-        return new ThreeDSResult(
-            success: false,
-            message: $verifyResult->message ?: '3DS challenge verification failed',
-            status: PaymentStatusEnum::FAILED->value,
-            raw: $verifyResult->raw,
-        );
+        try {
+            $response = $this->service->processThreeDSMethod($azulOrderId, $cRes, sessionData: $sessionData ?? null);
+
+            $responseData = [
+                'data' => [
+                    'azul_order_id'      => $response->azulOrderId,
+                    'authorization_code' => $response->authorizationCode,
+                    'response_message'   => $response->responseMessage,
+                    'iso_code'           => $response->isoCode,
+                    'ticket'             => $response->ticket,
+                    'rrn'                => $response->rrn,
+                ],
+            ];
+
+            if (! empty($response->dateTime)) {
+                $payment->payment_date = Carbon::createFromFormat('YmdHis', $response->dateTime)->toDateString();
+            }
+
+            $payment->number = $response->ticket;
+            $payment->markAsPaid($responseData);
+            $order->markAsPaid();
+
+            $payment->addLog('3ds_finalize_success', [
+                'processor'     => $this->name(),
+                'order_id'      => $order->id,
+                'azul_order_id' => $response->azulOrderId,
+            ]);
+
+            return new ThreeDSResult(
+                success: true,
+                message: $response->responseMessage,
+                status: PaymentStatusEnum::PAID->value,
+                data: ['azul_order_id' => $response->azulOrderId],
+                raw: $response->raw,
+            );
+        } catch (AzulException $e) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_finalize_failed', [
+                'processor' => $this->name(),
+                'order_id'  => $order->id,
+                'error'     => $e->getMessage(),
+                'request' => [
+                    'azul_order_id' => $azulOrderId,
+                    'cRes' => $cRes
+                ],
+                 'error_body' => $e->getErrorBody(),
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: $e->getMessage(),
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $e->getErrorBody(),
+            );
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -762,8 +866,14 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             ?? $this->normalizeExpiration($paymentMethod->expiration_date ?? '')
         );
 
-        $termUrl   = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
-        $methodUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_METHOD_URL->value) ?? '');
+        $baseTermUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_TERM_URL->value) ?? '');
+        $termUrl     = $baseTermUrl
+            ? $baseTermUrl . (str_contains($baseTermUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
+            : '';
+        $baseMethodUrl = (string) ($this->app->get(ConfigurationEnum::AZUL_3DS_METHOD_NOTIFICATION_URL->value) ?? '');
+        $methodUrl     = $baseMethodUrl
+            ? $baseMethodUrl . (str_contains($baseMethodUrl, '?') ? '&' : '?') . 'payment_id=' . $payment->id
+            : '';
 
         $threeDSAuth = [
             'TermUrl'                      => $termUrl,
@@ -786,9 +896,74 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             dataVaultToken: $dataVaultToken,
             saveToDataVault: $dataVaultToken ? '0' : '1',
             forceNo3DS: '', // empty = enable 3DS
+            azulOrderId: $context['azul_order_id'] ?? null, // used when retrying after 3DS method step
             threeDSAuth: $threeDSAuth,
-            cardHolderInfo: $context['card_holder_info'] ?? null,
+            cardHolderInfo: $context['card_holder_info'] ?? $this->buildCardHolderInfo($payment, $order),
         );
+    }
+
+    private function buildChallengeForm(string $acsUrl, string $creq, string $termUrl): string
+    {
+        $acsUrl  = htmlspecialchars($acsUrl, ENT_QUOTES, 'UTF-8');
+        $creq    = htmlspecialchars($creq, ENT_QUOTES, 'UTF-8');
+        $termUrl = htmlspecialchars($termUrl, ENT_QUOTES, 'UTF-8');
+
+        return <<<HTML
+            <html><body onload="document.forms[0].submit()">
+            <form name="frm" method="POST" action="{$acsUrl}">
+                <input type="hidden" name="creq" value="{$creq}">
+                <input type="hidden" name="TermUrl" value="{$termUrl}">
+            </form>
+            </body></html>
+            HTML;
+    }
+
+    private function buildCardHolderInfo(Payments $payment, Order $order): ?array
+    {
+        $meta = $payment->paymentMethod->metadata ?? [];
+
+        $city         = $meta['city'] ?? null;
+        $state        = $meta['state'] ?? null;
+        $country      = $meta['country'] ?? null;
+        $zip          = $meta['zip_code'] ?? null;
+        $address      = $meta['address'] ?? null;
+        $address2     = $meta['address2'] ?? null;
+        $address3     = $meta['address3'] ?? null;
+        $name         = trim(($meta['firstname'] ?? '') . ' ' . ($meta['lastname'] ?? ''));
+        $phoneMobile  = $meta['phone'] ?? $meta['phone_mobile'] ?? null;
+        $phoneHome    = $meta['phone_home'] ?? null;
+        $phoneWork    = $meta['phone_work'] ?? null;
+        $email        = $meta['email'] ?? $order->user_email ?? null;
+
+        if (! $city && ! $address && ! $name && ! $email) {
+            return null;
+        }
+
+        $info = [];
+
+        if ($name)        $info['Name']                  = $name;
+        if ($email)       $info['Email']                 = $email;
+        if ($phoneMobile) $info['PhoneMobile']           = $phoneMobile;
+        if ($phoneHome)   $info['PhoneHome']             = $phoneHome;
+        if ($phoneWork)   $info['PhoneWork']             = $phoneWork;
+        if ($address)     $info['BillingAddressLine1']   = $address;
+        if ($address2)    $info['BillingAddressLine2']   = $address2;
+        if ($address3)    $info['BillingAddressLine3']   = $address3;
+        if ($city)        $info['BillingAddressCity']    = $city;
+        if ($state)       $info['BillingAddressState']   = $state;
+        if ($country)     $info['BillingAddressCountry'] = $country;
+        if ($zip)         $info['BillingAddressZip']     = $zip;
+
+        // Mirror billing → shipping when no separate shipping address is provided
+        if ($address)  $info['ShippingAddressLine1']   = $address;
+        if ($address2) $info['ShippingAddressLine2']   = $address2;
+        if ($address3) $info['ShippingAddressLine3']   = $address3;
+        if ($city)     $info['ShippingAddressCity']    = $city;
+        if ($state)    $info['ShippingAddressState']   = $state;
+        if ($country)  $info['ShippingAddressCountry'] = $country;
+        if ($zip)      $info['ShippingAddressZip']     = $zip;
+
+        return $info;
     }
 
     private function buildSaleRequest(Payments $payment, Order $order): AzulPaymentRequest

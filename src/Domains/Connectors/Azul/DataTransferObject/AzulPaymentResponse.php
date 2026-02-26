@@ -30,6 +30,10 @@ class AzulPaymentResponse extends Data
         public readonly string $acsUrl = '',
         public readonly string $paReq = '',
         public readonly string $threeDSTransId = '',
+        // 3DS v2 method fields (present when IsoCode = '3D2METHOD')
+        public readonly string $methodForm = '',
+        // Original unmodified response from the Azul API
+        public readonly array $raw = [],
     ) {
     }
 
@@ -53,9 +57,11 @@ class AzulPaymentResponse extends Data
             maskedCardNumber: $response['CardNumber'] ?? '',
             expiration: $response['Expiration'] ?? '',
             hasCvv: (bool) ($response['HasCVV'] ?? false),
-            acsUrl: $response['ACSUrl'] ?? '',
-            paReq: $response['PAReq'] ?? $response['CReq'] ?? '',
+            acsUrl: $response['ThreeDSChallenge']['RedirectPostUrl'] ?? $response['ACSUrl'] ?? '',
+            paReq: $response['ThreeDSChallenge']['CReq'] ?? $response['ThreeDSChallenge']['PaReq'] ?? $response['PAReq'] ?? $response['CReq'] ?? '',
             threeDSTransId: $response['ThreeDSTransID'] ?? $response['ThreeDSServerTransID'] ?? '',
+            methodForm: $response['ThreeDSMethod']['MethodForm'] ?? $response['MethodForm'] ?? '',
+            raw: $response,
         );
     }
 
@@ -65,12 +71,25 @@ class AzulPaymentResponse extends Data
     }
 
     /**
+     * Returns true when Azul requires browser fingerprinting (3DS v2 method step).
+     * The frontend must render the MethodForm HTML in a hidden iFrame, then retry.
+     */
+    public function is3DSMethod(): bool
+    {
+        return $this->isoCode === '3D2METHOD'
+            || $this->responseMessage === '3D_SECURE_2_METHOD'
+            || ! empty($this->methodForm);
+    }
+
+    /**
      * Returns true when Azul requires a 3DS challenge before completing the transaction.
      * A challenge response includes an ACS URL (redirect for cardholder authentication)
      * but has not yet been approved (IsoCode != '00').
      */
     public function is3DSChallenge(): bool
     {
-        return ! empty($this->acsUrl) || $this->responseCode === '3DS';
+        return $this->isoCode === '3D'
+            || $this->responseMessage === '3D_SECURE_CHALLENGE'
+            || ! empty($this->acsUrl);
     }
 }

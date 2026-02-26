@@ -59,6 +59,11 @@ class Payments extends BaseModel
         return $this->morphTo('payable');
     }
 
+    public function getMetadata(string $key): mixed
+    {
+        return $this->metadata['data'][$key] ?? null;
+    }
+
     public function addMetadata(array $metadata): void
     {
         $this->metadata = [
@@ -74,6 +79,11 @@ class Payments extends BaseModel
     public function addLog(string $event, array $context = []): void
     {
         app(LogPaymentEventAction::class)->execute($this, $event, $context);
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->status === PaymentStatusEnum::PAID->value;
     }
 
     public function markAsPaid(array $metadata = []): void
