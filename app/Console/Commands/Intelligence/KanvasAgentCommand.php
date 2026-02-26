@@ -23,7 +23,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\AgentMonitoring;
+use NeuronAI\Observability\InspectorObserver;
 
 class KanvasAgentCommand extends Command
 {

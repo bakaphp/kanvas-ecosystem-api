@@ -159,7 +159,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
      * Clear the chat history (required by AbstractChatHistory)
      */
     #[Override]
-    protected function clear(): ChatHistoryInterface
+    protected function clear(): void
     {
         // Clear in-memory history
         $this->history = [];
@@ -170,8 +170,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
             ->where('entity_namespace', $this->entityNamespace)
             ->where('entity_id', $this->entityId)
             ->update(['is_deleted' => true]);
-
-        return $this;
     }
 
     /**
@@ -180,7 +178,9 @@ class RedisAgentChatHistory extends AbstractChatHistory
     #[Override]
     public function flushAll(): ChatHistoryInterface
     {
-        return $this->clear();
+        $this->clear();
+
+        return $this;
     }
 
     /**
@@ -207,7 +207,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
      * Set messages and persist to database
      */
     #[Override]
-    public function setMessages(array $messages): ChatHistoryInterface
+    protected function setMessages(array $messages): void
     {
         $this->history = $messages;
 
@@ -217,8 +217,6 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 $this->storeMessage($message);
             }
         }
-
-        return $this;
     }
 
     /**

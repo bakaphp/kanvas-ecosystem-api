@@ -23,7 +23,8 @@ use NeuronAI\RAG\RAG;
 use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
-use NeuronAI\SystemPrompt;
+use NeuronAI\Agent\SystemPrompt;
+use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Tools\Tool;
 use Override;
 
@@ -158,11 +159,10 @@ class BaseAgent extends RAG
     /**
      * Get the current chat history
      */
-    public function getChatHistory(): array
+    #[Override]
+    public function getChatHistory(): ChatHistoryInterface
     {
-        $chatHistory = $this->chatHistory();
-
-        return $chatHistory->getAll();
+        return $this->chatHistory();
     }
 
     /**
