@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
+use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
@@ -13,6 +14,8 @@ use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class Warehouse
 {
+    use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      */
@@ -22,14 +25,18 @@ class Warehouse
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
 
-        return (new CreateWarehouseAction(
+        unset($request['companies_id']);
+
+        $warehouse = (new CreateWarehouseAction(
             WarehousesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
+
+        $this->applyTargetCompaniesId($warehouse, $targetCompaniesId);
+
+        return $warehouse;
     }
 
     /**

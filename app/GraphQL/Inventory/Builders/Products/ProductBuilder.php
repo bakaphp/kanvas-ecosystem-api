@@ -26,6 +26,9 @@ class ProductBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
         }
@@ -57,8 +60,7 @@ class ProductBuilder
             $query->filterByNearLocation($args['nearByLocation']);
         }
 
-        // Apply role-based company scoping for Movipass multi-company support
-        $roleBasedBuilder = new RoleBasedProductBuilder();
+        $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
         $query = $roleBasedBuilder->applyRoleScope($query, $args);
 
         return $query;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
+use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
@@ -15,6 +16,7 @@ use Kanvas\Support\Validations\UniqueSlugRule;
 
 class Region
 {
+    use ResolvesTargetCompanyTrait;
     /**
      * create.
      *
@@ -24,10 +26,9 @@ class Region
     {
         $request = $request['input'];
         $user = auth()->user();
-        $isGlobal = $user->isAdmin() && (int) ($request['companies_id'] ?? -1) === 0;
-        if (! $user->isAppOwner() || $isGlobal) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
+
+        unset($request['companies_id']);
 
         $regionDto = RegionDto::viaRequest($request);
 
@@ -41,11 +42,7 @@ class Region
         }
 
         $region = (new CreateRegionAction($regionDto, $user))->execute();
-
-        if ($isGlobal) {
-            $region->companies_id = 0;
-            $region->saveOrFail();
-        }
+        $this->applyTargetCompaniesId($region, $targetCompaniesId);
 
         return $region;
     }

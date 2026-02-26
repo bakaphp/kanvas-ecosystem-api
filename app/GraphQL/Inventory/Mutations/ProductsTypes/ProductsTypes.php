@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\ProductsTypes;
 
+use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\Actions\UpdateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
@@ -15,6 +16,8 @@ use Kanvas\Languages\Services\Translation as TranslationService;
 
 class ProductsTypes
 {
+    use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      *
@@ -25,20 +28,16 @@ class ProductsTypes
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $isGlobal = $user->isAdmin() && (int) ($request['companies_id'] ?? -1) === 0;
-        if (! $user->isAppOwner() || $isGlobal) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
+
+        unset($request['companies_id']);
 
         $productType = (new CreateProductTypeAction(
             ProductsTypesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
 
-        if ($isGlobal) {
-            $productType->companies_id = 0;
-            $productType->saveOrFail();
-        }
+        $this->applyTargetCompaniesId($productType, $targetCompaniesId);
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
