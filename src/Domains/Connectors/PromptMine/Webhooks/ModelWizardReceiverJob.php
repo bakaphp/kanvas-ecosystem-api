@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Webhooks;
 
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\ModelWizardModelChooserAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
-use InvalidArgumentException;
 
 class ModelWizardReceiverJob extends ProcessWebhookJob
 {

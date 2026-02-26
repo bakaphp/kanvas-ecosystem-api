@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Actions;
 
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
@@ -11,7 +12,6 @@ use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
-use InvalidArgumentException;
 
 class ModelWizardModelChooserAction
 {
