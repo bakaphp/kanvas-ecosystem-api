@@ -6,11 +6,11 @@ namespace Kanvas\Connectors\PromptMine\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
-use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 
 class ModelWizardModelChooserAction
 {
@@ -27,7 +27,7 @@ class ModelWizardModelChooserAction
     {
         $modelWizardAnswers = $this->modelWizardAnswers;
 
-        if (!$modelWizardAnswers) {
+        if (empty($modelWizardAnswers)) {
             throw new \InvalidArgumentException('Model wizard answers are required to execute the model chooser action.');
         }
 
@@ -37,7 +37,7 @@ class ModelWizardModelChooserAction
             ->where('products_types_id', $productTypes->getId())
             ->with(['variants', 'categories',])
             ->get()
-            ->flatMap(fn($product) => $product->variants->map(fn($variant) => [
+            ->flatMap(fn ($product) => $product->variants->map(fn ($variant) => [
                 'name'       => $variant->name,
                 'slug'       => $variant->slug,
                 'sku'        => $variant->sku,

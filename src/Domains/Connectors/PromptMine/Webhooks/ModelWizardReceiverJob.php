@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\PromptMine\Webhooks;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\ModelWizardModelChooserAction;
-use Override;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ModelWizardReceiverJob extends ProcessWebhookJob
 {
