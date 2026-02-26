@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -22,7 +23,52 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CreateSocialChannelActivity extends KanvasActivity
 {
-    public function execute(Contact $contact, Apps $app, array $params): array
+    public function execute(Contact|Lead $entity, Apps $app, array $params): array
+    {
+        if (empty($params['agent_id'])) {
+            return [
+                'error' => 'Agent ID is required to create social channel',
+            ];
+        }
+
+        if ($entity instanceof Lead) {
+            return $this->executeForLead($entity, $app, $params);
+        }
+
+        return $this->executeForContact($entity, $app, $params);
+    }
+
+    private function executeForLead(Lead $lead, Apps $app, array $params): array
+    {
+        $results = [];
+        $people = $lead->people;
+
+        if (! $people instanceof People) {
+            return [
+                'error' => 'No people associated with this lead',
+            ];
+        }
+
+        $contacts = $people->contacts;
+
+        if ($contacts->isEmpty()) {
+            return [
+                'error' => 'No contacts found for this lead',
+            ];
+        }
+
+        foreach ($contacts as $contact) {
+            $result = $this->executeForContact($contact, $app, $params, $lead);
+            $results[] = $result;
+        }
+
+        return [
+            'success' => true,
+            'results' => $results,
+        ];
+    }
+
+    private function executeForContact(Contact $contact, Apps $app, array $params, ?Lead $leadOverride = null): array
     {
         $contactTypesAllowed = [
             ContactTypeEnum::CELLPHONE->value,
@@ -36,21 +82,14 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        if (empty($params['agent_id'])) {
-            return [
-                'error' => 'Agent ID is required to create social channel',
-            ];
-        }
-
         $company = $contact->people->company;
 
         return $this->executeIntegration(
             entity: $contact,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params): array {
-                //$lead = $contact->people->leads->first();
-                $lead = LeadsRepository::getPeopleActiveLead($contact->people);
+            integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params, $leadOverride): array {
+                $lead = $leadOverride ?? LeadsRepository::getPeopleActiveLead($contact->people);
 
                 if (! $lead) {
                     return $this->failWorkflow([
