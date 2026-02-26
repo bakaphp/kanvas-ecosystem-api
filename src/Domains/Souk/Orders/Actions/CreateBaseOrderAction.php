@@ -180,6 +180,8 @@ class CreateBaseOrderAction
             report($e);
         }
 
+        $order->refresh();
+        
         $this->cart->clear();
 
         return $order;
