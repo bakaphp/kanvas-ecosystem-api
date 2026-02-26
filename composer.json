@@ -54,7 +54,7 @@
         "mindee/mindee": "^2.0",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
-        "neuron-core/neuron-ai": "^2.0",
+        "neuron-core/neuron-ai": "^3.0",
         "nevadskiy/laravel-tree": "^0.6.0",
         "nuwave/lighthouse": "^6.0",
         "openai-php/client": "^0.19.0",
