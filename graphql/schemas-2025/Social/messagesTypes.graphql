@@ -2,8 +2,8 @@ input CreateMessageTypeInput {
     languages_id: Int!
     name: String!
     verb: String!
-    template: String!
-    templates_plura: String!
+    template: Mixed
+    templates_plura: String
 }
 
 type MessageType {
@@ -13,11 +13,11 @@ type MessageType {
     uuid: String!
     name: String!
     verb: String!
-    template: String!
-    templates_plura: String!
+    template: Mixed
+    templates_plura: String
 }
 
-extend type Query {
+extend type Query @guard {
     messageTypes(
         where: _
             @whereConditions(
@@ -32,7 +32,7 @@ extend type Query {
                     "templates_plura"
                 ]
             )
-            orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [MessageType!]!
         @paginate(
             model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
@@ -41,7 +41,7 @@ extend type Query {
         )
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createMessageType(input: CreateMessageTypeInput!): MessageType!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@create"
@@ -50,5 +50,10 @@ extend type Mutation @guard {
     updateMessageType(id: Int!, input: CreateMessageTypeInput): MessageType!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@update"
+        )
+
+    deleteMessageType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@delete"
         )
 }
