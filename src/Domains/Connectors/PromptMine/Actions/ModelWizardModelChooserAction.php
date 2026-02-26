@@ -11,6 +11,7 @@ use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
+use InvalidArgumentException;
 
 class ModelWizardModelChooserAction
 {
@@ -28,7 +29,7 @@ class ModelWizardModelChooserAction
         $modelWizardAnswers = $this->modelWizardAnswers;
 
         if (empty($modelWizardAnswers)) {
-            throw new \InvalidArgumentException('Model wizard answers are required to execute the model chooser action.');
+            throw new InvalidArgumentException('Model wizard answers are required to execute the model chooser action.');
         }
 
         $productTypes = ProductsTypesRepository::getBySlug(self::LLM_MODELS_PRODUCT_TYPE_SLUG);
