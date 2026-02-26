@@ -181,7 +181,7 @@ class CreateBaseOrderAction
         }
 
         $order->refresh();
-        
+
         $this->cart->clear();
 
         return $order;
