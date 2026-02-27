@@ -34,7 +34,7 @@ class OAuthIntegrationController extends BaseController
         $provider = OAuthProviderFactory::make($receiver);
 
         $webhookRequest = new ProcessWebhookAttemptAction($receiver, $request)->execute();
-        $nonce = $webhookRequest->uuid;
+        $nonce = (string) $webhookRequest->uuid;
 
         $stateKey = $provider->getStateKeyPrefix() . ':' . $uuid;
         Redis::setex($stateKey, 1800, json_encode([
