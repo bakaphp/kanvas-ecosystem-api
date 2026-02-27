@@ -60,8 +60,8 @@ class ProductBuilder
             $query->filterByNearLocation($args['nearByLocation']);
         }
 
-        $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
-        $query = $roleBasedBuilder->applyRoleScope($query, $args);
+    $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
+    $query = $roleBasedBuilder->applyRoleScope($query, $args);
 
         return $query;
     }
