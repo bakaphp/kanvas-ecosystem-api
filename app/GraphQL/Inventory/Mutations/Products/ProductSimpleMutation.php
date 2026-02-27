@@ -55,8 +55,10 @@ class ProductSimpleMutation
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
                 }
 
-                // Quantity will be automatically handled by VariantService::createVariantsFromArray
-                // It checks for 'quantity' in the variant array and passes it to the warehouse
+                // Set max_capacity equal to quantity for simple product flow
+                if (isset($variant['quantity']) && ! isset($variant['max_capacity'])) {
+                    $variant['max_capacity'] = $variant['quantity'];
+                }
             }
         }
 
@@ -101,6 +103,11 @@ class ProductSimpleMutation
                 // Handle channels: findOrCreate channel by name and convert to channels_id
                 if (isset($variant['channels'])) {
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
+                }
+
+                // Set max_capacity equal to quantity for simple product flow
+                if (isset($variant['quantity']) && ! isset($variant['max_capacity'])) {
+                    $variant['max_capacity'] = $variant['quantity'];
                 }
             }
 

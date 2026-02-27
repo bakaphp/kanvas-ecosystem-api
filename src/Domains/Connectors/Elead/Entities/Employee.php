@@ -34,7 +34,7 @@ class Employee
     {
         $client = new Client($app, $company);
         $response = $client->get(
-            '/sales/v1/elead/productreferencedata/companyEmployees?positionName=' . $position,
+            '/sales/v1/elead/productreferencedata/companyEmployees?positionName=' . urlencode($position),
         );
 
         foreach ($response['items'] as $item) {

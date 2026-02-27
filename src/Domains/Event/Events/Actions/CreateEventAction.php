@@ -34,6 +34,8 @@ use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Event $event,
         protected array $metadata = []
@@ -54,10 +56,13 @@ class CreateEventAction
             if (isset($this->metadata['slug_suffix'])) {
                 $slug = $slug . '-' . $this->metadata['slug_suffix'];
             }
+
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
+                'slug' => $slug,
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),
+            ], [
                 'users_id' => $this->event->user->getId(),
                 'name' => $this->event->name,
                 'theme_id' => $this->event->theme->getId(),
@@ -69,7 +74,6 @@ class CreateEventAction
                 'description' => $this->event->description,
                 'resources_id' => $this->event->resource?->id ?? null,
                 'resources_type' => $this->event->resource?->getMorphClass() ?? null,
-                'slug' => $slug,
                 'meeting_link' => $this->event->meeting_link,
             ]);
 
@@ -111,7 +115,10 @@ class CreateEventAction
 
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
-                $this->createEventOrder($eventVersion, $this->event->orderItems);
+                $this->createEventOrder(
+                    $eventVersion,
+                    $this->event->orderItems
+                );
             }
 
             // Store additional resources in pivot table
@@ -121,15 +128,19 @@ class CreateEventAction
 
             $participants = $eventVersion->participants;
 
-            if ($eventVersion && ! $participants->isEmpty()) {
+            if (! $participants->isEmpty()) {
                 $codes = (new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion
                 ))->forAllParticipants();
 
-                new SendEventEmailsAction($eventVersion, EmailTemplateEnum::BOOKING_CREATED->value, [
-                    'codes' => $codes,
-                ])->execute();
+                new SendEventEmailsAction(
+                    $eventVersion,
+                    EmailTemplateEnum::BOOKING_CREATED->value,
+                    [
+                        'codes' => $codes,
+                    ]
+                )->execute();
             }
 
             return $event;

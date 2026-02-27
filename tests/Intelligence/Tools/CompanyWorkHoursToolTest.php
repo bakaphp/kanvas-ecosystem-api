@@ -31,15 +31,28 @@ class CompanyWorkHoursToolTest extends TestCase
         $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
-        $carbon = Carbon::now('America/Los_Angeles');
+
+        // Freeze time to a specific date and time (e.g., Wednesday at 12:00 PM)
+        $fixedNow = Carbon::create(
+            2026,
+            1,
+            7,
+            12,
+            0,
+            0,
+            'America/Los_Angeles'
+        ); // Wednesday
+        Carbon::setTestNow($fixedNow);
         $tool = new CompanyWorkHoursTool($lead);
         $result = $tool->execute();
-        $hours = explode(' - ', $workHours[$carbon->dayName]);
+        $hours = explode(' - ', $workHours['Wednesday']);
 
-        $this->assertEquals($carbon->dayName, $result['weekday']);
+        $this->assertEquals('Wednesday', $result['weekday']);
 
         $this->assertEquals($hours[0], $result['opens_at_local']);
         $this->assertEquals($hours[1], $result['closes_at_local']);
         $this->assertIsArray($result);
+
+        Carbon::setTestNow(); // Reset frozen time
     }
 }

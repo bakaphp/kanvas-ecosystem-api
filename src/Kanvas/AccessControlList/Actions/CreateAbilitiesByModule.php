@@ -29,6 +29,11 @@ class CreateAbilitiesByModule
         $scope = RolesEnums::getScope($this->app);
         Bouncer::scope()->to($scope);
         Bouncer::useAbilityModel(Ability::class);
+
+        // Create module-level permissions first
+        $this->createModulePermissions();
+
+        // Then create entity-specific permissions
         foreach (ModulesRepositories::getAbilitiesByModule() as $module => $subModule) {
             foreach ($subModule as $model => $abilities) {
                 $systemModule = SystemModulesRepository::getByModelName($model, $this->app);
@@ -48,6 +53,24 @@ class CreateAbilitiesByModule
                         ]
                     );
                 }
+            }
+        }
+    }
+
+    /**
+     * Create module-level permissions.
+     * Creates compound permission names like 'view-module-inventory', 'manage-module-crm'
+     */
+    protected function createModulePermissions(): void
+    {
+        foreach (ModulesRepositories::getModulePermissions() as $moduleId => $permissionNames) {
+            foreach ($permissionNames as $permissionName) {
+                // Create ability with compound name (e.g., 'view-module-inventory')
+                // entity_type is null because these are simple permissions without entity
+                Bouncer::ability()->firstOrCreate([
+                    'name' => $permissionName,
+                    'title' => ucwords(str_replace('-', ' ', $permissionName)),
+                ]);
             }
         }
     }

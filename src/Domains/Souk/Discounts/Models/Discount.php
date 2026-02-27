@@ -217,14 +217,111 @@ class Discount extends BaseModel
         return ! $this->is_deleted;
     }
 
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'code',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'value',
+                    'type' => 'float',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'is_percentage',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_active',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'discount_type',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'start_date',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'end_date',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
+    }
+
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
+
         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-            $query->where('companies_id', $user->getCurrentCompany()->getId());
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
-        return $query;
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'name,description,code',
+            ]);
+        }
+
+        return $searchQuery;
     }
 }

@@ -16,24 +16,9 @@ class CreateSessionAction
 
     public function execute(): SessionModel
     {
-        /**
-         * IMPORTANT: Kanvas Architecture Rule
-         * All IDs in Kanvas must be unique per company and apps combination.
-         * Everything in Kanvas should be individual per:
-         * - company_id + apps_id (always)
-         * - user_id (in some cases)
-         * This ensures proper data isolation and multi-tenancy.
-         */
-        $content = $this->session->content ? $this->session->content : new CreateContentSessionAction($this->session)->execute();
+        $content = $this->session->content ?: new CreateContentSessionAction($this->session)->execute();
 
-        // Legacy UUID format (without company_id): {channel-slug}-{app-id}
-        $legacyUuid = $this->session->channel->slug . '-' . $this->session->app->getId();
-
-        // New UUID format (always includes company_id): {channel-slug}-{app-id}-{company-id}
-        $newUuid = $legacyUuid . '-' . $this->session->company->getId();
-
-        // Search for existing session with legacy UUID format
-        $existingSession = SessionModel::where('uuid', $legacyUuid)
+        $existingSession = SessionModel::query()
             ->where('apps_id', $this->session->app->getId())
             ->where('agents_id', $this->session->agent->getId())
             ->where('channel_id', $this->session->channel->getId())
@@ -42,44 +27,35 @@ class CreateSessionAction
             ->where('entity_id', $this->session->entity_id)
             ->first();
 
-        if ($existingSession) {
-            // Cutoff date: Feb 13, 2026 at 11:00 PM RD (UTC-4)
-            // Sessions created before this date keep their legacy UUID
-            $cutoffDate = Carbon::create(2026, 2, 13, 23, 0, 0, 'America/Santo_Domingo');
-
-            $updateData = [
-                'canal_id' => $this->session->canal_id,
-                'entity_namespace' => $this->session->entity_namespace,
-                'entity_id' => $this->session->entity_id,
-                'user' => $this->session->user,
-                'content' => $content,
-            ];
-
-            // Only update UUID to new format if session was created after cutoff date
-            if ($existingSession->created_at->gte($cutoffDate)) {
-                $updateData['uuid'] = $newUuid;
-            }
-
-            $existingSession->update($updateData);
-
-            return $existingSession;
-        }
-
-        // If no legacy session exists, use updateOrCreate with new UUID format
-        return SessionModel::updateOrCreate([
-                'uuid' => $newUuid,
-                'apps_id' => $this->session->app->getId(),
-                'agents_id' => $this->session->agent->getId(),
-                'channel_id' => $this->session->channel->getId(),
-                'companies_id' => $this->session->company->getId(),
-                'entity_namespace' => $this->session->entity_namespace,
-                'entity_id' => $this->session->entity_id,
-            ], [
+        $payload = [
             'canal_id' => $this->session->canal_id,
             'entity_namespace' => $this->session->entity_namespace,
             'entity_id' => $this->session->entity_id,
             'user' => $this->session->user,
             'content' => $content,
+        ];
+
+        if ($existingSession) {
+            // Keep legacy UUIDs untouched to avoid breaking historical sessions.
+            $existingSession->update($payload);
+
+            return $existingSession;
+        }
+
+        return SessionModel::create([
+            ...$payload,
+            'uuid' => $this->buildSessionUuid(),
+            'apps_id' => $this->session->app->getId(),
+            'agents_id' => $this->session->agent->getId(),
+            'channel_id' => $this->session->channel->getId(),
+            'companies_id' => $this->session->company->getId(),
         ]);
+    }
+
+    protected function buildSessionUuid(): string
+    {
+        return $this->session->channel->slug
+            . '-' . $this->session->app->getId()
+            . '-' . $this->session->company->getId();
     }
 }

@@ -210,8 +210,10 @@ final class ExpandProductSlotsActivityTest extends TestCase
             ],
         ];
 
-        // Update product attribute
-        $product->setCustomFields(['displayOperationDays' => $updatedOperationDays]);
+        // Update product inventory attribute (must use addAttributes, not setCustomFields)
+        $product->addAttributes($user, [
+            ['name' => 'displayOperationDays', 'value' => $updatedOperationDays],
+        ]);
         $product->refresh();
 
         // Execute update

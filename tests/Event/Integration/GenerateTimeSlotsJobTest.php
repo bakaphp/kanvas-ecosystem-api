@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Event;
+namespace Tests\Event\Integration;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
@@ -20,7 +20,7 @@ use Tests\TestCase;
 class GenerateTimeSlotsJobTest extends TestCase
 {
     use InventoryCases;
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected $variant;
     protected $region;
@@ -65,6 +65,10 @@ class GenerateTimeSlotsJobTest extends TestCase
             amount: 100
         );
 
+        // Set timezone to UTC to ensure consistent RRULE occurrence generation across environments
+        $this->company->timezone = 'UTC';
+        $this->company->saveOrFail();
+
         $setup = new Setup($this->apps, $this->user, $this->company);
         $setup->run();
     }
@@ -81,7 +85,7 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=DAILY',
+            'rrule' => 'RRULE:FREQ=DAILY',
             'slot_duration_min' => 60,
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
@@ -121,10 +125,11 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=WEEKLY;BYDAY=MO,WE,FR',
+            'rrule' => 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR',
             'slot_duration_min' => 30,
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
+            'capacity_override' => 5,
         ]);
 
         $job = new GenerateTimeSlots(
@@ -159,7 +164,7 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=DAILY',
+            'rrule' => 'RRULE:FREQ=DAILY',
             'slot_duration_min' => 60,
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
@@ -206,7 +211,8 @@ class GenerateTimeSlotsJobTest extends TestCase
     public function testGenerateTimeSlotsRespectsBlackoutPeriods(): void
     {
         $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
-        $endDate = $startDate->copy()->addDays(7);
+        // Use addDays(6)->endOfDay() to create a 7-day window; getOccurrencesBetween() is inclusive on both ends
+        $endDate = $startDate->copy()->addDays(6)->endOfDay();
 
         $scheduleRule = ScheduleRules::create([
             'apps_id' => $this->apps->getId(),
@@ -215,10 +221,11 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=DAILY',
+            'rrule' => 'RRULE:FREQ=DAILY',
             'slot_duration_min' => 60,
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
+            'capacity_override' => 5,
         ]);
 
         // Create a blackout period for day 3
@@ -269,10 +276,11 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=DAILY',
+            'rrule' => 'RRULE:FREQ=DAILY',
             'slot_duration_min' => 60,
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
+            'capacity_override' => 5,
         ]);
 
         $job = new GenerateTimeSlots(
@@ -305,10 +313,11 @@ class GenerateTimeSlotsJobTest extends TestCase
             'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
             'start_at' => $startDate,
             'end_at' => $endDate,
-            'rrule' => 'FREQ=HOURLY;INTERVAL=2', // Every 2 hours
+            'rrule' => 'RRULE:FREQ=HOURLY;INTERVAL=2', // Every 2 hours
             'slot_duration_min' => 120, // 2 hour slots
             'lead_time_min' => 0,
             'cutoff_time_min' => 0,
+            'capacity_override' => 5,
         ]);
 
         $job = new GenerateTimeSlots(

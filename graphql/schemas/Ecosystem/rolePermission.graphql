@@ -73,6 +73,7 @@ input RoleInput {
 input RolePermissionsInput {
     model_name: String!
     permission: [String!]
+    module_permissions: [String!]
 }
 
 extend type Mutation @guardByAdmin {
@@ -122,5 +123,23 @@ extend type Mutation @guardByAdmin {
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+
+    giveModulePermissionToRole(
+        role: String!
+        moduleId: Int!
+        permission: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@giveModulePermissionToRole"
+        )
+
+    removeModulePermissionFromRole(
+        role: String!
+        moduleId: Int!
+        permission: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removeModulePermissionFromRole"
         )
 }

@@ -32,7 +32,12 @@ class BaseAgentResponderAction
         protected Agent $agent,
         protected ?Session $session = null,
     ) {
-        $lead = $this->session->entity();
+        $lead = $this->session?->entity() ?? $this->message->entity();
+
+        if ($lead === null) {
+            throw new Exception('No lead found for AI agent');
+        }
+
         $aiMode = $lead->get('ai_mode');
         if ($aiMode == IntelligenceModeEnum::OFF->value) {
             throw new Exception('Ai Agent Off for this lead');
@@ -47,7 +52,7 @@ class BaseAgentResponderAction
         ?string $from = null
     ): Message {
         $user = $message->user;
-        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
+        $agentUser = $this->channel->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }

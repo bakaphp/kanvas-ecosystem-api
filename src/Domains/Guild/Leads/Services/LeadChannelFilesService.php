@@ -184,7 +184,7 @@ class LeadChannelFilesService
                 $people = $participant->people;
 
                 // Get participant files using the standard files relationship
-                $participantFiles = $people->files()->get();
+                $participantFiles = $people->getFiles();
 
                 if ($participantFiles->isNotEmpty()) {
                     $groups[] = [

@@ -8,6 +8,7 @@ use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -27,10 +28,10 @@ use Override;
  * @property string|null $os
  * @property string|null $country_code
  * @property string $tracking_cookie
- * @property \Illuminate\Support\Carbon|null $cookie_expires_at
+ * @property Carbon|null $cookie_expires_at
  * @property bool $converted
- * @property \Illuminate\Support\Carbon|null $conversion_date
- * @property \Illuminate\Support\Carbon $clicked_at
+ * @property Carbon|null $conversion_date
+ * @property Carbon $clicked_at
  */
 class AffiliateClick extends BaseModel
 {
