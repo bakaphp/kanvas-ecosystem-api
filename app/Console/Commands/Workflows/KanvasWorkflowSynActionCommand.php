@@ -23,12 +23,14 @@ use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWork
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Webhook\PullPaymentChallengeWebhookJob;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadActivity as WorkflowPushLeadActivity;
 use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNotesActivity;
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
+use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -37,6 +39,8 @@ use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
+use Kanvas\Connectors\InAppPurchase\Jobs\ProcessAppleSubscriptionWebhookJob;
+use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
@@ -55,6 +59,7 @@ use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as Workflo
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
@@ -66,6 +71,7 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
@@ -273,6 +279,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
             SyncMovipassImpoundActivity::class,
+            SyncMovipassRoadsideAssistanceActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             WorkflowPushLeadActivity::class,
@@ -314,6 +321,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessOrderLoyaltyActivity::class,
             ProcessReferralCodeRedemptionActivity::class,
             PullUserByEmployeeActivity::class,
+            ScheduleActivityFromEventActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             AddStockImageToProductActivity::class,
             UpdateLeadFromZohoDealWebhookJob::class,
@@ -336,6 +344,10 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPaymentChallengeWebhookJob::class,
             AzulTermUrlWebhookJob::class,
             AzulMethodNotificationWebhookJob::class,
+            ScheduleEleadActivityFromEventAction::class,
+            ProcessAppleSubscriptionWebhookJob::class,
+            ProcessGoogleSubscriptionWebhookJob::class,
+            ModelWizardReceiverJob::class,
         ];
 
         $createdActions = [];

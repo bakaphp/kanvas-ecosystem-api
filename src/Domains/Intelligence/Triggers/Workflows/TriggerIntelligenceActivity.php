@@ -97,6 +97,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 ];
+                $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
                 // Post handoff note with state changes
 
@@ -107,5 +108,15 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    protected function sentDataToOrchestration(Lead $lead, string $aiMode): void
+    {
+        $data = ['stateDelta' => ['mode' => $aiMode]];
+        foreach ($lead->aiSession as $session) {
+            $handle = new $session->agent->type->handler();
+            $handle->setConfiguration($session->agent, $session->entity());
+            $handle->sendDataToAgent($session->uuid, $data);
+        }
     }
 }

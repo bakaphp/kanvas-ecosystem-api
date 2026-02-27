@@ -153,6 +153,42 @@ class LeadTest extends TestCase
         ]);
     }
 
+    public function testCreateLeadWithoutPeopleContacts(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {
+                    id
+                    title
+                    people {
+                        firstname
+                        lastname
+                    }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->assertJsonPath('data.createLead.title', $title)
+            ->assertJsonPath('data.createLead.people.firstname', $input['people']['firstname'])
+            ->assertJsonPath('data.createLead.people.lastname', $input['people']['lastname']);
+    }
+
     public function testWonLead()
     {
         $user = auth()->user();

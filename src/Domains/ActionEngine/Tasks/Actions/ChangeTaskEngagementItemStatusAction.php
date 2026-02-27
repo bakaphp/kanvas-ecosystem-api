@@ -129,6 +129,11 @@ class ChangeTaskEngagementItemStatusAction
 
             // Handle complete_other_task_items configuration
             $this->completeOtherTaskItems($taskEngagementItem);
+
+            // Hack: complete all sibling items in the same checklist for this company
+            if ($this->company->get('checklist_auto_complete_siblings')) {
+                $this->completeSiblingChecklistItems();
+            }
         }
     }
 
@@ -182,6 +187,53 @@ class ChangeTaskEngagementItemStatusAction
 
         $existingTaskEngagementItem->status = 'completed';
         $existingTaskEngagementItem->saveOrFail();
+    }
+
+    /**
+     * Hack: when an item is completed, find all matching items (same name +
+     * companies_action_id) across other checklists for this company/app and
+     * mark them as completed too. Temporary until the UI behaviour is updated.
+     */
+    protected function completeSiblingChecklistItems(): void
+    {
+        $matchingItems = TaskListItem::join('company_task_list', 'company_task_list.id', '=', 'company_task_list_items.task_list_id')
+            ->where('company_task_list.companies_id', $this->company->getId())
+            ->where('company_task_list.apps_id', $this->app->getId())
+            ->where('company_task_list.is_deleted', 0)
+            ->where('company_task_list_items.name', $this->taskListItem->name)
+            ->where('company_task_list_items.companies_action_id', $this->taskListItem->companies_action_id)
+            ->where('company_task_list_items.id', '!=', $this->taskListItem->getId())
+            ->where('company_task_list_items.is_deleted', 0)
+            ->select('company_task_list_items.*')
+            ->get();
+
+        foreach ($matchingItems as $matchingItem) {
+            try {
+                $existing = TaskEngagementItem::fromCompany($this->company)
+                    ->fromApp($this->app)
+                    ->where('task_list_item_id', $matchingItem->getId())
+                    ->where('lead_id', $this->lead->getId())
+                    ->first();
+
+                if ($existing && $existing->status === TaskStatusEnum::COMPLETED->value) {
+                    continue;
+                }
+
+                if (! $existing) {
+                    $existing = new TaskEngagementItem();
+                    $existing->task_list_item_id = $matchingItem->getId();
+                    $existing->lead_id = $this->lead->getId();
+                    $existing->companies_id = $this->company->getId();
+                    $existing->apps_id = $this->app->getId();
+                    $existing->users_id = $this->user->getId();
+                }
+
+                $existing->status = TaskStatusEnum::COMPLETED->value;
+                $existing->saveOrFail();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     protected function fireWorkflow(TaskEngagementItem $taskEngagementItem): void

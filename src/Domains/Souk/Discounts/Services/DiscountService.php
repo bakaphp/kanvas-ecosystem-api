@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Services;
 
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
@@ -13,6 +14,7 @@ use Kanvas\Souk\Discounts\Enums\DiscountConditionTypeEnum;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountCondition;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Referrals\Models\ReferralCode;
 
 class DiscountService
 {
@@ -22,9 +24,6 @@ class DiscountService
     ) {
     }
 
-    /**
-     * Find a discount by code
-     */
     public function findByCode(string $code): ?Discount
     {
         return Discount::query()
@@ -33,6 +32,39 @@ class DiscountService
             ->where('code', $code)
             ->where('is_deleted', false)
             ->first();
+    }
+
+    /**
+     * Find an active discount by code, rejecting codes that match the user's own referral code.
+     */
+    public function findActiveByCode(string $code, ?UserInterface $user = null): ?Discount
+    {
+        $discount = Discount::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->where('is_deleted', false)
+            ->first();
+
+        if (! $discount) {
+            return null;
+        }
+
+        if ($user && $this->isUserOwnReferralCode($code, $user)) {
+            return null;
+        }
+
+        return $discount;
+    }
+
+    public function isUserOwnReferralCode(string $code, UserInterface $user): bool
+    {
+        return ReferralCode::fromApp($this->app)
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->where('users_id', $user->getId())
+            ->exists();
     }
 
     /**
@@ -231,14 +263,14 @@ class DiscountService
      */
     public function applyDiscountCode(string $code, Order $order): ?Discount
     {
-        $discount = $this->findByCode($code);
+        $user = $order->user;
+        $discount = $this->findActiveByCode($code, $user);
 
         if (! $discount || ! $this->canApplyToOrder($discount, $order)) {
             return null;
         }
 
-        $action = new ApplyDiscountToOrderAction($order, $discount);
-        $action->execute();
+        new ApplyDiscountToOrderAction($order, $discount)->execute();
 
         return $discount;
     }

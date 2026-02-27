@@ -56,6 +56,18 @@ class PaymentManagementMutation
         //$totalAmount = $amount === $cart->getTotal() ? $amount : $cart->getTotal();
         $totalAmount = (int) round($cart->getTotal() * 100);
 
+        // Get currency from cart items, fallback to 'usd'
+        $currencyCode = 'usd';
+        $cartContent = $cart->getContent();
+        if ($cartContent && $cartContent->isNotEmpty()) {
+            $firstItem = $cartContent->first();
+            $attributes = $firstItem->attributes;
+            $currency = is_array($attributes) || $attributes instanceof \ArrayAccess ? ($attributes['currency'] ?? null) : null;
+            if (is_array($currency) && ! empty($currency['code'])) {
+                $currencyCode = strtolower($currency['code']);
+            }
+        }
+
         if ($totalAmount == 0 && $cart->getTotal() == 0) {
             return [
                 'status' => 'success',
@@ -64,14 +76,14 @@ class PaymentManagementMutation
                 'message' => [
                 'message' => 'Payment intent generated successfully',
                 'amount' => $amount,
-                'currency' => 'usd',
+                'currency' => $currencyCode,
                 ],
             ];
         }
 
         $intent = PaymentIntent::create([
             'amount' => $totalAmount,
-            'currency' => 'usd',
+            'currency' => $currencyCode,
             'customer' => $customer->id,
         ]);
 
@@ -82,7 +94,7 @@ class PaymentManagementMutation
             'message' => [
                 'message' => 'Payment intent generated successfully',
                 'amount' => $amount,
-                'currency' => 'usd',
+                'currency' => $currencyCode,
             ],
         ];
     }
@@ -126,7 +138,7 @@ class PaymentManagementMutation
         )->execute();
 
         $amount = $order->getTotalAmount();
-        $currencyCode = strtolower($order->currency) ?? 'usd';
+        $currencyCode = ! empty($order->currency) ? strtolower($order->currency) : 'usd';
 
         $totalAmount = (int) round($amount * 100);
 

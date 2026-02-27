@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
@@ -79,6 +80,13 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
+
+                UnrespondedLeadAgentMessageCache::clear($lead, $channel);
+
+                $lastMessage = $channel->getLastMessage();
+                if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {
+                    $channel->deleteLastMessageLocked();
+                }
 
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,

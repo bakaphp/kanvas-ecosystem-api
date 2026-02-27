@@ -6,6 +6,8 @@ namespace Tests\Inventory\Integration;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -296,5 +298,137 @@ final class ImporterTest extends TestCase
         $this->assertInstanceOf(Products::class, $product);
         $attribute = $product->variants()->first()->getAttributeByName($customAttribute);
         $this->assertInstanceOf(VariantsAttributes::class, $attribute);
+    }
+
+    public function testImportRePublishesUnpublishedProductWhenVariantPublishedToChannel(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $setupCompany = new Setup($app, $user, $company);
+        $setupCompany->run();
+
+        $region = RegionRepository::getByName('default', $company);
+
+        $warehouseModel = new CreateWarehouseAction(
+            WarehousesDto::viaRequest([
+                'name' => fake()->word(),
+                'regions_id' => $region->getId(),
+                'is_default' => true,
+                'is_published' => true,
+            ], $user, $company),
+            $user
+        )->execute();
+
+        $channelModel = new CreateChannel(
+            new ChannelsDto(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: 'Import Test Channel ' . fake()->word(),
+            ),
+            $user
+        )->execute();
+
+        $variantSku = 'import-republish-test-' . fake()->time();
+
+        // First import: create the product with a variant + channel
+        $productData = ProductImporter::from([
+            'name' => 'Republish Test Product ' . fake()->word(),
+            'description' => fake()->sentence(),
+            'slug' => fake()->slug(),
+            'sku' => $variantSku,
+            'price' => fake()->randomNumber(2),
+            'quantity' => fake()->randomNumber(2),
+            'isPublished' => true,
+            'variants' => [
+                [
+                    'name' => fake()->word(),
+                    'description' => fake()->sentence(),
+                    'sku' => $variantSku,
+                    'price' => fake()->randomNumber(2),
+                    'is_published' => true,
+                    'slug' => fake()->slug(),
+                    'warehouse' => [
+                        'id' => $warehouseModel->getId(),
+                        'price' => fake()->randomNumber(2),
+                        'quantity' => fake()->randomNumber(2),
+                        'sku' => $variantSku,
+                    ],
+                    'channels' => [
+                        [
+                            'channels_id' => $channelModel->getId(),
+                            'warehouses_id' => $warehouseModel->getId(),
+                            'price' => 50,
+                            'discounted_price' => 0,
+                            'is_published' => true,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $product = new ProductImporterAction(
+            $productData,
+            $company,
+            $user,
+            $region
+        )->execute();
+
+        $this->assertInstanceOf(Products::class, $product);
+        $this->assertEquals(1, $product->is_published);
+
+        // Unpublish the product (simulating it was taken down)
+        $product->unPublish();
+        $product->refresh();
+        $this->assertEquals(0, $product->is_published);
+
+        // Re-import the same product with the variant published to channel
+        $productData = ProductImporter::from([
+            'name' => $product->name,
+            'description' => $product->description,
+            'slug' => $product->slug,
+            'sku' => $variantSku,
+            'price' => fake()->randomNumber(2),
+            'quantity' => fake()->randomNumber(2),
+            'isPublished' => true,
+            'variants' => [
+                [
+                    'name' => fake()->word(),
+                    'description' => fake()->sentence(),
+                    'sku' => $variantSku,
+                    'price' => fake()->randomNumber(2),
+                    'is_published' => true,
+                    'slug' => fake()->slug(),
+                    'warehouse' => [
+                        'id' => $warehouseModel->getId(),
+                        'price' => fake()->randomNumber(2),
+                        'quantity' => fake()->randomNumber(2),
+                        'sku' => $variantSku,
+                    ],
+                    'channels' => [
+                        [
+                            'channels_id' => $channelModel->getId(),
+                            'warehouses_id' => $warehouseModel->getId(),
+                            'price' => 75,
+                            'discounted_price' => 0,
+                            'is_published' => true,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        new ProductImporterAction(
+            $productData,
+            $company,
+            $user,
+            $region
+        )->execute();
+
+        // The product should be re-published because a variant was published to a channel
+        $product->refresh();
+        $this->assertEquals(1, $product->is_published);
     }
 }

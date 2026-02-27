@@ -112,7 +112,7 @@ class RedisStorage implements ArrayAccess
                         'users_id' => $this->user->id,
                         'companies_id' => $this->user?->getCurrentCompany()->getId() ?? 1,
                         'amount' => $totalAmount,
-                        'currency' => 'usd',
+                        'currency' => $this->getCurrencyFromItems(),
                         'items' => $this->data[$this->itemsKey],
                         'conditions' => $this->data[$this->conditionsKey],
                         'metadata' => [
@@ -140,7 +140,7 @@ class RedisStorage implements ArrayAccess
                 'users_id' => $this->user?->id,
                 'email' => $this->user?->email,
                 'amount' => 0.00,
-                'currency' => 'usd',
+                'currency' => $this->getCurrencyFromItems(),
                 'status' => 'pending',
                 'items' => [],
                 'conditions' => [],
@@ -157,7 +157,7 @@ class RedisStorage implements ArrayAccess
             'email' => $this->user?->email,
             'session_id' => $sessionKey,
             'amount' => 0.00,
-            'currency' => 'usd',
+            'currency' => $this->getCurrencyFromItems(),
             'status' => 'pending',
             'items' => $this->data[$this->itemsKey],
             'conditions' => $this->data[$this->conditionsKey],
@@ -187,6 +187,7 @@ class RedisStorage implements ArrayAccess
 
         $this->cartModel->update([
             'amount' => $totalAmount,
+            'currency' => $this->getCurrencyFromItems(),
             'items' => $this->data[$this->itemsKey],
             'conditions' => $this->data[$this->conditionsKey],
             'metadata' => [
@@ -273,6 +274,21 @@ class RedisStorage implements ArrayAccess
     public function toArray(): array
     {
         return $this->data;
+    }
+
+    /**
+     * Extract currency code from cart items attributes.
+     */
+    protected function getCurrencyFromItems(): string
+    {
+        foreach ($this->data[$this->itemsKey] as $item) {
+            $currency = $item['attributes']['currency']['code'] ?? null;
+            if (! empty($currency)) {
+                return strtolower($currency);
+            }
+        }
+
+        return 'usd';
     }
 
     public function getSessionModel(): self
