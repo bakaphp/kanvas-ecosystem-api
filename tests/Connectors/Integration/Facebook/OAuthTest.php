@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Facebook;
 
+use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderFactory;
 use Kanvas\Connectors\Contracts\OAuthProviderInterface;
@@ -120,7 +121,7 @@ class OAuthTest extends TestCase
             ]);
 
         $provider = new FacebookOAuthProvider();
-        $request = \Illuminate\Http\Request::create('/oauth/' . $receiver->uuid, 'GET');
+        $request = Request::create('/oauth/' . $receiver->uuid, 'GET');
         $nonce = fake()->uuid();
 
         $url = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
@@ -162,7 +163,7 @@ class OAuthTest extends TestCase
             ]);
 
         $provider = new FacebookOAuthProvider();
-        $request = \Illuminate\Http\Request::create('/oauth/' . $receiver->uuid, 'GET');
+        $request = Request::create('/oauth/' . $receiver->uuid, 'GET');
         $nonce = fake()->uuid();
 
         $url = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
@@ -196,7 +197,7 @@ class OAuthTest extends TestCase
             ]);
 
         $provider = new FacebookOAuthProvider();
-        $request = \Illuminate\Http\Request::create('/oauth/' . $receiver->uuid, 'GET');
+        $request = Request::create('/oauth/' . $receiver->uuid, 'GET');
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Facebook App ID is not configured');
@@ -224,7 +225,7 @@ class OAuthTest extends TestCase
             ]);
 
         $provider = new FacebookOAuthProvider();
-        $request = \Illuminate\Http\Request::create('/oauth/' . $receiver->uuid . '/callback', 'GET', [
+        $request = Request::create('/oauth/' . $receiver->uuid . '/callback', 'GET', [
             'error' => 'access_denied',
             'error_message' => 'User denied access',
         ]);
