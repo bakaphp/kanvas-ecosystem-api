@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\ProductsTypes;
 
-use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\Actions\UpdateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;

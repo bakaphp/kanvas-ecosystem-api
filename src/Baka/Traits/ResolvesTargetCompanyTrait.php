@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Inventory\Mutations\Concerns;
+namespace Baka\Traits;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;

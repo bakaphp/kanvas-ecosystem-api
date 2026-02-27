@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Categories;
 
-use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Inventory\Categories\Actions\CreateCategory as CreateCategoryAction;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;

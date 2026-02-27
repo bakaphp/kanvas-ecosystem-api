@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
-use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;

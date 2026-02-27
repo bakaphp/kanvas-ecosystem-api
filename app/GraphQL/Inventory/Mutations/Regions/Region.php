@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
-use App\GraphQL\Inventory\Mutations\Concerns\ResolvesTargetCompanyTrait;
 use Baka\Support\Str;
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
