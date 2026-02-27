@@ -3,6 +3,7 @@
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Repositories\OrderPaymentRepository;
@@ -10,6 +11,7 @@ use Kanvas\Souk\Orders\Repositories\OrderPaymentRepository;
 class GetOrderPaymentStatsAction
 {
     protected OrderPaymentRepository $repository;
+    protected array $productVariantIds = [];
 
     public function __construct(
         protected Apps $app,
@@ -18,8 +20,17 @@ class GetOrderPaymentStatsAction
         protected array $productTypeSlugs = [],
         protected array $orderTypeNames = [],
         protected array $providers = [],
+        protected ?int $productId = null,
     ) {
         $this->repository = new OrderPaymentRepository($app);
+
+        if ($this->productId && ! $this->variantId) {
+            $this->productVariantIds = DB::connection('inventory')
+                ->table('products_variants')
+                ->where('products_id', $this->productId)
+                ->pluck('id')
+                ->toArray();
+        }
     }
 
     private const ALL_PERIODS = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
@@ -66,7 +77,8 @@ class GetOrderPaymentStatsAction
             $this->paidStates,
             $this->variantId,
             $timezone,
-            $this->orderTypeNames
+            $this->orderTypeNames,
+            $this->productVariantIds
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -113,7 +125,8 @@ class GetOrderPaymentStatsAction
                 $end,
                 $this->paidStates,
                 $this->providers,
-                $this->variantId
+                $this->variantId,
+                $this->productVariantIds
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -147,6 +160,8 @@ class GetOrderPaymentStatsAction
             $this->paidStates,
             $timezone,
             $this->orderTypeNames,
+            $this->variantId,
+            $this->productVariantIds,
         );
 
         return $rows->map(fn ($row) => [
@@ -191,7 +206,8 @@ class GetOrderPaymentStatsAction
             $end,
             $this->paidStates,
             $this->variantId,
-            $this->orderTypeNames
+            $this->orderTypeNames,
+            $this->productVariantIds
         );
 
         if ($orderIds->isEmpty()) {
