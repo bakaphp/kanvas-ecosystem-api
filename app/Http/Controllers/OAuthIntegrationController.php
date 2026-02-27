@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,24 +13,14 @@ use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Regions\Models\Regions;
+use Kanvas\Connectors\Contracts\OAuthProviderFactory;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
-use PHPShopify\AuthHelper;
-use PHPShopify\ShopifySDK;
 use Sentry\Laravel\Facade as Sentry;
 
-/**
- * TODO like we started with receivers, this is tied in to shopify
- * but we need to make it oauth agnostic
- * @package App\Http\Controllers
- */
 class OAuthIntegrationController extends BaseController
 {
-    /**
-     * Begin the OAuth process
-     */
     public function auth(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
         $result = $this->getReceiverAndApp($uuid, $request);
@@ -42,54 +31,24 @@ class OAuthIntegrationController extends BaseController
 
         ['receiver' => $receiver, 'app' => $app] = $result;
 
-        $shopDomain = $request->get('shop') ?? $receiver->configuration['shop_domain'];
-        $shopDomain .= '.myshopify.com';
+        $provider = OAuthProviderFactory::make($receiver);
 
-        // Configure the Shopify SDK with redirect URL
-        $redirectUrl = $receiver->company->get('shopify-redirect-url') ?? $app->get('shopify-redirect-url');
-        $this->configureShopifySDK($app, $shopDomain, $receiver, $redirectUrl);
-
-        // Generate a nonce for security
-        $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
+        $webhookRequest = new ProcessWebhookAttemptAction($receiver, $request)->execute();
         $nonce = $webhookRequest->uuid;
 
-        // Store state in Redis instead of session
-        $stateKey = 'shopify_oauth:' . $uuid;
+        $stateKey = $provider->getStateKeyPrefix() . ':' . $uuid;
         Redis::setex($stateKey, 1800, json_encode([
             'nonce' => $nonce,
-            'shop' => $shopDomain,
             'app_id' => $app->getId(),
         ]));
 
-        // Get the authorization URL
-        $scopes = $app->get('shopify_scopes') ?? 'read_products,write_products,read_orders,write_orders';
-
-        $authUrl = AuthHelper::createAuthRequest(
-            scopes: $scopes,
-            redirectUrl: $redirectUrl,
-            state: $nonce,
-            return: true,
-        );
+        $authUrl = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
 
         return redirect()->away($authUrl);
     }
 
-    /**
-     * Handle the OAuth callback from Shopify
-     */
     public function callback(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
-        // Validate required parameters
-        $shop = $request->get('shop');
-        $code = $request->get('code');
-        $hmac = $request->get('hmac');
-        $_GET = $request->query->all();
-
-        if (! $shop || ! $code || ! $hmac) {
-            return response()->json(['error' => 'Missing required parameters'], 400);
-        }
-
-        // Get the receiver and app
         $result = $this->getReceiverAndApp($uuid, $request);
 
         if ($result instanceof JsonResponse) {
@@ -97,86 +56,49 @@ class OAuthIntegrationController extends BaseController
         }
 
         ['receiver' => $receiver, 'app' => $app] = $result;
-        $region = Regions::getByIdFromCompanyApp($receiver->configuration['region_id'], $receiver->company, $app);
 
-        // Retrieve state from Redis
-        $stateKey = 'shopify_oauth:' . $uuid;
+        $provider = OAuthProviderFactory::make($receiver);
+
+        $stateKey = $provider->getStateKeyPrefix() . ':' . $uuid;
         $stateJson = Redis::get($stateKey);
 
         if (! $stateJson) {
             return response()->json(['error' => 'OAuth state expired or invalid'], 400);
         }
 
-        $state = json_decode($stateJson, true);
+        /** @var array{nonce?: string} $state */
+        $state = json_decode((string) $stateJson, true);
         $nonce = $state['nonce'] ?? null;
-        $sessionShop = $state['shop'] ?? null;
 
-        if (! $nonce || $shop !== $sessionShop) {
-            return response()->json([
-                'error' => 'Invalid state or shop mismatch',
-                'details' => [
-                    'expected_shop' => $sessionShop,
-                    'received_shop' => $shop,
-                ],
-            ], 400);
+        if ($nonce === null) {
+            return response()->json(['error' => 'Invalid OAuth state'], 400);
         }
 
         $receiverCall = ReceiverWebhookCall::where('uuid', $nonce)->notDeleted()->first();
 
-        // Configure the Shopify SDK
-        $this->configureShopifySDK($app, $shop, $receiver);
-
         try {
-            // Get the access token
-            $accessToken = AuthHelper::getAccessToken($code);
+            $callbackResult = $provider->handleCallback($receiver, $app, $request);
 
-            if (! $accessToken) {
-                throw new Exception('Failed to get access token');
+            Redis::del($stateKey);
+
+            if ($receiverCall) {
+                $receiverCall->update([
+                    'status' => 'success',
+                    'results' => $callbackResult,
+                ]);
             }
 
-            // Initialize the SDK with the access token
-            $config = $this->configureShopifySDK($app, $shop, $receiver);
-            $config['AccessToken'] = $accessToken;
-            $shopify = new ShopifySDK($config);
+            /** @var array<string, mixed> $config */
+            $config = $receiver->configuration;
+            $redirectUrl = $config['redirect_url'] ?? null;
 
-            // Get shop details to verify the token
-            $shopInfo = $shopify->Shop->get();
-
-            //$app->getId() . '-' . $company->getId() . '-' . $region->getId()
-            // Store the token and info in the app
-            $accessTokenResult = [
-                'access_token' => $accessToken,
-                'shop_info' => $shopInfo,
-                'shop_domain' => $shop,
-            ];
-
-            //if its company base or app base setting
-            $receiver->company->set('shopify-access-token-' . $receiver->company->id . '-' . $region->id, $accessTokenResult);
-            $shopifyStoresConfig = $app->get('shopify_stores_config') ?? [];
-
-            $shopifyStoresConfig[$shop] = [
-                'access_token' => $accessToken,
-                'shop_info' => $shopInfo,
-            ];
-            $app->set('shopify_stores_config', $shopifyStoresConfig);
-
-            // Clean up Redis state
-            $this->clearRedisState($uuid);
-
-            $receiverCall->update([
-                'status' => 'success',
-                'results' => $accessTokenResult,
-            ]);
-
-            $redirectUrl = $receiver->configuration['redirect_url'] ?? null;
-            if ($redirectUrl !== null && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
+            if (is_string($redirectUrl) && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
                 return redirect()->away($redirectUrl);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Successfully authenticated with Shopify',
-                'shop' => $shopInfo['name'],
+                ...$callbackResult,
             ]);
         } catch (Exception $e) {
             Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
@@ -188,17 +110,18 @@ class OAuthIntegrationController extends BaseController
                 Sentry::captureException($e);
             });
 
-            // Clean up Redis state
-            $this->clearRedisState($uuid);
+            Redis::del($stateKey);
 
-            $receiverCall->update([
-                'status' => 'failed',
-                'exception' => [
-                    'code' => $e->getCode(),
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ],
-            ]);
+            if ($receiverCall) {
+                $receiverCall->update([
+                    'status' => 'failed',
+                    'exception' => [
+                        'code' => $e->getCode(),
+                        'message' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ],
+                ]);
+            }
 
             return response()->json([
                 'error' => 'Authentication error',
@@ -208,7 +131,7 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
-     * Get the receiver and app for the given UUID
+     * @return array{receiver: ReceiverWebhook, app: Apps}|JsonResponse
      */
     private function getReceiverAndApp(string $uuid, Request $request): array|JsonResponse
     {
@@ -233,48 +156,5 @@ class OAuthIntegrationController extends BaseController
         }
 
         return ['receiver' => $receiver, 'app' => $receiver->app];
-    }
-
-    /**
-     * Configure Shopify SDK
-     */
-    private function configureShopifySDK(
-        Apps $app,
-        string $shopDomain,
-        ReceiverWebhook $receiver,
-        ?string $redirectUrl = null
-    ): array {
-        if (! Str::startsWith($shopDomain, ['http://', 'https://'])) {
-            $shopDomain = 'https://' . $shopDomain;
-        }
-
-        $apiKey = $receiver->company->get('shopify-api-key') ?? $app->get('shopify-api-key');
-        $apiSecret = $receiver->company->get('shopify-api-secret') ?? $app->get('shopify-api-secret');
-
-        $config = [
-            'ApiKey' => $apiKey,
-            'ApiSecret' => $apiSecret,
-            'SharedSecret' => $apiSecret,
-            'ShopUrl' => $shopDomain,
-            'ApiVersion' => $app->get('shopify-api-version') ?? '2025-01',
-        ];
-
-        if ($redirectUrl) {
-            $config['RedirectUrl'] = $redirectUrl;
-        }
-
-        // Initialize the SDK
-        ShopifySDK::config($config);
-
-        return $config;
-    }
-
-    /**
-     * Clear Redis state data
-     */
-    private function clearRedisState(string $uuid): void
-    {
-        $stateKey = 'shopify_oauth:' . $uuid;
-        Redis::del($stateKey);
     }
 }
