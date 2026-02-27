@@ -29,6 +29,7 @@ use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateBaseOrderAction
@@ -146,13 +147,21 @@ class CreateBaseOrderAction
             ipAddress: $this->ipAddress,
         );
 
-        $order = (new CreateOrderAction($order))->execute();
+        $order = new CreateOrderAction($order)->disableWorkflow()->execute();
 
         // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
         // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
+
+        $order->fireWorkflow(
+            event: WorkflowEnum::CREATED->value,
+            async: true,
+            params: [
+               'app' => $order->app,
+            ]
+        );
 
         try {
             $userCompany = $order->user->getCurrentCompany();
@@ -170,6 +179,8 @@ class CreateBaseOrderAction
         } catch (Exception $e) {
             report($e);
         }
+
+        $order->refresh();
 
         $this->cart->clear();
 

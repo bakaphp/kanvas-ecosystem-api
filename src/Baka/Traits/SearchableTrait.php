@@ -85,4 +85,19 @@ trait SearchableTrait
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
+
+    public static function getBySlug(string $slug, ?CompanyInterface $company = null, ?AppInterface $app = null): Model
+    {
+        $company = $company ?? auth()->user()->getCurrentCompany();
+
+        try {
+            return self::getModel()::fromCompany($company)
+                ->fromApp($app)
+                ->notDeleted()
+                ->where('slug', $slug)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
 }
