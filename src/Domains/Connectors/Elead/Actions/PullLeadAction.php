@@ -69,7 +69,7 @@ class PullLeadAction
             );
 
             try {
-                $eLead = new SyncLeadAction($lead)->execute();
+                $eLead = new SyncLeadAction($lead, fresh: true)->execute();
                 $this->setContactStatus($lead, $eLead->subStatus);
             } catch (ClientException $e) {
                 // If the opportunity doesn't exist in Elead (404), close the lead and return it

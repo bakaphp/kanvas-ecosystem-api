@@ -16,6 +16,7 @@ use Kanvas\Connectors\Elead\Actions\AddTradeInAction;
 use Kanvas\Connectors\Elead\Actions\AddVehicleAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
@@ -40,8 +41,6 @@ class PushLeadNotesActivity extends KanvasActivity
                 'error' => 'Company not found in Elead',
             ];
         }
-
-        sleep(5); // To avoid locked message being processed
 
         return $this->executeIntegration(
             entity: $message,

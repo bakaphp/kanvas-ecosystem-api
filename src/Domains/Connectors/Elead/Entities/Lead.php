@@ -13,6 +13,7 @@ use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadSource;
 
@@ -233,12 +234,36 @@ class Lead
     /**
      * Get Lead by lead ID.
      */
-    public static function getById(AppInterface $app, Companies $company, string $id): self
-    {
+    public static function getById(
+        AppInterface $app,
+        Companies $company,
+        string $id,
+        bool $fresh = false
+    ): self {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('lead', $id);
+
+            if ($cached !== null) {
+                $lead = new Lead();
+                $lead->company = $company;
+                $lead->app = $app;
+                if (isset($cached['customer']['id'])) {
+                    $lead->customerId = $cached['customer']['id'];
+                }
+                $lead->assign($cached);
+
+                return $lead;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v2/elead/opportunities/' . $id,
         );
+
+        $cache->set('lead', $id, $response);
 
         $lead = new Lead();
         $lead->company = $company;
