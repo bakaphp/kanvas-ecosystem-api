@@ -19,12 +19,11 @@ class EleadDebounce
     ) {
     }
 
-    public function shouldSkip(string $activity, string $entityId): bool
+    public function shouldSkip(string $activity, string $entityId, ?int $ttl = null): bool
     {
         $key = $this->buildKey($activity, $entityId);
-        $ttl = $this->getDebounceSeconds();
 
-        $isFirstCall = Redis::set($key, (string) time(), 'EX', $ttl, 'NX');
+        $isFirstCall = Redis::set($key, (string) time(), 'EX', $ttl ?? $this->getDebounceSeconds(), 'NX');
 
         return ! $isFirstCall;
     }
