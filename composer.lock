@@ -3603,16 +3603,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.16.14",
+            "version": "3.16.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "87321eea79675933a15fd7d6f08d2500f4ce24dd"
+                "reference": "38e76f5f6883745094d641f86a09001a1d7b5eea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/87321eea79675933a15fd7d6f08d2500f4ce24dd",
-                "reference": "87321eea79675933a15fd7d6f08d2500f4ce24dd",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/38e76f5f6883745094d641f86a09001a1d7b5eea",
+                "reference": "38e76f5f6883745094d641f86a09001a1d7b5eea",
                 "shasum": ""
             },
             "require": {
@@ -3659,9 +3659,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.14"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.15"
             },
-            "time": "2026-02-19T16:06:11+00:00"
+            "time": "2026-02-26T11:18:52+00:00"
         },
         {
             "name": "intervention/gif",
@@ -7401,16 +7401,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.0.3",
+            "version": "3.0.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "6c9113506ac50aec6f3ebecda79e3c50153af5f1"
+                "reference": "f38592320a694851fffee5280d02854ab68a4ebd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/6c9113506ac50aec6f3ebecda79e3c50153af5f1",
-                "reference": "6c9113506ac50aec6f3ebecda79e3c50153af5f1",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/f38592320a694851fffee5280d02854ab68a4ebd",
+                "reference": "f38592320a694851fffee5280d02854ab68a4ebd",
                 "shasum": ""
             },
             "require": {
@@ -7461,7 +7461,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.0.3"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.0.5"
             },
             "funding": [
                 {
@@ -7469,7 +7469,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-25T18:07:12+00:00"
+            "time": "2026-02-27T17:10:31+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
