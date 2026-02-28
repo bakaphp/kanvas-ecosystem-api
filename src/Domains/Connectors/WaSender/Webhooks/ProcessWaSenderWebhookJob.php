@@ -1219,14 +1219,15 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             title: $people->name . ' WhatsApp Opp',
             pipeline_stage_id: $pipeline?->firstStage?->getId() ?? 0,
             people: new PeopleDTO(
-                $people->app,
-                $people->company->defaultBranch,
-                $people->user,
-                $people->firstname,
-                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
-                Address::collect([], DataCollection::class),
-                $people->lastname,
-                $people->id
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                firstname: $people->firstname,
+                contacts: Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                address: Address::collect([], DataCollection::class),
+                lastname: $people->lastname,
+                id: $people->id,
+                runWorkflow: false
             ),
             leads_owner_id: $leadReceiver->rotation ? $leadReceiver->rotation->getAgent()->id : 0,
             status_id: 0,
