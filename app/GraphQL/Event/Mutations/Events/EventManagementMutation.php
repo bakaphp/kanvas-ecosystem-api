@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as DataTransferObjectEvent;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class EventManagementMutation
 {
@@ -42,6 +43,15 @@ class EventManagementMutation
         $event->name = $req['input']['name'];
         $event->description = $req['input']['description'] ?? null;
         $event->saveOrFail();
+
+        $event->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $app,
+                'company' => $event->company,
+            ]
+        );
 
         return $event;
     }
