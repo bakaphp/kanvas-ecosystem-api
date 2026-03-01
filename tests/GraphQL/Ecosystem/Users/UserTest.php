@@ -767,6 +767,48 @@ class UserTest extends TestCase
             ->assertSee('avatar.jpg');
     }
 
+    public function testUpdatePhotoProfile(): void
+    {
+        $user = auth()->user();
+
+        $operations = [
+            'query' => '
+                mutation updatePhotoProfile($file: Upload!, $user_id: ID!) {
+                    updatePhotoProfile(file: $file, user_id: $user_id) {
+                        id
+                        displayname
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'user_id' => $user->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('user-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updatePhotoProfile' => [
+                        'id' => (string) $user->getId(),
+                    ],
+                ],
+            ]);
+    }
+
     public function testSaveUserAppPreferences()
     {
         $this->graphQL(/** @lang GraphQL */
