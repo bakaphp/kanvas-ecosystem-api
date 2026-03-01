@@ -16,6 +16,7 @@ use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum as EnumsConfiguratio
 use Kanvas\Connectors\InAppPurchase\Enums\GooglePlayReceiptStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
@@ -84,8 +85,12 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
 
     private function executeRenewableSubscriptionFlow(): ModelsOrder
     {
+        $resolvedSku = $this->resolveGooglePlaySku(
+            $this->googlePlayInAppPurchase->product_id
+        );
+
         $receipt = [
-            'productId' => $this->googlePlayInAppPurchase->product_id,
+            'productId' => $resolvedSku,
             'orderId' => $this->googlePlayInAppPurchase->order_id,
             'purchaseToken' => $this->googlePlayInAppPurchase->purchase_token,
             'custom_fields' => $this->googlePlayInAppPurchase->custom_fields,
@@ -247,6 +252,26 @@ class CreateOrderFromGoogleReceiptAction extends CreateOrderFromReceiptActionBas
             ? $subscriptionPurchase->getExpiryTime()?->carbon
             : null;
         $subscription->saveOrFail();
+    }
+
+    /**
+     * If product_id is numeric (a Kanvas variant ID), resolve it to the variant's SKU
+     * for use with Google Play's API. Otherwise use it as-is (already a Google Play SKU).
+     */
+    private function resolveGooglePlaySku(string $productId): string
+    {
+        if (ctype_digit($productId)) {
+            /** @var Variants $variant */
+            $variant = Variants::getByIdFromCompanyApp(
+                (int) $productId,
+                $this->company,
+                $this->app
+            );
+
+            return $variant->sku;
+        }
+
+        return $productId;
     }
 
     private function resolveGoogleSubscriptionStatus(SubscriptionPurchase $subscriptionPurchase): string

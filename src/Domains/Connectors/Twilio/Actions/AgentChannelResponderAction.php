@@ -16,7 +16,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\AgentMonitoring;
+use NeuronAI\Observability\InspectorObserver;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
@@ -61,7 +61,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
                 new Configuration($this->message->app->get('inspector-key'))
             );
             $currentAgent->observe(
-                new AgentMonitoring($inspector)
+                new InspectorObserver($inspector)
             );
         }
 

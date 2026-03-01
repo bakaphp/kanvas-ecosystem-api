@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -110,6 +112,30 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByIdFromCompanyAppOrGlobal(mixed $id, CompanyInterface $company, AppInterface $app): self
+    {
+        try {
+            $query = self::where('id', $id)
+                ->notDeleted()
+                ->fromApp($app);
+
+            if ($app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
+                $query->where(function ($q) use ($company) {
+                    $q->where('companies_id', 0)
+                      ->orWhere('companies_id', $company->getId());
+                });
+            } else {
+                $query->where('companies_id', $company->getId());
+            }
+
+            return $query->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with ID %s for Company ID %s or global', get_called_class(), $id, $company->getId())
+            );
+        }
+    }
+
     public static function getByUuidFromCompanyApp(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): self
     {
         try {
@@ -181,6 +207,14 @@ trait KanvasModelTrait
                 sprintf('No %s record found with UUID %s for Branch ID %s.', get_called_class(), $uuid, $branch->getId())
             );
         }
+    }
+
+    /**
+     * Whether this entity belongs to no specific company (app-global resource).
+     */
+    public function isGlobal(): bool
+    {
+        return (int) $this->companies_id === AppEnums::GLOBAL_COMPANY_ID->getValue();
     }
 
     /**

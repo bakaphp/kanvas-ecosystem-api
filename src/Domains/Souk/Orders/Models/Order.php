@@ -11,10 +11,13 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -171,6 +174,18 @@ class Order extends BaseModel
     public function resource(): MorphTo
     {
         return $this->morphTo('resources');
+    }
+
+    public function providerCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Companies::class,
+            OrderProvider::getQualifiedTableName(),
+            'order_id',
+            'company_id'
+        )
+        ->using(OrderProvider::class)
+        ->withTimestamps();
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
@@ -649,7 +664,9 @@ class Order extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 

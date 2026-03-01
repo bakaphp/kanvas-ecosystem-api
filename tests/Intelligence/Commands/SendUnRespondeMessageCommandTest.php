@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
@@ -30,6 +31,9 @@ class SendUnRespondeMessageCommandTest extends TestCase
 {
     public function testCreatesLockedMessageCorrectly(): void
     {
+        // Freeze time at noon to prevent subHours(2) from crossing a day boundary
+        Carbon::setTestNow(Carbon::today()->setHour(12));
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
@@ -105,6 +109,7 @@ class SendUnRespondeMessageCommandTest extends TestCase
         $this->assertEquals('Customer inquiry message', $message->message['content']);
 
         // Verify message can be queried by command criteria
+        $now = now()->toDateTimeString();
         $foundMessages = Message::fromApp($app)
             ->fromCompany($company)
             ->where('is_locked', 1)
@@ -112,13 +117,15 @@ class SendUnRespondeMessageCommandTest extends TestCase
                 $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
             })
             ->whereDate('created_at', now()->toDateString())
-            ->whereRaw("DATE_ADD(created_at, INTERVAL 60 MINUTE) <= NOW()")
+            ->whereRaw('DATE_ADD(created_at, INTERVAL 60 MINUTE) <= ?', [$now])
             ->get();
 
         $this->assertGreaterThan(0, $foundMessages->count(), 'Message should be found by command query');
 
         $foundMessage = $foundMessages->firstWhere('id', $message->id);
         $this->assertNotNull($foundMessage, 'Our test message should be in results');
+
+        Carbon::setTestNow();
     }
 
     public function testMessageWithoutOpportunityIdSetup(): void

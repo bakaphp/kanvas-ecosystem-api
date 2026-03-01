@@ -61,7 +61,7 @@ class Product extends Data
             user: $user,
             name: $request['name'],
             description: $request['description'] ?? null,
-            productsType: isset($request['products_types_id']) ? ProductsTypesRepository::getById((int) $request['products_types_id'], $company) : null,
+            productsType: isset($request['products_types_id']) ? ProductsTypesRepository::getByIdOrGlobal((int) $request['products_types_id'], $company) : null,
             short_description: $request['short_description'] ?? null,
             html_description: $request['html_description'] ?? null,
             warranty_terms: $request['warranty_terms'] ?? null,
