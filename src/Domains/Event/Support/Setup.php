@@ -12,116 +12,93 @@ use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Event\Support\Enums\EventSetupTypeEnum;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 
 class Setup
 {
+    /** @var array<int, array<string, mixed>> */
     protected array $themes = [
-        'Business',
-        'Corporate',
-        'Wedding',
-        'Birthday',
-        'Conference',
-        'Charity',
+        ['name' => 'Business', 'setup' => 'standard'],
+        ['name' => 'Corporate', 'setup' => 'full'],
+        ['name' => 'Wedding', 'setup' => 'full'],
+        ['name' => 'Birthday', 'setup' => 'full'],
+        ['name' => 'Conference', 'setup' => 'full'],
+        ['name' => 'Charity', 'setup' => 'full'],
     ];
 
-    protected array $themArea = [
-        'Indoor',
-        'Outdoor',
-        'Virtual',
-        'Hybrid',
-        'Beach',
+    /** @var array<int, array<string, mixed>> */
+    protected array $themeAreas = [
+        ['name' => 'Indoor', 'setup' => 'standard'],
+        ['name' => 'Outdoor', 'setup' => 'full'],
+        ['name' => 'Virtual', 'setup' => 'full'],
+        ['name' => 'Hybrid', 'setup' => 'full'],
+        ['name' => 'Beach', 'setup' => 'full'],
     ];
 
-    protected array $participantType = [
-        'Attendee',
-        'Speaker',
-        'Sponsor',
-        'Exhibitor',
-        'Volunteer',
+    /** @var array<int, array<string, mixed>> */
+    protected array $participantTypes = [
+        ['name' => 'Attendee', 'setup' => 'standard'],
+        ['name' => 'Speaker', 'setup' => 'full'],
+        ['name' => 'Sponsor', 'setup' => 'full'],
+        ['name' => 'Exhibitor', 'setup' => 'full'],
+        ['name' => 'Volunteer', 'setup' => 'full'],
     ];
 
-    protected array $eventType = [
-        'Seminar',
-        'Workshop',
-        'Webinar',
-        'Networking',
-        'Festival',
-        'Appointment',
+    /** @var array<int, array<string, mixed>> */
+    protected array $eventTypes = [
+        ['name' => 'Seminar', 'setup' => 'full'],
+        ['name' => 'Workshop', 'setup' => 'full'],
+        ['name' => 'Webinar', 'setup' => 'full'],
+        ['name' => 'Networking', 'setup' => 'full'],
+        ['name' => 'Festival', 'setup' => 'full'],
+        ['name' => 'Appointment', 'setup' => 'standard'],
     ];
 
-    protected array $eventStatus = [
-        'Upcoming',
-        'Ongoing',
-        'Completed',
-        'Cancelled',
-        'Postponed',
+    /** @var array<int, array<string, mixed>> */
+    protected array $eventStatuses = [
+        ['name' => 'Upcoming', 'setup' => 'standard'],
+        ['name' => 'Ongoing', 'setup' => 'standard'],
+        ['name' => 'Completed', 'setup' => 'standard'],
+        ['name' => 'Cancelled', 'setup' => 'standard'],
+        ['name' => 'Postponed', 'setup' => 'standard'],
     ];
 
-    protected array $eventClass = [
-        'Free',
-        'Paid',
-        'VIP',
-        'Exclusive',
-        'Public',
+    /** @var array<int, array<string, mixed>> */
+    protected array $eventClasses = [
+        ['name' => 'Free', 'setup' => 'standard'],
+        ['name' => 'Paid', 'setup' => 'full'],
+        ['name' => 'VIP', 'setup' => 'full'],
+        ['name' => 'Exclusive', 'setup' => 'full'],
+        ['name' => 'Public', 'setup' => 'full'],
     ];
 
+    /** @var array<int, array<string, mixed>> */
     protected array $categories = [
-        [
-            'type' => 'Seminar',
-            'class' => 'Free',
-            'category' => 'Educational',
-        ],
-        [
-            'type' => 'Workshop',
-            'class' => 'Paid',
-            'category' => 'Skill Development',
-        ],
-        [
-            'type' => 'Webinar',
-            'class' => 'VIP',
-            'category' => 'Exclusive Knowledge',
-        ],
-        [
-            'type' => 'Networking',
-            'class' => 'Public',
-            'category' => 'Professional Growth',
-        ],
-        [
-            'type' => 'Festival',
-            'class' => 'Exclusive',
-            'category' => 'Entertainment',
-        ],
-        [
-            'type' => 'Appointment',
-            'class' => 'Free',
-            'category' => 'Appointment',
-            'is_default' => 1,
-        ],
+        ['type' => 'Seminar', 'class' => 'Free', 'category' => 'Educational', 'setup' => 'full'],
+        ['type' => 'Workshop', 'class' => 'Paid', 'category' => 'Skill Development', 'setup' => 'full'],
+        ['type' => 'Webinar', 'class' => 'VIP', 'category' => 'Exclusive Knowledge', 'setup' => 'full'],
+        ['type' => 'Networking', 'class' => 'Public', 'category' => 'Professional Growth', 'setup' => 'full'],
+        ['type' => 'Festival', 'class' => 'Exclusive', 'category' => 'Entertainment', 'setup' => 'full'],
+        ['type' => 'Appointment', 'class' => 'Free', 'category' => 'Appointment', 'is_default' => 1, 'setup' => 'standard'],
     ];
 
-    /**
-     * Constructor.
-     */
     public function __construct(
         protected AppInterface $app,
         protected UserInterface $user,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
+        protected EventSetupTypeEnum $setupType = EventSetupTypeEnum::STANDARD
     ) {
     }
 
-    /**
-     * Setup all the default inventory data for this current company.
-     */
     public function run(): bool
     {
-        (new CreateSystemModule($this->app))->run();
-        $default = 'Default';
+        new CreateSystemModule($this->app)->run();
 
-        foreach ($this->themes as $key => $theme) {
+        foreach ($this->filterBySetupType($this->themes) as $key => $theme) {
             Theme::firstOrCreate([
-                'name' => $theme,
+                'name' => $theme['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
@@ -129,9 +106,9 @@ class Setup
             ]);
         }
 
-        foreach ($this->themArea as $key => $area) {
+        foreach ($this->filterBySetupType($this->themeAreas) as $key => $area) {
             ThemeArea::firstOrCreate([
-                'name' => $area,
+                'name' => $area['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
@@ -139,27 +116,27 @@ class Setup
             ]);
         }
 
-        foreach ($this->participantType as $type) {
+        foreach ($this->filterBySetupType($this->participantTypes) as $type) {
             ParticipantType::firstOrCreate([
-                'name' => $type,
+                'name' => $type['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
             ]);
         }
 
-        foreach ($this->eventType as $key => $type) {
+        foreach ($this->filterBySetupType($this->eventTypes) as $type) {
             EventType::firstOrCreate([
-                'name' => $type,
+                'name' => $type['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
             ]);
         }
 
-        foreach ($this->eventStatus as $key => $status) {
+        foreach ($this->filterBySetupType($this->eventStatuses) as $key => $status) {
             EventStatus::firstOrCreate([
-                'name' => $status,
+                'name' => $status['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
@@ -167,9 +144,9 @@ class Setup
             ]);
         }
 
-        foreach ($this->eventClass as $key => $class) {
+        foreach ($this->filterBySetupType($this->eventClasses) as $key => $class) {
             EventClass::firstOrCreate([
-                'name' => $class,
+                'name' => $class['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
@@ -177,7 +154,7 @@ class Setup
             ]);
         }
 
-        foreach ($this->categories as $category) {
+        foreach ($this->filterBySetupType($this->categories) as $category) {
             EventCategory::firstOrCreate([
                 'event_type_id' => EventType::fromApp($this->app)->fromCompany($this->company)->where('name', $category['type'])->first()->getId(),
                 'event_class_id' => EventClass::fromApp($this->app)->fromCompany($this->company)->where('name', $category['class'])->first()->getId(),
@@ -196,5 +173,21 @@ class Setup
             && Theme::fromApp($this->app)->fromCompany($this->company)->count() > 0
             && ThemeArea::fromApp($this->app)->fromCompany($this->company)->count() > 0
             && ParticipantType::fromApp($this->app)->fromCompany($this->company)->count() > 0;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>>
+     */
+    protected function filterBySetupType(array $items): array
+    {
+        if ($this->setupType === EventSetupTypeEnum::FULL) {
+            return array_values($items);
+        }
+
+        return array_values(array_filter(
+            $items,
+            fn (array $item) => $item['setup'] === EventSetupTypeEnum::STANDARD->value
+        ));
     }
 }
