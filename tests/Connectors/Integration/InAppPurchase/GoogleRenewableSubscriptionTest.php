@@ -14,6 +14,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
@@ -230,6 +231,57 @@ class GoogleRenewableSubscriptionTest extends TestCase
                 'autoRenewing' => true,
             ])
         )->execute();
+    }
+
+    public function testRenewableSubscriptionResolvesNumericProductIdToSku(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+        $region = Regions::fromApp($app)->fromCompany($company)->firstOrFail();
+
+        $sku = 'google_sub_resolve_' . uniqid();
+        $this->createProduct($app, $company, $user, $sku);
+
+        $variant = Variants::fromApp($app)
+            ->fromCompany($company)
+            ->where('sku', $sku)
+            ->firstOrFail();
+
+        $purchaseToken = 'token_' . Str::random(20);
+
+        $subscriptionPurchase = SubscriptionPurchase::fromArray([
+            'orderId' => 'GPA.resolve-test-' . uniqid(),
+            'expiryTimeMillis' => now()->addMonth()->getTimestampMs(),
+            'paymentState' => SubscriptionPurchase::PAYMENT_STATE_RECEIVED,
+            'acknowledgementState' => SubscriptionPurchase::ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED,
+            'autoRenewing' => true,
+        ]);
+
+        $action = $this->mockedRenewableAction(
+            new GooglePlayInAppPurchaseReceipt(
+                app: $app,
+                company: $company,
+                user: $user,
+                region: $region,
+                product_id: (string) $variant->getId(),
+                order_id: $subscriptionPurchase->getOrderId(),
+                purchase_token: $purchaseToken,
+                is_renewable_subscription: true
+            ),
+            $subscriptionPurchase
+        );
+
+        $order = $action->execute();
+
+        $this->assertNotNull($order);
+        $this->assertEquals($sku, $order->metadata['google_subscription']['product_id']);
+
+        $subscription = CashierSubscription::where('stripe_id', $purchaseToken)->first();
+        $this->assertNotNull($subscription);
+        $this->assertEquals('google_play:' . $sku, $subscription->type);
+        $this->assertEquals($sku, $subscription->stripe_price);
     }
 
     private function createProduct(Apps $app, mixed $company, mixed $user, string $sku): void

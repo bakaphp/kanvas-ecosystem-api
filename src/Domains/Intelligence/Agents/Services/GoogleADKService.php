@@ -240,6 +240,27 @@ class GoogleADKService
         return json_decode($response->getBody()->getContents(), true) ?? [];
     }
 
+    public function sendData(string $userId, string $sessionId, array $data): void
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => $data,
+            ]);
+        } catch (ClientException $e) {
+            $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
+            $responseData = json_decode($responseBody, true);
+
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
+                // Return a specific response or handle as needed
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
     /**
      * Delete a session
      *

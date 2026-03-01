@@ -26,6 +26,9 @@ class ProductBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
         }
@@ -56,6 +59,9 @@ class ProductBuilder
         if (! empty($args['nearByLocation'])) {
             $query->filterByNearLocation($args['nearByLocation']);
         }
+
+        $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
+        $query = $roleBasedBuilder->applyRoleScope($query, $args);
 
         return $query;
     }

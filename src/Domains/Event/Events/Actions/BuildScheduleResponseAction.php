@@ -91,16 +91,15 @@ class BuildScheduleResponseAction
             $close = null;
 
             // Normalize to periods format for consistency
-            if (! $periods) {
-                // Legacy single period: convert to periods array
+            if (! $periods || count($periods) === 1) {
+                // Single or legacy period: use formatted times from RRUle
                 [$open, $close] = $this->parseHoursFromRule($rule);
                 if ($open && $close) {
                     $periods = [['open' => $open, 'close' => $close]];
+                } elseif ($periods) {
+                    $open = $periods[0]['open'];
+                    $close = $periods[0]['close'];
                 }
-            } elseif (count($periods) === 1) {
-                // Single period: populate both open/close AND periods (backward compatibility)
-                $open = $periods[0]['open'];
-                $close = $periods[0]['close'];
             }
             // Multi-period: open/close stay null, only use periods
 

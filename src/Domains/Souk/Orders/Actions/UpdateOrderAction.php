@@ -77,6 +77,11 @@ class UpdateOrderAction
                 $this->order->calculateTotal();
             }
 
+            // Sync provider companies when items are updated
+            if ($hasItems) {
+                new SyncOrderProvidersAction($this->order)->execute();
+            }
+
             // Log the activity after changes are made
             $this->logOrderActivity(
                 $originalValues,

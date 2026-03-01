@@ -55,8 +55,7 @@ class DuplicatedMetadata implements ValidationRule
     {
         $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-        return $this->isBlockedByStatus($normalizedValue, $settings)
-            || $this->isWithinCooldown($normalizedValue, $settings);
+        return $this->isWithinCoolDown($normalizedValue, $settings);
     }
 
     private function baseMetadataQuery(mixed $value, string $jsonPath): Builder
@@ -84,7 +83,7 @@ class DuplicatedMetadata implements ValidationRule
             ->exists();
     }
 
-    private function isWithinCooldown(mixed $value, array $settings): bool
+    private function isWithinCoolDown(mixed $value, array $settings): bool
     {
         $query = $this->baseMetadataQuery($value, $settings['field'])
             ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']));
