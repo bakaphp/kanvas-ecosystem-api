@@ -18,6 +18,7 @@ use Kanvas\Event\Themes\Models\ThemeArea;
 class Setup
 {
     protected array $themes = [
+        'Business',
         'Corporate',
         'Wedding',
         'Birthday',
@@ -26,8 +27,8 @@ class Setup
     ];
 
     protected array $themArea = [
-        'Outdoor',
         'Indoor',
+        'Outdoor',
         'Virtual',
         'Hybrid',
         'Beach',
@@ -47,6 +48,7 @@ class Setup
         'Webinar',
         'Networking',
         'Festival',
+        'Appointment',
     ];
 
     protected array $eventStatus = [
@@ -90,6 +92,12 @@ class Setup
             'type' => 'Festival',
             'class' => 'Exclusive',
             'category' => 'Entertainment',
+        ],
+        [
+            'type' => 'Appointment',
+            'class' => 'Free',
+            'category' => 'Appointment',
+            'is_default' => 1,
         ],
     ];
 
@@ -177,6 +185,7 @@ class Setup
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
                 'name' => $category['category'],
+                'is_default' => $category['is_default'] ?? 0,
             ]);
         }
 
