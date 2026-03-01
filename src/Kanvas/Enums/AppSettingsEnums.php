@@ -18,6 +18,7 @@ enum AppSettingsEnums implements EnumsInterface
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
     case ONBOARDING_EVENT_SETUP;
+    case ONBOARDING_EVENT_SETUP_TYPE;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case KANVAS_APP_MAIN_COMPANY_ID;
@@ -58,6 +59,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
             self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
+            self::ONBOARDING_EVENT_SETUP_TYPE => 'onboarding_event_setup_type',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::KANVAS_APP_MAIN_COMPANY_ID => 'kanvas_app_main_company_id',
