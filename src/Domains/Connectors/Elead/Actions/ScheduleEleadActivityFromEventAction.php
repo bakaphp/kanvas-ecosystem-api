@@ -79,22 +79,24 @@ class ScheduleEleadActivityFromEventAction
 
         /** @var \Kanvas\Event\Events\Models\EventVersion|null $version */
         $version = $this->event->versions()->latest()->first();
-        if ($version?->start_at !== null) {
-            return $version->start_at->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
-        }
 
         if ($version !== null) {
             $date = $version->dates()->first();
             if ($date !== null) {
-                return Carbon::parse((string) $date->event_date . ' ' . ((string) ($date->start_time ?? '00:00')), $timezone)
-                    ->utc()
+                return Carbon::parse(
+                    (string) $date->event_date . ' ' . ((string) ($date->start_time ?? '00:00'))
+                )->format('Y-m-d\TH:i:s.v\Z');
+            }
+
+            if ($version->start_at !== null) {
+                return $version->start_at
+                    ->setTimezone($timezone)
                     ->format('Y-m-d\TH:i:s.v\Z');
             }
         }
 
         return Carbon::now($timezone)
             ->addHour()
-            ->utc()
             ->format('Y-m-d\TH:i:s.v\Z');
     }
 }
