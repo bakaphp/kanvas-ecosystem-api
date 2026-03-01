@@ -10,6 +10,7 @@ type App {
     payments_active: Boolean
     ecosystem_auth: Boolean
     is_public: Boolean!
+    logo: Filesystem @method(name: "getLogo")
     users: [User!]! @belongsToMany
     total_users: Int!
     total_companies: Int!
@@ -214,5 +215,9 @@ extend type Mutation @guardByAppKey {
     saveGcsSettings(id: String!, input: gcsFilesystemConfigInput): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
+        )
+    updateAppLogo(id: ID!, file: Upload!): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@updateLogo"
         )
 }
