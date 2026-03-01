@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Elead;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
@@ -131,10 +132,23 @@ class Client
 
         $params['body'] = json_encode($data);
 
-        $response = $this->client->post(
-            $this->preparePath($path),
-            $params
-        );
+        try {
+            $response = $this->client->post(
+                $this->preparePath($path),
+                $params
+            );
+        } catch (RequestException $e) {
+            $response = $e->getResponse();
+            $responseBody = $response !== null
+                ? $response->getBody()->getContents()
+                : 'No response body';
+
+            throw new RuntimeException(
+                "eLead API error on {$path}: {$responseBody}",
+                $e->getCode(),
+                $e
+            );
+        }
 
         $returnData = $response->getBody()->getContents();
 
