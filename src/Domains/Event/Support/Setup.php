@@ -18,6 +18,7 @@ use Kanvas\Event\Themes\Models\ThemeArea;
 class Setup
 {
     protected array $themes = [
+        'Business',
         'Corporate',
         'Wedding',
         'Birthday',
@@ -26,8 +27,8 @@ class Setup
     ];
 
     protected array $themArea = [
-        'Outdoor',
         'Indoor',
+        'Outdoor',
         'Virtual',
         'Hybrid',
         'Beach',
