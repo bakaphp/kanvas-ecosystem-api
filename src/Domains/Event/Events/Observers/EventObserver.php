@@ -23,13 +23,13 @@ class EventObserver
 
     public function updated(Event $event): void
     {
-        /*   $event->fireWorkflow(
-              WorkflowEnum::UPDATED->value,
-              true,
-              [
-                  'app' => $event->app,
-                  'company' => $event->company,
-              ]
-          ); */
+        $event->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+               'app' => $event->app,
+               'company' => $event->company,
+                  ]
+        );
     }
 }
