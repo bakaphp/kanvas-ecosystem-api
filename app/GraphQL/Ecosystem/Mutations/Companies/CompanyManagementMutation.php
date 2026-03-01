@@ -18,9 +18,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AddAdminsToCompanyAction;
@@ -118,16 +115,14 @@ class CompanyManagementMutation
                 auth()->user()
             );
         }
-        $filesystem = new FilesystemServices(app(Apps::class));
-        $file = $request['file'];
-        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
 
-        $filesystemEntity = $filesystem->upload($file, auth()->user());
-        $action = new AttachFilesystemAction(
-            $filesystemEntity,
-            $company
+        $this->uploadImageToEntity(
+            $company,
+            app(Apps::class),
+            auth()->user(),
+            $request['file'],
+            'photo'
         );
-        $action->execute('photo');
 
         return $company;
     }
@@ -153,7 +148,7 @@ class CompanyManagementMutation
         return true;
     }
 
-    public function addUserToCompany($rootValue, array $request): bool
+    public function addUserToCompany(mixed $rootValue, array $request): bool
     {
         $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
@@ -171,7 +166,7 @@ class CompanyManagementMutation
         return true;
     }
 
-    public function removeUserFromCompany($rootValue, array $request): bool
+    public function removeUserFromCompany(mixed $rootValue, array $request): bool
     {
         $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
@@ -237,7 +232,7 @@ class CompanyManagementMutation
         return false;
     }
 
-    public function addAddressToCompany($rootValue, array $request): CompaniesAddress
+    public function addAddressToCompany(mixed $rootValue, array $request): CompaniesAddress
     {
         $company = Companies::getById($request['id']);
         $addressInput = $request['input'];
@@ -275,7 +270,7 @@ class CompanyManagementMutation
         return $address;
     }
 
-    public function updateCompanyAddress($rootValue, array $request): CompaniesAddress
+    public function updateCompanyAddress(mixed $rootValue, array $request): CompaniesAddress
     {
         $company = Companies::getById($request['id']);
         $address = CompaniesAddress::getById($request['address_id']);
@@ -285,7 +280,6 @@ class CompanyManagementMutation
             $company,
             auth()->user()
         );
-
 
         if (! $address->is_default && isset($addressInput['is_default']) && $addressInput['is_default']) {
             $company->addresses()->update(['is_default' => false]);
@@ -312,7 +306,7 @@ class CompanyManagementMutation
         return $address;
     }
 
-    public function removeAddressFromCompany($rootValue, array $request): bool
+    public function removeAddressFromCompany(mixed $rootValue, array $request): bool
     {
         $company = Companies::getById($request['id']);
 
