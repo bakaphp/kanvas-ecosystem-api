@@ -95,9 +95,6 @@ class ProcessPendingInsuranceCommand extends Command
                 $this->processBatchOrders($orderIds, $app, $dryRun, $batchSize, $overwrite);
             } else {
                 $this->processAllPendingOrders($app, $dryRun, $batchSize, $overwrite);
-                $this->processBatchOrders($orderIds, $app, $dryRun, $batchSize);
-            } else {
-                $this->processAllPendingOrders($app, $dryRun, $batchSize);
             }
 
             $this->printSummary();
@@ -230,70 +227,6 @@ class ProcessPendingInsuranceCommand extends Command
      * Process all orders with pending insurance data using chunked queries.
      */
     protected function processAllPendingOrders(Apps $app, bool $dryRun, int $batchSize = 50, bool $overwrite = false): void
-        }
-
-        return array_values(array_unique($ids));
-    }
-
-    /**
-     * Process a batch of specific order IDs in chunks to handle large volumes.
-     */
-    protected function processBatchOrders(array $orderIds, Apps $app, bool $dryRun, int $batchSize): void
-    {
-        $totalOrders = count($orderIds);
-        $chunks = array_chunk($orderIds, $batchSize);
-        $totalBatches = count($chunks);
-
-        $progressBar = $this->output->createProgressBar($totalOrders);
-        $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% -- %message%');
-        $progressBar->setMessage('Starting...');
-        $progressBar->start();
-
-        foreach ($chunks as $batchIndex => $chunk) {
-            $batchNum = $batchIndex + 1;
-            $progressBar->setMessage("Batch {$batchNum}/{$totalBatches}");
-
-            $orders = Order::whereIn('id', $chunk)
-                ->where('apps_id', $app->id)
-                ->get()
-                ->keyBy('id');
-
-            // Report missing orders
-            $foundIds = $orders->pluck('id')->toArray();
-            $missingIds = array_diff($chunk, $foundIds);
-            foreach ($missingIds as $missingId) {
-                $this->errorOrders[] = $missingId;
-                $this->errorCount++;
-            }
-
-            foreach ($orders as $order) {
-                $progressBar->setMessage("Order #{$order->id} (Batch {$batchNum}/{$totalBatches})");
-                $this->processOrder($order, $app, $dryRun, true);
-                $progressBar->advance();
-            }
-
-            // Advance progress for missing orders too
-            $progressBar->advance(count($missingIds));
-
-            // Free memory between batches
-            unset($orders);
-        }
-
-        $progressBar->setMessage('Complete!');
-        $progressBar->finish();
-        $this->line('');
-        $this->line('');
-
-        if (! empty($this->errorOrders)) {
-            $this->warn('Orders not found in App ' . $app->id . ': ' . implode(', ', $this->errorOrders));
-            $this->line('');
-        }
-    }
-
-    /**
-     * Process all orders with pending insurance data using chunked queries.
-     */
-    protected function processAllPendingOrders(Apps $app, bool $dryRun, int $batchSize = 50): void
     {
         $this->info("Searching for orders with pending insurance data in App {$app->id}...");
         $this->line('');
@@ -307,9 +240,6 @@ class ProcessPendingInsuranceCommand extends Command
                     ->orWhereRaw("JSON_EXTRACT(metadata, '$.esims') IS NOT NULL");
             })
             ->orderBy('id', 'desc');
-
-        $totalOrders = $query->count();
-
 
         $totalOrders = $query->count();
 
@@ -331,10 +261,6 @@ class ProcessPendingInsuranceCommand extends Command
             foreach ($orders as $order) {
                 $progressBar->setMessage("Processing Order #{$order->id}");
                 $this->processOrder($order, $app, $dryRun, true, $overwrite);
-        $query->chunk($batchSize, function ($orders) use ($app, $dryRun, $progressBar) {
-            foreach ($orders as $order) {
-                $progressBar->setMessage("Processing Order #{$order->id}");
-                $this->processOrder($order, $app, $dryRun, true);
                 $progressBar->advance();
             }
         });
