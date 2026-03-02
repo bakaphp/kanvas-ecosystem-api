@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\ApiCallTracker;
 use RuntimeException;
 
 class Client
@@ -26,6 +27,7 @@ class Client
     protected string $authAuthorizationBasic;
     protected string $subscriptionId;
     protected string $redisKey = 'eLeadAuthToken';
+    protected ?ApiCallTracker $apiCallTracker = null;
 
     public function __construct(
         protected AppInterface $app,
@@ -104,20 +106,33 @@ class Client
         return $path;
     }
 
+    protected function tracker(): ApiCallTracker
+    {
+        return $this->apiCallTracker ??= new ApiCallTracker($this->app, $this->company);
+    }
+
     /**
      * Run Get request against Elead API.
      */
     public function get(string $path, array $params = []): array
     {
-        $response = $this->client->get(
-            $this->preparePath($path),
-            $this->setHeaders($params)
-        );
+        $this->tracker()->trackCall('GET', $path);
 
-        return json_decode(
-            $response->getBody()->getContents(),
-            true
-        );
+        try {
+            $response = $this->client->get(
+                $this->preparePath($path),
+                $this->setHeaders($params)
+            );
+
+            return json_decode(
+                $response->getBody()->getContents(),
+                true
+            );
+        } catch (RequestException $e) {
+            $this->tracker()->trackError($e->getCode());
+
+            throw $e;
+        }
     }
 
     /**
@@ -125,37 +140,32 @@ class Client
      */
     public function post(string $path, array $data, array $params = []): array
     {
-        $params = $this->setHeaders($params);
-        if (! isset($params['headers']['Content-Type'])) {
-            $params['headers']['Content-Type'] = 'application/json';
-        }
-
-        $params['body'] = json_encode($data);
+        $this->tracker()->trackCall('POST', $path);
 
         try {
+            $params = $this->setHeaders($params);
+            if (! isset($params['headers']['Content-Type'])) {
+                $params['headers']['Content-Type'] = 'application/json';
+            }
+
+            $params['body'] = json_encode($data);
+
             $response = $this->client->post(
                 $this->preparePath($path),
                 $params
             );
+
+            $returnData = $response->getBody()->getContents();
+
+            return $returnData ? json_decode(
+                $returnData,
+                true
+            ) : [];
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-            $responseBody = $response !== null
-                ? $response->getBody()->getContents()
-                : 'No response body';
+            $this->tracker()->trackError($e->getCode());
 
-            throw new RuntimeException(
-                "eLead API error on {$path}: {$responseBody}",
-                $e->getCode(),
-                $e
-            );
+            throw $e;
         }
-
-        $returnData = $response->getBody()->getContents();
-
-        return $returnData ? json_decode(
-            $returnData,
-            true
-        ) : [];
     }
 
     /**
@@ -163,22 +173,30 @@ class Client
      */
     public function put(string $path, array $data, array $params = []): array
     {
-        $params = $this->setHeaders($params);
-        if (! isset($params['headers']['Content-Type'])) {
-            $params['headers']['Content-Type'] = 'application/json';
+        $this->tracker()->trackCall('PUT', $path);
+
+        try {
+            $params = $this->setHeaders($params);
+            if (! isset($params['headers']['Content-Type'])) {
+                $params['headers']['Content-Type'] = 'application/json';
+            }
+
+            $params['body'] = json_encode($data);
+
+            $response = $this->client->put(
+                $this->preparePath($path),
+                $params
+            );
+
+            return ! empty($response->getBody()->getContents()) ? json_decode(
+                $response->getBody()->getContents(),
+                true
+            ) : [];
+        } catch (RequestException $e) {
+            $this->tracker()->trackError($e->getCode());
+
+            throw $e;
         }
-
-        $params['body'] = json_encode($data);
-
-        $response = $this->client->put(
-            $this->preparePath($path),
-            $params
-        );
-
-        return ! empty($response->getBody()->getContents()) ? json_decode(
-            $response->getBody()->getContents(),
-            true
-        ) : [];
     }
 
     /**
@@ -186,19 +204,27 @@ class Client
      */
     public function delete(string $path): array
     {
-        $params = $this->setHeaders([]);
-        if (! isset($params['headers']['Content-Type'])) {
-            $params['headers']['Content-Type'] = 'application/json';
+        $this->tracker()->trackCall('DELETE', $path);
+
+        try {
+            $params = $this->setHeaders([]);
+            if (! isset($params['headers']['Content-Type'])) {
+                $params['headers']['Content-Type'] = 'application/json';
+            }
+
+            $response = $this->client->delete(
+                $this->preparePath($path),
+                $params
+            );
+
+            return ! empty($response->getBody()->getContents()) ? json_decode(
+                $response->getBody()->getContents(),
+                true
+            ) : [];
+        } catch (RequestException $e) {
+            $this->tracker()->trackError($e->getCode());
+
+            throw $e;
         }
-
-        $response = $this->client->delete(
-            $this->preparePath($path),
-            $params
-        );
-
-        return ! empty($response->getBody()->getContents()) ? json_decode(
-            $response->getBody()->getContents(),
-            true
-        ) : [];
     }
 }
