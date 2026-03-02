@@ -6,6 +6,7 @@ namespace Kanvas\ActionEngine\Tasks\WorkflowActivity;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -88,6 +89,20 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     $lead->getId()
                 )->execute();
 
+                $status = 'submitted';
+                Engagement::firstOrCreate([
+                    'companies_id' => $lead->company->getId(),
+                    'apps_id' => $app->getId(),
+                    'users_id' => $lead->user->getId(),
+                    'leads_id' => $lead->getId(),
+                    'people_id' => $lead->people->getId(),
+                    'companies_actions_id' => $taskListItem->companyAction->getId(),
+                    'message_id' => $newMessage->getId(),
+                    'slug' => $verb,
+                    'entity_uuid' => (string) $uuid,
+                    'pipelines_stages_id' => $this->getStageId($taskListItem, $status),
+                ]);
+
                 /** @var \Kanvas\Users\Models\Users $leadUser */
                 $leadUser = $lead->user;
                 /** @var \Kanvas\Companies\Models\Companies $leadCompany */
@@ -113,5 +128,20 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
             },
             company: $lead->company
         );
+    }
+
+    private function getStageId(TaskListItem $taskListItem, string $status): int
+    {
+        if ($taskListItem->companyAction->pipeline) {
+            $stage = $taskListItem->companyAction->pipeline->stages()
+                ->where('slug', $status)
+                ->first();
+
+            if ($stage) {
+                return $stage->getId();
+            }
+        }
+
+        return 1;
     }
 }
