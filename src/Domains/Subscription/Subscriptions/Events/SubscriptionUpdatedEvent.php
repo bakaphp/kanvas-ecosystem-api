@@ -40,7 +40,7 @@ class SubscriptionUpdatedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
-        return new Channel('subscription-updated-channel-on-' .  $this->appsStripeCustomer->apps_id . '-for-' . $this->users->id);
+        return new Channel('subscription-updated-channel-on-' . $this->appsStripeCustomer->apps_id . '-for-' . $this->users->id);
     }
 
     public function broadcastAs(): string
