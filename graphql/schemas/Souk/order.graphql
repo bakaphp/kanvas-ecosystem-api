@@ -107,6 +107,7 @@ type Order {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    provider_companies: [Company!]! @belongsToMany(relation: "providerCompanies")
 }
 
 type OrderItem {
@@ -630,12 +631,13 @@ extend type Query @guard {
                     "converted_at"
                 ]
             )
+        whereHasProvider: ID
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
         @paginate(
-            model: "Kanvas\\Souk\\Orders\\Models\\Order"
             scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@applyProviderFilter"
             defaultCount: 25
         )
 

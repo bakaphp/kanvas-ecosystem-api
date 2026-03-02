@@ -9,6 +9,11 @@ use Laravel\Cashier\Subscription;
 
 class SubscriptionType
 {
+    public function id(Subscription $subscription): ?int
+    {
+        return $this->getCustomer($subscription)?->id;
+    }
+
     public function provider(Subscription $subscription): ?string
     {
         return $this->getCustomer($subscription)?->provider;
@@ -50,5 +55,10 @@ class SubscriptionType
     public function isActive(Subscription $subscription): bool
     {
         return $subscription->active();
+    }
+
+    public function appsStripeCustomerConfig(Subscription $subscription): ?array
+    {
+        return $this->getCustomer($subscription)?->config;
     }
 }

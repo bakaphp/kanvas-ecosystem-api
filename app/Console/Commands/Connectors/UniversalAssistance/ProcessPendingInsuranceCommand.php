@@ -22,8 +22,11 @@ use Kanvas\Souk\Orders\Models\Order;
 class ProcessPendingInsuranceCommand extends Command
 {
     protected $signature = 'kanvas:process-pending-insurance
-                            {order_id? : Optional Order ID to process}
-                            {--all : Process all orders with pending insurance data for app 22}
+                            {order_ids?* : Order IDs to process (space-separated, or use --ids for comma-separated)}
+                            {--ids= : Comma-separated list of order IDs to process}
+                            {--file= : Path to a file containing order IDs (one per line)}
+                            {--all : Process all orders with pending insurance data}
+                            {--batch-size=50 : Number of orders to process per batch}
                             {--dry-run : Show what would be processed without actually creating vouchers}
                             {--app-id=22 : App ID to use (default: 22)}';
 
@@ -37,18 +40,22 @@ class ProcessPendingInsuranceCommand extends Command
 
     public function handle(): int
     {
-        $orderId = $this->argument('order_id');
+        $orderIds = $this->resolveOrderIds();
         $processAll = $this->option('all');
         $dryRun = $this->option('dry-run');
         $appId = (int) $this->option('app-id');
+        $batchSize = (int) $this->option('batch-size');
 
-        if (! $orderId && ! $processAll) {
-            $this->error('You must provide an order_id or use --all option');
+        if (empty($orderIds) && ! $processAll) {
+            $this->error('You must provide order IDs or use --all option');
             $this->line('');
             $this->line('Usage:');
-            $this->line('  php artisan kanvas:process-pending-insurance 12345');
+            $this->line('  php artisan kanvas:process-pending-insurance 123 456 789');
+            $this->line('  php artisan kanvas:process-pending-insurance --ids=123,456,789,101,102');
+            $this->line('  php artisan kanvas:process-pending-insurance --file=order_ids.txt');
             $this->line('  php artisan kanvas:process-pending-insurance --all');
             $this->line('  php artisan kanvas:process-pending-insurance --all --dry-run');
+            $this->line('  php artisan kanvas:process-pending-insurance --ids=1,2,3 --batch-size=25');
 
             return self::FAILURE;
         }
@@ -75,12 +82,12 @@ class ProcessPendingInsuranceCommand extends Command
         $this->line('');
 
         try {
-            if ($orderId) {
-                // Process single order
-                $this->processSingleOrder((int) $orderId, $app, $dryRun);
+            if (! empty($orderIds)) {
+                $this->info('Processing ' . count($orderIds) . ' specific orders in batches of ' . $batchSize);
+                $this->line('');
+                $this->processBatchOrders($orderIds, $app, $dryRun, $batchSize);
             } else {
-                // Process all orders with pending insurance
-                $this->processAllPendingOrders($app, $dryRun);
+                $this->processAllPendingOrders($app, $dryRun, $batchSize);
             }
 
             $this->printSummary();
@@ -95,66 +102,161 @@ class ProcessPendingInsuranceCommand extends Command
     }
 
     /**
-     * Process a single order by ID
+     * Resolve order IDs from all input sources: arguments, --ids, and --file.
      */
-    protected function processSingleOrder(int $orderId, Apps $app, bool $dryRun): void
+    protected function resolveOrderIds(): array
     {
-        $this->info("Looking for Order ID: {$orderId}");
+        $ids = [];
 
-        $order = Order::where('id', $orderId)
-            ->where('apps_id', $app->id)
-            ->first();
-
-        if (! $order) {
-            $this->error("Order with ID {$orderId} not found in App {$app->id}");
-            $this->errorCount++;
-
-            return;
+        // From positional arguments (space-separated)
+        $argIds = $this->argument('order_ids');
+        if (! empty($argIds)) {
+            foreach ($argIds as $id) {
+                // Support comma-separated within each argument too
+                foreach (explode(',', (string) $id) as $subId) {
+                    $trimmed = trim($subId);
+                    if ($trimmed !== '' && is_numeric($trimmed)) {
+                        $ids[] = (int) $trimmed;
+                    }
+                }
+            }
         }
 
-        $this->processOrder($order, $app, $dryRun);
+        // From --ids option (comma-separated)
+        $idsOption = $this->option('ids');
+        if ($idsOption) {
+            foreach (explode(',', $idsOption) as $id) {
+                $trimmed = trim($id);
+                if ($trimmed !== '' && is_numeric($trimmed)) {
+                    $ids[] = (int) $trimmed;
+                }
+            }
+        }
+
+        // From --file option (one ID per line)
+        $filePath = $this->option('file');
+        if ($filePath) {
+            if (! file_exists($filePath)) {
+                $this->error("File not found: {$filePath}");
+
+                return [];
+            }
+
+            $lines = file($filePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                // Support comma-separated within lines too
+                foreach (explode(',', $line) as $id) {
+                    $trimmed = trim($id);
+                    // Skip comment lines
+                    if (str_starts_with($trimmed, '#') || $trimmed === '') {
+                        continue;
+                    }
+                    if (is_numeric($trimmed)) {
+                        $ids[] = (int) $trimmed;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
-     * Process all orders with pending insurance data
+     * Process a batch of specific order IDs in chunks to handle large volumes.
      */
-    protected function processAllPendingOrders(Apps $app, bool $dryRun): void
+    protected function processBatchOrders(array $orderIds, Apps $app, bool $dryRun, int $batchSize): void
+    {
+        $totalOrders = count($orderIds);
+        $chunks = array_chunk($orderIds, $batchSize);
+        $totalBatches = count($chunks);
+
+        $progressBar = $this->output->createProgressBar($totalOrders);
+        $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% -- %message%');
+        $progressBar->setMessage('Starting...');
+        $progressBar->start();
+
+        foreach ($chunks as $batchIndex => $chunk) {
+            $batchNum = $batchIndex + 1;
+            $progressBar->setMessage("Batch {$batchNum}/{$totalBatches}");
+
+            $orders = Order::whereIn('id', $chunk)
+                ->where('apps_id', $app->id)
+                ->get()
+                ->keyBy('id');
+
+            // Report missing orders
+            $foundIds = $orders->pluck('id')->toArray();
+            $missingIds = array_diff($chunk, $foundIds);
+            foreach ($missingIds as $missingId) {
+                $this->errorOrders[] = $missingId;
+                $this->errorCount++;
+            }
+
+            foreach ($orders as $order) {
+                $progressBar->setMessage("Order #{$order->id} (Batch {$batchNum}/{$totalBatches})");
+                $this->processOrder($order, $app, $dryRun, true);
+                $progressBar->advance();
+            }
+
+            // Advance progress for missing orders too
+            $progressBar->advance(count($missingIds));
+
+            // Free memory between batches
+            unset($orders);
+        }
+
+        $progressBar->setMessage('Complete!');
+        $progressBar->finish();
+        $this->line('');
+        $this->line('');
+
+        if (! empty($this->errorOrders)) {
+            $this->warn('Orders not found in App ' . $app->id . ': ' . implode(', ', $this->errorOrders));
+            $this->line('');
+        }
+    }
+
+    /**
+     * Process all orders with pending insurance data using chunked queries.
+     */
+    protected function processAllPendingOrders(Apps $app, bool $dryRun, int $batchSize = 50): void
     {
         $this->info("Searching for orders with pending insurance data in App {$app->id}...");
         $this->line('');
 
-        // Find orders that have insurancePendingData OR esims with insurance in their metadata
-        // Check multiple possible paths: new_data.data.* or direct .*
-        $orders = Order::where('apps_id', $app->id)
+        $query = Order::where('apps_id', $app->id)
             ->where('is_deleted', false)
-            ->where(function ($query) {
-                $query->whereRaw("JSON_EXTRACT(metadata, '$.new_data.data.insurancePendingData') IS NOT NULL")
+            ->where(function ($q) {
+                $q->whereRaw("JSON_EXTRACT(metadata, '$.new_data.data.insurancePendingData') IS NOT NULL")
                     ->orWhereRaw("JSON_EXTRACT(metadata, '$.insurancePendingData') IS NOT NULL")
                     ->orWhereRaw("JSON_EXTRACT(metadata, '$.new_data.data.esims') IS NOT NULL")
                     ->orWhereRaw("JSON_EXTRACT(metadata, '$.esims') IS NOT NULL");
             })
-            ->orderBy('id', 'desc')
-            ->get();
+            ->orderBy('id', 'desc');
 
-        if ($orders->isEmpty()) {
+        $totalOrders = $query->count();
+
+        if ($totalOrders === 0) {
             $this->warn('No orders found with pending insurance data');
 
             return;
         }
 
-        $this->info("Found {$orders->count()} orders with pending insurance data");
+        $this->info("Found {$totalOrders} orders with pending insurance data (batch size: {$batchSize})");
         $this->line('');
 
-        $progressBar = $this->output->createProgressBar($orders->count());
+        $progressBar = $this->output->createProgressBar($totalOrders);
         $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% -- %message%');
         $progressBar->setMessage('Starting...');
         $progressBar->start();
 
-        foreach ($orders as $order) {
-            $progressBar->setMessage("Processing Order #{$order->id}");
-            $this->processOrder($order, $app, $dryRun, true);
-            $progressBar->advance();
-        }
+        $query->chunk($batchSize, function ($orders) use ($app, $dryRun, $progressBar) {
+            foreach ($orders as $order) {
+                $progressBar->setMessage("Processing Order #{$order->id}");
+                $this->processOrder($order, $app, $dryRun, true);
+                $progressBar->advance();
+            }
+        });
 
         $progressBar->setMessage('Complete!');
         $progressBar->finish();
@@ -217,6 +319,7 @@ class ProcessPendingInsuranceCommand extends Command
         // Process each pending insurance
         $orderResults = [];
         $entryIndex = 0;
+        $processedCountBefore = $this->processedCount;
 
         foreach ($insurancePendingData as $index => $pendingData) {
             if (! isset($pendingData['insurance'])) {
@@ -360,6 +463,11 @@ class ProcessPendingInsuranceCommand extends Command
                     $this->line("    - {$key}: Voucher={$vId}, Message={$mId}");
                 }
             }
+        }
+
+        // Track orders that would be processed during dry-run
+        if ($dryRun && $this->orderHadDryRunEntries($processedCountBefore)) {
+            $this->processedOrders[] = $orderId;
         }
 
         if (! empty($orderResults) && ! $dryRun) {
@@ -936,17 +1044,35 @@ class ProcessPendingInsuranceCommand extends Command
     }
 
     /**
+     * Check if the order had entries that were processed during dry-run.
+     * In dry-run mode, entries increment processedCount but don't add to orderResults,
+     * so we compare the processedCount before/after to detect if entries were dry-run processed.
+     */
+    protected function orderHadDryRunEntries(int $processedCountBefore): bool
+    {
+        return $this->processedCount > $processedCountBefore;
+    }
+
+    /**
      * Print summary
      */
     protected function printSummary(): void
     {
+        $dryRun = $this->option('dry-run');
+
         $this->line('');
         $this->info('╔════════════════════════════════════════════════════════════════╗');
         $this->info('║                        PROCESSING SUMMARY                       ║');
         $this->info('╚════════════════════════════════════════════════════════════════╝');
         $this->line('');
 
-        $this->info("  Processed: {$this->processedCount}");
+        if ($dryRun) {
+            $this->warn('[DRY RUN] No vouchers were actually created');
+            $this->line('');
+        }
+
+        $label = $dryRun ? 'Would process' : 'Processed';
+        $this->info("  {$label}: {$this->processedCount}");
         $this->warn("  Skipped:   {$this->skippedCount}");
 
         if ($this->errorCount > 0) {
@@ -957,7 +1083,13 @@ class ProcessPendingInsuranceCommand extends Command
 
         if (! empty($this->processedOrders)) {
             $this->line('');
-            $this->info('  Orders processed: ' . implode(', ', $this->processedOrders));
+            $orderLabel = $dryRun ? 'Orders that would be processed' : 'Orders processed';
+            $this->info("  {$orderLabel} (" . count($this->processedOrders) . '): ' . implode(', ', $this->processedOrders));
+        }
+
+        if (! empty($this->errorOrders)) {
+            $this->line('');
+            $this->error('  Orders not found (' . count($this->errorOrders) . '): ' . implode(', ', $this->errorOrders));
         }
 
         $this->line('');

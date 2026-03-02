@@ -26,7 +26,7 @@ class DraftOrderManagementMutation
             throw new ValidationException('Missing Location Header');
         }
 
-        $region = Regions::getByIdFromCompanyApp($request['input']['region_id'], $branch->company, $app);
+        $region = Regions::getByIdFromCompanyAppOrGlobal($request['input']['region_id'], $branch->company, $app);
 
         $log = activity('create-order-from-draft')
          ->causedBy($user)

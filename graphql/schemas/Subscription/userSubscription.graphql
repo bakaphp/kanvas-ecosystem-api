@@ -1,5 +1,5 @@
 type UserSubscription {
-    id: ID!
+    id: ID! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@id")
     user_id: ID @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@userId")
     type: String
     provider: String @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@provider")
@@ -16,6 +16,7 @@ type UserSubscription {
     created_at: String
     updated_at: String
     is_active: Boolean! @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@isActive")
+    config: Mixed @field(resolver: "App\\GraphQL\\Subscription\\Types\\SubscriptionType@appsStripeCustomerConfig")
 }
 
 extend type Query @guard {

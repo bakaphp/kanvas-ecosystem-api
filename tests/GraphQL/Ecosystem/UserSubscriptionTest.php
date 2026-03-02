@@ -17,11 +17,15 @@ class UserSubscriptionTest extends TestCase
         $user = auth()->user();
         $app = app(Apps::class);
 
+        $configData = ['plan' => 'premium', 'seats' => 5];
+
         $stripeCustomer = AppsStripeCustomer::firstOrCreate([
             'users_id' => $user->getId(),
             'companies_id' => 0,
             'apps_id' => $app->getId(),
         ]);
+        $stripeCustomer->config = $configData;
+        $stripeCustomer->saveOrFail();
 
         $subscription = Subscription::create([
             'apps_stripe_customer_id' => $stripeCustomer->id,
@@ -49,6 +53,7 @@ class UserSubscriptionTest extends TestCase
                         quantity
                         started_at
                         is_active
+                        config
                     }
                 }
             }
@@ -59,13 +64,14 @@ class UserSubscriptionTest extends TestCase
                 'data' => [
                     'me' => [
                         'currentSubscription' => [
-                            'id' => (string) $subscription->id,
+                            'id' => (string) $stripeCustomer->id,
                             'type' => 'default',
                             'stripe_status' => 'active',
                             'status' => 'active',
                             'plan_name' => 'default',
                             'stripe_price' => 'price_test_123',
                             'is_active' => true,
+                            'config' => $configData,
                         ],
                     ],
                 ],
@@ -77,11 +83,15 @@ class UserSubscriptionTest extends TestCase
         $user = auth()->user();
         $app = app(Apps::class);
 
+        $configData = ['plan' => 'basic', 'seats' => 3];
+
         $stripeCustomer = AppsStripeCustomer::firstOrCreate([
             'users_id' => $user->getId(),
             'companies_id' => 0,
             'apps_id' => $app->getId(),
         ]);
+        $stripeCustomer->config = $configData;
+        $stripeCustomer->saveOrFail();
 
         $subscription = Subscription::create([
             'apps_stripe_customer_id' => $stripeCustomer->id,
@@ -107,21 +117,23 @@ class UserSubscriptionTest extends TestCase
                     quantity
                     started_at
                     is_active
+                    config
                 }
             }
-        ', ['id' => $subscription->id]);
+        ', ['id' => $stripeCustomer->id]);
 
         $response->assertSuccessful()
             ->assertJson([
                 'data' => [
                     'userSubscription' => [
-                        'id' => (string) $subscription->id,
+                        'id' => (string) $stripeCustomer->id,
                         'type' => 'default',
                         'stripe_status' => 'active',
                         'status' => 'active',
                         'plan_name' => 'default',
                         'stripe_price' => 'price_test_456',
                         'is_active' => true,
+                        'config' => $configData,
                     ],
                 ],
             ]);

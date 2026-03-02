@@ -526,4 +526,96 @@ class OrderPaymentTest extends OrderBase
             $this->assertEquals(PaymentStatusEnum::PAID->value, $payment['status']);
         }
     }
+
+    public function testPaymentMethodFieldIsPopulatedInDatabase(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        // Test cash payment
+        $cashResponse = $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    payment {
+                        id
+                    }
+                }
+            }
+        ', [
+            'orderID' => $order->id,
+            'input' => [
+                'payment_method' => 'CASH',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $cashPaymentId = $cashResponse->json('data.addPaymentToOrder.payment.id');
+        $cashPayment = Payments::find($cashPaymentId);
+        $this->assertEquals('cash', $cashPayment->payment_method);
+
+        // Create another order for bank transfer test
+        $order2 = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $bankResponse = $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    payment {
+                        id
+                    }
+                }
+            }
+        ', [
+            'orderID' => $order2->id,
+            'input' => [
+                'payment_method' => 'BANK_TRANSFER',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $bankPaymentId = $bankResponse->json('data.addPaymentToOrder.payment.id');
+        $bankPayment = Payments::find($bankPaymentId);
+        $this->assertEquals('bank_transfer', $bankPayment->payment_method);
+    }
+
+    public function testPaymentMethodDefaultsToCardWhenNotProvided(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $paymentMethod = $this->addPaymentMethod($this->company, $this->getCardData());
+
+        $response = $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    payment {
+                        id
+                    }
+                }
+            }
+        ', [
+            'orderID' => $order->id,
+            'input' => [
+                'payment_methods_id' => $paymentMethod['id'],
+                // Note: payment_method not provided, should default to 'card'
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $paymentId = $response->json('data.addPaymentToOrder.payment.id');
+        $payment = Payments::find($paymentId);
+        $this->assertEquals('card', $payment->payment_method);
+    }
 }

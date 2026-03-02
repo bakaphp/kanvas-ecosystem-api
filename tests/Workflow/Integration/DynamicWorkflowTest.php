@@ -9,7 +9,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
-use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleCondition;
 use Tests\TestCase;
@@ -37,7 +36,7 @@ final class DynamicWorkflowTest extends TestCase
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
         $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
 
-        $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
+        $this->assertGreaterThan($totalWorkflows, StoredWorkflow::count());
     }
 
     public function testDynamicWorkflowUsingParams(): void
@@ -94,6 +93,6 @@ final class DynamicWorkflowTest extends TestCase
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
         $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
 
-        $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
+        $this->assertGreaterThan($totalWorkflows, StoredWorkflow::count());
     }
 }

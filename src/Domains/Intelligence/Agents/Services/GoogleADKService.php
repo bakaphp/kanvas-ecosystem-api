@@ -246,9 +246,7 @@ class GoogleADKService
 
         try {
             $response = $this->client->patch($endpoint, [
-                'json' => [
-                    'data' => $data,
-                ],
+                'json' => $data,
             ]);
         } catch (ClientException $e) {
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';

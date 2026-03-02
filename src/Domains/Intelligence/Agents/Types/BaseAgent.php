@@ -10,7 +10,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\AIProviderInterface;
@@ -23,7 +25,6 @@ use NeuronAI\RAG\RAG;
 use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
-use NeuronAI\SystemPrompt;
 use NeuronAI\Tools\Tool;
 use Override;
 
@@ -158,11 +159,10 @@ class BaseAgent extends RAG
     /**
      * Get the current chat history
      */
-    public function getChatHistory(): array
+    #[Override]
+    public function getChatHistory(): ChatHistoryInterface
     {
-        $chatHistory = $this->chatHistory();
-
-        return $chatHistory->getAll();
+        return $this->chatHistory();
     }
 
     /**
