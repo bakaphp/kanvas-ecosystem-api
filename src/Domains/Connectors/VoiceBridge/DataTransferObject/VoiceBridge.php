@@ -16,7 +16,7 @@ class VoiceBridge
     ) {
     }
 
-    public static function viaRequest(array $data, AppInterface $app): self
+    public static function fromMultiple(array $data, AppInterface $app): self
     {
         return new self(
             app: $app,
