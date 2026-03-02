@@ -49,6 +49,7 @@ use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
+use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
@@ -340,6 +341,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ScheduleEleadActivityFromEventAction::class,
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
+            OAuthCallbackJob::class,
         ];
 
         $createdActions = [];

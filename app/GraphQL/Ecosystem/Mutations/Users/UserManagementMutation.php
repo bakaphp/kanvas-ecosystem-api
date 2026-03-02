@@ -14,9 +14,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
@@ -105,7 +102,7 @@ class UserManagementMutation
     /**
      * insertInvite.
      */
-    public function insertUserInvite($rootValue, array $request): UsersInvite
+    public function insertUserInvite(mixed $rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
         $company = auth()->user()->getCurrentCompany();
@@ -153,7 +150,7 @@ class UserManagementMutation
     /**
      * insertAdminInvite.
      */
-    public function insertAdminInvite($rootValue, array $request): AdminInvite
+    public function insertAdminInvite(mixed $rootValue, array $request): AdminInvite
     {
         $request = $request['input'];
         $app = app(Apps::class);
@@ -196,7 +193,7 @@ class UserManagementMutation
     /**
      * deleteInvite.
      */
-    public function deleteInvite($rootValue, array $request): bool
+    public function deleteInvite(mixed $rootValue, array $request): bool
     {
         $invite = UsersInviteRepository::getById(
             (int) $request['id'],
@@ -211,7 +208,7 @@ class UserManagementMutation
     /**
      * deleteInvite.
      */
-    public function deleteAdminInvite($rootValue, array $request): bool
+    public function deleteAdminInvite(mixed $rootValue, array $request): bool
     {
         $invite = AdminInviteRepository::getById(
             id: (int) $request['id'],
@@ -226,7 +223,7 @@ class UserManagementMutation
     /**
      * processInvite.
      */
-    public function getInvite($rootValue, array $request): UsersInvite
+    public function getInvite(mixed $rootValue, array $request): UsersInvite
     {
         //$action = new ProcessInviteAction($request['hash'], $request['password']);
         return UsersInviteRepository::getByHash($request['hash']);
@@ -235,7 +232,7 @@ class UserManagementMutation
     /**
      * Process User invite.
      */
-    public function process($rootValue, array $request): array
+    public function process(mixed $rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
@@ -246,7 +243,7 @@ class UserManagementMutation
         return $user->createToken('kanvas-login')->toArray();
     }
 
-    public function processAdmin($rootValue, array $request): array
+    public function processAdmin(mixed $rootValue, array $request): array
     {
         $action = new ProcessAdminInviteAction(
             CompleteInviteInput::from($request['input'])
@@ -288,18 +285,15 @@ class UserManagementMutation
             throw new Exception('You are not allowed to update this photo user');
         }
         $app = app(Apps::class);
-        $user = UsersRepository::getUserOfAppById((int)$request['user_id'], $app);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
-        $filesystem = new FilesystemServices(app(Apps::class));
-        $file = $request['file'];
-        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
-
-        $filesystemEntity = $filesystem->upload($file, $user);
-        $action = new AttachFilesystemAction(
-            $filesystemEntity,
-            $user
+        $this->uploadImageToEntity(
+            $user,
+            $app,
+            $user,
+            $request['file'],
+            'photo'
         );
-        $action->execute('photo');
 
         return $user;
     }
