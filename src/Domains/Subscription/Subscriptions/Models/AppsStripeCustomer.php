@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Subscriptions\Models;
 
-use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ConfigurationException;
 use Kanvas\Subscription\Models\BaseModel;
+use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
 use Kanvas\Users\Models\Users;
 use Laravel\Cashier\Billable;
 use Laravel\Cashier\Cashier;

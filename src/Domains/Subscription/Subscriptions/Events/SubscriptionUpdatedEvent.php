@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Subscriptions\Events;
 
+use App\GraphQL\Ecosystem\Types\UserType;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -12,7 +13,6 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Users\Models\Users;
 use Override;
-use App\GraphQL\Ecosystem\Types\UserType;
 
 class SubscriptionUpdatedEvent implements ShouldBroadcast
 {
@@ -28,7 +28,7 @@ class SubscriptionUpdatedEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $userCurrentSubscription= (new UserType())->currentSubscription($this->users, []);
+        $userCurrentSubscription = (new UserType())->currentSubscription($this->users, []);
         return [
             'apps_stripe_customer_id' => $this->appsStripeCustomer->id,
             'users_id' => $this->users->id,
