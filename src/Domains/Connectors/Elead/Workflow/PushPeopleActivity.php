@@ -8,6 +8,7 @@ use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -22,6 +23,14 @@ class PushPeopleActivity extends KanvasActivity
         if (! $people->company->get(CustomFieldEnum::COMPANY->value)) {
             return [
                 'error' => 'Company not found in Elead',
+            ];
+        }
+
+        $debounce = new EleadDebounce($app, $people->company);
+        if ($debounce->shouldSkip('push_people', (string) $people->getId())) {
+            return [
+                'message' => 'Debounced: People sync already in progress or recently completed',
+                'people_id' => $people->getId(),
             ];
         }
 
