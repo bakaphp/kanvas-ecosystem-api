@@ -30,6 +30,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateEventAction
@@ -129,10 +130,10 @@ class CreateEventAction
             $participants = $eventVersion->participants;
 
             if (! $participants->isEmpty()) {
-                $codes = (new CreatePassAction(
+                $codes = new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion
-                ))->forAllParticipants();
+                )->forAllParticipants();
 
                 new SendEventEmailsAction(
                     $eventVersion,
@@ -146,7 +147,25 @@ class CreateEventAction
             return $event;
         });
 
+        if ($this->runWorkflow) {
+            $event->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->event->app,
+                    'company' => $this->event->company,
+                ]
+            );
+        }
+
         return $event;
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
     }
 
     protected function validateSlug(string $slug): void
@@ -274,9 +293,11 @@ class CreateEventAction
             'currency' => $orderCurrency,
             'items' => $items,
         ]);
+
         $action = new CreateOrderAction($dto);
         $action->disableWorkflow();
         $kanvasOrder = $action->execute();
+
         $kanvasOrder->resources_id = $event->id;
         $kanvasOrder->resources_type = $event->getMorphClass();
         $kanvasOrder->saveQuietly();

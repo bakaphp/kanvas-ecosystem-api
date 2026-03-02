@@ -21,7 +21,8 @@ class SyncPeopleWithParticipantAction
     {
         $themeArea = ThemeArea::fromApp($this->people->app)
             ->fromCompany($this->people->company)
-            ->where('name', 'Virtual')->firstOrFail();
+            ->where('is_default', 1)
+            ->firstOrFail();
 
         // First try to find existing participant by the composite key
         $participant = Participant::where('people_id', $this->people->getId())
