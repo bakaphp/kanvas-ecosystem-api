@@ -155,9 +155,16 @@ class Setup
         }
 
         foreach ($this->filterBySetupType($this->categories) as $category) {
+            $eventType = EventType::fromApp($this->app)->fromCompany($this->company)->where('name', $category['type'])->first();
+            $eventClass = EventClass::fromApp($this->app)->fromCompany($this->company)->where('name', $category['class'])->first();
+
+            if ($eventType === null || $eventClass === null) {
+                continue;
+            }
+
             EventCategory::firstOrCreate([
-                'event_type_id' => EventType::fromApp($this->app)->fromCompany($this->company)->where('name', $category['type'])->first()->getId(),
-                'event_class_id' => EventClass::fromApp($this->app)->fromCompany($this->company)->where('name', $category['class'])->first()->getId(),
+                'event_type_id' => $eventType->getId(),
+                'event_class_id' => $eventClass->getId(),
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
