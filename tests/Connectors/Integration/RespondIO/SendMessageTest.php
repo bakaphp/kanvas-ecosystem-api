@@ -16,7 +16,7 @@ final class SendMessageTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $app->set(ConfigurationEnum::BEAR_TOKEN_AUTH->value, getenv('TEST_RESPOND_IO'));
+        $app->set(ConfigurationEnum::BEARER_TOKEN->value, getenv('TEST_RESPOND_IO'));
 
         //$client = new Client($app, $company);
         //@todo figure out how to mock this

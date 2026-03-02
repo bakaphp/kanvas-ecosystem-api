@@ -54,6 +54,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
+use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
@@ -307,6 +308,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
+            RespondIOAgentChannelResponderActivity::class,
             VinSolutionAddLeadCommentFromAgentMessageActivity::class,
             AgentProcessEmailWebhookJob::class,
             StripePaymentLinkWebhookJob::class,
