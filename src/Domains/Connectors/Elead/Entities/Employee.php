@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Generator;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 
 class Employee
 {
@@ -30,14 +31,37 @@ class Employee
         }
     }
 
-    public static function getAll(AppInterface $app, Companies $company, string $position = 'Administrator'): Generator
+    public static function getAll(AppInterface $app, Companies $company, string $position = 'Administrator', bool $fresh = false): Generator
     {
+        $cache = new EleadCache($app, $company);
+        $cacheKey = strtolower(str_replace(' ', '_', $position));
+
+        if (! $fresh) {
+            $cached = $cache->get('employees', $cacheKey);
+
+            if ($cached !== null) {
+                foreach ($cached as $item) {
+                    $employee = new Employee();
+                    $employee->assign($item);
+                    $employee->app = $app;
+                    $employee->company = $company;
+
+                    yield $employee;
+                }
+
+                return;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v1/elead/productreferencedata/companyEmployees?positionName=' . urlencode($position),
         );
 
-        foreach ($response['items'] as $item) {
+        $items = $response['items'] ?? [];
+        $cache->setReference('employees', $cacheKey, $items);
+
+        foreach ($items as $item) {
             $employee = new Employee();
             $employee->assign($item);
             $employee->app = $app;

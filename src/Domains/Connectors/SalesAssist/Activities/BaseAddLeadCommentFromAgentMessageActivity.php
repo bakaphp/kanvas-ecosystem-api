@@ -146,6 +146,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     ]);
                 }
 
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'error' => 'Message is locked or not public, cannot add comment',
+                    ]);
+                }
+
                 $fromAgent = (bool) ($message->message['from_me'] ?? false);
                 $aiChatLink = SessionChannelService::generateChannelLink($lead, $app);
 
