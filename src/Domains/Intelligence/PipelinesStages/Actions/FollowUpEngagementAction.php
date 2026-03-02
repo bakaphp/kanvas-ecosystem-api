@@ -197,13 +197,14 @@ class FollowUpEngagementAction
                 $intentNumber++;
 
                 $this->lead->set('intent_number', $intentNumber);
-                $this->lead->moveToNextPipelineStage();
             }
         }
 
         if (isset($message) && $message) {
+            $this->lead->moveToNextPipelineStage();
+
             return [
-                'first_message' => $message,
+                'follow_up_message' => $message,
                 'last_message_time' => Carbon::now($timezone)->toDateTimeString(),
             ];
         }
