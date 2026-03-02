@@ -41,6 +41,8 @@ class PushLeadNotesActivity extends KanvasActivity
             ];
         }
 
+        sleep(5); // To avoid locked message being processed
+
         return $this->executeIntegration(
             entity: $message,
             app: $app,
