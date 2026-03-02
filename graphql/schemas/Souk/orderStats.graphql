@@ -139,6 +139,7 @@ input OrderStatsInput {
     initialStates: [String!]
     finalStates: [String!]
     currentCountStates: [String!]
+    productId: Int # Filter by product ID (orders containing variants of this product)
     productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
     orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")
@@ -157,6 +158,7 @@ input ProviderInput {
 input OrderPaymentStatsInput {
     paidStates: [String!]
     variantId: Int # Filter by specific service/variant
+    productId: Int # Filter by product ID (orders containing variants of this product)
     productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
     orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")

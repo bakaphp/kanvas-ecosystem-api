@@ -30,7 +30,7 @@ class CreateRuleAction
                 'companies_id' => $this->data->company->getId(),
             ], [
                 'description' => $this->data->description,
-                'params' => $this->data->params,
+                'params' => $this->data->params ?? [],
                 'pattern' => $this->data->pattern,
                 'is_async' => $this->data->is_async,
                 'is_deleted' => 0,

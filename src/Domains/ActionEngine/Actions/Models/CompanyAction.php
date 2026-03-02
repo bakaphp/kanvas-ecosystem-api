@@ -103,6 +103,7 @@ class CompanyAction extends BaseModel
         ];
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
@@ -112,8 +113,11 @@ class CompanyAction extends BaseModel
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
         return $query;

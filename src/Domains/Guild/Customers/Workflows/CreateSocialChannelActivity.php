@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -117,6 +118,11 @@ class CreateSocialChannelActivity extends KanvasActivity
                     lead: $lead,
                     agentId: (int) $params['agent_id']
                 );
+
+                // Set preferred channel to the first channel created for this lead
+                if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+                    $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+                }
 
                 if (! empty($params['create_whatsapp'])) {
                     $channel = $this->createChannelAndSession(

@@ -24,7 +24,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\AgentMonitoring;
+use NeuronAI\Observability\InspectorObserver;
 
 class AgentManagementMutation
 {
@@ -117,7 +117,7 @@ class AgentManagementMutation
                 new Configuration($app->get('inspector-key'))
             );
             $currentAgent->observe(
-                new AgentMonitoring($inspector)
+                new InspectorObserver($inspector)
             );
         }
 

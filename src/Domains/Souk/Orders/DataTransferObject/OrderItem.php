@@ -8,8 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Spatie\LaravelData\Data;
@@ -42,8 +44,89 @@ class OrderItem extends Data
             $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
         }
 
-        $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with  stock
-        $price = (float) ($request['price'] ?? $variant->getPrice($warehouse, Channels::getDefault($company, $app)));
+        // Warehouse resolution with fallback logic
+        if ($allowCrossCompanyVariants) {
+            $warehouse = null;
+
+            // Strategy 1: Try to find provider's warehouse in order's region (preferred)
+            $regionWarehouse = $region->warehouses()
+                ->where('companies_id', $variant->product->companies_id)
+                ->first();
+
+            // Check if Strategy 1 warehouse has pricing configured
+            if ($regionWarehouse) {
+                $hasPricing = $variant->variantWarehouses()
+                    ->where('warehouses_id', $regionWarehouse->id)
+                    ->where('price', '>', 0)
+                    ->exists();
+
+                if ($hasPricing) {
+                    $warehouse = $regionWarehouse;
+                }
+            }
+
+            // Strategy 2: Fallback to product's default warehouse from its own company (region-aware)
+            if (! $warehouse) {
+                $variantWarehouse = $variant->variantWarehouses()
+                    ->whereHas(
+                        'warehouse',
+                        fn ($q) =>
+                        $q->where('companies_id', $variant->product->companies_id)
+                          ->where('is_deleted', 0)
+                    )
+                    ->orderBy('is_default', 'desc')
+                    ->first();
+
+                if ($variantWarehouse) {
+                    $warehouse = Warehouses::find($variantWarehouse->warehouses_id);
+                }
+            }
+
+            // No warehouse found - throw clear error
+            if (! $warehouse) {
+                throw new ValidationException(
+                    "No warehouse with pricing found for product '{$variant->name}' (SKU: {$variant->sku}) " .
+                    "from company '{$variant->product->company->name}'. " .
+                    "Provider must configure pricing in a warehouse in region '{$region->name}' or in their default warehouse."
+                );
+            }
+        } else {
+            $warehouse = $region->warehouses()->firstOrFail();
+        }
+
+        // Price resolution with multiple fallback strategies
+        if (! isset($request['price'])) {
+            $price = 0.0;
+
+            // Strategy 1: Try provider's channel if using provider's warehouse
+            if ($allowCrossCompanyVariants && $warehouse->companies_id !== $company->getId()) {
+                $warehouseCompany = $variant->product->company;
+                $channel = Channels::getDefault($warehouseCompany, $app);
+                if ($channel) {
+                    $price = (float) $variant->getPrice($warehouse, $channel);
+                }
+            }
+
+            // Strategy 2: Try platform company's channel if no price yet
+            if ($price == 0.0) {
+                $channel = Channels::getDefault($company, $app);
+                if ($channel) {
+                    $price = (float) $variant->getPrice($warehouse, $channel);
+                }
+            }
+
+            // Strategy 3: Try to get price directly from variant warehouse (no channel)
+            if ($price == 0.0) {
+                $variantWarehouse = $variant->variantWarehouses()
+                    ->where('warehouses_id', $warehouse->id)
+                    ->first();
+                if ($variantWarehouse && $variantWarehouse->price > 0) {
+                    $price = (float) $variantWarehouse->price;
+                }
+            }
+        } else {
+            $price = (float) $request['price'];
+        }
 
         $channelId = $request['channel_id'] ?? $request['attributes']['channel_id'] ?? null;
         if ($channelId !== null) {
