@@ -27,7 +27,7 @@ class RespondIOHandler extends BaseIntegration
             throw new ValidationException('Failed to validate RespondIO connection');
         }
 
-        $this->app->set(ConfigurationEnum::BEARER_TOKEN->value, $bearerToken);
+        $this->company->set(ConfigurationEnum::BEARER_TOKEN->value, $bearerToken);
 
         return true;
     }

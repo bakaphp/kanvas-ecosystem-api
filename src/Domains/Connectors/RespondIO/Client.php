@@ -21,11 +21,12 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        if (! $app->get(ConfigurationEnum::BEARER_TOKEN->value)) {
-            throw new ValidationException('Respond.io bearer token is not set on app settings.');
-        }
+        $this->bearerToken = $company->get(ConfigurationEnum::BEARER_TOKEN->value)
+            ?? $app->get(ConfigurationEnum::BEARER_TOKEN->value);
 
-        $this->bearerToken = $app->get(ConfigurationEnum::BEARER_TOKEN->value);
+        if (! $this->bearerToken) {
+            throw new ValidationException('Respond.io bearer token is not set.');
+        }
     }
 
     public function get(string $path, array $params = []): array
