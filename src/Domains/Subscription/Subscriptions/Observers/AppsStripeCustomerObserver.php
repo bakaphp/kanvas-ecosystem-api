@@ -11,6 +11,8 @@ class AppsStripeCustomerObserver
 {
     public function updated(AppsStripeCustomer $customer): void
     {
-        SubscriptionUpdatedEvent::dispatch($customer, $customer->user);
+        if ($customer->user) {
+            SubscriptionUpdatedEvent::dispatch($customer, $customer->user);
+        }
     }
 }

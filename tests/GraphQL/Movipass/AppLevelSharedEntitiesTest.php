@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Movipass;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Tests\TestCase;
 
@@ -19,6 +20,15 @@ class AppLevelSharedEntitiesTest extends TestCase
         parent::setUp();
         // Enable cross-company variants (multi-company orders) for the test app
         app(Apps::class)->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+    }
+
+    private function getAppKeyHeader(): array
+    {
+        $app = app(Apps::class);
+
+        return [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+        ];
     }
 
     public function testAdminCreatesGlobalRegion(): void
@@ -39,11 +49,14 @@ class AppLevelSharedEntitiesTest extends TestCase
                 'is_default' => 0,
                 'companies_id' => 0,
             ],
-        ])->assertSuccessful();
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $response->json('data.createRegion.id');
 
-        $this->assertEquals(0, DB::connection('ecosystem')->table('regions')->where('id', $id)->value('companies_id'));
+        $this->assertEquals(
+            0,
+            DB::connection('ecosystem')->table('regions')->where('id', $id)->value('companies_id')
+        );
     }
 
     public function testGlobalRegionIsVisibleToCurrentCompany(): void
@@ -62,7 +75,7 @@ class AppLevelSharedEntitiesTest extends TestCase
                 'is_default' => 0,
                 'companies_id' => 0,
             ],
-        ])->assertSuccessful();
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $createResponse->json('data.createRegion.id');
 
@@ -92,7 +105,7 @@ class AppLevelSharedEntitiesTest extends TestCase
                 'weight' => 0,
                 'companies_id' => 0,
             ],
-        ])->assertSuccessful();
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $response->json('data.createProductType.id');
 
@@ -113,7 +126,7 @@ class AppLevelSharedEntitiesTest extends TestCase
                 'weight' => 0,
                 'companies_id' => 0,
             ],
-        ])->assertSuccessful();
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $createResponse->json('data.createProductType.id');
 
