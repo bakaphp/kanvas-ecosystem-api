@@ -86,6 +86,16 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
+    followUpPrompt(
+        lead_id: ID!
+        pipeline_stage_id: ID!
+        session_id: String!
+        message_template: String!
+        day: Float!
+    ): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\FollowUpPromptQuery@getFollowUpPrompt"
+        )
     agentsAi(
         search: String @search
         where: _

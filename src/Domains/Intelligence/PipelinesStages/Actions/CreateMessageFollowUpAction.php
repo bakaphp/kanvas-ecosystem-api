@@ -45,6 +45,7 @@ class CreateMessageFollowUpAction
         protected Session $session,
         protected string $messageTemplate,
         protected float $day,
+        protected bool $onlyPrompt = false,
         protected ?FollowUpLog $log = null
     ) {
         $agentName = 'FollowUpEngagerAgent';
@@ -64,61 +65,14 @@ class CreateMessageFollowUpAction
         }
 
         if ($this->messageTemplate === null) {
-            // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
-
             return null;
         }
 
-        $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
-        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
-        $contentSession = new CreateContentSessionAction($this->session);
+        $prompt = $this->buildPrompt();
 
-        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
-        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
-
-        if (isset($vehicleInterest['uuid'])) {
-            $relatedUuid[] = $vehicleInterest['uuid'];
+        if ($this->onlyPrompt) {
+            return $prompt;
         }
-
-        $channel = Channels::getDefault($this->lead->company);
-
-        $engagementDto = Engagement::from(
-            app: $this->lead->app,
-            company: $this->lead->company,
-            user: $this->lead->company->user,
-            lead: $this->lead,
-            request: [
-                        'action' => 'view-vehicle',
-                        'request_id' => (string) Str::uuid(),
-                        'source' => 'ai',
-                        'status' => ActionStatusEnum::SENT->value,
-                        'data' => [
-                            'product_id' => $relatedUuid,
-                            'channel_id' => $channel->uuid,
-                        ],
-                    ],
-            people: $this->lead->people,
-        );
-
-        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
-
-        $data = [
-            'templates' => $this->messageTemplate,
-            'conversation_history' => $this->mapConversationHistory(),
-            'context' => [
-                'company' => $this->lead->company,
-                'lead' => $this->lead,
-                'lead_owner' => $this->lead->owner,
-            ],
-            'work_hours_status' => $companyWorkHour,
-            'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
-            'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
-            'agent' => $this->session->agent,
-            'vehicle_interest' => $vehicleInterest,
-            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
-            'day' => $this->day,
-        ];
-        $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
 
@@ -134,7 +88,7 @@ class CreateMessageFollowUpAction
                         'ai_response' => [
                             'should_respond' => $shouldRespond,
                             'has_message' => isset($responseText['message']),
-                        ]
+                        ],
                     ]
                 ),
             ]);
@@ -198,6 +152,61 @@ class CreateMessageFollowUpAction
         }
 
         return $responseText['message'];
+    }
+
+    public function buildPrompt(): string
+    {
+        $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
+        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
+        $contentSession = new CreateContentSessionAction($this->session);
+
+        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
+        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
+
+        if (isset($vehicleInterest['uuid'])) {
+            $relatedUuid[] = $vehicleInterest['uuid'];
+        }
+
+        $channel = Channels::getDefault($this->lead->company);
+
+        $engagementDto = Engagement::from(
+            app: $this->lead->app,
+            company: $this->lead->company,
+            user: $this->lead->company->user,
+            lead: $this->lead,
+            request: [
+                'action' => 'view-vehicle',
+                'request_id' => (string) Str::uuid(),
+                'source' => 'ai',
+                'status' => ActionStatusEnum::SENT->value,
+                'data' => [
+                    'product_id' => $relatedUuid,
+                    'channel_id' => $channel->uuid,
+                ],
+            ],
+            people: $this->lead->people,
+        );
+
+        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
+
+        $data = [
+            'templates' => $this->messageTemplate,
+            'conversation_history' => $this->mapConversationHistory(),
+            'context' => [
+                'company' => $this->lead->company,
+                'lead' => $this->lead,
+                'lead_owner' => $this->lead->owner,
+            ],
+            'work_hours_status' => $companyWorkHour,
+            'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
+            'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
+            'agent' => $this->session->agent,
+            'vehicle_interest' => $vehicleInterest,
+            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
+        ];
+
+        return Blade::render(implode(' ', $this->agent->role['background']), $data);
     }
 
     private function generateResponseWithRetry(string $prompt): array
