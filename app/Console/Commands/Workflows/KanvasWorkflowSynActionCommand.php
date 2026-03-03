@@ -343,6 +343,7 @@ class KanvasWorkflowSynActionCommand extends Command
             OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
+            OAuthCallbackJob::class,
             ModelWizardReceiverJob::class,
         ];
 
