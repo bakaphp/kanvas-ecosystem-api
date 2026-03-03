@@ -63,9 +63,9 @@ class ModelWizardModelChooserAction
         }
 
         return [
-            'message' => 'Model wizard completed successfully. Chosen model: ' . $chosenModelSku,
+            'message' => 'Model wizard completed successfully. Chosen model: ' . $chosenModelSku->text,
             'result' => true,
-            'chosen_model_sku' => $chosenModelSku,
+            'chosen_model_sku' => $chosenModelSku->text,
             'users_id' => $this->user->getId(),
         ];
     }
