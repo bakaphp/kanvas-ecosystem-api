@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -649,7 +650,9 @@ class Order extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 

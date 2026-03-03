@@ -14,4 +14,6 @@ enum ConfigurationEnum: string
     case IS_ENGAGEMENT = 'guild_is_engagement';
     case CONTACTED = 'guild_lead_contacted';
     case FOLLOW_UP_LEAD_TYPE = 'guild_follow_up_lead_type';
+    case PREFERRED_CHANNEL = 'guild_preferred_channel';
+    case IS_FROM_WHATSAPP = 'guild_is_from_whatsapp';
 }

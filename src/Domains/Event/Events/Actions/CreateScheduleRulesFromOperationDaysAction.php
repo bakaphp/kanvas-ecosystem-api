@@ -102,11 +102,15 @@ class CreateScheduleRulesFromOperationDaysAction
 
         $startHour = (int) $openCarbon->format('H');
         $endHour = (int) $closeCarbon->format('H');
-        $hours = range($startHour, $endHour - 1);
+        $closeMinute = (int) $closeCarbon->format('i');
+        $lastHour = $closeMinute > 0 ? $endHour : $endHour - 1;
+        $hours = range($startHour, $lastHour);
         $hoursString = implode(',', $hours);
 
+        $startMinute = (int) $openCarbon->format('i');
+        $minuteOffset = $startMinute % $this->slotDurationMinutes;
         $minutes = [];
-        for ($m = 0; $m < 60; $m += $this->slotDurationMinutes) {
+        for ($m = $minuteOffset; $m < 60; $m += $this->slotDurationMinutes) {
             $minutes[] = $m;
         }
         $minutesString = implode(',', $minutes);
@@ -117,6 +121,7 @@ class CreateScheduleRulesFromOperationDaysAction
         $metadata = [
             'operation_day' => $dayName,
             'created_from' => 'operation_days',
+            'periods' => [['open' => $openTime, 'close' => $closeTime]],
         ];
 
         if ($this->scheduleType) {
@@ -198,15 +203,19 @@ class CreateScheduleRulesFromOperationDaysAction
 
             $startHour = (int) $openCarbon->format('H');
             $endHour = (int) $closeCarbon->format('H');
-            $hours = range($startHour, $endHour - 1);
+            $closeMinute = (int) $closeCarbon->format('i');
+            $lastHour = $closeMinute > 0 ? $endHour : $endHour - 1;
+            $hours = range($startHour, $lastHour);
             $allHours = array_merge($allHours, $hours);
         }
         $allHours = array_unique($allHours);
         sort($allHours);
         $hoursString = implode(',', $allHours);
 
+        $startMinute = (int) $startAt->format('i');
+        $minuteOffset = $startMinute % $this->slotDurationMinutes;
         $minutes = [];
-        for ($m = 0; $m < 60; $m += $this->slotDurationMinutes) {
+        for ($m = $minuteOffset; $m < 60; $m += $this->slotDurationMinutes) {
             $minutes[] = $m;
         }
         $minutesString = implode(',', $minutes);

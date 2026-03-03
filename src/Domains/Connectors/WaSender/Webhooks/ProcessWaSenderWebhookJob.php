@@ -1242,6 +1242,7 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             'ai-agent',
         ]);
         $lead->set('sub_source', 'Meta');
+        $lead->set(LeadsEnumsConfigurationEnum::IS_FROM_WHATSAPP->value, true);
 
         return $lead;
     }
