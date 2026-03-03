@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Actions;
 
-use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
 use Kanvas\Workflow\Rules\Models\RuleType;
@@ -17,7 +17,7 @@ use Workflow\WorkflowStub;
 class ProcessWorkflowEventAction
 {
     public function __construct(
-        protected AppInterface $app,
+        protected Apps $app,
         protected Model $entity,
     ) {
     }
