@@ -61,6 +61,9 @@ class CreateOrderAction
                 throw new ValidationException($validator->messages()->__toString());
             }
 
+            // Validate product companies are active
+            new ValidateProductCompaniesAction($this->orderData->items)->execute();
+
             $this->validateScheduleAvailability();
 
             $order = new ModelsOrder();
@@ -96,6 +99,9 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+
+            // Sync provider companies to order_providers pivot table
+            new SyncOrderProvidersAction($order)->execute();
 
             if ($this->orderData->items->first()->channelId) {
                 $order->setChannelId($this->orderData->items->first()->channelId);
