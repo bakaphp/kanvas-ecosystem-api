@@ -51,7 +51,7 @@ class ModelWizardModelChooserAction
             . ", identify the best AI model for this user. Return the sku of the model only.Take into account the type of model as well. 
             If the user data indicates that they need a text-based model, prioritize models with type 'text'. 
             If the user data indicates that they need an image-based model, prioritize models with type 'image'. 
-            If the user data does not indicate a preference, choose the best overall model based on the user data.";
+            If the user data does not indicate a preference, choose the best overall model based on the user data. ASNWER WITH THE SKU OF THE CHOSEN MODEL ONLY.";
 
         try {
             $chosenModelSku = Prism::text()
