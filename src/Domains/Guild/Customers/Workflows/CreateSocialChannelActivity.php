@@ -32,11 +32,21 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        if ($entity instanceof Lead) {
-            return $this->executeForLead($entity, $app, $params);
-        }
+        $company = $entity instanceof Lead ? $entity->company : $entity->people->company;
 
-        return $this->executeForContact($entity, $app, $params);
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function () use ($entity, $app, $params): array {
+                if ($entity instanceof Lead) {
+                    return $this->executeForLead($entity, $app, $params);
+                }
+
+                return $this->executeForContact($entity, $app, $params);
+            },
+            company: $company
+        );
     }
 
     private function executeForLead(Lead $lead, Apps $app, array $params): array
@@ -83,65 +93,55 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
-        $company = $contact->people->company;
+        $lead = $leadOverride ?? LeadsRepository::getPeopleActiveLead($contact->people);
 
-        return $this->executeIntegration(
-            entity: $contact,
+        if (! $lead) {
+            return [
+                'error' => 'No lead associated with this contact',
+            ];
+        }
+
+        $communicationChannel = match ($contact->contacts_types_id) {
+            ContactTypeEnum::CELLPHONE->value => 'sms',
+            ContactTypeEnum::EMAIL->value => 'email',
+            default => 'unknown',
+        };
+
+        if ($communicationChannel === 'unknown') {
+            return [
+                'error' => 'Communication channel could not be determined',
+            ];
+        }
+
+        $channel = $this->createChannelAndSession(
+            channelKey: $communicationChannel,
+            communicationChannel: $communicationChannel,
+            contact: $contact,
             app: $app,
-            integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($contact, $app, $integrationCompany, $additionalParams) use ($params, $leadOverride): array {
-                $lead = $leadOverride ?? LeadsRepository::getPeopleActiveLead($contact->people);
-
-                if (! $lead) {
-                    return $this->failWorkflow([
-                        'error' => 'No lead associated with this contact',
-                    ]);
-                }
-
-                $communicationChannel = match ($contact->contacts_types_id) {
-                    ContactTypeEnum::CELLPHONE->value => 'sms',
-                    ContactTypeEnum::EMAIL->value => 'email',
-                    default => 'unknown',
-                };
-
-                if ($communicationChannel === 'unknown') {
-                    return $this->failWorkflow([
-                        'error' => 'Communication channel could not be determined',
-                    ]);
-                }
-
-                $channel = $this->createChannelAndSession(
-                    channelKey: $communicationChannel,
-                    communicationChannel: $communicationChannel,
-                    contact: $contact,
-                    app: $app,
-                    lead: $lead,
-                    agentId: (int) $params['agent_id']
-                );
-
-                // Set preferred channel to the first channel created for this lead
-                if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-                    $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-                }
-
-                if (! empty($params['create_whatsapp'])) {
-                    $channel = $this->createChannelAndSession(
-                        channelKey: 'whatsapp',//slug
-                        communicationChannel: $communicationChannel,
-                        contact: $contact,
-                        app: $app,
-                        lead: $lead,
-                        agentId: (int) $params['agent_id']
-                    );
-                }
-
-                return [
-                    'success' => true,
-                    'channel_id' => $channel->getId(),
-                ];
-            },
-            company: $company
+            lead: $lead,
+            agentId: (int) $params['agent_id']
         );
+
+        // Set preferred channel to the first channel created for this lead
+        if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+            $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+        }
+
+        if (! empty($params['create_whatsapp'])) {
+            $channel = $this->createChannelAndSession(
+                channelKey: 'whatsapp',
+                communicationChannel: $communicationChannel,
+                contact: $contact,
+                app: $app,
+                lead: $lead,
+                agentId: (int) $params['agent_id']
+            );
+        }
+
+        return [
+            'success' => true,
+            'channel_id' => $channel->getId(),
+        ];
     }
 
     private function createChannelAndSession(
