@@ -28,7 +28,6 @@ class ModelWizardReceiverJob extends ProcessWebhookJob
             ->where('users_id', $payload['users_id'])
             ->where('companies_id', 0)
             ->first();
-        
         if (! $userAssoc) {
             throw new InvalidArgumentException('User not found for the provided users_id in the payload.');
         }
