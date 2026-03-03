@@ -212,6 +212,11 @@ extend type Query @guard {
                 ]
                 handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasOrderHandler"
             )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasProviderHandler"
+            )
         orderType: _
             @whereConditions(
                 columns: ["name"]
@@ -223,6 +228,16 @@ extend type Query @guard {
             defaultCount: 25
             model: "Kanvas\\Souk\\Payments\\Models\\Payments"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+
+    providerPayments(
+        provider_company_id: ID!
+        where: _ @whereConditions(columns: ["id", "status", "amount", "currency", "payment_date", "created_at", "updated_at"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+    ): [Payment!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Souk\\Builders\\Payment\\ProviderPaymentsBuilder@build"
         )
 
     paymentMethods(

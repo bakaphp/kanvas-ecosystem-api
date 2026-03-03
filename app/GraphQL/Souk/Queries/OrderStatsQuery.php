@@ -17,7 +17,6 @@ class OrderStatsQuery
     public function getOrderStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $initialStates = $input['initialStates'] ?? [];
@@ -32,6 +31,8 @@ class OrderStatsQuery
         $timezone = $input['timezone'] ?? null;
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providers = $input['providers'] ?? [];
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -40,7 +41,9 @@ class OrderStatsQuery
             $currentCountStates,
             $productTypeSlugs,
             $orderTypeNames,
-            $productId
+            $productId,
+            $providerCompanyIds,
+            $providers
         )->execute(
             $date,
             $startDate,
@@ -56,7 +59,6 @@ class OrderStatsQuery
     public function getPaymentStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $paidStates = $input['paidStates'] ?? ['paid'];
@@ -72,6 +74,7 @@ class OrderStatsQuery
         $baseDate = $input['baseDate'] ?? null;
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -80,7 +83,8 @@ class OrderStatsQuery
             $productTypeSlugs,
             $orderTypeNames,
             $providers,
-            $productId
+            $productId,
+            $providerCompanyIds
         )->execute(
             $date,
             $startDate,

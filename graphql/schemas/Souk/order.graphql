@@ -641,6 +641,27 @@ extend type Query @guard {
             defaultCount: 25
         )
 
+    providerOrders(
+        provider_company_id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "status"
+                    "payment_status"
+                    "fulfillment_status"
+                    "created_at"
+                    "updated_at"
+                    "companies_id"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\ProviderOrdersBuilder@build"
+            defaultCount: 25
+        )
+
     orderTypes(
         search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
@@ -694,6 +715,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["variant_id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
