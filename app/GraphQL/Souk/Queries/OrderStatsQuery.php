@@ -17,7 +17,6 @@ class OrderStatsQuery
     public function getOrderStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $initialStates = $input['initialStates'] ?? [];
@@ -60,7 +59,6 @@ class OrderStatsQuery
     public function getPaymentStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $paidStates = $input['paidStates'] ?? ['paid'];

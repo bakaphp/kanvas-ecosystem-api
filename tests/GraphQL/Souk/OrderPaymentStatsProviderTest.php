@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
-class OrderStatsProviderTest extends OrderBase
+class OrderPaymentStatsProviderTest extends OrderBase
 {
     protected string $variantId;
 
-    private string $orderStatsQuery = '
-        query OrderStats($input: OrderStatsInput) {
-            orderStats(input: $input) {
+    private string $orderPaymentStatsQuery = '
+        query OrderPaymentStats($input: OrderPaymentStatsInput) {
+            orderPaymentStats(input: $input) {
                 period { start end }
                 ordersInPeriod {
-                    orderAvg
-                    data { date count states }
+                    count
+                    totalAmount
+                    byProvider { name count totalAmount }
+                    data { date count }
                 }
-                currentCount
-                dailyTurnover {
-                    totalEntries
-                    totalExits
-                    data { date entries exits }
-                }
-                averageRotation { averageTime }
-                byProvider { name count totalAmount }
-                groupBy
+                byPeriod { label total_transactions total_amount }
+                periods { period_type count avg_count total amount_avg periods_in_range }
             }
         }
     ';
@@ -70,13 +65,11 @@ class OrderStatsProviderTest extends OrderBase
         $this->variantId = $variantResponse['id'];
     }
 
-    public function testOrderStatsReturnsEmptyByProviderWhenProvidersNotSpecified(): void
+    public function testOrderPaymentStatsWithoutProviderFilterReturnsSuccessfully(): void
     {
-        $response = $this->graphQL($this->orderStatsQuery, [
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
             'input' => [
-                'initialStates' => ['processing'],
-                'finalStates' => ['completed'],
-                'currentCountStates' => ['processing'],
+                'paidStates' => ['paid'],
                 'startDate' => '2026-01-01',
                 'endDate' => '2026-03-31',
                 'timezone' => 'UTC',
@@ -85,11 +78,13 @@ class OrderStatsProviderTest extends OrderBase
 
         $response->assertSuccessful();
 
-        $data = $response->json('data.orderStats');
-        $this->assertEquals([], $data['byProvider']);
+        $data = $response->json('data.orderPaymentStats');
+        $this->assertArrayHasKey('ordersInPeriod', $data);
+        $this->assertArrayHasKey('byPeriod', $data);
+        $this->assertArrayHasKey('periods', $data);
     }
 
-    public function testOrderStatsWithProviderCompanyIdFilter(): void
+    public function testOrderPaymentStatsWithProviderCompanyIdFilter(): void
     {
         $order = $this->createOrderFromCart(
             variantId: $this->variantId,
@@ -99,11 +94,9 @@ class OrderStatsProviderTest extends OrderBase
 
         $order->providerCompanies()->attach($this->company->id);
 
-        $response = $this->graphQL($this->orderStatsQuery, [
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
             'input' => [
-                'initialStates' => ['processing'],
-                'finalStates' => ['completed'],
-                'currentCountStates' => ['processing'],
+                'paidStates' => ['paid'],
                 'startDate' => '2026-01-01',
                 'endDate' => '2026-03-31',
                 'timezone' => 'UTC',
@@ -113,12 +106,11 @@ class OrderStatsProviderTest extends OrderBase
 
         $response->assertSuccessful();
 
-        $data = $response->json('data.orderStats');
-        $this->assertArrayHasKey('byProvider', $data);
-        $this->assertIsArray($data['byProvider']);
+        $data = $response->json('data.orderPaymentStats');
+        $this->assertArrayHasKey('ordersInPeriod', $data);
     }
 
-    public function testOrderStatsWithByProviderBreakdown(): void
+    public function testOrderPaymentStatsByPeriodIsFilteredByProviderCompanyId(): void
     {
         $order = $this->createOrderFromCart(
             variantId: $this->variantId,
@@ -128,23 +120,38 @@ class OrderStatsProviderTest extends OrderBase
 
         $order->providerCompanies()->attach($this->company->id);
 
-        $response = $this->graphQL($this->orderStatsQuery, [
+        $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    status
+                    payment {
+                        id
+                    }
+                }
+            }
+        ', [
+            'orderID' => $order->id,
             'input' => [
-                'initialStates' => ['processing'],
-                'finalStates' => ['completed'],
-                'currentCountStates' => ['processing'],
+                'payment_method' => 'CASH',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
+            'input' => [
+                'paidStates' => ['paid'],
                 'startDate' => '2026-01-01',
                 'endDate' => '2026-03-31',
                 'timezone' => 'UTC',
-                'providers' => [
-                    ['name' => 'TestProvider', 'emailPattern' => '%@test.com'],
-                ],
+                'provider_company_id' => [$this->company->id],
+                'periodBreakdown' => 'MONTH',
             ],
         ]);
 
         $response->assertSuccessful();
 
-        $data = $response->json('data.orderStats');
-        $this->assertIsArray($data['byProvider']);
+        $data = $response->json('data.orderPaymentStats');
+        $this->assertIsArray($data['byPeriod']);
     }
 }

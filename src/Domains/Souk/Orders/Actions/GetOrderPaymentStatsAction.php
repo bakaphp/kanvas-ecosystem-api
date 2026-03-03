@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
@@ -117,7 +119,7 @@ class GetOrderPaymentStatsAction
         $totalAmount = $byDates->sum(fn ($entry) => $entry['states']['amount'] ?? 0);
 
         // Get service stats from the already filtered orders
-        $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
+        $byServices = $this->getServiceStatsFromOrders($start, $end);
 
         // Get provider stats if providers are specified
         $byProvider = [];

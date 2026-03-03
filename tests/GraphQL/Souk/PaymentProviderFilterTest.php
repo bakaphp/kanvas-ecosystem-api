@@ -234,6 +234,7 @@ class PaymentProviderFilterTest extends OrderBase
         ]);
 
         $response->assertSuccessful();
+        $this->assertNotEmpty($response->json('data.providerPayments.data'));
     }
 
     public function testProviderOrdersQuery(): void

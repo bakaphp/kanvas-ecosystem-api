@@ -32,6 +32,7 @@ class ProviderOrdersBuilder
             )
             ->where('op.company_id', $providerCompanyId)
             ->where('orders.apps_id', app(Apps::class)->getId())
+            ->where('orders.is_deleted', 0)
             ->select('orders.*');
     }
 }
