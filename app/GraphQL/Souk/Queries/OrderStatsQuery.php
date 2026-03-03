@@ -32,6 +32,8 @@ class OrderStatsQuery
         $timezone = $input['timezone'] ?? null;
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providers = $input['providers'] ?? [];
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -40,7 +42,9 @@ class OrderStatsQuery
             $currentCountStates,
             $productTypeSlugs,
             $orderTypeNames,
-            $productId
+            $productId,
+            $providerCompanyIds,
+            $providers
         )->execute(
             $date,
             $startDate,
@@ -72,6 +76,7 @@ class OrderStatsQuery
         $baseDate = $input['baseDate'] ?? null;
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -80,7 +85,8 @@ class OrderStatsQuery
             $productTypeSlugs,
             $orderTypeNames,
             $providers,
-            $productId
+            $productId,
+            $providerCompanyIds
         )->execute(
             $date,
             $startDate,
