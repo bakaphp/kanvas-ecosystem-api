@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules;
 
-use Baka\Contracts\AppInterface;
 use Generator;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
@@ -20,7 +20,7 @@ class DynamicRuleWorkflow extends Workflow
     /**
      * @param object|Model $entity
      */
-    public function execute(AppInterface $app, Rule $rule, object $entity, array $params): Generator
+    public function execute(Apps $app, Rule $rule, object $entity, array $params): Generator
     {
         if (! $entity instanceof Model) {
             throw new InvalidArgumentException('Entity must be a Model');
