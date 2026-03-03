@@ -28,6 +28,7 @@ class ProcessPendingInsuranceCommand extends Command
                             {--all : Process all orders with pending insurance data}
                             {--batch-size=50 : Number of orders to process per batch}
                             {--dry-run : Show what would be processed without actually creating vouchers}
+                            {--overwrite : Force reprocessing even if voucher already exists (for reissuance)}
                             {--app-id=22 : App ID to use (default: 22)}';
 
     protected $description = 'Process pending insurance data from orders and create Universal Assistance vouchers';
@@ -43,6 +44,7 @@ class ProcessPendingInsuranceCommand extends Command
         $orderIds = $this->resolveOrderIds();
         $processAll = $this->option('all');
         $dryRun = $this->option('dry-run');
+        $overwrite = (bool) $this->option('overwrite');
         $appId = (int) $this->option('app-id');
         $batchSize = (int) $this->option('batch-size');
 
@@ -70,6 +72,11 @@ class ProcessPendingInsuranceCommand extends Command
             $this->line('');
         }
 
+        if ($overwrite) {
+            $this->warn('[OVERWRITE] Existing vouchers will be ignored — orders will be reissued');
+            $this->line('');
+        }
+
         // Get app
         $app = Apps::find($appId);
         if (! $app) {
@@ -85,9 +92,9 @@ class ProcessPendingInsuranceCommand extends Command
             if (! empty($orderIds)) {
                 $this->info('Processing ' . count($orderIds) . ' specific orders in batches of ' . $batchSize);
                 $this->line('');
-                $this->processBatchOrders($orderIds, $app, $dryRun, $batchSize);
+                $this->processBatchOrders($orderIds, $app, $dryRun, $batchSize, $overwrite);
             } else {
-                $this->processAllPendingOrders($app, $dryRun, $batchSize);
+                $this->processAllPendingOrders($app, $dryRun, $batchSize, $overwrite);
             }
 
             $this->printSummary();
@@ -164,7 +171,7 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Process a batch of specific order IDs in chunks to handle large volumes.
      */
-    protected function processBatchOrders(array $orderIds, Apps $app, bool $dryRun, int $batchSize): void
+    protected function processBatchOrders(array $orderIds, Apps $app, bool $dryRun, int $batchSize, bool $overwrite = false): void
     {
         $totalOrders = count($orderIds);
         $chunks = array_chunk($orderIds, $batchSize);
@@ -194,7 +201,7 @@ class ProcessPendingInsuranceCommand extends Command
 
             foreach ($orders as $order) {
                 $progressBar->setMessage("Order #{$order->id} (Batch {$batchNum}/{$totalBatches})");
-                $this->processOrder($order, $app, $dryRun, true);
+                $this->processOrder($order, $app, $dryRun, true, $overwrite);
                 $progressBar->advance();
             }
 
@@ -219,7 +226,7 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Process all orders with pending insurance data using chunked queries.
      */
-    protected function processAllPendingOrders(Apps $app, bool $dryRun, int $batchSize = 50): void
+    protected function processAllPendingOrders(Apps $app, bool $dryRun, int $batchSize = 50, bool $overwrite = false): void
     {
         $this->info("Searching for orders with pending insurance data in App {$app->id}...");
         $this->line('');
@@ -250,10 +257,10 @@ class ProcessPendingInsuranceCommand extends Command
         $progressBar->setMessage('Starting...');
         $progressBar->start();
 
-        $query->chunk($batchSize, function ($orders) use ($app, $dryRun, $progressBar) {
+        $query->chunk($batchSize, function ($orders) use ($app, $dryRun, $overwrite, $progressBar) {
             foreach ($orders as $order) {
                 $progressBar->setMessage("Processing Order #{$order->id}");
-                $this->processOrder($order, $app, $dryRun, true);
+                $this->processOrder($order, $app, $dryRun, true, $overwrite);
                 $progressBar->advance();
             }
         });
@@ -267,7 +274,7 @@ class ProcessPendingInsuranceCommand extends Command
     /**
      * Process a single order
      */
-    protected function processOrder(Order $order, Apps $app, bool $dryRun, bool $silent = false): void
+    protected function processOrder(Order $order, Apps $app, bool $dryRun, bool $silent = false, bool $overwrite = false): void
     {
         $orderId = $order->id;
 
@@ -346,7 +353,7 @@ class ProcessPendingInsuranceCommand extends Command
             $orderMarkedProcessed = (bool) $order->get('universal_assistance_processed');
             $messageHasExistingVoucher = $messageId && $this->messageHasVoucher((int) $messageId);
 
-            if ($orderMarkedProcessed && $messageHasExistingVoucher) {
+            if ($orderMarkedProcessed && $messageHasExistingVoucher && ! $overwrite) {
                 if (! $silent) {
                     $this->warn("  [SKIP] Entry #{$entryIndex}: Order marked processed AND Message #{$messageId} has voucher");
                 }
@@ -357,7 +364,7 @@ class ProcessPendingInsuranceCommand extends Command
             }
 
             // Skip if message already has voucher (regardless of order status)
-            if ($messageHasExistingVoucher) {
+            if ($messageHasExistingVoucher && ! $overwrite) {
                 if (! $silent) {
                     $this->warn("  [SKIP] Entry #{$entryIndex}: Message #{$messageId} already has voucher");
                 }
@@ -365,6 +372,11 @@ class ProcessPendingInsuranceCommand extends Command
                 $entryIndex++;
 
                 continue;
+            }
+
+            // Log overwrite mode when bypassing existing voucher
+            if ($overwrite && $messageHasExistingVoucher && ! $silent) {
+                $this->warn("  [OVERWRITE] Entry #{$entryIndex}: Message #{$messageId} has existing voucher — reissuing");
             }
 
             // Log if order is marked processed but message has no voucher (we'll process)
@@ -1066,8 +1078,15 @@ class ProcessPendingInsuranceCommand extends Command
         $this->info('╚════════════════════════════════════════════════════════════════╝');
         $this->line('');
 
+        $overwrite = (bool) $this->option('overwrite');
+
         if ($dryRun) {
             $this->warn('[DRY RUN] No vouchers were actually created');
+            $this->line('');
+        }
+
+        if ($overwrite) {
+            $this->warn('[OVERWRITE] Reissuance mode was active — existing vouchers were bypassed');
             $this->line('');
         }
 
