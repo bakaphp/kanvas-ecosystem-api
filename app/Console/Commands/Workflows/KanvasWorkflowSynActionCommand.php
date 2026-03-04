@@ -49,6 +49,7 @@ use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
+use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
@@ -68,9 +69,9 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
-use Kanvas\Connectors\PromptMine\Workflows\Activities\IncrementPromptUsageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptIAPOrderActivity;
@@ -265,7 +266,6 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowsProcessVehicleImageActivity::class,
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
-            IncrementPromptUsageActivity::class,
             ProcessPaymentActivity::class,
             ShopifyComplianceWebhookJob::class,
             PayFromWalletActivity::class,
@@ -340,8 +340,10 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushPeopleActivity::class,
             RestoreUsersAccountContentActivity::class,
             ScheduleEleadActivityFromEventAction::class,
+            OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
+            ModelWizardReceiverJob::class,
         ];
 
         $createdActions = [];
