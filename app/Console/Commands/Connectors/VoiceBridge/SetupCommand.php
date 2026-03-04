@@ -173,11 +173,11 @@ class SetupCommand extends Command
         $this->line('Initializing voice session...');
 
         // $initialContext = [
-        //     'company_id' => '1645',
+        //     'company_id' => 'id',
         //     'customer' => array_filter([
-        //         "firstname"=> "Daniela",
-        //         "lastname"=> "Ramos",
-        //         "phone"=> "+14047907130",
+        //         "firstname"=> "name",
+        //         "lastname"=> "lastname",
+        //         "phone"=> "+numer",
         //         "role"=> "Ejecutiva de Ventas"
         //     ]),
         //     'kanvas_prompts' => [
