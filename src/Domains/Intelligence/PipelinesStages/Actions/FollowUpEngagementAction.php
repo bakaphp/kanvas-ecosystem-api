@@ -326,8 +326,12 @@ class FollowUpEngagementAction
     /**
      * Log success action for follow-up
      */
-    protected function logSuccess(string $action, string $message, ?Session $session = null, ?string $messageContent = null): void
-    {
+    protected function logSuccess(
+        string $action,
+        string $message,
+        ?Session $session = null,
+        ?string $messageContent = null
+    ): void {
         if ($this->log) {
             $metadata = $this->log->metadata ?? [];
             $metadata['success_actions'][] = [
