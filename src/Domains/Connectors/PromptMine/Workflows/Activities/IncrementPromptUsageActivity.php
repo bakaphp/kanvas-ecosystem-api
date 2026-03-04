@@ -6,10 +6,6 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -22,7 +18,6 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-        $company = $this->getCompany($app, $entity);
 
         return $this->executeIntegration(
             entity: $entity,
@@ -69,23 +64,7 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
                     'last_used_at' => $parent->get('last_used_at'),
                 ];
             },
-            company: $company,
+            company: $entity->company,
         );
-    }
-
-    /**
-     * Get the company for this workflow
-     */
-    protected function getCompany(AppInterface $app, Model $entity): Companies
-    {
-        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
-
-        try {
-            $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
-
-            return $branch->company;
-        } catch (ModelNotFoundException $e) {
-            return $entity->company;
-        }
     }
 }
