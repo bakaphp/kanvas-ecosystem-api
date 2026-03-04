@@ -2,35 +2,37 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Intelligence\Queries;
+namespace Kanvas\Intelligence\FollowUp\Activities;
 
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
-use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\KanvasActivity;
+use Override;
 
-class FollowUpPromptQuery
+class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    public function getAgentFollowUpPrompts(mixed $root, array $request): array
+    #[Override]
+    public function execute(Model $lead, AppInterface $app, array $params): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = app(CompaniesBranches::class)->company;
+        $this->overwriteAppService($app);
 
-        $lead = Lead::getByIdFromCompanyApp((int) $request['lead_id'], $company, $app);
+        if (! $lead instanceof Lead) {
+            return ['error' => 'Entity must be a Lead'];
+        }
 
-        // Use provided stage_id or default to lead's current stage
-        $stageId = isset($request['stage_id']) ? (int) $request['stage_id'] : $lead->pipeline_stage_id;
+        $stageId = isset($params['stage_id']) ? (int) $params['stage_id'] : $lead->pipeline_stage_id;
         $stage = PipelineStage::find($stageId);
 
         $aiFollowUpType = $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
@@ -82,7 +84,7 @@ class FollowUpPromptQuery
             ->where('entity_id', '=', $lead->getId())
             ->where('is_deleted', 0)
             ->fromApp($app)
-            ->fromCompany($company)
+            ->fromCompany($lead->company)
             ->get();
 
         $agent = $this->getFollowUpAgent($lead);
@@ -154,7 +156,6 @@ class FollowUpPromptQuery
 
         $companyWorkHour = new CompanyWorkHoursTool($lead)->execute();
         $vehicleInterest = new VehicleInterestTool($lead)->execute();
-        $contentSession = new CreateContentSessionAction($session);
         $conversationHistory = $this->mapConversationHistory($session, $lead);
 
         $data = [
