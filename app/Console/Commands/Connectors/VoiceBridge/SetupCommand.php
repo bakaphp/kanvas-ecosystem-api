@@ -7,11 +7,13 @@ namespace App\Console\Commands\Connectors\VoiceBridge;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\VoiceBridge\Actions\BuildLeadVoiceContextAction;
 use Kanvas\Connectors\VoiceBridge\Client;
 use Kanvas\Connectors\VoiceBridge\DataTransferObject\VoiceBridge as VoiceBridgeDto;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
 class SetupCommand extends Command
@@ -136,7 +138,7 @@ class SetupCommand extends Command
         $firstname = $people?->firstname ?? $lead->firstname ?? '';
         $lastname = $people?->lastname ?? $lead->lastname ?? '';
         $email = $people?->getEmails()->first()?->value ?? $lead->email ?? '';
-        $userId = (string) ($lead->leads_owner_id ?? $lead->users_id ?? 'kanvas_crm');
+        $userId = (string) ($lead->leads_owner_id ?: $lead->users_id ?: 'kanvas_crm');
 
         $this->line("  Lead     : {$firstname} {$lastname}");
         $this->line("  Phone    : {$phone}");
@@ -147,23 +149,51 @@ class SetupCommand extends Command
         $sessionId = VoiceBridgeService::buildOutboundSessionId((string) $lead->getId(), $phone, $voiceBridgeCompanyId);
         $this->line("  Session ID: {$sessionId}");
 
-        $initialContext = [
-            'company_id' => $voiceBridgeCompanyId,
-            'customer' => array_filter([
-                'firstname' => $firstname,
-                'lastname' => $lastname,
-                'phone' => $phone,
-                'email' => $email,
-            ]),
-            'kanvas_prompts' => [
-                'background' => "Lead #{$lead->getId()}: {$firstname} {$lastname}.",
-                'steps' => 'Greet the customer by name and confirm the purpose of the call.',
-            ],
-        ];
+        try {
+            $agent = Agent::fromApp($app)
+                ->fromCompany($lead->company)
+                ->where('name', 'voiceOutreachAgent')
+                ->firstOrFail();
+            $initialContext = new BuildLeadVoiceContextAction($lead, $agent)->execute();
+        } catch (Throwable $e) {
+            $this->warn('Could not load voice agent (will use hardcoded context): ' . $e->getMessage());
+            $initialContext = [];
+        }
+
+        $client = Client::getInstance($app);
+
+        $this->line('Checking for existing session...');
+        try {
+            $client->deleteSession($userId, $sessionId);
+            $this->line('  Existing session deleted.');
+        } catch (Throwable) {
+            $this->line('  No existing session found, proceeding.');
+        }
 
         $this->line('Initializing voice session...');
+
+        // $initialContext = [
+        //     'company_id' => '1645',
+        //     'customer' => array_filter([
+        //         "firstname"=> "Daniela",
+        //         "lastname"=> "Ramos",
+        //         "phone"=> "+14047907130",
+        //         "role"=> "Ejecutiva de Ventas"
+        //     ]),
+        //     'kanvas_prompts' => [
+        //         'background' => "Daniela es asistente de ventas en Ricardo Caballero Kia. Está llamando a un cliente llamado Alex que preguntó por la disponibilidad de una Kia Niro 2026 blanca. El vehículo está disponible.",
+        //         'steps' => 'Habla solo en español. Saluda al cliente por su nombre, Alex, e identifícate como Daniela de Ricardo Caballero Kia. Informa que la Kia Niro 2026 blanca todavía está disponible. Pregunta cuándo le gustaría venir a hacer un test drive. Dale tiempo para que responda antes de colgar',
+        //     ],
+        //     'task' => [
+        //         "vehicle_of_interest" => [
+        //             "year" => 2026,
+        //             "make" => "Kia",
+        //             "model" => "Niro"
+        //         ]
+        //     ]
+        // ];
+
         try {
-            $client = Client::getInstance($app);
             $result = $client->initSession(
                 userId: $userId,
                 sessionId: $sessionId,
@@ -185,7 +215,7 @@ class SetupCommand extends Command
 
         $this->line('Triggering call...');
         try {
-            $result = Client::getInstance($app)->triggerCall(
+            $result = $client->triggerCall(
                 userId: $userId,
                 sessionId: $sessionId,
                 phoneNumber: $phone,
