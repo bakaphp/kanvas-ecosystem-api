@@ -52,10 +52,14 @@ class SetupRoadsideAssistanceCaseCommand extends Command
             MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => [
                 'transitions' => [
                     MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
                     $cancelled,
                 ],
             ],
             MovipassOrderStatusEnum::SERVICE_COMPLETED->value => [
+                'is_final' => true,
+            ],
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => [
                 'is_final' => true,
             ],
             MovipassOrderStatusEnum::SERVICE_CANCELLED->value => [
