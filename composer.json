@@ -22,7 +22,7 @@
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "echolabsdev/prism": "^0.99.2",
-        "genealabs/laravel-model-caching": "^12.0",
+        "genealabs/laravel-model-caching": "^13.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.9.0",
