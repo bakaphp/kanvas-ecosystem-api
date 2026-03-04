@@ -222,7 +222,8 @@ class FollowUpEngagementAction
                         $this->lead->stage,
                         $session,
                         $messageTemplate,
-                        (float)$followUpDay->pipelineStage->weight
+                        (float)$followUpDay->pipelineStage->weight,
+                        $messageTemplateChannel
                     )->execute();
 
                     $this->logSuccess('message_created', 'Follow-up message created', $session, $message);

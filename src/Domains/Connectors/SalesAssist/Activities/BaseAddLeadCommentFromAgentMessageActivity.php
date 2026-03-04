@@ -69,8 +69,8 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
      */
     protected function buildFormattedNote(Message $message, string $note, bool $fromAgent): string
     {
-        $channelSlug = $message->channels->first()->slug;
-        $channel = ChannelCategoryEnum::getLeadChannelName($channelSlug);
+        $channelSlug = $message->channels->first()?->slug;
+        $channel = $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : null;
         $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
 
         $isNote = strtolower((string)$message->messageType?->verb) === 'note';
