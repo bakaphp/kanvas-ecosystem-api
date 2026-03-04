@@ -52,6 +52,11 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
     activities: [ActivityLog!] @method(name: "getActivities")
+    # NOTE: N+1 prone — use only in single-variant queries, not in paginated list queries
+    available_slots: Int
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Queries\\Variants\\VariantSlotAvailabilityResolver@resolve"
+        )
 }
 
 type VariantPricingInfo {

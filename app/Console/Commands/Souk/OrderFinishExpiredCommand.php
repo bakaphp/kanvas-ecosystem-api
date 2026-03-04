@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Orders\Actions\GetSlotAvailabilityAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -68,26 +69,60 @@ class OrderFinishExpiredCommand extends Command
             // If the order is not related to another order. it means that is not an extension
             // but a main order, we can update the warehouse quantity when the order is finished
             if (! $order->parent_id && $variant) {
-                $channel = $variant->variantChannels()->first();
-                $variantWarehouse = $channel?->productVariantWarehouse()->first();
+                if ($order->orderType?->isExpirable()) {
+                    // Dynamic recalculation: available = max_capacity - count(active orders)
+                    // Aggregate across ALL product variants (multi-level parking support)
+                    $app = $order->app;
+                    $allVariants = $variant->product->variants()->get();
+                    $totalMax       = 0;
+                    $totalOccupied  = 0;
+                    $totalAvailable = 0;
+                    $currentVariantSlotData  = null;
+                    $currentVariantWarehouse = null;
 
-                if (! $variantWarehouse) {
-                    $this->warn('No variant warehouse found for order ' . $order->id . ' variant ' . $variant->id);
+                    foreach ($allVariants as $v) {
+                        // Check raw warehouse value before calling action — CapacityStats coerces null→0.
+                        // 0 is the DTO default (unconfigured); null means no warehouse record — both = unlimited.
+                        $variantWarehouseRecord = $v->variantWarehouses()->first();
+                        if (! ($variantWarehouseRecord?->max_capacity > 0)) {
+                            continue;
+                        }
 
-                    return;
-                }
+                        $vData = new GetSlotAvailabilityAction($v, $app)->execute();
+                        $totalMax       += $vData->maxCapacity;
+                        $totalOccupied  += $vData->occupiedCapacity;
+                        $totalAvailable += $vData->availableCapacity;
 
-                $available = $variantWarehouse->quantity + 1;
-                $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-                $product = $variant->product;
-                $capacity = $product->getAttributeByName('capacity')?->value;
-                // @deprecated: remove this after new flow is implemented
-                if ($capacity) {
-                    $product->addAttribute('capacity', [
-                        'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                        'availableParkingSpaces' => $available,
-                        'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                        if ($v->getId() === $variant->getId()) {
+                            $currentVariantSlotData  = $vData;
+                            $currentVariantWarehouse = $variantWarehouseRecord->warehouse ?? null;
+                        }
+                    }
+
+                    if ($currentVariantSlotData !== null && $currentVariantWarehouse !== null) {
+                        $variant->updateQuantityInWarehouse($currentVariantWarehouse, $currentVariantSlotData->availableCapacity);
+                    }
+
+                    $variant->product->addAttribute('capacity', [
+                        'occupiedParkingSpaces'  => $totalOccupied,
+                        'availableParkingSpaces' => $totalAvailable,
+                        'totalParkingSpaces'     => $totalMax,
                     ]);
+                } else {
+                    $channel = $variant->variantChannels()->first();
+                    $variantWarehouse = $channel?->productVariantWarehouse()->first();
+                    $available = $variantWarehouse->quantity + 1;
+                    $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
+                    $product = $variant->product;
+                    $capacity = $product->getAttributeByName('capacity')?->value;
+                    // @deprecated: remove this after new flow is implemented
+                    if ($capacity) {
+                        $product->addAttribute('capacity', [
+                            'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
+                            'availableParkingSpaces' => $available,
+                            'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
+                        ]);
+                    }
                 }
             }
             $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);

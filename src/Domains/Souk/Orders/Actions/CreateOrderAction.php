@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Kanvas\Souk\Orders\Actions\GetSlotAvailabilityAction;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
@@ -33,6 +37,8 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
+        $this->validateSlotAvailability();
+
         $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
             $existingOrder = ModelsOrder::where([
@@ -185,6 +191,59 @@ class CreateOrderAction
 
         foreach ($this->orderData->items as $item) {
             ResourceScheduleValidator::validateResourceAvailability($item->variant, $startTime);
+        }
+    }
+
+    private function validateSlotAvailability(): void
+    {
+        if (! $this->orderData->orderType) {
+            return;
+        }
+
+        $orderType = OrderTypes::where('name', $this->orderData->orderType)
+            ->where('apps_id', $this->orderData->app->getId())
+            ->where('companies_id', $this->orderData->company->getId())
+            ->first();
+
+        if (! $orderType?->isExpirable()) {
+            return;
+        }
+
+        foreach ($this->orderData->items as $item) {
+            $variant = $item->variant;
+
+            if (! $variant) {
+                continue;
+            }
+
+            $rawMaxCapacity = $variant->variantWarehouses()->first()?->max_capacity;
+
+            // 0 is the DTO default (unconfigured); null means no warehouse record — both = unlimited
+            if (! ($rawMaxCapacity > 0)) {
+                continue;
+            }
+
+            $lock = Cache::lock('slot_availability:' . $variant->getId(), 10);
+
+            try {
+                try {
+                    $lock->block(5);
+                } catch (LockTimeoutException) {
+                    throw new ValidationException(
+                        "Could not verify slot availability for {$variant->name}. Please try again."
+                    );
+                }
+
+                $slotData = new GetSlotAvailabilityAction($variant, $this->orderData->app)->execute();
+
+                if ($slotData->availableCapacity <= 0) {
+                    throw new ValidationException(
+                        "No available slots for {$variant->name}. Current availability: 0."
+                    );
+                }
+            } finally {
+                $lock->release();
+            }
         }
     }
 }
