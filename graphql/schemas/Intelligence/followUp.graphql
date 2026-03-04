@@ -38,8 +38,8 @@ type FollowUpPromptResponse {
 }
 
 extend type Query @guard {
-    followUpPrompts(lead_id: ID!, stage_id: ID): FollowUpPromptResponse!
+    agentFollowUpPrompts(lead_id: ID!, stage_id: ID): FollowUpPromptResponse!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\FollowUpPromptQuery@getFollowUpPrompts"
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\FollowUpPromptQuery@getAgentFollowUpPrompts"
         )
 }

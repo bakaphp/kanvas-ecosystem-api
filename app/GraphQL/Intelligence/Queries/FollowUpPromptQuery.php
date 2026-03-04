@@ -21,7 +21,7 @@ use Kanvas\Intelligence\Tools\VehicleInterestTool;
 
 class FollowUpPromptQuery
 {
-    public function getFollowUpPrompts(mixed $root, array $request): array
+    public function getAgentFollowUpPrompts(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
