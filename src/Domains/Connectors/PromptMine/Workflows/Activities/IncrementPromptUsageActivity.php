@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -15,27 +14,27 @@ use Override;
 class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
-    public function execute(Model $entity, AppInterface $app, array $params): array
+    public function execute(Message $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         return $this->executeIntegration(
-            entity: $entity,
+            entity: $message,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) {
-                // $entity is the *Result Message* (Nugget) created from the Prompt.
+            integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
+                // $message is the *Result Message* (Nugget) created from the Prompt.
                 // We need to find the *Parent Prompt*.
 
                 $parent = null;
 
                 // 1. Check parent_id (Standard Reply/Thread)
-                if ($entity->parent_id) {
-                    $parent = Message::getById($entity->parent_id, $app);
+                if ($message->parent_id) {
+                    $parent = Message::getById($message->parent_id, $app);
                 }
                 // 2. Check remix_parent_id (Common in PromptMine for remixes)
-                elseif (isset($entity->message['remix_parent_id'])) {
-                    $parentId = (int) $entity->message['remix_parent_id'];
+                elseif (isset($message->message['remix_parent_id'])) {
+                    $parentId = (int) $message->message['remix_parent_id'];
                     $parent = Message::getById($parentId, $app);
                 }
 
@@ -44,7 +43,7 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
                     return [
                         'result' => false,
                         'message' => 'No parent prompt found to increment usage.',
-                        'entity_id' => $entity->getId(),
+                        'entity_id' => $message->getId(),
                     ];
                 }
 
@@ -64,7 +63,8 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
                     'last_used_at' => $parent->get('last_used_at'),
                 ];
             },
-            company: $entity->company,
+            company: $message->company,
+            integrationParams: $params,
         );
     }
 }
