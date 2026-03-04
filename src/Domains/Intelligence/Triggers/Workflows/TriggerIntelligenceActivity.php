@@ -29,6 +29,11 @@ class TriggerIntelligenceActivity extends KanvasActivity
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Trigger IA Logic Here
                 $triggerType = $params['trigger_type'] ?? null;
+                if (! $triggerType) {
+                    return $this->failWorkflow([
+                        'error' => 'Invalid trigger type',
+                    ]);
+                }
                 $modsPrevious = [
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
