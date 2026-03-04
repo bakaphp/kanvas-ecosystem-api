@@ -181,8 +181,8 @@ class SetupCommand extends Command
         //         "role"=> "Ejecutiva de Ventas"
         //     ]),
         //     'kanvas_prompts' => [
-        //         'background' => "Daniela es asistente de ventas en Ricardo Caballero Kia. Está llamando a un cliente llamado Alex que preguntó por la disponibilidad de una Kia Niro 2026 blanca. El vehículo está disponible.",
-        //         'steps' => 'Habla solo en español. Saluda al cliente por su nombre, Alex, e identifícate como Daniela de Ricardo Caballero Kia. Informa que la Kia Niro 2026 blanca todavía está disponible. Pregunta cuándo le gustaría venir a hacer un test drive. Dale tiempo para que responda antes de colgar',
+        //         'background' => "background",
+        //         'steps' => 'steps',
         //     ],
         //     'task' => [
         //         "vehicle_of_interest" => [
