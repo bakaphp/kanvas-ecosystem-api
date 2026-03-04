@@ -129,7 +129,7 @@ class FollowUpEngagementAction
                 if ($totalMessages > 2 && $lastMessage) {
                     $entity = $lastMessage->entity();
 
-                    if ($entity && ! ($entity instanceof Lead)) {
+                    if ($lastMessage->message['from_me']) {
                         return [
                             'message' => 'Last message was not responded',
                             'reason' => 'last_message_not_from_lead',

@@ -10,6 +10,7 @@ enum MovipassOrderStatusEnum: string
     case ON_SITE = 'on_site';
     case SERVICE_IN_PROGRESS = 'service_in_progress';
     case SERVICE_COMPLETED = 'service_completed';
+    case SERVICE_COMPLETED_NOT_RESOLVED = 'service_completed_not_resolved';
     case SERVICE_CANCELLED = 'service_cancelled';
     case IN_TRANSIT = 'in_transit';
     case PENDING = 'pending';

@@ -35,6 +35,7 @@ type OrderStats {
     orderRotationAvg: Float
     orderTransactions: String
     groupBy: String
+    byProvider: [OrderPaymentByProvider!]!
 }
 type OrderPaymentStats {
     period: Period!
@@ -148,6 +149,8 @@ input OrderStatsInput {
     timezone: String # e.g., "America/New_York"
     baseDate: String # starting date to count current orders (e.g., "2025-07-07")
     groupBy: DateGroupBy # DAY (default), WEEK, or MONTH
+    provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
+    providers: [ProviderInput!] # Email-pattern byProvider breakdown (same as OrderPaymentStatsInput)
 }
 
 input ProviderInput {
@@ -169,6 +172,7 @@ input OrderPaymentStatsInput {
     providers: [ProviderInput!] # Filter and group by provider email patterns
     groupPeriods: [PeriodType!] # Period types for averages summary (DAY, WEEK, MONTH, YEAR)
     periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
+    provider_company_id: [ID!]   # DB-level filter: only orders linked to these provider companies via order_providers
 }
 
 input ExportOrderPaymentsInput {

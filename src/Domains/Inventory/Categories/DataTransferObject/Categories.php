@@ -37,7 +37,7 @@ class Categories extends Data
     {
         return new self(
             app(Apps::class),
-            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
+            (isset($request['companies_id']) && (int) $request['companies_id'] !== 0) ? Companies::getById($request['companies_id']) : $company,
             $user,
             $request['name'],
             $request['parent_id'] ?? null,

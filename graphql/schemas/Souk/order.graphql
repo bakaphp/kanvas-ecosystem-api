@@ -107,6 +107,7 @@ type Order {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    provider_companies: [Company!]! @belongsToMany(relation: "providerCompanies")
 }
 
 type OrderItem {
@@ -630,12 +631,99 @@ extend type Query @guard {
                     "converted_at"
                 ]
             )
+        whereHasProvider: ID
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
         @paginate(
-            model: "Kanvas\\Souk\\Orders\\Models\\Order"
             scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@applyProviderFilter"
+            defaultCount: 25
+        )
+
+    providerOrders(
+        provider_company_id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "user_email"
+                    "user_phone"
+                    "people_id"
+                    "status"
+                    "fulfillment_status"
+                    "order_number"
+                    "reference"
+                    "order_types_id"
+                    "parent_id"
+                    "created_at"
+                    "updated_at"
+                    "token"
+                    "ip_address"
+                    "payment_status"
+                    "total_net_amount"
+                ]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "countries_id"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "allItems"
+                columns: ["product_name", "product_sku", "variant_id"]
+            )
+        hasPeople: _
+            @whereHasConditions(
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
+                columns: [
+                    "id"
+                    "users_id"
+                    "name"
+                    "firstname"
+                    "middlename"
+                    "lastname"
+                    "dob"
+                ]
+            )
+        hasAffiliateConversion: _
+            @whereHasConditions(
+                relation: "affiliateConversion"
+                columns: [
+                    "affiliates_id"
+                    "status"
+                    "confirmed"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\ProviderOrdersBuilder@build"
             defaultCount: 25
         )
 
@@ -692,6 +780,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["variant_id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
     ): [OrderTransitionHistory!]!
