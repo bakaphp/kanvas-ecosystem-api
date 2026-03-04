@@ -45,37 +45,33 @@ class CreateCrmNoteAction
         $aiChatLink = SessionChannelService::generateChannelLink($this->lead, $this->app);
         $note = $this->buildCrmNote($aiChatLink);
 
-        // Detect which CRM the lead is from and create the note
-        $isElead = $company->get(EleadCustomFieldEnum::COMPANY->value) !== null;
-        $isVinSolutions = $company->get(VinSolutionCustomFieldEnum::COMPANY->value) !== null;
-        $isDriveCentric = $company->get(DriveCentricConfigurationEnum::STORE_ID->value) !== null;
-        $isDealerSocket = $company->get(DealerSocketCustomFieldEnum::DEALER_SOCKET_DEALER_ID->value) !== null;
+        // Detect which CRM the lead is from
+        $crm = match (true) {
+            $company->get(DriveCentricConfigurationEnum::STORE_ID->value) !== null => 'drivecentric',
+            $company->get(EleadCustomFieldEnum::COMPANY->value) !== null => 'elead',
+            $company->get(VinSolutionCustomFieldEnum::COMPANY->value) !== null => 'vinsolution',
+            $company->get(DealerSocketCustomFieldEnum::DEALER_SOCKET_DEALER_ID->value) !== null => 'dealersocket',
+            default => null,
+        };
+
+        if ($crm === null) {
+            return [
+                'error' => 'No CRM integration found for this company',
+            ];
+        }
 
         try {
-            if ($isDriveCentric) {
-                return $this->createDriveCentricNote($note);
-            }
-
-            if ($isElead) {
-                return $this->createEleadNote($note);
-            }
-
-            if ($isVinSolutions) {
-                return $this->createVinSolutionNote($note);
-            }
-
-            if ($isDealerSocket) {
-                return $this->createDealerSocketNote($note);
-            }
+            return match ($crm) {
+                'drivecentric' => $this->createDriveCentricNote($note),
+                'elead' => $this->createEleadNote($note),
+                'vinsolution' => $this->createVinSolutionNote($note),
+                'dealersocket' => $this->createDealerSocketNote($note),
+            };
         } catch (Throwable $e) {
             return [
                 'error' => 'Failed to create CRM note: ' . $e->getMessage(),
             ];
         }
-
-        return [
-            'error' => 'No CRM integration found for this company',
-        ];
     }
 
     private function createDriveCentricNote(string $note): array
