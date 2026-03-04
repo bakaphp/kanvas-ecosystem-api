@@ -72,6 +72,7 @@ use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\IncrementPromptUsageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptIAPOrderActivity;
@@ -344,6 +345,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
             ModelWizardReceiverJob::class,
+            IncrementPromptUsageActivity::class,
         ];
 
         $createdActions = [];
