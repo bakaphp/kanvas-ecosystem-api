@@ -52,6 +52,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     public ?array $pathAttachment = null;
 
     public array $channels = ['mail'];
+    public array $forcedChannels = [];
 
     public function __construct(Model|NotificationTypes $entity, array $options = [])
     {
@@ -89,6 +90,14 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         if ($this->shouldFilterChannelsByUserSettings($notifiable)) {
             $channels = $this->filterEnabledChannels($channels, $notifiable);
+        }
+
+        // Apply forced channels that bypass user settings (e.g. database persistence)
+        foreach ($this->forcedChannels as $channel) {
+            $channelClass = NotificationChannelEnum::getNotificationChannelBySlug($channel);
+            if (! in_array($channelClass, $channels)) {
+                $channels[] = $channelClass;
+            }
         }
 
         $this->setNotifiableData($notifiable);
