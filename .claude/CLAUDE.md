@@ -22,6 +22,10 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
+- **PHP-CS-Fixer enforced** — always follow these formatting rules:
+  - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
+  - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
+  - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
 
 ## Domain CRUD Pattern
 

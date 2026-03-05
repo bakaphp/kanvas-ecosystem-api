@@ -109,6 +109,7 @@ class SendUnRespondeMessageCommandTest extends TestCase
         $this->assertEquals('Customer inquiry message', $message->message['content']);
 
         // Verify message can be queried by command criteria
+        $now = now()->toDateTimeString();
         $foundMessages = Message::fromApp($app)
             ->fromCompany($company)
             ->where('is_locked', 1)
@@ -116,7 +117,7 @@ class SendUnRespondeMessageCommandTest extends TestCase
                 $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image']);
             })
             ->whereDate('created_at', now()->toDateString())
-            ->whereRaw('DATE_ADD(created_at, INTERVAL 60 MINUTE) <= NOW()')
+            ->whereRaw('DATE_ADD(created_at, INTERVAL 60 MINUTE) <= ?', [$now])
             ->get();
 
         $this->assertGreaterThan(0, $foundMessages->count(), 'Message should be found by command query');

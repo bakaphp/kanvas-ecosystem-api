@@ -14,9 +14,14 @@ class ProductStatsQuery
     public function getCapacityStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
         $input = $args['input'];
+
+        $companiesId = $user->isAppOwner()
+            ? (isset($input['companies_id']) ? (int) $input['companies_id'] : null)
+            : (int) $user->getCurrentCompany()->getId();
 
         $capacityStats = ProductStatsRepository::getCapacityStats(
             $app,
@@ -24,6 +29,7 @@ class ProductStatsQuery
             $input['product_type_slug'] ?? null,
             $input['product_ids'] ?? null,
             isset($input['warehouse_id']) ? (int) $input['warehouse_id'] : null,
+            $companiesId,
         );
 
         return [

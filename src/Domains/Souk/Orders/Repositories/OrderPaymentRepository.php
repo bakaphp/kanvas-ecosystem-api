@@ -27,7 +27,8 @@ class OrderPaymentRepository
         ?int $variantId = null,
         string $timezone = 'UTC',
         array $orderTypeNames = [],
-        array $productVariantIds = []
+        array $productVariantIds = [],
+        array $providerCompanyIds = []
     ): Collection {
         $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -51,6 +52,15 @@ class OrderPaymentRepository
                 $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
             })
             ->with(['items'])
             ->whereBetween('order_transitions_history.changed_at', [$start, $end])
@@ -81,7 +91,8 @@ class OrderPaymentRepository
         array $paidStates,
         array $providers,
         ?int $variantId = null,
-        array $productVariantIds = []
+        array $productVariantIds = [],
+        array $providerCompanyIds = []
     ): Collection {
         $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -98,6 +109,15 @@ class OrderPaymentRepository
                 $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
             });
 
         // Build CASE WHEN for provider matching
@@ -130,7 +150,8 @@ class OrderPaymentRepository
         array $paidStates,
         ?int $variantId = null,
         array $orderTypeNames = [],
-        array $productVariantIds = []
+        array $productVariantIds = [],
+        array $providerCompanyIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
@@ -151,6 +172,15 @@ class OrderPaymentRepository
                 $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
             })
             ->pluck('orders.id');
     }
@@ -190,7 +220,8 @@ class OrderPaymentRepository
         string $timezone = 'UTC',
         array $orderTypeNames = [],
         ?int $variantId = null,
-        array $productVariantIds = []
+        array $productVariantIds = [],
+        array $providerCompanyIds = []
     ): Collection {
         $format = match (strtoupper($periodType)) {
             'DAY'   => '%Y-%m-%d',
@@ -215,6 +246,15 @@ class OrderPaymentRepository
                 $query->whereHas('allItems', function ($q) use ($productVariantIds) {
                     $q->whereIn('variant_id', $productVariantIds);
                 });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
             })
             ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)

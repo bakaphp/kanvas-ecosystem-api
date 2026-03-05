@@ -6,7 +6,7 @@ namespace App\GraphQL\Souk\Builders\Order;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Orders\Models\Order;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class OrderBuilder
@@ -27,5 +27,25 @@ class OrderBuilder
         }
 
         return $builder;
+    }
+
+    /**
+     * Apply provider company filter for provider dashboard queries.
+     * When used without model parameter, this must return a fresh query builder.
+     */
+    public function applyProviderFilter(
+        $root,
+        array $args
+    ): Builder {
+        $query = Order::query();
+
+        if (isset($args['whereHasProvider'])) {
+            $companyId = (int) $args['whereHasProvider'];
+            $query->whereHas('providerCompanies', function ($q) use ($companyId) {
+                $q->where('companies.id', $companyId);
+            });
+        }
+
+        return $query;
     }
 }

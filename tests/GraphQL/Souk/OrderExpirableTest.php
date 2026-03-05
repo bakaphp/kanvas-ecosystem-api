@@ -16,6 +16,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -671,5 +672,197 @@ class OrderExpirableTest extends TestCase
         // Should NOT return validation error - cancelled orders are excluded
         $this->assertNull($response->json('errors'));
         $this->assertNotNull($response->json('data.createOrderFromCart.order.id'));
+    }
+
+    private function buildMovipassVariantWithCapacity(int $maxCapacity): Variants
+    {
+        $productResponse = $this->createProduct(attributes: [
+            ['name' => 'slots', 'value' => $maxCapacity],
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: $maxCapacity,
+        );
+
+        $variant = Variants::find($variantResponse['id']);
+        $variantWarehouse = $variant->variantWarehouses()->first();
+        $variantWarehouse->max_capacity = $maxCapacity;
+        $variantWarehouse->save();
+
+        return $variant->fresh();
+    }
+
+    private function createMovipassOrder(Variants $variant, array $endAtMetadata): Order
+    {
+        $orderType = OrderTypes::withoutSyncingToSearch(fn () => OrderTypes::firstOrCreate(
+            [
+                'name' => 'movipass',
+                'apps_id' => $this->apps->id,
+                'companies_id' => $this->company->id,
+            ]
+        ));
+
+        if (! $orderType->isExpirable()) {
+            $orderType->config = ['expirable' => true];
+            $orderType->save();
+        }
+
+        return Order::withoutSyncingToSearch(function () use ($variant, $orderType, $endAtMetadata) {
+            $order = Order::create([
+                'apps_id' => $this->apps->id,
+                'companies_id' => $this->company->id,
+                'order_types_id' => $orderType->id,
+                'region_id' => $this->region->id,
+                'users_id' => $this->user->id,
+                'people_id' => 0,
+                'status' => 'draft',
+                'fulfillment_status' => 'pending',
+                'metadata' => $endAtMetadata,
+                'is_deleted' => 0,
+            ]);
+
+            $order->allItems()->create([
+                'apps_id' => $this->apps->id,
+                'product_name' => $variant->product->name,
+                'product_sku' => $variant->sku,
+                'quantity' => 1,
+                'unit_price_net_amount' => 0,
+                'unit_price_gross_amount' => 0,
+                'is_shipping_required' => false,
+                'quantity_fulfilled' => 0,
+                'variant_id' => $variant->getId(),
+                'variant_name' => $variant->name,
+                'tax_rate' => 0,
+                'currency' => 'USD',
+                'is_public' => 1,
+                'is_deleted' => 0,
+            ]);
+
+            return $order;
+        });
+    }
+
+    public function testOrderExpirableMovipass(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // max_capacity = 3; will have 2 active + 1 expired
+        $variant = $this->buildMovipassVariantWithCapacity(3);
+        $variantWarehouse = $variant->variantWarehouses()->first();
+
+        // Use subHours(6) so the expired time is past even when parsed under any UTC offset timezone
+        $activeEndAt = ['data' => ['end_at' => now()->addHours(2)->toDateTimeString()]];
+        $expiredEndAt = ['data' => ['end_at' => now()->subHours(6)->toDateTimeString()]];
+
+        $activeOrder1 = $this->createMovipassOrder($variant, $activeEndAt);
+        $activeOrder2 = $this->createMovipassOrder($variant, $activeEndAt);
+        $expiredOrder = $this->createMovipassOrder($variant, $expiredEndAt);
+
+        // Simulate warehouse quantity tracking: 3 orders exist → available = max(3) - active(3) = 0
+        $activity = new CalculateWarehouseQuantityActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        );
+        $activity->execute($activeOrder1, $app, []);
+        // Activity now uses GetSlotAvailabilityAction (excludes expired orders):
+        // 3 orders exist but only 2 have end_at > now → available = max(3) - active(2) = 1
+        $this->assertEquals(1, $variantWarehouse->refresh()->quantity);
+
+        Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $app->getId()]);
+
+        // Expired order must be fulfilled
+        $this->assertEquals('fulfilled', $expiredOrder->fresh()->fulfillment_status);
+
+        // Active orders must remain untouched
+        $this->assertNotEquals('fulfilled', $activeOrder1->fresh()->fulfillment_status);
+        $this->assertNotEquals('fulfilled', $activeOrder2->fresh()->fulfillment_status);
+
+        // After command: expired order is fulfilled → active count stays at 2 → available = 3-2 = 1
+        $this->assertEquals(1, $variantWarehouse->refresh()->quantity);
+    }
+
+    public function testOrderExpirableMovipassMultiVariant(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+
+        // Two variants on the same product: Floor1 max=3, Floor2 max=2
+        $floor1Variant = $this->buildMovipassVariantWithCapacity(3);
+        $product = $floor1Variant->product;
+
+        // Build Floor2 variant on the same product
+        $floor2VariantResponse = $this->createVariant(
+            productId: (string) $product->getId(),
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $floor2VariantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $floor2VariantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 2,
+        );
+
+        $floor2Variant = Variants::find($floor2VariantResponse['id']);
+        $floor2WarehouseRecord = $floor2Variant->variantWarehouses()->first();
+        $floor2WarehouseRecord->max_capacity = 2;
+        $floor2WarehouseRecord->save();
+        $floor2Variant = $floor2Variant->fresh();
+
+        $floor1WarehouseRecord = $floor1Variant->variantWarehouses()->first();
+
+        // Use subHours(6) so the expired time is past even when parsed under any UTC offset timezone
+        $activeEndAt = ['data' => ['end_at' => now()->addHours(2)->toDateTimeString()]];
+        $expiredEndAt = ['data' => ['end_at' => now()->subHours(6)->toDateTimeString()]];
+
+        // Floor1: 1 active + 1 expired
+        $floor1ActiveOrder = $this->createMovipassOrder($floor1Variant, $activeEndAt);
+        $floor1ExpiredOrder = $this->createMovipassOrder($floor1Variant, $expiredEndAt);
+
+        // Floor2: 1 active only
+        $floor2ActiveOrder = $this->createMovipassOrder($floor2Variant, $activeEndAt);
+
+        // Simulate warehouse quantity tracking for Floor1: 2 orders → available = max(3) - active(2) = 1
+        $activity = new CalculateWarehouseQuantityActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        );
+        $activity->execute($floor1ActiveOrder, $app, []);
+        // Activity now uses GetSlotAvailabilityAction (excludes expired orders):
+        // 2 floor1 orders exist but only 1 has end_at > now → available = max(3) - active(1) = 2
+        $this->assertEquals(2, $floor1WarehouseRecord->refresh()->quantity);
+
+        Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $app->getId()]);
+
+        // Only the Floor1 expired order should be fulfilled
+        $this->assertEquals('fulfilled', $floor1ExpiredOrder->fresh()->fulfillment_status);
+        $this->assertNotEquals('fulfilled', $floor1ActiveOrder->fresh()->fulfillment_status);
+        $this->assertNotEquals('fulfilled', $floor2ActiveOrder->fresh()->fulfillment_status);
+
+        // After command: expired floor1 order is fulfilled → active count = 1 → available = 3-1 = 2
+        $this->assertEquals(2, $floor1WarehouseRecord->refresh()->quantity);
     }
 }

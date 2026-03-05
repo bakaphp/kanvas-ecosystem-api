@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
 use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -30,7 +31,13 @@ class OrderTypes extends BaseModel
 
     protected $casts = [
         'total_statuses' => 'integer',
+        'config' => Json::class,
     ];
+
+    public function isExpirable(): bool
+    {
+        return (bool) ($this->config['expirable'] ?? false);
+    }
 
     public function orders(): HasMany
     {
