@@ -20,10 +20,6 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-use Illuminate\Support\Facades\DB;
-use Kanvas\CustomFields\Models\AppsCustomFields;
-use Kanvas\Enums\AppEnums;
-
 class RemixCreationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
