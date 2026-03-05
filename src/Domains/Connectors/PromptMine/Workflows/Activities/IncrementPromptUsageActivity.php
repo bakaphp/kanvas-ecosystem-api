@@ -6,12 +6,11 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowActivityInterface
+class IncrementPromptUsageActivity extends KanvasActivity
 {
     #[Override]
     public function execute(Message $message, AppInterface $app, array $params): array
@@ -22,6 +21,7 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
+            additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) {
                 // $message is the *Result Message* (Nugget) created from the Prompt.
                 // We need to find the *Parent Prompt*.
@@ -64,7 +64,6 @@ class IncrementPromptUsageActivity extends KanvasActivity implements WorkflowAct
                 ];
             },
             company: $message->company,
-            integrationParams: $params,
         );
     }
 }
