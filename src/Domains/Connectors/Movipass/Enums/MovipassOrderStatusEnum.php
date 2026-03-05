@@ -20,4 +20,11 @@ enum MovipassOrderStatusEnum: string
     case RELEASED = 'released_from_lot';
     case CANCELLED = 'cancelled';
     case TRIAL_PHASE = 'trial_phase';
+
+    // Custom Status For Parking
+    case CREATED = 'created';
+    // case PAID = 'paid';
+    case ACTIVE = 'ACTIVE';
+    case COMPLETED = 'completed';
+    // case CANCELLED = 'cancelled';
 }
