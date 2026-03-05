@@ -416,12 +416,13 @@ class OrderExpirableTest extends TestCase
     {
         $app = app(Apps::class);
 
-        // Configure duplicate metadata validation
-        $app->set('validate_metadata_duplicated_enabled', '1');
-        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
-        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
-        $app->set('validate_metadata_duplicated_error_message', 'Duplicate tracking ID not allowed within 2 hours');
-        $app->set('validate_metadata_duplicated_use_cache', '0'); // Disable cache to avoid Redis dependency
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
+
+        $orderType = OrderTypes::firstOrCreate(
+            ['name' => 'test-duplicate-validation', 'apps_id' => $app->getId(), 'companies_id' => 0],
+        );
+        $orderType->config = ['validate_metadata_duplicated_field' => 'data.tracking_id'];
+        $orderType->saveQuietly();
 
         $productResponse = $this->createProduct(attributes: [
             [
@@ -456,6 +457,7 @@ class OrderExpirableTest extends TestCase
         // Create first order with UPPERCASE tracking ID
         $firstOrderData = [
             'cartId' => 0,
+            'order_type' => $orderType->name,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -495,6 +497,7 @@ class OrderExpirableTest extends TestCase
         // Try to create second order with lowercase tracking ID (should fail - case-insensitive duplicate)
         $duplicateOrderData = [
             'cartId' => 0,
+            'order_type' => $orderType->name,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -538,12 +541,7 @@ class OrderExpirableTest extends TestCase
     {
         $app = app(Apps::class);
 
-        // Configure duplicate metadata validation with status exclusion
-        $app->set('validate_metadata_duplicated_enabled', '1');
-        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
-        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
-        $app->set('validate_metadata_duplicated_use_cache', '0');
-        $app->set('validate_metadata_duplicated_exclude_statuses', 'cancelled,delivered'); // Exclude cancelled and delivered orders
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
 
         $productResponse = $this->createProduct(attributes: [
             [
@@ -572,6 +570,19 @@ class OrderExpirableTest extends TestCase
             warehouseId: $this->warehouseResponse['id'],
             amount: 100
         );
+
+        // Configure per-OrderType exclude statuses
+        $salesOrderType = OrderTypes::where('name', 'sales')
+            ->where('apps_id', $app->getId())
+            ->first();
+
+        if ($salesOrderType) {
+            $salesOrderType->config = array_merge($salesOrderType->config ?? [], [
+                'validate_metadata_duplicated_field' => 'data.tracking_id',
+                'validate_metadata_duplicated_exclude_statuses' => 'cancelled,delivered',
+            ]);
+            $salesOrderType->saveQuietly();
+        }
 
         // Create first order with tracking ID
         $uniqueTrackingId = 'TEST-CANCELLED-' . fake()->uuid();
@@ -634,6 +645,7 @@ class OrderExpirableTest extends TestCase
         // Try to create second order with same tracking ID (lowercase) - should SUCCEED because first order is cancelled
         $duplicateOrderData = [
             'cartId' => 0,
+            'order_type' => 'sales',
             'customer' => [
                 'email' => fake()->email(),
             ],
