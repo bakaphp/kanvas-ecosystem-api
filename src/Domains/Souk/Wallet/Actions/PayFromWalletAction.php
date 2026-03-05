@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Wallet\Actions;
 
+use Bavix\Wallet\Exceptions\InsufficientFunds;
 use Bavix\Wallet\Objects\Cart;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
@@ -70,7 +72,11 @@ class PayFromWalletAction
             'description' => 'Wallet payment for order #' . (string) $this->order->number,
         ]);
 
-        $wallet->payCart($cart);
+        try {
+            $wallet->payCart($cart);
+        } catch (InsufficientFunds $e) {
+            throw new ValidationException('Insufficient funds in wallet');
+        }
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 

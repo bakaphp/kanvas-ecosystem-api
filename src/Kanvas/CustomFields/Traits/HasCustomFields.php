@@ -41,6 +41,42 @@ trait HasCustomFields
     }
 
     /**
+     * Increment a custom field value atomically.
+     */
+    public function incrementCustomField(string $name, int $amount = 1): int
+    {
+        $companiesId = $this->companies_id ? [$this->companies_id, AppEnums::GLOBAL_COMPANY_ID->getValue()] : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
+
+        $updated = AppsCustomFields::whereIn('companies_id', $companiesId)
+            ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))])
+            ->where('entity_id', $this->getKey())
+            ->where('name', $name)
+            ->increment('value', $amount);
+
+        if ($updated) {
+            // Fetch updated value for Redis
+            $field = $this->getCustomField($name);
+            $newValue = (int) $field->value;
+            $this->setInRedis($name, $newValue);
+
+            return $newValue;
+        }
+
+        // Field doesn't exist, create it
+        $this->set($name, $amount);
+
+        return $amount;
+    }
+
+    /**
+     * Decrement a custom field value atomically.
+     */
+    public function decrementCustomField(string $name, int $amount = 1): int
+    {
+        return $this->incrementCustomField($name, -$amount);
+    }
+
+    /**
      * Get the custom field primary key
      * for faster access via redis.
      */

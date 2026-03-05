@@ -213,6 +213,10 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             throw $exception;
         }
 
+        if ($matchingPurchase->getCancellationDate() !== null) {
+             throw new ValidationException('The transaction has been cancelled/refunded');
+        }
+
         $firstVariant = $this->getVariant($matchingPurchase->getProductId());
         /** @var array<OrderItem> $orderItems */
         $orderItems = [];

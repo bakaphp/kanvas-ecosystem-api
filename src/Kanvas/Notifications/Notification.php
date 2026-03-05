@@ -19,6 +19,7 @@ use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Notifications\Channels\KanvasDatabase;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -98,6 +99,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             if (! in_array($channelClass, $channels)) {
                 $channels[] = $channelClass;
             }
+        }
+
+        // Add 'database' channel if enabled in app settings
+        if ($this->app->get('notification_store_database') && ! in_array(KanvasDatabase::class, $channels)) {
+            $channels[] = KanvasDatabase::class;
         }
 
         $this->setNotifiableData($notifiable);
