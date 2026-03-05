@@ -41,7 +41,7 @@ use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
-use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
+use Kanvas\Connectors\Internal\Activities\RecalculateSlotCapacityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
@@ -258,7 +258,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncExternalWooCommerceUserWebhookJob::class,
             PullLeadActivity::class,
             PullPeopleActivity::class,
-            CalculateWarehouseQuantityActivity::class,
+            RecalculateSlotCapacityActivity::class,
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
             ProcessWaSenderWebhookJob::class,
