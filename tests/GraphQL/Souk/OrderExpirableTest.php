@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
+use Kanvas\Connectors\Internal\Activities\RecalculateSlotCapacityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -184,7 +184,7 @@ class OrderExpirableTest extends TestCase
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
         // lets simulate the variant warehouse quantity decrease
-        $activity = new CalculateWarehouseQuantityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
+        $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
         // variant quantity should decrease
         $this->assertEquals(99, $variantWarehouse->refresh()->quantity);
@@ -288,7 +288,7 @@ class OrderExpirableTest extends TestCase
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
         // lets simulate the variant warehouse quantity decrease
-        $activity = new CalculateWarehouseQuantityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
+        $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
         $variantProduct = $variant->product;
         // variant quantity should decrease
@@ -772,7 +772,7 @@ class OrderExpirableTest extends TestCase
         $expiredOrder = $this->createMovipassOrder($variant, $expiredEndAt);
 
         // Simulate warehouse quantity tracking: 3 orders exist → available = max(3) - active(3) = 0
-        $activity = new CalculateWarehouseQuantityActivity(
+        $activity = new RecalculateSlotCapacityActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -843,7 +843,7 @@ class OrderExpirableTest extends TestCase
         $floor2ActiveOrder = $this->createMovipassOrder($floor2Variant, $activeEndAt);
 
         // Simulate warehouse quantity tracking for Floor1: 2 orders → available = max(3) - active(2) = 1
-        $activity = new CalculateWarehouseQuantityActivity(
+        $activity = new RecalculateSlotCapacityActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),

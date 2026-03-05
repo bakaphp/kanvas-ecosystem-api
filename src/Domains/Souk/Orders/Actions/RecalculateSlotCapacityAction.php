@@ -7,7 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Souk\Orders\Models\Order;
 
-class RecalculateVariantWarehouseQuantityAction
+class RecalculateSlotCapacityAction
 {
     public function __construct(
         protected readonly Order $order,

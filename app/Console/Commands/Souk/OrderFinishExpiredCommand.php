@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
-use Kanvas\Souk\Orders\Actions\RecalculateVariantWarehouseQuantityAction;
+use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -65,7 +65,7 @@ class OrderFinishExpiredCommand extends Command
             OrderStatusEnum::COMPLETED->value
         );
 
-        new RecalculateVariantWarehouseQuantityAction($order, $order->app)->execute();
+        new RecalculateSlotCapacityAction($order, $order->app)->execute();
 
         $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
     }

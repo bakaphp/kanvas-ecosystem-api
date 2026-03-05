@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Souk\Orders\Actions\RecalculateVariantWarehouseQuantityAction;
+use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -91,7 +91,7 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         MovipassOrderStatusEnum::COMPLETED->value,
                         MovipassOrderStatusEnum::CANCELLED->value,
                     ])) {
-                        new RecalculateVariantWarehouseQuantityAction($order, $app)->execute();
+                        new RecalculateSlotCapacityAction($order, $app)->execute();
                     }
                 }
 
