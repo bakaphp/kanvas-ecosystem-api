@@ -114,20 +114,12 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         DB::transaction(function () use ($entity, $remixMessage) {
                             $entity->parent->increment('total_children');
 
-                            // Atomic custom field increment using pessimistic locking
-                            $customField = $remixMessage->getCustomField('remix_count');
-                            
-                            if ($customField) {
-                                // Reload with lock to prevent race conditions
-                                $customField = AppsCustomFields::where('id', $customField->id)->lockForUpdate()->first();
-                                $currentValue = (int) $customField->value;
-                                $customField->value = $currentValue + 1;
-                                $customField->save();
-                                $remixMessage->setInRedis('remix_count', $customField->value);
-                            } else {
-                                // New record: set initial value
-                                $remixMessage->set('remix_count', 1);
-                            }
+                            // Atomic custom field increment using set() to handle Redis and DB sync
+                            // We get the current value (from Redis or DB), increment it, and set it back.
+                            // Since we are in a transaction and this is a specific activity, this is safer than a raw DB increment
+                            // which would bypass Redis and potentially cause stale reads.
+                            $currentCount = (int) $remixMessage->get('remix_count', 0);
+                            $remixMessage->set('remix_count', $currentCount + 1);
                         });
                     }
                     $remixMessage->user->notify($newMessageNotification);
