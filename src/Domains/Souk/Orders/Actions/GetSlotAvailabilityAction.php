@@ -29,11 +29,11 @@ class GetSlotAvailabilityAction
         }
 
         // Fetch candidate active orders — filter end_at in PHP to avoid JSON string-cast issues.
-        // Active = expirable order type + not fulfilled + not completed/cancelled
+        // Active = expirable order type + not fulfilled + not in a terminal order status (is_final)
         $candidates = OrderItem::whereHas('order', function ($q) {
             $q->whereHas('orderType', fn ($q) => $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(config, '$.expirable')) = 'true'"))
               ->whereNotFulfilled()
-              ->whereNotIn('status', ['completed', 'cancelled'])
+              ->whereDoesntHave('orderStatus', fn ($q) => $q->where('is_final', true))
               ->where('apps_id', $this->app->getId());
         })
         ->where('variant_id', $this->variant->getId())

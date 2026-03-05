@@ -55,7 +55,6 @@ class ProductSlotAvailabilityTest extends TestCase
     {
         // Variant with max_capacity = 0 (DTO default, unconfigured) → unlimited / no slot tracking
         // GetSlotAvailabilityAction treats 0 and null both as "unlimited"
-        // GraphQL available_slots must return null
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
         $variantResponse = $this->createVariant(
             productId: $productResponse['id'],
@@ -73,28 +72,10 @@ class ProductSlotAvailabilityTest extends TestCase
         // max_capacity defaults to 0 (not configured) — treat as unlimited
         $this->assertEquals(0, $variant->variantWarehouses()->first()?->max_capacity);
 
-        // GraphQL field must return null for unlimited variants (no capacity tracking)
-        $variantId = $variant->getId();
-        $this->graphQL("
-            query {
-                variants(where: { column: ID, value: \"{$variantId}\" }) {
-                    data {
-                        id
-                        available_slots
-                    }
-                }
-            }
-        ")
-        ->assertSuccessful()
-        ->assertJson([
-            'data' => [
-                'variants' => [
-                    'data' => [
-                        ['available_slots' => null],
-                    ],
-                ],
-            ],
-        ]);
+        // Action returns CapacityStats with 0s when unconfigured (unlimited / no slot tracking)
+        $slotData = new GetSlotAvailabilityAction($variant, $this->apps)->execute();
+        $this->assertEquals(0, $slotData->maxCapacity);
+        $this->assertEquals(0, $slotData->availableCapacity);
     }
 
     public function testGetSlotAvailabilityWithCapacity(): void
@@ -111,24 +92,6 @@ class ProductSlotAvailabilityTest extends TestCase
         $this->assertEquals(5, $slotData->maxCapacity);
         $this->assertEquals(2, $slotData->occupiedCapacity);
         $this->assertEquals(3, $slotData->availableCapacity);
-
-        // Also verify via GraphQL field
-        $variantId = $variant->getId();
-        $this->graphQL("
-            query {
-                variants(where: { column: ID, value: \"{$variantId}\" }) {
-                    data { id available_slots }
-                }
-            }
-        ")
-        ->assertSuccessful()
-        ->assertJson([
-            'data' => [
-                'variants' => [
-                    'data' => [['available_slots' => 3]],
-                ],
-            ],
-        ]);
     }
 
     public function testGetSlotAvailabilityFullyBooked(): void

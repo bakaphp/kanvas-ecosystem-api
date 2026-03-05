@@ -10,14 +10,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Kanvas\Souk\Orders\Actions\GetSlotAvailabilityAction;
-use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
 use Kanvas\Souk\Orders\Validations\DuplicatedMetadata;
@@ -202,7 +201,11 @@ class CreateOrderAction
 
         $orderType = OrderTypes::where('name', $this->orderData->orderType)
             ->where('apps_id', $this->orderData->app->getId())
-            ->where('companies_id', $this->orderData->company->getId())
+            ->where(function ($q) {
+                $q->where('companies_id', $this->orderData->company->getId())
+                  ->orWhere('companies_id', 0);
+            })
+            ->orderByRaw('CASE WHEN companies_id = 0 THEN 1 ELSE 0 END')
             ->first();
 
         if (! $orderType?->isExpirable()) {

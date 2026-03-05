@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -62,7 +61,7 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
-                        $toStatus = $params['to_status'] ?? null;
+                    $toStatus = $params['to_status'] ?? null;
 
                     if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
                         $order->metadata = [
