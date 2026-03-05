@@ -8,6 +8,7 @@ type WarehouseVariantRelationship {
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
     channels: [VariantChannelRelationship] @belongsToMany(relation: "channels")
     quantity: Float
+    max_capacity: Int
     price: Money
     cost: Money
     status: Status @belongsTo(relation: "status")
