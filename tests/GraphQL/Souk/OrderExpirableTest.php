@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
@@ -17,6 +18,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -25,13 +27,13 @@ class OrderExpirableTest extends TestCase
 {
     use InventoryCases;
 
-    protected $variant;
-    protected $region;
-    protected $company;
-    protected $user;
-    protected $apps;
-    protected $warehouseResponse;
-    protected $channelResponse;
+    protected Variants $variant;
+    protected Regions $region;
+    protected Companies $company;
+    protected Users $user;
+    protected Apps $apps;
+    protected array $warehouseResponse;
+    protected array $channelResponse;
 
     public function setUp(): void
     {
@@ -99,8 +101,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
         $region = Regions::find($regionResponse['id']);
         $company = $region->company;
@@ -127,7 +129,6 @@ class OrderExpirableTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -203,9 +204,9 @@ class OrderExpirableTest extends TestCase
             [
                 'name' => 'capacity',
                 'value' => [
-                    'occupiedParkingSpaces' => 50
-                ]
-            ]
+                    'occupiedParkingSpaces' => 50,
+                ],
+            ],
         ])->json()['data']['createProduct'];
         $region = Regions::find($regionResponse['id']);
         $company = $region->company;
@@ -284,7 +285,6 @@ class OrderExpirableTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
         // lets simulate the variant warehouse quantity decrease
@@ -308,8 +308,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -333,14 +333,13 @@ class OrderExpirableTest extends TestCase
             ]
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $this->warehouseResponse['id'],
             amount: 100
         );
 
-        $timezone = "America/New_York";
+        $timezone = 'America/New_York';
         Date::setTestNow(now()->startOfSecond());
         $rightNow = now($timezone)->toDateTimeString();
         $rightNowPlus15 = now($timezone)->addMinutes(15)->toDateTimeString();
@@ -355,7 +354,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
-                ]
+                ],
             ],
         );
 
@@ -367,7 +366,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
-                ]
+                ],
             ],
         );
 
@@ -379,7 +378,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus5,
                     'notify_in' => 5,
-                ]
+                ],
             ],
         );
 
@@ -391,14 +390,14 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus30,
                     'notify_in' => 30,
-                ]
+                ],
             ],
         );
 
         $checkExpiringOrders = new CheckExpiringOrders($this->apps);
         $orders = $checkExpiringOrders->execute($rightNow, [
             15,
-            5
+            5,
         ], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId(), $reservation4->getId()]);
 
         $this->assertEquals(3, $orders->count());
@@ -427,8 +426,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -456,7 +455,7 @@ class OrderExpirableTest extends TestCase
 
         // Create first order with UPPERCASE tracking ID
         $firstOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -471,7 +470,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => $uniqueTrackingId, // UPPERCASE
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -495,9 +494,9 @@ class OrderExpirableTest extends TestCase
 
         // Try to create second order with lowercase tracking ID (should fail - case-insensitive duplicate)
         $duplicateOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
             'customer' => [
-                'email' => fake()->email()
+                'email' => fake()->email(),
             ],
             'items' => [
                 [
@@ -510,7 +509,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => strtolower($uniqueTrackingId), // lowercase version - should be detected as duplicate
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -549,8 +548,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -577,7 +576,7 @@ class OrderExpirableTest extends TestCase
         // Create first order with tracking ID
         $uniqueTrackingId = 'TEST-CANCELLED-' . fake()->uuid();
         $firstOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -593,7 +592,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => $uniqueTrackingId,
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -634,9 +633,9 @@ class OrderExpirableTest extends TestCase
 
         // Try to create second order with same tracking ID (lowercase) - should SUCCEED because first order is cancelled
         $duplicateOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
             'customer' => [
-                'email' => fake()->email()
+                'email' => fake()->email(),
             ],
             'items' => [
                 [
@@ -649,7 +648,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => strtolower($uniqueTrackingId), // lowercase - but should be allowed because first order is cancelled
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
