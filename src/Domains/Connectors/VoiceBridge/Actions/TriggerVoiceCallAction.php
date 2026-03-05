@@ -36,7 +36,7 @@ class TriggerVoiceCallAction
 
         $companyId = (string) $app->get(ConfigurationEnum::COMPANY_ID->value);
         $sessionId = VoiceBridgeService::buildOutboundSessionId((string) $lead->getId(), $phone, $companyId);
-        $userId = (string) ($lead->leads_owner_id ?: $lead->users_id ?: 'kanvas_crm');
+        $userId = (string) ($lead->leads_owner_id ?: $lead->users_id);
 
         return new self(
             app: $app,
