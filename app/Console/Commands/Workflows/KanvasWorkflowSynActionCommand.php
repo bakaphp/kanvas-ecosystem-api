@@ -346,6 +346,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
             ModelWizardReceiverJob::class,
+            IncrementPromptUsageActivity::class,
         ];
 
         $createdActions = [];
