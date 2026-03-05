@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Orders\Actions\RecalculateVariantWarehouseQuantityAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -35,6 +36,7 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
+                $toStatus  = $params['to_status'] ?? null;
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     if ($order->reference && ! str_contains($order->reference, "#" . $order->order_number)) {
@@ -50,19 +52,18 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                     ];
 
                     if ($order->metadata['data']['is_manual'] ?? false) {
-                        $order->transitionStatus(
+                        $order->transitionToStatus(
                             $order->user,
                             MovipassOrderStatusEnum::ACTIVE->value
                         );
                         $order->saveQuietly();
+                        // recalculation handled by STATUS_TRANSITION → active event
                     } else {
                         $order->saveQuietly();
                     }
                 }
 
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
-                    $toStatus = $params['to_status'] ?? null;
-
                     if ($toStatus === MovipassOrderStatusEnum::PAID->value) {
                         $order->metadata = [
                             ...$order->metadata ?? [],
@@ -84,6 +85,14 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                             );
                         }
                     }
+
+                    if (in_array($toStatus, [
+                        MovipassOrderStatusEnum::ACTIVE->value,
+                        MovipassOrderStatusEnum::COMPLETED->value,
+                        MovipassOrderStatusEnum::CANCELLED->value,
+                    ])) {
+                        new RecalculateVariantWarehouseQuantityAction($order, $app)->execute();
+                    }
                 }
 
                 return [
@@ -92,6 +101,8 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                     'message' => 'Order synced correctly',
                     'data' => $order->toArray(),
                     'response' => $order->toArray(),
+                    'to_status' => $toStatus,
+                    'event_name' => $eventName,
                 ];
             },
             company: $order->company,
