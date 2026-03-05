@@ -31,28 +31,36 @@ class UpdateToWarehouseAction
             'warehouses_id' => $this->variantsWarehousesDto->warehouse->getId()
         ];
 
-        $variantWarehouse = VariantsWarehouses::updateOrCreate(
-            $search,
-            [
-                'quantity' => $this->variantsWarehousesDto->quantity,
-                'price' => $this->variantsWarehousesDto->price,
-                'cost' => $this->variantsWarehousesDto->cost,
-                'sku' => $this->variantsWarehousesDto->sku,
-                'position' => $this->variantsWarehousesDto->position,
-                'serial_number' => $this->variantsWarehousesDto->serial_number,
-                'status_id' => $this->variantsWarehousesDto->status_id,
-                'is_oversellable' => $this->variantsWarehousesDto->is_oversellable,
-                'is_default' => $this->variantsWarehousesDto->is_default ?? $this->variantsWarehousesDto->is_default,
-                'is_best_seller' => $this->variantsWarehousesDto->is_best_seller,
-                'is_on_sale' => $this->variantsWarehousesDto->is_on_sale,
-                'is_on_promo' => $this->variantsWarehousesDto->is_on_promo,
-                'can_pre_order' => $this->variantsWarehousesDto->can_pre_order,
-                'is_coming_son' => $this->variantsWarehousesDto->is_coming_son,
-                'is_new' => $this->variantsWarehousesDto->is_new,
-                'config' => $this->variantsWarehousesDto->config,
-                'max_capacity' => $this->variantsWarehousesDto->max_capacity,
-            ]
-        );
+        $updateData = [
+            'cost' => $this->variantsWarehousesDto->cost,
+            'sku' => $this->variantsWarehousesDto->sku ?? $this->variantsWarehousesDto->variant->sku,
+            'position' => $this->variantsWarehousesDto->position,
+            'serial_number' => $this->variantsWarehousesDto->serial_number,
+            'status_id' => $this->variantsWarehousesDto->status_id,
+            'is_oversellable' => $this->variantsWarehousesDto->is_oversellable,
+            'is_default' => $this->variantsWarehousesDto->is_default,
+            'is_best_seller' => $this->variantsWarehousesDto->is_best_seller,
+            'is_on_sale' => $this->variantsWarehousesDto->is_on_sale,
+            'is_on_promo' => $this->variantsWarehousesDto->is_on_promo,
+            'can_pre_order' => $this->variantsWarehousesDto->can_pre_order,
+            'is_coming_son' => $this->variantsWarehousesDto->is_coming_son,
+            'is_new' => $this->variantsWarehousesDto->is_new,
+            'config' => $this->variantsWarehousesDto->config,
+        ];
+
+        if ($this->variantsWarehousesDto->quantity !== null) {
+            $updateData['quantity'] = $this->variantsWarehousesDto->quantity;
+        }
+
+        if ($this->variantsWarehousesDto->price !== null) {
+            $updateData['price'] = $this->variantsWarehousesDto->price;
+        }
+
+        if ($this->variantsWarehousesDto->max_capacity !== null) {
+            $updateData['max_capacity'] = $this->variantsWarehousesDto->max_capacity;
+        }
+
+        $variantWarehouse = VariantsWarehouses::updateOrCreate($search, $updateData);
 
         return $variantWarehouse->variant;
     }

@@ -13,9 +13,9 @@ class VariantsWarehouses extends Data
     public function __construct(
         public Variants $variant,
         public Warehouses $warehouse,
-        public float $quantity,
-        public float $price,
-        public string $sku,
+        public ?float $quantity = null,
+        public ?float $price = null,
+        public ?string $sku = null,
         public int $position = 0,
         public ?string $serial_number = null,
         public ?int $status_id = null,
@@ -29,7 +29,7 @@ class VariantsWarehouses extends Data
         public bool $is_new = false,
         public ?array $config = null,
         public float $cost = 0.00,
-        public float $max_capacity = 0
+        public ?float $max_capacity = null
     ) {
     }
 
@@ -38,8 +38,8 @@ class VariantsWarehouses extends Data
         return new self(
             $variant,
             $warehouse,
-            isset($request['quantity']) ? (float) $request['quantity'] : 0,
-            isset($request['price']) ? (float) $request['price'] : 0.00,
+            isset($request['quantity']) ? (float) $request['quantity'] : null,
+            isset($request['price']) ? (float) $request['price'] : null,
             $request['sku'] ?? $variant->sku,
             (int) ($request['position'] ?? 0),
             $request['serial_number'] ?? null,
@@ -54,7 +54,7 @@ class VariantsWarehouses extends Data
             $request['is_new'] ?? false,
             $request['config'] ?? null,
             isset($request['cost']) ? (float) $request['cost'] : 0.00,
-            isset($request['max_capacity']) ? (float) $request['max_capacity'] : 0,
+            isset($request['max_capacity']) ? (float) $request['max_capacity'] : null,
         );
     }
 }

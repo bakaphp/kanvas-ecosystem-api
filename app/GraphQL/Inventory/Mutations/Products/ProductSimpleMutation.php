@@ -104,11 +104,6 @@ class ProductSimpleMutation
                 if (isset($variant['channels'])) {
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
                 }
-
-                // Set max_capacity equal to quantity for simple product flow
-                if (isset($variant['quantity']) && ! isset($variant['max_capacity'])) {
-                    $variant['max_capacity'] = $variant['quantity'];
-                }
             }
 
             // Process variants separately after product update
