@@ -28,20 +28,11 @@ class SetupMovipassOrderCommand extends Command
                 'is_default' => true,
                 'transitions' => [
                     MovipassOrderStatusEnum::ACTIVE->value,
-                    MovipassOrderStatusEnum::PAID->value,
-                    $cancelled,
-                ],
-            ],
-            MovipassOrderStatusEnum::PAID->value => [
-                'transitions' => [
-                    MovipassOrderStatusEnum::ACTIVE->value,    // non-manual
-                    MovipassOrderStatusEnum::COMPLETED->value, // manual
                     $cancelled,
                 ],
             ],
             MovipassOrderStatusEnum::ACTIVE->value => [
                 'transitions' => [
-                    MovipassOrderStatusEnum::PAID->value,  // manual orders only (enforced at runtime)
                     MovipassOrderStatusEnum::COMPLETED->value,
                     $cancelled,
                 ],
