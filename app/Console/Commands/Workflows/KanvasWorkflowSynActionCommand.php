@@ -143,6 +143,7 @@ use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
@@ -342,6 +343,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
             OAuthCallbackJob::class,
+            FollowUpPromptActivity::class,
         ];
 
         $createdActions = [];

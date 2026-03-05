@@ -222,8 +222,11 @@ class FollowUpEngagementAction
                         $this->lead->stage,
                         $session,
                         $messageTemplate,
-                        (float)$followUpDay->pipelineStage->weight
+                        (float)$followUpDay->pipelineStage->weight,
+                        $messageTemplateChannel
                     )->execute();
+
+                    $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
                 } catch (Exception $e) {
                     captureException($e);
                 }
@@ -248,6 +251,8 @@ class FollowUpEngagementAction
                         $this->lead->company->get('twilio_phone_number'),
                         $emailTitle
                     );
+
+                    $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $messageToSend);
 
                     DailyReportService::track(
                         $this->lead->app,
@@ -314,6 +319,32 @@ class FollowUpEngagementAction
             $this->log->update([
                 'metadata' => $metadata,
                 'error_message' => $message,
+            ]);
+        }
+    }
+
+    /**
+     * Log success action for follow-up
+     */
+    protected function logSuccess(
+        string $action,
+        string $message,
+        ?Session $session = null,
+        ?string $messageContent = null
+    ): void {
+        if ($this->log) {
+            $metadata = $this->log->metadata ?? [];
+            $metadata['success_actions'][] = [
+                'action' => $action,
+                'message' => $message,
+                'session_id' => $session?->getId(),
+                'channel' => $session?->getChannel(),
+                'message_content' => $messageContent,
+                'timestamp' => now()->toDateTimeString(),
+            ];
+            $this->log->update([
+                'metadata' => $metadata,
+                'status' => 'completed',
             ]);
         }
     }
