@@ -34,6 +34,8 @@ class UpdateToWarehouseAction
         $updateData = [
             'cost' => $this->variantsWarehousesDto->cost,
             'sku' => $this->variantsWarehousesDto->sku ?? $this->variantsWarehousesDto->variant->sku,
+            'quantity' => $this->variantsWarehousesDto->quantity,
+            'price' => $this->variantsWarehousesDto->price,
             'position' => $this->variantsWarehousesDto->position,
             'serial_number' => $this->variantsWarehousesDto->serial_number,
             'status_id' => $this->variantsWarehousesDto->status_id,
@@ -47,14 +49,6 @@ class UpdateToWarehouseAction
             'is_new' => $this->variantsWarehousesDto->is_new,
             'config' => $this->variantsWarehousesDto->config,
         ];
-
-        if ($this->variantsWarehousesDto->quantity !== null) {
-            $updateData['quantity'] = $this->variantsWarehousesDto->quantity;
-        }
-
-        if ($this->variantsWarehousesDto->price !== null) {
-            $updateData['price'] = $this->variantsWarehousesDto->price;
-        }
 
         if ($this->variantsWarehousesDto->max_capacity !== null) {
             $updateData['max_capacity'] = $this->variantsWarehousesDto->max_capacity;

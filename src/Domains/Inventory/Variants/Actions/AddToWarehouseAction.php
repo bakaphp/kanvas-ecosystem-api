@@ -34,10 +34,10 @@ class AddToWarehouseAction
             'warehouses_id' => $this->warehouses->getId(),
         ];
 
-        $existing = VariantsWarehouses::where($search)->first();
-
         $updateData = [
             'sku' => $this->variantsWarehousesDto->sku ?? $this->variants->sku,
+            'quantity' => $this->variantsWarehousesDto->quantity,
+            'price' => $this->variantsWarehousesDto->price,
             'position' => $this->variantsWarehousesDto->position,
             'serial_number' => $this->variantsWarehousesDto->serial_number,
             'status_id' => $this->variantsWarehousesDto->status_id,
@@ -51,20 +51,6 @@ class AddToWarehouseAction
             'is_new' => $this->variantsWarehousesDto->is_new,
             'config' => $this->variantsWarehousesDto->config,
         ];
-
-        // For new records, quantity and price must be provided; default to 0.
-        // For existing records, only update if explicitly provided.
-        if ($existing) {
-            if ($this->variantsWarehousesDto->quantity !== null) {
-                $updateData['quantity'] = $this->variantsWarehousesDto->quantity;
-            }
-            if ($this->variantsWarehousesDto->price !== null) {
-                $updateData['price'] = $this->variantsWarehousesDto->price;
-            }
-        } else {
-            $updateData['quantity'] = $this->variantsWarehousesDto->quantity ?? 0;
-            $updateData['price'] = $this->variantsWarehousesDto->price ?? 0.00;
-        }
 
         if ($this->variantsWarehousesDto->max_capacity !== null) {
             $updateData['max_capacity'] = $this->variantsWarehousesDto->max_capacity;

@@ -13,9 +13,9 @@ class VariantsWarehouses extends Data
     public function __construct(
         public Variants $variant,
         public Warehouses $warehouse,
-        public ?float $quantity = null,
-        public ?float $price = null,
-        public ?string $sku = null,
+        public float $quantity,
+        public float $price,
+        public string $sku,
         public int $position = 0,
         public ?string $serial_number = null,
         public ?int $status_id = null,
@@ -38,8 +38,8 @@ class VariantsWarehouses extends Data
         return new self(
             $variant,
             $warehouse,
-            isset($request['quantity']) ? (float) $request['quantity'] : null,
-            isset($request['price']) ? (float) $request['price'] : null,
+            (float) ($request['quantity'] ?? 0),
+            (float) ($request['price'] ?? 0.00),
             $request['sku'] ?? $variant->sku,
             (int) ($request['position'] ?? 0),
             $request['serial_number'] ?? null,
