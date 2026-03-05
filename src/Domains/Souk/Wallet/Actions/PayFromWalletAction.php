@@ -36,6 +36,10 @@ class PayFromWalletAction
         $cart = app(Cart::class);
         $useVariantCreditInsteadOfVariantPrice = $this->order->app->get(ConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
 
+        if ($wallet->balance < $this->order->total_amount) {
+            throw new ValidationException('Insufficient funds in wallet');
+        }
+
         foreach ($this->order->items as $item) {
             //if they are coins we cant deduct from the wallet
             if (
