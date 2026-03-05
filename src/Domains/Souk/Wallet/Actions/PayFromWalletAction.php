@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Objects\Cart;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
