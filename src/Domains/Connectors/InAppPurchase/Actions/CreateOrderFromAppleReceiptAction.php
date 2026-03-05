@@ -200,7 +200,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
             if ($purchase->getTransactionId() === $requestedTransactionId) {
                 $matchingPurchase = $purchase;
                 if ($purchase->getCancellationDate() !== null) {
-                     throw new ValidationException('Transaction was cancelled or revoked by Apple.');
+                    throw new ValidationException('Transaction was cancelled or revoked by Apple.');
                 }
                 break;
             }
