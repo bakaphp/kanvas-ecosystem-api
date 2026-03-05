@@ -111,16 +111,9 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                         );
                     }
                     if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
-                        DB::transaction(function () use ($entity, $remixMessage) {
-                            $entity->parent->increment('total_children');
-
-                            // Atomic custom field increment using set() to handle Redis and DB sync
-                            // We get the current value (from Redis or DB), increment it, and set it back.
-                            // Since we are in a transaction and this is a specific activity, this is safer than a raw DB increment
-                            // which would bypass Redis and potentially cause stale reads.
-                            $currentCount = (int) $remixMessage->get('remix_count', 0);
-                            $remixMessage->set('remix_count', $currentCount + 1);
-                        });
+                        $entity->parent->increment('total_children');
+                        $currentCount = (int) $remixMessage->get('remix_count', 0);
+                        $remixMessage->set('remix_count', $currentCount + 1);
                     }
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {
