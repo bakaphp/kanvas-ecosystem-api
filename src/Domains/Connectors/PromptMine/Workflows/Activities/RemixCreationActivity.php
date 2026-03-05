@@ -115,30 +115,19 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                             $entity->parent->increment('total_children');
 
                             // Atomic custom field increment using pessimistic locking
-                            $customField = AppsCustomFields::firstOrNew([
-                                'companies_id' => $remixMessage->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue(),
-                                'model_name' => get_class($remixMessage),
-                                'entity_id' => $remixMessage->getKey(),
-                                'name' => 'remix_count',
-                            ]);
+                            $customField = $remixMessage->getCustomField('remix_count');
                             
-                            // If it exists, we lock it. If not, we set defaults.
-                            if ($customField->exists) {
+                            if ($customField) {
                                 // Reload with lock to prevent race conditions
                                 $customField = AppsCustomFields::where('id', $customField->id)->lockForUpdate()->first();
                                 $currentValue = (int) $customField->value;
                                 $customField->value = $currentValue + 1;
                                 $customField->save();
+                                $remixMessage->setInRedis('remix_count', $customField->value);
                             } else {
                                 // New record: set initial value
-                                $customField->users_id = $remixMessage->users_id ?? AppEnums::GLOBAL_USER_ID->getValue();
-                                $customField->label = 'remix_count';
-                                $customField->value = 1;
-                                $customField->save(); // Create is atomic-ish (unique constraint would fail if race, but unlikely for new)
+                                $remixMessage->set('remix_count', 1);
                             }
-
-                            // Sync redis cache if needed
-                            $remixMessage->setInRedis('remix_count', $customField->value);
                         });
                     }
                     $remixMessage->user->notify($newMessageNotification);
