@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VoiceBridge\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\VoiceBridge\Client;
+use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -34,7 +35,7 @@ class InitVoiceSessionAction
             ?? ''
         );
 
-        $companyId = (string) $app->get(\Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum::COMPANY_ID->value);
+        $companyId = (string) $app->get(ConfigurationEnum::COMPANY_ID->value);
         $sessionId = VoiceBridgeService::buildOutboundSessionId((string) $lead->getId(), $phone, $companyId);
         $userId = (string) ($lead->leads_owner_id ?: $lead->users_id ?: 'kanvas_crm');
 
