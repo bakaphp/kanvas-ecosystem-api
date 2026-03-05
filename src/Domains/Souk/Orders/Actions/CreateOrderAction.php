@@ -14,6 +14,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -58,7 +59,11 @@ class CreateOrderAction
                 ],
                 [
                     'order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region),
-                    'metadata' => new DuplicatedMetadata($this->orderData->app, $this->orderData->company),
+                    'metadata' => new DuplicatedMetadata(
+                        $this->orderData->app,
+                        $this->orderData->company,
+                        $this->orderData->app->get(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value) ? $this->resolveOrderType() : null,
+                    ),
                 ]
             );
 
@@ -193,13 +198,13 @@ class CreateOrderAction
         }
     }
 
-    private function validateSlotAvailability(): void
+    private function resolveOrderType(): ?OrderTypes
     {
         if (! $this->orderData->orderType) {
-            return;
+            return null;
         }
 
-        $orderType = OrderTypes::where('name', $this->orderData->orderType)
+        return OrderTypes::where('name', $this->orderData->orderType)
             ->where('apps_id', $this->orderData->app->getId())
             ->where(function ($q) {
                 $q->where('companies_id', $this->orderData->company->getId())
@@ -207,6 +212,11 @@ class CreateOrderAction
             })
             ->orderByRaw('CASE WHEN companies_id = 0 THEN 1 ELSE 0 END')
             ->first();
+    }
+
+    private function validateSlotAvailability(): void
+    {
+        $orderType = $this->resolveOrderType();
 
         if (! $orderType?->isExpirable()) {
             return;
