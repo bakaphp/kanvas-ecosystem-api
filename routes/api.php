@@ -9,3 +9,7 @@ Route::get('/oauth/{uuid}', [\App\Http\Controllers\OAuthIntegrationController::c
 Route::get('/oauth/{uuid}/callback', [\App\Http\Controllers\OAuthIntegrationController::class, 'callback']);
 Route::get('/status', SimpleHealthCheckController::class);
 Route::middleware('auth')->get('/status/health', \Spatie\Health\Http\Controllers\HealthCheckJsonResultsController::class);
+
+Route::middleware('auth:api')->group(function () {
+    Route::get('/users/me/stats/usage', [\App\Http\Controllers\API\Users\UserStatsController::class, 'index']);
+});
