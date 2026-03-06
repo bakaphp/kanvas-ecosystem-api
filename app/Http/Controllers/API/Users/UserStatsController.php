@@ -43,6 +43,7 @@ class UserStatsController extends Controller
             ])
             ->groupBy('date')
             ->orderBy('date', 'ASC')
+            ->toBase()
             ->get()
             ->keyBy('date');
 
