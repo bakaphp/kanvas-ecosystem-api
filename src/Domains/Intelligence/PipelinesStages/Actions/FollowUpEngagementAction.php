@@ -73,7 +73,7 @@ class FollowUpEngagementAction
         $channelsAvailable = $followUpConfig['channels_available'] ?? ['sms', 'email', 'whatsapp'];
 
         // Get lead's preferred channel
-        $preferredChannel = $this->lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value);
+        $preferredChannel = $this->lead->get(LeadsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
 
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
