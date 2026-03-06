@@ -93,6 +93,7 @@ class PullPeopleAction
                         'user' => $this->user,
                         'firstname' => $customer['firstName'],
                         'lastname' => $customer['lastName'],
+                        'middlename' => $customer['middleName'] ?? null,
                         'dob' => $customer['birthday'] ?? null,
                         'contacts' => array_merge(
                             array_map(
