@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Objects\Cart;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
@@ -36,10 +35,6 @@ class PayFromWalletAction
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
         $useVariantCreditInsteadOfVariantPrice = $this->order->app->get(ConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
-
-        if ($wallet->balance < $this->order->total_amount) {
-            throw new ValidationException('Insufficient funds in wallet');
-        }
 
         foreach ($this->order->items as $item) {
             //if they are coins we cant deduct from the wallet
