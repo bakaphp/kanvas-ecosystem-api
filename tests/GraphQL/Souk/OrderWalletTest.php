@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
@@ -757,6 +758,183 @@ class OrderWalletTest extends TestCase
             (float) $userWallet->balanceFloat,
             'User wallet balance should increase by coin amount after purchase'
         );
+    }
+
+    private function getAppKeyHeader(): array
+    {
+        $app = app(Apps::class);
+
+        return [AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id];
+    }
+
+    private function createWalletPaidOrder(float $orderTotal = 200.0): array
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $wallet = $company->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit((int) ($orderTotal * 100), [
+            'description' => 'Deposit for refund test',
+        ]);
+
+        $people = \Kanvas\Guild\Customers\Models\People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'total_gross_amount' => $orderTotal,
+                'total_net_amount' => $orderTotal,
+                'status' => 'completed',
+                'payment_status' => 'paid',
+            ]);
+
+        $wallet->withdrawFloat($orderTotal, [
+            'order_id' => $order->getId(),
+            'order_number' => (string) $order->order_number,
+            'type' => 'order_payment',
+            'description' => 'Wallet payment for order #' . (string) $order->order_number,
+        ]);
+
+        $order->addTag(WalletConfigurationEnum::WALLET_CREDIT_TAG->value);
+        $wallet->refresh();
+
+        return ['order_id' => $order->getId(), 'wallet' => $wallet, 'order_total' => $orderTotal];
+    }
+
+    public function testRefundFullWalletOrder(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+        $wallet = $result['wallet'];
+        $balanceAfterOrder = (float) $wallet->balanceFloat;
+
+        $response = $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'reason' => 'Test full refund',
+            ],
+        ], [], $this->getAppKeyHeader());
+
+        $response->assertSuccessful();
+        $response->assertJsonStructure([
+            'data' => [
+                'refundOrderToWallet' => ['balance', 'message'],
+            ],
+        ]);
+
+        $wallet->refresh();
+        $this->assertGreaterThan($balanceAfterOrder, (float) $wallet->balanceFloat);
+
+        /** @var Order $order */
+        $order = Order::getById((int) $result['order_id']);
+        $this->assertArrayHasKey('wallet_refund', $order->metadata);
+        $this->assertEquals('Test full refund', $order->metadata['wallet_refund']['reason']);
+    }
+
+    public function testRefundPartialWalletOrder(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+        $wallet = $result['wallet'];
+        $balanceAfterOrder = (float) $wallet->balanceFloat;
+
+        $response = $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'amount' => 50.0,
+                'reason' => 'Partial refund',
+            ],
+        ], [], $this->getAppKeyHeader());
+
+        $response->assertSuccessful();
+
+        $wallet->refresh();
+        $this->assertEquals($balanceAfterOrder + 50.0, (float) $wallet->balanceFloat);
+
+        /** @var Order $order */
+        $order = Order::getById((int) $result['order_id']);
+        $this->assertEquals(50.0, $order->metadata['wallet_refund']['amount']);
+        $this->assertEquals(50.0, $order->metadata['wallet_refund']['total_refunded']);
+    }
+
+    public function testRefundWalletOrderExceedingAmount(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+
+        $response = $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'amount' => 99999.0,
+            ],
+        ], [], $this->getAppKeyHeader());
+
+        $response->assertJsonFragment([
+            'message' => 'Refund amount exceeds maximum refundable. Max remaining: 200',
+        ]);
+    }
+
+    public function testDoubleFullRefundPrevention(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'reason' => 'First refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $response = $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'reason' => 'Second refund attempt',
+            ],
+        ], [], $this->getAppKeyHeader());
+
+        $response->assertJsonFragment([
+            'message' => 'Order has already been fully refunded',
+        ]);
     }
 
     public function testCreateOrderFromWalletUsesVariantWalletCreditAmount()
