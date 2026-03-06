@@ -239,7 +239,9 @@ class ImageFilterService
      */
     protected function getCompany(AppInterface $app, Model $entity): Companies
     {
-        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $defaultAppCompanyBranch = $app->get(
+            AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue()
+        );
 
         try {
             $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
@@ -284,11 +286,15 @@ class ImageFilterService
         if ($statusResponse['status'] !== 'COMPLETED') {
             $this->sendFailNotification(
                 $entity,
-                "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
+                "Just a heads-up! Your last creation had a hiccup. " .
+                "Your credit wasn't used, feel free to try again.",
                 $params
             );
 
-            throw new Exception('Image processing did not complete successfully: ' . json_encode($statusResponse));
+            throw new Exception(
+                'Image processing did not complete successfully: ' .
+                json_encode($statusResponse)
+            );
         }
 
         // Step 3: Get the processed image result
@@ -296,7 +302,10 @@ class ImageFilterService
         $processedImageUrl = $this->extractImageUrl($resultResponse);
 
         if ($processedImageUrl === null) {
-            throw new Exception('Failed to extract image URL from response: ' . json_encode($resultResponse));
+            throw new Exception(
+                'Failed to extract image URL from response: ' .
+                json_encode($resultResponse)
+            );
         }
 
         $tempFilePath = ImageOptimizerService::optimizeImageFromUrl($processedImageUrl);
@@ -355,15 +364,22 @@ class ImageFilterService
                     $params['email_template'] = 'image-processing-failure-generic-error';
                     $this->sendFailNotification(
                         $entity,
-                        "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
+                        "Just a heads-up! Your last creation had a hiccup. " .
+                        "Your credit wasn't used, feel free to try again.",
                         $params
                     );
 
-                    throw new Exception("Image processing failed after {$maxRetries} attempts: " . $e->getMessage());
+                    throw new Exception(
+                        "Image processing failed after {$maxRetries} attempts: " .
+                        $e->getMessage()
+                    );
                 }
 
                 // Log the retry attempt
-                report(new Exception("Image processing attempt {$attempt} failed: " . $e->getMessage() . ". Retrying in {$retryDelay} seconds."));
+                report(new Exception(
+                    "Image processing attempt {$attempt} failed: " . $e->getMessage() .
+                    ". Retrying in {$retryDelay} seconds."
+                ));
 
                 // Wait before retrying
                 sleep($retryDelay);
@@ -381,7 +397,8 @@ class ImageFilterService
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn't be completed as it didn't comply with the content provider’s policies.",
+                message: "Your recent creation couldn't be completed as it didn't comply with " .
+                    "the content provider’s policies.",
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
@@ -449,7 +466,8 @@ class ImageFilterService
             $params['email_template'] = 'image-processing-failure-generic-error';
             $this->sendFailNotification(
                 $entity,
-                "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
+                "Just a heads-up! Your last creation had a hiccup. " .
+                "Your credit wasn't used, feel free to try again.",
                 $params
             );
 
@@ -464,7 +482,10 @@ class ImageFilterService
         }
 
         if (! $processedImageUrl) {
-            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($responseData));
+            throw new Exception(
+                'Failed to extract image URL from Gemini Banana response: ' .
+                json_encode($responseData)
+            );
         }
 
         // Optimize and upload the processed image
@@ -515,7 +536,9 @@ class ImageFilterService
         // $isRemix = $entity->message['remix_parent_id'] ?? false;
         $user = Users::getById($entity->users_id);
         $user->set('images_generated', ($user->get('images_generated', 0) + 1), true);
-        $cdnImageUrl = $fileSystemRecord ? $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path : $processedImageUrl;
+        $cdnImageUrl = $fileSystemRecord
+            ? $entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path
+            : $processedImageUrl;
 
         $endViaList = array_map(
             [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
@@ -625,9 +648,10 @@ class ImageFilterService
 
             $statusResponse = $response->json();
 
-            if ($statusResponse['status'] === 'COMPLETED' || isset($statusResponse['data']['images']) && ! empty($statusResponse['data']['images'])) {
-                break;
-            }
+        if ($statusResponse['status'] === 'COMPLETED'
+            || isset($statusResponse['data']['images']) && ! empty($statusResponse['data']['images'])) {
+            break;
+        }
 
             if ($statusResponse['status'] === 'FAILED') {
                 throw new Exception('Image processing failed for this request' . $requestId);

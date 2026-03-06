@@ -247,7 +247,8 @@ class VideoProcessingService
                 if ($attempt >= $maxAttempts) {
                     return [
                         'status' => 'FAILED',
-                        'error' => 'Failed to check video status after ' . $maxAttempts . ' attempts: ' . $e->getMessage(),
+                        'error' => 'Failed to check video status after ' .
+                            $maxAttempts . ' attempts: ' . $e->getMessage(),
                     ];
                 }
                 sleep(2); // Wait before retry
@@ -328,7 +329,8 @@ class VideoProcessingService
         }
 
         $totalDelivery = 0;
-        $thumbnailImageUrl = $this->entity->getFiles()->first() ?? $this->generateThumbnailFromVideo($fileSystemRecord->url);
+        $thumbnailImageUrl = $this->entity->getFiles()->first()
+            ?? $this->generateThumbnailFromVideo($fileSystemRecord->url);
         $cdnThumbnailUrl = $this->entity->app->get('cloud-cdn') . '/' . $thumbnailImageUrl->path;
         // Create a new nugget message with the processed video
         $cdnVideoUrl = $this->entity->app->get('cloud-cdn') . '/' . $fileSystemRecord->path;
@@ -380,7 +382,10 @@ class VideoProcessingService
         }
 
         // Turn type to prompt
-        $this->entity->message_types_id = MessageType::fromApp($this->entity->app)->where('verb', 'prompt')->firstOrFail()->getId();
+        $this->entity->message_types_id = MessageType::fromApp($this->entity->app)
+            ->where('verb', 'prompt')
+            ->firstOrFail()
+            ->getId();
         $this->entity->update();
 
         return [
