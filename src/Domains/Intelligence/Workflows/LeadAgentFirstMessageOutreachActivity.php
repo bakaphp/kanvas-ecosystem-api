@@ -12,6 +12,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -191,6 +193,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                             'sms' => 'twilio-sms',
                             'email' => 'mailgun-email',
                             'whatsapp' => 'whatsapp',
+                            'voice' => 'voice',
                             default => 'twilio-sms',
                         };
                         $skipLeadCurrentDatIn = isset($params['skipLeadCurrentDatIn']) && $params['skipLeadCurrentDatIn'];
@@ -269,6 +272,19 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $lead->set(EnumsConfigurationEnum::LAST_MESSAGE->value, $firstLeadMessage);
 
                 $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
+
+                if ($totalSentMessages > 0 && ! empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+                    $delayMinutes = (int) (
+                        ($stageConfig['voice_no_response_minutes'] ?? null)
+                        ?? $app->get(VoiceBridgeConfigurationEnum::VOICE_NO_RESPONSE_MINUTES->value)
+                        ?? 15
+                    );
+
+                    if ($delayMinutes > 0) {
+                        LeadVoiceFollowUpJob::dispatch($lead, $app)
+                            ->delay(now()->addMinutes($delayMinutes));
+                    }
+                }
 
                 //move to stage 2 of the pipeline
                 $lead->moveToNextPipelineStage();
