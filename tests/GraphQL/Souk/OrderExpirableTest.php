@@ -579,7 +579,7 @@ class OrderExpirableTest extends TestCase
         if ($salesOrderType) {
             $salesOrderType->config = array_merge($salesOrderType->config ?? [], [
                 'validate_metadata_duplicated_field' => 'data.tracking_id',
-                'validate_metadata_duplicated_exclude_statuses' => 'cancelled,delivered',
+                'validate_metadata_duplicated_blocking_statuses' => 'active',
             ]);
             $salesOrderType->saveQuietly();
         }
@@ -683,6 +683,110 @@ class OrderExpirableTest extends TestCase
         // Should NOT return validation error - cancelled orders are excluded
         $this->assertNull($response->json('errors'));
         $this->assertNotNull($response->json('data.createOrderFromCart.order.id'));
+    }
+
+    public function testDuplicateMetadataValidationBlockedByActiveOrderStatus(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
+
+        $productResponse = $this->createProduct(attributes: [
+            ['name' => 'slots', 'value' => 100],
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $orderType = OrderTypes::withoutSyncingToSearch(
+            fn () => OrderTypes::firstOrCreate(
+                ['name' => 'parking', 'apps_id' => $app->getId(), 'companies_id' => 0],
+            )
+        );
+        $orderType->config = array_merge($orderType->config ?? [], [
+            'validate_metadata_duplicated_field' => 'data.vehiclePlate',
+            'validate_metadata_duplicated_blocking_statuses' => 'active',
+        ]);
+        $orderType->saveQuietly();
+
+        $vehiclePlate = 'T' . strtoupper(uniqid());
+
+        $firstResponse = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order { id }
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 0,
+                'order_type' => $orderType->name,
+                'customer' => ['email' => fake()->email()],
+                'items' => [['variant_id' => $variantResponse['id'], 'quantity' => 1]],
+                'metadata' => ['data' => ['vehiclePlate' => $vehiclePlate]],
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertNull($firstResponse->json('errors'));
+        $orderId = $firstResponse->json('data.createOrderFromCart.order.id');
+
+        // Set first order to 'active' orderStatus
+        $order = Order::findOrFail($orderId);
+        $activeStatus = $order->orderType->statuses()->where('slug', 'active')->first();
+        if (! $activeStatus) {
+            $activeStatus = $order->orderType->statuses()->create([
+                'name' => 'Active',
+                'slug' => 'active',
+                'apps_id' => $app->getId(),
+                'is_deleted' => 0,
+            ]);
+        }
+        $order->order_status_id = $activeStatus->id;
+        $order->save();
+
+        // Same plate (case-insensitive) must be blocked while first order is active
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order { id }
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 0,
+                'order_type' => $orderType->name,
+                'customer' => ['email' => fake()->email()],
+                'items' => [['variant_id' => $variantResponse['id'], 'quantity' => 1]],
+                'metadata' => ['data' => ['vehiclePlate' => strtolower($vehiclePlate)]],
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertArrayHasKey('errors', $response->json());
+        $this->assertStringContainsString(
+            "duplicate value for field 'data.vehiclePlate'",
+            $response->json('errors.0.message')
+        );
     }
 
     private function buildMovipassVariantWithCapacity(int $maxCapacity): Variants
