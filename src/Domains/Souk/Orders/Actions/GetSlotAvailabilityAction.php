@@ -28,10 +28,25 @@ class GetSlotAvailabilityAction
             return CapacityStats::fromAggregation(null, null);
         }
 
-        // Fetch candidate active orders — filter end_at in PHP to avoid JSON string-cast issues.
-        // Active = expirable order type + not fulfilled + not in a terminal order status (is_final)
-        $candidates = OrderItem::whereHas('order', function ($q) {
-            $q->whereHas('orderType', fn ($q) => $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(config, '$.expirable')) = 'true'"))
+        $activeCount = $this->countOccupied(expirableOnly: true);
+        $available = max(0, $maxCapacity - $activeCount);
+
+        return CapacityStats::fromAggregation($maxCapacity, $available);
+    }
+
+    /**
+     * Count active (occupied) orders for this variant.
+     *
+     * @param  bool  $expirableOnly  When true, restrict to expirable order types only.
+     *                               When false, count across all order types (legacy path).
+     */
+    public function countOccupied(bool $expirableOnly = false): int
+    {
+        $candidates = OrderItem::whereHas('order', function ($q) use ($expirableOnly) {
+            if ($expirableOnly) {
+                $q->whereHas('orderType', fn ($q) => $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(config, '$.expirable')) = 'true'"));
+            }
+            $q->whereNull('parent_id')
               ->whereNotFulfilled()
               ->whereDoesntHave('orderStatus', fn ($q) => $q->where('is_final', true))
               ->where('apps_id', $this->app->getId());
@@ -41,14 +56,11 @@ class GetSlotAvailabilityAction
         ->get();
 
         $now = Carbon::now();
-        $activeCount = $candidates->filter(function ($item) use ($now) {
+
+        return $candidates->filter(function ($item) use ($now) {
             $endAt = data_get($item->order->metadata, 'data.end_at');
 
             return $endAt === null || Carbon::parse($endAt)->gt($now);
         })->count();
-
-        $available = max(0, $maxCapacity - $activeCount);
-
-        return CapacityStats::fromAggregation($maxCapacity, $available);
     }
 }

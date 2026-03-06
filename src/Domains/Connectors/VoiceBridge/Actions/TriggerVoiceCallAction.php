@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\VoiceBridge\Client;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
+use Kanvas\Guild\Leads\Models\Lead;
 
 class TriggerVoiceCallAction
 {
@@ -16,6 +19,31 @@ class TriggerVoiceCallAction
         protected readonly string $userId,
         protected readonly string $phoneNumber,
     ) {
+    }
+
+    /**
+     * Build from a Lead, deriving session ID and phone automatically.
+     */
+    public static function fromLead(Lead $lead): self
+    {
+        $app = $lead->app;
+
+        $phone = Str::normalizePhoneNumber(
+            $lead->people->getCellPhones()->first()?->value
+            ?? $lead->people->getAllPhones()->first()?->value
+            ?? ''
+        );
+
+        $companyId = (string) $app->get(ConfigurationEnum::COMPANY_ID->value);
+        $sessionId = VoiceBridgeService::buildOutboundSessionId((string) $lead->getId(), $phone, $companyId);
+        $userId = (string) ($lead->leads_owner_id ?: $lead->users_id);
+
+        return new self(
+            app: $app,
+            sessionId: $sessionId,
+            userId: $userId,
+            phoneNumber: $phone,
+        );
     }
 
     /**
