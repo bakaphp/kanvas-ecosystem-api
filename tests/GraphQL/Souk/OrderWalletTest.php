@@ -773,6 +773,9 @@ class OrderWalletTest extends TestCase
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
+        // Ensure company wallet mode (not user wallet)
+        $app->del(WalletConfigurationEnum::USE_USER_WALLET->value);
+
         $wallet = $company->createAppWallet($app, ['name' => 'default']);
         $wallet->deposit((int) ($orderTotal * 100), [
             'description' => 'Deposit for refund test',
@@ -841,8 +844,10 @@ class OrderWalletTest extends TestCase
 
         /** @var Order $order */
         $order = Order::getById((int) $result['order_id']);
-        $this->assertArrayHasKey('wallet_refund', $order->metadata);
-        $this->assertEquals('Test full refund', $order->metadata['wallet_refund']['reason']);
+        $this->assertEquals(200.0, $order->get('wallet_refund_total'));
+        $refunds = $order->get('wallet_refunds');
+        $this->assertCount(1, $refunds);
+        $this->assertEquals('Test full refund', $refunds[0]['reason']);
     }
 
     public function testRefundPartialWalletOrder(): void
@@ -873,8 +878,10 @@ class OrderWalletTest extends TestCase
 
         /** @var Order $order */
         $order = Order::getById((int) $result['order_id']);
-        $this->assertEquals(50.0, $order->metadata['wallet_refund']['amount']);
-        $this->assertEquals(50.0, $order->metadata['wallet_refund']['total_refunded']);
+        $this->assertEquals(50.0, $order->get('wallet_refund_total'));
+        $refunds = $order->get('wallet_refunds');
+        $this->assertCount(1, $refunds);
+        $this->assertEquals(50.0, $refunds[0]['amount']);
     }
 
     public function testRefundWalletOrderExceedingAmount(): void

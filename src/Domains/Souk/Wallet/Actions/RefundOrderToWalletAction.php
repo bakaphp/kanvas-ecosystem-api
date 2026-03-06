@@ -55,14 +55,18 @@ class RefundOrderToWalletAction
 
         $totalRefunded = $previouslyRefunded + $refundAmount;
 
-        $order->addMetadata('wallet_refund', [
+        $order->set('wallet_refund_total', $totalRefunded);
+
+        /** @var array<int, array<string, mixed>> $refundHistory */
+        $refundHistory = $order->get('wallet_refunds') ?? [];
+        $refundHistory[] = [
             'tag' => $this->data->tag,
             'amount' => $refundAmount,
-            'total_refunded' => $totalRefunded,
             'refunded_by' => $this->data->user->getId(),
             'reason' => $this->data->reason,
             'refunded_at' => now()->toIso8601String(),
-        ]);
+        ];
+        $order->set('wallet_refunds', $refundHistory);
 
         $order->addTag('wallet_refunded');
 
@@ -72,7 +76,7 @@ class RefundOrderToWalletAction
     protected function getMaxRefundableAmount(): float
     {
         $order = $this->data->order;
-        $walletCredit = $order->getMetadata(ConfigurationEnum::WALLET_CREDIT->value);
+        $walletCredit = $order->get(ConfigurationEnum::WALLET_CREDIT->value);
 
         if (is_array($walletCredit) && isset($walletCredit['amount'])) {
             return (float) $walletCredit['amount'];
@@ -84,12 +88,8 @@ class RefundOrderToWalletAction
     protected function getPreviouslyRefundedAmount(): float
     {
         $order = $this->data->order;
-        $walletRefund = $order->getMetadata('wallet_refund');
+        $totalRefunded = $order->get('wallet_refund_total');
 
-        if (is_array($walletRefund) && isset($walletRefund['total_refunded'])) {
-            return (float) $walletRefund['total_refunded'];
-        }
-
-        return 0.0;
+        return $totalRefunded !== null ? (float) $totalRefunded : 0.0;
     }
 }
