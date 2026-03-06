@@ -344,7 +344,6 @@ class FollowUpEngagementAction
             ];
             $this->log->update([
                 'metadata' => $metadata,
-                'status' => 'completed',
             ]);
         }
     }
