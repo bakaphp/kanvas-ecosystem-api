@@ -59,7 +59,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')
+            ->replace('fal-ai/', '')
+            ->toString();
         $imageFilterName = $entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
@@ -71,7 +73,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::PROMPT_MINE,
-            integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($messageFiles, $params, $imageFilter, $isOpenAi, $isGeminiBanana) {
+            integrationOperation: function (
+                $entity,
+                $app,
+                $integrationCompany,
+                $additionalParams
+            ) use ($messageFiles, $params, $imageFilter, $isOpenAi, $isGeminiBanana) {
                 $entity->setPrivate();
 
                 if (! empty($this->validateImageLimit($entity, $params))) {
@@ -106,13 +113,20 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
                 if ($messageFiles->count() > 1) {
                     //lets add them to params since this is optional
-                    $params['additional_images'] = $messageFiles->slice(1)->map(fn ($file) => $file->url)->toArray();
+                    $params['additional_images'] = $messageFiles->slice(1)
+                        ->map(fn ($file) => $file->url)
+                        ->toArray();
                 }
 
                 try {
                     // Process image based on the model type
                     if ($isOpenAi) {
-                        $fileSystemRecord = $this->processImageWithOpenAI($fileUrl, $entity->message['prompt'], $entity, $params);
+                        $fileSystemRecord = $this->processImageWithOpenAI(
+                            $fileUrl,
+                            $entity->message['prompt'],
+                            $entity,
+                            $params
+                        );
                         if ($fileSystemRecord === null) {
                             return $this->failWorkflow([
                                 'result' => false,
@@ -122,7 +136,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                         }
                     } elseif ($isGeminiBanana) {
                         // Process with Gemini-Nano-Banana
-                        $fileSystemRecord = $this->processImageWithGeminiBanana($fileUrl, $entity->message['prompt'] ?? '', $entity, $imageFilter, $params);
+                        $fileSystemRecord = $this->processImageWithGeminiBanana(
+                            $fileUrl,
+                            $entity->message['prompt'] ?? '',
+                            $entity,
+                            $imageFilter,
+                            $params
+                        );
                         if ($fileSystemRecord === null) {
                             return $this->failWorkflow([
                                 'result' => false,
@@ -254,7 +274,9 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
      */
     protected function getCompany(AppInterface $app, Model $entity): Companies
     {
-        $defaultAppCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $defaultAppCompanyBranch = $app->get(
+            AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue()
+        );
 
         try {
             $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
@@ -274,7 +296,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         // Step 1: Submit the image for processing
         $model = 'fal-ai/';
-        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
+        $submitResponse = $this->submitImage(
+            $this->apiUrl,
+            $fileUrl,
+            $imageFilter,
+            $entity->message['prompt'] ?? '',
+            $model,
+            $params
+        )->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -326,8 +355,12 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Process image with OpenAI
      */
-    protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
-    {
+    protected function processImageWithOpenAI(
+        string $imageUrl,
+        string $prompt,
+        Model $entity,
+        array $params = []
+    ): ?Filesystem {
         // Download the image file
         $imageContents = file_get_contents($imageUrl);
         $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
@@ -376,7 +409,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                     $params['email_template'] = 'image-processing-failure-generic-error';
                     $this->sendFailNotification(
                         $entity,
-                        "Just a heads-up! Your last creation had a hiccup. Your credit wasn't used, feel free to try again.",
+                        "Just a heads-up! Your last creation had a hiccup. " .
+                        "Your credit wasn't used, feel free to try again.",
                         $params
                     );
 
@@ -384,7 +418,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
                 }
 
                 // Log the retry attempt
-                report(new Exception("Image processing attempt {$attempt} failed: " . $e->getMessage() . ". Retrying in {$retryDelay} seconds."));
+                report(new Exception(
+                    "Image processing attempt {$attempt} failed: " . $e->getMessage() .
+                    ". Retrying in {$retryDelay} seconds."
+                ));
 
                 // Wait before retrying
                 sleep($retryDelay);
@@ -405,7 +442,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn't be completed as it didn't comply with the content provider’s policies.",
+                message: "Your recent creation couldn't be completed as it didn't comply with " .
+                    "the content provider’s policies.",
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
@@ -459,8 +497,13 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Process image with Gemini-Nano-Banana
      */
-    protected function processImageWithGeminiBanana(string $imageUrl, string $prompt, Model $entity, string $imageFilter, array $params): ?Filesystem
-    {
+    protected function processImageWithGeminiBanana(
+        string $imageUrl,
+        string $prompt,
+        Model $entity,
+        string $imageFilter,
+        array $params
+    ): ?Filesystem {
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
@@ -486,7 +529,10 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         if (! $processedImageUrl) {
-            throw new Exception('Failed to extract image URL from Gemini Banana response: ' . json_encode($responseData));
+            throw new Exception(
+                'Failed to extract image URL from Gemini Banana response: ' .
+                json_encode($responseData)
+            );
         }
 
         // Optimize and upload the processed image
@@ -629,8 +675,14 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
-    {
+    protected function submitImage(
+        string $apiUrl,
+        string $imageUrl,
+        string $imageFilter,
+        string $prompt,
+        string $model,
+        array $params
+    ): Response {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);
