@@ -124,7 +124,8 @@ class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActi
     {
         $response = Prism::text()
             ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt(<<<PROMPT
+            ->withPrompt(
+                <<<PROMPT
 Generate a concise, URL-friendly slug based on the content inside <content> tags.
 <content>
 {$text}

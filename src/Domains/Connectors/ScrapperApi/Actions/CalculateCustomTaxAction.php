@@ -62,7 +62,8 @@ class CalculateCustomTaxAction
             // Use Prism to calculate custom tax
             $response = Prism::text()
                 ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt(<<<PROMPT
+                ->withPrompt(
+                    <<<PROMPT
 {$prompt}
 
 Analyze the product information inside the <product_info> tags to calculate the custom tax.

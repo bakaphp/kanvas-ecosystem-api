@@ -39,9 +39,9 @@ class ModelWizardModelChooserAction
             ->with(['variants', 'categories',])
             ->get()
             ->flatMap(fn ($product) => $product->variants->map(fn ($variant) => [
-                'name'       => $variant->name,
-                'slug'       => $variant->slug,
-                'sku'        => $variant->sku,
+                'name' => $variant->name,
+                'slug' => $variant->slug,
+                'sku' => $variant->sku,
                 'type' => current($product->categories->pluck('slug')->toArray()),
             ]))
             ->toArray();

@@ -342,7 +342,7 @@ class ImageFilterService
                     ->post($this->openaiApiUrl, [
                         'model' => $this->entity->message['ai_model']['value'] ?? 'gpt-4-image',
                         'prompt' => $prompt,
-                        'image_url' => $imageUrl
+                        'image_url' => $imageUrl,
                     ]);
 
                 // If we get here, we got a response without timeout
@@ -689,7 +689,8 @@ class ImageFilterService
         try {
             $response = Prism::text()
                 ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt(<<<PROMPT
+                ->withPrompt(
+                    <<<PROMPT
 Generate a short concise title based on the content inside <content> tags.
 <content>
 {$prompt}

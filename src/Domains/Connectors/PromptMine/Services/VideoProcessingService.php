@@ -421,7 +421,8 @@ class VideoProcessingService
         try {
             $response = Prism::text()
                 ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt(<<<PROMPT
+                ->withPrompt(
+                    <<<PROMPT
 Generate a short concise title based on the content inside <content> tags.
 <content>
 {$prompt}

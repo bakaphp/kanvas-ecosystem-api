@@ -710,6 +710,7 @@ PROMPT;
             return trim(str_replace(['```', 'json'], '', $response->text));
         } catch (Throwable $e) {
             report($e);
+
             return 'AI Generated Content';
         }
     }
