@@ -103,6 +103,7 @@ class CreatePeopleAction
                             $contactsToAdd[] = new Contact([
                                 'contacts_types_id' => $contact->contacts_types_id,
                                 'value' => $contact->value,
+                                'is_opt_out' => $contact->is_opt_out,
                                 'weight' => $contact->weight,
                             ]);
 
