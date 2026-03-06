@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\WordPress\Actions;
 
 use Closure;
 use Illuminate\Support\Facades\Storage;
+use Kanvas\Connectors\WordPress\AjaxClient;
 use Kanvas\Connectors\WordPress\AlgoliaClient;
 use Kanvas\Connectors\WordPress\Client;
 use Kanvas\Connectors\WordPress\WidgetClient;
@@ -38,6 +39,7 @@ class DownloadInventoryAction
         $result = match ($this->provider) {
             'algolia' => $this->fetchFromAlgolia(),
             'widget' => $this->fetchFromWidget(),
+            'ajax' => $this->fetchFromAjax(),
             default => $this->fetchFromWordPress(),
         };
 
@@ -59,6 +61,7 @@ class DownloadInventoryAction
             $rows[] = match ($this->provider) {
                 'algolia' => $this->mapAlgoliaVehicleToRow($vehicle),
                 'widget' => $this->mapWidgetVehicleToRow($vehicle),
+                'ajax' => $this->mapAjaxVehicleToRow($vehicle),
                 default => $this->mapVehicleToRow($vehicle),
             };
         }
@@ -101,6 +104,50 @@ class DownloadInventoryAction
         );
 
         return $client->getAllVehicles($this->onPage);
+    }
+
+    protected function fetchFromAjax(): array
+    {
+        $client = new AjaxClient($this->baseUrl);
+
+        return $client->getAllVehicles($this->filterMake, $this->onPage);
+    }
+
+    protected function mapAjaxVehicleToRow(array $vehicle): array
+    {
+        $year = (string) ($vehicle['year'] ?? '');
+        $make = (string) ($vehicle['make'] ?? '');
+        $model = (string) ($vehicle['model'] ?? '');
+        $condition = (string) ($vehicle['condition'] ?? 'Used');
+        $stockNumber = '';
+        $vin = (string) ($vehicle['vin'] ?? '');
+
+        return [
+            'rooftop_id' => $this->rooftopId ?? '',
+            'name' => (string) ($vehicle['title'] ?? ''),
+            'price' => (string) ($vehicle['price'] ?? 0),
+            'condition' => $condition,
+            'mileage' => (string) ($vehicle['mileage'] ?? 0),
+            'stock' => $stockNumber,
+            'vin' => $vin,
+            'image_url' => $this->extractImages($vehicle),
+            'reference_url' => (string) ($vehicle['link'] ?? ''),
+            'year' => $year,
+            'make' => $make,
+            'model' => $model,
+            'mpg_city' => (string) ($vehicle['mpg_city'] ?? ''),
+            'mpg_hwy' => (string) ($vehicle['mpg_highway'] ?? ''),
+            'engine' => (string) ($vehicle['engine'] ?? ''),
+            'transmission' => (string) ($vehicle['transmission'] ?? ''),
+            'exterior_color' => '',
+            'horsepower' => '',
+            'torque' => '',
+            'drivetrain' => '',
+            'cylinders' => '',
+            'fuel_tank' => '',
+            'body_style' => '',
+            'description' => "{$condition} {$year} {$make} {$model} - {$vin}",
+        ];
     }
 
     protected function mapVehicleToRow(array $vehicle): array

@@ -41,11 +41,11 @@ use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
-use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
+use Kanvas\Connectors\Internal\Activities\RecalculateSlotCapacityActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
@@ -56,6 +56,7 @@ use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
@@ -69,8 +70,10 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\IncrementPromptUsageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptIAPOrderActivity;
@@ -256,7 +259,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncExternalWooCommerceUserWebhookJob::class,
             PullLeadActivity::class,
             PullPeopleActivity::class,
-            CalculateWarehouseQuantityActivity::class,
+            RecalculateSlotCapacityActivity::class,
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
             ProcessWaSenderWebhookJob::class,
@@ -276,6 +279,7 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
+            SyncMovipassActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             PushLeadNotesActivity::class,
@@ -340,10 +344,12 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushPeopleActivity::class,
             RestoreUsersAccountContentActivity::class,
             ScheduleEleadActivityFromEventAction::class,
+            OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
-            OAuthCallbackJob::class,
             FollowUpPromptActivity::class,
+            ModelWizardReceiverJob::class,
+            IncrementPromptUsageActivity::class,
         ];
 
         $createdActions = [];
