@@ -4,12 +4,31 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
 class MessageUsageStatsTest extends TestCase
 {
+    private function createMessageViaGraphQL(MessageType $messageType): int
+    {
+        $response = $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'system_modules_id' => 1,
+                'entity_id' => '1',
+            ],
+        ])->assertSuccessful();
+
+        return (int) $response->json('data.createMessage.id');
+    }
+
     public function testUserMessageUsageStatsDefaultDays(): void
     {
         $this->graphQL('
@@ -138,16 +157,17 @@ class MessageUsageStatsTest extends TestCase
         }
     }
 
-    public function testUserMessageUsageStatsWithMessageTypeFilter(): void
+    public function testUserMessageUsageStatsCountsCreatedMessages(): void
     {
         $messageType = MessageType::factory()->create();
 
-        $this->graphQL('
+        $this->createMessageViaGraphQL($messageType);
+        $this->createMessageViaGraphQL($messageType);
+        $this->createMessageViaGraphQL($messageType);
+
+        $response = $this->graphQL('
             query($message_type_id: ID) {
                 userMessageUsageStats(days: 7, message_type_id: $message_type_id) {
-                    period {
-                        days
-                    }
                     totalCount
                     data {
                         date
@@ -156,20 +176,45 @@ class MessageUsageStatsTest extends TestCase
                 }
             }
         ', ['message_type_id' => $messageType->getId()])
-        ->assertSuccessful()
-        ->assertJsonPath('data.userMessageUsageStats.period.days', 7);
+        ->assertSuccessful();
+
+        $totalCount = $response->json('data.userMessageUsageStats.totalCount');
+        $todayCount = collect($response->json('data.userMessageUsageStats.data'))->last()['count'];
+
+        $this->assertGreaterThanOrEqual(3, $totalCount);
+        $this->assertGreaterThanOrEqual(3, $todayCount);
     }
 
-    public function testUserMessageUsageStatsTotalCountMatchesData(): void
+    public function testCompanyMessageUsageStatsCountsAllUsersMessages(): void
     {
         $messageType = MessageType::factory()->create();
 
-        Message::factory()->count(3)->create([
-            'apps_id' => $this->app->getId(),
-            'users_id' => $this->user->getId(),
-            'companies_id' => $this->user->getCurrentCompany()->getId(),
-            'message_types_id' => $messageType->getId(),
-        ]);
+        $this->createMessageViaGraphQL($messageType);
+        $this->createMessageViaGraphQL($messageType);
+
+        $response = $this->graphQL('
+            query($message_type_id: ID) {
+                companyMessageUsageStats(days: 7, message_type_id: $message_type_id) {
+                    totalCount
+                    data {
+                        date
+                        count
+                    }
+                }
+            }
+        ', ['message_type_id' => $messageType->getId()])
+        ->assertSuccessful();
+
+        $totalCount = $response->json('data.companyMessageUsageStats.totalCount');
+        $this->assertGreaterThanOrEqual(2, $totalCount);
+    }
+
+    public function testUserMessageUsageStatsTotalCountMatchesDataSum(): void
+    {
+        $messageType = MessageType::factory()->create();
+
+        $this->createMessageViaGraphQL($messageType);
+        $this->createMessageViaGraphQL($messageType);
 
         $response = $this->graphQL('
             query($message_type_id: ID) {
@@ -188,5 +233,40 @@ class MessageUsageStatsTest extends TestCase
         $dataSum = array_sum(array_column($response->json('data.userMessageUsageStats.data'), 'count'));
 
         $this->assertEquals($totalCount, $dataSum);
+    }
+
+    public function testUserMessageUsageStatsWithMessageTypeFilter(): void
+    {
+        $messageTypeA = MessageType::factory()->create();
+        $messageTypeB = MessageType::factory()->create();
+
+        $this->createMessageViaGraphQL($messageTypeA);
+        $this->createMessageViaGraphQL($messageTypeA);
+        $this->createMessageViaGraphQL($messageTypeB);
+
+        $responseA = $this->graphQL('
+            query($message_type_id: ID) {
+                userMessageUsageStats(days: 7, message_type_id: $message_type_id) {
+                    totalCount
+                }
+            }
+        ', ['message_type_id' => $messageTypeA->getId()])
+        ->assertSuccessful();
+
+        $responseB = $this->graphQL('
+            query($message_type_id: ID) {
+                userMessageUsageStats(days: 7, message_type_id: $message_type_id) {
+                    totalCount
+                }
+            }
+        ', ['message_type_id' => $messageTypeB->getId()])
+        ->assertSuccessful();
+
+        $countA = $responseA->json('data.userMessageUsageStats.totalCount');
+        $countB = $responseB->json('data.userMessageUsageStats.totalCount');
+
+        $this->assertGreaterThanOrEqual(2, $countA);
+        $this->assertGreaterThanOrEqual(1, $countB);
+        $this->assertGreaterThan($countB, $countA);
     }
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Repositories;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
@@ -14,6 +15,8 @@ use Kanvas\Users\Models\Users;
 
 class MessageUsageStatsRepository
 {
+    private const CACHE_TTL_SECONDS = 3600; // 1 hour
+
     /**
      * Get daily message counts for a user over the last N days.
      */
@@ -23,15 +26,25 @@ class MessageUsageStatsRepository
         int $days = 7,
         ?MessageType $messageType = null,
     ): array {
-        $counts = self::fetchDailyCounts(
-            app: $app,
-            days: $days,
-            usersId: $user->getId(),
-            companiesId: null,
-            messageType: $messageType,
+        $cacheKey = self::buildCacheKey(
+            'user',
+            $app->getId(),
+            $user->getId(),
+            $days,
+            $messageType?->getId(),
         );
 
-        return self::buildResult($counts, $days);
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $user, $days, $messageType) {
+            $counts = self::fetchDailyCounts(
+                app: $app,
+                days: $days,
+                usersId: $user->getId(),
+                companiesId: null,
+                messageType: $messageType,
+            );
+
+            return self::buildResult($counts, $days);
+        });
     }
 
     /**
@@ -43,15 +56,45 @@ class MessageUsageStatsRepository
         int $days = 7,
         ?MessageType $messageType = null,
     ): array {
-        $counts = self::fetchDailyCounts(
-            app: $app,
-            days: $days,
-            usersId: null,
-            companiesId: $company->getId(),
-            messageType: $messageType,
+        $cacheKey = self::buildCacheKey(
+            'company',
+            $app->getId(),
+            $company->getId(),
+            $days,
+            $messageType?->getId(),
         );
 
-        return self::buildResult($counts, $days);
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $company, $days, $messageType) {
+            $counts = self::fetchDailyCounts(
+                app: $app,
+                days: $days,
+                usersId: null,
+                companiesId: $company->getId(),
+                messageType: $messageType,
+            );
+
+            return self::buildResult($counts, $days);
+        });
+    }
+
+    /**
+     * Invalidate cache for a specific user's stats (call when new messages are created).
+     */
+    public static function invalidateUserCache(Apps $app, Users $user, ?MessageType $messageType = null): void
+    {
+        foreach ([7, 14, 30] as $days) {
+            Cache::forget(self::buildCacheKey('user', $app->getId(), $user->getId(), $days, $messageType?->getId()));
+        }
+    }
+
+    /**
+     * Invalidate cache for a specific company's stats.
+     */
+    public static function invalidateCompanyCache(Apps $app, Companies $company, ?MessageType $messageType = null): void
+    {
+        foreach ([7, 14, 30] as $days) {
+            Cache::forget(self::buildCacheKey('company', $app->getId(), $company->getId(), $days, $messageType?->getId()));
+        }
     }
 
     /**
@@ -111,5 +154,22 @@ class MessageUsageStatsRepository
             'totalCount' => $totalCount,
             'data' => $data,
         ];
+    }
+
+    private static function buildCacheKey(
+        string $scope,
+        int $appId,
+        int $scopeId,
+        int $days,
+        ?int $messageTypeId,
+    ): string {
+        return sprintf(
+            'message_usage_stats_%s_app_%d_id_%d_days_%d_type_%s',
+            $scope,
+            $appId,
+            $scopeId,
+            $days,
+            $messageTypeId ?? 'all',
+        );
     }
 }
