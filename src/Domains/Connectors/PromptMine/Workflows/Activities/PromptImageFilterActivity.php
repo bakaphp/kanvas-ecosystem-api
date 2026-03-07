@@ -481,7 +481,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $processedImageUrl = null;
         if (isset($responseData['0']['url'])) {
             $processedImageUrl = $responseData['0']['url'];
-        } elseif (isset($response[0]['url'])) {
+        } elseif (isset($responseData[0]['url'])) {
             $processedImageUrl = $responseData[0]['url'];
         }
 
@@ -637,7 +637,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($apiUrl, [
+        ])->timeout(120)->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
             'model' => $model . $imageFilter,
@@ -658,7 +658,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         while ($attempts < self::MAX_STATUS_CHECKS) {
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
-            ])->post($this->apiUrl, [
+            ])->timeout(120)->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
                 'model' => 'fal-ai/' . $imageFilter,
@@ -667,12 +667,16 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
 
             $statusResponse = $response->json();
 
+            if (! isset($statusResponse['status'])) {
+                throw new Exception('Invalid status response for this request ' . $requestId . ': ' . json_encode($statusResponse));
+            }
+
             if ($statusResponse['status'] === 'COMPLETED') {
                 break;
             }
 
             if ($statusResponse['status'] === 'FAILED') {
-                throw new Exception('Image processing failed for this request' . $requestId);
+                throw new Exception('Image processing failed for this request ' . $requestId);
             }
 
             // Wait before checking again
@@ -681,7 +685,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         }
 
         if ($attempts >= self::MAX_STATUS_CHECKS) {
-            throw new Exception('Image processing timed out' . $requestId);
+            throw new Exception('Image processing timed out ' . $requestId);
         }
 
         return $statusResponse;
@@ -694,7 +698,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-        ])->post($this->apiUrl, [
+        ])->timeout(120)->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
             'model' => 'fal-ai/' . $imageFilter,
