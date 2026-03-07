@@ -25,16 +25,9 @@ class MessageUsageStatsRepository
         Users $user,
         int $days = 7,
         ?MessageType $messageType = null,
+        bool $useCache = true,
     ): array {
-        $cacheKey = self::buildCacheKey(
-            'user',
-            $app->getId(),
-            $user->getId(),
-            $days,
-            $messageType?->getId(),
-        );
-
-        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $user, $days, $messageType) {
+        $callback = function () use ($app, $user, $days, $messageType) {
             $counts = self::fetchDailyCounts(
                 app: $app,
                 days: $days,
@@ -44,7 +37,17 @@ class MessageUsageStatsRepository
             );
 
             return self::buildResult($counts, $days);
-        });
+        };
+
+        if (! $useCache) {
+            return $callback();
+        }
+
+        return Cache::remember(
+            self::buildCacheKey('user', $app->getId(), $user->getId(), $days, $messageType?->getId()),
+            self::CACHE_TTL_SECONDS,
+            $callback,
+        );
     }
 
     /**
@@ -55,16 +58,9 @@ class MessageUsageStatsRepository
         Companies $company,
         int $days = 7,
         ?MessageType $messageType = null,
+        bool $useCache = true,
     ): array {
-        $cacheKey = self::buildCacheKey(
-            'company',
-            $app->getId(),
-            $company->getId(),
-            $days,
-            $messageType?->getId(),
-        );
-
-        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $company, $days, $messageType) {
+        $callback = function () use ($app, $company, $days, $messageType) {
             $counts = self::fetchDailyCounts(
                 app: $app,
                 days: $days,
@@ -74,7 +70,17 @@ class MessageUsageStatsRepository
             );
 
             return self::buildResult($counts, $days);
-        });
+        };
+
+        if (! $useCache) {
+            return $callback();
+        }
+
+        return Cache::remember(
+            self::buildCacheKey('company', $app->getId(), $company->getId(), $days, $messageType?->getId()),
+            self::CACHE_TTL_SECONDS,
+            $callback,
+        );
     }
 
     /**

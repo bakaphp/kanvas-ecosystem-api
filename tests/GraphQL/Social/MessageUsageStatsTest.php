@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -12,9 +13,13 @@ class MessageUsageStatsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Use in-memory array cache so stats queries always hit the DB fresh,
-        // preventing stale CI cache from polluting count assertions.
-        config(['cache.default' => 'array']);
+        app(Apps::class)->set('usage_stats_cache_disabled', true);
+    }
+
+    protected function tearDown(): void
+    {
+        app(Apps::class)->set('usage_stats_cache_disabled', false);
+        parent::tearDown();
     }
 
     private function createMessageViaGraphQL(MessageType $messageType): int

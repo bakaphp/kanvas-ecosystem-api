@@ -18,12 +18,14 @@ class MessageUsageStatsQuery
         $messageType = isset($args['message_type_id'])
             ? MessageType::getById((int) $args['message_type_id'], $app)
             : null;
+        $useCache = ! (bool) $app->get('usage_stats_cache_disabled', false);
 
         return MessageUsageStatsRepository::getUserDailyStats(
             app: $app,
             user: $user,
             days: $days,
             messageType: $messageType,
+            useCache: $useCache,
         );
     }
 
@@ -35,12 +37,14 @@ class MessageUsageStatsQuery
         $messageType = isset($args['message_type_id'])
             ? MessageType::getById((int) $args['message_type_id'], $app)
             : null;
+        $useCache = ! (bool) $app->get('usage_stats_cache_disabled', false);
 
         return MessageUsageStatsRepository::getCompanyDailyStats(
             app: $app,
             company: $user->getCurrentCompany(),
             days: $days,
             messageType: $messageType,
+            useCache: $useCache,
         );
     }
 }
