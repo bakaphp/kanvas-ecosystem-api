@@ -215,6 +215,7 @@ class MessageUsageStatsTest extends TestCase
 
         $this->createMessageViaGraphQL($messageType);
         $this->createMessageViaGraphQL($messageType);
+        $this->createMessageViaGraphQL($messageType);
 
         $response = $this->graphQL('
             query($message_type_id: ID) {
@@ -232,6 +233,7 @@ class MessageUsageStatsTest extends TestCase
         $totalCount = $response->json('data.userMessageUsageStats.totalCount');
         $dataSum = array_sum(array_column($response->json('data.userMessageUsageStats.data'), 'count'));
 
+        $this->assertGreaterThanOrEqual(3, $totalCount);
         $this->assertEquals($totalCount, $dataSum);
     }
 
