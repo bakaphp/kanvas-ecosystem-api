@@ -22,6 +22,11 @@ class MessageUsageStatsTest extends TestCase
         parent::tearDown();
     }
 
+    private function createMessageType(): MessageType
+    {
+        return MessageType::factory()->create();
+    }
+
     private function createMessageViaGraphQL(MessageType $messageType): int
     {
         $response = $this->graphQL('
@@ -172,7 +177,7 @@ class MessageUsageStatsTest extends TestCase
 
     public function testUserMessageUsageStatsCountsCreatedMessages(): void
     {
-        $messageType = MessageType::factory()->create();
+        $messageType = $this->createMessageType();
 
         $this->createMessageViaGraphQL($messageType);
         $this->createMessageViaGraphQL($messageType);
@@ -200,7 +205,7 @@ class MessageUsageStatsTest extends TestCase
 
     public function testCompanyMessageUsageStatsCountsAllUsersMessages(): void
     {
-        $messageType = MessageType::factory()->create();
+        $messageType = $this->createMessageType();
 
         $this->createMessageViaGraphQL($messageType);
         $this->createMessageViaGraphQL($messageType);
@@ -224,7 +229,7 @@ class MessageUsageStatsTest extends TestCase
 
     public function testUserMessageUsageStatsTotalCountMatchesDataSum(): void
     {
-        $messageType = MessageType::factory()->create();
+        $messageType = $this->createMessageType();
 
         $this->createMessageViaGraphQL($messageType);
         $this->createMessageViaGraphQL($messageType);
@@ -252,8 +257,8 @@ class MessageUsageStatsTest extends TestCase
 
     public function testUserMessageUsageStatsWithMessageTypeFilter(): void
     {
-        $messageTypeA = MessageType::factory()->create();
-        $messageTypeB = MessageType::factory()->create();
+        $messageTypeA = $this->createMessageType();
+        $messageTypeB = $this->createMessageType();
 
         $this->createMessageViaGraphQL($messageTypeA);
         $this->createMessageViaGraphQL($messageTypeA);
