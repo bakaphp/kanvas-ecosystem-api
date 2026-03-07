@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -121,7 +122,14 @@ class TriggerIntelligenceActivity extends KanvasActivity
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
             $handle->setConfiguration($session->agent, $session->entity());
-            $handle->sendDataToAgent($session->uuid, $data);
+            try {
+                $handle->sendDataToAgent($session->uuid, $data);
+            } catch (ClientException $e) {
+                if ($e->getResponse()->getStatusCode() === 404) {
+                    continue;
+                }
+                throw $e;
+            }
         }
     }
 }

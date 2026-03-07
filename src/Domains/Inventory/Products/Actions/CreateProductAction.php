@@ -12,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
-use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Workflow\Enums\WorkflowEnum;

@@ -15,6 +15,13 @@ type WalletTransaction {
     created_at: DateTimeTz
 }
 
+input WalletRefundInput {
+    order_id: ID!
+    amount: Float
+    reason: String
+    tag: String
+}
+
 extend type Query @guard {
     getWalletBalance(tag: String!): WalletResult
         @field(
@@ -58,5 +65,9 @@ extend type Mutation @guardByAppKey {
     flushCompanyWallet(company_id: ID!, tag: String): WalletResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\WalletManagementMutation@flushCompanyWallet"
+        )
+    refundOrderToWallet(input: WalletRefundInput!): WalletResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\WalletManagementMutation@refundOrderToWallet"
         )
 }

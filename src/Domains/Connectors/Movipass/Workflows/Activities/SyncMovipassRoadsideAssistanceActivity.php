@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
+use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -95,8 +96,27 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
         if ($assistanceCase !== []) {
+            $timestamp = $this->getFormattedTimestamp();
+
             $assistanceCase['status'] = $toStatus;
             $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
+
+            match ($toStatus) {
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => $assistanceCase['provider_assigned_at'] = $timestamp,
+                MovipassOrderStatusEnum::DISPATCHED->value => $assistanceCase['dispatched_at'] = $timestamp,
+                MovipassOrderStatusEnum::ON_SITE->value => $assistanceCase['arrived_at'] = $timestamp,
+                MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => $assistanceCase['service_started_at'] = $timestamp,
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->value => (function () use (&$assistanceCase, $timestamp) {
+                    $assistanceCase['completed_at'] = $timestamp;
+                    $assistanceCase['resolved'] = true;
+                })(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => (function () use (&$assistanceCase, $timestamp) {
+                    $assistanceCase['completed_at'] = $timestamp;
+                    $assistanceCase['resolved'] = false;
+                })(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->value => $assistanceCase['cancelled_at'] = $timestamp,
+                default => null,
+            };
 
             $order->metadata = [
                 ...$metadata,
@@ -107,6 +127,13 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ],
             ];
             $order->saveQuietly();
+
+            match ($toStatus) {
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => $order->fulfill(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->value => $order->fulfillCancelled(),
+                default => null,
+            };
         }
 
         return [
@@ -116,5 +143,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'data' => $order->toArray(),
             'response' => $order->toArray(),
         ];
+    }
+
+    private function getFormattedTimestamp(): string
+    {
+        return Carbon::now()->setTimezone('America/Santo_Domingo')->format('d/m/Y h:i A');
     }
 }

@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Internal\Activities\RecalculateSlotCapacityActivity;
 use Kanvas\Connectors\Movipass\Actions\CheckExpiringOrders;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -17,6 +18,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -25,13 +27,13 @@ class OrderExpirableTest extends TestCase
 {
     use InventoryCases;
 
-    protected $variant;
-    protected $region;
-    protected $company;
-    protected $user;
-    protected $apps;
-    protected $warehouseResponse;
-    protected $channelResponse;
+    protected Variants $variant;
+    protected Regions $region;
+    protected Companies $company;
+    protected Users $user;
+    protected Apps $apps;
+    protected array $warehouseResponse;
+    protected array $channelResponse;
 
     public function setUp(): void
     {
@@ -99,8 +101,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
         $region = Regions::find($regionResponse['id']);
         $company = $region->company;
@@ -127,7 +129,6 @@ class OrderExpirableTest extends TestCase
             channelId: $channelResponse['id'],
             warehouseData: $warehouseData
         );
-
 
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
@@ -183,7 +184,7 @@ class OrderExpirableTest extends TestCase
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
         // lets simulate the variant warehouse quantity decrease
-        $activity = new CalculateWarehouseQuantityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
+        $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
         // variant quantity should decrease
         $this->assertEquals(99, $variantWarehouse->refresh()->quantity);
@@ -203,9 +204,9 @@ class OrderExpirableTest extends TestCase
             [
                 'name' => 'capacity',
                 'value' => [
-                    'occupiedParkingSpaces' => 50
-                ]
-            ]
+                    'occupiedParkingSpaces' => 50,
+                ],
+            ],
         ])->json()['data']['createProduct'];
         $region = Regions::find($regionResponse['id']);
         $company = $region->company;
@@ -284,11 +285,10 @@ class OrderExpirableTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
         // lets simulate the variant warehouse quantity decrease
-        $activity = new CalculateWarehouseQuantityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
+        $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
         $variantProduct = $variant->product;
         // variant quantity should decrease
@@ -308,8 +308,8 @@ class OrderExpirableTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -333,14 +333,13 @@ class OrderExpirableTest extends TestCase
             ]
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $this->warehouseResponse['id'],
             amount: 100
         );
 
-        $timezone = "America/New_York";
+        $timezone = 'America/New_York';
         Date::setTestNow(now()->startOfSecond());
         $rightNow = now($timezone)->toDateTimeString();
         $rightNowPlus15 = now($timezone)->addMinutes(15)->toDateTimeString();
@@ -355,7 +354,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
-                ]
+                ],
             ],
         );
 
@@ -367,7 +366,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus15,
                     'notify_in' => 15,
-                ]
+                ],
             ],
         );
 
@@ -379,7 +378,7 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus5,
                     'notify_in' => 5,
-                ]
+                ],
             ],
         );
 
@@ -391,14 +390,14 @@ class OrderExpirableTest extends TestCase
                     'start_at' => $rightNow,
                     'end_at' => $rightNowPlus30,
                     'notify_in' => 30,
-                ]
+                ],
             ],
         );
 
         $checkExpiringOrders = new CheckExpiringOrders($this->apps);
         $orders = $checkExpiringOrders->execute($rightNow, [
             15,
-            5
+            5,
         ], [$reservation1->getId(), $reservation2->getId(), $reservation3->getId(), $reservation4->getId()]);
 
         $this->assertEquals(3, $orders->count());
@@ -417,18 +416,19 @@ class OrderExpirableTest extends TestCase
     {
         $app = app(Apps::class);
 
-        // Configure duplicate metadata validation
-        $app->set('validate_metadata_duplicated_enabled', '1');
-        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
-        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
-        $app->set('validate_metadata_duplicated_error_message', 'Duplicate tracking ID not allowed within 2 hours');
-        $app->set('validate_metadata_duplicated_use_cache', '0'); // Disable cache to avoid Redis dependency
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
+
+        $orderType = OrderTypes::firstOrCreate(
+            ['name' => 'test-duplicate-validation', 'apps_id' => $app->getId(), 'companies_id' => 0],
+        );
+        $orderType->config = ['validate_metadata_duplicated_field' => 'data.tracking_id'];
+        $orderType->saveQuietly();
 
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -456,7 +456,8 @@ class OrderExpirableTest extends TestCase
 
         // Create first order with UPPERCASE tracking ID
         $firstOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
+            'order_type' => $orderType->name,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -471,7 +472,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => $uniqueTrackingId, // UPPERCASE
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -495,9 +496,10 @@ class OrderExpirableTest extends TestCase
 
         // Try to create second order with lowercase tracking ID (should fail - case-insensitive duplicate)
         $duplicateOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
+            'order_type' => $orderType->name,
             'customer' => [
-                'email' => fake()->email()
+                'email' => fake()->email(),
             ],
             'items' => [
                 [
@@ -510,7 +512,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => strtolower($uniqueTrackingId), // lowercase version - should be detected as duplicate
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -539,18 +541,13 @@ class OrderExpirableTest extends TestCase
     {
         $app = app(Apps::class);
 
-        // Configure duplicate metadata validation with status exclusion
-        $app->set('validate_metadata_duplicated_enabled', '1');
-        $app->set('validate_metadata_duplicated_field', 'data.tracking_id');
-        $app->set('validate_metadata_duplicated_cooldown_hours', '2');
-        $app->set('validate_metadata_duplicated_use_cache', '0');
-        $app->set('validate_metadata_duplicated_exclude_statuses', 'cancelled,delivered'); // Exclude cancelled and delivered orders
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
 
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $variantResponse = $this->createVariant(
@@ -574,10 +571,23 @@ class OrderExpirableTest extends TestCase
             amount: 100
         );
 
+        // Configure per-OrderType exclude statuses
+        $salesOrderType = OrderTypes::where('name', 'sales')
+            ->where('apps_id', $app->getId())
+            ->first();
+
+        if ($salesOrderType) {
+            $salesOrderType->config = array_merge($salesOrderType->config ?? [], [
+                'validate_metadata_duplicated_field' => 'data.tracking_id',
+                'validate_metadata_duplicated_blocking_statuses' => 'active',
+            ]);
+            $salesOrderType->saveQuietly();
+        }
+
         // Create first order with tracking ID
         $uniqueTrackingId = 'TEST-CANCELLED-' . fake()->uuid();
         $firstOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
             'customer' => [
                 'email' => fake()->email(),
             ],
@@ -593,7 +603,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => $uniqueTrackingId,
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -634,9 +644,10 @@ class OrderExpirableTest extends TestCase
 
         // Try to create second order with same tracking ID (lowercase) - should SUCCEED because first order is cancelled
         $duplicateOrderData = [
-            "cartId" => 0,
+            'cartId' => 0,
+            'order_type' => 'sales',
             'customer' => [
-                'email' => fake()->email()
+                'email' => fake()->email(),
             ],
             'items' => [
                 [
@@ -649,7 +660,7 @@ class OrderExpirableTest extends TestCase
                     'tracking_id' => strtolower($uniqueTrackingId), // lowercase - but should be allowed because first order is cancelled
                     'start_at' => now()->addHour()->toDateTimeString(),
                     'end_at' => now()->addHours(2)->toDateTimeString(),
-                ]
+                ],
             ],
         ];
 
@@ -672,6 +683,110 @@ class OrderExpirableTest extends TestCase
         // Should NOT return validation error - cancelled orders are excluded
         $this->assertNull($response->json('errors'));
         $this->assertNotNull($response->json('data.createOrderFromCart.order.id'));
+    }
+
+    public function testDuplicateMetadataValidationBlockedByActiveOrderStatus(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value, '1');
+
+        $productResponse = $this->createProduct(attributes: [
+            ['name' => 'slots', 'value' => 100],
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $orderType = OrderTypes::withoutSyncingToSearch(
+            fn () => OrderTypes::firstOrCreate(
+                ['name' => 'parking', 'apps_id' => $app->getId(), 'companies_id' => 0],
+            )
+        );
+        $orderType->config = array_merge($orderType->config ?? [], [
+            'validate_metadata_duplicated_field' => 'data.vehiclePlate',
+            'validate_metadata_duplicated_blocking_statuses' => 'active',
+        ]);
+        $orderType->saveQuietly();
+
+        $vehiclePlate = 'T' . strtoupper(uniqid());
+
+        $firstResponse = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order { id }
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 0,
+                'order_type' => $orderType->name,
+                'customer' => ['email' => fake()->email()],
+                'items' => [['variant_id' => $variantResponse['id'], 'quantity' => 1]],
+                'metadata' => ['data' => ['vehiclePlate' => $vehiclePlate]],
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertNull($firstResponse->json('errors'));
+        $orderId = $firstResponse->json('data.createOrderFromCart.order.id');
+
+        // Set first order to 'active' orderStatus
+        $order = Order::findOrFail($orderId);
+        $activeStatus = $order->orderType->statuses()->where('slug', 'active')->first();
+        if (! $activeStatus) {
+            $activeStatus = $order->orderType->statuses()->create([
+                'name' => 'Active',
+                'slug' => 'active',
+                'apps_id' => $app->getId(),
+                'is_deleted' => 0,
+            ]);
+        }
+        $order->order_status_id = $activeStatus->id;
+        $order->save();
+
+        // Same plate (case-insensitive) must be blocked while first order is active
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order { id }
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 0,
+                'order_type' => $orderType->name,
+                'customer' => ['email' => fake()->email()],
+                'items' => [['variant_id' => $variantResponse['id'], 'quantity' => 1]],
+                'metadata' => ['data' => ['vehiclePlate' => strtolower($vehiclePlate)]],
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $app->key,
+        ]);
+
+        $this->assertArrayHasKey('errors', $response->json());
+        $this->assertStringContainsString(
+            "duplicate value for field 'data.vehiclePlate'",
+            $response->json('errors.0.message')
+        );
     }
 
     private function buildMovipassVariantWithCapacity(int $maxCapacity): Variants
@@ -773,7 +888,7 @@ class OrderExpirableTest extends TestCase
         $expiredOrder = $this->createMovipassOrder($variant, $expiredEndAt);
 
         // Simulate warehouse quantity tracking: 3 orders exist → available = max(3) - active(3) = 0
-        $activity = new CalculateWarehouseQuantityActivity(
+        $activity = new RecalculateSlotCapacityActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -844,7 +959,7 @@ class OrderExpirableTest extends TestCase
         $floor2ActiveOrder = $this->createMovipassOrder($floor2Variant, $activeEndAt);
 
         // Simulate warehouse quantity tracking for Floor1: 2 orders → available = max(3) - active(2) = 1
-        $activity = new CalculateWarehouseQuantityActivity(
+        $activity = new RecalculateSlotCapacityActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
