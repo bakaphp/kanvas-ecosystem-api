@@ -9,6 +9,14 @@ use Tests\TestCase;
 
 class MessageUsageStatsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Use in-memory array cache so stats queries always hit the DB fresh,
+        // preventing stale CI cache from polluting count assertions.
+        config(['cache.default' => 'array']);
+    }
+
     private function createMessageViaGraphQL(MessageType $messageType): int
     {
         $response = $this->graphQL('

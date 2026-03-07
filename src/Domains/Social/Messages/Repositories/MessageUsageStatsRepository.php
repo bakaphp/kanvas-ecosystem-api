@@ -34,7 +34,7 @@ class MessageUsageStatsRepository
             $messageType?->getId(),
         );
 
-        return self::remember($cacheKey, function () use ($app, $user, $days, $messageType) {
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $user, $days, $messageType) {
             $counts = self::fetchDailyCounts(
                 app: $app,
                 days: $days,
@@ -64,7 +64,7 @@ class MessageUsageStatsRepository
             $messageType?->getId(),
         );
 
-        return self::remember($cacheKey, function () use ($app, $company, $days, $messageType) {
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () use ($app, $company, $days, $messageType) {
             $counts = self::fetchDailyCounts(
                 app: $app,
                 days: $days,
@@ -154,19 +154,6 @@ class MessageUsageStatsRepository
             'totalCount' => $totalCount,
             'data' => $data,
         ];
-    }
-
-    /**
-     * Wrap a callable in Cache::remember, bypassing cache in test environment
-     * to prevent stale results from polluting test assertions.
-     */
-    private static function remember(string $key, callable $callback): array
-    {
-        if (app()->environment('testing')) {
-            return $callback();
-        }
-
-        return Cache::remember($key, self::CACHE_TTL_SECONDS, $callback);
     }
 
     private static function buildCacheKey(
