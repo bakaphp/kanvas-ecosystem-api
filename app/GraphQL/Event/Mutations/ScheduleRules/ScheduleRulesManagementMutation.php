@@ -103,6 +103,7 @@ class ScheduleRulesManagementMutation
     private function getEntity(string $entityType, int|string $entityId): Model
     {
         $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityType);
+
         return $entityClass::getById($entityId);
     }
 }

@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDailyUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectHealthSnapshotAction;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\UserCompanyApps;
 use Throwable;
 
 class CollectDailyUsageCommand extends Command
@@ -28,10 +29,16 @@ class CollectDailyUsageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
+        $appCompanyIds = UserCompanyApps::where('apps_id', $app->getId())
+            ->select('companies_id')
+            ->distinct()
+            ->pluck('companies_id');
+
         $companyIds = CompaniesSettings::where(
             'name',
             ConfigurationEnum::SSH_HOST->value
         )
+            ->whereIn('companies_id', $appCompanyIds)
             ->whereNotNull('value')
             ->where('value', '!=', '')
             ->select('companies_id')
