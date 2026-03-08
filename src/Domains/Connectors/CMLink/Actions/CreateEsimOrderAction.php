@@ -124,7 +124,7 @@ class CreateEsimOrderAction
         }
 
         $this->order->addTag('reFuel');
-
+        $this->order->set('cmlink_response', $this->cmLinkOrder);
         $this->orderMetaData = $parentOrder->metadata ?? [];
     }
 
@@ -144,6 +144,8 @@ class CreateEsimOrderAction
             dataBundleId: $this->variantSkuIsBundleId,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
+
+        $this->order->set('cmlink_response', $this->cmLinkOrder);
 
         $this->orderMetaData = $this->order->metadata ?? [];
     }

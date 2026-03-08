@@ -1,0 +1,30 @@
+type MessageDailyCount {
+    date: String!
+    count: Int!
+}
+
+type MessageUsageStatsPeriod {
+    start: String!
+    end: String!
+    days: Int!
+}
+
+type MessageUsageStats {
+    period: MessageUsageStatsPeriod!
+    totalCount: Int!
+    data: [MessageDailyCount!]!
+}
+
+extend type Query @guard {
+    userMessageUsageStats(
+        days: Int
+        message_type_id: ID
+    ): MessageUsageStats!
+        @field(resolver: "App\\GraphQL\\Social\\Queries\\Messages\\MessageUsageStatsQuery@userStats")
+
+    companyMessageUsageStats(
+        days: Int
+        message_type_id: ID
+    ): MessageUsageStats!
+        @field(resolver: "App\\GraphQL\\Social\\Queries\\Messages\\MessageUsageStatsQuery@companyStats")
+}
