@@ -52,8 +52,21 @@ class AgentChatMutation
             $response = $handler->chat($message);
             $durationMs = (microtime(true) - $startTime) * 1000.0;
 
-            $this->trackUsage($agent, $app, $company, $message, $response, $durationMs, $sessionId);
-            $this->broadcastChatResponse($agent, $sessionId, $message, $response);
+            $this->trackUsage(
+                $agent,
+                $app,
+                $company,
+                $message,
+                $response,
+                $durationMs,
+                $sessionId
+            );
+            $this->broadcastChatResponse(
+                $agent,
+                $sessionId,
+                $message,
+                $response
+            );
 
             return $response;
         }
@@ -89,8 +102,21 @@ class AgentChatMutation
         $response = ChatHelper::extractTextFromResponse($responseContent->getContent());
         $durationMs = (microtime(true) - $startTime) * 1000.0;
 
-        $this->trackUsage($agent, $app, $company, $message, $response, $durationMs, $sessionId);
-        $this->broadcastChatResponse($agent, $sessionId, $message, $response);
+        $this->trackUsage(
+            $agent,
+            $app,
+            $company,
+            $message,
+            $response,
+            $durationMs,
+            $sessionId
+        );
+        $this->broadcastChatResponse(
+            $agent,
+            $sessionId,
+            $message,
+            $response
+        );
 
         return $response;
     }
@@ -175,7 +201,12 @@ class AgentChatMutation
         string $message,
         string $response,
     ): void {
-        AgentChatResponseEvent::dispatch($agent, $sessionId, $message, $response);
+        AgentChatResponseEvent::dispatch(
+            $agent,
+            $sessionId,
+            $message,
+            $response
+        );
 
         Subscription::broadcast('agentChatResponse', [
             'agent_id' => $agent->getId(),
