@@ -37,4 +37,8 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@usage"
         )
+    openClawHealth: String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@health"
+        )
 }

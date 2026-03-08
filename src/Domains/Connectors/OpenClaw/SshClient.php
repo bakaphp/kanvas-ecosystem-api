@@ -129,6 +129,11 @@ class SshClient
         return $this->cli('status --usage 2>&1');
     }
 
+    public function getHealth(): string
+    {
+        return $this->cli('health --json 2>&1');
+    }
+
     public function disconnect(): void
     {
         $this->sftp->disconnect();

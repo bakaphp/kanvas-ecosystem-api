@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDailyUsageAction;
+use Kanvas\Connectors\OpenClaw\Actions\CollectHealthSnapshotAction;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Throwable;
 
@@ -44,8 +45,11 @@ class CollectDailyUsageCommand extends Command
             $company = Companies::getById((int) $companyId);
 
             try {
-                $snapshot = new CollectDailyUsageAction($app, $company)->execute();
-                $this->info("Collected usage for company {$company->name} (ID: {$companyId}): snapshot #{$snapshot->getId()}");
+                $usageSnapshot = new CollectDailyUsageAction($app, $company)->execute();
+                $this->info("Collected usage for company {$company->name} (ID: {$companyId}): snapshot #{$usageSnapshot->getId()}");
+
+                $healthSnapshot = new CollectHealthSnapshotAction($app, $company)->execute();
+                $this->info("Collected health for company {$company->name} (ID: {$companyId}): snapshot #{$healthSnapshot->getId()}");
             } catch (Throwable $e) {
                 $this->error("Failed for company {$companyId}: {$e->getMessage()}");
             }
