@@ -7,6 +7,7 @@ type AgentAi {
     companyTaskList: TaskList! @belongsTo
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
+    swarms: [AgentSwarm!]! @belongsToMany
     uuid: String!
     name: String!
     description: String
@@ -59,6 +60,7 @@ input AgentAiInput {
     is_active: Boolean!
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
+    swarm_ids: [ID!]
 }
 
 input CommunicationChannelPivot {

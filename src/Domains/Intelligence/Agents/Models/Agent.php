@@ -16,10 +16,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -30,7 +33,9 @@ class Agent extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use HasFilesystemTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasLightHouseCache;
 
     protected $fillable = [
@@ -108,6 +113,18 @@ class Agent extends BaseModel
         return $this->hasMany(AgentPerformanceMetric::class);
     }
 
+    public function swarms(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            AgentSwarm::class,
+            'agent_swarm_members',
+            'agent_id',
+            'agent_swarm_id'
+        )->wherePivot('is_deleted', 0)
+         ->withPivot('role', 'config')
+         ->withTimestamps();
+    }
+
     public static function getModel(): Model
     {
         return new Agent();
@@ -127,5 +144,49 @@ class Agent extends BaseModel
             'users_id',
             'id'
         );
+    }
+
+    #[Override]
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_agent_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'agents');
+    }
+
+    #[Override]
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'deployment_status' => $this->deployment_status,
+            'is_active' => $this->is_active,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

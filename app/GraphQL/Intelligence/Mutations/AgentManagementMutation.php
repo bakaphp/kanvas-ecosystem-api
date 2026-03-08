@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
@@ -11,6 +13,7 @@ use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
+use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 
 class AgentManagementMutation
@@ -49,7 +52,13 @@ class AgentManagementMutation
             parentAgent: $parentAgent,
         );
 
-        return new CreateAgentAction($agentDTO)->execute();
+        $agent = new CreateAgentAction($agentDTO)->execute();
+
+        if (! empty($input['swarm_ids'])) {
+            $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        return $agent;
     }
 
     public function update(mixed $root, array $req): Agent
@@ -87,7 +96,13 @@ class AgentManagementMutation
             parentAgent: $parentAgent,
         );
 
-        return new UpdateAgentAction($agentDTO, $agent)->execute();
+        $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
+
+        if (isset($input['swarm_ids'])) {
+            $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        return $agent;
     }
 
     public function delete(mixed $root, array $req): bool
@@ -99,5 +114,27 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    /**
+     * @param array<int, string> $swarmIds
+     */
+    private function syncSwarms(
+        Agent $agent,
+        array $swarmIds,
+        CompanyInterface $company,
+        AppInterface $app
+    ): void {
+        $agent->swarms()->detach();
+
+        foreach ($swarmIds as $swarmId) {
+            AgentSwarm::getByIdFromCompanyApp(
+                (int) $swarmId,
+                $company,
+                $app
+            );
+
+            $agent->swarms()->attach((int) $swarmId);
+        }
     }
 }

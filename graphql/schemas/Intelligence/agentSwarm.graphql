@@ -1,0 +1,70 @@
+type AgentSwarm {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    description: String
+    status: String!
+    config: JSON
+    agent_count: Int!
+    deployment_status: String!
+    is_active: Boolean!
+    agents: [AgentAi!]! @belongsToMany
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input AgentSwarmInput {
+    name: String!
+    description: String
+    status: String
+    config: JSON
+    agent_ids: [ID!]
+}
+
+input UpdateAgentSwarmInput {
+    name: String
+    description: String
+    status: String
+    config: JSON
+    agent_ids: [ID!]
+}
+
+extend type Mutation @guardByAdmin {
+    createAgentSwarm(input: AgentSwarmInput!): AgentSwarm!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@create"
+        )
+    updateAgentSwarm(id: ID!, input: UpdateAgentSwarmInput!): AgentSwarm!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@update"
+        )
+    deleteAgentSwarm(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@delete"
+        )
+    addAgentToSwarm(swarm_id: ID!, agent_id: ID!): AgentSwarm!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@addAgent"
+        )
+    removeAgentFromSwarm(swarm_id: ID!, agent_id: ID!): AgentSwarm!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@removeAgent"
+        )
+}
+
+extend type Query @guard {
+    agentSwarms(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "slug", "status", "is_active"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AgentSwarm!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentSwarm"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
