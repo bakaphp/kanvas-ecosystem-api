@@ -9,20 +9,20 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
-use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Users\Models\Users;
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -146,7 +146,6 @@ class Agent extends BaseModel
         );
     }
 
-    #[Override]
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
@@ -155,7 +154,6 @@ class Agent extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'agents');
     }
 
-    #[Override]
     public function toSearchableArray(): array
     {
         return [
@@ -170,7 +168,6 @@ class Agent extends BaseModel
         ];
     }
 
-    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
