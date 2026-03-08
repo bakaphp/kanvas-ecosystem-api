@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
@@ -15,13 +16,14 @@ class UpdateAgentDeploymentAction
 {
     public function __construct(
         protected Agent $agent,
+        protected AppInterface $app,
         protected CompanyInterface $company,
     ) {
     }
 
     public function execute(): Agent
     {
-        $client = new SshClient($this->company);
+        $client = new SshClient($this->app, $this->company);
         $workspacePath = $this->agent->get(CustomFieldEnum::OPENCLAW_WORKSPACE_PATH->value);
 
         if (empty($workspacePath)) {

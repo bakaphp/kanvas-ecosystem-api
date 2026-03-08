@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -13,6 +14,7 @@ class RemoveAgentAction
 {
     public function __construct(
         protected Agent $agent,
+        protected AppInterface $app,
         protected CompanyInterface $company,
     ) {
     }
@@ -25,10 +27,10 @@ class RemoveAgentAction
             return true;
         }
 
-        $client = new SshClient($this->company);
+        $client = new SshClient($this->app, $this->company);
 
         try {
-            $client->exec('openclaw agents delete ' . escapeshellarg((string) $agentId));
+            $client->cli('agents delete ' . escapeshellarg((string) $agentId) . ' --force');
             $this->agent->update(['deployment_status' => 'pending']);
         } finally {
             $client->disconnect();

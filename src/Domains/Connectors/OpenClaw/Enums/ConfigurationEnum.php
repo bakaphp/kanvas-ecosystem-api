@@ -11,5 +11,7 @@ enum ConfigurationEnum: string
     case SSH_USER = 'openclaw_ssh_user';
     case SSH_PRIVATE_KEY = 'openclaw_ssh_private_key';
     case OPENCLAW_HOME = 'openclaw_home';
+    case CLI_PATH = 'openclaw_cli_path';
+    case CONFIG_FILENAME = 'openclaw_config_filename';
     case GATEWAY_TOKEN = 'openclaw_gateway_token';
 }

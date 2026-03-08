@@ -7,10 +7,13 @@ namespace Tests\Connectors\Integration\OpenClaw;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\DeployAgentAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetGatewayLogsAction;
+use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\Connectors\Traits\HasOpenClawConfiguration;
 use Tests\TestCase;
@@ -18,6 +21,28 @@ use Tests\TestCase;
 class OpenClawTest extends TestCase
 {
     use HasOpenClawConfiguration;
+
+    /** @var array<int, Agent> */
+    private array $deployedAgents = [];
+
+    protected function tearDown(): void
+    {
+        if (! empty($this->deployedAgents) && $this->hasOpenClawCredentials()) {
+            $app = app(Apps::class);
+            $company = auth()->user()->getCurrentCompany();
+            $this->setupOpenClawConfiguration($company);
+
+            foreach ($this->deployedAgents as $agent) {
+                try {
+                    new RemoveAgentAction($agent, $app, $company)->execute();
+                } catch (\Throwable) {
+                }
+            }
+            $this->deployedAgents = [];
+        }
+
+        parent::tearDown();
+    }
 
     protected function createTestAgent(array $overrides = []): Agent
     {
@@ -134,103 +159,78 @@ class OpenClawTest extends TestCase
         $this->assertStringNotContainsString('## Output Format', $soulMd);
     }
 
-    public function testDeployAgent()
+    public function testDeployUpdateChatAndRemoveAgent()
     {
         if (! $this->hasOpenClawCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
+        $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $this->setupOpenClawConfiguration($company);
 
         $agent = $this->createTestAgent();
+        $this->deployedAgents[] = $agent;
 
-        $result = new DeployAgentAction($agent, $company)->execute();
+        $result = new DeployAgentAction($agent, $app, $company)->execute();
 
         $this->assertEquals('deployed', $result->deployment_status);
         $this->assertNotEmpty($result->get(CustomFieldEnum::OPENCLAW_AGENT_ID->value));
         $this->assertNotEmpty($result->get(CustomFieldEnum::OPENCLAW_WORKSPACE_PATH->value));
-    }
 
-    public function testUpdateAgentDeployment()
-    {
-        if (! $this->hasOpenClawCredentials()) {
-            $this->markTestSkipped('OpenClaw SSH credentials not configured');
-        }
+        $agent->update(['soul' => 'Updated soul content for testing.']);
+        $updateResult = new UpdateAgentDeploymentAction($agent, $app, $company)->execute();
+        $this->assertEquals('deployed', $updateResult->deployment_status);
 
-        $company = auth()->user()->getCurrentCompany();
-        $this->setupOpenClawConfiguration($company);
-
-        $agent = $this->createTestAgent(['deployment_status' => 'deployed']);
-        $agent->set(CustomFieldEnum::OPENCLAW_AGENT_ID->value, $agent->uuid);
-        $agent->set(CustomFieldEnum::OPENCLAW_WORKSPACE_PATH->value, '/opt/openclaw/workspaces/' . $agent->uuid);
-
-        $agent->update(['soul' => 'Updated soul content.']);
-
-        $result = new UpdateAgentDeploymentAction($agent, $company)->execute();
-
-        $this->assertEquals('deployed', $result->deployment_status);
-    }
-
-    public function testChatWithAgent()
-    {
-        if (! $this->hasOpenClawCredentials()) {
-            $this->markTestSkipped('OpenClaw SSH credentials not configured');
-        }
-
-        $company = auth()->user()->getCurrentCompany();
-        $this->setupOpenClawConfiguration($company);
-
-        $agent = $this->createTestAgent(['deployment_status' => 'deployed']);
-        $agent->set(CustomFieldEnum::OPENCLAW_AGENT_ID->value, $agent->uuid);
-
-        $response = new ChatWithAgentAction(
-            $agent,
-            $company,
-            'Hello, how are you?'
-        )->execute();
-
+        $response = new ChatWithAgentAction($agent, $app, $company, 'Hello, how are you?')->execute();
         $this->assertNotEmpty($response);
         $this->assertIsString($response);
+
+        $removeResult = new RemoveAgentAction($agent, $app, $company)->execute();
+        $this->assertTrue($removeResult);
+        $agent->refresh();
+        $this->assertEquals('pending', $agent->deployment_status);
+
+        $this->deployedAgents = [];
     }
 
-    public function testRemoveAgent()
+    public function testGatewayOperations()
     {
         if (! $this->hasOpenClawCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
+        $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $this->setupOpenClawConfiguration($company);
 
-        $agent = $this->createTestAgent(['deployment_status' => 'deployed']);
-        $agent->set(CustomFieldEnum::OPENCLAW_AGENT_ID->value, $agent->uuid);
+        $logs = new GetGatewayLogsAction($app, $company, 10)->execute();
+        $this->assertIsString($logs);
 
-        $result = new RemoveAgentAction($agent, $company)->execute();
-
-        $this->assertTrue($result);
-        $agent->refresh();
-        $this->assertEquals('pending', $agent->deployment_status);
+        $agents = new ListAgentsAction($app, $company)->execute();
+        $this->assertIsArray($agents);
     }
 
     public function testRemoveAgentWithoutOpenClawIdReturnsTrue()
     {
+        $app = app(Apps::class);
         $agent = $this->createTestAgent();
         $company = auth()->user()->getCurrentCompany();
 
-        $result = new RemoveAgentAction($agent, $company)->execute();
+        $result = new RemoveAgentAction($agent, $app, $company)->execute();
 
         $this->assertTrue($result);
     }
 
     public function testChatWithAgentWithoutOpenClawIdThrowsException()
     {
-        $this->expectException(\Kanvas\Exceptions\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Agent has not been deployed to OpenClaw');
 
+        $app = app(Apps::class);
         $agent = $this->createTestAgent();
         $company = auth()->user()->getCurrentCompany();
 
-        new ChatWithAgentAction($agent, $company, 'Hello')->execute();
+        new ChatWithAgentAction($agent, $app, $company, 'Hello')->execute();
     }
 }

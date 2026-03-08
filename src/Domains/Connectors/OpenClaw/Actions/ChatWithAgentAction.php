@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -14,6 +15,7 @@ class ChatWithAgentAction
 {
     public function __construct(
         protected Agent $agent,
+        protected AppInterface $app,
         protected CompanyInterface $company,
         protected string $message,
     ) {
@@ -27,11 +29,11 @@ class ChatWithAgentAction
             throw new ValidationException('Agent has not been deployed to OpenClaw');
         }
 
-        $client = new SshClient($this->company);
+        $client = new SshClient($this->app, $this->company);
 
         try {
-            $response = $client->exec(
-                'openclaw agent --agent ' . escapeshellarg((string) $agentId)
+            $response = $client->cli(
+                'agent --agent ' . escapeshellarg((string) $agentId)
                 . ' --message ' . escapeshellarg($this->message)
             );
         } finally {

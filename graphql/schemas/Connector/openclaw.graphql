@@ -1,0 +1,14 @@
+extend type Mutation @guardByAdmin {
+    openClawRestartGateway: String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@restartGateway"
+        )
+    openClawGatewayLogs(lines: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@gatewayLogs"
+        )
+    openClawListAgents: String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@listAgents"
+        )
+}

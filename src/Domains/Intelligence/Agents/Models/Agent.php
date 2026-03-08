@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,7 @@ use Override;
 class Agent extends BaseModel
 {
     use AsTree;
+    use SlugTrait;
     use UuidTrait;
     use HasFilesystemTrait;
     use DynamicSearchableTrait;
@@ -40,6 +42,7 @@ class Agent extends BaseModel
         'path',
         'user_id',
         'name',
+        'slug',
         'description',
         'config',
         'company_task_list_id',

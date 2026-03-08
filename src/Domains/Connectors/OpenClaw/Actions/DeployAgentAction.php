@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
@@ -15,20 +16,22 @@ class DeployAgentAction
 {
     public function __construct(
         protected Agent $agent,
+        protected AppInterface $app,
         protected CompanyInterface $company,
     ) {
     }
 
     public function execute(): Agent
     {
-        $client = new SshClient($this->company);
-        $agentId = $this->agent->uuid;
+        $client = new SshClient($this->app, $this->company);
+        $agentId = $this->agent->slug;
         $workspacePath = $client->getWorkspacePath($agentId);
 
         try {
-            $client->exec(
-                'openclaw agents add ' . escapeshellarg($agentId)
+            $client->cli(
+                'agents add ' . escapeshellarg($agentId)
                 . ' --workspace ' . escapeshellarg($workspacePath)
+                . ' --non-interactive --json'
             );
 
             $files = WorkspaceFileBuilder::buildAll($this->agent);
@@ -65,8 +68,8 @@ class DeployAgentAction
             $binds[] = '--bind ' . escapeshellarg(strtolower($channel->name));
         }
 
-        $client->exec(
-            'openclaw agents bind --agent ' . escapeshellarg($agentId) . ' ' . implode(' ', $binds)
+        $client->cli(
+            'agents bind --agent ' . escapeshellarg($agentId) . ' ' . implode(' ', $binds)
         );
     }
 }

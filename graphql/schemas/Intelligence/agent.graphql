@@ -94,11 +94,11 @@ extend type Mutation @guard {
         )
     aiAgentCreateSession(input: AgentSessionInput!): String!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@createSession"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@createSession"
         )
     aiAgentChat(input: ChatSimpleInput!): String!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@chat"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@chat"
         )
 }
 
@@ -143,5 +143,12 @@ extend type Query @guard {
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel"
             defaultCount: 25
             scopes: ["fromApp"]
+        )
+}
+
+extend type Subscription @guard {
+    agentChatResponse(agent_id: ID!, session_id: String!): JSON
+        @subscription(
+            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
         )
 }

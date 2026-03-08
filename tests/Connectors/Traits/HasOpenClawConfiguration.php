@@ -15,7 +15,7 @@ trait HasOpenClawConfiguration
 
         $company->set(
             ConfigurationEnum::SSH_HOST->value,
-            env('TEST_OPENCLAW_SSH_HOST', '127.0.0.1')
+            env('TEST_OPENCLAW_SSH_HOST', '')
         );
         $company->set(
             ConfigurationEnum::SSH_PORT->value,
@@ -23,7 +23,7 @@ trait HasOpenClawConfiguration
         );
         $company->set(
             ConfigurationEnum::SSH_USER->value,
-            env('TEST_OPENCLAW_SSH_USER', 'openclaw')
+            env('TEST_OPENCLAW_SSH_USER', '')
         );
         $company->set(
             ConfigurationEnum::SSH_PRIVATE_KEY->value,
@@ -31,13 +31,21 @@ trait HasOpenClawConfiguration
         );
         $company->set(
             ConfigurationEnum::OPENCLAW_HOME->value,
-            env('TEST_OPENCLAW_HOME', '/opt/openclaw')
+            env('TEST_OPENCLAW_HOME', '~/.openclaw')
+        );
+        $company->set(
+            ConfigurationEnum::CLI_PATH->value,
+            env('TEST_OPENCLAW_CLI_PATH', 'openclaw')
+        );
+        $company->set(
+            ConfigurationEnum::CONFIG_FILENAME->value,
+            env('TEST_OPENCLAW_CONFIG_FILENAME', 'openclaw.json')
         );
     }
 
     public function hasOpenClawCredentials(): bool
     {
-        return ! empty(env('TEST_OPENCLAW_SSH_HOST'))
-            && ! empty(env('TEST_OPENCLAW_SSH_PRIVATE_KEY'));
+        return ! empty(env('TEST_OPENCLAW_SSH_HOST'));
     }
+
 }

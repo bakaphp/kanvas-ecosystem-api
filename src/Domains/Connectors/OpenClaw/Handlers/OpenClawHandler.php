@@ -29,7 +29,7 @@ class OpenClawHandler extends BaseIntegration
         $this->company->set('openclaw_home', $this->data['openclaw_home'] ?? '~/.openclaw');
         $this->company->set('openclaw_gateway_token', $this->data['gateway_token'] ?? '');
 
-        $client = new SshClient($this->company);
+        $client = new SshClient($this->app, $this->company);
         $status = $client->getGatewayStatus();
         $client->disconnect();
 
