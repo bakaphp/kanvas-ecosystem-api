@@ -19,11 +19,13 @@ use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Nevadskiy\Tree\AsTree;
 use Override;
 
 #[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
 {
+    use AsTree;
     use UuidTrait;
     use HasFilesystemTrait;
     use DynamicSearchableTrait;
@@ -34,12 +36,21 @@ class Agent extends BaseModel
         'apps_id',
         'companies_id',
         'agent_type_id',
+        'parent_id',
+        'path',
         'user_id',
         'name',
         'description',
         'config',
         'company_task_list_id',
         'role',
+        'soul',
+        'instructions',
+        'output_format',
+        'identity',
+        'user_context',
+        'tools_config',
+        'deployment_status',
         'agent_model_id',
         'is_active',
     ];
@@ -47,6 +58,7 @@ class Agent extends BaseModel
     protected $casts = [
         'config' => Json::class,
         'role' => Json::class,
+        'identity' => Json::class,
         'is_active' => 'boolean',
     ];
 

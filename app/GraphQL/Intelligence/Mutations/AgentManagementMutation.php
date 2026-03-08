@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -32,12 +33,17 @@ class AgentManagementMutation
     {
         $input = $req['input'] ?? [];
         $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
+        $parentAgent = isset($input['parent_agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
+            : null;
+
         $agentDTO = new AgentDTO(
             app: $app,
-            company: auth()->user()->getCurrentCompany(),
+            company: $company,
             user: auth()->user(),
             agentModel: $agentModel,
             agentType: $agentType,
@@ -47,7 +53,14 @@ class AgentManagementMutation
             description: $input['description'],
             config: $input['config'],
             task: $task,
-            communicationChannel: $input['communication_channels'] ?? []
+            communicationChannel: $input['communication_channels'] ?? [],
+            soul: $input['soul'] ?? null,
+            instructions: $input['instructions'] ?? null,
+            outputFormat: $input['output_format'] ?? null,
+            identity: $input['identity'] ?? null,
+            userContext: $input['user_context'] ?? null,
+            toolsConfig: $input['tools_config'] ?? null,
+            parentAgent: $parentAgent,
         );
 
         return new CreateAgentAction($agentDTO)->execute();
@@ -56,14 +69,19 @@ class AgentManagementMutation
     public function update(mixed $root, array $req): Agent
     {
         $input = $req['input'] ?? [];
-        $agent = Agent::findOrFail($req['id']);
         $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
+        $parentAgent = isset($input['parent_agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
+            : null;
+
         $agentDTO = new AgentDTO(
             app: $app,
-            company: auth()->user()->getCurrentCompany(),
+            company: $company,
             user: auth()->user(),
             agentType: $agentType,
             agentModel: $agentModel,
@@ -73,7 +91,14 @@ class AgentManagementMutation
             description: $input['description'],
             config: $input['config'],
             task: $task,
-            communicationChannel: $input['communication_channels'] ?? []
+            communicationChannel: $input['communication_channels'] ?? [],
+            soul: $input['soul'] ?? null,
+            instructions: $input['instructions'] ?? null,
+            outputFormat: $input['output_format'] ?? null,
+            identity: $input['identity'] ?? null,
+            userContext: $input['user_context'] ?? null,
+            toolsConfig: $input['tools_config'] ?? null,
+            parentAgent: $parentAgent,
         );
 
         return new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -101,10 +126,16 @@ class AgentManagementMutation
             company: $company
         );
 
+        if ($agent->type->handler === OpenClawAgentHandler::class) {
+            $handler = new OpenClawAgentHandler();
+            $handler->setAgent($agent);
+
+            return $handler->chat($req['message']);
+        }
+
         $useInspector = $app->get('inspector-key') !== null;
 
         $currentAgent = new $agent->type->handler();
-        //$currentAgent = $this->agent;
         $sessionEntity = Session::fromApp($app)->fromCompany($company)->where('uuid', (string) $req['session_id'])->first()?->entity();
 
         $currentAgent->setConfiguration(
@@ -130,9 +161,7 @@ class AgentManagementMutation
             $req['message']
         ) : $currentAgent->chat(new UserMessage($req['message']));
 
-        $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
-
-        return $responseText;
+        return ChatHelper::extractTextFromResponse($responseContent->getContent());
     }
 
     public function createSession(mixed $root, array $req): string

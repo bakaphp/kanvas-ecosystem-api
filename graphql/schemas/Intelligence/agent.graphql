@@ -5,12 +5,22 @@ type AgentAi {
     type: agentType! @belongsTo
     model: AgentAiModel! @belongsTo
     companyTaskList: TaskList! @belongsTo
+    parent: AgentAi @belongsTo(relation: "parent")
+    children: [AgentAi!]! @hasMany(relation: "children")
     uuid: String!
     name: String!
     description: String
     config: Mixed
     role: Mixed
+    soul: String
+    instructions: String
+    output_format: String
+    identity: Mixed
+    user_context: String
+    tools_config: String
+    deployment_status: String!
     agent_model_id: ID
+    parent_id: ID
     is_active: Boolean!
     files: [Filesystem!]!
         @cacheRedis
@@ -39,6 +49,13 @@ input AgentAiInput {
     description: String
     config: Mixed!
     role: Mixed!
+    soul: String
+    instructions: String
+    output_format: String
+    identity: Mixed
+    user_context: String
+    tools_config: String
+    parent_agent_id: ID
     is_active: Boolean!
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
