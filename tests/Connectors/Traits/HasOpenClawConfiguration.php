@@ -47,5 +47,4 @@ trait HasOpenClawConfiguration
     {
         return ! empty(env('TEST_OPENCLAW_SSH_HOST'));
     }
-
 }

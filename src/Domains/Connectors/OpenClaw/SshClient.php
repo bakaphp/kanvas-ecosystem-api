@@ -27,7 +27,7 @@ class SshClient
         $port = (int) ($this->company->get(ConfigurationEnum::SSH_PORT->value) ?? 22);
         $user = $this->company->get(ConfigurationEnum::SSH_USER->value);
         $privateKey = $this->company->get(ConfigurationEnum::SSH_PRIVATE_KEY->value);
-        
+
         $this->openclawHome = $this->company->get(ConfigurationEnum::OPENCLAW_HOME->value) ?? '~/.openclaw';
         $this->cliPath = $this->company->get(ConfigurationEnum::CLI_PATH->value) ?? 'openclaw';
         $this->configFilename = $this->company->get(ConfigurationEnum::CONFIG_FILENAME->value) ?? 'openclaw.json';
