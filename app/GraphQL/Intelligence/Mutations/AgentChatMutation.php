@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
