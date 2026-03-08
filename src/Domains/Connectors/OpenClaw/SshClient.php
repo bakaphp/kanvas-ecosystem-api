@@ -124,6 +124,11 @@ class SshClient
         return $this->cli('agents list --json 2>&1');
     }
 
+    public function getUsage(): string
+    {
+        return $this->cli('status --usage 2>&1');
+    }
+
     public function disconnect(): void
     {
         $this->sftp->disconnect();

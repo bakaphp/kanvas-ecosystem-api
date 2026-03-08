@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\DeployAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetGatewayLogsAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
@@ -209,6 +210,10 @@ class OpenClawTest extends TestCase
 
         $agents = new ListAgentsAction($app, $company)->execute();
         $this->assertIsArray($agents);
+
+        $usage = new GetUsageAction($app, $company)->execute();
+        $this->assertIsString($usage);
+        $this->assertNotEmpty($usage);
     }
 
     public function testRemoveAgentWithoutOpenClawIdReturnsTrue()

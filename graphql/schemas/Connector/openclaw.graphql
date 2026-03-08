@@ -1,3 +1,25 @@
+type AgentUsageSnapshot {
+    id: ID!
+    uuid: String!
+    snapshot_date: String!
+    source: String!
+    raw_output: String!
+    parsed_data: JSON
+    created_at: DateTime!
+}
+
+extend type Query @guardByAdmin {
+    agentUsageSnapshots(
+        where: _ @whereConditions(columns: ["id", "snapshot_date", "source"])
+        orderBy: _ @orderBy(columns: ["id", "snapshot_date", "created_at"])
+    ): [AgentUsageSnapshot!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
 extend type Mutation @guardByAdmin {
     openClawRestartGateway: String!
         @field(
@@ -10,5 +32,9 @@ extend type Mutation @guardByAdmin {
     openClawListAgents: String!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@listAgents"
+        )
+    openClawUsage: String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@usage"
         )
 }

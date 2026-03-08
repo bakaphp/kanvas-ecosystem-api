@@ -7,8 +7,11 @@ namespace App\GraphQL\Intelligence\Mutations;
 use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -40,12 +43,16 @@ class AgentChatMutation
 
         $message = (string) $input['message'];
         $sessionId = (string) $input['session_id'];
+        $startTime = microtime(true);
 
         if ($agent->type->handler === OpenClawAgentHandler::class) {
             $handler = new OpenClawAgentHandler();
             $handler->setAgent($agent);
 
             $response = $handler->chat($message);
+            $durationMs = (microtime(true) - $startTime) * 1000.0;
+
+            $this->trackUsage($agent, $app, $company, $message, $response, $durationMs, $sessionId);
             $this->broadcastChatResponse($agent, $sessionId, $message, $response);
 
             return $response;
@@ -80,6 +87,9 @@ class AgentChatMutation
         ) : $currentAgent->chat(new UserMessage($message));
 
         $response = ChatHelper::extractTextFromResponse($responseContent->getContent());
+        $durationMs = (microtime(true) - $startTime) * 1000.0;
+
+        $this->trackUsage($agent, $app, $company, $message, $response, $durationMs, $sessionId);
         $this->broadcastChatResponse($agent, $sessionId, $message, $response);
 
         return $response;
@@ -137,6 +147,26 @@ class AgentChatMutation
         )->execute();
 
         return $chatSession->uuid;
+    }
+
+    protected function trackUsage(
+        Agent $agent,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $message,
+        string $response,
+        float $durationMs,
+        string $sessionId,
+    ): void {
+        new TrackAgentUsageAction(
+            agent: $agent,
+            app: $app,
+            company: $company,
+            message: $message,
+            response: $response,
+            durationMs: $durationMs,
+            sessionId: $sessionId,
+        )->execute();
     }
 
     protected function broadcastChatResponse(

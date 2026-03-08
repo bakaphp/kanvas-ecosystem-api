@@ -6,6 +6,7 @@ namespace App\GraphQL\Connector\OpenClaw\Mutations;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\GetGatewayLogsAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RestartGatewayAction;
 
@@ -35,5 +36,13 @@ class OpenClawMutation
         $result = new ListAgentsAction($app, $company)->execute();
 
         return (string) json_encode($result);
+    }
+
+    public function usage(mixed $root, array $req): string
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        return new GetUsageAction($app, $company)->execute();
     }
 }
