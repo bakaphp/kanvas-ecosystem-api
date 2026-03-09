@@ -145,6 +145,10 @@ class CreateEsimOrderAction
             activeDate: $this->order->created_at->format('Y-m-d')
         );
 
+        if ($this->cmLinkOrder['code'] !== '0000000') {
+            throw new ValidationException($this->cmLinkOrder['description']);
+        }
+
         $this->order->set('cmlink_response', $this->cmLinkOrder);
 
         $this->orderMetaData = $this->order->metadata ?? [];
