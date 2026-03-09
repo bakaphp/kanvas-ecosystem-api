@@ -115,12 +115,18 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
     }
 
     /**
-     * Delete all schedule rules and associated time slots for a product.
+     * Delete all schedule rules and associated time slots for a product's variant.
      */
     protected function deleteScheduleRulesForProduct(Model $product, AppInterface $app): void
     {
-        $scheduleRules = ScheduleRules::where('resources_id', $product->getId())
-            ->where('resources_type', $product->getMorphClass())
+        $variant = $product->variants()->first();
+
+        if (! $variant) {
+            return;
+        }
+
+        $scheduleRules = ScheduleRules::where('resources_id', $variant->getId())
+            ->where('resources_type', $variant->getMorphClass())
             ->where('apps_id', $app->getId())
             ->whereJsonContains('metadata->created_from', 'operation_days')
             ->get();

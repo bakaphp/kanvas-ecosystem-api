@@ -24,6 +24,7 @@ class CapturePaymentCommand extends Command
                             {app_id : The application ID}
                             {order_id : order to apply the payment capture}
                             {payment_id : payment to capture}
+                            {--no-email : Skip sending payment receipt email}
                         ';
 
     /**
@@ -59,18 +60,21 @@ class CapturePaymentCommand extends Command
         $this->overwriteAppService($app);
 
         try {
+            $sendEmail = ! $this->option('no-email');
+
             $result = new CapturePaymentAction(
                 app: $app,
                 order: $order,
                 payment: $payment
-            )->execute();
+            )->execute(sendEmail: $sendEmail);
 
             if ($result['status'] === 'error') {
                 $this->error("Error capturing payment for order({$order->id}) {$order->order_number} : {$result['message']}");
                 return;
             }
 
-            $this->info("Payment captured for order({$order->id}) {$order->order_number} : {$result['message']}");
+            $emailStatus = $sendEmail ? ' (email sent)' : ' (email skipped)';
+            $this->info("Payment captured for order({$order->id}) {$order->order_number} : {$result['message']}{$emailStatus}");
         } catch (EchoPayException $e) {
             $currentMetadata['echopay_error'] = $e->getErrorBody();
             $currentMetadata['echopay_error_message'] = $e->getMessage();

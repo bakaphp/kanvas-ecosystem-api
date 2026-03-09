@@ -12,6 +12,8 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
+use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -565,5 +567,278 @@ class OrderWalletTest extends TestCase
         $applyWalletResponse->assertJsonFragment([
             'message' => 'Insufficient wallet balance',
         ]);
+    }
+
+    public function testCreateOrderFromUserWallet()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        // Enable user wallet mode
+        $app->set(WalletConfigurationEnum::USE_USER_WALLET->value, true);
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 0.29,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+
+        $variant->updatePriceInWarehouse($warehouse, 100);
+        $variant->updatePriceInChannel($channel, 100);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        // Deposit to USER wallet (not company)
+        $userWallet = $user->createAppWallet($app, ['name' => 'default']);
+        $userWallet->deposit(100000, [
+            'description' => 'Initial deposit for user wallet order testing',
+            'slug' => 'initial-user-deposit',
+        ]);
+
+        $initialBalance = $userWallet->balanceFloat;
+
+        $data = [
+            'cartId' => 'default',
+            'customer' => [
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variant->getId(),
+                    'quantity' => 2,
+                ],
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'metadata' => [
+                'user_company_id' => $company->getId(),
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                createOrderFromWalletCart(input: $input) {
+                    order {
+                        id
+                        total_gross_amount
+                    }
+                }
+            }
+        ', [
+            'input' => $data,
+        ]);
+
+        $response->assertJson([
+            'data' => [
+                'createOrderFromWalletCart' => [
+                    'order' => [
+                        'id' => true,
+                    ],
+                ],
+            ],
+        ]);
+
+        // Verify user wallet was debited
+        $userWallet->refresh();
+        $this->assertLessThan(
+            $initialBalance,
+            $userWallet->balanceFloat,
+            'User wallet balance should be reduced after order'
+        );
+
+        // Cleanup: disable user wallet mode
+        $app->del(WalletConfigurationEnum::USE_USER_WALLET->value);
+    }
+
+    public function testBuyCoinsAddsToUserWallet()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $coinAmount = 500.00;
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: 'Wallet Coin Pack ' . fake()->word(),
+            sku: fake()->unique()->word(),
+            warehouses: [[
+                'quantity' => 100,
+                'price' => 9.99,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+
+        // Add wallet-coin attributes so the system recognizes this as a coin product
+        $variant->addAttribute('wallet-coin', 'true');
+        $variant->addAttribute('wallet-coin-amount', (string) $coinAmount);
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 9.99);
+        $variant->updatePriceInChannel($channel, 9.99);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        // Get user wallet balance before
+        $userWallet = $user->createAppWallet($app, ['name' => 'default']);
+        $balanceBefore = (float) $userWallet->balanceFloat;
+
+        // Create order with the coin variant using regular cart (not wallet cart)
+        $data = [
+            'cartId' => 'default',
+            'customer' => [
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variant->getId(),
+                    'quantity' => 1,
+                ],
+            ],
+            'shipping_address' => [
+                'address' => fake()->address(),
+                'address_2' => fake()->postcode(),
+                'city' => fake()->city(),
+                'state' => fake()->state(),
+            ],
+            'metadata' => [
+                'user_company_id' => $company->getId(),
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', ['input' => $data]);
+
+        $response->assertSuccessful();
+        $orderId = $response->json('data.createOrderFromCart.order.id');
+        $this->assertNotNull($orderId);
+
+        // Simulate the workflow activity that runs after payment: AddFundsToUserWalletAction
+        $order = Order::getById((int) $orderId);
+        $transaction = new AddFundsToUserWalletAction(order: $order)->execute();
+
+        $this->assertNotNull($transaction);
+        $this->assertEquals($coinAmount, (float) $transaction->amountFloat);
+
+        // Verify user wallet balance increased
+        $userWallet->refresh();
+        $this->assertEquals(
+            $balanceBefore + $coinAmount,
+            (float) $userWallet->balanceFloat,
+            'User wallet balance should increase by coin amount after purchase'
+        );
+    }
+
+    public function testCreateOrderFromWalletUsesVariantWalletCreditAmount()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $app->set(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value, true);
+        try {
+            $productData = new Product(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: fake()->name(),
+                sku: fake()->unique()->word(),
+                warehouses: [[
+                    'quantity' => 10,
+                    'price' => 100.00,
+                ]]
+            );
+            $product = (new CreateProductAction($productData, $user))->execute();
+            $variant = $product->variants()->first();
+            $variant->addAttribute(WalletConfigurationEnum::VARIANT_WALLET_CREDIT_AMOUNT->value, '25');
+
+            $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+            $channel = Channels::fromApp($app)->fromCompany($company)->first();
+            $variant->updatePriceInWarehouse($warehouse, 100);
+            $variant->updatePriceInChannel($channel, 100);
+
+            $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+            $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+            $wallet = $company->createAppWallet($app, ['name' => 'default']);
+            $wallet->deposit(100000, [
+                'description' => 'Initial deposit for variant credit wallet test',
+                'slug' => 'variant-credit-wallet-test',
+            ]);
+            $initialBalance = (float) $wallet->balanceFloat;
+
+            $response = $this->graphQL('
+                mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                    createOrderFromWalletCart(input: $input) {
+                        order {
+                            id
+                        }
+                    }
+                }
+            ', [
+                'input' => [
+                    'cartId' => 'default',
+                    'customer' => [
+                        'email' => $user->email,
+                        'phone' => $user->phone,
+                    ],
+                    'items' => [
+                        [
+                            'variant_id' => $variant->getId(),
+                            'quantity' => 2,
+                        ],
+                    ],
+                    'shipping_address' => [
+                        'address' => fake()->address(),
+                        'address_2' => fake()->postcode(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                    ],
+                    'metadata' => [
+                        'user_company_id' => $company->getId(),
+                    ],
+                ],
+            ]);
+
+            $response->assertSuccessful();
+
+            $wallet->refresh();
+            $this->assertEquals(
+                $initialBalance - 50.0,
+                (float) $wallet->balanceFloat,
+                'Wallet should be debited by variant wallet credit amount (25 x 2), not variant price'
+            );
+        } finally {
+            $app->del(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
+        }
     }
 }

@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Models;
 
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Souk\Discounts\Factories\DiscountFactory;
 use Kanvas\Souk\Discounts\Observers\DiscountObserver;
@@ -47,6 +51,9 @@ class Discount extends BaseModel
     use UuidTrait;
     use HasFactory;
     use HasCustomFields;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
 
     protected $table = 'discounts';
     protected $guarded = [];
@@ -166,5 +173,158 @@ class Discount extends BaseModel
     protected static function newFactory()
     {
         return new DiscountFactory();
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        $customIndex = $app->get('app_custom_discount_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'discount_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => $this->uuid,
+            'id' => (string) $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'description' => $this->description,
+            'code' => $this->code,
+            'value' => $this->value,
+            'is_percentage' => $this->is_percentage,
+            'is_active' => $this->is_active,
+            'discount_type' => [
+                'id' => $this->discountType?->id,
+                'name' => $this->discountType?->name,
+            ],
+            'company' => [
+                'id' => $this->companies_id,
+                'name' => $this->company?->name,
+            ],
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'start_date' => $this->start_date?->timestamp,
+            'end_date' => $this->end_date?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->is_deleted;
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'code',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'value',
+                    'type' => 'float',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'is_percentage',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_active',
+                    'type' => 'bool',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'discount_type',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'start_date',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'end_date',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
+            'enable_nested_fields' => true,
+        ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $searchQuery->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'name,description,code',
+            ]);
+        }
+
+        return $searchQuery;
     }
 }

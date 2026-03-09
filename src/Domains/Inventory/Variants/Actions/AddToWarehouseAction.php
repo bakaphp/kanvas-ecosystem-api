@@ -51,7 +51,8 @@ class AddToWarehouseAction
                 'can_pre_order' => $this->variantsWarehousesDto->can_pre_order,
                 'is_coming_son' => $this->variantsWarehousesDto->is_coming_son,
                 'is_new' => $this->variantsWarehousesDto->is_new,
-                'config' => $this->variantsWarehousesDto->config
+                'config' => $this->variantsWarehousesDto->config,
+                'max_capacity' => $this->variantsWarehousesDto->max_capacity
             ]
         );
 

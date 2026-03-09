@@ -46,7 +46,15 @@ class PushLeadNotesActivity extends KanvasActivity
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($lead) {
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'message_id' => $message->getId(),
+                        'message' => 'Message is locked or not public, skipping VinSolution note push.',
+                    ]);
+                }
+
                 $leadNoteAction = new PushNoteToLeadAction(
                     lead: $lead,
                     message: $message,

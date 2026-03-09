@@ -1,5 +1,6 @@
 type ActionPipeline {
     id: ID!
+    uuid: String!
     user: User! @belongsTo
     company: Company! @belongsTo
     stages: [ActionPipelineStage!]! @hasMany
@@ -13,18 +14,75 @@ type ActionPipeline {
 
 type ActionPipelineStage {
     id: ID!
-    pipeline: LeadPipeline! @belongsTo
+    pipeline: ActionPipeline! @belongsTo
     name: String!
     has_rotting_days: Int!
     rotting_days: Int!
     weight: Int!
 }
 
+input CreatePipelineInput {
+    name: String!
+    slug: String
+    weight: Int
+    is_default: Boolean
+}
+
+input UpdatePipelineInput {
+    name: String!
+    slug: String
+    weight: Int
+    is_default: Boolean
+}
+
+input CreatePipelineStageInput {
+    pipelines_id: ID!
+    name: String!
+    has_rotting_days: Int
+    rotting_days: Int
+    weight: Int
+}
+
+input UpdatePipelineStageInput {
+    name: String!
+    has_rotting_days: Int
+    rotting_days: Int
+    weight: Int
+}
+
+extend type Mutation @guardByAdmin {
+    createActionPipeline(input: CreatePipelineInput!): ActionPipeline!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineMutation@create"
+        )
+    updateActionPipeline(id: ID!, input: UpdatePipelineInput!): ActionPipeline!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineMutation@update"
+        )
+    deleteActionPipeline(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineMutation@delete"
+        )
+    createActionPipelineStage(input: CreatePipelineStageInput!): ActionPipelineStage!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineStageMutation@create"
+        )
+    updateActionPipelineStage(id: ID!, input: UpdatePipelineStageInput!): ActionPipelineStage!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineStageMutation@update"
+        )
+    deleteActionPipelineStage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineStageMutation@delete"
+        )
+}
+
 extend type Query @guard {
     actionPipelines(
+        search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "companies_id", "slug", "weight", "is_default"]
+                columns: ["id", "uuid", "companies_id", "slug", "weight", "is_default"]
             )
         orderBy: _
             @orderBy(

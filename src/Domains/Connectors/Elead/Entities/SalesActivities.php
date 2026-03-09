@@ -9,6 +9,7 @@ use DateTime;
 use InvalidArgumentException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 
 class SalesActivities
 {
@@ -94,10 +95,22 @@ class SalesActivities
     /**
      * Get available activity types.
      */
-    public static function getActivityTypes(AppInterface $app, Companies $company): array
+    public static function getActivityTypes(AppInterface $app, Companies $company, bool $fresh = false): array
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('activity_types', 'all');
+
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get('/sales/v1/elead/activities/types');
+
+        $cache->setReference('activity_types', 'all', $response);
 
         return $response;
     }
@@ -105,10 +118,22 @@ class SalesActivities
     /**
      * Get activity outcomes.
      */
-    public static function getActivityOutcomes(AppInterface $app, Companies $company): array
+    public static function getActivityOutcomes(AppInterface $app, Companies $company, bool $fresh = false): array
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('activity_outcomes', 'all');
+
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get('/sales/v1/elead/activities/outcomes');
+
+        $cache->setReference('activity_outcomes', 'all', $response);
 
         return $response;
     }
@@ -362,10 +387,26 @@ class SalesActivities
         if (isset($activities['items'])) {
             foreach ($activities['items'] as $activity) {
                 $phoneOutReach = $activity['activityType'] === 'Phone Call'
-                    && $activity['outcome'] === 'Completed'
+                    && $activity['category'] === 'Completed'
                     && $activity['name'] === 'Outbound Call';
 
-                if ($phoneOutReach) {
+                $dayOneCall = $activity['activityType'] === 'Phone Call'
+                    && $activity['name'] === 'Day 1 Call/Text'
+                    && strtolower($activity['outcome']) === 'contacted';
+
+                //make it work email
+                $sendWorkSheet = $activity['activityType'] === 'Phone Call'
+                   && strtolower($activity['name']) === 'send worksheet'
+                   && strtolower($activity['outcome']) === 'contacted';
+
+                $textMessage = $activity['activityType'] === 'Phone Call'
+                   && strtolower($activity['name']) === 'send worksheet'
+                   && strtolower($activity['outcome']) === 'contacted';
+
+                $contacted = strtolower($activity['outcome'] ?? '') === 'contacted';
+                //&& $activity['name'] === 'Outbound Call';
+
+                if ($phoneOutReach || $dayOneCall || $sendWorkSheet || $textMessage || $contacted) {
                     return true;
                 }
             }

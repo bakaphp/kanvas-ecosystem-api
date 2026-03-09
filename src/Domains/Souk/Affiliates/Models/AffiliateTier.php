@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
 
@@ -40,6 +44,7 @@ use Override;
 class AffiliateTier extends BaseModel
 {
     use UuidTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliate_tiers';
 
@@ -108,5 +113,19 @@ class AffiliateTier extends BaseModel
     public function getEffectiveCommissionRate(): float
     {
         return $this->base_commission_rate * $this->commission_multiplier;
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

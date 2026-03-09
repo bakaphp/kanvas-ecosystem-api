@@ -38,12 +38,16 @@ enum WorkflowEnum: string
     case BEFORE_ACTION = 'before-action';
     case STATUS_TRANSITION = 'status-transition';
     case AFTER_UPLOAD = 'after-upload';
-    case HANDOFF = "handoff";
-    case FAKE_CONTEXT = "fake-context";
-    case UPDATE_USER_PROFILE = "update-user-profile";
+    case HANDOFF = 'handoff';
+    case FAKE_CONTEXT = 'fake-context';
+    case UPDATE_USER_PROFILE = 'update-user-profile';
 
     case CONTACT_SAVED = 'contact-saved';
+    case TRIGGER_AI = 'trigger-ai';
     case AFTER_LEGACY_FEED = 'after-legacy-feed';
+    case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
+    case FOLLOW_UP_PROMPT = 'follow-up-prompt';
+    case DEBUG = 'debug';
 
     /**
      * Get the enum case by its value.

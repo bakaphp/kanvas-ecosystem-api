@@ -6,8 +6,8 @@ namespace Kanvas\ActionEngine\Tasks\WorkflowActivity;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -33,40 +33,36 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                 $taskItemId = $lead->get('checklist_upload');
 
                 if (! $taskItemId) {
-                    $results = ['message' => 'No task item id found'];
-
                     return [
-                        'message' => $results['message'],
+                        'message' => 'No task item id found',
                         'result' => false,
                     ];
                 }
 
                 $taskListItem = TaskListItem::findOrFail($taskItemId);
 
-                $taskEngagementItem = TaskEngagementItem::where([
+                $existingItem = TaskEngagementItem::where([
                     'task_list_item_id' => $taskListItem->getId(),
                     'lead_id' => $lead->getId(),
-                    'apps_id' => $lead->app->getId(),
+                    'apps_id' => $app->getId(),
                     'is_deleted' => 0,
                 ])->first();
 
-                if ($taskEngagementItem && $taskEngagementItem->status === 'completed') {
+                if ($existingItem && $existingItem->status === 'completed') {
                     return [
                         'message' => 'Checklist status already completed',
                         'result' => true,
                     ];
                 }
 
-                $random = new Str();
-                $uuid = $random->uuid();
                 $verb = 'upload-document';
-                $status = 'submitted';
+                $uuid = new Str()->uuid();
                 $messageData = [
                     'verb' => $verb,
-                    'engagement_status' => $status,
+                    'engagement_status' => 'submitted',
                     'message' => [
                         'leads_uuid' => $lead->uuid,
-                        'status' => $status,
+                        'status' => 'submitted',
                         'source' => 'checklist',
                         'text' => 'User uploaded a document ' . $taskListItem->name,
                         'visitor_id' => $uuid,
@@ -74,17 +70,14 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     'files' => [],
                 ];
 
-                // Create message type if it doesn't exist
-
                 $messageTypeDto = MessageTypeInput::from([
                     'apps_id' => $app->getId(),
                     'name' => $verb,
                     'verb' => $verb,
                 ]);
-                $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+                $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
 
-                // Create the message using Laravel's CreateMessageAction
-                $createMessage = new CreateMessageAction(
+                $newMessage = new CreateMessageAction(
                     new MessageInput(
                         app: $app,
                         company: $lead->company,
@@ -94,14 +87,12 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     ),
                     SystemModulesRepository::getByModelName(Lead::class, $app),
                     $lead->getId()
-                );
+                )->execute();
 
-                $newMessage = $createMessage->execute();
-
-                // Create engagement using Laravel's Engagement model
-                $engagement = Engagement::firstOrCreate([
+                $status = 'submitted';
+                Engagement::firstOrCreate([
                     'companies_id' => $lead->company->getId(),
-                    'apps_id' => $lead->app->getId(),
+                    'apps_id' => $app->getId(),
                     'users_id' => $lead->user->getId(),
                     'leads_id' => $lead->getId(),
                     'people_id' => $lead->people->getId(),
@@ -109,41 +100,40 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
                     'message_id' => $newMessage->getId(),
                     'slug' => $verb,
                     'entity_uuid' => (string) $uuid,
-                    'pipelines_stages_id' => $this->getStageId($taskListItem->companyAction, $status),
+                    'pipelines_stages_id' => $this->getStageId($taskListItem, $status),
                 ]);
 
-                // Handle task engagement item
-                if (! $taskEngagementItem) {
-                    $taskEngagementItem = new TaskEngagementItem();
-                    $taskEngagementItem->task_list_item_id = $taskListItem->getId();
-                    $taskEngagementItem->lead_id = $lead->getId();
-                    $taskEngagementItem->companies_id = $lead->company->getId();
-                    $taskEngagementItem->apps_id = $lead->app->getId();
-                    $taskEngagementItem->users_id = $lead->user->getId();
-                }
+                /** @var \Kanvas\Users\Models\Users $leadUser */
+                $leadUser = $lead->user;
+                /** @var \Kanvas\Companies\Models\Companies $leadCompany */
+                $leadCompany = $lead->company;
 
-                $taskEngagementItem->engagement_start_id = $engagement->getId();
-                $taskEngagementItem->engagement_end_id = $engagement->getId();
-                $taskEngagementItem->status = 'completed';
-                $taskEngagementItem->saveOrFail();
+                $taskEngagementItem = new ChangeTaskEngagementItemStatusAction(
+                    taskListItem: $taskListItem,
+                    lead: $lead,
+                    status: 'completed',
+                    user: $leadUser,
+                    app: $app,
+                    company: $leadCompany,
+                    message: $newMessage,
+                )->execute();
 
                 $lead->del('checklist_upload');
 
                 return [
                     'message' => 'Checklist status updated successfully',
                     'result' => true,
-                    'engagement_id' => $engagement->getId(),
+                    'task_engagement_item_id' => $taskEngagementItem->getId(),
                 ];
             },
             company: $lead->company
         );
     }
 
-    private function getStageId(CompanyAction $companyAction, string $status): int
+    private function getStageId(TaskListItem $taskListItem, string $status): int
     {
-        // Get the appropriate stage ID based on the status
-        if ($companyAction->pipeline) {
-            $stage = $companyAction->pipeline->stages()
+        if ($taskListItem->companyAction->pipeline) {
+            $stage = $taskListItem->companyAction->pipeline->stages()
                 ->where('slug', $status)
                 ->first();
 
@@ -152,7 +142,6 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
             }
         }
 
-        // Fallback - you might want to handle this differently
         return 1;
     }
 }

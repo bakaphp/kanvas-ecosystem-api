@@ -2,9 +2,11 @@
 
 namespace Kanvas\Souk\Payments\Actions;
 
+use Exception;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
@@ -23,19 +25,25 @@ class CreatePaymentAction
     public function execute($formData = []): Payments
     {
         $paymentMethodId = $formData['payment_methods_id'] ?? $this->order->payment_method_id;
-        $paymentMethod = PaymentMethods::fromApp($this->order->app)->where('id', $paymentMethodId)->first();
+        $paymentMethod = $paymentMethodId ? PaymentMethods::fromApp($this->order->app)->where('id', $paymentMethodId)->first() : null;
         $paymentIntent = $formData['payment_intent_id'] ?? null;
+        $paymentMethodType = $formData['payment_method_type'] ?? null;
 
-        if (! $paymentMethod && ! $paymentIntent) {
-            throw new \Exception('Payment method not found');
+        $isDirectPaymentMethod = in_array($paymentMethodType, [
+            PaymentMethodTypesEnum::CASH->value,
+            PaymentMethodTypesEnum::BANK_TRANSFER->value,
+        ]);
+
+        if (! $paymentMethod && ! $paymentIntent && ! $isDirectPaymentMethod) {
+            throw new Exception('Payment method not found');
         }
 
         if ($this->order->isPaid()) {
-            throw new \Exception('Order already paid');
+            throw new Exception('Order already paid');
         }
 
         if ($this->hasPendingPayments()) {
-            $this->order->payments()->pending()->delete();
+            $this->order->payments()->pending()->forceDelete();
         }
 
         $paymentFormData = [
@@ -47,7 +55,9 @@ class CreatePaymentAction
             'users_id' => $this->user->getId(),
             'companies_id' => $this->order->companies_id,
             'currency' => $this->order->currency,
-            'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value
+            'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value,
+            'payment_method' => $paymentMethodType ?? 'card',
+            'metadata' => $paymentMethodType ? ['payment_method_type' => $paymentMethodType] : null,
         ];
 
         $payment = $this->order->payments()->create($paymentFormData);

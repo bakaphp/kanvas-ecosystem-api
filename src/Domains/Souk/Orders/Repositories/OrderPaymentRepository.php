@@ -25,9 +25,11 @@ class OrderPaymentRepository
         Carbon $end,
         array $paidStates,
         ?int $variantId = null,
-        string $timezone = 'UTC'
+        string $timezone = 'UTC',
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
-        return Order::query()
+        $query = Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
             ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
             ->leftJoin('payments', function ($join) {
@@ -36,9 +38,18 @@ class OrderPaymentRepository
                     ->where('payments.is_deleted', '=', 0)
                     ->where('payments.status', '=', 'paid');
             })
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
             ->when($variantId, function ($query) use ($variantId) {
-                $query->whereHas('items', function ($q) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
                 });
             })
             ->with(['items'])
@@ -49,14 +60,64 @@ class OrderPaymentRepository
                 DATE(CONVERT_TZ(order_transitions_history.changed_at, 'UTC', ?)) AS date,
                 COUNT(DISTINCT orders.id) AS total,
                 SUM(orders.total_net_amount) AS amount,
-                COUNT(DISTINCT payments.id) AS card,
+                COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
                 GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
-                COUNT(DISTINCT CASE WHEN payments.id IS NULL THEN orders.id END) AS transaction,
-                SUM(CASE WHEN payments.id IS NULL THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
-                SUM(CASE WHEN payments.id IS NOT NULL THEN orders.total_net_amount ELSE 0 END) AS card_amount
+                COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
+                SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+                SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
             ", [$timezone])
             ->groupBy('date')
-            ->orderBy('date')
+            ->orderBy('date');
+
+        return $query->get();
+    }
+
+    /**
+     * Get orders grouped by provider based on user_email patterns
+     */
+    public function getOrdersByProvider(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        array $providers,
+        ?int $variantId = null,
+        array $productVariantIds = []
+    ): Collection {
+        $query = Order::query()
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
+            ->where('orders.apps_id', $this->app->id)
+            ->whereIn('order_statuses.slug', $paidStates)
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            });
+
+        // Build CASE WHEN for provider matching
+        $caseStatements = [];
+        $bindings = [];
+        foreach ($providers as $provider) {
+            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $bindings[] = $provider['emailPattern'];
+            $bindings[] = $provider['name'];
+        }
+        $caseStatements[] = "ELSE 'other'";
+        $caseExpression = 'CASE ' . implode(' ', $caseStatements) . ' END';
+
+        return $query
+            ->selectRaw("
+                ({$caseExpression}) AS provider_name,
+                COUNT(DISTINCT orders.id) AS total_count,
+                SUM(orders.total_net_amount) AS total_amount
+            ", $bindings)
+            ->groupByRaw("provider_name")
             ->get();
     }
 
@@ -67,20 +128,30 @@ class OrderPaymentRepository
         Carbon $start,
         Carbon $end,
         array $paidStates,
-        ?int $variantId = null
+        ?int $variantId = null,
+        array $orderTypeNames = [],
+        array $productVariantIds = []
     ): Collection {
         return Order::query()
             ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
             ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
             ->whereBetween('order_transitions_history.changed_at', [$start, $end])
             ->where('orders.apps_id', $this->app->id)
             ->whereIn('order_statuses.slug', $paidStates)
             ->when($variantId, function ($query) use ($variantId) {
-                $query->whereHas('items', function ($q) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
                     $q->where('variant_id', $variantId);
                 });
             })
-            ->with(['items'])
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
             ->pluck('orders.id');
     }
 
@@ -106,6 +177,56 @@ class OrderPaymentRepository
             ->groupBy('order_items.variant_id')
             ->get()
             ->keyBy('variant_id');
+    }
+
+    /**
+     * Get orders grouped by the given period type (DAY, WEEK, MONTH, YEAR)
+     */
+    public function getBreakdownByPeriod(
+        string $periodType,
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        string $timezone = 'UTC',
+        array $orderTypeNames = [],
+        ?int $variantId = null,
+        array $productVariantIds = []
+    ): Collection {
+        $format = match (strtoupper($periodType)) {
+            'DAY'   => '%Y-%m-%d',
+            'WEEK'  => '%x-W%v',
+            'YEAR'  => '%Y',
+            default => '%Y-%m',   // MONTH
+        };
+
+        return Order::query()
+            ->join('order_transitions_history', 'order_transitions_history.order_id', '=', 'orders.id')
+            ->join('order_statuses', 'order_transitions_history.to_status_id', '=', 'order_statuses.id')
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
+            ->whereBetween('order_transitions_history.changed_at', [$start, $end])
+            ->where('orders.apps_id', $this->app->id)
+            ->whereIn('order_statuses.slug', $paidStates)
+            ->selectRaw("
+                DATE_FORMAT(CONVERT_TZ(order_transitions_history.changed_at, 'UTC', ?), ?) AS label,
+                COUNT(DISTINCT orders.id) AS total_transactions,
+                SUM(orders.total_net_amount) AS total_amount
+            ", [$timezone, $format])
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
     }
 
     /**

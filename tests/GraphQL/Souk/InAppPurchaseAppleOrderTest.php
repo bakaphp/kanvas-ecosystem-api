@@ -46,7 +46,7 @@ class InAppPurchaseAppleOrderTest extends TestCase
             ],
             ]
         );
-        $product = (new CreateProductAction($productData, $user))->execute();
+        $product = new CreateProductAction($productData, $user)->execute();
 
         // Perform GraphQL mutation
         $response = $this->graphQL('

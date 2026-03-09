@@ -8,9 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Souk\Orders\Models\Order;
+use Override;
 
 class DuplicatedMetadata implements ValidationRule
 {
@@ -20,25 +21,22 @@ class DuplicatedMetadata implements ValidationRule
     ) {
     }
 
+    #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        // Check if validation is enabled for this app
-        $enabled = $this->app->get("validate_metadata_duplicated_enabled");
+        $enabled = $this->app->get('validate_metadata_duplicated_enabled');
         if (! $enabled || $enabled !== 1) {
             return;
         }
 
-        // Get configuration from individual app settings
         $settings = $this->getConfigFromAppSettings();
 
-        // Extract the specific field value from metadata
         $fieldValue = $this->extractFieldValue($value, $settings['field']);
 
         if (! $fieldValue) {
-            return; // No field value to check
+            return;
         }
 
-        // Check if this is a duplicate
         if ($this->isDuplicate($fieldValue, $settings)) {
             $fail("The {$attribute} contains a duplicate value for field '{$settings['field']}'.");
         }
@@ -49,43 +47,52 @@ class DuplicatedMetadata implements ValidationRule
         return [
             'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
             'cooldown_hours' => (int) $this->app->get('validate_metadata_duplicated_cooldown_hours', 24),
-            'use_cache' => (bool) $this->app->get('validate_metadata_duplicated_use_cache', false),
-            'exclude_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
+            'blocking_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
         ];
     }
 
     private function isDuplicate(mixed $value, array $settings): bool
     {
-        // Normalize to lowercase for case-insensitive comparison
         $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-        // if ($settings['use_cache']) {
-        //     $cacheKey = "souk_unique_{$this->app->id}_{$settings['field']}_{$normalizedValue}";
-
-        //     return Cache::remember($cacheKey, 300, function () use ($normalizedValue, $settings) {
-        //         return $this->queryDuplicate($normalizedValue, $settings);
-        //     });
-        // }
-
-        return $this->queryDuplicate($normalizedValue, $settings);
+        return $this->isWithinCoolDown($normalizedValue, $settings);
     }
 
-    private function queryDuplicate(mixed $value, array $settings): bool
+    private function baseMetadataQuery(mixed $value, string $jsonPath): Builder
     {
-        // Convert dot notation to JSON path for whereJsonContains
-        $jsonPath = $settings['field'];
-
-        $query = Order::fromApp($this->app)
-            ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']))
+        return Order::fromApp($this->app)
             ->whereNotNull('metadata')
-            ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
+            ->where('metadata', '!=', '')
+            ->whereRaw('JSON_VALID(metadata)')
+            ->whereRaw('JSON_LENGTH(metadata) > 0')
             ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
+    }
 
-        // Exclude certain order statuses if configured
-        if (! empty($settings['exclude_statuses'])) {
-            $excludeStatuses = array_map('trim', explode(',', $settings['exclude_statuses']));
-            $query->whereHas('orderStatus', function ($q) use ($excludeStatuses) {
-                $q->whereNotIn('slug', $excludeStatuses);
+    private function isBlockedByStatus(mixed $value, array $settings): bool
+    {
+        if (empty($settings['blocking_statuses'])) {
+            return false;
+        }
+
+        $blockingStatuses = array_map('trim', explode(',', $settings['blocking_statuses']));
+
+        return $this->baseMetadataQuery($value, $settings['field'])
+            ->whereHas('orderStatus', function ($q) use ($blockingStatuses) {
+                $q->whereIn('slug', $blockingStatuses);
+            })
+            ->exists();
+    }
+
+    private function isWithinCoolDown(mixed $value, array $settings): bool
+    {
+        $query = $this->baseMetadataQuery($value, $settings['field'])
+            ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']));
+
+        // Exclude orders already caught by the status check to avoid double-counting
+        if (! empty($settings['blocking_statuses'])) {
+            $blockingStatuses = array_map('trim', explode(',', $settings['blocking_statuses']));
+            $query->whereDoesntHave('orderStatus', function ($q) use ($blockingStatuses) {
+                $q->whereIn('slug', $blockingStatuses);
             });
         }
 

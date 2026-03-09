@@ -26,29 +26,20 @@ use Kanvas\Inventory\Variants\Models\Variants;
  */
 class SyncNetSuiteCustomerItemsListAction
 {
-    protected NetSuiteCustomerService $service;
-    protected NetSuiteProductService $productService;
+    protected ?NetSuiteCustomerService $service = null;
+    protected ?NetSuiteProductService $productService = null;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
-        protected CompanyInterface $buyerCompany
+        protected CompanyInterface $buyerCompany,
+        protected array $itemPricingList = []
     ) {
-        $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
-        $this->productService = new NetSuiteProductService($app, $mainAppCompany);
     }
 
     public function execute(): array
     {
-        $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-
-        if (! $customerId) {
-            throw new Exception('Company not linked to NetSuite');
-        }
-
-        $customerInfo = $this->service->getCustomerById($customerId);
-
-        $listOrProductVariantsBarCodeIds = $customerInfo->itemPricingList?->itemPricing ?? [];
+        $listOrProductVariantsBarCodeIds = $this->getItemPricingList();
 
         $createNewChannel = new CreateChannel(
             new Channels(
@@ -65,15 +56,18 @@ class SyncNetSuiteCustomerItemsListAction
 
         $totalProcessed = 0;
         $missed = [];
-        foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
-            $config = null;
+
+        foreach ($listOrProductVariantsBarCodeIds as $item) {
+            $barcode = $item['barcode'];
+            $price = $item['price'];
+
             $variant = Variants::fromApp($this->app)
                 ->fromCompany($this->mainAppCompany)
-                ->where('barcode', $bardCodeId->item->name)
+                ->where('barcode', $barcode)
                 ->first();
 
             if (! $variant) {
-                $missed[] = $bardCodeId->item->name;
+                $missed[] = $barcode;
 
                 continue;
             }
@@ -84,10 +78,10 @@ class SyncNetSuiteCustomerItemsListAction
                 $variantWarehouse,
                 $channel,
                 VariantChannel::from([
-                    'price' => $bardCodeId->price,
-                    'discounted_price' => $bardCodeId->price,
-                    'is_published' => $bardCodeId->price > 0,
-                    'config' => $config ?? null,
+                    'price' => $price,
+                    'discounted_price' => $price,
+                    'is_published' => $price > 0,
+                    'config' => null,
                 ])
             );
             $addVariantToChannel->execute();
@@ -103,5 +97,29 @@ class SyncNetSuiteCustomerItemsListAction
             'total_missed' => count($missed),
             'products_not_found' => $missed,
         ];
+    }
+
+    protected function getItemPricingList(): array
+    {
+        if (! empty($this->itemPricingList)) {
+            return collect($this->itemPricingList)->map(fn (array $item) => [
+                'barcode' => $item['item_display'] ?? '',
+                'price' => (float) ($item['price'] ?? 0),
+            ])->all();
+        }
+
+        $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+
+        if (! $customerId) {
+            throw new Exception('Company not linked to NetSuite');
+        }
+
+        $this->service = new NetSuiteCustomerService($this->app, $this->mainAppCompany);
+        $customerInfo = $this->service->getCustomerById($customerId);
+
+        return collect($customerInfo->itemPricingList?->itemPricing ?? [])->map(fn ($item) => [
+            'barcode' => $item->item->name ?? '',
+            'price' => (float) ($item->price ?? 0),
+        ])->all();
     }
 }

@@ -50,13 +50,13 @@ class WalletManagementQuery
         $userId = $args['userId'] ?? null;
         $user = auth()->user();
 
-        if ($user->isAdmin() && $userId !== $user->getId()) {
+        if ($user->isAdmin() && $userId !== null && $userId !== $user->getId()) {
             $user = $user->getById($userId);
         }
 
         if (! $user->hasWallet($tag) && $tag !== 'default') {
             throw new ModelNotFoundException(
-                'Wallet not found for the given tag.',
+                'Wallet not found for the given tag.'
             );
         }
 
@@ -81,6 +81,24 @@ class WalletManagementQuery
         }
 
         $wallet = $company->createAppWallet($app, ['name' => $tag]);
+
+        return Transaction::query()
+            ->where('wallet_id', $wallet->getKey());
+    }
+
+    public function getUserTransactions(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    {
+        $tag = strtolower($args['tag']);
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        if (! $user->hasWallet($tag) && $tag !== 'default') {
+            throw new ModelNotFoundException(
+                'Wallet not found for the given tag.',
+            );
+        }
+
+        $wallet = $user->createAppWallet($app, ['name' => $tag]);
 
         return Transaction::query()
             ->where('wallet_id', $wallet->getKey());

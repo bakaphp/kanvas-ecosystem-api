@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
@@ -47,6 +48,7 @@ class CreateMessageAction
                 'ip_address' => $this->messageInput->ip_address,
                 'is_public' => $this->messageInput->is_public,
                 'slug' => $this->messageInput->slug,
+                'is_locked' => $this->messageInput->is_locked,
             ];
 
             $validator = Validator::make($data, [
@@ -85,6 +87,10 @@ class CreateMessageAction
                     ->where('apps_id', $this->messageInput->app->getId())
                     ->where('companies_id', $this->messageInput->company->getId())
                     ->where('is_deleted', 0)
+                    ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
+                        $query->where('entity_id', $this->entityId)
+                            ->where('entity_namespace', $this->systemModule->model_name);
+                    })
                     ->first();
 
                 new CreateChannelAction(new Channel(

@@ -81,6 +81,7 @@ class UpdatePeopleAction
                     $existingContact->update([
                         'contacts_types_id' => $contact->contacts_types_id,
                         'weight' => $contact->weight,
+                        'is_opt_out' => $contact->is_opt_out,
                         'value' => $contact->value,
                     ]);
                     $keepValues[] = $existingContact->value;
@@ -90,6 +91,8 @@ class UpdatePeopleAction
                         'contacts_types_id' => $contact->contacts_types_id,
                         'value' => $contact->value,
                         'weight' => $contact->weight,
+                        'is_opt_out' => $contact->is_opt_out,
+
                     ]);
                     $keepValues[] = $contact->value;
                 }
@@ -174,14 +177,14 @@ class UpdatePeopleAction
         }
 
         if ($this->peopleData->organization) {
-            $organization = (new CreateOrganizationAction(
+            $organization = new CreateOrganizationAction(
                 new Organization(
                     company: $this->peopleData->branch->company,
                     user: $this->peopleData->user,
                     app: $this->peopleData->app,
                     name: $this->peopleData->organization,
                 )
-            ))->execute();
+            )->execute();
             OrganizationPeople::addPeopleToOrganization($organization, $this->people);
         }
 

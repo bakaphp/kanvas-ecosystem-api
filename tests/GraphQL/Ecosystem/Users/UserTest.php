@@ -199,7 +199,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+                    //'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -298,7 +298,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+                    //'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -409,7 +409,7 @@ class UserTest extends TestCase
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname,
+//                    'displayname' => $displayname,
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
@@ -767,6 +767,48 @@ class UserTest extends TestCase
             ->assertSee('avatar.jpg');
     }
 
+    public function testUpdatePhotoProfile(): void
+    {
+        $user = auth()->user();
+
+        $operations = [
+            'query' => '
+                mutation updatePhotoProfile($file: Upload!, $user_id: ID!) {
+                    updatePhotoProfile(file: $file, user_id: $user_id) {
+                        id
+                        displayname
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'user_id' => $user->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('user-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updatePhotoProfile' => [
+                        'id' => (string) $user->getId(),
+                    ],
+                ],
+            ]);
+    }
+
     public function testSaveUserAppPreferences()
     {
         $this->graphQL(/** @lang GraphQL */
@@ -791,5 +833,198 @@ class UserTest extends TestCase
                 'saveUserAppPreferences' => true,
             ],
         ]);
+    }
+
+    public function testBlockedCustomFieldsAllowsNonBlockedFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('blocked_user_custom_fields', ['blocked_field', 'another_blocked_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'allowed_field',
+                            'data' => 'test_value',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('allowed_field')
+            ->assertSee('test_value');
+
+        $user = auth()->user();
+        $this->assertEquals('test_value', $user->get('allowed_field'));
+
+        $app->del('blocked_user_custom_fields');
+    }
+
+    public function testBlockedCustomFieldsBlocksConfiguredFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('blocked_user_custom_fields', ['blocked_field', 'another_blocked_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'blocked_field',
+                            'data' => 'should_not_be_set',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful();
+
+        $user = auth()->user();
+        $this->assertNull($user->get('blocked_field'));
+
+        $app->del('blocked_user_custom_fields');
+    }
+
+    public function testBlockedCustomFieldsFiltersPartiallyBlockedFields(): void
+    {
+        $app = app(Apps::class);
+        $app->set('blocked_user_custom_fields', ['blocked_field']);
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'allowed_field',
+                            'data' => 'allowed_value',
+                        ],
+                        [
+                            'name' => 'blocked_field',
+                            'data' => 'should_not_be_set',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('allowed_field')
+            ->assertSee('allowed_value');
+
+        $user = auth()->user();
+        $this->assertEquals('allowed_value', $user->get('allowed_field'));
+        $this->assertNull($user->get('blocked_field'));
+
+        $app->del('blocked_user_custom_fields');
+    }
+
+    public function testBlockedCustomFieldsAllowsAllWhenNotConfigured(): void
+    {
+        $app = app(Apps::class);
+        $app->del('blocked_user_custom_fields');
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
+                {
+                    firstname
+                    lastname
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
+                }
+            }',
+            [
+                'id' => 0,
+                'data' => [
+                    'firstname' => $firstname,
+                    'lastname' => $lastname,
+                    'custom_fields' => [
+                        [
+                            'name' => 'any_field',
+                            'data' => 'any_value',
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $response->assertSuccessful()
+            ->assertSee('any_field')
+            ->assertSee('any_value');
+
+        $user = auth()->user();
+        $this->assertEquals('any_value', $user->get('any_field'));
     }
 }

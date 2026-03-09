@@ -11,7 +11,6 @@ use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerSearchService;
-use Kanvas\Guild\Customers\Models\People;
 
 class PullNetSuiteCustomerAction
 {

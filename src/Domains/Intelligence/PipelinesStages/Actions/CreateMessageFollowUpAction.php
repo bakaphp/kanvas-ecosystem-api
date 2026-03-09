@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -23,7 +24,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
@@ -42,7 +43,10 @@ class CreateMessageFollowUpAction
         protected ModelsLead $lead,
         protected PipelineStage $pipelineStage,
         protected Session $session,
-        protected string $messageTemplateChannel
+        protected string $messageTemplate,
+        protected float $day,
+        protected string $communicationChannel = 'sms',
+        protected ?FollowUpLog $log = null
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -53,11 +57,14 @@ class CreateMessageFollowUpAction
 
     public function execute(): ?string
     {
-        $config = $this->pipelineStage->config;
-        $rules = $config['notification_engagement_rules'];
-        $messageTemplate = $rules['templates'][$this->messageTemplateChannel] ?? null;
+        // Log entry to this action
+        if ($this->log) {
+            $this->log->update([
+                'entered_create_message_action' => true,
+            ]);
+        }
 
-        if ($messageTemplate === null) {
+        if ($this->messageTemplate === null) {
             // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
 
             return null;
@@ -97,8 +104,7 @@ class CreateMessageFollowUpAction
         $engagement = new CreateEngagementAction($engagementDto, false)->execute();
 
         $data = [
-            'day' => $rules['day'],
-            'templates' => $messageTemplate,
+            'templates' => $this->messageTemplate,
             'conversation_history' => $this->mapConversationHistory(),
             'context' => [
                 'company' => $this->lead->company,
@@ -111,26 +117,41 @@ class CreateMessageFollowUpAction
             'agent' => $this->session->agent,
             'vehicle_interest' => $vehicleInterest,
             'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
         ];
-
         $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
 
+        $shouldRespond = (bool) ($responseText['should_respond'] ?? false);
+
+        // Log the should_respond value
+        if ($this->log) {
+            $this->log->update([
+                'should_respond' => $shouldRespond,
+                'metadata' => array_merge(
+                    $this->log->metadata ?? [],
+                    [
+                        'ai_response' => [
+                            'should_respond' => $shouldRespond,
+                            'has_message' => isset($responseText['message']),
+                        ]
+                    ]
+                ),
+            ]);
+        }
+
         //if no response or should not respond
-        if ((bool) ($responseText['should_respond'] ?? false) === false) {
+        if ($shouldRespond === false) {
             return null;
         }
 
-        $messageType = MessageType::firstOrCreate([
-            'apps_id' => $this->session->apps_id,
-            //'languages_id' => 1,
-            //'name' => 'AI Generated Message',
-            'name' => 'twilio-sms',
-            'verb' => 'twilio-sms',
-        ]);
+        $messageType = MessageTypeService::getOrCreate(
+            $this->session->app,
+            $this->getMessageTypeVerb()
+        );
 
-        $agentUser = $this->lead->app->get('kanvas_agent_user_id');
+        $agentUser = $this->lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById($agentUser);
         } else {
@@ -166,6 +187,14 @@ class CreateMessageFollowUpAction
         $this->session->channel->addMessage($message);
         $message->addTag('followup');
 
+        // Log message creation
+        if ($this->log) {
+            $this->log->update([
+                'message_created' => true,
+                'messages_id' => $message->getId(),
+            ]);
+        }
+
         return $responseText['message'];
     }
 
@@ -196,6 +225,11 @@ class CreateMessageFollowUpAction
                        ->withSchema($schema)
                        ->withPrompt($prompt)
                        ->withMaxTokens(7000)
+                       ->withClientOptions([
+                           'timeout' => 220,
+                           'connect_timeout' => 220,
+                           'read_timeout' => 220,
+                       ])
                        ->asStructured();
             if (! empty($response->structured)) {
                 return $response->structured;
@@ -208,6 +242,15 @@ class CreateMessageFollowUpAction
                 self::MAX_RETRY_ATTEMPTS
             )
         );
+    }
+
+    protected function getMessageTypeVerb(): string
+    {
+        return match ($this->communicationChannel) {
+            'whatsapp' => 'whatsapp',
+            'email' => 'email',
+            default => 'twilio-sms',
+        };
     }
 
     public function mapConversationHistory(): array

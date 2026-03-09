@@ -605,9 +605,13 @@ class SyncEsimWithProviderCommand extends Command
         $bundleState = strtolower($response['bundleState']);
         $expirationDate = isset($response['expiration_date']) ? Carbon::parse($response['expiration_date']) : null;
 
-        $shouldForcePublic = $isUnlimited && in_array($bundleState, ['disabled', 'disable']) && $expirationDate && now()->lessThan($expirationDate);
+        $isExpired = $expirationDate && now()->greaterThan($expirationDate);
+        $shouldForcePublic = $isUnlimited && in_array($bundleState, ['disabled', 'disable']) && $expirationDate && ! $isExpired;
 
-        if (in_array($bundleState, $inactiveStatuses, true) && ! $shouldForcePublic) {
+        if ($isExpired && ! $shouldForcePublic) {
+            $message->setPrivate();
+            $this->info("Message ID: {$message->id} has been set to private (expired).");
+        } elseif (in_array($bundleState, $inactiveStatuses, true) && ! $shouldForcePublic) {
             $message->setPrivate();
             $this->info("Message ID: {$message->id} has been set to private.");
         } else {

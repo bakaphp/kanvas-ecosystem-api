@@ -12,10 +12,10 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
@@ -35,7 +35,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -106,6 +106,7 @@ class Order extends BaseModel
     use HasTagsTrait;
     use HasMessagesTrait;
     use AsTree;
+    use PayableTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -156,11 +157,6 @@ class Order extends BaseModel
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
-    }
-
-    public function payments(): MorphMany
-    {
-        return $this->morphMany(Payments::class, 'payable');
     }
 
     public function orderDiscounts(): HasMany
@@ -275,15 +271,20 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function markAsPaid(UserInterface $user): void
+    public function transitionToStatus(UserInterface $user, string $statusSlug): void
     {
-        if ($orderStatus = $this->orderType?->statuses()->where('slug', PaymentStatusEnum::PAID->value)->first()) {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', $statusSlug)->first()) {
             new TransitionOrderStateAction(
                 $this,
                 $user,
                 $orderStatus
             )->execute(true);
         }
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
@@ -649,7 +650,9 @@ class Order extends BaseModel
         $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
@@ -691,18 +694,6 @@ class Order extends BaseModel
                 );
             }
         }
-    }
-
-    public function isPaid(): bool
-    {
-        return $this->getPaidAmount() >= $this->total_net_amount;
-    }
-
-    public function getPaidAmount(): float
-    {
-        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
-
-        return (float) $paidAmount;
     }
 
     public function orderType(): BelongsTo
@@ -772,16 +763,19 @@ class Order extends BaseModel
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
-        ->selectRaw('sum(unit_price_net_amount * quantity) as price, 
-        sum(unit_price_gross_amount - unit_price_net_amount) as discount, count(*) as count')->get();
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
+            ->first();
 
-        $discount = $total[0]['discount'] ?? 0;
-        $orderTotal = ($total[0]['price'] ?? 0);
-        $this->total_gross_amount = (float) $orderTotal + (float) $discount;
-        $this->total_net_amount = (float) $orderTotal;
+        $orderTotal = (float) ($total->price ?? 0);
+
+        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+
+        $this->total_gross_amount = $orderTotal;
+        $this->discount_amount = $discountAmount;
+        $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
-        $this->discount_amount = (float) $discount;
 
         if ($autoSave) {
             $this->saveOrFail();

@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Connectors\NetSuite\Enums\SavedSearchEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Estimate;
@@ -19,15 +21,15 @@ use NetSuite\NetSuiteService;
 
 class NetSuiteQuoteService
 {
-    protected NetSuiteService $service;
-    protected NetSuiteProductService $productService;
+    protected Client $client;
+    protected NetSuiteProductSearchService $productSearchService;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
-        $this->productService = new NetSuiteProductService($app, $company);
+        $this->client = new Client($app, $company);
+        $this->productSearchService = new NetSuiteProductSearchService($app, $company);
     }
 
     /**
@@ -60,20 +62,31 @@ class NetSuiteQuoteService
             $estimate->currency = $currencyRef;
         }
 
+        // Fetch all NetSuite products once and index by itemId for fast lookup
+        $savedSearchId = $this->app->get(ConfigurationEnum::NET_SUITE_QUOTE_PRODUCT_SAVED_SEARCH_ID->value)
+            ?? SavedSearchEnum::QUOTE_PRODUCT_SEARCH->value;
+
+        $netsuiteProducts = $this->productSearchService->searchWithSavedSearch($savedSearchId);
+        $netsuiteIndex = array_column($netsuiteProducts, null, 'itemId');
+
         // Create estimate items from order items
         $estimateItems = [];
         foreach ($order->items as $orderItem) {
             $estimateItem = new EstimateItem();
-            $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($orderItem->variant->barcode ?? $orderItem->product_sku);
+            $barcode = $orderItem->variant->barcode ?? $orderItem->product_sku;
+            $netsuiteProduct = $netsuiteIndex[$barcode] ?? null;
+
+            if ($netsuiteProduct === null) {
+                throw new Exception("Product with barcode/SKU '{$barcode}' not found in NetSuite.");
+            }
 
             $variantWarehouse = $orderItem->variant->variantWarehouses()->firstOrFail();
             $locationID = $variantWarehouse->get(CustomFieldEnum::NET_SUITE_LOCATION_ID->value) ?? 4;
 
-            // Set item reference (you may need to map SKU to NetSuite item internal ID)
             $itemRef = new RecordRef();
             $itemRef->name = $orderItem->product_sku;
             $itemRef->type = 'inventoryItem';
-            $itemRef->internalId = $searchNetsuiteProductInfo[0]->internalId;
+            $itemRef->internalId = $netsuiteProduct['internalId'];
             $estimateItem->item = $itemRef;
 
             $estimateItem->location = new RecordRef();
@@ -134,22 +147,24 @@ class NetSuiteQuoteService
         $estimateItemList->item = $estimateItems;
         $estimate->itemList = $estimateItemList;
 
-        // Create the quote in NetSuite
+        // Create the quote in NetSuite with rate limiting
         $addRequest = new AddRequest();
         $addRequest->record = $estimate;
 
-        $response = $this->service->add($addRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($addRequest) {
+            $response = $service->add($addRequest);
 
-        if ($response->writeResponse->status->isSuccess) {
-            return $this->getQuoteById($response->writeResponse->baseRef->internalId);
-        } else {
+            if ($response->writeResponse->status->isSuccess) {
+                return $this->getQuoteById($response->writeResponse->baseRef->internalId);
+            }
+
             $errorMessage = 'Error creating quote: ';
             if (isset($response->writeResponse->status->statusDetail[0]->message)) {
                 $errorMessage .= $response->writeResponse->status->statusDetail[0]->message;
             }
 
             throw new Exception($errorMessage);
-        }
+        });
     }
 
     /**
@@ -163,18 +178,6 @@ class NetSuiteQuoteService
         $estimateRef->internalId = $quoteInternalId;
         $estimateRef->type = 'estimate';
         $getRequest->baseRef = $estimateRef;
-
-
-        $getResponse = $this->service->get($getRequest);
-
-        if (! $getResponse->readResponse->status->isSuccess) {
-            throw new Exception('Error retrieving quote for update: ' . $getResponse->readResponse->status->statusDetail[0]->message);
-        }
-
-        $estimate = $getResponse->readResponse->record;
-
-        // Update quote fields
-        $estimate->memo = $order->customer_note ?? 'Quote updated from Order #' . $order->getOrderNumber();
 
         // Update items (this is a simplified approach - you might want to handle item updates more carefully)
         $estimateItems = [];
@@ -195,25 +198,34 @@ class NetSuiteQuoteService
 
         $estimateItemList = new EstimateItemList();
         $estimateItemList->item = $estimateItems;
-        $estimate->itemList = $estimateItemList;
 
-        // Update the quote in NetSuite
-        $updateRequest = new \NetSuite\Classes\UpdateRequest();
-        $updateRequest->record = $estimate;
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest, $order, $estimateItemList) {
+            $getResponse = $service->get($getRequest);
 
-        $response = $this->service->update($updateRequest);
+            if (! $getResponse->readResponse->status->isSuccess) {
+                throw new Exception('Error retrieving quote for update: ' . $getResponse->readResponse->status->statusDetail[0]->message);
+            }
 
-        if ($response->writeResponse->status->isSuccess) {
-            return $response->writeResponse;
-        } else {
+            $estimate = $getResponse->readResponse->record;
+            $estimate->memo = $order->customer_note ?? 'Quote updated from Order #' . $order->getOrderNumber();
+            $estimate->itemList = $estimateItemList;
+
+            $updateRequest = new \NetSuite\Classes\UpdateRequest();
+            $updateRequest->record = $estimate;
+
+            $response = $service->update($updateRequest);
+
+            if ($response->writeResponse->status->isSuccess) {
+                return $response->writeResponse;
+            }
+
             throw new Exception('Error updating quote: ' . $response->writeResponse->status->statusDetail[0]->message);
-        }
+        });
     }
 
     /**
      * Get quote by internal ID
      */
-
     public function getQuoteById(string|int $quoteInternalId): Estimate
     {
         $getRequest = new \NetSuite\Classes\GetRequest();
@@ -222,13 +234,15 @@ class NetSuiteQuoteService
         $estimateRef->type = 'estimate';
         $getRequest->baseRef = $estimateRef;
 
-        $response = $this->service->get($getRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest) {
+            $response = $service->get($getRequest);
 
-        if ($response->readResponse->status->isSuccess) {
-            return $response->readResponse->record;
-        } else {
+            if ($response->readResponse->status->isSuccess) {
+                return $response->readResponse->record;
+            }
+
             throw new Exception('Error retrieving quote: ' . $response->readResponse->status->statusDetail[0]->message);
-        }
+        });
     }
 
     /**
@@ -257,12 +271,14 @@ class NetSuiteQuoteService
         $addRequest = new AddRequest();
         $addRequest->record = $salesOrder;
 
-        $response = $this->service->add($addRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($addRequest) {
+            $response = $service->add($addRequest);
 
-        if ($response->writeResponse->status->isSuccess) {
-            return $response->writeResponse;
-        } else {
+            if ($response->writeResponse->status->isSuccess) {
+                return $response->writeResponse;
+            }
+
             throw new Exception('Error converting quote to sales order: ' . $response->writeResponse->status->statusDetail[0]->message);
-        }
+        });
     }
 }

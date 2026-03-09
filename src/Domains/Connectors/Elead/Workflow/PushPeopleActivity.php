@@ -8,6 +8,7 @@ use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -25,10 +26,19 @@ class PushPeopleActivity extends KanvasActivity
             ];
         }
 
+        $debounce = new EleadDebounce($app, $people->company);
+        if ($debounce->shouldSkip('push_people', (string) $people->getId())) {
+            return [
+                'message' => 'Debounced: People sync already in progress or recently completed',
+                'people_id' => $people->getId(),
+            ];
+        }
+
         return $this->executeIntegration(
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
                 try {
                     $syncPeople = new SyncPeopleAction($people)->execute();

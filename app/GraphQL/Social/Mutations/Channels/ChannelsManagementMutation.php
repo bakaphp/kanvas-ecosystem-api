@@ -46,6 +46,7 @@ class ChannelsManagementMutation
         $channel->name = $request['input']['name'];
         $channel->description = $request['input']['description'];
         $channel->entity_id = $request['input']['entity_id'];
+        $channel->title = $request['input']['title'] ?? $channel->title;
         $channel->entity_namespace = $systemModule->uuid;
         $channel->updateOrFail();
 
@@ -55,7 +56,7 @@ class ChannelsManagementMutation
     public function deleteChannel(mixed $rootValue, array $request): Channel
     {
         $channel = ChannelRepository::getByIdBuilder(auth()->user())
-            ->where('channel_users.roles_id', 1)
+            //->where('channel_users.roles_id', 1)
             ->findOrFail($request['id']);
 
         $channel->delete();

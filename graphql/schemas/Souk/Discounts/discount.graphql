@@ -140,6 +140,18 @@ extend type Query @guardByAppKey {
                     "is_one_per_customer"
                 ]
             )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "value"
+                    "start_date"
+                    "end_date"
+                ]
+            )
     ): [Discount!]!
         @paginate(
             model: "Kanvas\\Souk\\Discounts\\Models\\Discount"

@@ -8,9 +8,11 @@ use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Pipelines\Observers\PipelineStageObserver;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Override;
 
 /**
@@ -48,5 +50,10 @@ class PipelineStage extends BaseModel
     public function leads(): BelongsTo
     {
         return $this->belongsTo(Lead::class, 'pipeline_stage_id', 'id');
+    }
+
+    public function followUpDays(): HasMany
+    {
+        return $this->hasMany(FollowUpDay::class, 'pipeline_stages_id', 'id');
     }
 }
