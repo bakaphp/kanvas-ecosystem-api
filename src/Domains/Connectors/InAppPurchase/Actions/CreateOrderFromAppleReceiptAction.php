@@ -15,6 +15,7 @@ use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
@@ -198,6 +199,9 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         foreach ($inAppPurchases as $purchase) {
             if ($purchase->getTransactionId() === $requestedTransactionId) {
                 $matchingPurchase = $purchase;
+                if ($purchase->getCancellationDate() !== null) {
+                    throw new ValidationException('Transaction was cancelled or revoked by Apple.');
+                }
 
                 break;
             }
@@ -286,10 +290,12 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
         ReceiptResponse $receiptResponse,
         string $requestedTransactionId,
         ?string $requestedOriginalTransactionId,
-        string $requestedProductId
+        string $requestedVariantId
     ): ?LatestReceiptInfo {
         /** @var array<LatestReceiptInfo>|null $latestReceiptInfo */
         $latestReceiptInfo = $receiptResponse->getLatestReceiptInfo();
+        $variantInfo = Variants::getByIdFromCompanyApp($requestedVariantId, $this->company, $this->app);
+
         if ($latestReceiptInfo === null || $latestReceiptInfo === []) {
             return null;
         }
@@ -313,7 +319,7 @@ class CreateOrderFromAppleReceiptAction extends CreateOrderFromReceiptActionBase
 
         $matchedByProduct = array_values(array_filter(
             $latestReceiptInfo,
-            fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getProductId() === $requestedProductId
+            fn (LatestReceiptInfo $receiptInfo): bool => $receiptInfo->getProductId() === $variantInfo->sku
         ));
 
         if ($matchedByProduct === []) {

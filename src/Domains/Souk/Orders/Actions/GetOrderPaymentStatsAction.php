@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
@@ -21,6 +23,7 @@ class GetOrderPaymentStatsAction
         protected array $orderTypeNames = [],
         protected array $providers = [],
         protected ?int $productId = null,
+        protected array $providerCompanyIds = [],
     ) {
         $this->repository = new OrderPaymentRepository($app);
 
@@ -78,7 +81,8 @@ class GetOrderPaymentStatsAction
             $this->variantId,
             $timezone,
             $this->orderTypeNames,
-            $this->productVariantIds
+            $this->productVariantIds,
+            $this->providerCompanyIds
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -115,7 +119,7 @@ class GetOrderPaymentStatsAction
         $totalAmount = $byDates->sum(fn ($entry) => $entry['states']['amount'] ?? 0);
 
         // Get service stats from the already filtered orders
-        $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
+        $byServices = $this->getServiceStatsFromOrders($start, $end);
 
         // Get provider stats if providers are specified
         $byProvider = [];
@@ -126,7 +130,8 @@ class GetOrderPaymentStatsAction
                 $this->paidStates,
                 $this->providers,
                 $this->variantId,
-                $this->productVariantIds
+                $this->productVariantIds,
+                $this->providerCompanyIds
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -162,6 +167,7 @@ class GetOrderPaymentStatsAction
             $this->orderTypeNames,
             $this->variantId,
             $this->productVariantIds,
+            $this->providerCompanyIds
         );
 
         return $rows->map(fn ($row) => [
@@ -207,7 +213,8 @@ class GetOrderPaymentStatsAction
             $this->paidStates,
             $this->variantId,
             $this->orderTypeNames,
-            $this->productVariantIds
+            $this->productVariantIds,
+            $this->providerCompanyIds
         );
 
         if ($orderIds->isEmpty()) {
