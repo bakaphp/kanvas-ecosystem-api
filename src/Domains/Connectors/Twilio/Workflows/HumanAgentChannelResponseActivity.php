@@ -46,7 +46,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
-            integration: IntegrationsEnum::TWILIO,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
                 if (empty($content)) {
                     return $this->failWorkflow([
