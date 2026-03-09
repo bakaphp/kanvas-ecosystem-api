@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows;
 
+use Google\Model;
 use Illuminate\Console\Command;
 use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromLeadActivity;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
@@ -63,6 +64,7 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
+use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
@@ -320,6 +322,7 @@ class KanvasWorkflowSynActionCommand extends Command
             DriveCentricWorkflowPushPeopleActivity::class,
             PullUserFromCRMActivity::class,
             ActivitiesPushLeadNotesActivity::class,
+            ModelWizardReceiverJob::class,
         ];
 
         $createdActions = [];
