@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
-use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,7 +19,6 @@ class AgentSwarm extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
-    use SoftDeletesTrait;
     use DatabaseSearchableTrait {
         search as public traitSearch;
     }

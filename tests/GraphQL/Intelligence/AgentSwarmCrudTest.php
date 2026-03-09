@@ -88,10 +88,8 @@ class AgentSwarmCrudTest extends TestCase
                     status
                     agent_count
                     agents {
-                        data {
-                            id
-                            name
-                        }
+                        id
+                        name
                     }
                 }
             }
@@ -185,9 +183,7 @@ class AgentSwarmCrudTest extends TestCase
                     id
                     agent_count
                     agents {
-                        data {
-                            id
-                        }
+                        id
                     }
                 }
             }
