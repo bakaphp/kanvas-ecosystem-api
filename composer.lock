@@ -4272,20 +4272,20 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.69",
+            "version": "1.0.70",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "794173d81fe68c9b8bba515dd6d845daa0f48267"
+                "reference": "f212dc4ec964a5c6bd6c7db49de86851c70744fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/794173d81fe68c9b8bba515dd6d845daa0f48267",
-                "reference": "794173d81fe68c9b8bba515dd6d845daa0f48267",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/f212dc4ec964a5c6bd6c7db49de86851c70744fd",
+                "reference": "f212dc4ec964a5c6bd6c7db49de86851c70744fd",
                 "shasum": ""
             },
             "require": {
-                "laravel/framework": "^9.0|^10.0|^11.0|^12.0",
+                "laravel/framework": "^9.0|^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.1",
                 "react/promise": "^2.9|^3.0"
             },
@@ -4316,16 +4316,16 @@
             ],
             "authors": [
                 {
-                    "name": "Richard McDaniel",
-                    "email": "richard.lee.mcdaniel@gmail.com"
+                    "name": "Durable Workflow",
+                    "email": "support@durable-workflow.com"
                 }
             ],
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.69"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.70"
             },
-            "time": "2026-02-27T14:21:42+00:00"
+            "time": "2026-03-09T16:22:52+00:00"
         },
         {
             "name": "laravel/ai",
