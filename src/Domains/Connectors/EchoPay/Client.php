@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\EchoPay;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
@@ -42,6 +42,8 @@ class Client
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
             ],
+            'timeout' => 90,
+            'connect_timeout' => 15,
         ]);
     }
 
@@ -70,15 +72,19 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
 
-            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
 
             throw new EchoPayException(
-                $errorMessage,
-                $response->getStatusCode(),
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
                 $e,
                 $errorBody
             );
@@ -88,24 +94,32 @@ class Client
     /**
      * Perform a POST request to the API.
      */
-    public function post(string $endpoint, array $data): array
+    public function post(string $endpoint, array $data, ?int $timeout = null): array
     {
         try {
-            $response = $this->client->post($endpoint, [
-                'json' => $data,
-            ]);
+            $options = ['json' => $data];
+
+            if ($timeout !== null) {
+                $options['timeout'] = $timeout;
+            }
+
+            $response = $this->client->post($endpoint, $options);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
 
-            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
 
             throw new EchoPayException(
-                $errorMessage,
-                $response->getStatusCode(),
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
                 $e,
                 $errorBody
             );
@@ -124,7 +138,7 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
+        } catch (RequestException $e) {
             $response = $e->getResponse();
             $errorBody = json_decode($response->getBody()->getContents(), true);
 
@@ -149,15 +163,19 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
 
-            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
 
             throw new EchoPayException(
-                $errorMessage,
-                $response->getStatusCode(),
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
                 $e,
                 $errorBody
             );

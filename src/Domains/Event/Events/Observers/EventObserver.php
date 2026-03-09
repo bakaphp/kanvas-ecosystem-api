@@ -11,13 +11,14 @@ class EventObserver
 {
     public function created(Event $event): void
     {
-        $event->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            [
-                'app' => $event->app,
-            ]
-        );
+        /*    $event->fireWorkflow(
+               WorkflowEnum::CREATED->value,
+               true,
+               [
+                   'app' => $event->app,
+                   'company' => $event->company,
+               ]
+           ); */
     }
 
     public function updated(Event $event): void
@@ -26,8 +27,9 @@ class EventObserver
             WorkflowEnum::UPDATED->value,
             true,
             [
-                'app' => $event->app,
-            ]
+               'app' => $event->app,
+               'company' => $event->company,
+                  ]
         );
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
@@ -29,6 +30,7 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
+    use CanUseWorkflow;
     //use Cachable;
     // use QueryCacheable;
 

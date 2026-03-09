@@ -228,13 +228,21 @@ class CreateEngagementAction
 
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
-        $newActionPages = $this->app->get('new-action-slug-v3') ?? [];
-        $newActionPageUrlV3 = is_array($newActionPages) ? in_array($this->actionSlug, $newActionPages) : false;
-        if (! $newActionPageUrlV3) {
-            return null;
+        $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
+        $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
+
+        if ($isCheckoutAction) {
+            return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
         }
 
-        return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
+        $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];
+        $isLandingPageAction = is_array($landingPageActions) && in_array($this->actionSlug, $landingPageActions);
+
+        if ($isLandingPageAction) {
+            return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
+        }
+
+        return null;
     }
 
     /**
@@ -478,6 +486,7 @@ class CreateEngagementAction
             'slug' => $this->actionSlug,
             'entity_uuid' => $this->engagementData->requestId,
             'pipelines_stages_id' => $stage->getId(),
+            'parent_id' => $this->engagementData->parentEngagement?->getId(),
         ]);
     }
 

@@ -77,7 +77,6 @@ class Order extends Data
     public function getOrderItems(array $lineItems): DataCollection
     {
         $orderItems = [];
-
         if (! isset($lineItems[0]['name']) || ! isset($lineItems[0]['id']) || ! isset($lineItems[0]['quantity'])) {
             throw new InvalidArgumentException('Not the correct item structure to generate a line item');
         }
@@ -99,7 +98,7 @@ class Order extends Data
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: Currencies::getByCode('USD'),
+                currency: $this->currency,
                 quantityShipped: 0,
                 channelId: $lineItem['attributes']['channel_id'] ?? null,
             );

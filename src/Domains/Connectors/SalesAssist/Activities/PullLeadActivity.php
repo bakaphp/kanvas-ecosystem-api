@@ -40,7 +40,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $this->app = $app;
         $leadId = $params['entity_id'] ?? null;
         $user = $params['user'] ?? null;
-        $phone = $params['phone'] ?? null;
+        $phone = $this->extractPhone($params['phone'] ?? null);
         $email = $params['email'] ?? null;
 
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
@@ -89,18 +89,31 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             $pullLead = $pullLead ? [$pullLead->toArray()] : [];
         }
 
-        if ($isDriveCentric && $leadId === 'test') {
-            $pullLead = new PullPeopleLeadAction(
-                $app,
-                $company,
-                $user
-            )->execute(
-                phone: $phone,
-                email: $email,
-            );
-            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
+        return $pullLead;
+    }
+
+    private function extractPhone(mixed $phone): ?string
+    {
+        if ($phone === null) {
+            return null;
         }
 
-        return $pullLead;
+        if (is_string($phone)) {
+            return $phone;
+        }
+
+        if (is_array($phone)) {
+            if (isset($phone['cell'])) {
+                return (string) $phone['cell'];
+            }
+            if (isset($phone['home'])) {
+                return (string) $phone['home'];
+            }
+            $first = reset($phone);
+
+            return $first !== false ? (string) $first : null;
+        }
+
+        return (string) $phone;
     }
 }

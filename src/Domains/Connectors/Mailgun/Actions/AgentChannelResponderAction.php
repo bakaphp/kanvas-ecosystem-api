@@ -4,31 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
+use Override;
 
-class AgentChannelResponderAction
+class AgentChannelResponderAction extends BaseAgentResponderAction
 {
-    public function __construct(
-        protected Channel $channel,
-        protected Message $message,
-        protected Agent $agent,
-        protected ?Session $session = null,
-    ) {
-    }
+    protected string $messageTypeVerb = 'mailgun-email';
+    protected string $communicationChannel = 'email';
 
+    #[Override]
     public function execute(array $params = []): array
     {
         //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
@@ -56,7 +48,7 @@ class AgentChannelResponderAction
         $emailRequest = [
             'template_name' => 'agent-email-response',
             'email' => $channelId, //$this->message->message['from_email'],
-            'subject' => 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
+            'subject' => $this->message->entity()->get('title_email_follow_up') ?? 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
         ];
 
         // Define the callback to send each chunk in real time
@@ -85,8 +77,10 @@ class AgentChannelResponderAction
             'company' => $this->message->company,
         ];
 
-        $this->sendEmail($emailRequest, $emailData, $this->message);
-        $this->createMessage($responseText, $channelId, $this->message, $this->channel);
+        $messageResponse = $this->createMessage($responseText, $channelId, $this->message, $this->channel);
+        if (! $messageResponse->is_locked) {
+            $this->sendEmail($emailRequest, $emailData, $this->message);
+        }
 
         return [
             'message' => $messageConversation,
@@ -115,6 +109,7 @@ class AgentChannelResponderAction
 
     protected function sendEmail(array $request, array $data, Message $message): void
     {
+        $data['signature'] = true;
         $notification = new Blank(
             $request['template_name'],
             $data,
@@ -124,42 +119,5 @@ class AgentChannelResponderAction
         $notification->setFromUser($message->user);
         $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
-    }
-
-    private function createMessage(string $text, string $to, Message $message, Channel $channel): Message
-    {
-        $user = $message->user;
-        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
-        if ($agentUser !== null) {
-            $user = Users::getById((int) $agentUser);
-        }
-
-        $messageInput = new MessageInput(
-            app: $message->app,
-            company: $message->company,
-            user: $user,
-            type: $message->messageType,
-            message: [
-                    'content' => $text,
-                    'raw_data' => $text,
-                    'message_id' => '--',
-                    'chat_jid' => $to,
-                    'from_me' => true,
-                    'from_ia' => true,
-            ],
-            is_public: 1,
-            tags: [$to],
-            //slug: Str::slug($text) . '-' . microtime()
-        );
-
-        $newMessage = new CreateMessageAction($messageInput)->execute();
-        //$newMessage = $createMessageAction->execute();
-        if ($message->entity() instanceof Model) {
-            $newMessage->addEntity($message->entity());
-        }
-        $channel->addMessage($newMessage);
-        $newMessage->addTag('engagement');
-
-        return $newMessage;
     }
 }

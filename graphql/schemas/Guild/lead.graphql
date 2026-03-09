@@ -245,6 +245,7 @@ extend type Query @guard {
                     "id"
                     "uuid"
                     "companies_id"
+                    "users_id"
                     "companies_branches_id"
                     "leads_receivers_id"
                     "leads_owner_id"

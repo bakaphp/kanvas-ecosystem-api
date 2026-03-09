@@ -36,9 +36,11 @@ final class AppleInAppPurchaseTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $setupInventory = new Setup($app, $user, $company);
-        $setupInventory->run();
-        $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, getenv('TEST_APPLE_PAYMENT_SHARED_SECRET'));
+        new Setup($app, $user, $company)->run();
+        $app->set(
+            ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value,
+            getenv('TEST_APPLE_PAYMENT_SHARED_SECRET')
+        );
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
@@ -61,7 +63,7 @@ final class AppleInAppPurchaseTest extends TestCase
             ],
             ]
         );
-        $product = (new CreateProductAction($productData, $user))->execute();
+        $product = new CreateProductAction($productData, $user)->execute();
         $createOrderFromReceipt = new CreateOrderFromAppleReceiptAction(
             new AppleInAppPurchaseReceipt(
                 app: $app,
@@ -79,6 +81,7 @@ final class AppleInAppPurchaseTest extends TestCase
         $order = $createOrderFromReceipt->execute($receipt);
 
         $this->assertInstanceOf(Order::class, $order);
+        $this->assertTrue($order->hasTag(['iap']));
     }
 
     public function testAppleInAppPurchaseReceiptChannel()
@@ -86,8 +89,7 @@ final class AppleInAppPurchaseTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $setupInventory = new Setup($app, $user, $company);
-        $setupInventory->run();
+        new Setup($app, $user, $company)->run();
         $app->set(ConfigurationEnum::APPLE_PAYMENT_SHARED_SECRET->value, getenv('TEST_APPLE_PAYMENT_SHARED_SECRET'));
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
@@ -111,14 +113,14 @@ final class AppleInAppPurchaseTest extends TestCase
             ],
             ]
         );
-        $product = (new CreateProductAction($productData, $user))->execute();
+        $product = new CreateProductAction($productData, $user)->execute();
 
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $app->getId(),
             'name' => 'purchase',
             'verb' => 'purchase',
         ]);
-        $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+        $messageType = new CreateMessageTypeAction($messageTypeDto)->execute();
 
         $createMessageAction = new CreateMessageAction(
             new MessageInput(
@@ -151,6 +153,7 @@ final class AppleInAppPurchaseTest extends TestCase
         );
 
         $order = $createOrderFromReceipt->execute($receipt);
+        $this->assertTrue($order->hasTag(['iap']));
 
         $integration = Integrations::firstOrCreate([
             'apps_id' => $app->getId(),
@@ -170,7 +173,11 @@ final class AppleInAppPurchaseTest extends TestCase
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
         ->where('apps_id', 0)
         ->first();
-        new CreateIntegrationCompanyAction($integrationDto, $user, $status)->execute();
+        new CreateIntegrationCompanyAction(
+            $integrationDto,
+            $user,
+            $status
+        )->execute();
 
         $activity = new LinkMessageToOrderActivity(
             0,
@@ -184,6 +191,9 @@ final class AppleInAppPurchaseTest extends TestCase
         $this->assertArrayHasKey('order', $result);
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('channel', $result);
-        $this->assertEquals(1, Channel::getById($result['channel'])->messages()->count());
+        $this->assertEquals(
+            1,
+            Channel::getById($result['channel'])->messages()->count()
+        );
     }
 }

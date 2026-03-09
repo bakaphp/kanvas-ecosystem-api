@@ -2,6 +2,9 @@
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true">
     <testsuites>
         <testsuite name="Unit">
+            <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Ecosystem">
             <directory suffix="Test.php">./tests/Ecosystem</directory>
         </testsuite>
         <testsuite name="GraphQL">
@@ -13,20 +16,29 @@
         <testsuite name="Social">
             <directory suffix="Test.php">./tests/Social</directory>
         </testsuite>
-        <testsuite name="Social">
+        <testsuite name="Guild">
             <directory suffix="Test.php">./tests/Guild</directory>
         </testsuite>
         <testsuite name="Connectors">
             <directory suffix="Test.php">./tests/Connectors</directory>
         </testsuite>
-        <testsuite name="Connectors">
+        <testsuite name="Workflow">
             <directory suffix="Test.php">./tests/Workflow</directory>
         </testsuite>
-        <testsuite name="Connectors">
+        <testsuite name="Intelligence">
             <directory suffix="Test.php">./tests/Intelligence</directory>
         </testsuite>
-        <testsuite name="Connectors">
+        <testsuite name="Baka">
             <directory suffix="Test.php">./tests/Baka</directory>
+        </testsuite>
+        <testsuite name="Souk">
+            <directory suffix="Test.php">./tests/Souk</directory>
+        </testsuite>
+        <testsuite name="Event">
+            <directory suffix="Test.php">./tests/Event</directory>
+        </testsuite>
+        <testsuite name="ActionEngine">
+            <directory suffix="Test.php">./tests/ActionEngine</directory>
         </testsuite>
     </testsuites>
     <php>

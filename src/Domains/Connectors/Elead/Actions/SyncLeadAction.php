@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\UserConfig;
@@ -15,7 +16,8 @@ use Throwable;
 class SyncLeadAction
 {
     public function __construct(
-        protected Lead $lead
+        protected Lead $lead,
+        protected bool $fresh = false
     ) {
     }
 
@@ -39,7 +41,12 @@ class SyncLeadAction
                 }
             }
         } else {
-            $eLeadOpportunity = LeadEntity::getById($this->lead->app, $this->lead->company, $eLeadOpportunityId);
+            $eLeadOpportunity = LeadEntity::getById(
+                $this->lead->app,
+                $this->lead->company,
+                $eLeadOpportunityId,
+                $this->fresh
+            );
         }
 
         if (isset($eLeadOpportunity->customer) && isset($eLeadOpportunity->customer['id'])) {
@@ -135,6 +142,13 @@ class SyncLeadAction
         //update status
         if (! $eLeadOpportunity->isActive()) {
             $lead->close();
+        } elseif ($eLeadOpportunity->isActive() && ! $lead->isActive()) {
+            $lead->open();
+        }
+
+        if ($eLeadOpportunity->id !== null) {
+            $cache = new EleadCache($this->lead->app, $this->lead->company);
+            $cache->invalidate('lead', $eLeadOpportunity->id);
         }
 
         return $eLeadOpportunity;

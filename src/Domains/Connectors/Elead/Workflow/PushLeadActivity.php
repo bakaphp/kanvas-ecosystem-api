@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Workflow;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -25,10 +26,19 @@ class PushLeadActivity extends KanvasActivity
             ];
         }
 
+        $debounce = new EleadDebounce($app, $lead->company);
+        if ($debounce->shouldSkip('push_lead', (string) $lead->getId())) {
+            return [
+                'message' => 'Debounced: Lead sync already in progress or recently completed',
+                'lead_id' => $lead->getId(),
+            ];
+        }
+
         return $this->executeIntegration(
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::ELEAD,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
                 $syncLead = new SyncLeadAction($lead)->execute();
 

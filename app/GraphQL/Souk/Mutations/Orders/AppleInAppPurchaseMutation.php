@@ -35,6 +35,16 @@ class AppleInAppPurchaseMutation
 
         $region = Regions::getDefault($company, $app);
 
+        $log = activity('create-order-from-iap')
+            ->causedBy($user)
+            ->withProperties([
+                'request_data' => $request,
+                'user_id' => $user->id,
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+            ])
+            ->log('IAP Order Creation Initiated');
+
         $appleInAppPurchase = AppleInAppPurchaseReceipt::from(
             $app,
             $company,
@@ -45,6 +55,11 @@ class AppleInAppPurchaseMutation
         $createOrderFromInAppPurchase = new CreateOrderFromAppleReceiptAction($appleInAppPurchase);
 
         $order = $createOrderFromInAppPurchase->execute();
+
+        $log->subject_type = get_class($order);
+        $log->subject_id = $order->id;
+        $log->description = 'IAP Order Created Successfully';
+        $log->save();
 
         if (! empty($appleInAppPurchase->custom_fields)) {
             $order->setCustomFields($appleInAppPurchase->custom_fields);
@@ -84,8 +99,8 @@ class AppleInAppPurchaseMutation
 
                 if (in_array($attributeValue, $walletTypes, true)) {
                     match ($attributeValue) {
-                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => (new AddFundsToUserWalletAction($order))->execute(), //@todo also support company?
-                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => (new PayFromWalletAction($order))->execute(),
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_SLUG->value => new AddFundsToUserWalletAction($order)->execute(), //@todo also support company?
+                        ConfigurationEnum::PRODUCT_TYPE_WALLET_COIN_CONSUME->value => new PayFromWalletAction($order)->execute(),
                         default => null
                     };
 

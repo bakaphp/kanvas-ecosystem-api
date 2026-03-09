@@ -14,6 +14,7 @@ use Kanvas\Connectors\CMLink\Services\CustomerService;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
 class SyncOrdersWithProviderCommand extends Command
@@ -51,6 +52,7 @@ class SyncOrdersWithProviderCommand extends Command
         $eSimService = new ESimService($app);
         $cmLinkCustomerService = new CustomerService($app, $company);
         $airaloService = new AiraloService($app);
+        $ventaMobileService = new VentaMobileESimService($app, $company);
 
         foreach ($orders as $order) {
             foreach ($order->metadata['esims'] ?? [] as $esimData) {
@@ -91,6 +93,7 @@ class SyncOrdersWithProviderCommand extends Command
                     strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
                     strtolower(ProviderEnum::CMLINK->value) => $this->cmLinkFulfillment($cmLinkCustomerService, $order, $iccid),
                     strtolower(ProviderEnum::AIRALO->value) => $this->airaloFulfillment($airaloService, $order, $iccid, $bundle),
+                    strtolower(ProviderEnum::VENTA_MOBILE->value) => $this->ventaMobileFulfillment($ventaMobileService, $order, $iccid),
                     default => [],
                 };
             }
@@ -197,6 +200,37 @@ class SyncOrdersWithProviderCommand extends Command
             } else {
                 $this->info("Order ID: {$order->id} is not active. Status: " . ($response['status'] ?? 'unknown'));
             }
+        }
+    }
+
+    protected function ventaMobileFulfillment(VentaMobileESimService $ventaMobileService, Order $order, string $iccid): void
+    {
+        try {
+            $serviceInfoArr = $ventaMobileService->getServiceByIccid($iccid);
+        } catch (Exception $e) {
+            report($e);
+            $this->info("Order ID: {$order->id} VentaMobile error for ICCID: {$iccid}");
+
+            $cancelCounter = $order->get('cancel_counter', 0);
+            if ($cancelCounter < 3) {
+                $cancelCounter++;
+                $order->set('cancel_counter', $cancelCounter);
+            }
+
+            $this->info("Order ID: {$order->id} check count: {$cancelCounter}");
+            if ($cancelCounter >= 3) {
+                $this->info("Order ID: {$order->id} checked 3 times without success. Cancelling.");
+                $order->cancel();
+                $order->fulfillCancelled();
+            }
+
+            return;
+        }
+
+        if (! empty($serviceInfoArr)) {
+            $order->fulfill();
+            $order->completed();
+            $this->info("Syncing order ID: {$order->id}");
         }
     }
 }

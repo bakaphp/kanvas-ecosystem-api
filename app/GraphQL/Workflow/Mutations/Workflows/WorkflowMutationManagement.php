@@ -107,6 +107,7 @@ class WorkflowMutationManagement
 
             return $activity->execute($entity, $app, $params);
         }
+
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
         //if its sync we return the results

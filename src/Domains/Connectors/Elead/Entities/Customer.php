@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Customers\Models\People;
 
 class Customer
@@ -39,14 +40,31 @@ class Customer
     }
 
     /**
-     * Create a new customer.
+     * Sanitize payload by removing null values and empty arrays.
+     * Fortellis API rejects requests with empty arrays or null values.
      */
+    private static function sanitizePayload(array $data): array
+    {
+        return array_filter($data, function ($value) {
+            // Remove null values
+            if ($value === null) {
+                return false;
+            }
+            // Remove empty arrays
+            if (is_array($value) && empty($value)) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
     public static function create(AppInterface $app, Companies $company, array $data): self
     {
         $client = new Client($app, $company);
         $response = $client->post(
             '/sales/v1/elead/customers/',
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {
@@ -66,11 +84,16 @@ class Customer
         $client = new Client($this->app, $this->company);
         $response = $client->post(
             '/sales/v1/elead/customers/' . $this->id,
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {
             throw new ELeadException($response['message']);
+        }
+
+        if ($this->id !== null) {
+            $cache = new EleadCache($this->app, $this->company);
+            $cache->invalidate('customer', $this->id);
         }
 
         $this->assign($response);
@@ -78,12 +101,29 @@ class Customer
         return $this;
     }
 
-    public static function getById(AppInterface $app, Companies $company, string $id): self
+    public static function getById(AppInterface $app, Companies $company, string $id, bool $fresh = false): self
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('customer', $id);
+
+            if ($cached !== null) {
+                $customer = new Customer();
+                $customer->app = $app;
+                $customer->company = $company;
+                $customer->assign($cached);
+
+                return $customer;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v1/elead/customers/' . $id,
         );
+
+        $cache->set('customer', $id, $response);
 
         $customer = new Customer();
         $customer->app = $app;

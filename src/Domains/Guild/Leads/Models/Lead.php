@@ -29,6 +29,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -190,21 +191,31 @@ class Lead extends BaseModel implements EventResourceInterface
         return $this->belongsTo(Users::class, 'leads_owner_id', 'id');
     }
 
+    /**
+     * Cast id to string for cross-database relationships where entity_id is char(50).
+     * Without this, Eloquent sends integer bindings against a char column,
+     * which prevents MySQL from using indexes (full table scan on 400k rows).
+     */
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
     public function socialChannels(): HasMany
     {
-        return $this->hasMany(Channel::class, 'entity_id', 'id')
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
     }
 
     public function aiSession(): HasMany
     {
-        return $this->hasMany(Session::class, 'entity_id', 'id')
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class);
     }
 
     public function notes(): HasOne
     {
-        return $this->hasOne(Channel::class, 'entity_id', 'id')
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
             ->where('name', 'Notes');
     }
@@ -273,7 +284,14 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function close(): void
     {
+        //LeadStatus::getByName('close')->id
         $this->leads_status_id = 6; //change by dynamic
+        $this->saveOrFail();
+    }
+
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
         $this->saveOrFail();
     }
 
@@ -683,13 +701,21 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isAiMuted(): bool
     {
-        $muteValue = $this->get(EnumsConfigurationEnum::MUTE_AI_AGENT->value);
+        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
 
-        return $muteValue !== null && (int) $muteValue === 0;
+        return $aiMode === IntelligenceModeEnum::OFF->value;
     }
 
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();
+    }
+
+    public function isServiceLead(): bool
+    {
+        return Str::contains(
+            strtolower($this->type?->name ?? ''),
+            'service'
+        );
     }
 }

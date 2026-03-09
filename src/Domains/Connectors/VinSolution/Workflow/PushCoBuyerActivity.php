@@ -33,6 +33,7 @@ class PushCoBuyerActivity extends KanvasActivity
             entity: $participant,
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people, $lead) {
                 $lead->reCacheCustomFields();
                 $pushLead = new PushLeadAction($lead);

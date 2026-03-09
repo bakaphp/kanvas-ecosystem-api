@@ -51,9 +51,9 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
             return $note;
         }
 
-        $shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
-
-        return $note . " \n\n View Full Conversation here: {$shortUrl}";
+        //$shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
+        //return $note . " \n\n View Full Conversation here: {$shortUrl}";
+        return $note;
     }
 
     #[Override]
@@ -63,6 +63,12 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
         Message $message,
         Apps $app
     ): mixed {
+        if ($message->isLocked() || ! $message->isPublic()) {
+            return $this->failWorkflow([
+                'error' => 'Message is locked, cannot add comment',
+            ]);
+        }
+
         try {
             $eLeadOpportunity = EntitiesLead::getById($app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
         } catch (ServerException $e) {

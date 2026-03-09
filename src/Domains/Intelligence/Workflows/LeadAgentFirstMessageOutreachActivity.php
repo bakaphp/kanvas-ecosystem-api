@@ -17,11 +17,13 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -60,7 +62,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-                $cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                //$cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
+                $cellPhone = Str::normalizePhoneNumber($cellPhone);
                 $source = $lead->source?->name ?? '';
 
                 //for now avoid service
@@ -144,7 +147,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 $communicationChannelNumber
                             ),
                         ]);
-                        $channel = (new CreateChannelAction($channel))->execute();
+                        $channel = new CreateChannelAction($channel)->execute();
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
@@ -216,14 +219,31 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
+                                    $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
+                                    // Set preferred channel to the first channel that successfully sent a message
+                                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+                                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+                                    }
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        'ai_messages_sent'
+                                    );
                                 } else {
                                     $createMessage->setLock();
                                     $createMessage->setPrivate();
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+
+                                    DailyReportService::track(
+                                        $app,
+                                        $lead->company,
+                                        'ai_delayed_message_scheduled'
+                                    );
                                 }
 
                                 //only do the external activity once for the first message
@@ -271,22 +291,31 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $company = $lead->company;
-
-        // If company does NOT enforce the rule "send only during off-hours",
-        // we can always send.
-        if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+        if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
+            return false;
+        } elseif (! $lead->company->isWithinWorkingHours(now())) {
+            return true;
+        } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+            return false;
+        } else {
             return true;
         }
+        // $company = $lead->company;
 
-        // Rule *is enabled*: allow only outside business hours.
-        return ! $company->isWithinWorkingHours(now());
+        // // If company does NOT enforce the rule "send only during off-hours",
+        // // we can always send.
+        // if (! $company->get(EnumsConfigurationEnum::FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS->value, false)) {
+        //     return true;
+        // }
+
+        // // Rule *is enabled*: allow only outside business hours.
+        // return ! $company->isWithinWorkingHours(now());
     }
 
     private function getLeadCreatedAt(Lead $lead): ?string
     {
         $leadCurrentDateIn = null;
-        if ($lead->get('downloaded_from_eleads')) {
+        if ($lead->company->get(CustomFieldEnum::COMPANY->value)) {
             $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
             $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
         } elseif ($lead->get('downloaded_from_vin_solution')) {
@@ -332,19 +361,19 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
-        $agentUser = $lead->app->get('kanvas_agent_user_id');
+        $agentUser = $lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
 
-        $messageTypeModel = (new CreateMessageTypeAction(
+        $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(
                 $lead->app->getId(),
                 0,
                 $messageType,
                 $messageType,
             )
-        ))->execute();
+        )->execute();
 
         $messageInput = new MessageInput(
             app: $lead->app,
@@ -359,7 +388,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'from_me' => true,
             ],
             is_public: 1,
-            tags: [$to],
+            tags: [$to,'first-message'],
             //slug: Str::slug($text) . '-' . microtime()
         );
 

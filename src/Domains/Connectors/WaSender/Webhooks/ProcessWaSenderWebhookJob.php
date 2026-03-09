@@ -25,13 +25,15 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -181,15 +183,22 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                             LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value,
                             $messageBody
                         );
+                        $lead->set('is_service_lead', 1);
                     }
-
                     //status = 2 , means user delivery, status = 1 means api delivery
-                    if ((int) $status === 2) {
-                        $lead->set(EnumsConfigurationEnum::MUTE_AI_AGENT->value, 0);
+                }
 
-                        unset($people);
-                        $lead = null;
-                    }
+                //status 1 mean api response
+                $shouldBlockAndPrivate = (int) $status === 1;
+                if ((int) $status === 2) {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $this->receiver->app,
+                            'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
+                        ]
+                    );
                 }
             }
 
@@ -242,6 +251,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 
                 $createMessageAction = new CreateMessageAction($messageInput);
                 $message = $createMessageAction->execute();
+                if (isset($shouldBlockAndPrivate) && $shouldBlockAndPrivate) {
+                    $message->setLock();
+                    $message->setPrivate();
+                }
             }
 
             $previousMessage = $channel->getPreviousMessage($message);
@@ -1142,51 +1155,79 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
+        // Try to get lead type from webhook payload first
+        $payload = $this->webhookRequest->payload;
+        $leadTypeName = $this->receiver->configuration['lead_type'] ?? 'Warm';
+
         $leadType = LeadType::fromApp($people->app)
                     ->fromCompany($people->company)
-                    ->where('name', 'Warm')
-                    ->firstOrFail();
+                    ->where('name', $leadTypeName)
+                    ->first();
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(
                 $people->app,
                 $people->company,
                 $leadType->getId(),
-                'whatsapp',
+                'Meta',
                 true,
-                'whatsapp'
+                'Meta'
             )
         )->execute();
 
-        $leadReceiver = new CreateLeadReceiverAction(
-            new LeadReceiver(
-                app: $people->app,
-                branch: $people->company->defaultBranch,
-                user: $people->user,
-                agent: $people->user,
-                name: 'Agent',
-                source: 'AI Agent',
-                isDefault: false,
-                lead_sources_id: $leadSource->getId(),
-                lead_types_id: $leadType->getId()
-            )
-        )->execute();
+        // Check if receiver_id is configured, if so, use existing receiver
+        $receiverId = $this->receiver->configuration['receiver_id'] ?? null;
+
+        if ($receiverId) {
+            $leadReceiver = LeadReceiverModel::fromApp($people->app)
+                ->fromCompany($people->company)
+                ->where('id', $receiverId)
+                ->where('is_deleted', 0)
+                ->firstOrFail();
+        } else {
+            $leadReceiver = new CreateLeadReceiverAction(
+                new LeadReceiver(
+                    app: $people->app,
+                    branch: $people->company->defaultBranch,
+                    user: $people->user,
+                    agent: $people->user,
+                    name: 'Agent',
+                    source: 'AI Agent',
+                    isDefault: false,
+                    lead_sources_id: $leadSource->getId(),
+                    lead_types_id: $leadType->getId()
+                )
+            )->execute();
+        }
+
+        // Check if pipeline_id is configured, if so, use that pipeline
+        $pipelineId = $this->receiver->configuration['pipeline_id'] ?? null;
+        $pipeline = null;
+
+        if ($pipelineId) {
+            $pipeline = Pipeline::fromApp($people->app)
+                ->fromCompany($people->company)
+                ->where('id', $pipelineId)
+                ->where('is_deleted', 0)
+                ->first();
+        }
 
         $leadData = new DataTransferObjectLead(
             app: $people->app,
             branch: $people->company->defaultBranch,
             user: $people->user,
             title: $people->name . ' WhatsApp Opp',
-            pipeline_stage_id: 0,
+            pipeline_stage_id: $pipeline?->firstStage?->getId() ?? 0,
             people: new PeopleDTO(
-                $people->app,
-                $people->company->defaultBranch,
-                $people->user,
-                $people->firstname,
-                Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
-                Address::collect([], DataCollection::class),
-                $people->lastname,
-                $people->id
+                app: $people->app,
+                branch: $people->company->defaultBranch,
+                user: $people->user,
+                firstname: $people->firstname,
+                contacts: Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
+                address: Address::collect([], DataCollection::class),
+                lastname: $people->lastname,
+                id: $people->id,
+                runWorkflow: false
             ),
             leads_owner_id: $leadReceiver->rotation ? $leadReceiver->rotation->getAgent()->id : 0,
             status_id: 0,
@@ -1200,6 +1241,8 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             'whatsapp',
             'ai-agent',
         ]);
+        $lead->set('sub_source', 'Meta');
+        $lead->set(LeadsEnumsConfigurationEnum::IS_FROM_WHATSAPP->value, true);
 
         return $lead;
     }

@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -16,6 +17,7 @@ use Kanvas\Workflow\KanvasActivity;
 
 class AgentChannelResponderActivity extends KanvasActivity
 {
+    use HandlesSupportModeDelayedResponseTrait;
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -61,7 +63,6 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                // Get agent ID from mapping or use default
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
@@ -93,6 +94,25 @@ class AgentChannelResponderActivity extends KanvasActivity
                             'agent' => Agent::getById($agentId, $app),
                         ])
                     )->execute();
+                }
+
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class,
+                        $chatSession
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
                 }
 
                 $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;

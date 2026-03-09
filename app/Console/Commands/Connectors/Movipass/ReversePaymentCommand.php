@@ -32,7 +32,7 @@ class ReversePaymentCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'capture authorized payment for Movipass orders';
+    protected $description = 'reverse authorized payment for Movipass orders';
 
     public function handle(): void
     {

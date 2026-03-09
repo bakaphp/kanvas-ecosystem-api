@@ -29,7 +29,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $id
  *  @property string $name
  *  @property string $slug
- *  @property string $description
+ *  @property string|null $title
+ *  @property string|null $description
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
@@ -90,6 +91,19 @@ class Channel extends BaseModel
         return $this->messages()
             ->where('messages.id', $this->last_message_id)
             ->first();
+    }
+
+    public function deleteLastMessageLocked(): bool
+    {
+        $message = $this->getLastMessage();
+        if ($message && $message->isLocked()) {
+            $newLastMessage = $this->getPreviousMessage($message);
+            $this->last_message_id = $newLastMessage?->id;
+
+            return $message->softDelete();
+        }
+
+        return false;
     }
 
     public function addMessage(

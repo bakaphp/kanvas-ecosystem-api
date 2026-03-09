@@ -31,7 +31,7 @@ class AppUserManagementQuery
 
         $user = auth()->user();
 
-        if ($user->can('limited-company-access')) {
+        if (! $user->isAdmin()) {
             // Get company IDs that the current user belongs to
             $userCompanyIds = DB::table('users_associated_company')
                 ->where('users_id', $user->getId())

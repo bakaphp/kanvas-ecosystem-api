@@ -7,17 +7,18 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Customer;
 use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
@@ -68,9 +69,18 @@ class PullLeadAction
                 $entityId
             );
 
-            $eLead = new SyncLeadAction($lead)->execute();
+            try {
+                $debounce = new EleadDebounce($this->app, $this->company);
+                $isRapidCall = $debounce->shouldSkip('pull_lead', (string) $entityId, 10);
 
-            $this->setContactStatus($lead, $eLead->subStatus);
+                $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
+                $this->setContactStatus($lead, $eLead->subStatus);
+            } catch (ClientException $e) {
+                // If the opportunity doesn't exist in Elead (404), close the lead and return it
+                if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
+                    $lead->close();
+                }
+            }
 
             return [
                 [
@@ -84,7 +94,7 @@ class PullLeadAction
                     'phone' => $lead->people?->getPhones()->first()?->value,
                     'status' => $lead->status()?->first()?->name ?? '',
                     'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name ,
+                    'owner' => $lead->owner?->firstname,
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
@@ -116,6 +126,7 @@ class PullLeadAction
         $results = [];
         $customers = $eLeadCustomer->search($params);
         $country = Countries::getByCode('US');
+        $filterResults = [];
 
         if ($customers && isset($customers['items'])) {
             foreach ($customers['items'] as $customer) {
@@ -130,12 +141,23 @@ class PullLeadAction
                         $this->company
                     );
 
-                    $eLead = Lead::getByCustomerId($this->app, $this->company, $customer['id']);
+                    $eLead = Lead::getByCustomerId(
+                        $this->app,
+                        $this->company,
+                        $customer['id']
+                    );
                     $eLead->customerId = $customer['id'];
 
                     $lead = new SyncLeadByThirdPartyCustomFieldAction(
-                        DataTransferObjectLead::fromLeadEntity($eLead, $this->user)
+                        DataTransferObjectLead::fromLeadEntity(
+                            $eLead,
+                            $this->user
+                        )
                     )->execute();
+
+                    if (isset($filterResults[$lead->id])) {
+                        continue; // Skip if this lead has already been processed
+                    }
 
                     $leadStatus = strtolower($lead->status()?->first()?->name ?? '');
                     $isActiveStatus = Str::contains($leadStatus, 'active');
@@ -154,6 +176,7 @@ class PullLeadAction
                     }
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
+
                     $results[] = [
                         'id' => $lead->id,
                         'uuid' => $lead->uuid,
@@ -171,6 +194,7 @@ class PullLeadAction
                         'rank' => $customer['rank'],
                         'recentlyCreated' => $lead->wasRecentlyCreated,
                     ];
+                    $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
 
@@ -195,7 +219,11 @@ class PullLeadAction
                                 }
 
                                 $internalClosedLeads = $activeLeadsQuery->first();
-                                $activeLeadsQuery->update(['leads_status_id' => LeadStatus::getByName('close')->id]);
+                                $internalClosedLeads->close();
+                            }
+
+                            if (isset($filterResults[$internalClosedLeads->id])) {
+                                continue; // Skip if this lead has already been processed
                             }
 
                             $results[] = [

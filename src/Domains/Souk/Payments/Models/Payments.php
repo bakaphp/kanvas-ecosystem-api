@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -64,6 +65,32 @@ class Payments extends BaseModel
                 ...($metadata['data'] ?? []),
             ],
         ];
+    }
+
+    public function addLog(string $event, array $context = []): void
+    {
+        app(LogPaymentEventAction::class)->execute($this, $event, $context);
+    }
+
+    public function markAsPaid(array $metadata = []): void
+    {
+        $this->status = PaymentStatusEnum::PAID->value;
+
+        if ($this->payable) {
+            $this->payable->updateQuietly([
+                'payment_status' => PaymentStatusEnum::PAID->value,
+            ]);
+        }
+
+        if (! empty($metadata)) {
+            $this->addMetadata($metadata);
+        }
+
+        $this->save();
+
+        if ($this->payable && method_exists($this->payable, 'checkPayments')) {
+            $this->payable->checkPayments();
+        }
     }
 
     public function scopePending($query)
