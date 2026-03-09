@@ -59,7 +59,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $this->app = $app;
         $this->apiUrl = $entity->app->get('PROMPT_IMAGE_API_URL');
         $this->openaiApiUrl = $entity->app->get('PROMPT_IMAGE_API_URL_OPENAI');
-        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->replace('fal-ai/', '')->toString();
+        $imageFilter = Str::of($entity->message['ai_model']['value'] ?? 'cartoonify')->toString();
         $imageFilterName = $entity->message['ai_model']['name'] ?? 'cartoonify';
 
         $isOpenAi = Str::contains($imageFilter, 'gpt');
@@ -273,8 +273,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $model = 'fal-ai/';
-        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', $model, $params)->json();
+        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', '', $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -640,7 +639,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->timeout(120)->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => $model . $imageFilter,
+            'model' => $imageFilter,
             'prompt' => $prompt,
         ]);
 
@@ -661,7 +660,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ])->timeout(120)->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
-                'model' => 'fal-ai/' . $imageFilter,
+                'model' => $imageFilter,
                 'logs' => true,
             ]);
 
@@ -701,7 +700,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->timeout(120)->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
-            'model' => 'fal-ai/' . $imageFilter,
+            'model' => $imageFilter,
         ]);
 
         return $response->json();
