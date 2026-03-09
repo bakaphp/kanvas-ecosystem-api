@@ -45,7 +45,10 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
 
             if ($payment) {
                 $payment->addMetadata([
-                    'data' => ['3ds_server_trans_id' => $transId],
+                    'data' => [
+                        '3ds_server_trans_id'          => $transId,
+                        '3ds_method_notification_status' => 'RECEIVED',
+                    ],
                 ]);
                 $payment->save();
 

@@ -881,6 +881,14 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             'RequestorChallengeIndicator'  => $context['requestor_challenge_indicator'] ?? '01',
         ];
 
+        // Include MethodNotificationStatus on retry (after the 3DS method iframe step).
+        // On the first call there is no azulOrderId, so the status is not applicable.
+        if ($context['azul_order_id'] ?? null) {
+            $storedStatus = $payment->getMetadata('3ds_method_notification_status');
+            $threeDSAuth['MethodNotificationStatus'] = $storedStatus
+                ?? ($methodUrl ? 'EXPECTED_BUT_NOT_RECEIVED' : 'NOT_EXPECTED');
+        }
+
         return new AzulPaymentRequest(
             channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
             store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
