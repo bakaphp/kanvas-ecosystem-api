@@ -46,6 +46,8 @@ use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -106,6 +108,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
+        AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
     }
 
     /**
