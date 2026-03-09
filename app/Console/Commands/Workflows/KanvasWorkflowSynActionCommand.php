@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows;
 
-use Google\Model;
 use Illuminate\Console\Command;
 use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromLeadActivity;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
