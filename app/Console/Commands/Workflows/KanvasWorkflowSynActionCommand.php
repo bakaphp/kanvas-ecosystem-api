@@ -30,6 +30,7 @@ use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleAct
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
+use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
@@ -352,6 +353,7 @@ class KanvasWorkflowSynActionCommand extends Command
             FollowUpPromptActivity::class,
             ModelWizardReceiverJob::class,
             IncrementPromptUsageActivity::class,
+            ProcessCalendlyWebhookJob::class,
         ];
 
         $createdActions = [];
