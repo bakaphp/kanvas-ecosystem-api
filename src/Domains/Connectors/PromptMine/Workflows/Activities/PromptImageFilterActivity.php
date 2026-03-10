@@ -273,7 +273,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithFalAi(string $fileUrl, string $imageFilter, Model $entity, array $params): array
     {
         // Step 1: Submit the image for processing
-        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $imageFilter, $entity->message['prompt'] ?? '', '', $params)->json();
+        $falModel = $this->normalizeFalModel($imageFilter);
+        $submitResponse = $this->submitImage($this->apiUrl, $fileUrl, $falModel, $entity->message['prompt'] ?? '', $params)->json();
 
         if (! isset($submitResponse['request_id'])) {
             throw new Exception('Failed to submit image for processing: ' . json_encode($submitResponse));
@@ -463,7 +464,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $apiUrl = str_replace('api/image/fal-ai/image-to-image', '', $this->apiUrl);
         $apiUrl = rtrim($apiUrl, '/') . '/api/image/Gemini-Nano-Banana/i2i';
 
-        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, '', $params);
+        $response = $this->submitImage($apiUrl, $imageUrl, $imageFilter, $prompt, $params);
         $responseData = $response->json();
 
         if (! $response->successful()) {
@@ -628,18 +629,49 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     /**
      * Submit an image for processing
      */
-    protected function submitImage(string $apiUrl, string $imageUrl, string $imageFilter, string $prompt, string $model, array $params): Response
+    /**
+     * MK-3922: Normalize fal model identifiers.
+     * - If the model already includes a known provider prefix (e.g. xai/..., fal-ai/...), pass through as-is.
+     * - Otherwise, treat it as a bare fal model key and prefix with `fal-ai/`.
+     */
+    protected function normalizeFalModel(string $model): string
     {
+        $model = trim($model);
+
+        if ($model === '') {
+            return 'fal-ai/cartoonify';
+        }
+
+        $knownPrefixes = [
+            'fal-ai/',
+            'xai/',
+            'openai/',
+            'stability-ai/',
+            'google/',
+            'replicate/',
+            'anthropic/',
+        ];
+
+        if (Str::startsWith($model, $knownPrefixes)) {
+            return $model;
+        }
+
+        return 'fal-ai/' . ltrim($model, '/');
+    }
+
+    protected function submitImage(string $apiUrl, string $imageUrl, string $model, string $prompt, array $params): Response
+    { 
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);
         }
+
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->timeout(120)->post($apiUrl, [
             'operation' => 'submit',
             'image_url' => $imageUrl,
-            'model' => $imageFilter,
+            'model' => $model,
             'prompt' => $prompt,
         ]);
 
@@ -660,7 +692,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             ])->timeout(120)->post($this->apiUrl, [
                 'operation' => 'status',
                 'requestId' => $requestId,
-                'model' => $imageFilter,
+                'model' => $this->normalizeFalModel($imageFilter),
                 'logs' => true,
             ]);
 
@@ -700,7 +732,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         ])->timeout(120)->post($this->apiUrl, [
             'operation' => 'result',
             'requestId' => $requestId,
-            'model' => $imageFilter,
+            'model' => $this->normalizeFalModel($imageFilter),
         ]);
 
         return $response->json();
