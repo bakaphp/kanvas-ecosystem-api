@@ -19,6 +19,7 @@ type MessageType {
 
 extend type Query @guard {
     messageTypes(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
