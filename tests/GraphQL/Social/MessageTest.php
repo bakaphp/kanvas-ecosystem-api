@@ -142,7 +142,7 @@ class MessageTest extends TestCase
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
-                'tags' => [
+                    'tags' => [
                         'data' => [
                             [
                                 'name' => 'tag1',
@@ -152,6 +152,52 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateMessageWithIsLocked(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('{
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('{
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'is_locked' => 1,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'id' => $id,
+                    'is_locked' => 1,
+                ],
+            ],
+        ]);
+
+        $message = Message::getById((int) $id, app(Apps::class));
+        $this->assertSame(1, (int) $message->is_locked);
     }
 
     public function testUpdateMessageAddTags(): void
