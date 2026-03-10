@@ -28,7 +28,8 @@ class VariantsWarehouses extends Data
         public bool $is_coming_son = false,
         public bool $is_new = false,
         public ?array $config = null,
-        public float $cost = 0.00
+        public float $cost = 0.00,
+        public ?float $max_capacity = null
     ) {
     }
 
@@ -37,8 +38,8 @@ class VariantsWarehouses extends Data
         return new self(
             $variant,
             $warehouse,
-            isset($request['quantity']) ? (float) $request['quantity'] : 0,
-            isset($request['price']) ? (float) $request['price'] : 0.00,
+            (float) ($request['quantity'] ?? 0),
+            (float) ($request['price'] ?? 0.00),
             $request['sku'] ?? $variant->sku,
             (int) ($request['position'] ?? 0),
             $request['serial_number'] ?? null,
@@ -53,6 +54,7 @@ class VariantsWarehouses extends Data
             $request['is_new'] ?? false,
             $request['config'] ?? null,
             isset($request['cost']) ? (float) $request['cost'] : 0.00,
+            isset($request['max_capacity']) ? (float) $request['max_capacity'] : null,
         );
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -14,7 +15,7 @@ class SessionChannelService
 {
     public static function createCanalId(string $channel, string $id): string
     {
-        $normalizedId = self::normalizePhoneNumber($id);
+        $normalizedId = Str::normalizePhoneNumber($id);
 
         return match ($channel) {
             'whatsapp' => $normalizedId . '@s.whatsapp.net',
@@ -25,23 +26,13 @@ class SessionChannelService
 
     public static function createChannelSlug(string $channel, string $id): string
     {
-        $normalizedId = self::normalizePhoneNumber($id);
+        $normalizedId = Str::normalizePhoneNumber($id);
 
         return match ($channel) {
             'whatsapp' => 'wa-chat-' . $normalizedId . '-at-swhatsappnet',
             'sms' => 'twilio-' . $normalizedId,
-            'email' => 'email-' . self::sanitizeEmail($id),
+            'email' => 'email-' . Str::sanitizeEmail($id),
         };
-    }
-
-    private static function normalizePhoneNumber(string $phone): string
-    {
-        return (string) preg_replace('/^\+?1/', '', $phone);
-    }
-
-    private static function sanitizeEmail(string $email): string
-    {
-        return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
     }
 
     public static function generateChannelLink(Model $entity, AppInterface $app): ?string
@@ -66,7 +57,8 @@ class SessionChannelService
             $channelSlug = $entity->socialChannels()
                 ->where(function (Builder $query) {
                     $query->where('name', 'like', '%email%')
-                        ->orWhere('name', 'like', '%sms%');
+                        ->orWhere('name', 'like', '%sms%')
+                        ->orWhere('name', 'like', '%whatsapp%');
                 })
                 ->first()?->slug;
         }

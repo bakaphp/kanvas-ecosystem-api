@@ -191,21 +191,31 @@ class Lead extends BaseModel implements EventResourceInterface
         return $this->belongsTo(Users::class, 'leads_owner_id', 'id');
     }
 
+    /**
+     * Cast id to string for cross-database relationships where entity_id is char(50).
+     * Without this, Eloquent sends integer bindings against a char column,
+     * which prevents MySQL from using indexes (full table scan on 400k rows).
+     */
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
     public function socialChannels(): HasMany
     {
-        return $this->hasMany(Channel::class, 'entity_id', 'id')
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
             ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
     }
 
     public function aiSession(): HasMany
     {
-        return $this->hasMany(Session::class, 'entity_id', 'id')
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class);
     }
 
     public function notes(): HasOne
     {
-        return $this->hasOne(Channel::class, 'entity_id', 'id')
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
             ->where('name', 'Notes');
     }
@@ -274,7 +284,14 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function close(): void
     {
+        //LeadStatus::getByName('close')->id
         $this->leads_status_id = 6; //change by dynamic
+        $this->saveOrFail();
+    }
+
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
         $this->saveOrFail();
     }
 

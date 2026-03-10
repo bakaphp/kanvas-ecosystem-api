@@ -88,7 +88,7 @@ class OrderManagementMutation
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
-        $region = Regions::getDefault($company);
+        $region = Regions::getDefault($company, $app);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
@@ -214,7 +214,7 @@ class OrderManagementMutation
             throw new ValidationException('Extended reservation is not allowed');
         }
 
-        $region = Regions::getDefault($company);
+        $region = Regions::getDefault($company, $app);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
@@ -410,14 +410,20 @@ class OrderManagementMutation
             throw new ValidationException('Order not found');
         }
 
-        $newOrderStatus = OrderStatus::where([
-            'apps_id' => $app->getId(),
-            'order_types_id' => $order->orderType->getId(),
-            'slug' => $input['status_slug'],
-        ])->first();
+        $statusSlug = $input['status_slug'] ?? null;
 
-        if (! $newOrderStatus) {
-            throw new ValidationException('Order status not found');
+        if ($statusSlug) {
+            $newOrderStatus = OrderStatus::where([
+                'apps_id' => $app->getId(),
+                'order_types_id' => $order->orderType->getId(),
+                'slug' => $statusSlug,
+            ])->first();
+
+            if (! $newOrderStatus) {
+                throw new ValidationException('Order status not found');
+            }
+        } else {
+            $newOrderStatus = $order->orderType->nextStatus($order);
         }
 
         try {

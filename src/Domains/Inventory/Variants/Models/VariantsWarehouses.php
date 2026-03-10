@@ -27,9 +27,10 @@ use Override;
  * @property int $products_variants_id
  * @property int $warehouses_id
  * @property int $quantity
+ * @property int $max_capacity
  * @property float $price
  * @property string $sku
- * @property int $status_id
+ * @property int|null $status_id
  * @property int $position
  * @property string $serial_number
  * @property int $is_default
@@ -63,6 +64,7 @@ class VariantsWarehouses extends BaseModel
         return [
             'price' => 'decimal:2',
             'quantity' => 'integer',
+            'max_capacity' => 'integer',
             'config' => Json::class
         ];
     }

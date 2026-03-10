@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Str;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Override;
@@ -65,6 +66,10 @@ class ZohoLead extends Data
     {
         $data = array_merge(parent::toArray(), $this->additionalFields);
         unset($data['additionalFields']);
+
+        if (isset($data['URL']) && is_string($data['URL'])) {
+            $data['URL'] = Str::limit($data['URL'], 100, '');
+        }
 
         // Remove empty values
         return array_filter($data, fn ($value) => ! empty($value));

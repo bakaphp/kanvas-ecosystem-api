@@ -26,15 +26,18 @@ class CreateOrderStatusesAction
         ], [
             'slug' => Str::slug($this->orderTypeName),
             'is_default' => false,
+            'companies_id' => 0,
         ]);
 
         $createdStatuses = [];
         $statusModels = [];
 
         // Create statuses
+        $sequenceIndex = 1;
         foreach ($this->statuses as $statusName => $config) {
             $isDefault = $config['is_default'] ?? false;
             $isFinal = $config['is_final'] ?? false;
+            $sequence = $config['sequence'] ?? $sequenceIndex;
 
             $status = OrderStatus::firstOrCreate([
                 'apps_id' => $this->app->getId(),
@@ -44,7 +47,11 @@ class CreateOrderStatusesAction
                 'name' => ucfirst(str_replace('-', ' ', $statusName)),
                 'is_default' => $isDefault,
                 'is_final' => $isFinal,
+                'sequence' => $sequence,
+                'companies_id' => 0,
             ]);
+
+            $sequenceIndex++;
 
             $statusModels[$statusName] = $status;
             $createdStatuses[] = $status;
@@ -65,11 +72,14 @@ class CreateOrderStatusesAction
                             'to_status_id' => $toStatus->getId(),
                         ], [
                             'name' => "{$fromStatus->name} to {$toStatus->name}",
+                            'companies_id' => 0,
                         ]);
                     }
                 }
             }
         }
+
+        $orderType->update(['total_statuses' => count($createdStatuses)]);
 
         return [
             'order_type' => $orderType,

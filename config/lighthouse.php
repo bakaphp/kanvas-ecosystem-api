@@ -164,19 +164,29 @@ return [
         'enable' => env('LIGHTHOUSE_QUERY_CACHE_ENABLE', true),
 
         /*
+         * Configures which mechanism to use for the query cache.
+         * - store: use an external shared cache through a Laravel cache store like Redis or Memcached
+         * - opcache: store parsed queries in PHP files on the local filesystem to leverage OPcache
+         * - hybrid: leverage OPcache, but use a shared cache store when local files are not found
+         */
+        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'store'),
+
+        /*
+         * Specifies the path where the PHP files are stored when using opcache or hybrid mode.
+         * The given path must be a folder, as every query will produce its own file.
+         */
+        'opcache_path' => env('LIGHTHOUSE_QUERY_CACHE_OPCACHE_PATH', base_path('bootstrap/cache')),
+
+        /*
          * Allows using a specific cache store, uses the app's default if set to null.
+         * Not relevant when using opcache mode.
          */
         'store' => env('LIGHTHOUSE_QUERY_CACHE_STORE', null),
 
         /*
          * Duration in seconds (minutes for Laravel pre-5.8) the query should remain cached, null means forever.
          */
-        'ttl' => env(
-            'LIGHTHOUSE_QUERY_CACHE_TTL',
-            \Nuwave\Lighthouse\Support\AppVersion::atLeast(5.8)
-                ? 24 * 60 * 60 // 1 day in seconds
-                : 24 * 60 // 1 day in minutes
-        ),
+        'ttl' => env('LIGHTHOUSE_QUERY_CACHE_TTL', 24 * 60 * 60),
     ],
 
      /*
@@ -204,6 +214,19 @@ return [
          */
         'ttl' => env('LIGHTHOUSE_VALIDATION_CACHE_TTL', 24 * 60 * 60),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Parse source location
+    |--------------------------------------------------------------------------
+    |
+    | Should the source location be included in the AST nodes resulting from query parsing?
+    | Setting this to `false` improves performance, but omits the key `locations` from errors,
+    | see https://spec.graphql.org/October2021/#sec-Errors.Error-result-format.
+    |
+    */
+
+    'parse_source_location' => true,
 
     /*
     |--------------------------------------------------------------------------
@@ -291,7 +314,9 @@ return [
     'security' => [
         'max_query_complexity' => \GraphQL\Validator\Rules\QueryComplexity::DISABLED,
         'max_query_depth' => \GraphQL\Validator\Rules\QueryDepth::DISABLED,
-        'disable_introspection' => \GraphQL\Validator\Rules\DisableIntrospection::DISABLED,
+        'disable_introspection' => (bool) env('LIGHTHOUSE_SECURITY_DISABLE_INTROSPECTION', false)
+            ? \GraphQL\Validator\Rules\DisableIntrospection::ENABLED
+            : \GraphQL\Validator\Rules\DisableIntrospection::DISABLED,
     ],
 
     /*
@@ -466,39 +491,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Non-Null Pagination Results
-    |--------------------------------------------------------------------------
-    |
-    | If set to true, the generated result type of paginated lists will be marked
-    | as non-nullable. This is generally more convenient for clients, but will
-    | cause validation errors to bubble further up in the result.
-    |
-    | This setting will be removed and always behave as if it were true in v6.
-    |
-    */
-
-    'non_null_pagination_results' => false,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Unbox BenSampo\Enum\Enum instances
-    |--------------------------------------------------------------------------
-    |
-    | If set to true, Lighthouse will extract the internal $value from instances of
-    | BenSampo\Enum\Enum before passing it to ArgBuilderDirective::handleBuilder().
-    |
-    | This setting will be removed and always behave as if it were false in v6.
-    |
-    | It is only here to preserve compatibility, e.g. when expecting the internal
-    | value to be passed to a scope when using @scope, but not needed due to Laravel
-    | calling the Enum's __toString() method automagically when used in a query.
-    |
-    */
-
-    'unbox_bensampo_enum_enum_instances' => true,
-
-    /*
-    |--------------------------------------------------------------------------
     | GraphQL Subscriptions
     |--------------------------------------------------------------------------
     |
@@ -535,6 +527,11 @@ return [
         'storage_ttl' => env('LIGHTHOUSE_SUBSCRIPTION_STORAGE_TTL', 3600), //start with 1h
 
         /*
+         * Encrypt subscription channels by prefixing their names with "private-encrypted-"?
+         */
+        'encrypted_channels' => env('LIGHTHOUSE_SUBSCRIPTION_ENCRYPTED', false),
+
+        /*
          * Default subscription broadcaster.
          */
         'broadcaster' => env('LIGHTHOUSE_BROADCASTER', 'pusher'),
@@ -556,13 +553,12 @@ return [
                 'connection' => env('LIGHTHOUSE_SUBSCRIPTION_REDIS_CONNECTION', 'default'),
                 'routes' => \Nuwave\Lighthouse\Subscriptions\SubscriptionRouter::class . '@echoRoutes',
             ],
+            'reverb' => [
+                'driver' => 'pusher',
+                'connection' => 'reverb',
+                'routes' => \Nuwave\Lighthouse\Subscriptions\SubscriptionRouter::class . '@reverb',
+            ],
         ],
-
-        /*
-         * Controls the format of the extensions response.
-         * Allowed values: 1, 2
-         */
-        'version' => env('LIGHTHOUSE_SUBSCRIPTION_VERSION', 1),
 
         /*
          * Should the subscriptions extension be excluded when the response has no subscription channel?

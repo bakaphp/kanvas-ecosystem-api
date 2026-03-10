@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Repositories\OrderPaymentRepository;
@@ -10,22 +13,38 @@ use Kanvas\Souk\Orders\Repositories\OrderPaymentRepository;
 class GetOrderPaymentStatsAction
 {
     protected OrderPaymentRepository $repository;
+    protected array $productVariantIds = [];
 
     public function __construct(
         protected Apps $app,
         protected array $paidStates = ['paid'],
         protected ?int $variantId = null,
         protected array $productTypeSlugs = [],
+        protected array $orderTypeNames = [],
         protected array $providers = [],
+        protected ?int $productId = null,
+        protected array $providerCompanyIds = [],
     ) {
         $this->repository = new OrderPaymentRepository($app);
+
+        if ($this->productId && ! $this->variantId) {
+            $this->productVariantIds = DB::connection('inventory')
+                ->table('products_variants')
+                ->where('products_id', $this->productId)
+                ->pluck('id')
+                ->toArray();
+        }
     }
+
+    private const ALL_PERIODS = ['DAY', 'WEEK', 'MONTH', 'YEAR'];
 
     public function execute(
         ?string $date = null,
         ?string $startDate = null,
         ?string $endDate = null,
-        string $timezone = 'UTC'
+        string $timezone = 'UTC',
+        ?array $groupPeriods = null,
+        string $periodBreakdown = 'MONTH',
     ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
@@ -34,6 +53,8 @@ class GetOrderPaymentStatsAction
             $start = $startDate ? Carbon::parse($startDate, $timezone)->startOfDay()->timezone('UTC') : now()->startOfDay()->timezone('UTC');
             $end = $endDate ? Carbon::parse($endDate, $timezone)->endOfDay()->timezone('UTC') : now()->endOfDay()->timezone('UTC');
         }
+
+        $groupPeriods ??= self::ALL_PERIODS;
 
         $currentCount = 0;
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount, $timezone);
@@ -46,6 +67,8 @@ class GetOrderPaymentStatsAction
             ],
             'ordersInPeriod' => $ordersInPeriod,
             'currentCount' => $currentCount,
+            'byPeriod' => $this->getByPeriod($periodBreakdown, $start, $end, $timezone),
+            'periods' => $this->computePeriods($groupPeriods, $start, $end, $currentCount, (float) ($ordersInPeriod['totalAmount'] ?? 0)),
         ];
     }
 
@@ -56,7 +79,10 @@ class GetOrderPaymentStatsAction
             $end,
             $this->paidStates,
             $this->variantId,
-            $timezone
+            $timezone,
+            $this->orderTypeNames,
+            $this->productVariantIds,
+            $this->providerCompanyIds
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -93,7 +119,7 @@ class GetOrderPaymentStatsAction
         $totalAmount = $byDates->sum(fn ($entry) => $entry['states']['amount'] ?? 0);
 
         // Get service stats from the already filtered orders
-        $byServices = $this->getServiceStatsFromOrders($start, $end, $this->variantId);
+        $byServices = $this->getServiceStatsFromOrders($start, $end);
 
         // Get provider stats if providers are specified
         $byProvider = [];
@@ -103,7 +129,9 @@ class GetOrderPaymentStatsAction
                 $end,
                 $this->paidStates,
                 $this->providers,
-                $this->variantId
+                $this->variantId,
+                $this->productVariantIds,
+                $this->providerCompanyIds
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -128,6 +156,54 @@ class GetOrderPaymentStatsAction
         ];
     }
 
+    private function getByPeriod(string $periodType, Carbon $start, Carbon $end, string $timezone): array
+    {
+        $rows = $this->repository->getBreakdownByPeriod(
+            $periodType,
+            $start,
+            $end,
+            $this->paidStates,
+            $timezone,
+            $this->orderTypeNames,
+            $this->variantId,
+            $this->productVariantIds,
+            $this->providerCompanyIds
+        );
+
+        return $rows->map(fn ($row) => [
+            'label'              => $row->label,
+            'total_transactions' => (int) $row->total_transactions,
+            'total_amount'       => (float) $row->total_amount,
+        ])->values()->toArray();
+    }
+
+    private function computePeriods(array $groupPeriods, Carbon $start, Carbon $end, int $count, float $total): array
+    {
+        $days = max((int) $start->diffInDays($end) + 1, 1);
+        $periods = [];
+
+        foreach ($groupPeriods as $type) {
+            $periodsInRange = match (strtoupper($type)) {
+                'DAY'   => $days,
+                'WEEK'  => max((int) ceil($days / 7.0), 1),
+                'MONTH' => max($start->copy()->startOfMonth()->diffInMonths($end->copy()->startOfMonth()) + 1, 1),
+                'YEAR'  => max($start->copy()->startOfYear()->diffInYears($end->copy()->startOfYear()) + 1, 1),
+                default => $days,
+            };
+
+            $periods[] = [
+                'period_type'      => strtoupper($type),
+                'count'            => $count,
+                'avg_count'        => $periodsInRange > 0 ? round($count / $periodsInRange, 2) : 0,
+                'total'            => $total,
+                'amount_avg'       => $periodsInRange > 0 ? round($total / $periodsInRange, 2) : 0,
+                'periods_in_range' => (int) $periodsInRange,
+            ];
+        }
+
+        return $periods;
+    }
+
     private function getServiceStatsFromOrders($start, $end): array
     {
         // Get order IDs that match our criteria (same filters as main query)
@@ -135,7 +211,10 @@ class GetOrderPaymentStatsAction
             $start,
             $end,
             $this->paidStates,
-            $this->variantId
+            $this->variantId,
+            $this->orderTypeNames,
+            $this->productVariantIds,
+            $this->providerCompanyIds
         );
 
         if ($orderIds->isEmpty()) {

@@ -3,6 +3,7 @@ type Contact {
     type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
+    is_opt_out: Boolean!
     weight: Int!
 }
 

@@ -11,11 +11,11 @@ class EngagementObserver
 {
     public function updated(Engagement $engagement): void
     {
-        if (! $engagement->wasChanged('message_id')) {
+        if (! $engagement->wasChanged('message_id') && ! $engagement->wasChanged('pipelines_stages_id')) {
             return;
         }
 
-        $message = $engagement->message; // assuming relationship exists
+        $message = $engagement->message;
         if (! $message) {
             return;
         }

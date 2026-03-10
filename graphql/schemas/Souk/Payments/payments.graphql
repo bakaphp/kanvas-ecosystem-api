@@ -77,6 +77,20 @@ type PaymentResult {
     message: Mixed
 }
 
+type PaymentValidationResult {
+    status: String!
+    message: String!
+    payment: Payment
+    order: Order
+}
+
+type PaymentActionResult {
+    status: String!
+    message: String!
+    payment: Payment
+    data: Mixed
+}
+
 enum PaymentMethodTypeEnum {
     MANUAL @enum(value: "manual")
     CARD @enum(value: "card")
@@ -147,10 +161,77 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
         )
+    validatePayment(paymentId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayment"
+        )
+    validatePaymentByOrder(orderId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePaymentByOrder"
+        )
+    capturePayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@capturePayment"
+        )
+    reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
+        )
 }
 
 extend type Query @guard {
     payments(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "payable_id"
+                    "payable_type"
+                    "payment_methods_id"
+                    "status"
+                    "amount"
+                    "currency"
+                    "payment_date"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        hasOrder: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "order_number"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "reference"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasOrderHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasProviderHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+    ): [Payment!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Payments\\Models\\Payments"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+
+    providerPayments(
+        provider_company_id: ID!
         where: _
             @whereConditions(
                 columns: [
@@ -191,8 +272,7 @@ extend type Query @guard {
     ): [Payment!]!
         @paginate(
             defaultCount: 25
-            model: "Kanvas\\Souk\\Payments\\Models\\Payments"
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Souk\\Builders\\Payment\\ProviderPaymentsBuilder@build"
         )
 
     paymentMethods(

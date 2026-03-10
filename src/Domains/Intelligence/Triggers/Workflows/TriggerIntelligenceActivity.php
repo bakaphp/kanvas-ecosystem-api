@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,6 +30,11 @@ class TriggerIntelligenceActivity extends KanvasActivity
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 // Trigger IA Logic Here
                 $triggerType = $params['trigger_type'] ?? null;
+                if (! $triggerType) {
+                    return $this->failWorkflow([
+                        'error' => 'Invalid trigger type',
+                    ]);
+                }
                 $modsPrevious = [
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
@@ -97,6 +103,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 ];
+                $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
                 // Post handoff note with state changes
 
@@ -107,5 +114,22 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    protected function sentDataToOrchestration(Lead $lead, string $aiMode): void
+    {
+        $data = ['stateDelta' => ['mode' => $aiMode]];
+        foreach ($lead->aiSession as $session) {
+            $handle = new $session->agent->type->handler();
+            $handle->setConfiguration($session->agent, $session->entity());
+            try {
+                $handle->sendDataToAgent($session->uuid, $data);
+            } catch (ClientException $e) {
+                if ($e->getResponse()->getStatusCode() === 404) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
     }
 }

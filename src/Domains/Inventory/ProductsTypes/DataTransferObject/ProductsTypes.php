@@ -35,7 +35,7 @@ class ProductsTypes extends Data
     public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
         return new self(
-            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
+            (isset($request['companies_id']) && (int) $request['companies_id'] !== 0) ? Companies::getById($request['companies_id']) : $company,
             $user,
             $request['name'],
             $request['description'] ?? null,

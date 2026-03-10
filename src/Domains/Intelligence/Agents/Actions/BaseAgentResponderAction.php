@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
-use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
@@ -15,10 +14,10 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class BaseAgentResponderAction
 {
@@ -31,17 +30,27 @@ class BaseAgentResponderAction
         protected Agent $agent,
         protected ?Session $session = null,
     ) {
-        $lead = $this->session->entity();
+        $lead = $this->session?->entity() ?? $this->message->entity();
+
+        if ($lead === null) {
+            throw new Exception('No lead found for AI agent');
+        }
+
         $aiMode = $lead->get('ai_mode');
         if ($aiMode == IntelligenceModeEnum::OFF->value) {
             throw new Exception('Ai Agent Off for this lead');
         }
     }
 
-    protected function createMessage(string $text, string $to, Message $message, Channel $channel, ?string $from = null): Message
-    {
+    protected function createMessage(
+        string $text,
+        string $to,
+        Message $message,
+        Channel $channel,
+        ?string $from = null
+    ): Message {
         $user = $message->user;
-        $agentUser = $this->channel->app->get('kanvas_agent_user_id');
+        $agentUser = $this->channel->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
@@ -64,18 +73,35 @@ class BaseAgentResponderAction
             //slug: Str::slug($text) . '-' . microtime()
         );
 
-        $newMessage = new CreateMessageAction($messageInput)->execute();
+        $newMessage = new CreateMessageAction($messageInput);
+        $newMessage->runWorkflow = false;
+        $newMessage = $newMessage->execute();
+
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
+
         if ($message->entity() instanceof Model) {
             $newMessage->addEntity($message->entity());
         }
-        $channel->addMessage($newMessage);
 
-        if ($this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
-            $newMessage->setLock();
-            $newMessage->setPrivate();
-        }
+        // $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
+
+        // $agentSupportMode = $isWithinWorkingHours
+        //     && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
+
+        // if ($agentSupportMode) {
+        //     $newMessage->setLock();
+        //     $newMessage->setPrivate();
+        // }
+
+        $newMessage->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                 'app' => $newMessage->app,
+             ]
+        );
+        $channel->addMessage($newMessage);
 
         return $newMessage;
     }
@@ -103,16 +129,8 @@ class BaseAgentResponderAction
         return [];
     }
 
-    public function getMessageType(Apps $apps): MessageType
+    public function getMessageType(Apps $app): MessageType
     {
-        $messageTypeInput = MessageTypeInput::from([
-            'apps_id' => $apps->getId(),
-            'verb' => $this->messageTypeVerb,
-            'name' => Str::title($this->messageTypeVerb),
-        ]);
-
-        $messageTypeAction = new CreateMessageTypeAction($messageTypeInput);
-
-        return $messageTypeAction->execute();
+        return MessageTypeService::getOrCreate($app, $this->messageTypeVerb);
     }
 }

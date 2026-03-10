@@ -43,7 +43,8 @@ class LeadIntentTool implements ContextToolInterface
            ->first();
 
         if (! $source) {
-            $source = [
+            // Try to find a default source, otherwise use fallback
+            $source = $sources->where('is_default', true)->first() ?? [
                 'Backend' => 'ADVANCED_REQUEST',
                 'Default_Completion_Status' => 'Incomplete',
             ];

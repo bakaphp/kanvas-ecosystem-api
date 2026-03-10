@@ -11,8 +11,12 @@ use Override;
 class AddFundsToUserWalletAction extends AddFundsToWalletActionBase
 {
     #[Override]
-    public function execute(): Transaction
+    public function execute(bool $processTransactionsByWalletType = false): Transaction
     {
+        if ($processTransactionsByWalletType) {
+            return $this->processTransactionsByWalletType()['default'];
+        }
+
         return $this->processTransaction();
     }
 
