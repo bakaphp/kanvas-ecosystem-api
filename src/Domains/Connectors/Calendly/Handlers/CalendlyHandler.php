@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Calendly\Handlers;
 
+use Exception;
 use Kanvas\Connectors\Calendly\Client;
 use Kanvas\Connectors\Calendly\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Contracts\BaseIntegration;
-use Exception;
 use Kanvas\Exceptions\ValidationException;
 use Override;
 
