@@ -23,7 +23,7 @@ class ScoutProductIndexProcessCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id} {--company_id=} {--action= : Force action without prompt (delete, reindex, unpublished, delete-all)}';
+    protected $signature = 'kanvas-inventory:scout-product-index-process {app_id} {--company_id=} {--action= : Force action without prompt (delete, reindex, unpublished, delete-all)} {--engine= : Override search engine for this run (algolia, typesense, meilisearch)}';
 
     /**
      * The console command description.
@@ -52,33 +52,63 @@ class ScoutProductIndexProcessCommand extends Command
 
         $companyId = $this->option('company_id') ?? null;
         $action = $this->option('action') ?? null;
+        /** @var string|null $engine */
+        $engine = $this->option('engine') ?? null;
+        /** @var \Closure|null $restoreEngine */
+        $restoreEngine = null;
 
-        // If action is provided, bypass the interactive select
-        if ($action !== null) {
-            if (! isset($this->actionMap[$action])) {
-                $this->error("Invalid action '{$action}'. Valid actions are: " . implode(', ', array_keys($this->actionMap)));
+        if ($engine !== null) {
+            /** @var mixed $originalEngine */
+            $originalEngine = $app->get('products_search_engine');
+            $app->set('products_search_engine', $engine);
+            $this->info('Overriding search engine to: ' . $engine);
+
+            $restoreEngine = function () use ($app, $originalEngine): void {
+                if ($originalEngine !== null) {
+                    $app->set('products_search_engine', $originalEngine);
+                } else {
+                    $app->del('products_search_engine');
+                }
+
+                $this->info('Restored original search engine setting');
+            };
+
+            $this->trap([SIGINT, SIGTERM], function () use ($restoreEngine): void {
+                $restoreEngine();
+                exit(1);
+            });
+        }
+
+        try {
+            // If action is provided, bypass the interactive select
+            if ($action !== null) {
+                if (! isset($this->actionMap[$action])) {
+                    $this->error("Invalid action '{$action}'. Valid actions are: " . implode(', ', array_keys($this->actionMap)));
+
+                    return;
+                }
+
+                $option = $this->actionMap[$action];
+                $this->executeAction($option, $app, $companyId);
 
                 return;
             }
 
-            $option = $this->actionMap[$action];
+            $option = select(
+                label: 'Select the type of function to be done',
+                options: [
+                    1 => 'Delete',
+                    2 => 'Reindex',
+                    3 => 'Remove products with all variants unpublished on default channel',
+                    4 => 'Delete all products from index',
+                ],
+            );
             $this->executeAction($option, $app, $companyId);
-
-            return;
+        } finally {
+            if ($restoreEngine !== null) {
+                $restoreEngine();
+            }
         }
-
-        $option = select(
-            label: 'Select the type of function to be done',
-            options: [
-                1 => 'Delete',
-                2 => 'Reindex',
-                3 => 'Remove products with all variants unpublished on default channel',
-                4 => 'Delete all products from index',
-            ],
-        );
-        $this->executeAction($option, $app, $companyId);
-
-        return;
     }
 
     protected function executeAction(int $option, Apps $app, ?string $companyId = null): void
