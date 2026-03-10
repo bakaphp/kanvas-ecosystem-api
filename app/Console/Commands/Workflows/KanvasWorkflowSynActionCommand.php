@@ -101,6 +101,7 @@ use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActi
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
+use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
@@ -308,6 +309,7 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowPushLeadNotesActivity::class,
             LeadAgentFirstMessageOutreachActivity::class,
             CreateLeadFromADFWebhookJob::class,
+            ProcessFacebookLeadWebhookJob::class,
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
