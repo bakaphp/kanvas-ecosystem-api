@@ -65,6 +65,11 @@ class CreateMessageAction
 
             $message = Message::create($data);
 
+            if (! empty($this->messageInput->custom_fields)) {
+                $message->setCustomFields($this->messageInput->custom_fields);
+                $message->saveCustomFields();
+            }
+
             if (count($this->messageInput->tags)) {
                 $message->syncTags($this->messageInput->tags);
             }

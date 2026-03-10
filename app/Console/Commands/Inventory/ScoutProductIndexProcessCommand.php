@@ -58,7 +58,6 @@ class ScoutProductIndexProcessCommand extends Command
         $restoreEngine = null;
 
         if ($engine !== null) {
-            /** @var mixed $originalEngine */
             $originalEngine = $app->get('products_search_engine');
             $app->set('products_search_engine', $engine);
             $this->info('Overriding search engine to: ' . $engine);

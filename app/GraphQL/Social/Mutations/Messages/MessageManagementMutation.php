@@ -164,6 +164,7 @@ class MessageManagementMutation
                 tags: $input['tags'] ?? [],
                 categories: $input['categories'] ?? [],
                 is_locked: $input['is_locked'] ?? $message->is_locked,
+                custom_fields: $input['custom_fields'] ?? [],
             ),
         )->execute();
     }
