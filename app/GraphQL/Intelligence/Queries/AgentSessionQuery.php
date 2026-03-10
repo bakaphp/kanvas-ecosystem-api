@@ -6,9 +6,12 @@ namespace App\GraphQL\Intelligence\Queries;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AgentSessionQuery
 {
@@ -27,6 +30,14 @@ class AgentSessionQuery
             $session->update();
         }
 
+        $systemModule = SystemModulesRepository::getByModelName(Message::class, $app);
+
+        $channelSlugs = [];
+        $entity = $session->entity();
+        if ($entity instanceof Lead) {
+            $channelSlugs = $entity->socialChannels()->pluck('slug')->toArray();
+        }
+
         return [
             'id' => $request['id'],
             'name' => 'orchestrate',
@@ -35,6 +46,8 @@ class AgentSessionQuery
             'company_config' => $session->agent->type->config,
             'content' => $session->content,
             'channel' => $session->channel?->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value),
+            'system_modules_id' => $systemModule->getId(),
+            'channel_slugs' => $channelSlugs,
         ];
     }
 }
