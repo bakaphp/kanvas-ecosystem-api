@@ -30,6 +30,7 @@ use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleAct
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
+use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
@@ -101,7 +102,6 @@ use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActi
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
-use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
