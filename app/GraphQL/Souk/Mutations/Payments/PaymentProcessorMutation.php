@@ -6,11 +6,15 @@ namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Payments\Actions\CreatePaymentMethodAction;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod as PaymentMethodData;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
+use RuntimeException;
 
 class PaymentProcessorMutation
 {
@@ -167,6 +171,102 @@ class PaymentProcessorMutation
         }
     }
 
+    public function startChallengeWithCard(mixed $root, array $request): array
+    {
+        $app      = app(Apps::class);
+        $user     = auth()->user();
+        $cardData = $request['paymentData'];
+
+        try {
+            $order = Order::where(['apps_id' => $app->getId(), 'id' => (int) $request['orderId']])->firstOrFail();
+
+            if ($order->isPaid()) {
+                return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
+            }
+
+            $payment = $this->findOrCreatePayment($cardData, $order, $app, $user);
+
+            if ($payment->isPaid()) {
+                return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
+            }
+
+            // Card number and CVV are passed in-memory only — never persisted to DB (PCI DSS).
+            $context = [
+                'card_number' => preg_replace('/\s+/', '', $cardData['number']),
+                'cvc'         => $cardData['cvv'] ?? null,
+            ];
+
+            $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);
+
+            return [
+                'success' => $result->success,
+                'message' => $result->message,
+                'status'  => $result->status,
+                'data'    => [
+                    ...$result->data,
+                    'raw' => $result->raw,
+                    'payment_id' => $payment->id
+                ],
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => PaymentStatusEnum::FAILED->value,
+                'data' => null
+            ];
+        }
+    }
+
+    /**
+     * Find an existing in-progress payment for the order (retry after 3DS method step)
+     * or create a new one. Only non-sensitive metadata is stored (last 4, billing address).
+     */
+    private function findOrCreatePayment(array $cardData, Order $order, Apps $app, mixed $user): Payments
+    {
+        $existing = $order->payments()
+            ->whereIn('status', [
+                PaymentStatusEnum::PENDING->value,
+                PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            ])
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $cardNumber    = preg_replace('/\s+/', '', $cardData['number']);
+        $processorName = $cardData['processor'];
+
+        $paymentMethod = new CreatePaymentMethodAction(new PaymentMethodData(
+            app: $app,
+            user: $user,
+            company: $order->company,
+            payment_ending_numbers: substr($cardNumber, -4),
+            payment_methods_brand: '',
+            expiration_date: $cardData['expiration_date'],
+            zip_code: $cardData['zip_code'] ?? '',
+            processor: $processorName,
+            metadata: [
+                'firstname' => $cardData['firstname'] ?? null,
+                'lastname'  => $cardData['lastname'] ?? null,
+                'address'   => $cardData['address'] ?? null,
+                'city'      => $cardData['city'] ?? null,
+                'state'     => $cardData['state'] ?? null,
+                'zip_code'  => $cardData['zip_code'] ?? null,
+                'country'   => $cardData['country'] ?? null,
+                'phone'     => $cardData['phone'] ?? null,
+            ],
+        ))->execute();
+
+        $createPayment              = new CreatePaymentAction($order, $user);
+        $createPayment->runWorkflow = false;
+
+        return $createPayment->execute(['payment_methods_id' => $paymentMethod->id]);
+    }
+
     public function finalizeChallenge(mixed $root, array $request): array
     {
         $app = app(Apps::class);
@@ -206,7 +306,7 @@ class PaymentProcessorMutation
             if (isset($request['paymentId'])) {
                 $user = auth()->user();
                 $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
-                $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+                $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
             } else {
                 $order = Order::where([
                     'apps_id' => $app->getId(),
@@ -214,7 +314,7 @@ class PaymentProcessorMutation
                 ])->firstOrFail();
 
                 $payment = Payments::getLatestForEntity($order, [PaymentStatusEnum::PAID->value])
-                    ?? throw new \RuntimeException('No payment found for this order');
+                    ?? throw new RuntimeException('No payment found for this order');
             }
 
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
@@ -238,7 +338,7 @@ class PaymentProcessorMutation
         $processor = ProcessorFactory::make($processorName, $app, $payment->company);
 
         if (! ($processor instanceof ThreeDSProcessorInterface)) {
-            throw new \RuntimeException("Processor '{$processorName}' does not support 3DS");
+            throw new RuntimeException("Processor '{$processorName}' does not support 3DS");
         }
 
         return $processor;

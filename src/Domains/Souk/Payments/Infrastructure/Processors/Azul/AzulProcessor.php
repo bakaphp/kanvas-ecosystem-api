@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentRequest;
+use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentResponse;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Azul\Enums\TransactionTypeEnum;
@@ -26,6 +27,7 @@ use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -460,7 +462,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             if ($response->isoCode === '00' && $payment->status !== PaymentStatusEnum::PAID->value) {
                 $payment->markAsPaid($responseData);
-                $order->markAsPaid();
+                $order->markAsPaid($payment->user);
             }
 
             $payment->addLog('verify_payment', $responseData);
@@ -574,6 +576,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 $payment->number = $response->ticket;
                 $payment->markAsPaid($responseData);
 
+                $this->persistVaultToken($payment, $response);
+
                 $payment->addLog('3ds_direct_approval', [
                     'processor'      => $this->name(),
                     'order_id'       => $order->id,
@@ -585,7 +589,10 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                     success: true,
                     message: $response->responseMessage,
                     status: PaymentStatusEnum::PAID->value,
-                    data: ['azul_order_id' => $response->azulOrderId],
+                    data: [
+                        'azul_order_id'    => $response->azulOrderId,
+                        'vault_token_data' => $this->buildVaultTokenData($response),
+                    ],
                     raw: $response->raw,
                 );
             }
@@ -648,7 +655,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'error'          => $e->getMessage(),
                 'error_body'     => $e->getErrorBody(),
                 'response_time_ms' => $responseTimeMs,
-                'request'        => $request->toArray(),
+                'request'        => $this->sanitizeRequest($request->toArray()),
             ]);
 
             return new ThreeDSResult(
@@ -678,7 +685,9 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
-        if (empty($cRes)) {
+        $methodNotificationStatus = $payment->getMetadata('3ds_method_notification_status');
+
+        if (empty($cRes) && empty($methodNotificationStatus)) {
             return new ThreeDSResult(
                 success: false,
                 message: 'Missing cRes — TermUrl callback has not been received yet',
@@ -686,8 +695,17 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
+        $requestData = [
+            'azul_order_id'              => $azulOrderId,
+            'method_notification_status' => $methodNotificationStatus,
+        ];
+
         try {
-            $response = $this->service->processThreeDSMethod($azulOrderId, $cRes, sessionData: $sessionData ?? null);
+            $response = $this->service->processThreeDSMethod(
+                azulOrderId: $azulOrderId,
+                methodNotificationStatus: $methodNotificationStatus,
+                cRes: $cRes,
+            );
 
             $responseData = [
                 'data' => [
@@ -706,32 +724,35 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             $payment->number = $response->ticket;
             $payment->markAsPaid($responseData);
-            $order->markAsPaid();
+            $order->markAsPaid($payment->user);
+
+            $this->persistVaultToken($payment, $response);
 
             $payment->addLog('3ds_finalize_success', [
                 'processor'     => $this->name(),
                 'order_id'      => $order->id,
                 'azul_order_id' => $response->azulOrderId,
+                'request'       => $requestData,
             ]);
 
             return new ThreeDSResult(
                 success: true,
                 message: $response->responseMessage,
                 status: PaymentStatusEnum::PAID->value,
-                data: ['azul_order_id' => $response->azulOrderId],
+                data: [
+                    'azul_order_id'    => $response->azulOrderId,
+                    'vault_token_data' => $this->buildVaultTokenData($response),
+                ],
                 raw: $response->raw,
             );
         } catch (AzulException $e) {
             $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
             $payment->addLog('3ds_finalize_failed', [
-                'processor' => $this->name(),
-                'order_id'  => $order->id,
-                'error'     => $e->getMessage(),
-                'request' => [
-                    'azul_order_id' => $azulOrderId,
-                    'cRes' => $cRes
-                ],
-                 'error_body' => $e->getErrorBody(),
+                'processor'  => $this->name(),
+                'order_id'   => $order->id,
+                'error'      => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'request'    => $requestData,
             ]);
 
             return new ThreeDSResult(
@@ -861,6 +882,11 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         $paymentMethod  = $payment->paymentMethod;
         $dataVaultToken = $paymentMethod->getMetadata(CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value);
 
+        // Context card data (from startPaymentChallengeWithCard) takes priority — never stored in DB.
+        // Fallback to saved PaymentMethod metadata for stored-card flows.
+        $cardNumber = $context['card_number'] ?? ($dataVaultToken ? null : $paymentMethod->getMetadata('card_number'));
+        $cvc        = $context['cvc']         ?? ($dataVaultToken ? null : $paymentMethod->getMetadata('cvc'));
+
         $expiration = $dataVaultToken ? null : (
             $paymentMethod->getMetadata('expiration')
             ?? $this->normalizeExpiration($paymentMethod->expiration_date ?? '')
@@ -881,9 +907,9 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             'RequestorChallengeIndicator'  => $context['requestor_challenge_indicator'] ?? '01',
         ];
 
-        // Include MethodNotificationStatus on retry (after the 3DS method iframe step).
-        // On the first call there is no azulOrderId, so the status is not applicable.
-        if ($context['azul_order_id'] ?? null) {
+        // On retry (after the 3DS method iframe step), the payment already has the azulOrderId stored.
+        $azulOrderId = $payment->payment_intent_id ?: null;
+        if ($azulOrderId) {
             $storedStatus = $payment->getMetadata('3ds_method_notification_status');
             $threeDSAuth['MethodNotificationStatus'] = $storedStatus
                 ?? ($methodUrl ? 'EXPECTED_BUT_NOT_RECEIVED' : 'NOT_EXPECTED');
@@ -892,9 +918,9 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         return new AzulPaymentRequest(
             channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
             store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
-            cardNumber: $dataVaultToken ? null : $paymentMethod->getMetadata('card_number'),
+            cardNumber: $cardNumber,
             expiration: $expiration ?? '',
-            cvc: $dataVaultToken ? null : $paymentMethod->getMetadata('cvc'),
+            cvc: $cvc,
             posInputMode: 'E-Commerce',
             trxType: TransactionTypeEnum::SALE,
             amount: $this->toCents($order->getTotalAmount()),
@@ -903,8 +929,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             customOrderId: (string) $order->id,
             dataVaultToken: $dataVaultToken,
             saveToDataVault: $dataVaultToken ? '0' : '1',
-            forceNo3DS: '', // empty = enable 3DS
-            azulOrderId: $context['azul_order_id'] ?? null, // used when retrying after 3DS method step
+            forceNo3DS: '',
+            azulOrderId: $azulOrderId,
             threeDSAuth: $threeDSAuth,
             cardHolderInfo: $context['card_holder_info'] ?? $this->buildCardHolderInfo($payment, $order),
         );
@@ -1021,5 +1047,72 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
     private function toCents(float $amount): string
     {
         return (string) (int) round($amount * 100);
+    }
+
+    /**
+     * When Azul returns a DataVaultToken (SaveToDataVault=1), persist it on the
+     * PaymentMethod so future charges can use the token instead of raw card data.
+     */
+    private function persistVaultToken(Payments $payment, AzulPaymentResponse $response): void
+    {
+        Log::debug('persistVaultToken called', [
+            'payment_id'       => $payment->id,
+            'has_token'        => ! empty($response->dataVaultToken),
+            'has_payment_method' => (bool) $payment->paymentMethod,
+            'data_vault_token' => $response->dataVaultToken,
+            'brand'            => $response->brand,
+            'masked_card'      => $response->maskedCardNumber,
+            'expiration'       => $response->expiration,
+        ]);
+
+        if (empty($response->dataVaultToken) || ! $payment->paymentMethod) {
+            Log::debug('persistVaultToken: early return', [
+                'reason' => empty($response->dataVaultToken) ? 'no dataVaultToken' : 'no paymentMethod',
+            ]);
+            return;
+        }
+
+        $paymentMethod = $payment->paymentMethod;
+
+        $paymentMethod->stripe_card_id        = $response->dataVaultToken;
+        $paymentMethod->payment_methods_brand = $response->brand ?: $paymentMethod->payment_methods_brand;
+
+        if (! empty($response->maskedCardNumber)) {
+            $paymentMethod->payment_ending_numbers = substr($response->maskedCardNumber, -4);
+        }
+
+        if (! empty($response->expiration)) {
+            $paymentMethod->expiration_date = $response->expiration;
+        }
+
+        $paymentMethod->metadata = array_merge(
+            $paymentMethod->metadata ?? [],
+            [
+                CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value => $response->dataVaultToken,
+                'brand'              => $response->brand ?: ($paymentMethod->metadata['brand'] ?? null),
+                'masked_card_number' => $response->maskedCardNumber ?: null,
+                'expiration'         => $response->expiration ?: ($paymentMethod->metadata['expiration'] ?? null),
+            ]
+        );
+
+        $paymentMethod->save();
+    }
+
+    /**
+     * Build the vault token data block returned to the caller so they can save
+     * a new PaymentMethod from it.
+     */
+    private function buildVaultTokenData(AzulPaymentResponse $response): ?array
+    {
+        if (empty($response->dataVaultToken)) {
+            return null;
+        }
+
+        return [
+            'token'      => $response->dataVaultToken,
+            'brand'      => $response->brand,
+            'last_four'  => substr($response->maskedCardNumber, -4),
+            'expiration' => $response->expiration,
+        ];
     }
 }

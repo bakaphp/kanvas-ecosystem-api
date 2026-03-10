@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
 use Kanvas\Exceptions\ValidationException;
@@ -94,11 +95,24 @@ class Client
 
     public function post(array $data, ?string $url = null): array
     {
-        try {
-            $response = $this->client->post($url ?? $this->baseUrl, ['json' => $data]);
-            $body = $response->getBody()->getContents();
+        $endpoint = $url ?? $this->baseUrl;
 
-            return json_decode($body, true);
+        Log::debug('Azul POST request', [
+            'url'  => $endpoint,
+            'body' => $data,
+        ]);
+
+        try {
+            $response = $this->client->post($endpoint, ['json' => $data]);
+            $body = $response->getBody()->getContents();
+            $decoded = json_decode($body, true);
+
+            Log::debug('Azul POST response', [
+                'url'  => $endpoint,
+                'body' => $decoded,
+            ]);
+
+            return $decoded;
         } catch (ConnectException $e) {
             throw new AzulException('Connection failed (possible IP whitelist or TLS issue): ' . $e->getMessage(), 0, $e);
         } catch (RequestException $e) {
@@ -130,7 +144,7 @@ class Client
 
     public function getThreeDSMethodUrl(): string
     {
-        return $this->baseUrl . '?ProcessThreeDSMethod';
+        return $this->baseUrl . '?processthreedsmethod';
     }
 
     public function getGuzzleClient(): GuzzleClient

@@ -204,16 +204,17 @@ class AzulService
      * Must be called after the cardholder completes authentication and the ACS
      * POSTs the cRes to the TermUrl.
      */
-    public function processThreeDSMethod(string $azulOrderId, string $cRes, string $methodNotificationStatus = 'Y', ?string $sessionData = null): AzulPaymentResponse
-    {
+    public function processThreeDSMethod(
+        string $azulOrderId,
+        ?string $methodNotificationStatus,
+        ?string $cRes = null
+    ): AzulPaymentResponse {
         $payload = [
             'Channel'                  => $this->channel,
             'Store'                    => $this->store,
             'AzulOrderId'              => $azulOrderId,
-            'cRes'                     => $cRes,
-            'MethodNotificationStatus' => $methodNotificationStatus ?? "RECEIVED",
-            'ThreeDSMethodNotificationStatus' => $methodNotificationStatus ?? "RECEIVED",
-            'threeDSSessionData'       => $sessionData ?? "",
+            'MethodNotificationStatus' => $methodNotificationStatus ?? 'RECEIVED',
+            ...($cRes ? ['CRes' => $cRes] : []),
         ];
 
 

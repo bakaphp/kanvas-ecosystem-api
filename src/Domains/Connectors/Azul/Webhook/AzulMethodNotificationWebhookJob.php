@@ -60,7 +60,7 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
         }
 
         return [
-            'message'  => '3DS method notification received',
+            'message'  => '3DS method notification received for payment_id: ' . ($paymentId ?? 'unknown'),
             'received' => ! empty($methodData),
             'html'     => $this->notifyParent($transId),
         ];
@@ -69,9 +69,12 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
     private function getPaymentIdFromUrl(): ?string
     {
         $url = $this->webhookRequest->url ?? '';
-        parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
 
-        return $query['payment_id'] ?? null;
+        if (preg_match('/[?&]payment_id=(\d+)/', $url, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     private function notifyParent(?string $transId): string
