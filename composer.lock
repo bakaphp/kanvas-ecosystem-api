@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e95eaa64634b395ca1ee34f7fc4476fc",
+    "content-hash": "b2f275ab4e07ca80f657278a6ba6389e",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.372.1",
+            "version": "3.372.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "a48ff951eaad7f038eca3e0e89f168048b99082b"
+                "reference": "d1885c8c5db03c2a23121e6df58ef5693df41b95"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a48ff951eaad7f038eca3e0e89f168048b99082b",
-                "reference": "a48ff951eaad7f038eca3e0e89f168048b99082b",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/d1885c8c5db03c2a23121e6df58ef5693df41b95",
+                "reference": "d1885c8c5db03c2a23121e6df58ef5693df41b95",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.372.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.372.2"
             },
-            "time": "2026-03-06T21:27:21+00:00"
+            "time": "2026-03-09T18:21:50+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4272,20 +4272,20 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.69",
+            "version": "1.0.70",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "794173d81fe68c9b8bba515dd6d845daa0f48267"
+                "reference": "f212dc4ec964a5c6bd6c7db49de86851c70744fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/794173d81fe68c9b8bba515dd6d845daa0f48267",
-                "reference": "794173d81fe68c9b8bba515dd6d845daa0f48267",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/f212dc4ec964a5c6bd6c7db49de86851c70744fd",
+                "reference": "f212dc4ec964a5c6bd6c7db49de86851c70744fd",
                 "shasum": ""
             },
             "require": {
-                "laravel/framework": "^9.0|^10.0|^11.0|^12.0",
+                "laravel/framework": "^9.0|^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.1",
                 "react/promise": "^2.9|^3.0"
             },
@@ -4316,16 +4316,16 @@
             ],
             "authors": [
                 {
-                    "name": "Richard McDaniel",
-                    "email": "richard.lee.mcdaniel@gmail.com"
+                    "name": "Durable Workflow",
+                    "email": "support@durable-workflow.com"
                 }
             ],
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.69"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.70"
             },
-            "time": "2026-02-27T14:21:42+00:00"
+            "time": "2026-03-09T16:22:52+00:00"
         },
         {
             "name": "laravel/ai",
@@ -10407,16 +10407,16 @@
         },
         {
             "name": "rennokki/laravel-eloquent-query-cache",
-            "version": "dev-master",
+            "version": "3.6.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/byErikas/laravel-eloquent-query-cache.git",
-                "reference": "5825d8922e8774468c7d9e9a9b3a52f8ec2fda80"
+                "url": "https://github.com/renoki-co/laravel-eloquent-query-cache.git",
+                "reference": "48e612b3e3fb1358f734f7742385b4853481a368"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/byErikas/laravel-eloquent-query-cache/zipball/5825d8922e8774468c7d9e9a9b3a52f8ec2fda80",
-                "reference": "5825d8922e8774468c7d9e9a9b3a52f8ec2fda80",
+                "url": "https://api.github.com/repos/renoki-co/laravel-eloquent-query-cache/zipball/48e612b3e3fb1358f734f7742385b4853481a368",
+                "reference": "48e612b3e3fb1358f734f7742385b4853481a368",
                 "shasum": ""
             },
             "require": {
@@ -10431,23 +10431,13 @@
                 "orchestra/testbench": "^8.1.1|^9|^10.0",
                 "phpunit/phpunit": "^9.5.25|^10|^11"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "Rennokki\\QueryCache\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Rennokki\\QueryCache\\Test\\": "tests"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "vendor/bin/phpunit"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "Apache-2.0"
             ],
@@ -10470,15 +10460,16 @@
                 "sql"
             ],
             "support": {
-                "source": "https://github.com/byErikas/laravel-eloquent-query-cache/tree/master"
+                "issues": "https://github.com/renoki-co/laravel-eloquent-query-cache/issues",
+                "source": "https://github.com/renoki-co/laravel-eloquent-query-cache/tree/3.6.1"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/rennokki"
+                    "url": "https://github.com/rennokki",
+                    "type": "github"
                 }
             ],
-            "time": "2025-04-03T06:18:22+00:00"
+            "time": "2025-03-18T07:43:34+00:00"
         },
         {
             "name": "riimu/kit-phpencoder",
@@ -16884,44 +16875,39 @@
         },
         {
             "name": "webleit/zohocrmapi",
-            "version": "dev-master",
+            "version": "5.5.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/bakaphp/ZohoCrmApi.git",
-                "reference": "518bd85bdc341d0abf54c21e64d7e9f246dd413d"
+                "url": "https://github.com/Weble/ZohoCrmApi.git",
+                "reference": "d3e3dc695103b5bc089ad430abf3a063d44a272f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bakaphp/ZohoCrmApi/zipball/518bd85bdc341d0abf54c21e64d7e9f246dd413d",
-                "reference": "518bd85bdc341d0abf54c21e64d7e9f246dd413d",
+                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/d3e3dc695103b5bc089ad430abf3a063d44a272f",
+                "reference": "d3e3dc695103b5bc089ad430abf3a063d44a272f",
                 "shasum": ""
             },
             "require": {
                 "doctrine/inflector": "^2.0",
                 "ext-json": "*",
                 "guzzlehttp/guzzle": "^6.3 || ^7.0",
-                "illuminate/collections": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+                "illuminate/collections": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0",
                 "php": "^7.3 || ^8.0",
                 "weble/zohoclient": "^4.2"
             },
             "require-dev": {
                 "cache/filesystem-adapter": "^1.0",
                 "caseyamcl/guzzle_retry_middleware": "^2.6",
-                "nunomaduro/collision": "^5.0 || ^6.0 || ^7.0",
-                "phpunit/phpunit": "^8.0 || ^9.0 || ^10.0"
+                "nunomaduro/collision": "^5.0 || ^6.0 || ^7.0 || ^8.0",
+                "phpunit/phpunit": "^8.0 || ^9.0 || ^10.0 || ^11.0"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "Webleit\\ZohoCrmApi\\": "src"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Webleit\\ZohoCrmApi\\Test\\": "tests"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -16933,21 +16919,22 @@
             ],
             "description": "Zoho CRM API - PHP SDK",
             "keywords": [
+                "Zoho",
+                "ZohoCRM",
                 "api",
-                "crm",
-                "zoho",
-                "zohocrm"
+                "crm"
             ],
             "support": {
-                "source": "https://github.com/bakaphp/ZohoCrmApi/tree/master"
+                "issues": "https://github.com/Weble/ZohoCrmApi/issues",
+                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.5.0"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/weble"
+                    "url": "https://github.com/weble",
+                    "type": "github"
                 }
             ],
-            "time": "2025-04-12T14:19:43+00:00"
+            "time": "2026-02-24T10:25:18+00:00"
         },
         {
             "name": "webmozart/assert",
@@ -19899,9 +19886,7 @@
     "stability-flags": {
         "grantholle/laravel-username-generator": 20,
         "maatwebsite/excel": 20,
-        "rennokki/laravel-eloquent-query-cache": 20,
-        "typesense/laravel-scout-typesense-driver": 20,
-        "webleit/zohocrmapi": 20
+        "typesense/laravel-scout-typesense-driver": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
