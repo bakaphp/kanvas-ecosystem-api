@@ -30,6 +30,7 @@ use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleAct
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
+use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
@@ -308,6 +309,7 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowPushLeadNotesActivity::class,
             LeadAgentFirstMessageOutreachActivity::class,
             CreateLeadFromADFWebhookJob::class,
+            ProcessFacebookLeadWebhookJob::class,
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
