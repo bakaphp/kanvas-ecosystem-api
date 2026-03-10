@@ -1452,4 +1452,103 @@ class MessageTest extends TestCase
 
         $app->set('restrict_messages_by_company', false);
     }
+
+    public function testCreateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message,
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'test_field_one', 'data' => 'value_one'],
+                    ['name' => 'test_field_two', 'data' => 'value_two'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                ],
+            ],
+        ]);
+
+        $customFields = $response->json('data.createMessage.custom_fields.data');
+        $fieldNames = array_column($customFields, 'name');
+        $this->assertContains('test_field_one', $fieldNames);
+        $this->assertContains('test_field_two', $fieldNames);
+    }
+
+    public function testUpdateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'initial_value'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'updated_value'],
+                    ['name' => 'new_field', 'data' => 'new_value'],
+                ],
+            ],
+        ])
+        ->assertSuccessful();
+
+        $customFields = $response->json('data.updateMessage.custom_fields.data');
+        $fieldMap = [];
+        foreach ($customFields as $field) {
+            $fieldMap[$field['name']] = $field['value'];
+        }
+
+        $this->assertSame('updated_value', $fieldMap['initial_field']);
+        $this->assertSame('new_value', $fieldMap['new_field']);
+    }
 }

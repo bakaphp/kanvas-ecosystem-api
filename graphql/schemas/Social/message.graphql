@@ -84,6 +84,7 @@ input MessageInput {
     slug: String
     files: [Upload!]
     is_locked: Int
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input MessageUpdateInput {
@@ -94,6 +95,7 @@ input MessageUpdateInput {
     is_deleted: Int
     tags: [TagInput!]
     categories: [CategoryInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 enum DistributionType {

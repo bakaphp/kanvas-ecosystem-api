@@ -25,6 +25,11 @@ class UpdateMessageAction
             $this->message->is_locked = (int) $this->data->is_locked;
             $this->message->saveOrFail();
 
+            if (! empty($this->data->custom_fields)) {
+                $this->message->setCustomFields($this->data->custom_fields);
+                $this->message->saveCustomFields();
+            }
+
             if (count($this->data->tags)) {
                 $this->message->syncTags($this->data->tags);
             }
