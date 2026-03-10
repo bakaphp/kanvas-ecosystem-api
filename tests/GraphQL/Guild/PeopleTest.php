@@ -393,6 +393,112 @@ class PeopleTest extends TestCase
             ]);
     }
 
+    public function testCreatePeopleWithOptOutContact(): void
+    {
+        $email = fake()->email();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                    'is_opt_out' => true,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    contacts {
+                        id
+                        value
+                        is_opt_out
+                    }
+                }
+            }
+        ', ['input' => $input]);
+
+        $response->assertSuccessful();
+        $contacts = $response->json('data.createPeople.contacts');
+        $this->assertNotEmpty($contacts);
+        $this->assertEquals($email, $contacts[0]['value']);
+        $this->assertTrue($contacts[0]['is_opt_out']);
+    }
+
+    public function testUpdatePeopleContactOptOut(): void
+    {
+        $email = fake()->email();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                    'is_opt_out' => false,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $createResponse = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    contacts {
+                        id
+                        value
+                        is_opt_out
+                    }
+                }
+            }
+        ', ['input' => $input]);
+
+        $createResponse->assertSuccessful();
+        $peopleId = $createResponse->json('data.createPeople.id');
+        $contactId = $createResponse->json('data.createPeople.contacts.0.id');
+        $this->assertFalse($createResponse->json('data.createPeople.contacts.0.is_opt_out'));
+
+        $updateInput = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'id' => $contactId,
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'is_opt_out' => true,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                    contacts {
+                        id
+                        value
+                        is_opt_out
+                    }
+                }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput]);
+
+        $updateResponse->assertSuccessful();
+        $this->assertTrue($updateResponse->json('data.updatePeople.contacts.0.is_opt_out'));
+    }
+
     public function testDeletePeople()
     {
         $user = auth()->user();
