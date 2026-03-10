@@ -16,4 +16,5 @@ enum ConfigurationEnum: string
     case EVENT_LARAVEL_CART_UPDATED = 'LaravelCart.Updated';
     case CHECK_EXPIRED_ORDERS = 'souk_check_expired_orders';
     case ALLOW_NO_PAYMENT_ORDER = 'allow_no_payment_order';
+    case VALIDATE_METADATA_DUPLICATED_ENABLED = 'validate_metadata_duplicated_enabled';
 }

@@ -81,7 +81,11 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
-            ]
+            ],
+            "cancel-orders" => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));

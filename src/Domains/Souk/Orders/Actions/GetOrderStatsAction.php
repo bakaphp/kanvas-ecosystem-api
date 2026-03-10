@@ -54,7 +54,7 @@ class GetOrderStatsAction
         }
 
         $currentCount = $this->getCurrentCount($baseDate, $timezone);
-        $dailyTurnover = $this->getDailyTurnover($start, $end);
+        $dailyTurnover = $this->getDailyTurnover($start, $end, $timezone);
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
 
         $groupByEnum = DateGroupByEnum::from($groupBy);
@@ -313,10 +313,10 @@ class GetOrderStatsAction
             ->count();
     }
 
-    private function getDailyTurnover($start, $end): array
+    private function getDailyTurnover($start, $end, string $timezone = 'UTC'): array
     {
         $entries = OrderTransitionHistory::query()
-            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
@@ -347,7 +347,7 @@ class GetOrderStatsAction
             ->keyBy('date');
 
         $exits = OrderTransitionHistory::query()
-            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')

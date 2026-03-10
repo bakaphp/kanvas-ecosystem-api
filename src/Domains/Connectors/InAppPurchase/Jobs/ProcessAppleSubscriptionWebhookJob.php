@@ -59,6 +59,10 @@ class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
                 'message' => 'No matching Apple subscription found',
                 'original_transaction_id' => $originalTransactionId,
                 'notification_type' => $notificationType,
+                'transaction_info' => $transactionInfo,
+                'product_id' => $productId,
+                'expires_date' => $expiresDate,
+                'type_enum' => $typeEnum->name,
             ];
         }
 

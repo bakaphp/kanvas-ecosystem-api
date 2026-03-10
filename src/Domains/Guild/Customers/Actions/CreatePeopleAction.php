@@ -86,27 +86,26 @@ class CreatePeopleAction
 
             foreach ($deduplicatedContacts as $contact) {
                 if (! in_array($contact->value, $existingContacts)) {
-                    switch ($contact->contacts_types_id) {
-                        case ContactTypeEnum::PHONE->value:
-                            $people->addPhone($contact->value);
+                    /** @var Contact|null $createdContact */
+                    $createdContact = match ($contact->contacts_types_id) {
+                        ContactTypeEnum::PHONE->value => $people->addPhone($contact->value),
+                        ContactTypeEnum::CELLPHONE->value => $people->addCellphone($contact->value),
+                        ContactTypeEnum::EMAIL->value => $people->addEmail($contact->value),
+                        default => null,
+                    };
 
-                            break;
-                        case ContactTypeEnum::CELLPHONE->value:
-                            $people->addCellphone($contact->value);
-
-                            break;
-                        case ContactTypeEnum::EMAIL->value:
-                            $people->addEmail($contact->value);
-
-                            break;
-                        default:
-                            $contactsToAdd[] = new Contact([
-                                'contacts_types_id' => $contact->contacts_types_id,
-                                'value' => $contact->value,
-                                'weight' => $contact->weight,
-                            ]);
-
-                            break;
+                    if ($createdContact !== null) {
+                        if ($contact->is_opt_out) {
+                            $createdContact->is_opt_out = $contact->is_opt_out;
+                            $createdContact->saveOrFail();
+                        }
+                    } else {
+                        $contactsToAdd[] = new Contact([
+                            'contacts_types_id' => $contact->contacts_types_id,
+                            'value' => $contact->value,
+                            'is_opt_out' => $contact->is_opt_out,
+                            'weight' => $contact->weight,
+                        ]);
                     }
                 }
 

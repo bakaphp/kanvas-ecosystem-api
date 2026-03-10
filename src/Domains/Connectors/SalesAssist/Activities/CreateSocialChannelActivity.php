@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Workflows;
+namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Actions\CreateCrmNoteAction;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -68,14 +69,26 @@ class CreateSocialChannelActivity extends KanvasActivity
             ];
         }
 
+        $hasNewChannel = false;
         foreach ($contacts as $contact) {
             $result = $this->executeForContact($contact, $app, $params, $lead);
             $results[] = $result;
+
+            // Track if any channel was newly created
+            if (! empty($result['is_new_channel'])) {
+                $hasNewChannel = true;
+            }
         }
+
+        // Create note in CRM only if a new channel was created
+        $crmNoteResult = $hasNewChannel
+            ? new CreateCrmNoteAction($lead, $app)->execute()
+            : null;
 
         return [
             'success' => true,
             'results' => $results,
+            'crm_note' => $crmNoteResult,
         ];
     }
 
@@ -122,13 +135,16 @@ class CreateSocialChannelActivity extends KanvasActivity
             agentId: (int) $params['agent_id']
         );
 
+        // Track if channel was newly created
+        $isNewChannel = $channel->wasRecentlyCreated;
+
         // Set preferred channel to the first channel created for this lead
         if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
             $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
         }
 
         if (! empty($params['create_whatsapp'])) {
-            $channel = $this->createChannelAndSession(
+            $whatsappChannel = $this->createChannelAndSession(
                 channelKey: 'whatsapp',
                 communicationChannel: $communicationChannel,
                 contact: $contact,
@@ -136,11 +152,21 @@ class CreateSocialChannelActivity extends KanvasActivity
                 lead: $lead,
                 agentId: (int) $params['agent_id']
             );
+            $isNewChannel = $isNewChannel || $whatsappChannel->wasRecentlyCreated;
+            $channel = $whatsappChannel;
+        }
+
+        // Create note in CRM only if a new channel was created (when called directly for Contact)
+        $crmNoteResult = null;
+        if ($leadOverride === null && $isNewChannel) {
+            $crmNoteResult = new CreateCrmNoteAction($lead, $app)->execute();
         }
 
         return [
             'success' => true,
             'channel_id' => $channel->getId(),
+            'is_new_channel' => $isNewChannel,
+            'crm_note' => $crmNoteResult,
         ];
     }
 

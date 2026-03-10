@@ -136,6 +136,7 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    title: String
     total_statuses: Int!
     created_at: String
     updated_at: String
@@ -375,10 +376,12 @@ input UpdateOrderStatusInput {
 
 input CreateOrderTypeInput {
     name: String!
+    title: String
 }
 
 input UpdateOrderTypeInput {
     name: String!
+    title: String
 }
 
 type PipelineStage {

@@ -37,6 +37,7 @@ class OrderService
                 : $this->targetVariant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
         } else {
             // Original behavior - use first order item
+            /** @var OrderItem $item */
             $item = $this->order->items()->first();
             $variantProvider = $item->variant->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value);
             $provider = ! empty($variantProvider)
@@ -55,15 +56,17 @@ class OrderService
     /**
      * Create a temporary OrderItem-like object from a variant for processing
      */
-    protected function createOrderItemFromVariant(Variants $variant): object
+    protected function createOrderItemFromVariant(Variants $variant): OrderItem
     {
-        return (object) [
-            'variant' => $variant,
-            'quantity' => 1, // Default quantity for individual eSim creation
-        ];
+        $item = new OrderItem();
+        $item->variant_id = $variant->getId();
+        $item->setRelation('variant', $variant);
+        $item->quantity = 1;
+
+        return $item;
     }
 
-    protected function eSimGoOrder($item): array
+    protected function eSimGoOrder(OrderItem $item): array
     {
         $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
 
@@ -74,7 +77,7 @@ class OrderService
         }
     }
 
-    protected function processEsimGoRefuelOrder($item): array
+    protected function processEsimGoRefuelOrder(OrderItem $item): array
     {
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
 
@@ -99,7 +102,7 @@ class OrderService
         ]);
     }
 
-    protected function processEsimGoNewOrder($item): array
+    protected function processEsimGoNewOrder(OrderItem $item): array
     {
         $esimBundle = $item->variant->getAttributeByName('esim_bundle_type');
         $totalDays = $item->variant->getAttributeByName('esim_days');
@@ -125,7 +128,7 @@ class OrderService
         ]);
     }
 
-    protected function easyActivationOrder($item): array
+    protected function easyActivationOrder(OrderItem $item): array
     {
         $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
 
@@ -136,7 +139,7 @@ class OrderService
         }
     }
 
-    protected function processEasyActivationRefuelOrder($item): array
+    protected function processEasyActivationRefuelOrder(OrderItem $item): array
     {
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
@@ -177,7 +180,7 @@ class OrderService
         ]);
     }
 
-    protected function processEasyActivationNewOrder($item): array
+    protected function processEasyActivationNewOrder(OrderItem $item): array
     {
         $esimDays = $item->variant->getAttributeByName('esim_days');
         $totalDays = $esimDays ? $esimDays->value : 7;
@@ -216,7 +219,7 @@ class OrderService
         ]);
     }
 
-    protected function airaloOrder($item): array
+    protected function airaloOrder(OrderItem $item): array
     {
         $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
 
@@ -227,7 +230,7 @@ class OrderService
         }
     }
 
-    protected function processAiraloRefuelOrder($item): array
+    protected function processAiraloRefuelOrder(OrderItem $item): array
     {
         // Get the specific ICCID from the refuel order metadata
         $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
@@ -270,7 +273,7 @@ class OrderService
         ]);
     }
 
-    protected function processAiraloNewOrder($item): array
+    protected function processAiraloNewOrder(OrderItem $item): array
     {
         $esimPlan = $item->variant->getAttributeByName('esim_bundle_type');
         $esimDays = $item->variant->getAttributeByName('esim_days');

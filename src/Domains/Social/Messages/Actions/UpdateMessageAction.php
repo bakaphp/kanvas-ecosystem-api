@@ -22,6 +22,7 @@ class UpdateMessageAction
             $this->message->message = $this->data->message;
             $this->message->message_types_id = $this->data->type->getId();
             $this->message->is_public = (int) $this->data->is_public;
+            $this->message->is_locked = (int) $this->data->is_locked;
             $this->message->saveOrFail();
 
             if (count($this->data->tags)) {

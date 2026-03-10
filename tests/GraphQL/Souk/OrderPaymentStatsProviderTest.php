@@ -154,4 +154,45 @@ class OrderPaymentStatsProviderTest extends OrderBase
         $data = $response->json('data.orderPaymentStats');
         $this->assertIsArray($data['byPeriod']);
     }
+
+    public function testOrderPaymentStatsCapturesOrdersWithPaymentStatusPaidWithoutStatusTransition(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    status
+                    payment { id }
+                }
+            }
+        ', [
+            'orderID' => $order->id,
+            'input' => ['payment_method' => 'CASH'],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $order->refresh();
+        $this->assertEquals('paid', $order->payment_status);
+
+        // Use a paidStates slug that this order has NOT transitioned to.
+        // The order should still be captured via its paid payment record (payment_date).
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
+            'input' => [
+                'paidStates' => ['non-existent-slug'],
+                'startDate' => now()->subDay()->format('Y-m-d'),
+                'endDate' => now()->addDay()->format('Y-m-d'),
+                'timezone' => 'UTC',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertGreaterThanOrEqual(1, $response->json('data.orderPaymentStats.ordersInPeriod.count'));
+        $this->assertGreaterThan(0, $response->json('data.orderPaymentStats.ordersInPeriod.totalAmount'));
+    }
 }
