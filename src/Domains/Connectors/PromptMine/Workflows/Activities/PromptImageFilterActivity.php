@@ -627,9 +627,6 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     }
 
     /**
-     * Submit an image for processing
-     */
-    /**
      * MK-3922: Normalize fal model identifiers.
      * - If the model already includes a known provider prefix (e.g. xai/..., fal-ai/...), pass through as-is.
      * - Otherwise, treat it as a bare fal model key and prefix with `fal-ai/`.
@@ -659,8 +656,16 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         return 'fal-ai/' . ltrim($model, '/');
     }
 
-    protected function submitImage(string $apiUrl, string $imageUrl, string $model, string $prompt, array $params): Response
-    { 
+    /**
+     * Submit an image for processing.
+     */
+    protected function submitImage(
+        string $apiUrl,
+        string $imageUrl,
+        string $model,
+        string $prompt,
+        array $params
+    ): Response {
         if (isset($params['additional_images']) && ! empty($params['additional_images'])) {
             $params['additional_images'][] = $imageUrl;
             $imageUrl = array_values($params['additional_images']);
