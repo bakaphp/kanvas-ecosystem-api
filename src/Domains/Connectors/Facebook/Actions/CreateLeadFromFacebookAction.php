@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Facebook\Actions;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\Facebook\Client as FacebookClient;
 use Kanvas\Connectors\Facebook\Enums\ConfigurationEnum;
@@ -13,7 +15,12 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
+use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeData;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
+use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource as LeadSourceData;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Spatie\LaravelData\DataCollection;
 
@@ -91,8 +98,16 @@ class CreateLeadFromFacebookAction
 
                 $firstname = $fields['first_name'] ?? '';
                 $lastname = $fields['last_name'] ?? '';
+                $fullName = $fields['full_name'] ?? '';
                 $email = $fields['email'] ?? '';
                 $phone = $fields['phone_number'] ?? $fields['phone'] ?? '';
+
+                if ($fullName !== '' && $firstname === '' && $lastname === '') {
+                    $nameParts = explode(' ', $fullName, 2);
+                    $firstname = $nameParts[0];
+                    $lastname = $nameParts[1] ?? '';
+                }
+
                 $title = trim($firstname . ' ' . $lastname);
 
                 if ($title === '') {
@@ -108,7 +123,8 @@ class CreateLeadFromFacebookAction
                 }
 
                 $pipelineStageId = (int) ($config['pipeline_stage_id'] ?? 0);
-                $sourceId = (int) ($config['source_id'] ?? 0);
+                $sourceId = $this->resolveSourceId($app, $company, $config);
+                $typeId = $this->resolveTypeId($app, $company, $config);
 
                 $leadDto = new LeadData(
                     app: $app,
@@ -126,6 +142,7 @@ class CreateLeadFromFacebookAction
                         'address' => Address::collect([], DataCollection::class),
                         'id' => 0,
                     ]),
+                    type_id: $typeId,
                     source_id: $sourceId,
                     custom_fields: [
                         'facebook_leadgen_id' => $leadgenId,
@@ -168,6 +185,59 @@ class CreateLeadFromFacebookAction
         }
 
         return $fields;
+    }
+
+    protected function resolveSourceId(AppInterface $app, Companies $company, array $config): int
+    {
+        if (! empty($config['source_id'])) {
+            return (int) $config['source_id'];
+        }
+
+        $typeId = $this->resolveTypeId($app, $company, $config);
+
+        /** @var Apps $app */
+        $source = new CreateLeadSourceAction(
+            new LeadSourceData(
+                app: $app,
+                company: $company,
+                leads_types_id: $typeId,
+                name: 'Meta',
+                is_active: true,
+                description: 'Leads coming from Meta (Facebook/Instagram)',
+            ),
+        )->execute();
+
+        return (int) $source->getId();
+    }
+
+    protected function resolveTypeId(AppInterface $app, Companies $company, array $config): int
+    {
+        if (! empty($config['type_id'])) {
+            return (int) $config['type_id'];
+        }
+
+        $type = LeadType::where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('name', 'Internet')
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($type) {
+            return (int) $type->getId();
+        }
+
+        /** @var Apps $app */
+        $type = new CreateLeadTypeAction(
+            new LeadTypeData(
+                apps: $app,
+                companies: $company,
+                name: 'Internet',
+                description: 'Internet leads',
+                is_active: 1,
+            ),
+        )->execute();
+
+        return (int) $type->getId();
     }
 
     protected function getPageConfig(AppInterface $app, string $pageId): array
