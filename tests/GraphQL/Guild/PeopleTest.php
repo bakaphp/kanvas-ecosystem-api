@@ -1122,4 +1122,218 @@ class PeopleTest extends TestCase
 
         $this->assertCount(2, $phoneContacts, 'Same value with different contact types should NOT be deduplicated');
     }
+
+    public function testUpdateContactOptOutByIdDoesNotDeleteOthers(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095552222';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $allContacts = $people->contacts()->get();
+        $this->assertCount(2, $allContacts);
+
+        $phoneContact = $allContacts->where('contacts_types_id', 2)->first();
+
+        // Opt-out a single contact by ID — should NOT delete the email
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'id' => $phoneContact->id,
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                    'is_opt_out' => true,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->get();
+
+        $this->assertCount(2, $updatedContacts, 'Opt-out update by ID should not delete other contacts');
+        $optedOutPhone = $updatedContacts->where('contacts_types_id', 2)->first();
+        $this->assertEquals(1, $optedOutPhone->is_opt_out, 'Phone should be opted out');
+        $this->assertTrue($updatedContacts->contains('value', strtolower($email)), 'Email should still exist');
+    }
+
+    public function testUpdateContactsWithoutIdDeletesOthers(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095554444';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        // Send only the phone without an ID — full sync, should delete the email
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people = People::find($peopleId);
+        $updatedContacts = $people->contacts()->get();
+
+        $this->assertCount(1, $updatedContacts, 'Full sync without IDs should delete contacts not in input');
+        $this->assertEquals($phone, $updatedContacts->first()->value);
+    }
+
+    public function testUpdateContact(): void
+    {
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => fake()->unique()->safeEmail(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => '8095556666',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $phoneContact = $people->contacts()->where('contacts_types_id', 2)->first();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateContactInput!) {
+                updateContact(id: $id, input: $input) {
+                    id
+                    value
+                    is_opt_out
+                }
+            }
+        ', [
+            'id' => $phoneContact->id,
+            'input' => ['is_opt_out' => true],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateContact' => [
+                    'id' => (string) $phoneContact->id,
+                    'is_opt_out' => true,
+                ],
+            ],
+        ]);
+
+        $people->refresh();
+        $this->assertCount(2, $people->contacts()->get(), 'Other contacts should not be affected');
+    }
+
+    public function testDeleteContact(): void
+    {
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => fake()->unique()->safeEmail(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => '8095557777',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $phoneContact = $people->contacts()->where('contacts_types_id', 2)->first();
+
+        $this->graphQL('
+            mutation($id: ID!) {
+                deleteContact(id: $id)
+            }
+        ', ['id' => $phoneContact->id])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['deleteContact' => true]]);
+
+        $people->refresh();
+        $remainingContacts = $people->contacts()->get();
+        $this->assertCount(1, $remainingContacts, 'Only the deleted contact should be removed');
+        $this->assertEquals(1, $remainingContacts->first()->contacts_types_id, 'Email should remain');
+    }
 }
