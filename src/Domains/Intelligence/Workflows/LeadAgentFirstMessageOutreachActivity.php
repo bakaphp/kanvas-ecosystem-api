@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Workflows;
 
 use Baka\Support\Str;
 use Exception;
+use InvalidArgumentException;
 use Illuminate\Support\Carbon;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
@@ -212,6 +213,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $shouldSendFirstMessageNow
                                 );
 
+                                $sentChannels[] = $communicationChannel;
+                                $totalSentMessages++;
+
                                 if ($shouldSendFirstMessageNow) {
                                     new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
@@ -309,7 +313,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
     {
         if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
             return false;
-        } elseif (! $lead->company->isWithinWorkingHours(now())) {
+        }
+
+        try {
+            $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
+        } catch (InvalidArgumentException $e) {
+            $isWithinWorkingHours = false;
+        }
+
+        if (! $isWithinWorkingHours) {
             return true;
         } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
             return false;
