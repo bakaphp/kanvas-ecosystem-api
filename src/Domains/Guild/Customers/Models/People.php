@@ -322,6 +322,19 @@ class People extends BaseModel
         );
     }
 
+    public function optOutPhoneContacts(): int
+    {
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+            ContactTypeEnum::WORK_PHONE->value,
+        ];
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', $phoneTypes)
+            ->update(['is_opt_out' => 1]);
+    }
+
     public static function findByEmailOrCreate(
         string $email,
         Companies $company,
