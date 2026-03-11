@@ -17,7 +17,7 @@ class Contact extends Data
         ?int $contacts_types_id = null,
         public readonly int $weight = 0,
         public readonly string|int|null $id = null,
-        public readonly ?int $is_opt_out = null
+        public readonly int|bool|null $is_opt_out = null
     ) {
         $this->contacts_types_id = $contacts_types_id ?? $this->inferContactType($value);
     }

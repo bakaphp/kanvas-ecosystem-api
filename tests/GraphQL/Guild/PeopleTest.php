@@ -1188,6 +1188,69 @@ class PeopleTest extends TestCase
         $this->assertTrue($updatedContacts->contains('value', strtolower($email)), 'Email should still exist');
     }
 
+    public function testUpdatePeopleOptOutWithFormattedPhone(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '4047907131';
+
+        $input = [
+            'firstname' => 'JOWSMILK',
+            'lastname' => 'PEREZ',
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 3,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $allContacts = $people->contacts()->get();
+        $this->assertCount(2, $allContacts);
+
+        $phoneContact = $allContacts->where('contacts_types_id', 3)->first();
+
+        $updateInput = [
+            'firstname' => 'JOWSMILK',
+            'lastname' => 'PEREZ',
+            'contacts' => [
+                [
+                    'id' => (string) $phoneContact->id,
+                    'value' => '(404) 790-7131',
+                    'contacts_types_id' => 3,
+                    'is_opt_out' => true,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->get();
+
+        $this->assertCount(2, $updatedContacts, 'Should still have both contacts');
+        $optedOutPhone = $updatedContacts->where('contacts_types_id', 3)->first();
+        $this->assertEquals(1, $optedOutPhone->is_opt_out, 'Cellphone should be opted out');
+        $this->assertTrue($updatedContacts->contains('value', strtolower($email)), 'Email should still exist');
+    }
+
     public function testUpdateContactsWithoutIdDeletesOthers(): void
     {
         $email = fake()->unique()->safeEmail();
