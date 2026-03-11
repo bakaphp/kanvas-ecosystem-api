@@ -89,15 +89,6 @@ class MessageManagementMutation
         $action->runWorkflow = false;
         $message = $action->execute();
 
-        if (! empty($data->files)) {
-            $this->handleFileUpload(
-                model: $message,
-                app: $app,
-                user: $user,
-                files: $data->files
-            );
-        }
-
         $message->fireWorkflow(
             WorkflowEnum::CREATED->value,
             true,
