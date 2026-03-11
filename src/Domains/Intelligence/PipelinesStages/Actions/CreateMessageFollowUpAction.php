@@ -24,7 +24,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
@@ -45,6 +45,7 @@ class CreateMessageFollowUpAction
         protected Session $session,
         protected string $messageTemplate,
         protected float $day,
+        protected string $communicationChannel = 'sms',
         protected bool $onlyPrompt = false,
         protected ?FollowUpLog $log = null
     ) {
@@ -99,13 +100,10 @@ class CreateMessageFollowUpAction
             return null;
         }
 
-        $messageType = MessageType::firstOrCreate([
-            'apps_id' => $this->session->apps_id,
-            //'languages_id' => 1,
-            //'name' => 'AI Generated Message',
-            'name' => 'twilio-sms',
-            'verb' => 'twilio-sms',
-        ]);
+        $messageType = MessageTypeService::getOrCreate(
+            $this->session->app,
+            $this->getMessageTypeVerb()
+        );
 
         $agentUser = $this->lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
@@ -253,6 +251,15 @@ class CreateMessageFollowUpAction
                 self::MAX_RETRY_ATTEMPTS
             )
         );
+    }
+
+    protected function getMessageTypeVerb(): string
+    {
+        return match ($this->communicationChannel) {
+            'whatsapp' => 'whatsapp',
+            'email' => 'email',
+            default => 'twilio-sms',
+        };
     }
 
     public function mapConversationHistory(): array

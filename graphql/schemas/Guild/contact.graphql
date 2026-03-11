@@ -3,6 +3,7 @@ type Contact {
     type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
+    is_opt_out: Boolean!
     weight: Int!
 }
 
@@ -35,7 +36,15 @@ input ContactInput {
     value: String!
     contacts_types_id: ID!
     weight: Int
+    is_opt_out: Boolean
     id: ID
+}
+
+input UpdateContactInput {
+    value: String
+    contacts_types_id: ID
+    weight: Int
+    is_opt_out: Boolean
 }
 
 input AddressInput {

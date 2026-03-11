@@ -24,15 +24,12 @@ class ProviderOrdersBuilder
         }
 
         return Order::query()
-            ->join(
-                OrderProvider::getQualifiedTableName() . ' as op',
-                'op.order_id',
-                '=',
-                Order::query()->getModel()->getTable() . '.id'
-            )
-            ->where('op.company_id', $providerCompanyId)
-            ->where('orders.apps_id', app(Apps::class)->getId())
-            ->where('orders.is_deleted', 0)
-            ->select('orders.*');
+            ->whereIn('id', function ($q) use ($providerCompanyId) {
+                $q->select('order_id')
+                    ->from(OrderProvider::getQualifiedTableName())
+                    ->where('company_id', $providerCompanyId);
+            })
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('is_deleted', 0);
     }
 }
