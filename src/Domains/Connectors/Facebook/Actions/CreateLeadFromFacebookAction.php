@@ -175,7 +175,6 @@ class CreateLeadFromFacebookAction
         $baseKey = ConfigurationEnum::PAGE_ACCESS_TOKEN->value . '-' . (int) $app->getId() . '-';
 
         $setting = CompaniesSettings::where('name', 'LIKE', $baseKey . '%-' . $pageId)
-            ->whereNot('is_deleted', 1)
             ->first();
 
         if (! $setting) {
