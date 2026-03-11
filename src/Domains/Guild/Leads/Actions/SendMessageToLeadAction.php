@@ -150,21 +150,26 @@ class SendMessageToLeadAction
         }
 
         $groupedFiles = $this->getFilesGroupedByType();
+        $delay = 30; // seconds between each file to avoid API rate limiting
 
         foreach ($groupedFiles[MediaTypeEnum::IMAGE->value] as $file) {
             $messageService->sendImageMessage($cellphone, $file['url']);
+            sleep($delay);
         }
 
         foreach ($groupedFiles[MediaTypeEnum::VIDEO->value] as $file) {
             $messageService->sendVideoMessage($cellphone, $file['url']);
+            sleep($delay);
         }
 
         foreach ($groupedFiles[MediaTypeEnum::DOCUMENT->value] as $file) {
             $messageService->sendDocumentMessage($cellphone, $file['url'], $file['name'] ?? null);
+            sleep($delay);
         }
 
         foreach ($groupedFiles[MediaTypeEnum::AUDIO->value] as $file) {
             $messageService->sendAudioMessage($cellphone, $file['url']);
+            sleep($delay);
         }
     }
 
