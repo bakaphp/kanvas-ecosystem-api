@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
 class PeopleTest extends TestCase
@@ -894,5 +895,231 @@ class PeopleTest extends TestCase
                 ],
             ]);
         $this->assertTrue(is_int($response['data']['peopleCountBySubscriptionType']));
+    }
+
+    public function testCreatePeopleNormalizesPhoneBeforeDedup(): void
+    {
+        $rawPhone = '+1 (809) 555-1234';
+        $normalizedPhone = '18095551234';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $rawPhone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $normalizedPhone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $phoneContacts = $people->contacts()
+            ->where('contacts_types_id', 2)
+            ->get();
+
+        $this->assertCount(1, $phoneContacts, 'Duplicate phone numbers with different formatting should be deduplicated');
+        $this->assertEquals($normalizedPhone, $phoneContacts->first()->value);
+    }
+
+    public function testUpdatePeopleNormalizesPhoneBeforeDedup(): void
+    {
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => '8095551234',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => '+1 (809) 555-1234',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $peopleId,
+            'input' => $updateInput,
+        ])->assertSuccessful();
+
+        $people = People::find($peopleId);
+        $phoneContacts = $people->contacts()
+            ->where('contacts_types_id', 2)
+            ->get();
+
+        $this->assertCount(1, $phoneContacts, 'Phone with different formatting should match existing normalized phone');
+    }
+
+    public function testCreatePeopleDoesNotDuplicateExistingContacts(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095559999';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $this->assertCount(2, $people->contacts);
+
+        // Try to create/update the same person with the same contacts again
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => $peopleId,
+            'input' => $input,
+        ])->assertSuccessful();
+
+        $people->refresh();
+        $allContacts = $people->contacts()->get();
+
+        $emailContacts = $allContacts->where('contacts_types_id', 1)->where('value', $email);
+        $phoneContacts = $allContacts->where('contacts_types_id', 2)->where('value', $phone);
+
+        $this->assertCount(1, $emailContacts, 'Should not create duplicate email contact');
+        $this->assertCount(1, $phoneContacts, 'Should not create duplicate phone contact');
+    }
+
+    public function testCreatePeopleDoesNotDuplicateSameContactInInput(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095557777';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 1,
+                ],
+                [
+                    'value' => strtoupper($email),
+                    'contacts_types_id' => 1,
+                    'weight' => 2,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => '(809) 555-7777',
+                    'contacts_types_id' => 2,
+                    'weight' => 1,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $emailContacts = $people->contacts()
+            ->where('contacts_types_id', 1)
+            ->get();
+        $phoneContacts = $people->contacts()
+            ->where('contacts_types_id', 2)
+            ->get();
+
+        $this->assertCount(1, $emailContacts, 'Duplicate emails in same input (including case variants) should be deduplicated');
+        $this->assertCount(1, $phoneContacts, 'Duplicate phones in same input (including formatted variants) should be deduplicated');
+    }
+
+    public function testSameValueDifferentTypeIsNotDuplicate(): void
+    {
+        $phone = '8095551111';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 3,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $phoneContacts = $people->contacts()->get();
+
+        $this->assertCount(2, $phoneContacts, 'Same value with different contact types should NOT be deduplicated');
     }
 }
