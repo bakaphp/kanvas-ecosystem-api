@@ -1399,4 +1399,307 @@ class PeopleTest extends TestCase
         $this->assertCount(1, $remainingContacts, 'Only the deleted contact should be removed');
         $this->assertEquals(1, $remainingContacts->first()->contacts_types_id, 'Email should remain');
     }
+
+    public function testSyncContactsPreservesIdsWhenValuesMatch(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095551234';
+        $cellphone = '8095554321';
+        $workPhone = '8095559876';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $cellphone,
+                    'contacts_types_id' => 3,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $workPhone,
+                    'contacts_types_id' => 8,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $originalContacts = $people->contacts()->orderBy('contacts_types_id')->get();
+        $originalEmailId = $originalContacts->where('contacts_types_id', 1)->first()->id;
+        $originalPhoneId = $originalContacts->where('contacts_types_id', 2)->first()->id;
+        $originalCellId = $originalContacts->where('contacts_types_id', 3)->first()->id;
+        $originalWorkId = $originalContacts->where('contacts_types_id', 8)->first()->id;
+
+        $this->assertCount(4, $originalContacts);
+
+        // Simulate external CRM sync — same contacts sent back, like Elead/VinSolution would
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $cellphone,
+                    'contacts_types_id' => 3,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $workPhone,
+                    'contacts_types_id' => 8,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->orderBy('contacts_types_id')->get();
+
+        $this->assertCount(4, $updatedContacts, 'Contact count should stay the same');
+        $this->assertEquals($originalEmailId, $updatedContacts->where('contacts_types_id', 1)->first()->id, 'Email contact ID should be preserved');
+        $this->assertEquals($originalPhoneId, $updatedContacts->where('contacts_types_id', 2)->first()->id, 'Phone contact ID should be preserved');
+        $this->assertEquals($originalCellId, $updatedContacts->where('contacts_types_id', 3)->first()->id, 'Cellphone contact ID should be preserved');
+        $this->assertEquals($originalWorkId, $updatedContacts->where('contacts_types_id', 8)->first()->id, 'Work phone contact ID should be preserved');
+    }
+
+    public function testSyncContactsPreservesIdsWithFormattedPhone(): void
+    {
+        $phone = '8095551234';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $originalPhoneId = $people->contacts()->where('contacts_types_id', 2)->first()->id;
+
+        // External CRM sends back the same number with different formatting
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => '(809) 555-1234',
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->get();
+
+        $this->assertCount(1, $updatedContacts, 'Should still have one contact');
+        $this->assertEquals($originalPhoneId, $updatedContacts->first()->id, 'Phone contact ID should be preserved even with different formatting');
+    }
+
+    public function testSyncContactsAddsNewAndRemovesMissing(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095559999';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        $people = People::find($peopleId);
+        $originalEmailId = $people->contacts()->where('contacts_types_id', 1)->first()->id;
+
+        // External CRM sync: email stays, phone removed, new cellphone added
+        $newCell = '8095558888';
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $newCell,
+                    'contacts_types_id' => 3,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->orderBy('contacts_types_id')->get();
+
+        $this->assertCount(2, $updatedContacts, 'Should have email + cellphone');
+        $this->assertEquals($originalEmailId, $updatedContacts->where('contacts_types_id', 1)->first()->id, 'Email ID preserved');
+        $this->assertNull($updatedContacts->where('contacts_types_id', 2)->first(), 'Old phone should be removed');
+        $this->assertEquals($newCell, $updatedContacts->where('contacts_types_id', 3)->first()->value, 'New cellphone added');
+    }
+
+    public function testSyncContactsPreservesOptOutOnResync(): void
+    {
+        $email = fake()->unique()->safeEmail();
+        $phone = '8095557777';
+
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->createPeopleAndResponse($input);
+        $peopleId = $response['data']['createPeople']['id'];
+
+        // Locally opt out the phone via single-contact update
+        $people = People::find($peopleId);
+        $phoneContact = $people->contacts()->where('contacts_types_id', 2)->first();
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $peopleId,
+            'input' => [
+                'firstname' => $input['firstname'],
+                'lastname' => $input['lastname'],
+                'contacts' => [
+                    [
+                        'value' => $phone,
+                        'contacts_types_id' => 2,
+                        'weight' => 0,
+                        'id' => (string) $phoneContact->id,
+                        'is_opt_out' => true,
+                    ],
+                ],
+                'address' => [],
+                'custom_fields' => [],
+            ],
+        ])->assertSuccessful();
+
+        $phoneContact->refresh();
+        $this->assertEquals(1, $phoneContact->is_opt_out, 'Phone should be opted out');
+
+        // Now external CRM re-syncs both contacts WITHOUT is_opt_out
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                [
+                    'value' => $email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => $phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) { id }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])->assertSuccessful();
+
+        $people->refresh();
+        $updatedContacts = $people->contacts()->orderBy('contacts_types_id')->get();
+
+        $this->assertCount(2, $updatedContacts, 'Both contacts should remain');
+        $updatedPhone = $updatedContacts->where('contacts_types_id', 2)->first();
+        $this->assertEquals($phoneContact->id, $updatedPhone->id, 'Phone ID should be preserved');
+        $this->assertEquals(1, $updatedPhone->is_opt_out, 'Opt-out should be preserved when source does not send is_opt_out');
+    }
 }
