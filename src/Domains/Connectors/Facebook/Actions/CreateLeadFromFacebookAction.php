@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Facebook\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesSettings;
@@ -96,17 +97,14 @@ class CreateLeadFromFacebookAction
                     );
                 }
 
-                $firstname = $fields['first_name'] ?? '';
-                $lastname = $fields['last_name'] ?? '';
-                $fullName = $fields['full_name'] ?? '';
                 $email = $fields['email'] ?? '';
                 $phone = $fields['phone_number'] ?? $fields['phone'] ?? '';
 
-                if ($fullName !== '' && $firstname === '' && $lastname === '') {
-                    $nameParts = explode(' ', $fullName, 2);
-                    $firstname = $nameParts[0];
-                    $lastname = $nameParts[1] ?? '';
-                }
+                ['firstname' => $firstname, 'lastname' => $lastname] = Str::parseFullName(
+                    fullName: $fields['full_name'] ?? '',
+                    firstname: $fields['first_name'] ?? '',
+                    lastname: $fields['last_name'] ?? '',
+                );
 
                 $title = trim($firstname . ' ' . $lastname);
 
