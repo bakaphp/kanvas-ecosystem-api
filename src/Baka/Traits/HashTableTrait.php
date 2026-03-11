@@ -91,7 +91,6 @@ trait HashTableTrait
                     'is_public' => (int) $isPublic,
                     'created_at' => now(),
                     'updated_at' => now(),
-                    'is_deleted' => 0,
                 ],
             ],
             [$primaryKey, 'name'], // unique columns
