@@ -58,21 +58,23 @@ class UpdatePeopleAction
             $deduplicatedContacts = $this->peopleData->contacts
                 ->toCollection()
                 ->filter(fn ($contact) => ! empty($contact->value))
-                ->unique(fn ($contact) => $contact->value . '_' . $contact->contacts_types_id)
+                ->unique(fn ($contact) => Contact::normalizeValue($contact->value, $contact->contacts_types_id) . '_' . $contact->contacts_types_id)
                 ->values();
 
             $contactsToSave = [];
             $keepValues = [];
 
             foreach ($deduplicatedContacts as $contact) {
-                // Try to find by value (unique identifier)
+                // Try to find by ID first, then by value+type combo
                 if (isset($contact->id) && $contact->id > 0) {
                     $existingContact = $this->people->contacts()
                         ->where('id', $contact->id)
                         ->first();
                 } else {
+                    $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
                     $existingContact = $this->people->contacts()
-                        ->where('value', $contact->value)
+                        ->where('value', $normalizedValue)
+                        ->where('contacts_types_id', $contact->contacts_types_id)
                         ->first();
                 }
 

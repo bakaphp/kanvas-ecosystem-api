@@ -8,6 +8,7 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
 use Kanvas\Guild\Customers\Observers\ContactObserver;
 use Kanvas\Guild\Models\BaseModel;
@@ -86,6 +87,25 @@ class Contact extends BaseModel
     public function isOptedOut(): bool
     {
         return $this->is_opt_out === 1;
+    }
+
+    public static function normalizeValue(string $value, int $contactsTypesId): string
+    {
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+            ContactTypeEnum::WORK_PHONE->value,
+        ];
+
+        if (in_array($contactsTypesId, $phoneTypes, true)) {
+            return (string) preg_replace('/\D/', '', $value);
+        }
+
+        if ($contactsTypesId === ContactTypeEnum::EMAIL->value) {
+            return strtolower(trim($value));
+        }
+
+        return trim($value);
     }
 
     #[Override]

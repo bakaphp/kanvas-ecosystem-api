@@ -73,19 +73,25 @@ class CreatePeopleAction
         }
 
         if ($this->peopleData->contacts->count()) {
-            $existingContacts = $people->contacts()->pluck('value')->toArray();
+            $existingContacts = $people->contacts()
+                ->select('value', 'contacts_types_id')
+                ->get()
+                ->map(fn ($c) => Contact::normalizeValue($c->value, $c->contacts_types_id) . '_' . $c->contacts_types_id)
+                ->toArray();
 
             // Deduplicate incoming contacts and filter out empty values
             $deduplicatedContacts = $this->peopleData->contacts
                 ->toCollection()
                 ->filter(fn ($contact) => ! empty($contact->value))
-                ->unique(fn ($contact) => $contact->value . '_' . $contact->contacts_types_id)
+                ->unique(fn ($contact) => Contact::normalizeValue($contact->value, $contact->contacts_types_id) . '_' . $contact->contacts_types_id)
                 ->values();
 
             $contactsToAdd = [];
 
             foreach ($deduplicatedContacts as $contact) {
-                if (! in_array($contact->value, $existingContacts)) {
+                $contactKey = Contact::normalizeValue($contact->value, $contact->contacts_types_id) . '_' . $contact->contacts_types_id;
+
+                if (! in_array($contactKey, $existingContacts)) {
                     /** @var Contact|null $createdContact */
                     $createdContact = match ($contact->contacts_types_id) {
                         ContactTypeEnum::PHONE->value => $people->addPhone($contact->value),
@@ -108,10 +114,10 @@ class CreatePeopleAction
                         ]);
                     }
                 }
+            }
 
-                if (! empty($contactsToAdd)) {
-                    $people->contacts()->saveMany($contactsToAdd);
-                }
+            if (! empty($contactsToAdd)) {
+                $people->contacts()->saveMany($contactsToAdd);
             }
 
             if ($this->peopleData->address->count()) {

@@ -115,11 +115,14 @@ class Customer extends Data
 
             $phoneValue = preg_replace('/\D+/', '', $phone->value);
 
+            $isOptOut = $phone->is_opt_out === 1;
+
             $phonesData[] = [
                 'number' => $phoneValue,
                 'phoneType' => 'Cellular',
                 'preferredTimeToContact' => 'Unspecified',
-                'doNotText' => $phone->is_opt_out === 1,
+                'doNotCall' => $isOptOut,
+                'doNotText' => $isOptOut,
             ];
 
             // Only add first valid phone
