@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Facebook\Actions;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\Facebook\Client as FacebookClient;
 use Kanvas\Connectors\Facebook\Enums\ConfigurationEnum;
@@ -31,9 +30,7 @@ class CreateLeadFromFacebookAction
         $payload = (array) $this->webhookRequest->payload;
         $receiver = $this->webhookRequest->receiverWebhook;
         $app = $receiver->app;
-        $company = $receiver->company;
         $user = $receiver->user;
-        $branch = $company->defaultBranch;
 
         /** @var array<string, mixed> $config */
         $config = $receiver->configuration ?? [];
@@ -61,16 +58,20 @@ class CreateLeadFromFacebookAction
                     continue;
                 }
 
-                $pageAccessToken = $this->getPageAccessToken($company, $app, $pageId);
+                $pageConfig = $this->getPageConfig($app, $pageId);
+                $pageAccessToken = $pageConfig['token'];
+                $company = $pageConfig['company'];
 
-                if ($pageAccessToken === '') {
+                if ($pageAccessToken === '' || $company === null) {
                     $createdLeads[] = [
                         'leadgen_id' => $leadgenId,
-                        'error' => 'No page access token found for page ' . $pageId,
+                        'error' => 'No page access token or company found for page ' . $pageId,
                     ];
 
                     continue;
                 }
+
+                $branch = $company->defaultBranch;
 
                 $leadData = FacebookClient::getLeadData(
                     $leadgenId,
@@ -169,40 +170,30 @@ class CreateLeadFromFacebookAction
         return $fields;
     }
 
-    protected function getPageAccessToken(
-        CompanyInterface $company,
-        AppInterface $app,
-        string $pageId
-    ): string {
-        // Key format: facebook_page_access_token-{appId}-{companyId}-{pageId}
-        // Try the receiver's company first, then fall back to any company in case
-        // the OAuth was completed by a different company
+    protected function getPageConfig(AppInterface $app, string $pageId): array
+    {
         $baseKey = ConfigurationEnum::PAGE_ACCESS_TOKEN->value . '-' . (int) $app->getId() . '-';
-        $exactKey = $baseKey . (int) $company->getId() . '-' . $pageId;
 
-        $setting = CompaniesSettings::where('name', $exactKey)
+        $setting = CompaniesSettings::where('name', 'LIKE', $baseKey . '%-' . $pageId)
             ->first();
 
         if (! $setting) {
-            $setting = CompaniesSettings::where('name', 'LIKE', $baseKey . '%-' . $pageId)
-                ->first();
-        }
-
-        if (! $setting) {
-            return '';
+            return ['token' => '', 'company' => null];
         }
 
         /** @var array<string, mixed>|string|null $pageConfig */
         $pageConfig = $setting->value;
+        $token = '';
 
         if (is_array($pageConfig) && isset($pageConfig['access_token'])) {
-            return (string) $pageConfig['access_token'];
+            $token = (string) $pageConfig['access_token'];
+        } elseif (is_string($pageConfig) && $pageConfig !== '') {
+            $token = $pageConfig;
         }
 
-        if (is_string($pageConfig) && $pageConfig !== '') {
-            return $pageConfig;
-        }
-
-        return '';
+        return [
+            'token' => $token,
+            'company' => $setting->company,
+        ];
     }
 }
