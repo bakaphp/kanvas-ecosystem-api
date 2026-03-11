@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Actions;
 
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -65,17 +66,29 @@ class UpdatePeopleAction
             $keepValues = [];
 
             foreach ($deduplicatedContacts as $contact) {
+                $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
+
                 // Try to find by ID first, then by value+type combo
                 if (isset($contact->id) && $contact->id > 0) {
                     $existingContact = $this->people->contacts()
                         ->where('id', $contact->id)
                         ->first();
                 } else {
-                    $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
-                    $existingContact = $this->people->contacts()
-                        ->where('value', $normalizedValue)
-                        ->where('contacts_types_id', $contact->contacts_types_id)
-                        ->first();
+                    $phoneTypes = [
+                        ContactTypeEnum::PHONE->value,
+                        ContactTypeEnum::CELLPHONE->value,
+                        ContactTypeEnum::WORK_PHONE->value,
+                    ];
+                    $query = $this->people->contacts()
+                        ->where('contacts_types_id', $contact->contacts_types_id);
+
+                    if (in_array($contact->contacts_types_id, $phoneTypes, true)) {
+                        $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$normalizedValue]);
+                    } else {
+                        $query->where('value', $normalizedValue);
+                    }
+
+                    $existingContact = $query->first();
                 }
 
                 if ($existingContact) {
@@ -86,7 +99,7 @@ class UpdatePeopleAction
                         'is_opt_out' => $contact->is_opt_out,
                         'value' => $contact->value,
                     ]);
-                    $keepValues[] = $existingContact->value;
+                    $keepValues[] = $normalizedValue;
                 } else {
                     // New contact to be saved
                     $contactsToSave[] = new Contact([
@@ -94,9 +107,8 @@ class UpdatePeopleAction
                         'value' => $contact->value,
                         'weight' => $contact->weight,
                         'is_opt_out' => $contact->is_opt_out,
-
                     ]);
-                    $keepValues[] = $contact->value;
+                    $keepValues[] = $normalizedValue;
                 }
             }
 

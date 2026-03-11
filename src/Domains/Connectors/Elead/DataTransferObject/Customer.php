@@ -121,7 +121,7 @@ class Customer extends Data
                 'number' => $phoneValue,
                 'phoneType' => 'Cellular',
                 'preferredTimeToContact' => 'Unspecified',
-                'doNotCall' => $isOptOut,
+                //'doNotCall' => $isOptOut,
                 'doNotText' => $isOptOut,
             ];
 
