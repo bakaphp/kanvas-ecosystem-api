@@ -10,12 +10,15 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
+use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Templates\Blank;
 
 class SendMessageToLeadAction
@@ -43,6 +46,7 @@ class SendMessageToLeadAction
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
+            LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage(),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
     }
@@ -268,6 +272,18 @@ class SendMessageToLeadAction
         return [];
     }
 
+    protected function sendVoiceMessage(): array
+    {
+        $agent = Agent::fromApp($this->lead->app)
+            ->fromCompany($this->lead->company)
+            ->where('name', 'voiceOutreachAgent')
+            ->firstOrFail();
+
+        $sessionResult = InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
+        $callResult = TriggerVoiceCallAction::fromLead($this->lead)->execute();
+
+        return array_merge($sessionResult, $callResult);
+    }
     /**
      * Get attachment URLs for email.
      */
