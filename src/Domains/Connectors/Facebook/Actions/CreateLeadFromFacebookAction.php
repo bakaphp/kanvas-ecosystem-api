@@ -181,12 +181,10 @@ class CreateLeadFromFacebookAction
         $exactKey = $baseKey . (int) $company->getId() . '-' . $pageId;
 
         $setting = CompaniesSettings::where('name', $exactKey)
-            ->whereNot('is_deleted', 1)
             ->first();
 
         if (! $setting) {
             $setting = CompaniesSettings::where('name', 'LIKE', $baseKey . '%-' . $pageId)
-                ->whereNot('is_deleted', 1)
                 ->first();
         }
 
