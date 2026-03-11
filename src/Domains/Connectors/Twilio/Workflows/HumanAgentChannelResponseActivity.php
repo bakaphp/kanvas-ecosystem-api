@@ -116,12 +116,15 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
+                $files = $message->getFiles();
+
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
-                    false
+                    false,
+                    $files->isNotEmpty() ? $files : null
                 );
             },
             company: $channel->company,
