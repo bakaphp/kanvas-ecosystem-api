@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Facebook\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\Facebook\Client as FacebookClient;
 use Kanvas\Connectors\Facebook\Enums\ConfigurationEnum;
