@@ -6,15 +6,14 @@ namespace Tests\Connectors\Integration\VoiceBridge;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
+use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\TestCase;
 
 class LeadVoiceFollowUpJobTest extends TestCase
