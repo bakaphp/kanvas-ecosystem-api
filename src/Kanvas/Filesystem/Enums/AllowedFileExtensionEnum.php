@@ -63,7 +63,7 @@ enum AllowedFileExtensionEnum
                 'mpeg',
                 'mpg',
             ],
-            
+
             self::MEDIA_FILES => [
                 'jpg',
                 'jpeg',
