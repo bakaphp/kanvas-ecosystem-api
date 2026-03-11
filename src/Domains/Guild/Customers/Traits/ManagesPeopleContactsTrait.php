@@ -52,11 +52,13 @@ trait ManagesPeopleContactsTrait
 
     protected function addNewContact(People $people, ContactData $contact): ?Contact
     {
+        $isOptOut = (int) ($contact->is_opt_out ?? 0);
+
         /** @var Contact|null */
         return match ($contact->contacts_types_id) {
-            ContactTypeEnum::PHONE->value => $people->addPhone($contact->value),
-            ContactTypeEnum::CELLPHONE->value => $people->addCellphone($contact->value),
-            ContactTypeEnum::EMAIL->value => $people->addEmail($contact->value),
+            ContactTypeEnum::PHONE->value => $people->addPhone($contact->value, $isOptOut, $contact->weight),
+            ContactTypeEnum::CELLPHONE->value => $people->addCellphone($contact->value, $isOptOut, $contact->weight),
+            ContactTypeEnum::EMAIL->value => $people->addEmail($contact->value, $isOptOut, $contact->weight),
             default => null,
         };
     }
@@ -85,12 +87,7 @@ trait ManagesPeopleContactsTrait
 
             $createdContact = $this->addNewContact($people, $contact);
 
-            if ($createdContact !== null) {
-                if ($contact->is_opt_out !== null) {
-                    $createdContact->is_opt_out = (int) $contact->is_opt_out;
-                    $createdContact->saveOrFail();
-                }
-            } else {
+            if ($createdContact === null) {
                 $contactsToAdd[] = new Contact([
                     'contacts_types_id' => $contact->contacts_types_id,
                     'value' => $contact->value,
@@ -154,40 +151,47 @@ trait ManagesPeopleContactsTrait
             return;
         }
 
-        $contactsToSave = [];
-        $keepValues = [];
+        $keepIds = [];
+        $contactsToAdd = [];
 
         foreach ($deduplicatedContacts as $contact) {
             $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
             $existingContact = $this->findExistingContact($people, $contact, $normalizedValue);
 
             if ($existingContact) {
-                $existingContact->update([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'weight' => $contact->weight,
-                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
-                    'value' => $contact->value,
-                ]);
-                $keepValues[] = $normalizedValue;
+                $existingContact->value = $contact->value;
+                $existingContact->contacts_types_id = $contact->contacts_types_id;
+                $existingContact->weight = $contact->weight;
+                $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? $existingContact->is_opt_out);
+                $existingContact->saveOrFail();
+                $keepIds[] = $existingContact->id;
             } else {
-                $contactsToSave[] = new Contact([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'value' => $contact->value,
-                    'weight' => $contact->weight,
-                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
-                ]);
-                $keepValues[] = $normalizedValue;
+                $createdContact = $this->addNewContact($people, $contact);
+
+                if ($createdContact !== null) {
+                    $keepIds[] = $createdContact->id;
+                } else {
+                    $contactsToAdd[] = new Contact([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
+                        'weight' => $contact->weight,
+                    ]);
+                }
             }
         }
 
-        if (! empty($keepValues)) {
-            $people->contacts()->whereNotIn('value', $keepValues)->delete();
-        } else {
-            $people->contacts()->delete();
+        if (! empty($contactsToAdd)) {
+            $savedContacts = $people->contacts()->saveMany($contactsToAdd);
+            foreach ($savedContacts as $saved) {
+                $keepIds[] = $saved->id;
+            }
         }
 
-        if (count($contactsToSave) > 0) {
-            $people->contacts()->saveMany($contactsToSave);
+        if (! empty($keepIds)) {
+            $people->contacts()->whereNotIn('id', $keepIds)->delete();
+        } else {
+            $people->contacts()->delete();
         }
     }
 }
