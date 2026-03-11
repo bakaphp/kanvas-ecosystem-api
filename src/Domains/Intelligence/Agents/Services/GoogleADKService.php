@@ -28,7 +28,7 @@ class GoogleADKService
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
-        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrate';
+        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrator';
 
         $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
         if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
