@@ -10,7 +10,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AgentSessionQuery
@@ -30,7 +29,7 @@ class AgentSessionQuery
             $session->update();
         }
 
-        $systemModule = SystemModulesRepository::getByModelName(Message::class, $app);
+        $systemModule = SystemModulesRepository::getByModelName(Lead::class, $app);
 
         $channelSlugs = [];
         $entity = $session->entity();
