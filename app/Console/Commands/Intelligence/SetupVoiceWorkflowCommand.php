@@ -77,7 +77,7 @@ class SetupVoiceWorkflowCommand extends Command
 
         IntegrationsCompany::create([
             'companies_id'   => $company->getId(),
-            'integrations_id'=> $integration->getId(),
+            'integrations_id' => $integration->getId(),
             'status_id'      => $activeStatus->getId(),
             'region_id'      => $region->getId(),
             'is_active'      => 1,
