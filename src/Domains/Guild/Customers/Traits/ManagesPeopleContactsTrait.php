@@ -94,7 +94,7 @@ trait ManagesPeopleContactsTrait
                 $contactsToAdd[] = new Contact([
                     'contacts_types_id' => $contact->contacts_types_id,
                     'value' => $contact->value,
-                    'is_opt_out' => $contact->is_opt_out,
+                    'is_opt_out' => $contact->is_opt_out ?? 0,
                     'weight' => $contact->weight,
                 ]);
             }
@@ -105,6 +105,32 @@ trait ManagesPeopleContactsTrait
         }
     }
 
+    /**
+     * @todo remove once frontend sends opt-out updates via a separate mutation
+     */
+    protected function isOptOutOnlyUpdate(Collection $contacts, People $people): bool
+    {
+        if ($contacts->count() !== 1) {
+            return false;
+        }
+
+        $contact = $contacts->first();
+
+        if (! isset($contact->id) || $contact->id <= 0 || $contact->is_opt_out === null) {
+            return false;
+        }
+
+        $existingContact = $people->contacts()->where('id', $contact->id)->first();
+        if ($existingContact) {
+            $existingContact->update([
+                'is_opt_out' => $contact->is_opt_out ?? 0,
+                'value' => $contact->value,
+            ]);
+        }
+
+        return true;
+    }
+
     protected function syncContactsForUpdate(People $people, DataCollection $contacts): void
     {
         if (! $contacts->count()) {
@@ -112,6 +138,12 @@ trait ManagesPeopleContactsTrait
         }
 
         $deduplicatedContacts = $this->deduplicateContacts($contacts);
+
+        // @todo remove once frontend sends opt-out updates via a separate mutation
+        if ($this->isOptOutOnlyUpdate($deduplicatedContacts, $people)) {
+            return;
+        }
+
         $contactsToSave = [];
         $keepValues = [];
 
@@ -123,7 +155,7 @@ trait ManagesPeopleContactsTrait
                 $existingContact->update([
                     'contacts_types_id' => $contact->contacts_types_id,
                     'weight' => $contact->weight,
-                    'is_opt_out' => $contact->is_opt_out,
+                    'is_opt_out' => $contact->is_opt_out ?? 0,
                     'value' => $contact->value,
                 ]);
                 $keepValues[] = $normalizedValue;
@@ -132,7 +164,7 @@ trait ManagesPeopleContactsTrait
                     'contacts_types_id' => $contact->contacts_types_id,
                     'value' => $contact->value,
                     'weight' => $contact->weight,
-                    'is_opt_out' => $contact->is_opt_out,
+                    'is_opt_out' => $contact->is_opt_out ?? 0,
                 ]);
                 $keepValues[] = $normalizedValue;
             }

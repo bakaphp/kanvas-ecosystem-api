@@ -40,6 +40,13 @@ input ContactInput {
     id: ID
 }
 
+input UpdateContactInput {
+    value: String
+    contacts_types_id: ID
+    weight: Int
+    is_opt_out: Boolean
+}
+
 input AddressInput {
     address: String!
     address_2: String
