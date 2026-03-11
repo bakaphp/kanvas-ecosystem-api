@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
@@ -19,6 +20,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateMessageAction
 {
+    use HasMutationUploadFiles;
+
     public bool $runWorkflow = true;
 
     public function __construct(
@@ -80,6 +83,16 @@ class CreateMessageAction
                     $this->entityId
                 );
                 $associateMessage->execute();
+            }
+
+            // Upload files before adding to channel so workflow can access them
+            if (! empty($this->messageInput->files)) {
+                $this->handleFileUpload(
+                    $message,
+                    $this->messageInput->app,
+                    $this->messageInput->user,
+                    $this->messageInput->files
+                );
             }
 
             if ($this->messageInput->channel_slug !== null) {
