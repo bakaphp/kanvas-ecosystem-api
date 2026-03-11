@@ -18,6 +18,7 @@ enum ConfigurationEnum: string
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';
     case AGENT_HAND_OFF = 'agent_hand_off';
+    case AGENT_HAND_OFF_TYPE = 'agent_hand_off_type';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
     case LEAD_CONTEXT_INFO = 'lead_ai_agent_context_info';
     case LAST_MESSAGE_TIME = 'last_message_time';
