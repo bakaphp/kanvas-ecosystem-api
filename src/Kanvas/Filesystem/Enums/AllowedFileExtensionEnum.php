@@ -28,6 +28,7 @@ enum AllowedFileExtensionEnum
                 'heic',
                 'heif',
             ],
+
             self::WORK_FILES => [
                 'jpg',
                 'jpeg',
@@ -62,6 +63,7 @@ enum AllowedFileExtensionEnum
                 'mpeg',
                 'mpg',
             ],
+
             self::MEDIA_FILES => [
                 'jpg',
                 'jpeg',
