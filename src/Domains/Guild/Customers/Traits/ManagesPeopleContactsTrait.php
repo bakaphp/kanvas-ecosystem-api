@@ -115,18 +115,28 @@ trait ManagesPeopleContactsTrait
         }
 
         $contact = $contacts->first();
-
-        if (! isset($contact->id) || $contact->id <= 0 || $contact->is_opt_out === null) {
+        if ($contact->is_opt_out === null) {
             return false;
         }
 
-        $existingContact = $people->contacts()->where('id', $contact->id)->first();
-        if ($existingContact) {
-            $existingContact->update([
-                'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
-                'value' => $contact->value,
-            ]);
+        $normalizedValue = Contact::normalizeValue($contact->value, $contact->contacts_types_id);
+        $existingContact = $this->findExistingContact($people, $contact, $normalizedValue);
+
+        //use a normal query without call existing cause of the id issue we cant us it because if overwritten
+        if (! $existingContact) {
+            $existingContact = $people->contacts()
+                ->where('contacts_types_id', $contact->contacts_types_id)
+                ->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$normalizedValue])
+                ->first();
         }
+
+        if (! $existingContact) {
+            return true;
+        }
+
+        $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? 0);
+        $existingContact->value = $contact->value;
+        $existingContact->saveOrFail();
 
         return true;
     }

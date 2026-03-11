@@ -20,7 +20,6 @@ class UpdatePeopleAction
     use ManagesPeopleContactsTrait;
 
     public bool $runWorkflow = true;
-
     public function __construct(
         protected People $people,
         protected readonly PeopleDataInput $peopleData
