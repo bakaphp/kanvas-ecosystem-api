@@ -86,15 +86,15 @@ trait ManagesPeopleContactsTrait
             $createdContact = $this->addNewContact($people, $contact);
 
             if ($createdContact !== null) {
-                if ($contact->is_opt_out) {
-                    $createdContact->is_opt_out = $contact->is_opt_out;
+                if ($contact->is_opt_out !== null) {
+                    $createdContact->is_opt_out = (int) $contact->is_opt_out;
                     $createdContact->saveOrFail();
                 }
             } else {
                 $contactsToAdd[] = new Contact([
                     'contacts_types_id' => $contact->contacts_types_id,
                     'value' => $contact->value,
-                    'is_opt_out' => $contact->is_opt_out ?? 0,
+                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                     'weight' => $contact->weight,
                 ]);
             }
@@ -123,7 +123,7 @@ trait ManagesPeopleContactsTrait
         $existingContact = $people->contacts()->where('id', $contact->id)->first();
         if ($existingContact) {
             $existingContact->update([
-                'is_opt_out' => $contact->is_opt_out ?? 0,
+                'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                 'value' => $contact->value,
             ]);
         }
@@ -155,7 +155,7 @@ trait ManagesPeopleContactsTrait
                 $existingContact->update([
                     'contacts_types_id' => $contact->contacts_types_id,
                     'weight' => $contact->weight,
-                    'is_opt_out' => $contact->is_opt_out ?? 0,
+                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                     'value' => $contact->value,
                 ]);
                 $keepValues[] = $normalizedValue;
@@ -164,7 +164,7 @@ trait ManagesPeopleContactsTrait
                     'contacts_types_id' => $contact->contacts_types_id,
                     'value' => $contact->value,
                     'weight' => $contact->weight,
-                    'is_opt_out' => $contact->is_opt_out ?? 0,
+                    'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                 ]);
                 $keepValues[] = $normalizedValue;
             }
