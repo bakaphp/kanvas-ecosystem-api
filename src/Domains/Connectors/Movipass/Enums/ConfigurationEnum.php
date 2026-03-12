@@ -20,4 +20,5 @@ enum ConfigurationEnum: string
 
     case LOW_BALANCE_PUSH_TEMPLATE = 'low_balance_push';
     case LOW_BALANCE_EMAIL_TEMPLATE = 'low_balance_email';
+    case VEHICLE_PRODUCT_TYPE_ID = 'movipass_vehicle_product_type_id';
 }
