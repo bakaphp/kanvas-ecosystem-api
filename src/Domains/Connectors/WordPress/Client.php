@@ -23,6 +23,7 @@ class Client
     public function __construct(
         protected string $baseUrl,
         protected string $apiPath,
+        protected array $extraParams = [],
     ) {
         if (empty($this->baseUrl)) {
             throw new ValidationException('WordPress base URL is required');
@@ -31,19 +32,18 @@ class Client
         if (empty($this->apiPath)) {
             throw new ValidationException('WordPress API path is required');
         }
+
+        // Strip www. to avoid 301 redirects that may cause issues
+        $this->baseUrl = (string) preg_replace('#^(https?://)www\.#i', '$1', $this->baseUrl);
     }
 
     public function getVehicles(int $page = 1, ?string $filterMake = null): array
     {
         // Send both `page` and `current_page` params to support different WP plugin versions
-        $params = [
-            'per_page' => self::PER_PAGE,
-            'sort' => 'photos_is_stock',
-            'sort_direction' => 'DESC',
-            'display' => 'grid',
+        $params = array_merge($this->extraParams, [
             'page' => $page,
             'current_page' => $page,
-        ];
+        ]);
 
         if ($filterMake !== null) {
             $params['make'] = $filterMake;
@@ -92,6 +92,12 @@ class Client
         $seenVins = [];
         $page = 1;
         $totalPages = 1;
+        $totalSkippedNoVin = 0;
+        $totalSkippedDupeVin = 0;
+        /** @var array<string, mixed>|null $sampleNoVin */
+        $sampleNoVin = null;
+        /** @var array{vin: string, page: int, vehicle: array<string, mixed>}|null $sampleDupeVin */
+        $sampleDupeVin = null;
 
         while ($page <= $totalPages) {
             $data = $this->getVehicles($page, $filterMake);
@@ -107,9 +113,28 @@ class Client
                 break;
             }
 
+            $pageSkippedNoVin = 0;
+            $pageSkippedDupeVin = 0;
+
             foreach ($vehicles as $vehicle) {
                 $vin = (string) ($vehicle['vin'] ?? '');
-                if ($vin === '' || isset($seenVins[$vin])) {
+                if ($vin === '') {
+                    $pageSkippedNoVin++;
+                    $totalSkippedNoVin++;
+                    if ($sampleNoVin === null) {
+                        $sampleNoVin = $vehicle;
+                    }
+
+                    continue;
+                }
+
+                if (isset($seenVins[$vin])) {
+                    $pageSkippedDupeVin++;
+                    $totalSkippedDupeVin++;
+                    if ($sampleDupeVin === null) {
+                        $sampleDupeVin = ['vin' => $vin, 'page' => $page, 'vehicle' => $vehicle];
+                    }
+
                     continue;
                 }
 
@@ -118,7 +143,7 @@ class Client
             }
 
             if ($onPage !== null) {
-                $onPage($page, $totalPages, count($vehicles), count($allVehicles));
+                $onPage($page, $totalPages, count($vehicles), count($allVehicles), $pageSkippedNoVin, $pageSkippedDupeVin);
             }
 
             $page++;
@@ -131,6 +156,10 @@ class Client
         return [
             'vehicles' => $allVehicles,
             'total' => count($allVehicles),
+            'skipped_no_vin' => $totalSkippedNoVin,
+            'skipped_duplicate_vin' => $totalSkippedDupeVin,
+            'sample_no_vin' => $sampleNoVin,
+            'sample_duplicate_vin' => $sampleDupeVin,
         ];
     }
 
