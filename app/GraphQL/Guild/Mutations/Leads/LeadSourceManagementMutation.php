@@ -15,21 +15,20 @@ class LeadSourceManagementMutation
 {
     public function create(mixed $root, array $request): LeadSourceModel
     {
-        $data = $this->validate($request['input']);
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        $leadSource = LeadSource::from($app, $company, $data);
+        $leadSource = LeadSource::from($app, $company, $request['input']);
 
         return new CreateLeadSourceAction($leadSource)->execute();
     }
 
     public function update(mixed $root, array $request): LeadSourceModel
     {
-        $input = $this->validate($request['input']);
         $app = app(Apps::class);
         /** @var Companies $company */
-        $company = $input['company'];
+        $input = $request['input'];
+        $company = auth()->user()->getCurrentCompany();
 
         $leadSource = LeadSourceModel::getByUuidFromCompanyApp(
             $request['id'],
@@ -58,18 +57,13 @@ class LeadSourceManagementMutation
 
     public function delete(mixed $root, array $request): bool
     {
-        $leadSource = LeadSourceModel::getByUuidFromCompanyApp($request['id'], app: app(Apps::class));
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $leadSource = LeadSourceModel::getByUuidFromCompanyApp($request['id'], company: $company, app: $app);
         CompaniesRepository::userAssociatedToCompany($leadSource->company, auth()->user());
 
         return $leadSource->delete();
     }
 
-    public function validate(array $input): array
-    {
-        $input['app'] = app(Apps::class);
-        $input['company'] = CompaniesRepository::getByUuid($input['companies_id'], app: app(Apps::class), user: auth()->user());
-        CompaniesRepository::userAssociatedToCompany($input['company'], auth()->user());
-
-        return $input;
-    }
+  
 }
