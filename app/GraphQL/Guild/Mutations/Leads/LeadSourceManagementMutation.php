@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Leads\Models\LeadSource as LeadSourceModel;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 
@@ -27,18 +27,30 @@ class LeadSourceManagementMutation
     public function update(mixed $root, array $request): LeadSourceModel
     {
         $input = $this->validate($request['input']);
-        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+        /** @var Companies $company */
+        $company = $input['company'];
 
         $leadSource = LeadSourceModel::getByUuidFromCompanyApp(
             $request['id'],
             company: $company,
-            app: app(Apps::class)
+            app: $app
         );
+
+        $dto = new LeadSource(
+            app: $app,
+            company: $company,
+            leads_types_id: $input['leads_types_id'] ?? null,
+            name: $input['name'],
+            is_active: $input['is_active'],
+            description: $input['description'] ?? null,
+        );
+
         $leadSource->update([
-            'name' => $input['name'],
-            'description' => $input['description'],
-            'is_active' => $input['is_active'],
-            'leads_types_id' => $input['leads_types_id'],
+            'name' => $dto->name,
+            'description' => $dto->description,
+            'is_active' => $dto->is_active,
+            'leads_types_id' => $dto->leads_types_id,
         ]);
 
         return $leadSource;
@@ -56,10 +68,7 @@ class LeadSourceManagementMutation
     {
         $input['app'] = app(Apps::class);
         $input['company'] = CompaniesRepository::getByUuid($input['companies_id'], app: app(Apps::class), user: auth()->user());
-
         CompaniesRepository::userAssociatedToCompany($input['company'], auth()->user());
-        $leadType = LeadType::getByUuidFromCompanyApp($input['leads_types_id'], company: $input['company'], app: app(Apps::class));
-        $input['leads_types_id'] = $leadType->getId();
 
         return $input;
     }

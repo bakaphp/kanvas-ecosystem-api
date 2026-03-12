@@ -14,7 +14,7 @@ input LeadSourceInput {
     name: String!
     description: String
     is_active: Boolean!
-    leads_types_id: ID!
+    leads_types_id: ID
 }
 
 extend type Mutation @guard {
