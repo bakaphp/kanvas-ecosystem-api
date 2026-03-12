@@ -53,6 +53,14 @@ class ProcessCalendlyInviteeAction
         $email = (string) ($inviteePayload['email'] ?? '');
         $phone = (string) ($inviteePayload['text_reminder_number'] ?? '');
 
+        if ($phone === '') {
+            /** @var array<string, string> $location */
+            $location = (array) ($scheduledEvent['location'] ?? []);
+            if (($location['type'] ?? '') === 'outbound_call' && ($location['location'] ?? '') !== '') {
+                $phone = $location['location'];
+            }
+        }
+
         ['firstname' => $firstname, 'lastname' => $lastname] = Str::parseFullName(
             fullName: $name,
             firstname: (string) ($inviteePayload['first_name'] ?? ''),
@@ -106,13 +114,16 @@ class ProcessCalendlyInviteeAction
             ]),
             type_id: $typeId,
             source_id: $sourceId,
-            custom_fields: [
-                CustomFieldEnum::CALENDLY_EVENT_URI->value => $eventUri,
-                CustomFieldEnum::CALENDLY_INVITEE_URI->value => $inviteeUri,
-                CustomFieldEnum::CALENDLY_EVENT_TYPE->value => $eventType,
-                CustomFieldEnum::CALENDLY_EVENT_NAME->value => $eventName,
-                'calendly_questions_and_answers' => $questionsAndAnswers,
-            ],
+            custom_fields: array_merge(
+                [
+                    CustomFieldEnum::CALENDLY_EVENT_URI->value => $eventUri,
+                    CustomFieldEnum::CALENDLY_INVITEE_URI->value => $inviteeUri,
+                    CustomFieldEnum::CALENDLY_EVENT_TYPE->value => $eventType,
+                    CustomFieldEnum::CALENDLY_EVENT_NAME->value => $eventName,
+                    'calendly_questions_and_answers' => $questionsAndAnswers,
+                ],
+                (array) ($config['custom_fields'] ?? [])
+            ),
         );
 
         $lead = new CreateLeadAction($leadDto)->execute();
