@@ -66,6 +66,7 @@ class CreateVehicleFromOrderActivity extends KanvasActivity implements WorkflowA
                     currency: Currencies::getByCode($order->currency),
                 ));
 
+                $order->users_id = $payingUser->getId();
                 $order->metadata = [
                     ...$order->metadata ?? [],
                     'data' => [
@@ -77,6 +78,19 @@ class CreateVehicleFromOrderActivity extends KanvasActivity implements WorkflowA
                     ],
                 ];
                 $order->saveQuietly();
+
+                activity()
+                    ->causedBy($payingUser)
+                    ->performedOn($order)
+                    ->withProperties([
+                        'order_id' => $order->getId(),
+                        'previous_users_id' => $order->getOriginal('users_id'),
+                        'new_users_id' => $payingUser->getId(),
+                        'product_id' => $product->getId(),
+                        'variant_id' => $variant->getId(),
+                        'timestamp' => now(),
+                    ])
+                    ->log('VEHICLE_CREATED_FROM_ORDER');
 
                 return [
                     'order' => $order->getId(),
@@ -119,7 +133,8 @@ class CreateVehicleFromOrderActivity extends KanvasActivity implements WorkflowA
         $brand = $vehicleData['vehicleBrand'] ?? '';
         $model = $vehicleData['vehicleModel'] ?? '';
         $year = $vehicleData['vehicleYear'] ?? '';
-        $vin = $vehicleData['vin'] ?? $vehicleData['vehiclePlate'] ?? '';
+        $vin = $vehicleData['vin'] ?? '';
+        $plate = $vehicleData['vehiclePlate'] ?? '';
         $tagNumber = $vehicleData['tag_number'] ?? '';
 
         $username = $user->displayname ?? $user->name ?? $user->email;
@@ -141,6 +156,7 @@ class CreateVehicleFromOrderActivity extends KanvasActivity implements WorkflowA
             $model ? ['name' => 'model', 'value' => $model] : null,
             $year ? ['name' => 'year', 'value' => $year] : null,
             $vin ? ['name' => 'vin', 'value' => $vin] : null,
+            $plate ? ['name' => 'plate', 'value' => $plate] : null,
             $tagNumber ? ['name' => 'tag_number', 'value' => $tagNumber] : null,
         ]);
 
