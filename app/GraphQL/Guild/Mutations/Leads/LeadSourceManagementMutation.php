@@ -64,6 +64,4 @@ class LeadSourceManagementMutation
 
         return $leadSource->delete();
     }
-
-  
 }
