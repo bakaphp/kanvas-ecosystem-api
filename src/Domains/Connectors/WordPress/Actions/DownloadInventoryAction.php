@@ -100,8 +100,8 @@ class DownloadInventoryAction
             $filterMake = isset($query['filter_make']) ? (string) $query['filter_make'] : null;
 
             $result = match ($this->provider) {
-                'ajax' => (new AjaxClient($this->baseUrl, $extraParams))->getAllVehicles($filterMake, $this->onPage),
-                default => (new Client($this->baseUrl, $this->apiPath, $extraParams))->getAllVehicles($filterMake, $this->onPage),
+                'ajax' => new AjaxClient($this->baseUrl, $extraParams)->getAllVehicles($filterMake, $this->onPage),
+                default => new Client($this->baseUrl, $this->apiPath, $extraParams)->getAllVehicles($filterMake, $this->onPage),
             };
 
             $totalSkippedNoVin += (int) ($result['skipped_no_vin'] ?? 0);
