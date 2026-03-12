@@ -278,7 +278,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4 --phpunit='--display-deprecations'
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4 --display-deprecations
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
