@@ -4209,16 +4209,16 @@
         },
         {
             "name": "laravel-notification-channels/expo",
-            "version": "v2.1.1",
+            "version": "v2.1.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-notification-channels/expo.git",
-                "reference": "e0b297cedfb86df9f14ec3de4151d8db680702eb"
+                "reference": "44b4fdece3fdd7110914f066d576b6a21859add4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-notification-channels/expo/zipball/e0b297cedfb86df9f14ec3de4151d8db680702eb",
-                "reference": "e0b297cedfb86df9f14ec3de4151d8db680702eb",
+                "url": "https://api.github.com/repos/laravel-notification-channels/expo/zipball/44b4fdece3fdd7110914f066d576b6a21859add4",
+                "reference": "44b4fdece3fdd7110914f066d576b6a21859add4",
                 "shasum": ""
             },
             "require": {
@@ -4267,9 +4267,9 @@
             "homepage": "https://github.com/laravel-notification-channels/expo",
             "support": {
                 "issues": "https://github.com/laravel-notification-channels/expo/issues",
-                "source": "https://github.com/laravel-notification-channels/expo/tree/v2.1.1"
+                "source": "https://github.com/laravel-notification-channels/expo/tree/v2.1.2"
             },
-            "time": "2025-12-26T11:28:30+00:00"
+            "time": "2026-03-12T10:29:25+00:00"
         },
         {
             "name": "laravel-workflow/laravel-workflow",
