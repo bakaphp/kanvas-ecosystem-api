@@ -16,19 +16,22 @@ class LeadSourceManagementMutation
     public function create(mixed $root, array $request): LeadSourceModel
     {
         $data = $this->validate($request['input']);
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
 
-        $leadSource = LeadSource::from($data);
+        $leadSource = LeadSource::from($app, $company, $data);
 
-        return (new CreateLeadSourceAction($leadSource))->execute();
+        return new CreateLeadSourceAction($leadSource)->execute();
     }
 
     public function update(mixed $root, array $request): LeadSourceModel
     {
         $input = $this->validate($request['input']);
+        $company = auth()->user()->getCurrentCompany();
 
         $leadSource = LeadSourceModel::getByUuidFromCompanyApp(
             $request['id'],
-            company: CompaniesRepository::getByUuid($input['companies_id']),
+            company: $company,
             app: app(Apps::class)
         );
         $leadSource->update([
@@ -53,6 +56,7 @@ class LeadSourceManagementMutation
     {
         $input['app'] = app(Apps::class);
         $input['company'] = CompaniesRepository::getByUuid($input['companies_id'], app: app(Apps::class), user: auth()->user());
+        
         CompaniesRepository::userAssociatedToCompany($input['company'], auth()->user());
         $leadType = LeadType::getByUuidFromCompanyApp($input['leads_types_id'], company: $input['company'], app: app(Apps::class));
         $input['leads_types_id'] = $leadType->getId();

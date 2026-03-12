@@ -19,4 +19,16 @@ class LeadSource extends Data
         public ?string $description = null,
     ) {
     }
+
+    public static function fromMultiple(Apps $app, Companies $company, array $data): self
+    {
+        return new self(
+            app: $app,
+            company: $company,
+            leads_types_id: $data['leads_types_id'],
+            name: $data['name'],
+            is_active: $data['is_active'],
+            description: $data['description'] ?? null
+        );
+    }
 }
