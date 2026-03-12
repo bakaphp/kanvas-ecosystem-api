@@ -12,7 +12,7 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
-use Kanvas\ActionEngine\Engagements\Services\VideoToGifService;
+use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Twilio\Client;
@@ -73,14 +73,12 @@ class SendMessageToLeadAction
                 'file_type' => $fileType,
             ];
 
-            if ($this->isVideoFile($fileType)) {
-                $processedVideo = $this->processVideoAndGenerateGif($file->url);
+            if ($mediaType->isVideo()) {
+                $processedVideo = $this->processVideoWithGif($file->url);
                 if ($processedVideo !== null) {
-                    // Replace original video with S3-uploaded video and add GIF
                     $processed[] = $processedVideo['video'];
                     $processed[] = $processedVideo['gif'];
                 } else {
-                    // Processing failed, keep original video
                     $processed[] = $fileData;
                 }
             } else {
@@ -91,22 +89,7 @@ class SendMessageToLeadAction
         return $processed;
     }
 
-    /**
-     * Check if file is a video based on extension.
-     */
-    protected function isVideoFile(string $extension): bool
-    {
-        $videoExtensions = ['mp4', 'ogg', 'mkv', 'webm', 'avi', 'mov', 'wmv', 'flv'];
-
-        return in_array(strtolower($extension), $videoExtensions);
-    }
-
-    /**
-     * Process video URL and generate GIF if enabled.
-     *
-     * @return array{gif: array, video: array}|null
-     */
-    protected function processVideoAndGenerateGif(string $videoUrl): ?array
+    protected function processVideoWithGif(string $videoUrl): ?array
     {
         $isEnabled = (bool) $this->lead->company->get(CompanyConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
 

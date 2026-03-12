@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Engagements\Services;
+namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use FFMpeg\Coordinate\Dimension;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use finfo;
@@ -15,7 +16,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Filesystem\Services\FilesystemServices;
 
 class VideoToGifService
 {
@@ -110,7 +110,7 @@ class VideoToGifService
         $gifTempFile = tempnam(sys_get_temp_dir(), 'gif_') . '.gif';
 
         $video
-            ->gif(TimeCode::fromSeconds(0), new \FFMpeg\Coordinate\Dimension(self::GIF_WIDTH, 0), $gifDuration)
+            ->gif(TimeCode::fromSeconds(0), new Dimension(self::GIF_WIDTH, 0), $gifDuration)
             ->save($gifTempFile);
 
         try {
