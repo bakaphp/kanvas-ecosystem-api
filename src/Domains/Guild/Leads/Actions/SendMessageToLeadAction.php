@@ -12,7 +12,6 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
-use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Twilio\Client;
@@ -20,6 +19,7 @@ use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationE
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
