@@ -21,6 +21,7 @@ class AjaxClient
 
     public function __construct(
         protected string $baseUrl,
+        protected array $extraParams = [],
     ) {
         if (empty($this->baseUrl)) {
             throw new ValidationException('WordPress base URL is required');
@@ -92,6 +93,10 @@ class AjaxClient
             'allFilters[has_photos]' => '1',
             'allFilters[current_page]' => (string) $page,
         ];
+
+        foreach ($this->extraParams as $key => $value) {
+            $formData['allFilters[' . $key . ']'] = (string) $value;
+        }
 
         if ($filterMake !== null) {
             $formData['allFilters[make]'] = $filterMake;

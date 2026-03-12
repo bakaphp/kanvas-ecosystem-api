@@ -29,6 +29,8 @@ class DownloadInventoryAction
         protected ?string $algoliaIndexName = null,
         protected ?string $widgetSiteId = null,
         protected ?string $widgetListingConfigId = null,
+        protected array $extraParams = [],
+        protected array $queries = [],
         ?Closure $onPage = null,
     ) {
         $this->onPage = $onPage;
@@ -36,6 +38,10 @@ class DownloadInventoryAction
 
     public function execute(): array
     {
+        if (! empty($this->queries)) {
+            return $this->executeMultiQuery();
+        }
+
         $result = match ($this->provider) {
             'algolia' => $this->fetchFromAlgolia(),
             'widget' => $this->fetchFromWidget(),
@@ -74,12 +80,84 @@ class DownloadInventoryAction
             'total' => count($rows),
             'file_path' => $filePath,
             'message' => 'Downloaded ' . count($rows) . ' vehicles',
+            'skipped_no_vin' => $result['skipped_no_vin'] ?? 0,
+            'skipped_duplicate_vin' => $result['skipped_duplicate_vin'] ?? 0,
+            'sample_no_vin' => $result['sample_no_vin'] ?? null,
+            'sample_duplicate_vin' => $result['sample_duplicate_vin'] ?? null,
+        ];
+    }
+
+    protected function executeMultiQuery(): array
+    {
+        /** @var array<string, array<string, mixed>> $seenVins */
+        $seenVins = [];
+        $totalSkippedNoVin = 0;
+        $totalSkippedDupeVin = 0;
+
+        foreach ($this->queries as $query) {
+            /** @var array<string, mixed> $query */
+            $extraParams = is_array($query['extra_params'] ?? null) ? $query['extra_params'] : [];
+            $filterMake = isset($query['filter_make']) ? (string) $query['filter_make'] : null;
+
+            $result = match ($this->provider) {
+                'ajax' => new AjaxClient($this->baseUrl, $extraParams)->getAllVehicles($filterMake, $this->onPage),
+                default => new Client($this->baseUrl, $this->apiPath, $extraParams)->getAllVehicles($filterMake, $this->onPage),
+            };
+
+            $totalSkippedNoVin += (int) ($result['skipped_no_vin'] ?? 0);
+
+            foreach ($result['vehicles'] as $vehicle) {
+                /** @var array<string, mixed> $vehicle */
+                $vin = (string) ($vehicle['vin'] ?? '');
+                if ($vin === '' || isset($seenVins[$vin])) {
+                    if ($vin !== '') {
+                        $totalSkippedDupeVin++;
+                    }
+
+                    continue;
+                }
+                $seenVins[$vin] = $vehicle;
+            }
+        }
+
+        $vehicles = array_values($seenVins);
+
+        if (count($vehicles) === 0) {
+            return [
+                'success' => true,
+                'dealer' => $this->dealerName,
+                'total' => 0,
+                'file_path' => null,
+                'message' => 'No vehicles found',
+            ];
+        }
+
+        $rows = [];
+        foreach ($vehicles as $vehicle) {
+            $rows[] = match ($this->provider) {
+                'ajax' => $this->mapAjaxVehicleToRow($vehicle),
+                default => $this->mapVehicleToRow($vehicle),
+            };
+        }
+
+        $filePath = $this->writeCsv($rows);
+
+        return [
+            'success' => true,
+            'dealer' => $this->dealerName,
+            'total' => count($rows),
+            'file_path' => $filePath,
+            'message' => 'Downloaded ' . count($rows) . ' vehicles',
+            'skipped_no_vin' => $totalSkippedNoVin,
+            'skipped_duplicate_vin' => $totalSkippedDupeVin,
+            'sample_no_vin' => null,
+            'sample_duplicate_vin' => null,
         ];
     }
 
     protected function fetchFromWordPress(): array
     {
-        $client = new Client($this->baseUrl, $this->apiPath);
+        $client = new Client($this->baseUrl, $this->apiPath, $this->extraParams);
 
         return $client->getAllVehicles($this->filterMake, $this->onPage);
     }
@@ -108,7 +186,7 @@ class DownloadInventoryAction
 
     protected function fetchFromAjax(): array
     {
-        $client = new AjaxClient($this->baseUrl);
+        $client = new AjaxClient($this->baseUrl, $this->extraParams);
 
         return $client->getAllVehicles($this->filterMake, $this->onPage);
     }
