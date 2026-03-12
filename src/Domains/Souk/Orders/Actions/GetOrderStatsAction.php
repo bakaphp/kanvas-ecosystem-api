@@ -148,7 +148,7 @@ class GetOrderStatsAction
             ->mergeBindings($initialSubQuery)
             ->join(DB::raw("({$finalSubQuery->toSql()}) as final"), 'initial.order_id', '=', 'final.order_id')
             ->mergeBindings($finalSubQuery)
-            ->selectRaw('initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) / 60 as diff_hours')
+            ->selectRaw('initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) as diff_minutes')
             ->get();
 
         return [
@@ -156,9 +156,9 @@ class GetOrderStatsAction
                 'orderId' => $item->order_id,
                 'initialDate' => $item->initial_date,
                 'finalDate' => $item->final_date,
-                'time' => $item->diff_hours,
+                'time' => $item->diff_minutes,
             ]),
-            'averageTime' => $rotationQuery->avg('diff_hours') ?? 0,
+            'averageTime' => $rotationQuery->avg('diff_minutes') ?? 0,
         ];
     }
 
