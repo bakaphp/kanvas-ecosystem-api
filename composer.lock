@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "603923d7b97362f97d141590af2ed6bf",
+    "content-hash": "20262d2e8b516ea6661eadea55cc188c",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.372.1",
+            "version": "3.373.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "a48ff951eaad7f038eca3e0e89f168048b99082b"
+                "reference": "fb74a2dca7ae2363e929c5cea33a4a4db0d22690"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a48ff951eaad7f038eca3e0e89f168048b99082b",
-                "reference": "a48ff951eaad7f038eca3e0e89f168048b99082b",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/fb74a2dca7ae2363e929c5cea33a4a4db0d22690",
+                "reference": "fb74a2dca7ae2363e929c5cea33a4a4db0d22690",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.372.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.373.0"
             },
-            "time": "2026-03-06T21:27:21+00:00"
+            "time": "2026-03-11T18:33:36+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4330,16 +4330,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.2.6",
+            "version": "v0.2.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "17bd350a4f68d28a255bd704aaa6724790ed73ee"
+                "reference": "8c35ed04ebdec3bd1cdfff13ee735608fb65c3d7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/17bd350a4f68d28a255bd704aaa6724790ed73ee",
-                "reference": "17bd350a4f68d28a255bd704aaa6724790ed73ee",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/8c35ed04ebdec3bd1cdfff13ee735608fb65c3d7",
+                "reference": "8c35ed04ebdec3bd1cdfff13ee735608fb65c3d7",
                 "shasum": ""
             },
             "require": {
@@ -4392,7 +4392,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-03-04T23:33:41+00:00"
+            "time": "2026-03-10T19:58:47+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -4918,16 +4918,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.24.0",
+            "version": "v10.25.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "f9864d9a727a0c0d6b95e08ed92df8c301ae6d2c"
+                "reference": "f28630dca44a63d80c15e596bedc5af42c8985d5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/f9864d9a727a0c0d6b95e08ed92df8c301ae6d2c",
-                "reference": "f9864d9a727a0c0d6b95e08ed92df8c301ae6d2c",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/f28630dca44a63d80c15e596bedc5af42c8985d5",
+                "reference": "f28630dca44a63d80c15e596bedc5af42c8985d5",
                 "shasum": ""
             },
             "require": {
@@ -4994,7 +4994,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2026-02-10T18:44:39+00:00"
+            "time": "2026-03-10T16:16:46+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -10408,16 +10408,16 @@
         },
         {
             "name": "rennokki/laravel-eloquent-query-cache",
-            "version": "dev-master",
+            "version": "3.6.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/byErikas/laravel-eloquent-query-cache.git",
-                "reference": "5825d8922e8774468c7d9e9a9b3a52f8ec2fda80"
+                "url": "https://github.com/renoki-co/laravel-eloquent-query-cache.git",
+                "reference": "48e612b3e3fb1358f734f7742385b4853481a368"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/byErikas/laravel-eloquent-query-cache/zipball/5825d8922e8774468c7d9e9a9b3a52f8ec2fda80",
-                "reference": "5825d8922e8774468c7d9e9a9b3a52f8ec2fda80",
+                "url": "https://api.github.com/repos/renoki-co/laravel-eloquent-query-cache/zipball/48e612b3e3fb1358f734f7742385b4853481a368",
+                "reference": "48e612b3e3fb1358f734f7742385b4853481a368",
                 "shasum": ""
             },
             "require": {
@@ -10432,23 +10432,13 @@
                 "orchestra/testbench": "^8.1.1|^9|^10.0",
                 "phpunit/phpunit": "^9.5.25|^10|^11"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "Rennokki\\QueryCache\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Rennokki\\QueryCache\\Test\\": "tests"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "vendor/bin/phpunit"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "Apache-2.0"
             ],
@@ -10471,15 +10461,16 @@
                 "sql"
             ],
             "support": {
-                "source": "https://github.com/byErikas/laravel-eloquent-query-cache/tree/master"
+                "issues": "https://github.com/renoki-co/laravel-eloquent-query-cache/issues",
+                "source": "https://github.com/renoki-co/laravel-eloquent-query-cache/tree/3.6.1"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/rennokki"
+                    "url": "https://github.com/rennokki",
+                    "type": "github"
                 }
             ],
-            "time": "2025-04-03T06:18:22+00:00"
+            "time": "2025-03-18T07:43:34+00:00"
         },
         {
             "name": "riimu/kit-phpencoder",
@@ -10934,27 +10925,27 @@
         },
         {
             "name": "setasign/fpdi",
-            "version": "v2.6.4",
+            "version": "v2.6.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Setasign/FPDI.git",
-                "reference": "4b53852fde2734ec6a07e458a085db627c60eada"
+                "reference": "fe203627e68a6c794d2434dee32d83a7bf78ed32"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/4b53852fde2734ec6a07e458a085db627c60eada",
-                "reference": "4b53852fde2734ec6a07e458a085db627c60eada",
+                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/fe203627e68a6c794d2434dee32d83a7bf78ed32",
+                "reference": "fe203627e68a6c794d2434dee32d83a7bf78ed32",
                 "shasum": ""
             },
             "require": {
                 "ext-zlib": "*",
-                "php": "^7.1 || ^8.0"
+                "php": ">=7.2 <=8.5.99999"
             },
             "conflict": {
                 "setasign/tfpdf": "<1.31"
             },
             "require-dev": {
-                "phpunit/phpunit": "^7",
+                "phpunit/phpunit": "^8.5.52",
                 "setasign/fpdf": "~1.8.6",
                 "setasign/tfpdf": "~1.33",
                 "squizlabs/php_codesniffer": "^3.5",
@@ -10994,7 +10985,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Setasign/FPDI/issues",
-                "source": "https://github.com/Setasign/FPDI/tree/v2.6.4"
+                "source": "https://github.com/Setasign/FPDI/tree/v2.6.5"
             },
             "funding": [
                 {
@@ -11002,7 +10993,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-08-05T09:57:14+00:00"
+            "time": "2026-03-11T08:36:14+00:00"
         },
         {
             "name": "shish/safe",
@@ -11307,16 +11298,16 @@
         },
         {
             "name": "smalot/pdfparser",
-            "version": "v2.12.3",
+            "version": "v2.12.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/smalot/pdfparser.git",
-                "reference": "61c9bcafcb92899b76d8ebda6508267bae77e264"
+                "reference": "028d7cc0ceff323bc001d763caa2bbdf611866c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/61c9bcafcb92899b76d8ebda6508267bae77e264",
-                "reference": "61c9bcafcb92899b76d8ebda6508267bae77e264",
+                "url": "https://api.github.com/repos/smalot/pdfparser/zipball/028d7cc0ceff323bc001d763caa2bbdf611866c4",
+                "reference": "028d7cc0ceff323bc001d763caa2bbdf611866c4",
                 "shasum": ""
             },
             "require": {
@@ -11352,9 +11343,9 @@
             ],
             "support": {
                 "issues": "https://github.com/smalot/pdfparser/issues",
-                "source": "https://github.com/smalot/pdfparser/tree/v2.12.3"
+                "source": "https://github.com/smalot/pdfparser/tree/v2.12.4"
             },
-            "time": "2026-01-08T08:04:04+00:00"
+            "time": "2026-03-10T15:39:47+00:00"
         },
         {
             "name": "spatie/enum",
@@ -16885,44 +16876,39 @@
         },
         {
             "name": "webleit/zohocrmapi",
-            "version": "dev-master",
+            "version": "5.5.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/bakaphp/ZohoCrmApi.git",
-                "reference": "518bd85bdc341d0abf54c21e64d7e9f246dd413d"
+                "url": "https://github.com/Weble/ZohoCrmApi.git",
+                "reference": "d3e3dc695103b5bc089ad430abf3a063d44a272f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bakaphp/ZohoCrmApi/zipball/518bd85bdc341d0abf54c21e64d7e9f246dd413d",
-                "reference": "518bd85bdc341d0abf54c21e64d7e9f246dd413d",
+                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/d3e3dc695103b5bc089ad430abf3a063d44a272f",
+                "reference": "d3e3dc695103b5bc089ad430abf3a063d44a272f",
                 "shasum": ""
             },
             "require": {
                 "doctrine/inflector": "^2.0",
                 "ext-json": "*",
                 "guzzlehttp/guzzle": "^6.3 || ^7.0",
-                "illuminate/collections": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
+                "illuminate/collections": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0",
                 "php": "^7.3 || ^8.0",
                 "weble/zohoclient": "^4.2"
             },
             "require-dev": {
                 "cache/filesystem-adapter": "^1.0",
                 "caseyamcl/guzzle_retry_middleware": "^2.6",
-                "nunomaduro/collision": "^5.0 || ^6.0 || ^7.0",
-                "phpunit/phpunit": "^8.0 || ^9.0 || ^10.0"
+                "nunomaduro/collision": "^5.0 || ^6.0 || ^7.0 || ^8.0",
+                "phpunit/phpunit": "^8.0 || ^9.0 || ^10.0 || ^11.0"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "Webleit\\ZohoCrmApi\\": "src"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Webleit\\ZohoCrmApi\\Test\\": "tests"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -16934,21 +16920,22 @@
             ],
             "description": "Zoho CRM API - PHP SDK",
             "keywords": [
+                "Zoho",
+                "ZohoCRM",
                 "api",
-                "crm",
-                "zoho",
-                "zohocrm"
+                "crm"
             ],
             "support": {
-                "source": "https://github.com/bakaphp/ZohoCrmApi/tree/master"
+                "issues": "https://github.com/Weble/ZohoCrmApi/issues",
+                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.5.0"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/weble"
+                    "url": "https://github.com/weble",
+                    "type": "github"
                 }
             ],
-            "time": "2025-04-12T14:19:43+00:00"
+            "time": "2026-02-24T10:25:18+00:00"
         },
         {
             "name": "webmozart/assert",
@@ -19900,9 +19887,7 @@
     "stability-flags": {
         "grantholle/laravel-username-generator": 20,
         "maatwebsite/excel": 20,
-        "rennokki/laravel-eloquent-query-cache": 20,
-        "typesense/laravel-scout-typesense-driver": 20,
-        "webleit/zohocrmapi": 20
+        "typesense/laravel-scout-typesense-driver": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
