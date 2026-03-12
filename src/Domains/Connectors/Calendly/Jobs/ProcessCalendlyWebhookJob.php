@@ -18,11 +18,23 @@ class ProcessCalendlyWebhookJob extends ProcessWebhookJob
 
         /** @var array<string, mixed> $config */
         $config = $this->receiver->configuration ?? [];
-        $allowedEvents = $config['event_types'] ?? [];
+        $allowedEvents = (array) ($config['event_types'] ?? []);
 
         if (! empty($allowedEvents) && ! in_array($eventType, $allowedEvents)) {
             return [
                 'message' => 'Event type "' . $eventType . '" is not configured for processing.',
+                'skipped' => true,
+            ];
+        }
+
+        $inviteePayload = (array) ($payload['payload'] ?? []);
+        $scheduledEvent = (array) ($inviteePayload['scheduled_event'] ?? []);
+        $eventName = (string) ($scheduledEvent['name'] ?? '');
+        $allowedEventNames = (array) ($config['event_names'] ?? []);
+
+        if (! empty($allowedEventNames) && ! in_array($eventName, $allowedEventNames)) {
+            return [
+                'message' => 'Event name "' . $eventName . '" is not configured for processing.',
                 'skipped' => true,
             ];
         }

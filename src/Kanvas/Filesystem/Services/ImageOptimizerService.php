@@ -203,6 +203,81 @@ class ImageOptimizerService
         return $imagePath;
     }
 
+    /**
+     * Optimize a local file in-place before upload.
+     * Unlike optimizeImageFromUrl(), this does not download — it works directly on the local path.
+     */
+    public static function optimizeLocalFile(
+        string $filePath,
+        bool $optimize = true,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+        ?int $quality = null,
+    ): string {
+        if (! file_exists($filePath)) {
+            return $filePath;
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        if (! in_array($extension, $resizableExtensions, true)) {
+            return $filePath;
+        }
+
+        // 1) Resize
+        if ($maxWidth !== null || $maxHeight !== null) {
+            try {
+                $manager = self::manager();
+                $img = $manager->read($filePath);
+                $img = $img->scale($maxWidth, $maxHeight);
+
+                match (true) {
+                    self::isJpeg($extension) => $img->save($filePath, quality: 90),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
+                    self::isWebp($extension) => $img->toWebp(90)->save($filePath),
+                    default => null,
+                };
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        // 2) Spatie optimization
+        if ($optimize) {
+            try {
+                $optimizerChain = new OptimizerChain();
+                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
+                $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
+                $optimizerChain
+                    ->useLogger(Log::channel())
+                    ->setTimeout(60)
+                    ->optimize($filePath);
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        // 3) Quality compression
+        if ($quality !== null && $quality >= 1 && $quality <= 100) {
+            try {
+                $manager = self::manager();
+                $img = $manager->read($filePath);
+
+                match (true) {
+                    self::isJpeg($extension) => $img->save($filePath, quality: $quality),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
+                    self::isWebp($extension) => $img->toWebp($quality)->save($filePath),
+                    default => null,
+                };
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        return $filePath;
+    }
+
     private static function isJpeg(string $ext): bool
     {
         return in_array($ext, ['jpg', 'jpeg'], true);

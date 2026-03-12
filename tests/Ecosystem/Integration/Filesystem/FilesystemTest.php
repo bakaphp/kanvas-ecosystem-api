@@ -11,6 +11,7 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Tests\TestCase;
 
 final class FilesystemTest extends TestCase
@@ -153,5 +154,90 @@ final class FilesystemTest extends TestCase
                 $this->markTestSkipped('URL not accessible: ' . $url);
             }
         }
+    }
+
+    public function testOptimizeLocalFile(): void
+    {
+        // Create a real large JPEG via GD so optimization has something to compress
+        $tempPath = sys_get_temp_dir() . '/test-optimize-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(2000, 2000);
+        $red = imagecolorallocate($img, 255, 0, 0);
+        imagefill($img, 0, 0, $red);
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        $this->assertGreaterThan(10000, $originalSize, 'Test image should be large enough to optimize');
+
+        $result = ImageOptimizerService::optimizeLocalFile(
+            filePath: $tempPath,
+            optimize: true,
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 75,
+        );
+
+        $this->assertEquals($tempPath, $result);
+        $this->assertFileExists($result);
+
+        $optimizedSize = filesize($result);
+        $this->assertLessThan($originalSize, $optimizedSize, 'Optimized file should be smaller than original');
+
+        @unlink($tempPath);
+    }
+
+    public function testOptimizeLocalFileSkipsNonImageFiles(): void
+    {
+        $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+        $filePath = $file->getRealPath();
+        $originalSize = filesize($filePath);
+
+        $result = ImageOptimizerService::optimizeLocalFile(
+            filePath: $filePath,
+            optimize: true,
+            maxWidth: 800,
+        );
+
+        $this->assertEquals($filePath, $result);
+        $this->assertEquals($originalSize, filesize($result));
+    }
+
+    public function testUploadWithOptimizationEnabled(): void
+    {
+        $app = app(Apps::class);
+        $app->set('filesystem-optimize-on-upload', true);
+        $app->set('filesystem-optimize-max-width', 800);
+        $app->set('filesystem-optimize-max-height', 800);
+
+        $file = UploadedFile::fake()->image('optimized-upload.jpg', 2000, 2000);
+        $filesystemService = new FilesystemServices($app);
+        $user = Auth::user();
+
+        $filesystem = $filesystemService->upload($file, $user);
+
+        $this->assertInstanceOf(Filesystem::class, $filesystem);
+        $this->assertNotEmpty($filesystem->url);
+
+        // Clean up
+        $app->set('filesystem-optimize-on-upload', false);
+        $filesystemService->delete($filesystem);
+    }
+
+    public function testUploadWithOptimizationDisabled(): void
+    {
+        $app = app(Apps::class);
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $file = UploadedFile::fake()->image('no-optimize.jpg', 2000, 2000);
+        $filesystemService = new FilesystemServices($app);
+        $user = Auth::user();
+
+        $filesystem = $filesystemService->upload($file, $user);
+
+        $this->assertInstanceOf(Filesystem::class, $filesystem);
+        $this->assertNotEmpty($filesystem->url);
+
+        // Clean up
+        $filesystemService->delete($filesystem);
     }
 }

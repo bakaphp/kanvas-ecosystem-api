@@ -31,6 +31,11 @@ class TwoFactorAuthMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
+
+        if ($user->get(UserConfigEnum::TWO_FACTOR_AUTH_DISABLED->value)) {
+            return false;
+        }
+
         $phoneNumber = $user->getAppProfile($app)->getTwoStepPhoneNumber();
 
         $skipVerification = (array) ($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SKIP_USERS->value) ?? []);
