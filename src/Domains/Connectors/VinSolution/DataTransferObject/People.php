@@ -41,6 +41,7 @@ class People extends PeopleDTO
                         'value' => $email['EmailAddress'],
                         'contacts_types_id' => ContactTypeEnum::EMAIL->value,
                         'weight' => $email['EmailType'] === 'Primary' ? 100 : 0,
+                        'is_opt_out' => (int) ($email['DoNotEmail'] ?? 0),
                     ],
                     $customer->emails
                 ),
@@ -49,6 +50,7 @@ class People extends PeopleDTO
                         'value' => $phone['Number'],
                         'contacts_types_id' => strtolower($phone['PhoneType']) === 'cell' ? ContactTypeEnum::CELLPHONE->value : ContactTypeEnum::PHONE->value,
                         'weight' => (int) $phone['PhoneId'] === 1 ? 100 : $phone['PhoneId'],
+                        'is_opt_out' => (int) ($phone['DoNotCall'] ?? 0),
                     ],
                     $customer->phones
                 )
