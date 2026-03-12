@@ -53,6 +53,14 @@ class ProcessCalendlyInviteeAction
         $email = (string) ($inviteePayload['email'] ?? '');
         $phone = (string) ($inviteePayload['text_reminder_number'] ?? '');
 
+        if ($phone === '') {
+            /** @var array<string, string> $location */
+            $location = (array) ($scheduledEvent['location'] ?? []);
+            if (($location['type'] ?? '') === 'outbound_call' && ($location['location'] ?? '') !== '') {
+                $phone = $location['location'];
+            }
+        }
+
         ['firstname' => $firstname, 'lastname' => $lastname] = Str::parseFullName(
             fullName: $name,
             firstname: (string) ($inviteePayload['first_name'] ?? ''),
