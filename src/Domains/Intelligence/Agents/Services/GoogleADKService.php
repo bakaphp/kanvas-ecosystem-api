@@ -10,6 +10,7 @@ use Exception;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -49,11 +50,6 @@ class GoogleADKService
         ]);
     }
 
-    /**
-     * Start a new session for a user
-     *
-     * @throws GuzzleException
-     */
     public function startSession(string $userId, string $sessionId): array
     {
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
@@ -66,24 +62,30 @@ class GoogleADKService
             ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
-        } catch (ClientException $e) {
+        } catch (ClientException|ServerException $e) {
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
             $responseData = json_decode($responseBody, true);
 
-            if ($e->getResponse()
-                && in_array($e->getResponse()->getStatusCode(), [400, 409])
-                && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')
-            ) {
-                // Return a specific response or handle as needed
+            if ($e->getResponse() && $this->isSessionAlreadyExistsError($e->getResponse()->getStatusCode(), $responseData)) {
                 return [
                     'error' => true,
-                    'message' => $responseData['detail'],
+                    'message' => $responseData['detail'] ?? 'Session already exists',
                     'session_id' => $sessionId,
                 ];
             }
 
             throw $e;
         }
+    }
+
+    private function isSessionAlreadyExistsError(int $statusCode, ?array $responseData): bool
+    {
+        $detail = $responseData['detail'] ?? '';
+
+        return in_array($statusCode, [400, 409, 500])
+            && (str_contains($detail, 'Session already exists')
+            || str_contains($detail, 'UniqueViolation')
+            || str_contains($detail, 'duplicate key'));
     }
 
     /**
