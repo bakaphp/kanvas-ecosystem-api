@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\SalesAssist\Events\SocialChannelCreatedEvent;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
@@ -89,18 +88,6 @@ class CreateSocialChannelForContactAction
             $isNewChannel = $isNewChannel || $whatsappResult['channel']->wasRecentlyCreated;
             $channel = $whatsappResult['channel'];
             $session = $whatsappResult['session'];
-        }
-
-        if ($this->sendPusherNotification && $isNewChannel) {
-            SocialChannelCreatedEvent::dispatch(
-                $this->app,
-                $communicationChannel,
-                $session->getId(),
-                $channel->slug,
-                $channel->name,
-                $this->contact->people_id,
-                $lead->getId()
-            );
         }
 
         $crmNoteResult = null;
