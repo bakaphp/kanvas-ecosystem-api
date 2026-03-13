@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -39,8 +38,8 @@ class GenerateRoadsideAssistancePinAction
         return $pin;
     }
 
-    private function generatePin(int $length = 4): string
+    private function generatePin(): string
     {
-        return Str::padLeft((string) random_int(0, (10 ** $length) - 1), $length, '0');
+        return (string) random_int(1000, 9999);
     }
 }
