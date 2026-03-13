@@ -12,7 +12,6 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
-
 use Sentry\Severity;
 use Sentry\State\Scope;
 use Throwable;
