@@ -38,10 +38,24 @@ class LeadRotation extends BaseModel
         return $this->hasMany(LeadRotationAgent::class, 'leads_rotations_id');
     }
 
+    public function activeAgents(): HasMany
+    {
+        return $this->agents()->where('is_deleted', 0);
+    }
+
+    public function getActiveUsers(): Collection
+    {
+        return $this->activeAgents()
+            ->with('users')
+            ->get()
+            ->pluck('users')
+            ->filter(fn ($user) => $user && ! $user->is_deleted && $user->isActive());
+    }
+
     public function getLeadsRotationsAgents(): Collection
     {
         // Get agents in a consistent order instead of random
-        return $this->agents()->where('is_deleted', 0)->orderBy('id')->get();
+        return $this->activeAgents()->orderBy('id')->get();
     }
 
     public function getAgent(): UserInterface
