@@ -14,11 +14,13 @@ use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -87,6 +89,18 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             );
 
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
+        }
+
+        try {
+            new CreateSocialChannelsAfterPullAction(
+                $entity,
+                $this->app,
+                $params,
+                $isDealerSocket ? ($people ?? null) : null,
+                $isDriveCentric ? ($leadModel ?? null) : null
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
         }
 
         return $pullLead;
