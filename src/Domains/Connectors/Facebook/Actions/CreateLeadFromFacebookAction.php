@@ -15,6 +15,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -114,10 +115,10 @@ class CreateLeadFromFacebookAction
 
                 $contacts = [];
                 if ($email !== '') {
-                    $contacts[] = ['type' => 'email', 'value' => $email];
+                    $contacts[] = ['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => $email];
                 }
                 if ($phone !== '') {
-                    $contacts[] = ['type' => 'phone', 'value' => $phone];
+                    $contacts[] = ['contacts_types_id' => ContactTypeEnum::CELLPHONE->value, 'value' => $phone];
                 }
 
                 $pipelineStageId = (int) ($config['pipeline_stage_id'] ?? 0);
