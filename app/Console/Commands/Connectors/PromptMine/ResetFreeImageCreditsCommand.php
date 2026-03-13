@@ -21,8 +21,7 @@ class ResetFreeImageCreditsCommand extends Command
 
     private const array FREE_CREDITS = [
         'image' => [
-            'fal-ai/kling-image/o3/text-to-image' => 3,
-            'fal-ai/kling-image/v3/text-to-image' => 3,
+            'gemini-3.1-flash-image-preview' => 3,
         ],
     ];
 
@@ -34,12 +33,11 @@ class ResetFreeImageCreditsCommand extends Command
         $subscribedUserIds = $this->getSubscribedUserIds($app);
 
         $processed = 0;
-        $skipped = 0;
 
         UsersAssociatedApps::where('apps_id', $app->getId())
             ->where('is_deleted', 0)
             ->whereNotIn('users_id', $subscribedUserIds)
-            ->chunkById(100, function ($userApps) use (&$processed, &$skipped) {
+            ->chunkById(100, function ($userApps) use (&$processed) {
                 foreach ($userApps as $userApp) {
                     $user = Users::find($userApp->users_id);
 
@@ -47,19 +45,13 @@ class ResetFreeImageCreditsCommand extends Command
                         continue;
                     }
 
-                    if ($this->shouldSkipUser($user)) {
-                        $skipped++;
-
-                        continue;
-                    }
-
-                    $user->set('public_order_credits', self::FREE_CREDITS, true);
+                    $this->topUpFreeCredits($user);
                     $processed++;
                     $this->info("Reset free image credits for user ID: {$user->getId()}");
                 }
             });
 
-        $this->info("Done. Processed: {$processed}, Skipped (has purchased credits): {$skipped}");
+        $this->info("Done. Processed: {$processed}");
     }
 
     private function getSubscribedUserIds(Apps $app): array
@@ -75,17 +67,61 @@ class ResetFreeImageCreditsCommand extends Command
             ->toArray();
     }
 
-    private function shouldSkipUser(Users $user): bool
+    /**
+     * Top up free credits into order_credits (the key the consumption flow reads).
+     *
+     * - If user has purchased credits for a model, add free amount on top.
+     * - If user has no purchased credits, cap at the free amount (no stacking day-over-day).
+     * - Tracks last free grant in public_order_credits so we only top up the difference.
+     */
+    private function topUpFreeCredits(Users $user): void
     {
-        $currentCredits = $user->get('public_order_credits', []);
+        /** @var array<string, array<string, int>> $orderCredits */
+        $orderCredits = $user->get('order_credits', []);
+        /** @var array<string, array<string, int>> $lastFreeGrant */
+        $lastFreeGrant = $user->get('public_order_credits', []);
+        $hasPurchased = $this->hasPurchasedCredits($orderCredits, $lastFreeGrant);
 
-        if (empty($currentCredits)) {
-            return false;
+        foreach (self::FREE_CREDITS as $type => $models) {
+            $orderCredits[$type] ??= [];
+
+            foreach ($models as $model => $freeAmount) {
+                $current = $orderCredits[$type][$model] ?? 0;
+                $previousFree = $lastFreeGrant[$type][$model] ?? 0;
+
+                if ($hasPurchased) {
+                    // User bought credits — add the full free amount on top
+                    $orderCredits[$type][$model] = $current + $freeAmount;
+                } else {
+                    // No purchases — top up to freeAmount, don't stack
+                    $remainingFree = max(0, min($current, $previousFree));
+                    $deficit = $freeAmount - $remainingFree;
+                    $orderCredits[$type][$model] = $current + max(0, $deficit);
+                }
+            }
         }
 
-        foreach (self::FREE_CREDITS['image'] as $model => $freeAmount) {
-            if (isset($currentCredits['image'][$model]) && $currentCredits['image'][$model] > $freeAmount) {
-                return true;
+        $user->set('order_credits', $orderCredits, true);
+        $user->set('public_order_credits', self::FREE_CREDITS, false);
+    }
+
+    /**
+     * @param array<string, array<string, int>> $orderCredits
+     * @param array<string, array<string, int>> $lastFreeGrant
+     */
+    private function hasPurchasedCredits(
+        array $orderCredits,
+        array $lastFreeGrant
+    ): bool {
+        foreach (self::FREE_CREDITS as $type => $models) {
+            foreach (array_keys($models) as $model) {
+                $current = $orderCredits[$type][$model] ?? 0;
+                $previousFree = $lastFreeGrant[$type][$model] ?? 0;
+
+                // If current credits exceed what we last gave for free, they bought some
+                if ($current > $previousFree) {
+                    return true;
+                }
             }
         }
 

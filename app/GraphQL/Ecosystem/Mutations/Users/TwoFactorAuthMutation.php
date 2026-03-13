@@ -12,13 +12,16 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Enums\UserConfigEnum;
-use Sentry\Severity;
-use Sentry\State\Scope;
-use Throwable;
 
 use function Sentry\captureException;
 use function Sentry\captureMessage;
+
+use Sentry\Severity;
+use Sentry\State\Scope;
+
 use function Sentry\withScope;
+
+use Throwable;
 
 class TwoFactorAuthMutation
 {
@@ -44,6 +47,7 @@ class TwoFactorAuthMutation
         }
 
         $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 3);
+        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 600); // 10 minutes
 
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
         if (RateLimiter::tooManyAttempts($rateLimitKey, $sendRateLimit)) {
@@ -54,7 +58,7 @@ class TwoFactorAuthMutation
             );
         }
 
-        RateLimiter::hit($rateLimitKey, 600);
+        RateLimiter::hit($rateLimitKey, $rateLimitDecaySeconds);
 
         $twilio = Client::getInstance($app);
 
@@ -80,6 +84,7 @@ class TwoFactorAuthMutation
         $userApp = $user->getAppProfile($app);
 
         $verifyRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_VERIFY_RATE_LIMIT->value) ?: 3);
+        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 600); // 10 minutes
 
         $rateLimitKey = 'two-factor-verify:' . $app->getId() . ':' . $user->getId();
         if (RateLimiter::tooManyAttempts($rateLimitKey, $verifyRateLimit)) {
@@ -95,7 +100,7 @@ class TwoFactorAuthMutation
             );
         }
 
-        RateLimiter::hit($rateLimitKey, 600);
+        RateLimiter::hit($rateLimitKey, $rateLimitDecaySeconds);
 
         $twilio = Client::getInstance($app);
 
