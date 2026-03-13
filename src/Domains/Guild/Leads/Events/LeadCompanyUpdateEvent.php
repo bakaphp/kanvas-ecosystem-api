@@ -16,8 +16,9 @@ class LeadCompanyUpdateEvent implements ShouldBroadcast
     use Dispatchable;
     use InteractsWithSockets;
 
-    public function __construct(protected Lead $lead)
-    {
+    public function __construct(
+        protected Lead $lead
+    ) {
     }
 
     public function broadcastWith(): array
