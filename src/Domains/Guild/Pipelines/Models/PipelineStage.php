@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Pipelines\Models;
 
-use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,7 +37,7 @@ class PipelineStage extends BaseModel
     public function casts(): array
     {
         return [
-            'config' => Json::class,
+            'config' => 'array',
         ];
     }
 

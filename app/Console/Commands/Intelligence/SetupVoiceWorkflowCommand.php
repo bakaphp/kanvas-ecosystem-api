@@ -63,8 +63,8 @@ class SetupVoiceWorkflowCommand extends Command
         $agentType->apps_id = $app->getId();
         $agentType->name = 'ADKAgent';
         $agentType->handler = 'Kanvas\\Intelligence\\Agents\\Types\\ADKAgent';
-        $agentType->role = [];
-        $agentType->multi_agent_list = [];
+        $agentType->role = '[]';
+        $agentType->multi_agent_list = '[]';
         $agentType->is_active = true;
         $agentType->is_published = false;
         $agentType->is_multi_agent = false;
