@@ -213,7 +213,14 @@ extend type Query @guard {
         hasChannel: _
             @whereHasConditions(
                 relation: "channels"
-                columns: ["id", "uuid", "name", "slug", "entity_id", "entity_namespace"]
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "entity_id"
+                    "entity_namespace"
+                ]
             )
         hasTags: _
             @whereHasConditions(
