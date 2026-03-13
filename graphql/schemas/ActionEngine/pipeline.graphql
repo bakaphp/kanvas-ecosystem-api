@@ -16,6 +16,7 @@ type ActionPipelineStage {
     id: ID!
     pipeline: ActionPipeline! @belongsTo
     name: String!
+    slug: String!
     has_rotting_days: Int!
     rotting_days: Int!
     weight: Int!
@@ -63,11 +64,16 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineMutation@delete"
         )
-    createActionPipelineStage(input: CreatePipelineStageInput!): ActionPipelineStage!
+    createActionPipelineStage(
+        input: CreatePipelineStageInput!
+    ): ActionPipelineStage!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineStageMutation@create"
         )
-    updateActionPipelineStage(id: ID!, input: UpdatePipelineStageInput!): ActionPipelineStage!
+    updateActionPipelineStage(
+        id: ID!
+        input: UpdatePipelineStageInput!
+    ): ActionPipelineStage!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Pipelines\\PipelineStageMutation@update"
         )
@@ -82,7 +88,14 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "uuid", "companies_id", "slug", "weight", "is_default"]
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "slug"
+                    "weight"
+                    "is_default"
+                ]
             )
         orderBy: _
             @orderBy(
