@@ -53,19 +53,26 @@ class SetupVoiceWorkflowCommand extends Command
 
     private function resolveADKAgentType(Apps $app): AgentType
     {
-        return AgentType::fromApp($app)->where('name', 'ADKAgent')->first()
-            ?? AgentType::firstOrCreate(
-                [
-                    'apps_id' => $app->getId(),
-                    'name' => 'ADKAgent',
-                ],
-                [
-                    'handler' => 'Kanvas\\Intelligence\\Agents\\Types\\ADKAgent',
-                    'is_active' => true,
-                    'is_published' => false,
-                    'is_multi_agent' => false,
-                ]
-            );
+        $agentType = AgentType::fromApp($app)->where('name', 'ADKAgent')->first();
+
+        if ($agentType) {
+            return $agentType;
+        }
+
+        $agentType = new AgentType();
+        $agentType->apps_id = $app->getId();
+        $agentType->name = 'ADKAgent';
+        $agentType->handler = 'Kanvas\\Intelligence\\Agents\\Types\\ADKAgent';
+        $agentType->role = [];
+        $agentType->multi_agent_list = [];
+        $agentType->is_active = true;
+        $agentType->is_published = false;
+        $agentType->is_multi_agent = false;
+        $agentType->saveOrFail();
+
+        $this->info("  [CREATED] AgentType [ADKAgent] id={$agentType->getId()} for app [{$app->name}]");
+
+        return $agentType;
     }
 
     private function setupAgent(Apps $app, Companies $company, string $name, array $role, AgentType $agentType): ?Agent
