@@ -20,6 +20,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -90,13 +91,17 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         }
 
-        new CreateSocialChannelsAfterPullAction(
-            $entity,
-            $this->app,
-            $params,
-            $isDealerSocket ? ($people ?? null) : null,
-            $isDriveCentric ? ($leadModel ?? null) : null
-        )->execute();
+        try {
+            new CreateSocialChannelsAfterPullAction(
+                $entity,
+                $this->app,
+                $params,
+                $isDealerSocket ? ($people ?? null) : null,
+                $isDriveCentric ? ($leadModel ?? null) : null
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $pullLead;
     }
