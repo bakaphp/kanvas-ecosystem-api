@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Traits;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -24,11 +29,6 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Filesystem\Enums\MediaTypeEnum;
 
 trait HasFilesystemTrait
 {

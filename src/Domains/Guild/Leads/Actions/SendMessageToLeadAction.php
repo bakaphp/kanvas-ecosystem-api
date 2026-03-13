@@ -19,6 +19,7 @@ use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationE
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
