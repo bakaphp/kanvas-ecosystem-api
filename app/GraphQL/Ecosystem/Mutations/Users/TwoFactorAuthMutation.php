@@ -44,7 +44,7 @@ class TwoFactorAuthMutation
         }
 
         $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 2);
-        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 3600); // 1 hour
+        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 28800); // 8 hours
 
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
         if (RateLimiter::tooManyAttempts($rateLimitKey, $sendRateLimit)) {
@@ -81,7 +81,7 @@ class TwoFactorAuthMutation
         $userApp = $user->getAppProfile($app);
 
         $verifyRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_VERIFY_RATE_LIMIT->value) ?: 2);
-        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_VERIFY_RATE_LIMIT_DECAY->value) ?: 3600); // 1 hour
+        $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_VERIFY_RATE_LIMIT_DECAY->value) ?: 28800); // 8 hours
 
         $rateLimitKey = 'two-factor-verify:' . $app->getId() . ':' . $user->getId();
         if (RateLimiter::tooManyAttempts($rateLimitKey, $verifyRateLimit)) {
