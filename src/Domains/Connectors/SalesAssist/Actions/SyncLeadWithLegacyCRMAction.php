@@ -209,12 +209,21 @@ class SyncLeadWithLegacyCRMAction
      */
     protected function getServiceFields(): array
     {
+        $appointmentDate = (string) ($this->lead->get('preferred_date')
+            ?? $this->lead->get('appointmentDate')
+            ?? '');
+        $appointmentTime = (string) ($this->lead->get('appointmentTime') ?? '');
+
+        if ($appointmentTime !== '' && $appointmentDate !== '') {
+            $appointmentDate .= ' ' . $appointmentTime;
+        }
+
         return [
-            'preferred_date' => $this->lead->get('preferred_date') ?? '',
-            'mileage' => $this->lead->get('vehicleMileage') ?? '',
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
-            'year' => $this->lead->get('vehicleYear') ?? '',
+            'preferred_date' => $appointmentDate,
+            'mileage' => $this->lead->get('vehicleMileage') ?? $this->lead->get('mileage') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
+            'year' => $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '',
         ];
     }
 
