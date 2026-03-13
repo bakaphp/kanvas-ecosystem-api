@@ -122,7 +122,7 @@ class LeadObserver
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
-        
+
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
             if (strtolower($leadStatus->name) === 'sold') {
