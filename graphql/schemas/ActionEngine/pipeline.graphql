@@ -46,6 +46,7 @@ input CreatePipelineStageInput {
 
 input UpdatePipelineStageInput {
     name: String!
+    slug: String
     has_rotting_days: Int
     rotting_days: Int
     weight: Int
