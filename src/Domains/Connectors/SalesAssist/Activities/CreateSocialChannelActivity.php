@@ -15,8 +15,11 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CreateSocialChannelActivity extends KanvasActivity
 {
-    public function execute(Contact|Lead $entity, Apps $app, array $params): array
-    {
+    public function execute(
+        Contact|Lead $entity,
+        Apps $app,
+        array $params
+    ): array {
         if (empty($params['agent_id'])) {
             return [
                 'error' => 'Agent ID is required to create social channel',
