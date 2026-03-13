@@ -12,9 +12,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
-use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
@@ -74,7 +73,12 @@ class SendMessageToLeadAction
             ];
 
             if ($mediaType->isVideo()) {
-                $processedVideo = $this->processVideoWithGif($file->url);
+                $processedVideo = new ProcessVideoWithGifAction(
+                    $this->lead->app,
+                    $this->lead->company,
+                    $this->lead->user,
+                    $file->url
+                )->execute();
                 if ($processedVideo !== null) {
                     $processed[] = $processedVideo['video'];
                     $processed[] = $processedVideo['gif'];
@@ -87,46 +91,6 @@ class SendMessageToLeadAction
         }
 
         return $processed;
-    }
-
-    protected function processVideoWithGif(string $videoUrl): ?array
-    {
-        $isEnabled = (bool) $this->lead->company->get(CompanyConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
-
-        if (! $isEnabled) {
-            return null;
-        }
-
-        try {
-            $videoToGifService = new VideoToGifService(
-                $this->lead->app,
-                $this->lead->company,
-                $this->lead->user
-            );
-
-            $result = $videoToGifService->processVideoUrl($videoUrl);
-
-            return [
-                'gif' => [
-                    'url' => $result['gif']->url,
-                    'name' => $result['gif']->name,
-                    'type' => MediaTypeEnum::IMAGE,
-                    'file_type' => 'gif',
-                    'filesystem' => $result['gif'],
-                ],
-                'video' => [
-                    'url' => $result['video']->url,
-                    'name' => $result['video']->name,
-                    'type' => MediaTypeEnum::VIDEO,
-                    'file_type' => pathinfo($result['video']->name, PATHINFO_EXTENSION) ?: 'mp4',
-                    'filesystem' => $result['video'],
-                ],
-            ];
-        } catch (Exception $e) {
-            report($e);
-
-            return null;
-        }
     }
 
     /**
