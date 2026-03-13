@@ -16,8 +16,9 @@ class PeopleCompanyUpdateEvent implements ShouldBroadcast
     use Dispatchable;
     use InteractsWithSockets;
 
-    public function __construct(protected People $people)
-    {
+    public function __construct(
+        protected People $people
+    ) {
     }
 
     public function broadcastWith(): array

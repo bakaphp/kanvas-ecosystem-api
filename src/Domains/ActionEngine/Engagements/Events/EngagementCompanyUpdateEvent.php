@@ -16,8 +16,9 @@ class EngagementCompanyUpdateEvent implements ShouldBroadcast
     use Dispatchable;
     use InteractsWithSockets;
 
-    public function __construct(protected Engagement $engagement)
-    {
+    public function __construct(
+        protected Engagement $engagement
+    ) {
     }
 
     public function broadcastWith(): array
