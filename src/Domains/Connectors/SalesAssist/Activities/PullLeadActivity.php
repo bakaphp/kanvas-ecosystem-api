@@ -14,8 +14,10 @@ use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
@@ -67,7 +69,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 leadId: (int) $leadId,
             );
         } elseif ($isDealerSocket) {
-            $pullLead = new PullPeopleAction(
+            $people = new PullPeopleAction(
                 $app,
                 $company,
                 $user
@@ -75,9 +77,10 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 email: $email,
                 phoneNumber: $phone,
                 customerId: $entity->id > 0 ? $entity->id : ((int) $leadId ?? null),
-            )->toArray();
+            );
+            $pullLead = $people->toArray();
         } elseif ($isDriveCentric) {
-            $pullLead = new PullPeopleLeadAction(
+            $leadModel = new PullPeopleLeadAction(
                 $app,
                 $company,
                 $user
@@ -86,8 +89,16 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 email: $email,
             );
 
-            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
+            $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         }
+
+        new CreateSocialChannelsAfterPullAction(
+            $entity,
+            $this->app,
+            $params,
+            $isDealerSocket ? $people : null,
+            $isDriveCentric ? $leadModel : null
+        )->execute();
 
         return $pullLead;
     }
