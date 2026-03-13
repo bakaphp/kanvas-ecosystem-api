@@ -241,6 +241,8 @@ class CreateLeadFromFacebookAction
 
     protected function getPageConfig(AppInterface $app, string $pageId): array
     {
+        // Key format: facebook_page_access_token-{appId}-{companyId}-{pageId}
+        // We know appId and pageId but not companyId, so wildcard the company segment
         $baseKey = ConfigurationEnum::PAGE_ACCESS_TOKEN->value . '-' . (int) $app->getId() . '-';
 
         $setting = CompaniesSettings::where('name', 'LIKE', $baseKey . '%-' . $pageId)
