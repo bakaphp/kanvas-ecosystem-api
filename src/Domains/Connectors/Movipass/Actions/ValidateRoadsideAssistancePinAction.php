@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -37,7 +38,11 @@ class ValidateRoadsideAssistancePinAction
 
         $metadata = $this->order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
-        $pinHash = $assistanceCase['pin_hash'] ?? null;
+
+        // Custom field is the source of truth, fallback to metadata
+        $pinHash = $this->order->get(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN_HASH->value)
+            ?? $assistanceCase['pin_hash']
+            ?? null;
 
         if ($pinHash === null) {
             throw new ValidationException('No PIN has been generated for this case');
