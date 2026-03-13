@@ -15,11 +15,9 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
-use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
-use Kanvas\Social\Channels\Models\Channel;
 
 class CreateSocialChannelForContactAction
 {
