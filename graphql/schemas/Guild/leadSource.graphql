@@ -49,6 +49,17 @@ extend type Query @guard {
                     "updated_at"
                 ]
             )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "description"
+                    "is_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
     ): [LeadSource]
     @paginate(
         model: "Kanvas\\Guild\\LeadSources\\Models\\LeadSource",
