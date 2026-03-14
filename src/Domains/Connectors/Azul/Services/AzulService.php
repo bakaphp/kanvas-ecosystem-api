@@ -213,12 +213,12 @@ class AzulService
             'Channel'                  => $this->channel,
             'Store'                    => $this->store,
             'AzulOrderId'              => $azulOrderId,
-            'MethodNotificationStatus' => $methodNotificationStatus ?? 'RECEIVED',
+            'MethodNotificationStatus' => $methodNotificationStatus,
             ...($cRes ? ['CRes' => $cRes] : []),
         ];
 
-
-        $response = $this->client->post($payload, $this->client->getThreeDSMethodUrl());
+        $finalizeUrl =  $cRes ?  $this->client->getThreeDSChallengeUrl() : $this->client->getThreeDSMethodUrl();
+        $response = $this->client->post($payload, $finalizeUrl);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 
         if (! $result->isApproved()) {

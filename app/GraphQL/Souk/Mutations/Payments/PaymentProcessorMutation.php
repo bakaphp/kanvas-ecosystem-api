@@ -158,7 +158,8 @@ class PaymentProcessorMutation
                 return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order);
+            $context = ['browser_info' => $request['browserInfo'] ?? []];
+            $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);
 
             return [
                 'success' => $result->success,
@@ -192,8 +193,9 @@ class PaymentProcessorMutation
 
             // Card number and CVV are passed in-memory only — never persisted to DB (PCI DSS).
             $context = [
-                'card_number' => preg_replace('/\s+/', '', $cardData['number']),
-                'cvc'         => $cardData['cvv'] ?? null,
+                'card_number'  => preg_replace('/\s+/', '', $cardData['number']),
+                'cvc'          => $cardData['cvv'] ?? null,
+                'browser_info' => $cardData['browser_info'] ?? [],
             ];
 
             $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);

@@ -909,11 +909,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
         // On retry (after the 3DS method iframe step), the payment already has the azulOrderId stored.
         $azulOrderId = $payment->payment_intent_id ?: null;
-        if ($azulOrderId) {
-            $storedStatus = $payment->getMetadata('3ds_method_notification_status');
-            $threeDSAuth['MethodNotificationStatus'] = $storedStatus
-                ?? ($methodUrl ? 'EXPECTED_BUT_NOT_RECEIVED' : 'NOT_EXPECTED');
-        }
+
+        $browserInfo = $this->buildBrowserInfo($context['browser_info'] ?? []);
 
         return new AzulPaymentRequest(
             channel: (string) ($this->app->get(ConfigurationEnum::AZUL_CHANNEL->value) ?? 'EC'),
@@ -933,7 +930,25 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             azulOrderId: $azulOrderId,
             threeDSAuth: $threeDSAuth,
             cardHolderInfo: $context['card_holder_info'] ?? $this->buildCardHolderInfo($payment, $order),
+            browserInfo: $browserInfo,
         );
+    }
+
+    private function buildBrowserInfo(array $input): array
+    {
+        $request = request();
+
+        return array_filter([
+            'AcceptHeader'      => $input['accept_header'] ?? $request->header('Accept') ?? '*/*',
+            'IPAddress'         => $input['ip_address'] ?? $request->ip() ?? '',
+            'Language'          => $input['language'] ?? $request->header('Accept-Language') ?? 'en-US',
+            'ColorDepth'        => $input['color_depth'] ?? '24',
+            'ScreenWidth'       => $input['screen_width'] ?? '1920',
+            'ScreenHeight'      => $input['screen_height'] ?? '1080',
+            'TimeZone'          => $input['time_zone'] ?? '0',
+            'UserAgent'         => $input['user_agent'] ?? $request->userAgent() ?? '',
+            'JavaScriptEnabled' => $input['javascript_enabled'] ?? 'true',
+        ], fn ($v) => $v !== null && $v !== '');
     }
 
     private function buildChallengeForm(string $acsUrl, string $creq, string $termUrl): string

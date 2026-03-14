@@ -97,20 +97,22 @@ class Client
     {
         $endpoint = $url ?? $this->baseUrl;
 
-        Log::debug('Azul POST request', [
-            'url'  => $endpoint,
-            'body' => $data,
-        ]);
+        // Log::debug('Azul POST request', [
+        //     'url'   => $endpoint,
+        //     'auth1' => $this->auth1,
+        //     'auth2' => $this->auth2,
+        //     'body'  => $data,
+        // ]);
 
         try {
             $response = $this->client->post($endpoint, ['json' => $data]);
             $body = $response->getBody()->getContents();
             $decoded = json_decode($body, true);
 
-            Log::debug('Azul POST response', [
-                'url'  => $endpoint,
-                'body' => $decoded,
-            ]);
+            // Log::debug('Azul POST response', [
+            //     'url'  => $endpoint,
+            //     'body' => $decoded,
+            // ]);
 
             return $decoded;
         } catch (ConnectException $e) {
@@ -145,6 +147,11 @@ class Client
     public function getThreeDSMethodUrl(): string
     {
         return $this->baseUrl . '?processthreedsmethod';
+    }
+
+    public function getThreeDSChallengeUrl(): string
+    {
+        return $this->baseUrl . '?processthreedschallenge';
     }
 
     public function getGuzzleClient(): GuzzleClient

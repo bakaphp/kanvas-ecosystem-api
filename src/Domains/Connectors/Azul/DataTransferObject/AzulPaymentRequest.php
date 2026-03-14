@@ -34,6 +34,7 @@ class AzulPaymentRequest extends Data
         public readonly string $saveToDataVault = '0',
         public readonly ?array $threeDSAuth = null,
         public readonly ?array $cardHolderInfo = null,
+        public readonly ?array $browserInfo = null,
     ) {
     }
 
@@ -85,6 +86,10 @@ class AzulPaymentRequest extends Data
 
         if ($this->cardHolderInfo !== null) {
             $data['CardHolderInfo'] = $this->cardHolderInfo;
+        }
+
+        if ($this->browserInfo !== null) {
+            $data['BrowserInfo'] = $this->browserInfo;
         }
 
         return $data;
