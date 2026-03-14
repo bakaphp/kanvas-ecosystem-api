@@ -250,4 +250,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deletePeopleAddress"
         )
+    updateContact(id: ID!, input: UpdateContactInput!): Contact!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updateContact"
+        )
+    deleteContact(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deleteContact"
+        )
 }

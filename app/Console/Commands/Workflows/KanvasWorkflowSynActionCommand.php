@@ -11,6 +11,7 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
@@ -30,6 +31,7 @@ use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleAct
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
+use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
@@ -55,6 +57,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
@@ -63,6 +66,7 @@ use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
+use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyChannelsActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
@@ -191,6 +195,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateLeadsFromReceiverJob::class,
             CreateMessageFromReceiverJob::class,
             UpdatePeopleStripeSubscriptionJob::class,
+            SyncCompanyChannelsActivity::class,
             SyncCompanyWithNetSuiteActivity::class,
             SyncPeopleWithNetSuiteActivity::class,
             GenerateMessageSlugActivity::class,
@@ -279,6 +284,7 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
+            CreateVehicleFromOrderActivity::class,
             SyncMovipassActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
@@ -308,6 +314,7 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowPushLeadNotesActivity::class,
             LeadAgentFirstMessageOutreachActivity::class,
             CreateLeadFromADFWebhookJob::class,
+            ProcessFacebookLeadWebhookJob::class,
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
@@ -350,6 +357,7 @@ class KanvasWorkflowSynActionCommand extends Command
             FollowUpPromptActivity::class,
             ModelWizardReceiverJob::class,
             IncrementPromptUsageActivity::class,
+            ProcessCalendlyWebhookJob::class,
         ];
 
         $createdActions = [];

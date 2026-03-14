@@ -82,7 +82,21 @@ class DownloadWordPressInventoryCommand extends Command
                 $results[] = $result;
 
                 if ($result['file_path'] !== null) {
-                    $this->info("Downloaded {$result['total']} vehicles");
+                    $msg = "Downloaded {$result['total']} unique vehicles";
+                    $skippedNoVin = (int) ($result['skipped_no_vin'] ?? 0);
+                    $skippedDupeVin = (int) ($result['skipped_duplicate_vin'] ?? 0);
+                    if ($skippedNoVin > 0 || $skippedDupeVin > 0) {
+                        $msg .= " (skipped: {$skippedNoVin} no-VIN, {$skippedDupeVin} duplicate-VIN)";
+                    }
+                    $this->info($msg);
+                    if ($skippedNoVin > 0 && isset($result['sample_no_vin'])) {
+                        $this->warn('Sample no-VIN record: ' . (string) json_encode($result['sample_no_vin'], JSON_PRETTY_PRINT));
+                    }
+                    if ($skippedDupeVin > 0 && isset($result['sample_duplicate_vin'])) {
+                        /** @var array{vin: string, page: int, vehicle: array<string, mixed>} $sampleDupe */
+                        $sampleDupe = $result['sample_duplicate_vin'];
+                        $this->warn('Sample duplicate-VIN (VIN: ' . $sampleDupe['vin'] . ', repeated on page ' . $sampleDupe['page'] . '): ' . (string) json_encode($sampleDupe['vehicle'], JSON_PRETTY_PRINT));
+                    }
                     $this->info("CSV: {$result['file_path']}");
                     $totalSuccess++;
                 } else {
@@ -271,8 +285,12 @@ class DownloadWordPressInventoryCommand extends Command
 
     protected function buildAction(array $dealer, string $dealerName, string $provider, mixed $dealerMake): DownloadInventoryAction
     {
-        $onPage = function (int $page, int $totalPages, int $pageCount, int $totalCount): void {
-            $this->info("  Page {$page}/{$totalPages}: {$pageCount} items (total: {$totalCount})");
+        $onPage = function (int $page, int $totalPages, int $pageCount, int $totalCount, int $skippedNoVin = 0, int $skippedDupeVin = 0): void {
+            $msg = "  Page {$page}/{$totalPages}: {$pageCount} items (unique: {$totalCount})";
+            if ($skippedNoVin > 0 || $skippedDupeVin > 0) {
+                $msg .= " [no_vin: {$skippedNoVin}, dup_vin: {$skippedDupeVin}]";
+            }
+            $this->info($msg);
         };
 
         if ($provider === 'algolia') {
@@ -329,6 +347,24 @@ class DownloadWordPressInventoryCommand extends Command
                 inventoryCatcherName: $dealer['inventory_catcher_name'] ?? null,
                 filterMake: is_string($dealerMake) ? $dealerMake : null,
                 provider: 'ajax',
+                extraParams: is_array($dealer['extra_params'] ?? null) ? $dealer['extra_params'] : [],
+                onPage: $onPage,
+            );
+        }
+
+        $queries = is_array($dealer['queries'] ?? null) ? $dealer['queries'] : [];
+
+        if (count($queries) > 0) {
+            $baseUrl = (string) ($dealer['base_url'] ?? '');
+
+            return new DownloadInventoryAction(
+                dealerName: $dealerName,
+                baseUrl: $baseUrl,
+                apiPath: (string) ($dealer['api_path'] ?? ''),
+                rooftopId: $dealer['rooftop_id'] ?? null,
+                inventoryCatcherName: $dealer['inventory_catcher_name'] ?? null,
+                provider: $provider,
+                queries: $queries,
                 onPage: $onPage,
             );
         }
@@ -349,6 +385,7 @@ class DownloadWordPressInventoryCommand extends Command
             rooftopId: $dealer['rooftop_id'] ?? null,
             inventoryCatcherName: $dealer['inventory_catcher_name'] ?? null,
             filterMake: is_string($dealerMake) ? $dealerMake : null,
+            extraParams: is_array($dealer['extra_params'] ?? null) ? $dealer['extra_params'] : [],
             onPage: $onPage,
         );
     }

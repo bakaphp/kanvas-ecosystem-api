@@ -37,6 +37,8 @@ class Engagement extends Data
         public array $extraData = [],
         public ?string $channelId = null,
         public ?EngagementModel $parentEngagement = null,
+        public array $files = [],
+        public array $filesUrl = [],
     ) {
     }
 
@@ -68,6 +70,8 @@ class Engagement extends Data
             company: $company,
             user: $user,
             parentEngagement: $parentEngagement,
+            files: $request['files'] ?? [],
+            filesUrl: $request['files_url'] ?? [],
         );
     }
 }

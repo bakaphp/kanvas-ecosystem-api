@@ -11,6 +11,7 @@ enum ConfigurationEnum: string
     case LOW_BALANCE_PUSH_TEMPLATE_FIELD = 'lowBalancePushTemplate';
     case LOW_BALANCE_EMAIL_TEMPLATE_FIELD = 'lowBalanceEmailTemplate';
     case GRACE_PERIOD_DAYS = 'movipass_order_grace_period_days';
+    case QR_CODE_HOST = 'movipass_qr_code_host';
 
     case EXPIRING_RESERVATION_MIN = '5';
     case EXPIRING_RESERVATION_MAX = '15';

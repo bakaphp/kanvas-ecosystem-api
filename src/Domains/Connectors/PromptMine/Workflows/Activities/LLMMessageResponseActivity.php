@@ -535,14 +535,20 @@ class LLMMessageResponseActivity extends KanvasActivity
         }
 
         try {
-            $generateImage = $previousChatResponse === null ? $promptClient->generateImage(
+            // MK-3947: If we do not have a valid previous image URL, do NOT call continueImageChat.
+            // Passing an empty string was causing downstream services to misclassify the request
+            // and trigger false content-warning flows on the next attempt.
+            $previousImageUrl = $params['previousImageUrl'] ?? null;
+            $canContinueImageChat = $previousChatResponse !== null && is_string($previousImageUrl) && $previousImageUrl !== '';
+
+            $generateImage = ! $canContinueImageChat ? $promptClient->generateImage(
                 provider: $provider,
                 model: $model,
                 prompt: $prompt,
                 params: $params
             ) : $promptClient->continueImageChat(
                 //provider: $provider,
-                previousImageUrl: $params['previousImageUrl'] ?? '',
+                previousImageUrl: $previousImageUrl,
                 previousPrompts: $params['previousPrompts'] ?? [],
                 //model: $model,
                 model: $this->app->get('default-image-edit-model') ?? 'fal-ai/flux-kontext/dev',

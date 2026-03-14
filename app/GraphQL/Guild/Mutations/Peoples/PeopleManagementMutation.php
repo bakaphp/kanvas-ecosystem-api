@@ -16,8 +16,10 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
+use Kanvas\Guild\Customers\Models\Contact as ModelsContact;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class PeopleManagementMutation
@@ -166,5 +168,63 @@ class PeopleManagementMutation
         }
 
         return $peopleAddress->delete();
+    }
+
+    public function updateContact(mixed $root, array $req): ModelsContact
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $input = $req['input'];
+
+        $contact = ModelsContact::findOrFail((int) $req['id']);
+        $people = $contact->people;
+
+        if ($people->companies_id !== $user->getCurrentCompany()->getId() || $people->apps_id !== $app->getId()) {
+            throw new Exception('You do not have permission to update this contact');
+        }
+
+        $contact->update([
+            'value' => $input['value'] ?? $contact->value,
+            'contacts_types_id' => $input['contacts_types_id'] ?? $contact->contacts_types_id,
+            'weight' => $input['weight'] ?? $contact->weight,
+            'is_opt_out' => $input['is_opt_out'] ?? $contact->is_opt_out,
+        ]);
+
+        $people->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $people->app,
+                'company' => $people->company,
+            ]
+        );
+
+        return $contact->refresh();
+    }
+
+    public function deleteContact(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $contact = ModelsContact::findOrFail((int) $req['id']);
+        $people = $contact->people;
+
+        if ($people->companies_id !== $user->getCurrentCompany()->getId() || $people->apps_id !== $app->getId()) {
+            throw new Exception('You do not have permission to delete this contact');
+        }
+
+        $deleted = $contact->delete();
+
+        $people->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $people->app,
+                'company' => $people->company,
+            ]
+        );
+
+        return $deleted;
     }
 }
