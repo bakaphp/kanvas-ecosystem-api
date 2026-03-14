@@ -217,7 +217,7 @@ class AzulService
             ...($cRes ? ['CRes' => $cRes] : []),
         ];
 
-        $finalizeUrl =  $cRes ?  $this->client->getThreeDSChallengeUrl() : $this->client->getThreeDSMethodUrl();
+        $finalizeUrl =  $cRes ? $this->client->getThreeDSChallengeUrl() : $this->client->getThreeDSMethodUrl();
         $response = $this->client->post($payload, $finalizeUrl);
         $result   = AzulPaymentResponse::fromAzulResponse($response);
 

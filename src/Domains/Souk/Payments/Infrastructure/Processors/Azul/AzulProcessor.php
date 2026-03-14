@@ -26,8 +26,8 @@ use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
-use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 
 /**
@@ -990,27 +990,65 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
         $info = [];
 
-        if ($name)        $info['Name']                  = $name;
-        if ($email)       $info['Email']                 = $email;
-        if ($phoneMobile) $info['PhoneMobile']           = $phoneMobile;
-        if ($phoneHome)   $info['PhoneHome']             = $phoneHome;
-        if ($phoneWork)   $info['PhoneWork']             = $phoneWork;
-        if ($address)     $info['BillingAddressLine1']   = $address;
-        if ($address2)    $info['BillingAddressLine2']   = $address2;
-        if ($address3)    $info['BillingAddressLine3']   = $address3;
-        if ($city)        $info['BillingAddressCity']    = $city;
-        if ($state)       $info['BillingAddressState']   = $state;
-        if ($country)     $info['BillingAddressCountry'] = $country;
-        if ($zip)         $info['BillingAddressZip']     = $zip;
+        if ($name) {
+            $info['Name']                  = $name;
+        }
+        if ($email) {
+            $info['Email']                 = $email;
+        }
+        if ($phoneMobile) {
+            $info['PhoneMobile']           = $phoneMobile;
+        }
+        if ($phoneHome) {
+            $info['PhoneHome']             = $phoneHome;
+        }
+        if ($phoneWork) {
+            $info['PhoneWork']             = $phoneWork;
+        }
+        if ($address) {
+            $info['BillingAddressLine1']   = $address;
+        }
+        if ($address2) {
+            $info['BillingAddressLine2']   = $address2;
+        }
+        if ($address3) {
+            $info['BillingAddressLine3']   = $address3;
+        }
+        if ($city) {
+            $info['BillingAddressCity']    = $city;
+        }
+        if ($state) {
+            $info['BillingAddressState']   = $state;
+        }
+        if ($country) {
+            $info['BillingAddressCountry'] = $country;
+        }
+        if ($zip) {
+            $info['BillingAddressZip']     = $zip;
+        }
 
         // Mirror billing → shipping when no separate shipping address is provided
-        if ($address)  $info['ShippingAddressLine1']   = $address;
-        if ($address2) $info['ShippingAddressLine2']   = $address2;
-        if ($address3) $info['ShippingAddressLine3']   = $address3;
-        if ($city)     $info['ShippingAddressCity']    = $city;
-        if ($state)    $info['ShippingAddressState']   = $state;
-        if ($country)  $info['ShippingAddressCountry'] = $country;
-        if ($zip)      $info['ShippingAddressZip']     = $zip;
+        if ($address) {
+            $info['ShippingAddressLine1']   = $address;
+        }
+        if ($address2) {
+            $info['ShippingAddressLine2']   = $address2;
+        }
+        if ($address3) {
+            $info['ShippingAddressLine3']   = $address3;
+        }
+        if ($city) {
+            $info['ShippingAddressCity']    = $city;
+        }
+        if ($state) {
+            $info['ShippingAddressState']   = $state;
+        }
+        if ($country) {
+            $info['ShippingAddressCountry'] = $country;
+        }
+        if ($zip) {
+            $info['ShippingAddressZip']     = $zip;
+        }
 
         return $info;
     }
