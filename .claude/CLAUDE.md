@@ -8,6 +8,10 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
 - **Domain-driven design**: Code is organized by domain under `src/Domains/{DomainName}/`
 - **GraphQL API**: Uses Lighthouse PHP framework with schema files in `graphql/schemas/`
 - **PHP 8.4**: Use modern syntax (e.g., `new Foo(...)->execute()` not `(new Foo(...))->execute()`)
+- **PHP-CS-Fixer enforced** — always follow these formatting rules:
+  - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
+  - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
+  - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
 
 ## Domain CRUD Pattern
 
@@ -47,14 +51,21 @@ declare(strict_types=1);
 
 namespace Kanvas\{Domain}\{Entity}\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Spatie\LaravelData\Data;
 
 class {Entity} extends Data
 {
     public function __construct(
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
+        public readonly UserInterface $user,
         public readonly string $name,
         public readonly ?string $description = null,
         // ... other fields
+        // Use model objects for FKs: public readonly RelatedModel $related,
     ) {
     }
 }
@@ -71,8 +82,6 @@ declare(strict_types=1);
 
 namespace Kanvas\{Domain}\{Entity}\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
 use Kanvas\{Domain}\{Entity}\Models\{Entity};
@@ -81,8 +90,6 @@ class Create{Entity}Action
 {
     public function __construct(
         protected readonly {Entity}Data $data,
-        protected readonly UserInterface $user,
-        protected readonly AppInterface $app,
     ) {
     }
 
@@ -90,11 +97,12 @@ class Create{Entity}Action
     {
         return DB::connection('{db_connection}')->transaction(function () {
             $entity = new {Entity}();
-            $entity->apps_id = $this->app->getId();
-            $entity->companies_id = 0; // 0 for global entities
-            $entity->users_id = $this->user->getId();
+            $entity->apps_id = $this->data->app->getId();
+            $entity->companies_id = $this->data->company->getId(); // 0 for global entities
+            $entity->users_id = $this->data->user->getId();
             $entity->name = $this->data->name;
             // ... set other fields
+            // For FK relationships: $entity->related_id = $this->data->related->getId();
             $entity->saveOrFail();
 
             return $entity;
@@ -162,25 +170,43 @@ class {Entity}Mutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
+        // Look up related models from IDs before constructing DTO
+        // $related = RelatedModel::getByIdFromCompanyApp((int) $input['related_id'], $company, $app);
 
         return new Create{Entity}Action(
-            {Entity}Data::from($request['input']),
-            $user,
-            $app,
+            new {Entity}Data(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: $input['name'],
+                // related: $related,
+            ),
         )->execute();
     }
 
     public function update(mixed $rootValue, array $request): {Entity}
     {
+        $user = auth()->user();
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
         // For global entities (no company scoping):
         $entity = {Entity}::getById((int) $request['id'], $app);
         // For company-scoped entities:
-        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
         return new Update{Entity}Action(
             $entity,
-            {Entity}Data::from($request['input']),
+            new {Entity}Data(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: $input['name'] ?? $entity->name,
+            ),
         )->execute();
     }
 
@@ -740,7 +766,134 @@ extend type Query @guard {
 | `DatabaseSearchableTrait` | Simple models, no external search engine needed | Categories, Channels, Warehouses, Status, Pipeline, Action |
 | `DynamicSearchableTrait` | Need Algolia/Typesense indexing, full-text search | Products, Leads, Messages, Agents |
 
+### Algolia Index Configuration Requirement
+
+When a model uses `DynamicSearchableTrait` with Algolia and the `search()` method filters by numeric attributes (e.g., `apps_id`, `companies_id`), those attributes **must be configured in the Algolia dashboard** for the index:
+
+1. Go to the Algolia dashboard > select the index (e.g., `dev-prompt_messages`)
+2. Navigate to **Configuration** > **Filtering and Faceting** > **Attributes for faceting**
+3. Add `filterOnly(apps_id)` and `filterOnly(companies_id)`
+4. If the attribute is purely numeric, also check **numericAttributesForFiltering** — by default all numeric attributes are filterable, but if a custom list is set, the attribute must be included
+
+Without this, Algolia returns: `"invalid numeric attribute(apps_id), attribute not specified in numericAttributesForFiltering setting"`
+
+**Note:** Each app can have a custom index name (e.g., `app_custom_message_index`), so this must be configured per-index in the Algolia UI.
+
+### 3. Add Search Scoping to Prevent Data Leaks
+
+**Every model that uses `@search` MUST override the `search()` method** to scope results by `apps_id` and `companies_id`. Without this, search queries can leak data across apps and companies.
+
+Both `DatabaseSearchableTrait` and `DynamicSearchableTrait` alias `search as traitSearch`, so the pattern is the same.
+
+#### Multi-Tenant Search Patterns
+
+**Standard pattern** (most models — Templates, simple entities):
+```php
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+
+public static function search($query = '', $callback = null)
+{
+    $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+    $user = auth()->user();
+    if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+        $query->where('companies_id', $user->getCurrentCompany()->getId());
+    }
+
+    return $query;
+}
+```
+
+**Branch-aware pattern** (Lead model — uses `CompaniesBranches` binding when available):
+```php
+use Kanvas\Companies\Models\CompaniesBranches;
+
+public static function search($query = '', $callback = null)
+{
+    $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+    $user = auth()->user();
+
+    // When CompaniesBranches is bound (request scoped to a branch), use that company
+    if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+        $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+    } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+        $query->where('companies_id', $user->getCurrentCompany()->getId());
+    }
+
+    return $query;
+}
+```
+
+**Product pattern** (supports opt-in company-bound search via app config + Algolia callback):
+```php
+public static function search($query = '', $callback = null)
+{
+    $app = app(Apps::class);
+    $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+    $user = auth()->user();
+
+    if (
+        $user instanceof UserInterface &&
+        (
+            ! $user->isAppOwner() ||
+            (app()->bound(CompaniesBranches::class) && $app->get('enable_company_bound_search', false))
+        )
+    ) {
+        $searchQuery->where('company.id', $user->getCurrentCompany()->getId());
+    }
+
+    return $searchQuery;
+}
+```
+
+**Users pattern** (uses `whereIn` for array-based Algolia/Typesense filters):
+```php
+public static function search($query = '', $callback = null)
+{
+    $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
+    $user = auth()->user();
+    if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+        $query->whereIn('companies', [$user->currentCompanyId()]);
+    }
+
+    return $query;
+}
+```
+
+#### Key rules for `search()`:
+
+- **Always filter by `apps_id`** — no exceptions
+- **Always filter by `companies_id`** for non-app-owners — prevents cross-company data leaks
+- **Use `isAppOwner()`** (not `isAdmin()`) for the company-scoping check — `isAppOwner()` returns `true` only for `@guardByAppKey` requests with Owner role
+- `isAdmin()` returns `true` for any Admin/Owner role regardless of auth method, which would skip company filtering on `@guard` endpoints
+- **Check `CompaniesBranches` binding** when the entity is branch-scoped — this ensures the correct company context when a request targets a specific branch
+- **Filter field names vary by search engine**: Algolia uses nested paths like `company.id`, Typesense/database use flat `companies_id`. Match what's in `toSearchableArray()`
+- **`@search` bypasses `@paginate(builder:)` scoping** — When Lighthouse's `@search` directive is active, it calls `Model::search()` and results come entirely from the search engine. The custom builder specified in `@paginate(builder: ...)` is **NOT applied**. The `search()` method is the **only** place to enforce multi-tenancy during search
+- **When using `search()` in a custom builder** (not via `@search`), call `traitSearch()` directly with explicit filters instead of the model's `search()` method, since `search()` auto-scopes to the logged-in user's company which may not be the target company
+
+**Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
+
+**Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
+
 ## Key Conventions
+
+### No Inline Fully-Qualified Class Names
+Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations.
+
+```php
+// WRONG — inline FQCN
+$this->next_retry_at = \Illuminate\Support\Carbon::parse($retryAt);
+
+// WRONG — FQCN in docblock
+/** @property \Illuminate\Support\Carbon|null $approved_at */
+
+// CORRECT — use import + short name everywhere
+use Illuminate\Support\Carbon;
+
+/** @property Carbon|null $approved_at */
+
+$this->next_retry_at = Carbon::parse($retryAt);
+```
 
 ### PHP 8.4 Syntax
 ```php
@@ -754,6 +907,76 @@ new CreateActionAction(...)->execute();
 ### DTO Naming
 - Name DTOs after the entity: `Action.php`, `Pipeline.php` (NOT `ActionInput.php`)
 - Alias when importing alongside the model: `use ...\DataTransferObject\Action as ActionData;`
+
+### DTO Conventions
+- **Always include context objects** (app, company, user) in DTOs that create entities — never pass them as separate action constructor params
+- **Use model objects instead of raw IDs** for foreign key relationships (e.g., `TaskList $taskList` not `int $task_list_id`, `CompanyAction $companyAction` not `int $companies_action_id`)
+- **Mutation resolvers look up models** from IDs and construct DTOs manually with named args — do NOT use `::from($request['input'])` when the DTO has object properties
+- **Actions receive only the DTO** (and optionally the existing model for updates) — they pull IDs via `$this->data->taskList->getId()`
+
+```php
+// DTO with context and model objects
+class TaskListItem extends Data
+{
+    public function __construct(
+        public readonly TaskList $taskList,
+        public readonly CompanyAction $companyAction,
+        public readonly string $name,
+        public readonly ?string $status = null,
+    ) {
+    }
+}
+
+// Mutation resolver constructs DTO manually
+$taskList = TaskList::getByIdFromCompanyApp((int) $input['task_list_id'], $company, $app);
+$companyAction = CompanyAction::getByIdFromCompanyApp((int) $input['companies_action_id'], $company, $app);
+
+return new CreateTaskListItemAction(
+    new TaskListItemData(
+        taskList: $taskList,
+        companyAction: $companyAction,
+        name: $input['name'],
+    ),
+)->execute();
+
+// Action pulls IDs from objects
+$taskListItem->task_list_id = $this->data->taskList->getId();
+$taskListItem->companies_action_id = $this->data->companyAction->getId();
+```
+
+### Enum Usage in DTOs
+When a domain defines PHP enums (e.g., in `src/Domains/{Domain}/{Entity}/Enums/`), **use the enum type in DTOs instead of raw strings**. This provides type safety and prevents invalid values.
+
+```php
+// DTO — use enum types with enum defaults
+class Affiliate extends Data
+{
+    public function __construct(
+        public readonly AffiliateTypeEnum $affiliate_type = AffiliateTypeEnum::BUSINESS,
+        public readonly AffiliateStatusEnum $status = AffiliateStatusEnum::PENDING,
+        public readonly CommissionTypeEnum $commission_type = CommissionTypeEnum::PERCENTAGE,
+        // For nullable enum fields:
+        public readonly ?PayoutMethodEnum $payout_method = null,
+    ) {
+    }
+}
+
+// Mutation — construct enums with ::from()
+affiliate_type: AffiliateTypeEnum::from($input['affiliate_type'] ?? 'business'),
+// For nullable enum fields:
+payout_method: isset($input['payout_method']) ? PayoutMethodEnum::from($input['payout_method']) : null,
+
+// Action — store the string value with ->value
+$model->affiliate_type = $this->data->affiliate_type->value;
+// For nullable enum fields:
+$model->payout_method = $this->data->payout_method?->value;
+```
+
+Key rules:
+- **DTO**: Use the enum type (e.g., `CommissionTypeEnum`) with an enum case as default (e.g., `CommissionTypeEnum::PERCENTAGE`)
+- **Mutation**: Use `EnumClass::from($input['field'] ?? 'default')` to construct the enum from the GraphQL input string
+- **Action**: Use `->value` to extract the string when assigning to the model (e.g., `$this->data->status->value`)
+- **Nullable enums**: Use `?EnumClass` in DTO, `isset()` check in mutation, `?->value` in action
 
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
@@ -819,6 +1042,9 @@ protected function casts(): array
 
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
+
+### Code Style
+- **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
 
 ## Testing
 

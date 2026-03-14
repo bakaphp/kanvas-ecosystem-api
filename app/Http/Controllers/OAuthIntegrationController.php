@@ -97,7 +97,7 @@ class OAuthIntegrationController extends BaseController
         }
 
         ['receiver' => $receiver, 'app' => $app] = $result;
-        $region = Regions::getByIdFromCompanyApp($receiver->configuration['region_id'], $receiver->company, $app);
+        $region = Regions::getByIdFromCompanyAppOrGlobal($receiver->configuration['region_id'], $receiver->company, $app);
 
         // Retrieve state from Redis
         $stateKey = 'shopify_oauth:' . $uuid;

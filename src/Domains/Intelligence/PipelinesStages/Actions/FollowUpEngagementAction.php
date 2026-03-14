@@ -6,15 +6,17 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\Blade;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
@@ -26,10 +28,14 @@ use function Sentry\captureException;
 class FollowUpEngagementAction
 {
     protected ?FollowUp $followUp = null;
+    protected ?FollowUpLog $log = null;
+    protected array $skippedReasons = [];
 
     public function __construct(
-        public Lead $lead
+        public Lead $lead,
+        ?FollowUpLog $log = null
     ) {
+        $this->log = $log;
         $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
 
         if (! $aiFollowUpType) {
@@ -57,8 +63,17 @@ class FollowUpEngagementAction
             ->first();
 
         if (! $followUpDay) {
+            $this->logSkip('no_follow_up_day', 'No follow-up day found for current pipeline stage');
+
             return null;
         }
+
+        // Get available channels from follow-up config
+        $followUpConfig = $this->followUp?->config ?? [];
+        $channelsAvailable = $followUpConfig['channels_available'] ?? ['sms', 'email', 'whatsapp'];
+
+        // Get lead's preferred channel
+        $preferredChannel = $this->lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value);
 
         $sessions = Session::where('entity_namespace', '=', get_class($this->lead))
                 ->where('entity_id', '=', $this->lead->getId())
@@ -77,8 +92,32 @@ class FollowUpEngagementAction
             }
             $processedChannels[] = $messageTemplateChannel;
 
+            // Validate channel is in channels_available config
+            if (! in_array($messageTemplateChannel, $channelsAvailable)) {
+                $this->logSkip(
+                    'channel_not_available',
+                    "Channel '{$messageTemplateChannel}' is not in available channels: " . implode(', ', $channelsAvailable),
+                    $session
+                );
+
+                continue;
+            }
+
+            // Validate channel matches lead's preferred channel (if set)
+            if ($preferredChannel && $messageTemplateChannel !== $preferredChannel) {
+                $this->logSkip(
+                    'channel_not_preferred',
+                    "Channel '{$messageTemplateChannel}' does not match lead's preferred channel: {$preferredChannel}",
+                    $session
+                );
+
+                continue;
+            }
+
             $lastMessage = $session->channel->getLastMessage();
             if (! $lastMessage) {
+                $this->logSkip('no_last_message', 'No last message found in channel', $session);
+
                 continue;
             }
             $isWhatsApp = $messageTemplateChannel === 'whatsapp';
@@ -90,7 +129,7 @@ class FollowUpEngagementAction
                 if ($totalMessages > 2 && $lastMessage) {
                     $entity = $lastMessage->entity();
 
-                    if ($entity && ! ($entity instanceof Lead)) {
+                    if ($lastMessage->message['from_me']) {
                         return [
                             'message' => 'Last message was not responded',
                             'reason' => 'last_message_not_from_lead',
@@ -111,22 +150,39 @@ class FollowUpEngagementAction
                 continue;
             }
 
+            $useWhatsAppTemplate = false;
+            $whatsAppTemplate = null;
+
             if ($isWhatsApp) {
                 $lastClientMessageTime = $this->getLastClientMessageTime($session->channel);
 
-                // WhatsApp rule: we can only follow up within 24h of the last client message
+                // WhatsApp rule: check if last client message is within 24h
                 if (! $lastClientMessageTime || $lastClientMessageTime->lt(now($timezone)->subDay())) {
-                    continue;
-                }
+                    // Check if we have a WhatsApp template configured for 24h+ messages
+                    $whatsAppTemplate = $followUpConfig['whatsapp_template'] ?? null;
 
-                $lastMessageTime = $lastClientMessageTime;
+                    if (! $whatsAppTemplate) {
+                        $this->logSkip(
+                            'whatsapp_24h_no_template',
+                            'WhatsApp message outside 24h window and no template configured',
+                            $session
+                        );
+
+                        continue;
+                    }
+
+                    // Mark that we need to use WhatsApp template instead of regular message
+                    $useWhatsAppTemplate = true;
+                } else {
+                    $lastMessageTime = $lastClientMessageTime;
+                }
             }
 
             $now = Carbon::now($timezone);
             $lastMessageCreatedAt = $lastMessage ? $lastMessage->created_at : null;
 
             if ($lastMessageCreatedAt) {
-                if ($followUpDay->calendar_day) {
+                if ($followUpDay?->calendar_day !== null) {
                     $this->lead->pipeline_stage_id = $followUpDay->move_to_stage_id ?? $this->lead->pipeline_stage_id;
                     $this->lead->saveOrFail();
                     $followUpDay = $this->followUp->days()
@@ -134,7 +190,12 @@ class FollowUpEngagementAction
                         ->where('is_deleted', 0)
                         ->orderBy('weight', 'ASC')
                         ->first();
+
+                    if (! $followUpDay) {
+                        continue;
+                    }
                 }
+
                 $lastMessageTime = Carbon::parse($lastMessageCreatedAt, $timezone);
                 $timeDiff = $lastMessageTime->diffInMinutes($now);
                 $contacted = $this->lead->hasBeenContacted();
@@ -174,9 +235,16 @@ class FollowUpEngagementAction
 
                 if ($followUpDay->send_message) {
                     $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
+                    $messageToSend = $message;
+
+                    // If WhatsApp and outside 24h window, use template processed with Blade
+                    if ($useWhatsAppTemplate && $whatsAppTemplate) {
+                        $messageToSend = $this->renderTemplate($whatsAppTemplate);
+                    }
+
                     new SendMessageToLeadAction($this->lead)->execute(
-                        $messageTemplateChannel, //$this->lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),
-                        $message,
+                        $messageTemplateChannel,
+                        $messageToSend,
                         $this->lead->company->get('twilio_phone_number'),
                         $emailTitle
                     );
@@ -223,5 +291,52 @@ class FollowUpEngagementAction
         }
 
         return Carbon::parse($messages->first()->created_at);
+    }
+
+    /**
+     * Log skip reason for follow-up
+     */
+    protected function logSkip(string $reason, string $message, ?Session $session = null): void
+    {
+        $this->skippedReasons[] = [
+            'reason' => $reason,
+            'message' => $message,
+            'session_id' => $session?->getId(),
+            'channel' => $session?->getChannel(),
+            'timestamp' => now()->toDateTimeString(),
+        ];
+
+        // Update FollowUpLog if available
+        if ($this->log) {
+            $metadata = $this->log->metadata ?? [];
+            $metadata['skipped_reasons'] = $this->skippedReasons;
+            $this->log->update([
+                'metadata' => $metadata,
+                'error_message' => $message,
+            ]);
+        }
+    }
+
+    /**
+     * Get all skipped reasons
+     */
+    public function getSkippedReasons(): array
+    {
+        return $this->skippedReasons;
+    }
+
+    /**
+     * Render a Blade template with lead data
+     */
+    protected function renderTemplate(string $template): string
+    {
+        return Blade::render($template, [
+            'lead' => $this->lead,
+            'people' => $this->lead->people,
+            'company' => $this->lead->company,
+            'lead_name' => $this->lead->people->firstname ?? 'Customer',
+            'lead_full_name' => $this->lead->people->name ?? 'Customer',
+            'company_name' => $this->lead->company->name,
+        ]);
     }
 }

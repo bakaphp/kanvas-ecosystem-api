@@ -13,15 +13,20 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Laravel\Cashier\Subscription as CashierSubscription;
 use Spatie\LaravelData\DataCollection;
 
 abstract class CreateOrderFromReceiptActionBase
 {
+    protected const string IAP_TAG = 'iap';
+    protected const string IAP_SUBSCRIPTION_TAG = 'iap-subscription';
+
     protected AppInterface $app;
     protected CompanyInterface $company;
     protected UserInterface $user;
@@ -44,11 +49,11 @@ abstract class CreateOrderFromReceiptActionBase
 
     protected function createPeople(): People
     {
-        return (new CreatePeopleFromUserAction(
+        return new CreatePeopleFromUserAction(
             $this->app,
             $this->company->defaultBranch,
             $this->user
-        ))->execute();
+        )->execute();
     }
 
     protected function createOrderItem(Variants $variant, int $quantity): OrderItem
@@ -171,5 +176,122 @@ abstract class CreateOrderFromReceiptActionBase
             $order->setCustomFields($customFields);
             $order->saveCustomFields();
         }
+    }
+
+    protected function addMessageMetadataFromCustomFields(array &$allReceiptData): void
+    {
+        if (! isset($allReceiptData['custom_fields']) || ! is_array($allReceiptData['custom_fields'])) {
+            return;
+        }
+
+        $messageId = $this->extractMessageIdFromCustomFields($allReceiptData['custom_fields']);
+        if ($messageId === null) {
+            return;
+        }
+
+        $message = Message::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('id', $messageId)
+            ->first();
+
+        if (! $message) {
+            return;
+        }
+
+        $messageContent = $message->getMessage();
+        $messageUser = $message->user;
+
+        $allReceiptData['message'] = [
+            'users_id' => $messageUser?->getId(),
+            'creator_display_name' => $messageUser?->displayname,
+            'creator_email' => $messageUser?->email,
+            'id' => $message->getId(),
+            'user_subscription_tier' => $message->getId(),
+            'prompt_title' => (string) ($messageContent['title'] ?? $message->slug),
+        ];
+    }
+
+    protected function extractMessageIdFromCustomFields(array $customFields): ?int
+    {
+        if (array_key_exists('message_id', $customFields)) {
+            $messageId = filter_var($customFields['message_id'], FILTER_VALIDATE_INT);
+
+            return $messageId === false ? null : $messageId;
+        }
+
+        foreach ($customFields as $field) {
+            if (
+                is_array($field)
+                && ($field['name'] ?? null) === 'message_id'
+                && array_key_exists('value', $field)
+            ) {
+                $messageId = filter_var($field['value'], FILTER_VALIDATE_INT);
+
+                return $messageId === false ? null : $messageId;
+            }
+        }
+
+        return null;
+    }
+
+    protected function findExistingOrderByAppleTransactionId(string $transactionId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->apple_subscription->transaction_id', $transactionId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findExistingAppleSubscriptionOrder(string $transactionId): ?ModelsOrder
+    {
+        return $this->findExistingOrderByAppleTransactionId($transactionId);
+    }
+
+    protected function findExistingOrderByGoogleSubscriptionOrderId(string $orderId): ?ModelsOrder
+    {
+        return ModelsOrder::fromApp($this->app)
+            ->where('users_id', $this->user->getId())
+            ->whereJsonContains('metadata->google_subscription->order_id', $orderId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    protected function findCashierSubscription(
+        int $appsStripeCustomerId,
+        string $originalTransactionId
+    ): ?CashierSubscription {
+        $existingSubscription = CashierSubscription::query()
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
+
+        if ($existingSubscription instanceof CashierSubscription) {
+            return $existingSubscription;
+        }
+
+        return CashierSubscription::query()
+            ->where('apps_stripe_customer_id', $appsStripeCustomerId)
+            ->where('stripe_id', $originalTransactionId)
+            ->first();
+    }
+
+    protected function tagOrderAsIap(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
+    }
+
+    protected function tagOrderAsIapSubscription(ModelsOrder $order): void
+    {
+        $order->addTag(
+            static::IAP_SUBSCRIPTION_TAG,
+            $this->app,
+            $this->user,
+            $this->company
+        );
     }
 }

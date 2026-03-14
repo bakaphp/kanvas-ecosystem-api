@@ -29,6 +29,7 @@ use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class CreateBaseOrderAction
@@ -93,7 +94,12 @@ class CreateBaseOrderAction
             $lineItems = [];
 
             foreach ($this->request['input']['items'] as $key => $lineItem) {
-                $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
+                $lineItems[$key] = OrderItem::viaRequest(
+                    $this->app,
+                    $this->company,
+                    $this->region,
+                    $lineItem
+                );
                 $total += $lineItems[$key]->getTotal();
                 $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = 0.0;
@@ -102,13 +108,11 @@ class CreateBaseOrderAction
             $lineItems = OrderItem::collect($lineItems, DataCollection::class);
         }
 
-        $items = $hasItemsInCart ? $this->getOrderItems($lineItems, $this->app) : $lineItems;
+        $orderCurrency = $this->resolveOrderCurrency();
 
-        try {
-            $currency = isset($this->request['input']['currency']) && ! empty($this->request['input']['currency']) ? Currencies::getByCode($this->request['input']['currency']) : $this->region->currency;
-        } catch (ModelNotFoundException $e) {
-            $currency = $this->region->currency;
-        }
+        $items = $hasItemsInCart
+            ? $this->getOrderItems($lineItems, $this->app, $orderCurrency)
+            : $lineItems;
 
         $order = new Order(
             app: $this->app,
@@ -128,7 +132,7 @@ class CreateBaseOrderAction
             status: OrderStatusEnum::COMPLETED->value,
             orderNumber: '',
             shippingMethod: null,
-            currency: $currency,
+            currency: $orderCurrency,
             fulfillmentStatus: OrderStatusEnum::PENDING->value,
             items: $items,
             orderType: $this->request['input']['order_type'] ?? null,
@@ -143,13 +147,21 @@ class CreateBaseOrderAction
             ipAddress: $this->ipAddress,
         );
 
-        $order = (new CreateOrderAction($order))->execute();
+        $order = new CreateOrderAction($order)->disableWorkflow()->execute();
 
         // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
         // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
+
+        $order->fireWorkflow(
+            event: WorkflowEnum::CREATED->value,
+            async: true,
+            params: [
+               'app' => $order->app,
+            ]
+        );
 
         try {
             $userCompany = $order->user->getCurrentCompany();
@@ -168,12 +180,14 @@ class CreateBaseOrderAction
             report($e);
         }
 
+        $order->refresh();
+
         $this->cart->clear();
 
         return $order;
     }
 
-    protected function getOrderItems(array $cartContent, AppInterface $app): DataCollection
+    protected function getOrderItems(array $cartContent, AppInterface $app, Currencies $currency): DataCollection
     {
         $orderItems = [];
 
@@ -205,10 +219,10 @@ class CreateBaseOrderAction
                 price: (float) $lineItem['price'],
                 tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: Currencies::getByCode('USD'),
+                currency: $currency,
                 quantityShipped: 0,
                 metadata: ! empty($customAttributes) ? $customAttributes : null, // Only custom attributes, not product attributes
-                channelId: $lineItem['attributes']['channel_id'] ?? null
+                channelId: ! empty($lineItem['attributes']['channel_id']) ? (int) $lineItem['attributes']['channel_id'] : null
             );
         }
 
@@ -234,6 +248,19 @@ class CreateBaseOrderAction
         }
 
         return $total;
+    }
+
+    protected function resolveOrderCurrency(): Currencies
+    {
+        try {
+            if (isset($this->request['input']['currency']) && ! empty($this->request['input']['currency'])) {
+                return Currencies::getByCode($this->request['input']['currency']);
+            }
+        } catch (ModelNotFoundException $e) {
+            // Fallback below.
+        }
+
+        return $this->region->currency;
     }
 
     /**

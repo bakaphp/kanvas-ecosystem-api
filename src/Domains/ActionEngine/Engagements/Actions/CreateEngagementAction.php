@@ -486,6 +486,7 @@ class CreateEngagementAction
             'slug' => $this->actionSlug,
             'entity_uuid' => $this->engagementData->requestId,
             'pipelines_stages_id' => $stage->getId(),
+            'parent_id' => $this->engagementData->parentEngagement?->getId(),
         ]);
     }
 

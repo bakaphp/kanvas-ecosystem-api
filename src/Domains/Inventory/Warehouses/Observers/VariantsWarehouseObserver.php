@@ -33,7 +33,7 @@ class VariantsWarehouseObserver
             );
         }
 
-        if ($variantWarehouse->wasChanged('status_id')) {
+        if ($variantWarehouse->wasChanged('status_id') && $variantWarehouse->status_id !== null) {
             (new CreateStatusHistoryAction(
                 StatusRepository::getById($variantWarehouse->status_id),
                 $variantWarehouse

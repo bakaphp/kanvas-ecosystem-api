@@ -14,9 +14,10 @@ class MessageService
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
+        protected bool $outbound = false
     ) {
-        $this->client = new Client($app, $company);
+        $this->client = new Client($app, $company, $this->outbound);
     }
 
     /**

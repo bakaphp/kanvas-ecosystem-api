@@ -24,7 +24,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
@@ -74,7 +76,9 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -315,6 +319,30 @@ class Message extends BaseModel
     public function scopeWhereIsNotPublic(Builder $query): Builder
     {
         return $query->where('is_public', 0);
+    }
+
+    /**
+     * Scope to control cross-company message visibility.
+     *
+     * By default messages are public across all companies within the app (current behavior).
+     * Set app setting 'restrict_messages_by_company' to true to filter messages
+     * by the current user's company (company-scoped feed behavior).
+     */
+    public function scopeCompanyVisibility(Builder $query): Builder
+    {
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $query;
+        }
+
+        $app = app(Apps::class);
+
+        if ($app->get('restrict_messages_by_company')) {
+            $user = auth()->user();
+
+            return $query->where($this->getTable() . '.companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 
     public function setLock(): void
@@ -623,5 +651,28 @@ class Message extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    /**
+     * Override search to enforce app and company visibility scoping.
+     * @search bypasses @paginate scopes, so this is the only place to enforce multi-tenancy during search.
+     * Respects the same 'restrict_messages_by_company' app setting as scopeCompanyVisibility.
+     */
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $searchQuery;
+        }
+
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && $app->get('restrict_messages_by_company')) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $searchQuery;
     }
 }

@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -43,7 +44,8 @@ class CreateMessageFollowUpAction
         protected PipelineStage $pipelineStage,
         protected Session $session,
         protected string $messageTemplate,
-        protected float $day
+        protected float $day,
+        protected ?FollowUpLog $log = null
     ) {
         $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
@@ -54,6 +56,13 @@ class CreateMessageFollowUpAction
 
     public function execute(): ?string
     {
+        // Log entry to this action
+        if ($this->log) {
+            $this->log->update([
+                'entered_create_message_action' => true,
+            ]);
+        }
+
         if ($this->messageTemplate === null) {
             // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
 
@@ -113,8 +122,26 @@ class CreateMessageFollowUpAction
 
         $responseText = $this->generateResponseWithRetry($prompt);
 
+        $shouldRespond = (bool) ($responseText['should_respond'] ?? false);
+
+        // Log the should_respond value
+        if ($this->log) {
+            $this->log->update([
+                'should_respond' => $shouldRespond,
+                'metadata' => array_merge(
+                    $this->log->metadata ?? [],
+                    [
+                        'ai_response' => [
+                            'should_respond' => $shouldRespond,
+                            'has_message' => isset($responseText['message']),
+                        ]
+                    ]
+                ),
+            ]);
+        }
+
         //if no response or should not respond
-        if ((bool) ($responseText['should_respond'] ?? false) === false) {
+        if ($shouldRespond === false) {
             return null;
         }
 
@@ -126,7 +153,7 @@ class CreateMessageFollowUpAction
             'verb' => 'twilio-sms',
         ]);
 
-        $agentUser = $this->lead->app->get('kanvas_agent_user_id');
+        $agentUser = $this->lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
             $user = Users::getById($agentUser);
         } else {
@@ -161,6 +188,14 @@ class CreateMessageFollowUpAction
 
         $this->session->channel->addMessage($message);
         $message->addTag('followup');
+
+        // Log message creation
+        if ($this->log) {
+            $this->log->update([
+                'message_created' => true,
+                'messages_id' => $message->getId(),
+            ]);
+        }
 
         return $responseText['message'];
     }

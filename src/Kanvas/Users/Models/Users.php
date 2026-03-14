@@ -64,6 +64,7 @@ use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -570,12 +571,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function defaultCompanyUuid(): string
     {
-        return Companies::getById($this->currentCompanyId())->uuid;
+        $companyId = $this->currentCompanyId();
+
+        return $companyId > 0 ? Companies::getById($companyId)->uuid : '';
     }
 
     public function defaultCompanyBranchUuid(): string
     {
-        return CompaniesBranches::getById($this->currentBranchId())->uuid;
+        $branchId = $this->currentBranchId();
+
+        return $branchId > 0 ? CompaniesBranches::getById($branchId)->uuid : '';
     }
 
     /**
@@ -593,7 +598,20 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             }
         }
 
-        return (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
+        $companyId = (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
+
+        if ($companyId === 0) {
+            $company = $this->companies()->first();
+
+            if ($company !== null) {
+                $companyId = (int) $company->getId();
+                $this->default_company = $companyId;
+                $this->default_company_branch = (int) ($company->branches()->first()?->getId() ?? 0);
+                $this->saveQuietly();
+            }
+        }
+
+        return $companyId;
     }
 
     /**
@@ -604,6 +622,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         if (app()->bound(CompaniesBranches::class)) {
             $branchId = app(CompaniesBranches::class)->getId();
+        }
+
+        $companyId = $this->currentCompanyId();
+        if ($companyId === 0) {
+            return $this->default_company_branch;
         }
 
         $branchId = (int) ($branchId ?? $this->get($this->getCurrentCompany()->branchCacheKey()));
@@ -643,6 +666,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 please contact support'
             );
         }
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'users_id' => $this->getId(),
+            'companies_id' => 0,
+            'apps_id' => $app->getId(),
+        ]);
     }
 
     /**
@@ -951,8 +983,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if (! auth()->user()->isAdmin()) {
-            $query->whereIn('companies', [auth()->user()->currentCompanyId()]);
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->whereIn('companies', [$user->currentCompanyId()]);
         }
 
         return $query;

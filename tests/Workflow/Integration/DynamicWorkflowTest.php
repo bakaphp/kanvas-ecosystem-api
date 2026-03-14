@@ -5,25 +5,18 @@ declare(strict_types=1);
 namespace Tests\Workflow\Integration;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Zoho\Handlers\ZohoHandler;
-use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleCondition;
-use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 use Workflow\WorkflowStub;
 
 final class DynamicWorkflowTest extends TestCase
 {
-    use HasIntegrationCompany;
-
     public function testDynamicWorkflow(): void
     {
         WorkflowStub::fake();
@@ -51,24 +44,11 @@ final class DynamicWorkflowTest extends TestCase
     {
         WorkflowStub::fake();
 
-        $totalWorkflows = StoredWorkflow::count();
         $app = app(Apps::class);
         $lead = Lead::count() > 0 ? Lead::first() : Lead::factory()->create();
         $params = [
             'interaction' => 'like',
         ];
-
-        $this->setIntegration(
-            $app,
-            IntegrationsEnum::ZOHO,
-            ZohoHandler::class,
-            $lead->company,
-            $lead->user
-        );
-        $app->set(FlagEnum::APP_GLOBAL_ZOHO->value, 1);
-        $app->set(CustomFieldEnum::CLIENT_ID->value, getenv('TEST_ZOHO_CLIENT_ID'));
-        $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
-        $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
 
         $ruleWorkflowAction = RuleAction::factory()->withAsync(false)->create();
         RuleCondition::factory()->create([
@@ -89,7 +69,11 @@ final class DynamicWorkflowTest extends TestCase
         ];
         $results = $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
 
-        $this->assertArrayHasKey('status', $results->output()[0]);
+        $output = $results->output();
+        $this->assertNotEmpty($output);
+        $this->assertIsArray($output[0]);
+        $this->assertArrayHasKey('company', $output[0]);
+        $this->assertArrayHasKey('total_leads', $output[0]);
     }
 
     public function testSyncDynamicWorkflow(): void
@@ -98,18 +82,6 @@ final class DynamicWorkflowTest extends TestCase
         $app = app(Apps::class);
         $lead = Lead::count() > 0 ? Lead::first() : Lead::factory()->create();
         $params = [];
-
-        $this->setIntegration(
-            $app,
-            IntegrationsEnum::ZOHO,
-            ZohoHandler::class,
-            $lead->company,
-            $lead->user
-        );
-        $app->set(FlagEnum::APP_GLOBAL_ZOHO->value, 1);
-        $app->set(CustomFieldEnum::CLIENT_ID->value, getenv('TEST_ZOHO_CLIENT_ID'));
-        $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
-        $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
 
         $ruleWorkflowAction = RuleAction::factory()->withAsync(false)->create();
         RuleCondition::factory()->create([

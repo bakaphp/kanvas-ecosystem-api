@@ -114,7 +114,7 @@ class FilesystemMapperMutation
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
 
         $regions = $req['regionId'] ?? null
-            ? Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app)
+            ? Regions::getByIdFromCompanyAppOrGlobal($input['regions_id'], $company, $app)
             : Regions::getDefault($company, $app);
 
         $dto = FilesystemImport::from([
