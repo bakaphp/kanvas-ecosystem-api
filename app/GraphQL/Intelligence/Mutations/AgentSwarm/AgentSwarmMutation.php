@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\DataTransferObject\AgentSwarm as AgentSwarmData;
 use Kanvas\Intelligence\Agents\Enums\AgentSwarmStatusEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\Intelligence\Agents\Models\AgentSwarmMember;
 
 class AgentSwarmMutation
 {
@@ -98,11 +99,71 @@ class AgentSwarmMutation
             $app
         );
 
-        if (! $swarm->agents()->where('agent_id', $agent->getId())->exists()) {
-            $swarm->agents()->attach($agent->getId());
+        if (! AgentSwarmMember::where('agent_swarm_id', $swarm->getId())
+            ->where('agent_id', $agent->getId())
+            ->where('is_deleted', 0)
+            ->exists()
+        ) {
+            $memberData = [
+                'agent_swarm_id' => $swarm->getId(),
+                'agent_id' => $agent->getId(),
+                'role' => $request['role'] ?? null,
+            ];
+
+            if (isset($request['reports_to_agent_id'])) {
+                /** @var AgentSwarmMember $reportsToMember */
+                $reportsToMember = AgentSwarmMember::where('agent_swarm_id', $swarm->getId())
+                    ->where('agent_id', (int) $request['reports_to_agent_id'])
+                    ->where('is_deleted', 0)
+                    ->firstOrFail();
+
+                $memberData['parent_id'] = $reportsToMember->getId();
+            }
+
+            AgentSwarmMember::create($memberData);
         }
 
         return $swarm;
+    }
+
+    public function updateSwarmMember(mixed $rootValue, array $request): AgentSwarmMember
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentSwarm $swarm */
+        $swarm = AgentSwarm::getByIdFromCompanyApp(
+            (int) $request['swarm_id'],
+            $company,
+            $app
+        );
+
+        /** @var AgentSwarmMember $member */
+        $member = AgentSwarmMember::where('agent_swarm_id', $swarm->getId())
+            ->where('agent_id', (int) $request['agent_id'])
+            ->where('is_deleted', 0)
+            ->firstOrFail();
+
+        if (isset($request['role'])) {
+            $member->role = $request['role'];
+        }
+
+        if (array_key_exists('reports_to_agent_id', $request)) {
+            if ($request['reports_to_agent_id'] === null) {
+                $member->parent_id = null;
+            } else {
+                $reportsToMember = AgentSwarmMember::where('agent_swarm_id', $swarm->getId())
+                    ->where('agent_id', (int) $request['reports_to_agent_id'])
+                    ->where('is_deleted', 0)
+                    ->firstOrFail();
+
+                $member->parent_id = $reportsToMember->getId();
+            }
+        }
+
+        $member->saveOrFail();
+
+        return $member;
     }
 
     public function removeAgent(mixed $rootValue, array $request): AgentSwarm

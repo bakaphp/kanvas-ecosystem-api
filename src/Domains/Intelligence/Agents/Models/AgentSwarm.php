@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -51,8 +52,14 @@ class AgentSwarm extends BaseModel
             'agent_swarm_id',
             'agent_id'
         )->wherePivot('is_deleted', 0)
-         ->withPivot('role', 'config')
+         ->withPivot('role', 'config', 'parent_id')
          ->withTimestamps();
+    }
+
+    public function members(): HasMany
+    {
+        return $this->hasMany(AgentSwarmMember::class, 'agent_swarm_id')
+            ->where('is_deleted', 0);
     }
 
     public function getAgentCountAttribute(): int

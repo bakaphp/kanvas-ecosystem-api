@@ -233,6 +233,388 @@ class AgentSwarmCrudTest extends TestCase
         ]);
     }
 
+    public function testAddAgentToSwarmWithRole(): void
+    {
+        $input = ['name' => 'Role Swarm ' . fake()->word()];
+
+        $createResponse = $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $swarmId = $createResponse->json('data.createAgentSwarm.id');
+        $agent = $this->createAgent();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) {
+                    id
+                    agent_count
+                    members {
+                        id
+                        role
+                        agent {
+                            id
+                        }
+                    }
+                }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $agent->getId(),
+            'role' => 'manager',
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'addAgentToSwarm' => [
+                    'agent_count' => 1,
+                ],
+            ],
+        ]);
+    }
+
+    public function testAddAgentWithReportsTo(): void
+    {
+        $input = ['name' => 'Hierarchy Swarm ' . fake()->word()];
+
+        $createResponse = $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $swarmId = $createResponse->json('data.createAgentSwarm.id');
+
+        $manager = $this->createAgent();
+        $subordinate = $this->createAgent();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) {
+                    id
+                }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $manager->getId(),
+            'role' => 'manager',
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String, $reports_to_agent_id: ID) {
+                addAgentToSwarm(
+                    swarm_id: $swarm_id
+                    agent_id: $agent_id
+                    role: $role
+                    reports_to_agent_id: $reports_to_agent_id
+                ) {
+                    id
+                    members {
+                        id
+                        role
+                        agent {
+                            id
+                        }
+                        reports_to {
+                            id
+                            agent {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $subordinate->getId(),
+            'role' => 'worker',
+            'reports_to_agent_id' => (string) $manager->getId(),
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'addAgentToSwarm' => [
+                    'id' => $swarmId,
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateSwarmMemberRole(): void
+    {
+        $input = ['name' => 'Update Member Swarm ' . fake()->word()];
+
+        $createResponse = $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $swarmId = $createResponse->json('data.createAgentSwarm.id');
+        $agent = $this->createAgent();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $agent->getId(),
+            'role' => 'worker',
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                updateSwarmMember(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) {
+                    id
+                    role
+                    agent {
+                        id
+                    }
+                }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $agent->getId(),
+            'role' => 'lead',
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateSwarmMember' => [
+                    'role' => 'lead',
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateSwarmMemberReportsTo(): void
+    {
+        $input = ['name' => 'ReportsTo Swarm ' . fake()->word()];
+
+        $createResponse = $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $swarmId = $createResponse->json('data.createAgentSwarm.id');
+
+        $manager = $this->createAgent();
+        $worker = $this->createAgent();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $manager->getId(),
+            'role' => 'manager',
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $worker->getId(),
+            'role' => 'worker',
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $reports_to_agent_id: ID) {
+                updateSwarmMember(
+                    swarm_id: $swarm_id
+                    agent_id: $agent_id
+                    reports_to_agent_id: $reports_to_agent_id
+                ) {
+                    id
+                    role
+                    reports_to {
+                        id
+                        agent {
+                            id
+                        }
+                    }
+                }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $worker->getId(),
+            'reports_to_agent_id' => (string) $manager->getId(),
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateSwarmMember' => [
+                    'role' => 'worker',
+                ],
+            ],
+        ]);
+    }
+
+    public function testSwarmMembersOrgChart(): void
+    {
+        $input = ['name' => 'OrgChart Swarm ' . fake()->word()];
+
+        $createResponse = $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $swarmId = $createResponse->json('data.createAgentSwarm.id');
+
+        $ceo = $this->createAgent();
+        $vp = $this->createAgent();
+        $worker = $this->createAgent();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String) {
+                addAgentToSwarm(swarm_id: $swarm_id, agent_id: $agent_id, role: $role) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $ceo->getId(),
+            'role' => 'ceo',
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String, $reports_to_agent_id: ID) {
+                addAgentToSwarm(
+                    swarm_id: $swarm_id
+                    agent_id: $agent_id
+                    role: $role
+                    reports_to_agent_id: $reports_to_agent_id
+                ) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $vp->getId(),
+            'role' => 'vp',
+            'reports_to_agent_id' => (string) $ceo->getId(),
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($swarm_id: ID!, $agent_id: ID!, $role: String, $reports_to_agent_id: ID) {
+                addAgentToSwarm(
+                    swarm_id: $swarm_id
+                    agent_id: $agent_id
+                    role: $role
+                    reports_to_agent_id: $reports_to_agent_id
+                ) { id }
+            }
+        ', [
+            'swarm_id' => $swarmId,
+            'agent_id' => (string) $worker->getId(),
+            'role' => 'worker',
+            'reports_to_agent_id' => (string) $vp->getId(),
+        ])->assertSuccessful();
+
+        $response = $this->graphQL('
+            query {
+                agentSwarms(where: { column: ID, operator: EQ, value: "' . $swarmId . '" }) {
+                    data {
+                        id
+                        members {
+                            id
+                            role
+                            agent {
+                                id
+                                name
+                            }
+                            reports_to {
+                                id
+                                role
+                            }
+                            direct_reports {
+                                id
+                                role
+                            }
+                        }
+                    }
+                }
+            }
+        ')
+        ->assertSuccessful();
+
+        $members = $response->json('data.agentSwarms.data.0.members');
+        $this->assertCount(3, $members);
+    }
+
+    public function testCreateDuplicateAgentSwarmSlug(): void
+    {
+        $name = 'Duplicate Swarm ' . fake()->word();
+
+        $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => ['name' => $name]])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) { id }
+            }
+        ', ['input' => ['name' => $name]])
+        ->assertGraphQLErrorMessage("An agent swarm with the name '{$name}' already exists");
+    }
+
+    public function testAgentSwarmIsActiveFromStatus(): void
+    {
+        $input = [
+            'name' => 'Active Swarm ' . fake()->word(),
+            'status' => 'active',
+        ];
+
+        $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) {
+                    id
+                    status
+                    is_active
+                }
+            }
+        ', ['input' => $input])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createAgentSwarm' => [
+                    'status' => 'active',
+                    'is_active' => true,
+                ],
+            ],
+        ]);
+
+        $draftInput = [
+            'name' => 'Draft Swarm ' . fake()->word(),
+            'status' => 'draft',
+        ];
+
+        $this->graphQL('
+            mutation($input: AgentSwarmInput!) {
+                createAgentSwarm(input: $input) {
+                    id
+                    status
+                    is_active
+                }
+            }
+        ', ['input' => $draftInput])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createAgentSwarm' => [
+                    'status' => 'draft',
+                    'is_active' => false,
+                ],
+            ],
+        ]);
+    }
+
     public function testListAgentSwarms(): void
     {
         $this->graphQL('

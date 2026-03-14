@@ -10,6 +10,18 @@ type AgentSwarm {
     deployment_status: String!
     is_active: Boolean!
     agents: [AgentAi!]! @belongsToMany
+    members: [AgentSwarmMember!]! @hasMany(relation: "members")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AgentSwarmMember {
+    id: ID!
+    agent: AgentAi! @belongsTo
+    role: String
+    parent_id: ID
+    reports_to: AgentSwarmMember @belongsTo(relation: "reportsTo")
+    direct_reports: [AgentSwarmMember!]! @hasMany(relation: "directReports")
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -43,9 +55,23 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@delete"
         )
-    addAgentToSwarm(swarm_id: ID!, agent_id: ID!): AgentSwarm!
+    addAgentToSwarm(
+        swarm_id: ID!
+        agent_id: ID!
+        role: String
+        reports_to_agent_id: ID
+    ): AgentSwarm!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@addAgent"
+        )
+    updateSwarmMember(
+        swarm_id: ID!
+        agent_id: ID!
+        role: String
+        reports_to_agent_id: ID
+    ): AgentSwarmMember!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@updateSwarmMember"
         )
     removeAgentFromSwarm(swarm_id: ID!, agent_id: ID!): AgentSwarm!
         @field(

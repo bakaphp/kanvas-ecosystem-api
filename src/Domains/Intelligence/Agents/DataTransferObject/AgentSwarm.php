@@ -27,4 +27,9 @@ class AgentSwarm extends Data
         public readonly ?array $agentIds = null,
     ) {
     }
+
+    public function isActive(): bool
+    {
+        return $this->status === AgentSwarmStatusEnum::ACTIVE;
+    }
 }

@@ -3,8 +3,8 @@ type AgentAi {
     company: [Company!]! @belongsTo
     user: [User!]! @belongsTo
     type: agentType! @belongsTo
-    model: AgentAiModel! @belongsTo
-    companyTaskList: TaskList! @belongsTo
+    model: AgentAiModel @belongsTo
+    companyTaskList: TaskList @belongsTo
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
     swarms: [AgentSwarm!]! @belongsToMany
