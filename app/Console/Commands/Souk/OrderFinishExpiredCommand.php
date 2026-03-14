@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -52,48 +53,21 @@ class OrderFinishExpiredCommand extends Command
 
     protected function finishOrdersExpiredOrder(Order $order): void
     {
-        // get the variant
-        if (count($order->items) > 0) {
-            $variant = $order->items->first(function ($item) {
-                return $item->variant->product?->attributes
-                ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })?->variant;
-            // Mark order as completed
-            $order->fulfill();
-            $order->transitionToStatus(
-                $order->user,
-                OrderStatusEnum::COMPLETED->value
-            );
+        if (count($order->items) === 0) {
+            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name);
 
-            // If the order is not related to another order. it means that is not an extension
-            // but a main order, we can update the warehouse quantity when the order is finished
-            if (! $order->parent_id && $variant) {
-                $channel = $variant->variantChannels()->first();
-                $variantWarehouse = $channel?->productVariantWarehouse()->first();
-
-                if (! $variantWarehouse) {
-                    $this->warn('No variant warehouse found for order ' . $order->id . ' variant ' . $variant->id);
-
-                    return;
-                }
-
-                $available = $variantWarehouse->quantity + 1;
-                $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-                $product = $variant->product;
-                $capacity = $product->getAttributeByName('capacity')?->value;
-                // @deprecated: remove this after new flow is implemented
-                if ($capacity) {
-                    $product->addAttribute('capacity', [
-                        'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                        'availableParkingSpaces' => $available,
-                        'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
-                    ]);
-                }
-            }
-            $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
-        } else {
-            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name . ' with ' . count($order->items) . ' items');
+            return;
         }
+
+        $order->fulfill();
+        $order->transitionToStatus(
+            $order->user,
+            OrderStatusEnum::COMPLETED->value
+        );
+
+        new RecalculateSlotCapacityAction($order, $order->app)->execute();
+
+        $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
     }
 
     protected function checkApps($appsId): void

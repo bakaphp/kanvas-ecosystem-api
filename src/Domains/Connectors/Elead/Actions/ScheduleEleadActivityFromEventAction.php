@@ -75,26 +75,27 @@ class ScheduleEleadActivityFromEventAction
 
     protected function resolveDueDate(): string
     {
-        $timezone = $this->event->company->timezone ?: 'UTC';
+        $timezone = 'UTC';
 
         /** @var \Kanvas\Event\Events\Models\EventVersion|null $version */
         $version = $this->event->versions()->latest()->first();
         if ($version?->start_at !== null) {
             return $version->start_at->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
+            //return $version->start_at->format('Y-m-d\TH:i:s.v\Z');
         }
 
         if ($version !== null) {
             $date = $version->dates()->first();
             if ($date !== null) {
-                return Carbon::parse((string) $date->event_date . ' ' . ((string) ($date->start_time ?? '00:00')), $timezone)
-                    ->utc()
-                    ->format('Y-m-d\TH:i:s.v\Z');
+                return Carbon::parse(
+                    $date->event_date->format('Y-m-d') . ' ' . ((string) ($date->start_time ?? '00:00'))
+                )->setTimezone($timezone)->format('Y-m-d\TH:i:s.v\Z');
             }
         }
 
         return Carbon::now($timezone)
             ->addHour()
-            ->utc()
+            ->setTimezone($timezone)
             ->format('Y-m-d\TH:i:s.v\Z');
     }
 }

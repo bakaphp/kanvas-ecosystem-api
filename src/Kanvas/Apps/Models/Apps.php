@@ -22,6 +22,8 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -55,6 +57,7 @@ class Apps extends BaseModel implements AppInterface
     use HashTableTrait;
     use Cachable;
     use CanUseWorkflow;
+    use HasFilesystemTrait;
 
     /**
      * The table associated with the model.
@@ -339,5 +342,10 @@ class Apps extends BaseModel implements AppInterface
                 'apps.created_at',
                 'apps.updated_at'
             );
+    }
+
+    public function getLogo(): ?FilesystemEntities
+    {
+        return $this->getFileByName('logo');
     }
 }

@@ -324,4 +324,47 @@ class CompanyTest extends TestCase
             ->assertSee('files')
             ->assertSee('company.jpg');
     }
+
+    public function testUpdateCompanyPhotoProfile(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $operations = [
+            'query' => '
+                mutation updateCompanyPhotoProfile($file: Upload!, $id: ID!) {
+                    updateCompanyPhotoProfile(file: $file, id: $id) {
+                        id
+                        name
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'id' => $company->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('company-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updateCompanyPhotoProfile' => [
+                        'id' => (string) $company->getId(),
+                    ],
+                ],
+            ]);
+    }
 }

@@ -69,9 +69,9 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
      */
     protected function buildFormattedNote(Message $message, string $note, bool $fromAgent): string
     {
-        $channelSlug = $message->channels->first()->slug;
-        $channel = ChannelCategoryEnum::getLeadChannelName($channelSlug);
-        $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
+        $channelSlug = $message->channels->first()?->slug;
+        $channel = $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : 'sms';
+        $agentChannel = '(' . ucfirst($channel) . ') ';
 
         $isNote = strtolower((string)$message->messageType?->verb) === 'note';
         $fromWho = match (true) {
@@ -143,6 +143,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 if (empty($note)) {
                     return $this->failWorkflow([
                         'error' => 'Message content is empty',
+                    ]);
+                }
+
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'error' => 'Message is locked or not public, cannot add comment',
                     ]);
                 }
 

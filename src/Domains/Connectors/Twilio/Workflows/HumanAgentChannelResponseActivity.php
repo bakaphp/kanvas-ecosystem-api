@@ -46,7 +46,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
-            integration: IntegrationsEnum::TWILIO,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
                 if (empty($content)) {
                     return $this->failWorkflow([
@@ -116,12 +116,15 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
+                $files = $message->getFiles();
+
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
-                    false
+                    false,
+                    $files->isNotEmpty() ? $files : null
                 );
             },
             company: $channel->company,

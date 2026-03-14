@@ -277,43 +277,62 @@ class People extends BaseModel
         return $address;
     }
 
-    public function addEmail(string $email): Contact
+    public function addEmail(string $email, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $email,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
-
-        return $contact;
     }
 
-    public function addPhone(string $phone): Contact
+    public function addPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
-
-        return $contact;
     }
 
-    public function addCellPhone(string $phone): Contact
+    public function addCellPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
+    }
 
-        return $contact;
+    public function optOutPhoneContacts(): int
+    {
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+            ContactTypeEnum::WORK_PHONE->value,
+        ];
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', $phoneTypes)
+            ->update(['is_opt_out' => 1]);
     }
 
     public static function findByEmailOrCreate(

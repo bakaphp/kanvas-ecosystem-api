@@ -75,7 +75,7 @@ class ChannelsManagementMutation
         } catch (Exception $e) {
             $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany(), $app);
         }
-        $channel->users()->attach($user->id, ['roles_id' => $roles->id]);
+        $channel->users()->syncWithoutDetaching([$user->id => ['roles_id' => $roles->id]]);
 
         return $channel;
     }

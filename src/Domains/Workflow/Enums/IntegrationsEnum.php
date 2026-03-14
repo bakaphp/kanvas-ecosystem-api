@@ -45,4 +45,5 @@ enum IntegrationsEnum: string
     case TOOKAN = 'tookan';
     case CHROMEDATA = 'chromedata';
     case TRIGGER_AI = 'trigger-ai';
+    case CALENDLY = 'calendly';
 }

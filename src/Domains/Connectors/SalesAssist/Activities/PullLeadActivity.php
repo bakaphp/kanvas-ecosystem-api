@@ -14,12 +14,16 @@ use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -67,7 +71,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 leadId: (int) $leadId,
             );
         } elseif ($isDealerSocket) {
-            $pullLead = new PullPeopleAction(
+            $people = new PullPeopleAction(
                 $app,
                 $company,
                 $user
@@ -75,9 +79,10 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 email: $email,
                 phoneNumber: $phone,
                 customerId: $entity->id > 0 ? $entity->id : ((int) $leadId ?? null),
-            )->toArray();
+            );
+            $pullLead = $people->toArray();
         } elseif ($isDriveCentric) {
-            $pullLead = new PullPeopleLeadAction(
+            $leadModel = new PullPeopleLeadAction(
                 $app,
                 $company,
                 $user
@@ -86,7 +91,35 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 email: $email,
             );
 
-            $pullLead = $pullLead ? [$pullLead->toArray()] : [];
+            $pullLead = $leadModel ? [$leadModel->toArray()] : [];
+        }
+
+        $resolvedLead = match (true) {
+            $isDriveCentric => $leadModel ?? null,
+            $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
+            ! empty($pullLead[0]['id']) => Lead::getById((int) $pullLead[0]['id'], $app),
+            $entity instanceof Lead && $entity->id > 0 => $entity,
+            default => null,
+        };
+
+        try {
+            if ($resolvedLead instanceof Lead) {
+                $agentName = $company->get('sales_assist_agent_name') ?? 'Sally';
+                $agent = Agent::where('name', $agentName)
+                    ->fromApp($app)
+                    ->fromCompany($company)
+                    ->notDeleted()
+                    ->firstOrFail();
+
+                new CreateSocialChannelsAfterPullAction(
+                    $resolvedLead,
+                    app(Apps::class),
+                    $params,
+                    $agent->getId(),
+                )->execute();
+            }
+        } catch (Throwable $e) {
+            report($e);
         }
 
         return $pullLead;

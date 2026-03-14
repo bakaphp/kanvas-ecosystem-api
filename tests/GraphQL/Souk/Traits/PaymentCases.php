@@ -28,6 +28,13 @@ trait PaymentCases
         $paymentMethod = $response->json('data.createPaymentMethod');
 
         if (! $paymentMethod) {
+            $errors = $response->json('errors');
+            $errorMessage = $errors[0]['message'] ?? '';
+
+            if (str_contains($errorMessage, 'configuration is missing')) {
+                $this->markTestSkipped('Payment processor is not configured: ' . $errorMessage);
+            }
+
             throw new Exception('Error adding payment method: ' . json_encode($response->json()));
         }
 
