@@ -1,4 +1,0 @@
-input VisitorEntityInput {
-    id: ID!
-    type: String!
-}

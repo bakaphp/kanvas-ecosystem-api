@@ -61,22 +61,26 @@ class ModulesRepositories
         return [
             ModuleEnum::ECOSYSTEM->value => [
                 Apps::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Companies::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Users::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                     'invite',
                 ],
                 Regions::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
@@ -84,37 +88,44 @@ class ModulesRepositories
             ],
             ModuleEnum::INVENTORY->value => [
                 Products::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                     'is_published',
                 ],
                 ProductsTypes::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Warehouses::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Channels::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Attributes::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Status::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Categories::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
@@ -122,31 +133,37 @@ class ModulesRepositories
             ],
             ModuleEnum::CRM->value => [
                 People::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Lead::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 LeadReceiver::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Rotation::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 LeadType::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',
                 ],
                 Pipeline::class => [
+                    'view',
                     'create',
                     'edit',
                     'delete',

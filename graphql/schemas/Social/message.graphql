@@ -84,15 +84,18 @@ input MessageInput {
     slug: String
     files: [Upload!]
     is_locked: Int
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input MessageUpdateInput {
     message: Mixed
     message_verb: ID
     is_public: Int
+    is_locked: Int
     is_deleted: Int
     tags: [TagInput!]
     categories: [CategoryInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 enum DistributionType {
@@ -210,7 +213,14 @@ extend type Query @guard {
         hasChannel: _
             @whereHasConditions(
                 relation: "channels"
-                columns: ["id", "uuid", "name", "slug", "entity_id", "entity_namespace"]
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "entity_id"
+                    "entity_namespace"
+                ]
             )
         hasTags: _
             @whereHasConditions(

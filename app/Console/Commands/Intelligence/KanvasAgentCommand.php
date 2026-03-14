@@ -93,7 +93,17 @@ class KanvasAgentCommand extends Command
         } else {
             // Handle single question mode for backward compatibility
             $question = $this->ask('What would you like to ask the agent?');
-            $response = $crm->chat(new UserMessage($question));
+            if ($crm instanceof ADKAgent) {
+                $response = $crm->chatSimple(
+                    app: $app,
+                    company: $entity->company,
+                    userId: (string) $entity->users_id,
+                    sessionId: $entity->uuid,
+                    message: $question,
+                );
+            } else {
+                $response = $crm->chat(new UserMessage($question));
+            }
             $this->info(ChatHelper::extractTextFromResponse($response->getContent()));
         }
     }

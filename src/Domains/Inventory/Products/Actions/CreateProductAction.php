@@ -12,11 +12,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
-use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Throwable;
 
 class CreateProductAction
 {
@@ -36,9 +34,7 @@ class CreateProductAction
             $this->user
         );
 
-        try {
-            DB::connection('inventory')->beginTransaction();
-
+        $products = DB::connection('inventory')->transaction(function () {
             $productType = $this->productDto?->productsType?->getId();
 
             $search = [
@@ -106,14 +102,8 @@ class CreateProductAction
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }
 
-            DB::connection('inventory')->commit();
-
-            //IndexProductJob::dispatch($products)->delay(now()->addSeconds(2));
-        } catch (Throwable $e) {
-            DB::connection('inventory')->rollback();
-
-            throw $e;
-        }
+            return $products;
+        }, 3);
 
         if ($products->shouldBeSearchable()) {
             $products->searchable();

@@ -23,6 +23,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Services\StripePaymentLinkService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -185,6 +186,9 @@ class CreateEngagementAction
             'codeShare' => [
                 ActionEnum::SHARE_BLUELINK->value,
                 ActionEnum::SHARE_ELECTRIFY_AMERICA->value,
+            ],
+            'messageVideos' => [
+                ActionEnum::MESSAGE_VIDEO->value,
             ],
         ];
 
@@ -392,6 +396,8 @@ class CreateEngagementAction
             $this->lead->getId()
         )->execute();
 
+        $this->attachFilesToMessage($message);
+
         //@todo move this to a workflow activity (Async)
         $this->replaceLink(
             $this->lead,
@@ -401,6 +407,28 @@ class CreateEngagementAction
         );
 
         return $message;
+    }
+
+    /**
+     * Attach files to the message from DTO files or filesUrl.
+     */
+    protected function attachFilesToMessage(Message $message): void
+    {
+        // Attach Filesystem objects directly using HasFilesystemTrait
+        foreach ($this->engagementData->files as $file) {
+            if ($file instanceof Filesystem) {
+                $message->addFile($file, $file->name);
+            }
+        }
+
+        // Attach files from URLs using HasFilesystemTrait
+        foreach ($this->engagementData->filesUrl as $fileUrl) {
+            try {
+                $message->addFileFromUrl($fileUrl, basename($fileUrl), $this->app);
+            } catch (\Exception $e) {
+                report($e);
+            }
+        }
     }
 
     protected function createOrGetChannel(): ModelsChannel
@@ -526,6 +554,7 @@ class CreateEngagementAction
             'creditApp' => ActionEnum::CREDIT_APP->value,
             'cosigner' => ActionEnum::CO_SIGNER->value,
             'codeShare' => ActionEnum::SHARE_BLUELINK->value,
+            'messageVideos' => ActionEnum::MESSAGE_VIDEO->value,
             default => $actionSlug,
         };
     }

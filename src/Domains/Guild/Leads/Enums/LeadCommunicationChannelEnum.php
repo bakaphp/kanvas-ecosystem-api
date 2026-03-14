@@ -10,4 +10,5 @@ enum LeadCommunicationChannelEnum: string
     case SMS = 'sms';
     case EMAIL = 'email';
     case MAILGUN = 'mailgun-email';
+    case VOICE = 'voice';
 }
