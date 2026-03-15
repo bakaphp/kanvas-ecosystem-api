@@ -26,7 +26,6 @@ use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 
@@ -1108,20 +1107,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     private function persistVaultToken(Payments $payment, AzulPaymentResponse $response): void
     {
-        Log::debug('persistVaultToken called', [
-            'payment_id'       => $payment->id,
-            'has_token'        => ! empty($response->dataVaultToken),
-            'has_payment_method' => (bool) $payment->paymentMethod,
-            'data_vault_token' => $response->dataVaultToken,
-            'brand'            => $response->brand,
-            'masked_card'      => $response->maskedCardNumber,
-            'expiration'       => $response->expiration,
-        ]);
-
         if (empty($response->dataVaultToken) || ! $payment->paymentMethod) {
-            Log::debug('persistVaultToken: early return', [
-                'reason' => empty($response->dataVaultToken) ? 'no dataVaultToken' : 'no paymentMethod',
-            ]);
             return;
         }
 
