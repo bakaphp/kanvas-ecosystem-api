@@ -44,11 +44,6 @@ class OrderItem extends Data
             $variant = Variants::getByIdFromCompanyApp($request['variant_id'], $company, $app);
         }
 
-        if (isset($request['price'])) {
-            $price = (float) $request['price'];
-        } else {
-            $warehouse = $region->warehouses()->firstOrFail(); //@todo get product warehouse with stock
-            $price = (float) $variant->getPrice($warehouse, Channels::getDefault($company, $app));
         // Warehouse resolution with fallback logic
         if ($allowCrossCompanyVariants) {
             $warehouse = null;
@@ -100,7 +95,9 @@ class OrderItem extends Data
         }
 
         // Price resolution with multiple fallback strategies
-        if (! isset($request['price'])) {
+        if (isset($request['price'])) {
+            $price = (float) $request['price'];
+        } else {
             $price = 0.0;
 
             // Strategy 1: Try provider's channel if using provider's warehouse
@@ -129,8 +126,6 @@ class OrderItem extends Data
                     $price = (float) $variantWarehouse->price;
                 }
             }
-        } else {
-            $price = (float) $request['price'];
         }
 
         $channelId = $request['channel_id'] ?? $request['attributes']['channel_id'] ?? null;
