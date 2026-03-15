@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Azul;
 
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Azul\DataTransferObject\AzulPaymentRequest;
 use Kanvas\Connectors\Azul\Enums\TransactionTypeEnum;
 use Kanvas\Connectors\Azul\Services\AzulService;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class AzulBase extends TestCase
@@ -31,6 +33,19 @@ class AzulBase extends TestCase
         if (empty($certPath) || empty($keyPath)) {
             $this->markTestSkipped('Azul mTLS certificate paths not configured (TEST_AZUL_CERT_PATH / AZUL_CERT_PATH)');
         }
+    }
+
+    /**
+     * Override createUser() so that when createApplication() calls it during bootstrap,
+     * Scout indexing jobs are deferred to the array queue (not run synchronously).
+     * This prevents the Typesense "api_key not defined" error when the app has
+     * search_engine=typesense configured but no Typesense credentials are set in the test env.
+     */
+    public function createUser(): Users
+    {
+        Bus::fake();
+
+        return parent::createUser();
     }
 
     protected function getCredentials(): array
