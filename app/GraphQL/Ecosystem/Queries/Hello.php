@@ -11,8 +11,8 @@ class Hello
         return 'Kanvas Ecosystem!';
     }
 
-    public function resolve2025($rootValue, array $args): string
+    public function resolve2026($rootValue, array $args): string
     {
-        return 'Hello Ecosystem 2025-01!';
+        return 'Hello Ecosystem 2026-01!';
     }
 }

@@ -17,4 +17,6 @@ enum ConfigurationEnum: string
     case UN_RESPONDED_SALESPERSON_MESSAGES = 'un_responded_salesperson_messages';
     case AI_MODE = 'ai_mode';
     case ALLOW_CALL_APPOINTMENTS = 'allow_call_appointments';
+    case GIF_DURATION_SECONDS = 'engagement_gif_duration_seconds';
+    case ENABLE_VIDEO_GIF_GENERATION = 'engagement_enable_video_gif_generation';
 }

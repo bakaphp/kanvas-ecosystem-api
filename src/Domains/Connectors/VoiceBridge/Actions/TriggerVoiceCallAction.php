@@ -62,7 +62,7 @@ class TriggerVoiceCallAction
                 userId: $this->userId,
                 sessionId: $this->sessionId,
                 phoneNumber: $this->phoneNumber,
-                companyId: $companyId ?: null,
+                companyId: $companyId ? (string) $companyId : null,
             );
     }
 }
