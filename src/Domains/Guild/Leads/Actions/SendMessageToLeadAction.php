@@ -54,7 +54,7 @@ class SendMessageToLeadAction
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
-            LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage(),
+            LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
     }
@@ -366,14 +366,18 @@ class SendMessageToLeadAction
         return [];
     }
 
-    protected function sendVoiceMessage(): array
+    protected function sendVoiceMessage(string $instructions = ''): array
     {
         $agent = Agent::fromApp($this->lead->app)
             ->fromCompany($this->lead->company)
             ->where('name', 'voiceOutreachAgent')
             ->firstOrFail();
 
-        $sessionResult = InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
+        $sessionResult = InitVoiceSessionAction::fromLead(
+            $this->lead,
+            $agent,
+            $instructions ?: null
+        )->execute();
         $callResult = TriggerVoiceCallAction::fromLead($this->lead)->execute();
 
         return array_merge($sessionResult, $callResult);
