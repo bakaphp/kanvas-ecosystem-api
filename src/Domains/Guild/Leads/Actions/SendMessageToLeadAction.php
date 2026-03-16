@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
-use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
@@ -31,6 +30,7 @@ use Ramsey\Uuid\Uuid;
 class SendMessageToLeadAction
 {
     protected array $processedFiles = [];
+    protected array $videoEngagements = [];
 
     public function __construct(
         protected Lead $lead,
@@ -47,6 +47,7 @@ class SendMessageToLeadAction
     ): array {
         if ($files !== null && $files->isNotEmpty()) {
             $this->processedFiles = $this->prepareFiles($files);
+            $this->createVideoEngagements();
         }
 
         return match ($channel) {
@@ -58,9 +59,6 @@ class SendMessageToLeadAction
         };
     }
 
-    /**
-     * Prepare files for sending.
-     */
     protected function prepareFiles(Collection $files): array
     {
         $processed = [];
@@ -74,6 +72,7 @@ class SendMessageToLeadAction
                 'name' => $file->name,
                 'type' => $mediaType,
                 'file_type' => $fileType,
+                'filesystem' => null,
             ];
 
             if ($mediaType->isVideo()) {
@@ -83,9 +82,13 @@ class SendMessageToLeadAction
                     $this->lead->user,
                     $file->url
                 )->execute();
+
                 if ($processedVideo !== null) {
-                    $processed[] = $processedVideo['video'];
-                    $processed[] = $processedVideo['gif'];
+                    $processed[] = [
+                        'is_processed_video' => true,
+                        'video' => $processedVideo['video'],
+                        'gif' => $processedVideo['gif'],
+                    ];
                 } else {
                     $processed[] = $fileData;
                 }
@@ -97,17 +100,67 @@ class SendMessageToLeadAction
         return $processed;
     }
 
-    /**
-     * Get processed video and GIF filesystem records.
-     *
-     * @return array<Filesystem>
-     */
+    protected function createVideoEngagements(): void
+    {
+        foreach ($this->processedFiles as $file) {
+            if (! isset($file['is_processed_video']) || ! $file['is_processed_video']) {
+                continue;
+            }
+
+            $filesystems = [];
+            if (isset($file['video']['filesystem'])) {
+                $filesystems[] = $file['video']['filesystem'];
+            }
+            if (isset($file['gif']['filesystem'])) {
+                $filesystems[] = $file['gif']['filesystem'];
+            }
+
+            if (empty($filesystems)) {
+                continue;
+            }
+
+            try {
+                $engagementData = new EngagementData(
+                    app: $this->lead->app,
+                    company: $this->lead->company,
+                    user: $this->lead->user,
+                    lead: $this->lead,
+                    action: 'message-video',
+                    requestId: Uuid::uuid4()->toString(),
+                    source: 'video-message',
+                    status: ActionStatusEnum::SENT,
+                    files: $filesystems,
+                );
+
+                $engagement = new CreateEngagementAction($engagementData, true)->execute();
+                $engagementUrl = $engagement->message->message['action_link'] ?? '';
+
+                if (! empty($engagementUrl)) {
+                    $this->videoEngagements[] = [
+                        'engagement' => $engagement,
+                        'url' => $engagementUrl,
+                        'gif_url' => $file['gif']['url'] ?? null,
+                    ];
+                }
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+    }
+
     public function getProcessedFilesystems(): array
     {
         $filesystems = [];
 
         foreach ($this->processedFiles as $file) {
-            if (isset($file['filesystem'])) {
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                if (isset($file['video']['filesystem'])) {
+                    $filesystems[] = $file['video']['filesystem'];
+                }
+                if (isset($file['gif']['filesystem'])) {
+                    $filesystems[] = $file['gif']['filesystem'];
+                }
+            } elseif (isset($file['filesystem']) && $file['filesystem'] instanceof Filesystem) {
                 $filesystems[] = $file['filesystem'];
             }
         }
@@ -115,17 +168,19 @@ class SendMessageToLeadAction
         return $filesystems;
     }
 
-    /**
-     * Get processed video and GIF URLs for engagement.
-     *
-     * @return array<string>
-     */
     public function getProcessedFilesUrls(): array
     {
         $urls = [];
 
         foreach ($this->processedFiles as $file) {
-            if (isset($file['filesystem'])) {
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                if (isset($file['video']['url'])) {
+                    $urls[] = $file['video']['url'];
+                }
+                if (isset($file['gif']['url'])) {
+                    $urls[] = $file['gif']['url'];
+                }
+            } elseif (isset($file['url'])) {
                 $urls[] = $file['url'];
             }
         }
@@ -133,26 +188,9 @@ class SendMessageToLeadAction
         return $urls;
     }
 
-    /**
-     * Get files grouped by media type.
-     */
-    protected function getFilesGroupedByType(): array
+    public function getVideoEngagements(): array
     {
-        $grouped = [
-            MediaTypeEnum::IMAGE->value => [],
-            MediaTypeEnum::VIDEO->value => [],
-            MediaTypeEnum::AUDIO->value => [],
-            MediaTypeEnum::DOCUMENT->value => [],
-        ];
-
-        foreach ($this->processedFiles as $file) {
-            $type = $file['type']->value;
-            if (isset($grouped[$type])) {
-                $grouped[$type][] = $file;
-            }
-        }
-
-        return $grouped;
+        return $this->videoEngagements;
     }
 
     protected function sendWhatsAppMessage(string $message): array
@@ -160,35 +198,10 @@ class SendMessageToLeadAction
         $isFromWhatsapp = (bool) $this->lead->get(ConfigurationEnum::IS_FROM_WHATSAPP->value);
         $hasOutboundConfigured = ! empty($this->lead->app->get(WaSenderConfigurationEnum::BASE_URL_OUTBOUND->value));
 
-        if (! $isFromWhatsapp && $hasOutboundConfigured) {
-            return $this->sendWhatsappMessageByOutbound($message);
-        }
-
-        $whatsAppMessageService = new MessageService(
-            $this->lead->app,
-            $this->lead->company
-        );
-
-        $cellphone = $this->lead->people->getCellPhones()->first()?->value;
-
-        if (! $cellphone) {
-            throw new InvalidArgumentException('Lead does not have a cellphone number');
-        }
-        $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
-
-        $this->sendWhatsAppMediaFiles($whatsAppMessageService, $cellphone);
-
-        $result = $whatsAppMessageService->sendTextMessage($cellphone, $message);
-
-        return $result;
-    }
-
-    protected function sendWhatsappMessageByOutbound(string $message): array
-    {
         $whatsAppMessageService = new MessageService(
             $this->lead->app,
             $this->lead->company,
-            outbound: true
+            outbound: ! $isFromWhatsapp && $hasOutboundConfigured
         );
 
         $cellphone = $this->lead->people->getCellPhones()->first()?->value;
@@ -199,9 +212,8 @@ class SendMessageToLeadAction
         $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
 
         $this->sendWhatsAppMediaFiles($whatsAppMessageService, $cellphone);
-        $result = $whatsAppMessageService->sendTextMessage($cellphone, $message);
 
-        return $result;
+        return $whatsAppMessageService->sendTextMessage($cellphone, $message);
     }
 
     protected function sendWhatsAppMediaFiles(MessageService $messageService, string $cellphone): void
@@ -210,76 +222,34 @@ class SendMessageToLeadAction
             return;
         }
 
-        $groupedFiles = $this->getFilesGroupedByType();
-        $delay = 30; // seconds before each file to avoid API rate limiting
+        $delay = 30;
 
-        // Process videos first - create engagement and send URL instead of video
-        foreach ($groupedFiles[MediaTypeEnum::VIDEO->value] as $file) {
-            if (isset($file['filesystem'])) {
-                // Video was processed, create engagement and send URL
-                $engagement = $this->createVideoEngagement($file);
-                if ($engagement !== null) {
-                    $engagementUrl = $this->getEngagementUrl($engagement);
-                    $messageService->sendTextMessage($cellphone, $engagementUrl);
-                }
-            } else {
-                // Video not processed, send directly
-                $messageService->sendVideoMessage($cellphone, $file['url']);
+        foreach ($this->videoEngagements as $videoEngagement) {
+            if (! empty($videoEngagement['url'])) {
+                $messageService->sendTextMessage($cellphone, $videoEngagement['url']);
             }
             sleep($delay);
         }
 
-        // Send images (including generated GIFs)
-        foreach ($groupedFiles[MediaTypeEnum::IMAGE->value] as $file) {
+        foreach ($this->processedFiles as $file) {
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                continue;
+            }
+
+            $type = $file['type'] ?? null;
+            if (! $type instanceof MediaTypeEnum) {
+                continue;
+            }
+
             sleep($delay);
-            $messageService->sendImageMessage($cellphone, $file['url']);
+
+            match ($type) {
+                MediaTypeEnum::IMAGE => $messageService->sendImageMessage($cellphone, $file['url']),
+                MediaTypeEnum::VIDEO => $messageService->sendVideoMessage($cellphone, $file['url']),
+                MediaTypeEnum::AUDIO => $messageService->sendAudioMessage($cellphone, $file['url']),
+                MediaTypeEnum::DOCUMENT => $messageService->sendDocumentMessage($cellphone, $file['url'], $file['name'] ?? null),
+            };
         }
-
-        foreach ($groupedFiles[MediaTypeEnum::DOCUMENT->value] as $file) {
-            sleep($delay);
-            $messageService->sendDocumentMessage($cellphone, $file['url'], $file['name'] ?? null);
-        }
-
-        foreach ($groupedFiles[MediaTypeEnum::AUDIO->value] as $file) {
-            sleep($delay);
-            $messageService->sendAudioMessage($cellphone, $file['url']);
-        }
-    }
-
-    /**
-     * Create an engagement for video files.
-     */
-    protected function createVideoEngagement(array $videoFile): ?EngagementModel
-    {
-        try {
-            $filesystems = $this->getProcessedFilesystems();
-
-            $engagementData = new EngagementData(
-                app: $this->lead->app,
-                company: $this->lead->company,
-                user: $this->lead->user,
-                lead: $this->lead,
-                action: 'message-video',
-                requestId: Uuid::uuid4()->toString(),
-                source: 'video-message',
-                status: ActionStatusEnum::SENT,
-                files: $filesystems,
-            );
-
-            return new CreateEngagementAction($engagementData)->execute();
-        } catch (Exception $e) {
-            report($e);
-
-            return null;
-        }
-    }
-
-    /**
-     * Get the engagement URL for sharing.
-     */
-    protected function getEngagementUrl(EngagementModel $engagement): string
-    {
-        return $engagement->message->message['action_link'] ?? '';
     }
 
     protected function sendSmsMessage(string $from, string $message): array
@@ -294,11 +264,10 @@ class SendMessageToLeadAction
 
         $cellphone = $this->hijackPhoneNumber($cellphone, 'twilio-');
 
-        // Process videos and get engagement URLs
-        $videoEngagementUrls = $this->processVideosForSms();
+        $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
         $fullMessage = $message;
-        if (! empty($videoEngagementUrls)) {
-            $fullMessage .= "\n\n" . implode("\n", $videoEngagementUrls);
+        if (! empty($engagementUrls)) {
+            $fullMessage .= "\n\n" . implode("\n", $engagementUrls);
         }
 
         $messageData = [
@@ -316,61 +285,37 @@ class SendMessageToLeadAction
         return [$twilioMessage->body];
     }
 
-    /**
-     * Process videos for SMS and return engagement URLs.
-     *
-     * @return array<string>
-     */
-    protected function processVideosForSms(): array
-    {
-        if (empty($this->processedFiles)) {
-            return [];
-        }
-
-        $groupedFiles = $this->getFilesGroupedByType();
-        $engagementUrls = [];
-
-        foreach ($groupedFiles[MediaTypeEnum::VIDEO->value] as $file) {
-            if (isset($file['filesystem'])) {
-                $engagement = $this->createVideoEngagement($file);
-                if ($engagement !== null) {
-                    $engagementUrl = $this->getEngagementUrl($engagement);
-                    if (! empty($engagementUrl)) {
-                        $engagementUrls[] = $engagementUrl;
-                    }
-                }
-            }
-        }
-
-        return $engagementUrls;
-    }
-
-    /**
-     * Get media URLs for Twilio MMS (max 10 per message).
-     * Excludes processed videos since they are sent as engagement URLs.
-     */
     protected function getMediaUrlsForTwilio(): array
     {
         if (empty($this->processedFiles)) {
             return [];
         }
 
-        $groupedFiles = $this->getFilesGroupedByType();
         $mediaUrls = [];
         $maxUrls = 10;
 
-        foreach ($groupedFiles[MediaTypeEnum::IMAGE->value] as $file) {
+        foreach ($this->videoEngagements as $videoEngagement) {
             if (count($mediaUrls) >= $maxUrls) {
                 break;
             }
-            $mediaUrls[] = $file['url'];
+            if (! empty($videoEngagement['gif_url'])) {
+                $mediaUrls[] = $videoEngagement['gif_url'];
+            }
         }
 
-        foreach ($groupedFiles[MediaTypeEnum::AUDIO->value] as $file) {
+        foreach ($this->processedFiles as $file) {
             if (count($mediaUrls) >= $maxUrls) {
                 break;
             }
-            $mediaUrls[] = $file['url'];
+
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                continue;
+            }
+
+            $type = $file['type'] ?? null;
+            if ($type === MediaTypeEnum::IMAGE || $type === MediaTypeEnum::AUDIO) {
+                $mediaUrls[] = $file['url'];
+            }
         }
 
         return $mediaUrls;
@@ -381,7 +326,21 @@ class SendMessageToLeadAction
         ?string $title = null,
         bool $signature = true
     ): array {
-        $attachments = $this->getAttachmentUrlsForEmail();
+        $attachments = [];
+
+        $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
+        if (! empty($engagementUrls)) {
+            $message .= "\n\n" . implode("\n", $engagementUrls);
+        }
+
+        foreach ($this->processedFiles as $file) {
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                continue;
+            }
+            if (isset($file['url'])) {
+                $attachments[] = $file['url'];
+            }
+        }
 
         $notification = new Blank(
             'first-time-agent-engagement',
@@ -445,7 +404,6 @@ class SendMessageToLeadAction
             $overwriteConfig = $this->lead->company->get('overwrite_phone_number');
 
             $phone = array_filter($overwriteConfig, function ($value) use ($cellphone) {
-                //return preg_replace('/^\+?1/', '', $cellphone);
                 return Str::normalizePhoneNumber($cellphone);
             });
             if (! $phone) {

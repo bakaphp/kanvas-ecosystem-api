@@ -55,7 +55,7 @@ class TestCase extends BaseTestCase
 
         $routeName = match ($this->graphqlVersion) {
             'graphql' => $config->get('lighthouse.route.name'),
-            'graphql-2025-01' => $config->get('lighthouse-multi-schema.multi_schemas.schema1.route_name'),
+            'graphql-2026-01' => $config->get('lighthouse-multi-schema.multi_schemas.schema1.route_name'),
             default => $config->get('lighthouse.route.name'),
         };
 

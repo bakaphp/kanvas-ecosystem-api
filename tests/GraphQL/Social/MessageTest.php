@@ -157,7 +157,7 @@ class MessageTest extends TestCase
     public function testUpdateMessageWithIsLocked(): void
     {
         $messageType = MessageType::factory()->create();
-        $createResponse = $this->graphQL('{
+        $createResponse = $this->graphQL('
             mutation($input: MessageInput!) {
                 createMessage(input: $input) {
                     id
@@ -173,7 +173,7 @@ class MessageTest extends TestCase
 
         $id = $createResponse->json('data.createMessage.id');
 
-        $this->graphQL('{
+        $this->graphQL('
             mutation($id: ID!, $input: MessageUpdateInput!) {
                 updateMessage(id: $id, input: $input) {
                     id
