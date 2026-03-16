@@ -69,12 +69,9 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
     private function getPaymentIdFromUrl(): ?string
     {
         $url = $this->webhookRequest->url ?? '';
+        parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
 
-        if (preg_match('/[?&]payment_id=(\d+)/', $url, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return $query['payment_id'] ?? null;
     }
 
     private function notifyParent(?string $transId): string

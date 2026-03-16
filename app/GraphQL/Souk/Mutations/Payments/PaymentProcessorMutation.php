@@ -30,7 +30,7 @@ class PaymentProcessorMutation
                 return ['status' => 'error', 'message' => 'Payment is already paid'];
             }
 
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
 
             if ($order->isPaid()) {
                 return ['status' => 'error', 'message' => 'Order is already paid'];
@@ -71,7 +71,7 @@ class PaymentProcessorMutation
                 return ['status' => 'error', 'message' => 'Payment is not in authorized status. Current status: ' . $payment->status];
             }
 
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
@@ -100,7 +100,7 @@ class PaymentProcessorMutation
                 return ['status' => 'error', 'message' => 'Payment cannot be refunded. Current status: ' . $payment->status];
             }
 
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
             $amount = isset($request['amount']) ? (float) $request['amount'] : null;
 
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor, $app, $payment->company);
@@ -124,7 +124,7 @@ class PaymentProcessorMutation
 
         try {
             $payment = Payments::getByIdFromCompanyApp((int) $request['paymentId'], $user->getCurrentCompany(), $app);
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
 
             $processor = ProcessorFactory::make($payment->paymentMethod?->processor ?? $payment->processor, $app, $payment->company);
             $result = $processor->void($payment, $order);
@@ -152,7 +152,7 @@ class PaymentProcessorMutation
                 return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
 
             if ($order->isPaid()) {
                 return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
@@ -281,7 +281,7 @@ class PaymentProcessorMutation
                 return ['success' => true, 'message' => 'Payment is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $order = $payment->order ?? throw new \RuntimeException('Order not found for this payment');
+            $order = $payment->order ?? throw new RuntimeException('Order not found for this payment');
 
             if ($order->isPaid()) {
                 return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
