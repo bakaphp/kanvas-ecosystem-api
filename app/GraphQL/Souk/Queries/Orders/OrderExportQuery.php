@@ -17,6 +17,11 @@ use Nuwave\Lighthouse\WhereConditions\SQLOperator;
 
 class OrderExportQuery
 {
+    private const DATE_COLUMNS = [
+        'created_at',
+        'updated_at',
+    ];
+
     public function export(
         mixed $root,
         array $args,
@@ -33,7 +38,7 @@ class OrderExportQuery
 
         try {
             $user = auth()->user();
-            $ordersQuery = $this->getOrdersQuery($app, $company, $args);
+            $ordersQuery = $this->getOrdersQuery($app, $company, $args, $timezone);
 
             // Check if there are any orders first
             if ($ordersQuery->count() === 0) {
@@ -69,7 +74,8 @@ class OrderExportQuery
     public function getOrdersQuery(
         Apps $app,
         Companies $company,
-        array $args
+        array $args,
+        ?string $timezone = null
     ): Builder {
         // Build the query with the same filters as the orders query
         $query = Order::query()
@@ -93,7 +99,8 @@ class OrderExportQuery
         if (isset($args['where']) && is_array($args['where'])) {
             $query = $this->applyWhereConditions(
                 $query,
-                $args['where'] ?? []
+                $args['where'] ?? [],
+                $timezone
             );
         }
 
@@ -134,7 +141,7 @@ class OrderExportQuery
         return $query;
     }
 
-    public function applyWhereConditions(Builder $query, array $conditions = []): Builder
+    public function applyWhereConditions(Builder $query, array $conditions = [], ?string $timezone = null): Builder
     {
         $operatorMap = [
             'EQ' => '=',
@@ -148,14 +155,14 @@ class OrderExportQuery
 
         // Handle main condition
         if (isset($conditions['column'], $conditions['value'])) {
-            $this->applySingleCondition($query, $conditions, $operatorMap);
+            $this->applySingleCondition($query, $conditions, $operatorMap, $timezone);
         }
 
         // Handle AND conditions
         if (isset($conditions['AND']) && is_array($conditions['AND'])) {
             foreach ($conditions['AND'] as $andCondition) {
                 if (is_array($andCondition) && isset($andCondition['column'], $andCondition['value'])) {
-                    $this->applySingleCondition($query, $andCondition, $operatorMap);
+                    $this->applySingleCondition($query, $andCondition, $operatorMap, $timezone);
                 }
             }
         }
@@ -163,7 +170,7 @@ class OrderExportQuery
         return $query;
     }
 
-    private function applySingleCondition(Builder $query, array $condition, array $operatorMap): void
+    private function applySingleCondition(Builder $query, array $condition, array $operatorMap, ?string $timezone = null): void
     {
         $column = $condition['column'];
         $operator = strtoupper($condition['operator'] ?? 'EQ');
@@ -174,13 +181,29 @@ class OrderExportQuery
             $column = strtolower($column);
         }
 
+        $isDateColumn = in_array($column, self::DATE_COLUMNS);
+
         if ($operator === 'BETWEEN' && is_array($value) && count($value) >= 2) {
-            $query->whereBetween($column, [$value[0], $value[1]]);
+            if ($isDateColumn && $timezone) {
+                $query->whereRaw(
+                    "CONVERT_TZ({$column}, 'UTC', ?) BETWEEN ? AND ?",
+                    [$timezone, $value[0], $value[1]]
+                );
+            } else {
+                $query->whereBetween($column, [$value[0], $value[1]]);
+            }
         } elseif (in_array($operator, ['IN', 'NOT_IN'])) {
             $method = $operator === 'IN' ? 'whereIn' : 'whereNotIn';
             $query->{$method}($column, (array) $value);
         } elseif (array_key_exists($operator, $operatorMap)) {
-            $query->where($column, $operatorMap[$operator], $value);
+            if ($isDateColumn && $timezone) {
+                $query->whereRaw(
+                    "CONVERT_TZ({$column}, 'UTC', ?) {$operatorMap[$operator]} ?",
+                    [$timezone, $value]
+                );
+            } else {
+                $query->where($column, $operatorMap[$operator], $value);
+            }
         }
     }
 }
