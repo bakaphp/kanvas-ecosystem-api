@@ -11,10 +11,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
-use Kanvas\Connectors\VoiceBridge\Actions\SendVoiceMessageAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
-use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -98,10 +96,6 @@ class MessageManagementMutation
                'app' => $app,
             ]
         );
-
-        if ($messageData['message_verb'] === LeadCommunicationChannelEnum::VOICE->value) {
-            new SendVoiceMessageAction($message)->execute();
-        }
 
         if (! key_exists('distribution', $messageData)) {
             return $message;
