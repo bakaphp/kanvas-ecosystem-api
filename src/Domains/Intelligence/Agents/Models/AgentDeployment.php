@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -31,6 +32,7 @@ use Override;
  */
 class AgentDeployment extends BaseModel
 {
+    use DatabaseSearchableTrait;
     use UuidTrait;
 
     protected $table = 'agent_deployments';
@@ -76,5 +78,23 @@ class AgentDeployment extends BaseModel
     public function isRunning(): bool
     {
         return $this->status === 'running';
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'agent_deployments_index';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'container_name' => $this->container_name,
+            'system_user' => $this->system_user,
+            'status' => $this->status,
+        ];
     }
 }

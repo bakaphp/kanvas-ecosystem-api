@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\OpenClaw\Mutations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
+use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 
 class AgentDeploymentMutation
 {
@@ -84,5 +87,34 @@ class AgentDeploymentMutation
         $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
 
         return new GetAgentContainerStatusAction($deployment)->execute();
+    }
+
+    public function collectUsage(mixed $root, array $request): AgentUsageSnapshot
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        return new CollectDeploymentUsageAction(
+            $deployment,
+            $app,
+            $company,
+        )->execute();
+    }
+
+    public function setSlackTokens(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $agent->set(CustomFieldEnum::SLACK_BOT_TOKEN->value, $request['slack_bot_token']);
+        $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $request['slack_app_token']);
+
+        return true;
     }
 }

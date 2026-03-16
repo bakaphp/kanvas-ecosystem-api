@@ -179,6 +179,13 @@ class DockerComposeBuilder
                     'mode' => 'token',
                     'token' => $gatewayToken,
                 ],
+                'http' => [
+                    'endpoints' => [
+                        'responses' => [
+                            'enabled' => true,
+                        ],
+                    ],
+                ],
                 'tailscale' => [
                     'mode' => 'off',
                     'resetOnExit' => false,

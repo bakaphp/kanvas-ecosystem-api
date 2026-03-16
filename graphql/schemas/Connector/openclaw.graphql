@@ -1,11 +1,21 @@
 type AgentUsageSnapshot {
     id: ID!
     uuid: String!
+    agent_deployment_id: ID
     snapshot_date: String!
     source: String!
+    input_tokens: Int!
+    output_tokens: Int!
+    total_tokens: Int!
+    cache_read_tokens: Int!
+    cache_write_tokens: Int!
+    provider: String
+    model: String
+    total_sessions: Int!
     raw_output: String!
     parsed_data: JSON
     created_at: DateTime!
+    deployment: AgentDeploymentType @belongsTo
 }
 
 type AgentMachineType {
@@ -78,8 +88,9 @@ input LaunchAgentInput {
 
 extend type Query @guardByAdmin {
     agentUsageSnapshots(
-        where: _ @whereConditions(columns: ["id", "snapshot_date", "source"])
-        orderBy: _ @orderBy(columns: ["id", "snapshot_date", "created_at"])
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "agent_deployment_id", "snapshot_date", "source", "provider", "model"])
+        orderBy: _ @orderBy(columns: ["id", "snapshot_date", "total_tokens", "created_at"])
     ): [AgentUsageSnapshot!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
@@ -88,7 +99,8 @@ extend type Query @guardByAdmin {
         )
 
     agentMachines(
-        where: _ @whereConditions(columns: ["id", "name", "region", "is_active"])
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "slug", "region", "is_active"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
     ): [AgentMachineType!]!
         @paginate(
@@ -98,6 +110,7 @@ extend type Query @guardByAdmin {
         )
 
     agentDeployments(
+        search: String @search
         where: _ @whereConditions(columns: ["id", "agent_id", "agent_machine_id", "status"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "launched_at"])
     ): [AgentDeploymentType!]!
@@ -167,5 +180,14 @@ extend type Mutation @guardByAdmin {
     agentContainerStatus(deployment_id: ID!): AgentDeploymentType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@status"
+        )
+    collectDeploymentUsage(deployment_id: ID!): AgentUsageSnapshot!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@collectUsage"
+        )
+
+    setAgentSlackTokens(agent_id: ID!, slack_bot_token: String!, slack_app_token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
         )
 }

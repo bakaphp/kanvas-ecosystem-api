@@ -7,7 +7,9 @@ namespace Tests\Connectors\Integration\OpenClaw;
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentOnMachineAction;
+use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
+use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\LaunchAgentOnMachineAction;
 use Kanvas\Connectors\OpenClaw\Actions\RestartAgentContainerAction;
@@ -232,6 +234,54 @@ class AgentDeploymentTest extends TestCase
         echo "\nTo clean up later:\n";
         echo "  ssh {$machine->ssh_user}@{$machine->host} \"sudo -u {$deployment->system_user} bash -c 'cd {$deployment->home_directory}/.openclaw && docker compose down' && sudo userdel -r {$deployment->system_user}\"\n";
         echo "===================================\n\n";
+    }
+
+    public function testCollectDeploymentUsage(): void
+    {
+        if (! $this->hasOpenClawCredentials()) {
+            $this->markTestSkipped('OpenClaw SSH credentials not configured');
+        }
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $deployment = AgentDeployment::where('apps_id', $app->getId())
+            ->where('status', 'running')
+            ->where('is_deleted', 0)
+            ->latest()
+            ->first();
+
+        if (! $deployment) {
+            $this->markTestSkipped('No running deployment found — run testDeployAndKeepRunning first');
+        }
+
+        $snapshot = new CollectDeploymentUsageAction(
+            $deployment,
+            $app,
+            $company,
+        )->execute();
+
+        $this->assertInstanceOf(AgentUsageSnapshot::class, $snapshot);
+        $this->assertEquals('openclaw_docker', $snapshot->source);
+        $this->assertIsArray($snapshot->parsed_data);
+        $this->assertArrayHasKey('deployment_id', $snapshot->parsed_data);
+        $this->assertArrayHasKey('totals', $snapshot->parsed_data);
+        $this->assertArrayHasKey('sessions', $snapshot->parsed_data);
+
+        $totals = $snapshot->parsed_data['totals'];
+        $this->assertArrayHasKey('input_tokens', $totals);
+        $this->assertArrayHasKey('output_tokens', $totals);
+        $this->assertArrayHasKey('total_tokens', $totals);
+
+        echo "\n=== USAGE SNAPSHOT ===\n";
+        echo "Snapshot ID: {$snapshot->getId()}\n";
+        echo "Sessions: {$snapshot->parsed_data['total_sessions']}\n";
+        echo "Input tokens: {$totals['input_tokens']}\n";
+        echo "Output tokens: {$totals['output_tokens']}\n";
+        echo "Total tokens: {$totals['total_tokens']}\n";
+        echo "Cache read: {$totals['cache_read']}\n";
+        echo "Cache write: {$totals['cache_write']}\n";
+        echo "======================\n";
     }
 
     public function testDeployChatAndCleanup(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +32,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  */
 class AgentMachine extends BaseModel
 {
+    use DatabaseSearchableTrait;
     use UuidTrait;
     use SlugTrait;
 
@@ -110,5 +112,23 @@ class AgentMachine extends BaseModel
     public function connectSsh(): SshClient
     {
         return SshClient::fromMachine($this);
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'agent_machines_index';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'host' => $this->host,
+            'region' => $this->region,
+        ];
     }
 }

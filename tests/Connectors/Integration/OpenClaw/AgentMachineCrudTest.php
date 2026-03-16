@@ -14,7 +14,7 @@ class AgentMachineCrudTest extends TestCase
     public function testCreateAgentMachine(): void
     {
         $input = [
-            'name' => 'Test Machine ' . fake()->word(),
+            'name' => 'Test Machine ' . fake()->uuid(),
             'host' => '192.168.1.100',
             'ssh_port' => 22,
             'ssh_user' => 'deploy',
