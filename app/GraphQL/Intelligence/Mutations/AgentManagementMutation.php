@@ -30,6 +30,8 @@ class AgentManagementMutation
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
 
+        $input = $this->mapRoleToFields($input);
+
         $agentDTO = new AgentDTO(
             app: $app,
             company: $company,
@@ -74,6 +76,8 @@ class AgentManagementMutation
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
 
+        $input = $this->mapRoleToFields($input);
+
         $agentDTO = new AgentDTO(
             app: $app,
             company: $company,
@@ -114,6 +118,31 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    /**
+     * When role is provided and soul/instructions are not explicitly set,
+     * auto-populate them from role['background'] and role['steps'] for backward compatibility.
+     */
+    private function mapRoleToFields(array $input): array
+    {
+        $role = $input['role'] ?? null;
+
+        if (! is_array($role)) {
+            return $input;
+        }
+
+        if (empty($input['soul']) && ! empty($role['background'])) {
+            $background = $role['background'];
+            $input['soul'] = is_array($background) ? implode("\n", $background) : (string) $background;
+        }
+
+        if (empty($input['instructions']) && ! empty($role['steps'])) {
+            $steps = $role['steps'];
+            $input['instructions'] = is_array($steps) ? implode("\n", $steps) : (string) $steps;
+        }
+
+        return $input;
     }
 
     /**
