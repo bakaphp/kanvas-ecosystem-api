@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection as SupportCollection;
 use Kanvas\Guild\Models\BaseModel;
 use RuntimeException;
 
@@ -43,7 +44,7 @@ class LeadRotation extends BaseModel
         return $this->agents()->where('is_deleted', 0);
     }
 
-    public function getActiveUsers(): Collection
+    public function getActiveUsers(): SupportCollection
     {
         return $this->activeAgents()
             ->with('users')
