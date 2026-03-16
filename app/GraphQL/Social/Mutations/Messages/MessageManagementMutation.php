@@ -24,6 +24,9 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageManagementMutation
@@ -96,6 +99,20 @@ class MessageManagementMutation
                'app' => $app,
             ]
         );
+
+        if ($messageData['message_verb'] === LeadCommunicationChannelEnum::VOICE->value) {
+            $entity = $message->entity();
+            if ($entity instanceof Lead) {
+                $messageContent = is_array($message->message)
+                    ? ($message->message['content'] ?? $message->message['raw'] ?? '')
+                    : (string) $message->message;
+
+                new SendMessageToLeadAction($entity)->execute(
+                    LeadCommunicationChannelEnum::VOICE->value,
+                    $messageContent,
+                );
+            }
+        }
 
         if (! key_exists('distribution', $messageData)) {
             return $message;
