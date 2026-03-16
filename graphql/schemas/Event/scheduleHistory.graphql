@@ -24,7 +24,7 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [ScheduleHistory!]!
         @paginate(
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            scopes: ["fromApp", "notDeleted"]
             model: "Kanvas\\Event\\Events\\Models\\ScheduleHistory"
             defaultCount: 25
         )
