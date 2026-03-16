@@ -49,6 +49,7 @@ class PipelineStageMutation
             new PipelineStageData(
                 pipeline: $pipeline,
                 name: $input['name'],
+                slug: $input['slug'] ?? null,
                 has_rotting_days: isset($input['has_rotting_days']) ? (int) $input['has_rotting_days'] : null,
                 rotting_days: isset($input['rotting_days']) ? (int) $input['rotting_days'] : null,
                 weight: isset($input['weight']) ? (int) $input['weight'] : null,

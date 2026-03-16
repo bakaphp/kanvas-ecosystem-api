@@ -151,9 +151,9 @@ class SyncLeadWithLegacyCRMAction
      */
     protected function getReservationFields(): array
     {
-        $year = $this->lead->get('vehicleYear') ?? '';
-        $make = $this->lead->get('vehicleMake') ?? '';
-        $model = $this->lead->get('vehicleModel') ?? '';
+        $year = $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '';
+        $make = $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '';
+        $model = $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '';
         $trim = $this->lead->get('vehicleTrim') ?? '';
         $vin = $this->lead->get('vehicleVin') ?? '';
         $vehicleId = $this->lead->get('vehicleId') ?? '';
@@ -185,9 +185,9 @@ class SyncLeadWithLegacyCRMAction
 
         $addresses = $people->address()->get()->first();
 
-        $year = $this->lead->get('vehicleYear') ?? '';
-        $make = $this->lead->get('vehicleMake') ?? '';
-        $model = $this->lead->get('vehicleModel') ?? '';
+        $year = $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '';
+        $make = $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '';
+        $model = $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '';
         $trim = $this->lead->get('vehicleTrim') ?? '';
 
         return [
@@ -209,12 +209,21 @@ class SyncLeadWithLegacyCRMAction
      */
     protected function getServiceFields(): array
     {
+        $appointmentDate = (string) ($this->lead->get('preferred_date')
+            ?? $this->lead->get('appointmentDate')
+            ?? '');
+        $appointmentTime = (string) ($this->lead->get('appointmentTime') ?? '');
+
+        if ($appointmentTime !== '' && $appointmentDate !== '') {
+            $appointmentDate .= ' ' . $appointmentTime;
+        }
+
         return [
-            'preferred_date' => $this->lead->get('preferred_date') ?? '',
-            'mileage' => $this->lead->get('vehicleMileage') ?? '',
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
-            'year' => $this->lead->get('vehicleYear') ?? '',
+            'preferred_date' => $appointmentDate,
+            'mileage' => $this->lead->get('vehicleMileage') ?? $this->lead->get('mileage') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
+            'year' => $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '',
         ];
     }
 
@@ -224,9 +233,9 @@ class SyncLeadWithLegacyCRMAction
     protected function getPartFields(): array
     {
         return [
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
-            'year' => $this->lead->get('vehicleYear') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
+            'year' => $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '',
             'parts_for' => $this->lead->get('parts_for') ?? '',
             'urgency' => $this->lead->get('urgency') ?? '',
             'description' => $this->lead->get('message') ?? $this->lead->description ?? '',
@@ -239,10 +248,10 @@ class SyncLeadWithLegacyCRMAction
     protected function getTradeFields(): array
     {
         return [
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
-            'year' => $this->lead->get('vehicleYear') ?? '',
-            'mileage' => $this->lead->get('vehicleMileage') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
+            'year' => $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '',
+            'mileage' => $this->lead->get('vehicleMileage') ?? $this->lead->get('mileage') ?? '',
             'condition' => $this->lead->get('vehicleCondition') ?? 'Good',
             'vin' => $this->lead->get('vehicleVin') ?? '',
         ];
@@ -254,12 +263,12 @@ class SyncLeadWithLegacyCRMAction
     protected function getSellFields(): array
     {
         return [
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
-            'year' => $this->lead->get('vehicleYear') ?? '',
-            'mileage' => $this->lead->get('vehicleMileage') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
+            'year' => $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '',
+            'mileage' => $this->lead->get('vehicleMileage') ?? $this->lead->get('mileage') ?? '',
             'condition' => $this->lead->get('vehicleCondition') ?? 'Good',
-            'vin' => $this->lead->get('vehicleVin') ?? '',
+            'vin' => $this->lead->get('vehicleVin') ?? $this->lead->get('vin') ?? '',
         ];
     }
 
@@ -268,10 +277,10 @@ class SyncLeadWithLegacyCRMAction
      */
     protected function getTestDriveFields(): array
     {
-        $year = $this->lead->get('vehicleYear') ?? '';
-        $make = $this->lead->get('vehicleMake') ?? '';
-        $model = $this->lead->get('vehicleModel') ?? '';
-        $trim = $this->lead->get('vehicleTrim') ?? '';
+        $year = $this->lead->get('vehicleYear') ?? $this->lead->get('year') ?? '';
+        $make = $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '';
+        $model = $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '';
+        $trim = $this->lead->get('vehicleTrim') ?? $this->lead->get('trim') ?? '';
 
         return [
             'vehicle' => $this->formatVehicleNameFromFields($year, $make, $model, $trim),
@@ -291,8 +300,8 @@ class SyncLeadWithLegacyCRMAction
         return [
             'full_name' => $people->firstname . ' ' . $people->lastname,
             'shopping_status' => $this->lead->get('shopping_status') ?? 'Researching',
-            'make' => $this->lead->get('vehicleMake') ?? '',
-            'model' => $this->lead->get('vehicleModel') ?? '',
+            'make' => $this->lead->get('vehicleMake') ?? $this->lead->get('vehicleBrand') ?? '',
+            'model' => $this->lead->get('vehicleModel') ?? $this->lead->get('model') ?? '',
         ];
     }
 

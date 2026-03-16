@@ -892,7 +892,7 @@ public static function search($query = '', $callback = null)
 ## Key Conventions
 
 ### No Inline Fully-Qualified Class Names
-Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations.
+Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations, **and** catch blocks.
 
 ```php
 // WRONG — inline FQCN
@@ -901,12 +901,18 @@ $this->next_retry_at = \Illuminate\Support\Carbon::parse($retryAt);
 // WRONG — FQCN in docblock
 /** @property \Illuminate\Support\Carbon|null $approved_at */
 
+// WRONG — inline FQCN in catch block
+} catch (\Throwable $e) {
+
 // CORRECT — use import + short name everywhere
 use Illuminate\Support\Carbon;
+use Throwable;
 
 /** @property Carbon|null $approved_at */
 
 $this->next_retry_at = Carbon::parse($retryAt);
+
+} catch (Throwable $e) {
 ```
 
 ### PHP 8.4 Syntax

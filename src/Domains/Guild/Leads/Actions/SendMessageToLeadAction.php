@@ -13,6 +13,8 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
+use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
@@ -21,6 +23,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Notifications\Templates\Blank;
 use Ramsey\Uuid\Uuid;
 
@@ -51,6 +54,7 @@ class SendMessageToLeadAction
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
+            LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage(),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
     }
@@ -360,6 +364,36 @@ class SendMessageToLeadAction
         Notification::route('mail', $leadEmail)->notify($notification);
 
         return [];
+    }
+
+    protected function sendVoiceMessage(): array
+    {
+        $agent = Agent::fromApp($this->lead->app)
+            ->fromCompany($this->lead->company)
+            ->where('name', 'voiceOutreachAgent')
+            ->firstOrFail();
+
+        $sessionResult = InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
+        $callResult = TriggerVoiceCallAction::fromLead($this->lead)->execute();
+
+        return array_merge($sessionResult, $callResult);
+    }
+    /**
+     * Get attachment URLs for email.
+     */
+    protected function getAttachmentUrlsForEmail(): array
+    {
+        if (empty($this->processedFiles)) {
+            return [];
+        }
+
+        $attachments = [];
+
+        foreach ($this->processedFiles as $file) {
+            $attachments[] = $file['url'];
+        }
+
+        return $attachments;
     }
 
     protected function hijackPhoneNumber(string $cellphone, string $replace): string

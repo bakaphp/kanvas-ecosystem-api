@@ -62,9 +62,9 @@ class ProcessUserSignupLoyaltyActivity extends KanvasActivity implements Workflo
                         user: $user,
                         loyaltyProgram: $loyaltyProgram,
                         app: $app,
-                        referrerReward: isset($referralConfig['referrer_bonus']) ? (int) $referralConfig['referrer_bonus'] : 500,
-                        refereeReward: isset($referralConfig['referee_bonus']) ? (int) $referralConfig['referee_bonus'] : 100,
-                        refereeDiscount: isset($referralConfig['referee_discount']) ? (float) $referralConfig['referee_discount'] : 10.0
+                        referrerReward: isset($referralConfig['referrer_bonus']) ? (int) $referralConfig['referrer_bonus'] : 0,
+                        refereeReward: isset($referralConfig['referee_bonus']) ? (int) $referralConfig['referee_bonus'] : 0,
+                        refereeDiscount: isset($referralConfig['referee_discount']) ? (float) $referralConfig['referee_discount'] : 0.00
                     );
 
                     $referralCode = $generateReferralCode->execute();

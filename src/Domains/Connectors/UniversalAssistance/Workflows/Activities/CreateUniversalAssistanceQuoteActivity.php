@@ -21,6 +21,7 @@ class CreateUniversalAssistanceQuoteActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::UNIVERSAL_ASSISTANCE,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $service = new UniversalAssistanceService($app, $order);
 
