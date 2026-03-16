@@ -83,7 +83,7 @@ class SendDelayMessageCommand extends Command
                 }
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
                 $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
-                $hasBeenContacted = $message->entity->hasBeenContacted();
+                $hasBeenContacted = $lead->hasBeenContacted();
                 if ($isElead) {
                     // for now only work with elead, missing determining if lead was contacted
                     if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
@@ -93,11 +93,16 @@ class SendDelayMessageCommand extends Command
 
                         continue;
                     }
-                    $hasBeenContacted = SalesActivities::hasSalesAgentReachedOut(
-                        $lead->app,
-                        $lead->company,
-                        $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                    ) || $message->entity->hasBeenContacted();
+
+                    try {
+                        $hasBeenContacted = SalesActivities::hasSalesAgentReachedOut(
+                            $lead->app,
+                            $lead->company,
+                            $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                        ) || $lead->hasBeenContacted();
+                    } catch (Exception $e) {
+                        $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                    }
                 }
 
                 try {
