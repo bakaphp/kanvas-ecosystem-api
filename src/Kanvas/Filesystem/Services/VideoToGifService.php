@@ -106,11 +106,15 @@ class VideoToGifService
         $ffmpeg = FFMpeg::create();
         $video = $ffmpeg->open($videoPath);
 
+        $videoDimensions = $video->getStreams()->videos()->first()->getDimensions();
+        $aspectRatio = $videoDimensions->getHeight() / $videoDimensions->getWidth();
+        $gifHeight = (int) round(self::GIF_WIDTH * $aspectRatio);
+
         $gifFileName = 'gif_' . uniqid() . '.gif';
         $gifTempFile = tempnam(sys_get_temp_dir(), 'gif_') . '.gif';
 
         $video
-            ->gif(TimeCode::fromSeconds(0), new Dimension(self::GIF_WIDTH, 0), $gifDuration)
+            ->gif(TimeCode::fromSeconds(0), new Dimension(self::GIF_WIDTH, $gifHeight), $gifDuration)
             ->save($gifTempFile);
 
         try {
