@@ -246,6 +246,13 @@ class CreateEngagementAction
             return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
         }
 
+        $messageVideoAction = $this->app->get('message-video-link') ?? [];
+        $isMessageVideoAction = is_array($messageVideoAction) && in_array($this->actionSlug, $messageVideoAction);
+
+        if ($isMessageVideoAction) {
+            return (string) $this->app->get('MESSAGE_VIDEO_PAGE') . '/' . $engagement->uuid;
+        }
+
         return null;
     }
 
