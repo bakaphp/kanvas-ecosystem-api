@@ -71,7 +71,7 @@ class PullLeadAction
 
             try {
                 $debounce = new EleadDebounce($this->app, $this->company);
-                $isRapidCall = $debounce->shouldSkip('pull_lead', (string) $entityId, 10);
+                $isRapidCall = $debounce->shouldSkip('pull_lead', (string) $entityId, 30);
 
                 $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
                 $this->setContactStatus($lead, $eLead->subStatus);
