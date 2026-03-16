@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Traits;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\VideoToGifService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
 
@@ -237,5 +243,44 @@ trait HasFilesystemTrait
         });
 
         return $files;
+    }
+
+    public function processVideoAndGenerateGif(
+        string $videoUrl,
+        AppInterface $app,
+        CompanyInterface $company,
+        UserInterface $user
+    ): ?array {
+        $isEnabled = (bool) $company->get(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
+
+        if (! $isEnabled) {
+            return null;
+        }
+
+        try {
+            $videoToGifService = new VideoToGifService($app, $company, $user);
+            $result = $videoToGifService->processVideoUrl($videoUrl);
+
+            return [
+                'gif' => [
+                    'url' => $result['gif']->url,
+                    'name' => $result['gif']->name,
+                    'type' => MediaTypeEnum::IMAGE,
+                    'file_type' => 'gif',
+                    'filesystem' => $result['gif'],
+                ],
+                'video' => [
+                    'url' => $result['video']->url,
+                    'name' => $result['video']->name,
+                    'type' => MediaTypeEnum::VIDEO,
+                    'file_type' => pathinfo($result['video']->name, PATHINFO_EXTENSION) ?: 'mp4',
+                    'filesystem' => $result['video'],
+                ],
+            ];
+        } catch (Exception $e) {
+            report($e);
+
+            return null;
+        }
     }
 }

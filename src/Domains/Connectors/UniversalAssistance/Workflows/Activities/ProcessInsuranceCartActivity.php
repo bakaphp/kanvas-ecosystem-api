@@ -63,6 +63,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                 entity: $order,
                 app: $app,
                 integration: IntegrationsEnum::UNIVERSAL_ASSISTANCE,
+                additionalParams: $params,
                 integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                     sleep(30);
                     $order->refresh();

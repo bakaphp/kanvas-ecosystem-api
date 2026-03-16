@@ -34,17 +34,83 @@ class SetupVoiceWorkflowCommand extends Command
 
         $this->info("Setting up voice workflow for app [{$app->name}] company [{$company->name}]...");
 
+        $agentType = $this->resolveADKAgentType($app);
+
         $this->setupInternalIntegration($app, $company);
-        $this->setupAgent($app, $company, 'firstMessageEngagerAgent', $this->firstMessageEngagerRole());
-        $this->setupAgent($app, $company, 'voiceOutreachAgent', $this->voiceOutreachAgentRole());
+        $mainAgent = $this->setupAgent($app, $company, 'LeadIntentTool', $this->leadIntentToolRole(), $agentType);
+        $this->setupAgent($app, $company, 'firstMessageEngagerAgent', $this->firstMessageEngagerRole(), $agentType);
+        $this->setupAgent($app, $company, 'voiceOutreachAgent', $this->voiceOutreachAgentRole(), $agentType);
 
         $this->info('Done. Voice workflow is ready.');
         $this->newLine();
         $this->line('Remaining manual steps:');
         $this->line('  1. Ensure a Workflow Rule exists for Lead "created" event pointing to LeadAgentFirstMessageOutreachActivity');
-        $this->line('  2. Rule params must include: pipelinesMapping, agent_id, from (phone number)');
-        $this->line('  3. Pipeline stage config must have notification_engagement_rules.templates for sms/email');
-        $this->line('  4. VoiceBridge API key must be set on the app: $app->set("voice_bridge_api_key", "...")');
+        $this->line('  2. Set agent_id in Rule params to: ' . ($mainAgent?->getId() ?? '???') . ' (LeadIntentTool)');
+        $this->line('  3. Rule params must also include: pipelinesMapping, from (phone number)');
+        $this->line('  4. Pipeline stage config must have notification_engagement_rules.templates for sms/email');
+        $this->line('  5. VoiceBridge API key must be set on the app: $app->set("voice_bridge_api_key", "...")');
+    }
+
+    private function resolveADKAgentType(Apps $app): AgentType
+    {
+        $agentType = AgentType::fromApp($app)->where('name', 'ADKAgent')->first();
+
+        if ($agentType) {
+            return $agentType;
+        }
+
+        $agentType = new AgentType();
+        $agentType->apps_id = $app->getId();
+        $agentType->name = 'ADKAgent';
+        $agentType->handler = 'Kanvas\\Intelligence\\Agents\\Types\\ADKAgent';
+        $agentType->role = [];
+        $agentType->multi_agent_list = [];
+        $agentType->is_active = true;
+        $agentType->is_published = false;
+        $agentType->is_multi_agent = false;
+        $agentType->saveOrFail();
+
+        $this->info("  [CREATED] AgentType [ADKAgent] id={$agentType->getId()} for app [{$app->name}]");
+
+        return $agentType;
+    }
+
+    private function setupAgent(Apps $app, Companies $company, string $name, array $role, AgentType $agentType): ?Agent
+    {
+        $agent = Agent::fromApp($app)
+            ->fromCompany($company)
+            ->where('name', $name)
+            ->first();
+
+        if ($agent) {
+            if ($agent->agent_type_id !== $agentType->getId()) {
+                $agent->agent_type_id = $agentType->getId();
+                $agent->saveOrFail();
+                $this->info("  [UPDATED] Agent [{$name}] agent_type fixed to ADKAgent (id={$agentType->getId()})");
+            } else {
+                $this->line("  [OK] Agent [{$name}] already exists with correct agent_type");
+            }
+
+            return $agent;
+        }
+
+        $userId = $company->users()->value('users_id') ?? 1;
+
+        $agent = new Agent();
+        $agent->apps_id = $app->getId();
+        $agent->companies_id = $company->getId();
+        $agent->agent_type_id = $agentType->getId();
+        $agent->user_id = $userId;
+        $agent->name = $name;
+        $agent->description = $role['description'];
+        $agent->config = [];
+        $agent->role = $role['role'];
+        $agent->is_active = true;
+        $agent->saveOrFail();
+
+        $this->info("  [CREATED] Agent [{$name}] id={$agent->getId()} for company [{$company->name}]");
+
+        return $agent;
     }
 
     private function setupInternalIntegration(Apps $app, Companies $company): void
@@ -76,51 +142,31 @@ class SetupVoiceWorkflowCommand extends Command
         }
 
         IntegrationsCompany::create([
-            'companies_id'   => $company->getId(),
+            'companies_id'    => $company->getId(),
             'integrations_id' => $integration->getId(),
-            'status_id'      => $activeStatus->getId(),
-            'region_id'      => $region->getId(),
-            'is_active'      => 1,
+            'status_id'       => $activeStatus->getId(),
+            'region_id'       => $region->getId(),
+            'is_active'       => 1,
         ]);
 
         $this->info("  [CREATED] internal integration_company for company [{$company->name}]");
     }
 
-    private function setupAgent(Apps $app, Companies $company, string $name, array $role): void
+    private function leadIntentToolRole(): array
     {
-        $exists = Agent::fromApp($app)
-            ->fromCompany($company)
-            ->where('name', $name)
-            ->exists();
-
-        if ($exists) {
-            $this->line("  [OK] Agent [{$name}] already exists for company [{$company->name}]");
-            return;
-        }
-
-        $agentTypeId = AgentType::fromApp($app)->value('id')
-            ?? AgentType::value('id');
-
-        if (! $agentTypeId) {
-            $this->error("  [ERROR] No AgentType found for app [{$app->name}] — cannot create agent [{$name}]");
-            return;
-        }
-
-        $userId = $company->users()->value('users_id') ?? 1;
-
-        $agent = new Agent();
-        $agent->apps_id = $app->getId();
-        $agent->companies_id = $company->getId();
-        $agent->agent_type_id = $agentTypeId;
-        $agent->user_id = $userId;
-        $agent->name = $name;
-        $agent->description = $role['description'];
-        $agent->config = [];
-        $agent->role = $role['role'];
-        $agent->is_active = true;
-        $agent->saveOrFail();
-
-        $this->info("  [CREATED] Agent [{$name}] for company [{$company->name}]");
+        return [
+            'description' => 'Primary lead engagement agent that orchestrates context gathering and first message generation for new leads',
+            'role' => [
+                'background' => [
+                    'You are an expert automotive sales orchestrator. Your goal is to analyze lead information, gather context about their vehicle interest, and coordinate the first engagement message.',
+                ],
+                'steps' => [
+                    'Analyze the lead context including their name, vehicle of interest, source, and any available history.',
+                    'Use available tools to gather additional context if needed.',
+                    'Coordinate the generation of a personalized first engagement message tailored to the lead\'s specific situation.',
+                ],
+            ],
+        ];
     }
 
     private function firstMessageEngagerRole(): array
