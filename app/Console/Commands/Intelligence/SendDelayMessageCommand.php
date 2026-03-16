@@ -83,7 +83,7 @@ class SendDelayMessageCommand extends Command
                 }
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
                 $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
-
+                $hasBeenContacted = $lead->hasBeenContacted();
                 if ($isElead) {
                     // for now only work with elead, missing determining if lead was contacted
                     if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
@@ -95,30 +95,37 @@ class SendDelayMessageCommand extends Command
                     }
 
                     try {
-                        if (
-                            SalesActivities::hasSalesAgentReachedOut(
-                                $lead->app,
-                                $lead->company,
-                                $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                            )
-                        ) {
-                            $message->setUnlock();
-                            //$message->setPublic();
-                            $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
-
-                            continue;
-                        }
+                        $hasBeenContacted = SalesActivities::hasSalesAgentReachedOut(
+                            $lead->app,
+                            $lead->company,
+                            $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
+                        ) || $lead->hasBeenContacted();
                     } catch (Exception $e) {
                         $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                    }
+                }
+
+                try {
+                    if (
+                        $hasBeenContacted
+                    ) {
+                        $message->setUnlock();
+                        //$message->setPublic();
+                        $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
 
                         continue;
                     }
+                } catch (Exception $e) {
+                    $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+
+                    continue;
                 }
                 // @todo we need to determine if the lead was contacted for vin solution
                 $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
 
                 if ($messageContent === '' || empty($messageContent)) {
                     $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
+
                     $message->setUnlock();
 
                     continue;
