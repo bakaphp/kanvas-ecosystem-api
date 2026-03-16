@@ -76,6 +76,15 @@ class HandOffActivity extends KanvasActivity
                             'trigger_type' => TriggersEnum::HUMAN_HANDOFF->value,
                         ]
                     );
+                } else {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $app,
+                            'trigger_type' => TriggersEnum::HANDOFF->value,
+                        ]
+                    );
                 }
 
                 if ($handOffType === 'service') {
