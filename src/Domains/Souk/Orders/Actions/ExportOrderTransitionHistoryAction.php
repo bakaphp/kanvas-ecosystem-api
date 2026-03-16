@@ -237,7 +237,7 @@ class ExportOrderTransitionHistoryAction
         return null;
     }
 
-    private function formatDate($value): string
+    private function formatDate(mixed $value): string
     {
         if ($value instanceof Carbon) {
             return $value->format('Y-m-d H:i:s');
@@ -249,7 +249,7 @@ class ExportOrderTransitionHistoryAction
     private function getStatusFilter(Collection|Builder $data): string
     {
         if ($data instanceof Builder) {
-            $records = $data->with('toStatus')->take(1000)->get();
+            $records = (clone $data)->with('toStatus')->take(1000)->get();
         } else {
             $records = $data;
         }
@@ -269,7 +269,7 @@ class ExportOrderTransitionHistoryAction
         return "Estados: {$formattedStatuses}";
     }
 
-    private function getNestedValue($object, string $path)
+    private function getNestedValue(mixed $object, string $path): mixed
     {
         if (strpos($path, '[') !== false) {
             return $this->getArrayValue($object, $path);
@@ -307,7 +307,7 @@ class ExportOrderTransitionHistoryAction
         return $value;
     }
 
-    private function getArrayValue($object, string $path)
+    private function getArrayValue(mixed $object, string $path): mixed
     {
         preg_match_all('/([^.\[]+)(\[(\d+)\])?/', $path, $matches);
 
