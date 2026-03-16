@@ -23,24 +23,40 @@ class DispatchAgentDeploymentAction
 
     public function execute(): AgentDeployment
     {
-        $deployment = new AgentDeployment();
-        $deployment->apps_id = $this->app->getId();
-        $deployment->companies_id = $this->company->getId();
-        $deployment->agent_id = $this->agent->getId();
-        $deployment->agent_machine_id = $this->machine->getId();
-        $deployment->system_user = 'agent-' . $this->agent->slug;
-        $deployment->home_directory = '/home/agent-' . $this->agent->slug;
-        $deployment->gateway_port = 0;
-        $deployment->proxy_port = 0;
-        $deployment->container_name = 'openclaw-' . $this->agent->slug;
-        $deployment->status = 'provisioning';
-        $deployment->saveOrFail();
+        $systemUser = 'agent-' . $this->agent->slug;
+
+        $deployment = AgentDeployment::where('agent_machine_id', $this->machine->getId())
+            ->where('system_user', $systemUser)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($deployment) {
+            $deployment->status = 'provisioning';
+            $deployment->error_message = null;
+            $deployment->gateway_port = 0;
+            $deployment->proxy_port = 0;
+            $deployment->saveOrFail();
+        } else {
+            $deployment = new AgentDeployment();
+            $deployment->apps_id = $this->app->getId();
+            $deployment->companies_id = $this->company->getId();
+            $deployment->agent_id = $this->agent->getId();
+            $deployment->agent_machine_id = $this->machine->getId();
+            $deployment->system_user = $systemUser;
+            $deployment->home_directory = '/home/' . $systemUser;
+            $deployment->gateway_port = 0;
+            $deployment->proxy_port = 0;
+            $deployment->container_name = 'openclaw-' . $this->agent->slug;
+            $deployment->status = 'provisioning';
+            $deployment->saveOrFail();
+        }
 
         LaunchAgentJob::dispatch(
             $this->agent,
             $this->machine,
             $this->app,
             $this->company,
+            $deployment,
         );
 
         return $deployment;

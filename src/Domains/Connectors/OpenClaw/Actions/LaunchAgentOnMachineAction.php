@@ -22,7 +22,7 @@ use Throwable;
  * Deploy an OpenClaw agent to a remote machine in full Docker isolation.
  *
  * Lifecycle:
- *  1. Create AgentDeployment record (status: provisioning)
+ *  1. Create or reuse AgentDeployment record (status: provisioning)
  *  2. SSH into machine and create a dedicated Linux user (agent-{slug})
  *  3. Write deployment files: Dockerfile, docker-compose.yml, openclaw.json,
  *     auth-profiles.json, and workspace files (soul, instructions, etc.)
@@ -43,6 +43,7 @@ class LaunchAgentOnMachineAction
         protected AgentMachine $machine,
         protected AppInterface $app,
         protected CompanyInterface $company,
+        protected ?AgentDeployment $existingDeployment = null,
     ) {
     }
 
@@ -52,12 +53,17 @@ class LaunchAgentOnMachineAction
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }
 
-        $deployment = new CreateAgentDeploymentAction(
-            $this->agent,
-            $this->machine,
-            $this->app,
-            $this->company,
-        )->execute();
+        $deployment = $this->existingDeployment
+            ?? AgentDeployment::where('agent_machine_id', $this->machine->getId())
+                ->where('system_user', 'agent-' . $this->agent->slug)
+                ->where('is_deleted', 0)
+                ->first()
+            ?? new CreateAgentDeploymentAction(
+                $this->agent,
+                $this->machine,
+                $this->app,
+                $this->company,
+            )->execute();
 
         $client = SshClient::fromMachine($this->machine);
 
