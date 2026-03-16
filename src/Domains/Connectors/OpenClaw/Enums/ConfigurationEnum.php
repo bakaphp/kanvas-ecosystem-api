@@ -21,6 +21,4 @@ enum ConfigurationEnum: string
     case GEMINI_API_KEY = 'openclaw_gemini_api_key';
     case GOOGLE_API_KEY = 'openclaw_google_api_key';
     case ANTHROPIC_API_KEY = 'openclaw_anthropic_api_key';
-    case SLACK_BOT_TOKEN = 'openclaw_slack_bot_token';
-    case SLACK_APP_TOKEN = 'openclaw_slack_app_token';
 }

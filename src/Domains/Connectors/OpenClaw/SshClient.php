@@ -13,6 +13,15 @@ use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
 
+/**
+ * SSH client for managing OpenClaw agent deployments on remote machines.
+ *
+ * Two construction modes:
+ *  - Company-based: reads SSH creds from company custom fields (legacy CLI model)
+ *  - Machine-based: reads SSH creds from AgentMachine model (Docker isolation model)
+ *
+ * Uses phpseclib3 SFTP (which extends SSH2) for command execution and file transfer.
+ */
 class SshClient
 {
     protected SFTP $sftp;
@@ -54,6 +63,10 @@ class SshClient
         }
     }
 
+    /**
+     * Create an SSH client from an AgentMachine model (Docker isolation model).
+     * The machine stores its own SSH credentials (host, port, user, private key).
+     */
     public static function fromMachine(AgentMachine $machine): self
     {
         $instance = new self();
@@ -73,6 +86,12 @@ class SshClient
         return $instance;
     }
 
+    /**
+     * Execute a shell command on the remote machine.
+     *
+     * @param int $timeout Seconds before the command times out. Use 120+ for
+     *                     long-running operations like LLM API calls via docker exec.
+     */
     public function exec(string $command, int $timeout = 30): string
     {
         $this->sftp->setTimeout($timeout);
@@ -81,11 +100,35 @@ class SshClient
         return is_string($result) ? $result : '';
     }
 
+    /**
+     * Run an OpenClaw CLI subcommand (e.g. "agents list --json").
+     */
     public function cli(string $subcommand): string
     {
         return $this->exec($this->cliPath . ' ' . $subcommand);
     }
 
+    /**
+     * Write a file on the remote machine as a specific Linux user via sudo.
+     *
+     * Content is base64-encoded locally, decoded on the remote side via pipe,
+     * and written with `sudo tee` to avoid permission issues. Ownership is
+     * then set to the target user. This is used during agent provisioning to
+     * write config files into the agent's home directory.
+     */
+    public function writeFileAsUser(string $remotePath, string $content, string $systemUser): void
+    {
+        $encoded = base64_encode($content);
+        $this->exec(
+            'echo ' . escapeshellarg($encoded)
+            . ' | base64 -d | sudo tee ' . escapeshellarg($remotePath) . ' > /dev/null'
+            . ' && sudo chown ' . escapeshellarg($systemUser . ':' . $systemUser) . ' ' . escapeshellarg($remotePath)
+        );
+    }
+
+    /**
+     * Write a file via SFTP (direct transfer, no sudo).
+     */
     public function writeFile(string $remotePath, string $content): bool
     {
         $dir = dirname($remotePath);

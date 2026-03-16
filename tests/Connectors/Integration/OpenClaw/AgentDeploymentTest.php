@@ -13,6 +13,7 @@ use Kanvas\Connectors\OpenClaw\Actions\LaunchAgentOnMachineAction;
 use Kanvas\Connectors\OpenClaw\Actions\RestartAgentContainerAction;
 use Kanvas\Connectors\OpenClaw\Actions\TerminateAgentOnMachineAction;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -202,9 +203,9 @@ class AgentDeploymentTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        $this->setupProviderKeys($app);
-
         $agent = $this->createTestAgent(['name' => 'test-persistent-agent']);
+        $this->setupProviderKeys($app, $agent);
+
         $machine = $this->createTestMachine();
 
         $this->cleanupPreviousDeployment($machine, 'agent-' . $agent->slug);
@@ -242,9 +243,9 @@ class AgentDeploymentTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        $this->setupProviderKeys($app);
-
         $agent = $this->createTestAgent(['name' => 'test-chat-agent']);
+        $this->setupProviderKeys($app, $agent);
+
         $machine = $this->createTestMachine();
 
         $this->cleanupPreviousDeployment($machine, 'agent-' . $agent->slug);
@@ -281,7 +282,7 @@ class AgentDeploymentTest extends TestCase
         $this->cleanupPreviousDeployment($machine, $deployment->system_user);
     }
 
-    private function setupProviderKeys(AppInterface $app): void
+    private function setupProviderKeys(AppInterface $app, Agent $agent): void
     {
         $googleKey = env('TEST_OPENCLAW_GOOGLE_API_KEY', '');
         if (! empty($googleKey)) {
@@ -296,6 +297,16 @@ class AgentDeploymentTest extends TestCase
         $geminiKey = env('TEST_OPENCLAW_GEMINI_API_KEY', '');
         if (! empty($geminiKey)) {
             $app->set(ConfigurationEnum::GEMINI_API_KEY->value, $geminiKey);
+        }
+
+        $slackBotToken = env('TEST_OPENCLAW_SLACK_BOT_TOKEN', '');
+        if (! empty($slackBotToken)) {
+            $agent->set(CustomFieldEnum::SLACK_BOT_TOKEN->value, $slackBotToken);
+        }
+
+        $slackAppToken = env('TEST_OPENCLAW_SLACK_APP_TOKEN', '');
+        if (! empty($slackAppToken)) {
+            $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $slackAppToken);
         }
     }
 

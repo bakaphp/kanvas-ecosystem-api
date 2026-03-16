@@ -9,6 +9,10 @@ use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
+/**
+ * Restart an agent's Docker containers via `docker compose restart`.
+ * Only works on deployments that are currently running.
+ */
 class RestartAgentContainerAction
 {
     public function __construct(

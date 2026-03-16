@@ -6,6 +6,19 @@ namespace Kanvas\Connectors\OpenClaw\Services;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
 
+/**
+ * Builds the workspace markdown files that define an agent's personality and behavior.
+ *
+ * These files are written to ~/.openclaw/workspace/ inside the agent's container.
+ * OpenClaw reads them at runtime to configure the agent's persona, instructions, and tools.
+ *
+ * Files generated:
+ *  - SOUL.md     — core personality + output format (from Agent::soul / Agent::role['background'])
+ *  - AGENTS.md   — step-by-step instructions (from Agent::instructions / Agent::role['steps'])
+ *  - IDENTITY.md — name, emoji, vibe, creature, avatar
+ *  - USER.md     — optional user context (only if Agent::user_context is set)
+ *  - TOOLS.md    — optional tool configuration (only if Agent::tools_config is set)
+ */
 class WorkspaceFileBuilder
 {
     public static function buildSoulMd(Agent $agent): string

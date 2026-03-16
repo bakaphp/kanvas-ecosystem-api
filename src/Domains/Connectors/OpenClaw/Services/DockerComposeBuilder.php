@@ -6,9 +6,24 @@ namespace Kanvas\Connectors\OpenClaw\Services;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
+/**
+ * Generates all configuration files needed to run an OpenClaw agent in Docker.
+ *
+ * Output files:
+ *  - Dockerfile        — base image + sudo setup (from Templates/Dockerfile or app override)
+ *  - docker-compose.yml — gateway, socat proxy, and CLI containers (from Templates/docker-compose.yml)
+ *  - openclaw.json     — agent config: models, channels (Slack), gateway auth, tools, hooks
+ *  - auth-profiles.json — LLM provider API keys (Google, Anthropic)
+ *
+ * App-level settings (ConfigurationEnum): LLM keys, model defaults, Dockerfile template
+ * Agent-level settings (CustomFieldEnum): Slack tokens (each agent has its own Slack app)
+ *
+ * Bump OPENCLAW_VERSION when upgrading the openclaw-docker image.
+ */
 class DockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
@@ -29,10 +44,20 @@ class DockerComposeBuilder
         AgentDeployment $deployment,
         string $gatewayToken,
         AppInterface $app,
+        Agent $agent,
     ): string {
         $envVars = self::buildDefaultEnvironment($app);
         $envVars['NODE_ENV'] = $envVars['NODE_ENV'] ?? 'production';
         $envVars['OPENCLAW_SKIP_SERVICE_CHECK'] = $envVars['OPENCLAW_SKIP_SERVICE_CHECK'] ?? 'true';
+
+        $slackBotToken = $agent->get(CustomFieldEnum::SLACK_BOT_TOKEN->value);
+        $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
+        if (! empty($slackBotToken)) {
+            $envVars['SLACK_BOT_TOKEN'] = (string) $slackBotToken;
+        }
+        if (! empty($slackAppToken)) {
+            $envVars['SLACK_APP_TOKEN'] = (string) $slackAppToken;
+        }
 
         $envLines = '';
         foreach ($envVars as $key => $value) {
@@ -240,6 +265,35 @@ class DockerComposeBuilder
         ];
 
         return (string) json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function buildChannelConfig(Agent $agent): array
+    {
+        $slackBotToken = $agent->get(CustomFieldEnum::SLACK_BOT_TOKEN->value);
+        $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
+
+        if (empty($slackBotToken) || empty($slackAppToken)) {
+            return [];
+        }
+
+        return [
+            'slack' => [
+                'enabled' => true,
+                'mode' => 'socket',
+                'botToken' => (string) $slackBotToken,
+                'appToken' => (string) $slackAppToken,
+                'dmPolicy' => 'open',
+                'dm' => [
+                    'enabled' => true,
+                    'allowFrom' => ['*'],
+                    'groupEnabled' => true,
+                ],
+                'groupPolicy' => 'open',
+            ],
+        ];
     }
 
     /**

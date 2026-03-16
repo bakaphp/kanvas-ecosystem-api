@@ -18,6 +18,24 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
+/**
+ * Deploy an OpenClaw agent to a remote machine in full Docker isolation.
+ *
+ * Lifecycle:
+ *  1. Create AgentDeployment record (status: provisioning)
+ *  2. SSH into machine and create a dedicated Linux user (agent-{slug})
+ *  3. Write deployment files: Dockerfile, docker-compose.yml, openclaw.json,
+ *     auth-profiles.json, and workspace files (soul, instructions, etc.)
+ *  4. Build and start Docker containers via `docker compose up -d --build`
+ *  5. Mark deployment as running (or failed on error)
+ *
+ * Each agent gets its own Linux user, home directory, Docker containers,
+ * and port pair — providing full isolation of config, credentials, and workspaces.
+ *
+ * Files are written via base64+sudo tee (see SshClient::writeFileAsUser) then
+ * chowned to UID 1000 (node user inside the container) so the OpenClaw process
+ * can read/write its config.
+ */
 class LaunchAgentOnMachineAction
 {
     public function __construct(
@@ -34,31 +52,19 @@ class LaunchAgentOnMachineAction
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }
 
-        $ports = $this->machine->allocatePortPair();
-        $slug = $this->agent->slug;
-        $systemUser = 'agent-' . $slug;
-        $homeDir = '/home/' . $systemUser;
-        $containerName = 'openclaw-' . $slug;
-
-        $deployment = new AgentDeployment();
-        $deployment->apps_id = $this->app->getId();
-        $deployment->companies_id = $this->company->getId();
-        $deployment->agent_id = $this->agent->getId();
-        $deployment->agent_machine_id = $this->machine->getId();
-        $deployment->system_user = $systemUser;
-        $deployment->home_directory = $homeDir;
-        $deployment->gateway_port = $ports['gateway_port'];
-        $deployment->proxy_port = $ports['proxy_port'];
-        $deployment->container_name = $containerName;
-        $deployment->status = DeploymentStatusEnum::PROVISIONING->value;
-        $deployment->saveOrFail();
+        $deployment = new CreateAgentDeploymentAction(
+            $this->agent,
+            $this->machine,
+            $this->app,
+            $this->company,
+        )->execute();
 
         $client = SshClient::fromMachine($this->machine);
 
         try {
-            $this->provisionLinuxUser($client, $systemUser, $homeDir);
-            $this->writeDeploymentFiles($client, $deployment, $homeDir, $systemUser);
-            $this->buildAndStart($client, $systemUser, $homeDir);
+            $this->provisionLinuxUser($client, $deployment);
+            $this->writeDeploymentFiles($client, $deployment);
+            $this->buildAndStart($client, $deployment);
 
             $deployment->status = DeploymentStatusEnum::RUNNING->value;
             $deployment->launched_at = now();
@@ -81,85 +87,85 @@ class LaunchAgentOnMachineAction
         return $deployment;
     }
 
-    private function provisionLinuxUser(SshClient $client, string $systemUser, string $homeDir): void
+    /**
+     * Create a dedicated Linux user for the agent and add it to the docker group.
+     * The user's home directory contains all OpenClaw config and workspace files.
+     */
+    private function provisionLinuxUser(SshClient $client, AgentDeployment $deployment): void
     {
-        $client->exec('id ' . escapeshellarg($systemUser) . ' &>/dev/null || sudo useradd -m -s /bin/bash ' . escapeshellarg($systemUser));
-        $client->exec('sudo usermod -aG docker ' . escapeshellarg($systemUser));
+        $user = $deployment->system_user;
+        $homeDir = $deployment->home_directory;
+
+        $client->exec('id ' . escapeshellarg($user) . ' &>/dev/null || sudo useradd -m -s /bin/bash ' . escapeshellarg($user));
+        $client->exec('sudo usermod -aG docker ' . escapeshellarg($user));
         $client->exec('sudo mkdir -p ' . escapeshellarg($homeDir . '/.openclaw/workspace'));
-        $client->exec('sudo chown -R ' . escapeshellarg($systemUser . ':' . $systemUser) . ' ' . escapeshellarg($homeDir));
+        $client->exec('sudo chown -R ' . escapeshellarg($user . ':' . $user) . ' ' . escapeshellarg($homeDir));
     }
 
-    private function writeDeploymentFiles(SshClient $client, AgentDeployment $deployment, string $homeDir, string $systemUser): void
+    /**
+     * Write all config files into the agent's ~/.openclaw directory:
+     *  - Dockerfile (built from template or app override)
+     *  - docker-compose.yml (gateway + socat proxy + CLI containers)
+     *  - openclaw.json (agent config, models, channels, gateway auth)
+     *  - auth-profiles.json (API keys for LLM providers: Google, Anthropic)
+     *  - workspace files (soul.md, instructions.md, output-format.md, identity.json)
+     */
+    private function writeDeploymentFiles(SshClient $client, AgentDeployment $deployment): void
     {
-        $openclawDir = $homeDir . '/.openclaw';
-
+        $openclawDir = $deployment->home_directory . '/.openclaw';
+        $systemUser = $deployment->system_user;
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
 
-        $dockerfile = DockerComposeBuilder::buildDockerfile($this->app);
-        $this->writeFileAsUser($client, $openclawDir . '/Dockerfile', $dockerfile, $systemUser);
-
-        $compose = DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app);
-        $this->writeFileAsUser($client, $openclawDir . '/docker-compose.yml', $compose, $systemUser);
-
-        $channelConfig = $this->buildChannelConfig();
-        $openclawConfig = DockerComposeBuilder::buildOpenClawConfig(
-            $this->agent,
-            (string) $gatewayToken,
-            $this->app,
-            $channelConfig,
+        $client->writeFileAsUser(
+            $openclawDir . '/Dockerfile',
+            DockerComposeBuilder::buildDockerfile($this->app),
+            $systemUser,
         );
-        $this->writeFileAsUser($client, $openclawDir . '/openclaw.json', $openclawConfig, $systemUser);
+
+        $client->writeFileAsUser(
+            $openclawDir . '/docker-compose.yml',
+            DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $this->agent),
+            $systemUser,
+        );
+
+        $client->writeFileAsUser(
+            $openclawDir . '/openclaw.json',
+            DockerComposeBuilder::buildOpenClawConfig(
+                $this->agent,
+                (string) $gatewayToken,
+                $this->app,
+                DockerComposeBuilder::buildChannelConfig($this->agent),
+            ),
+            $systemUser,
+        );
 
         $agentDir = $openclawDir . '/agents/' . $this->agent->slug . '/agent';
         $client->exec('sudo mkdir -p ' . escapeshellarg($agentDir));
 
-        $authProfiles = DockerComposeBuilder::buildAuthProfiles($this->app);
-        $this->writeFileAsUser($client, $agentDir . '/auth-profiles.json', $authProfiles, $systemUser);
+        $client->writeFileAsUser(
+            $agentDir . '/auth-profiles.json',
+            DockerComposeBuilder::buildAuthProfiles($this->app),
+            $systemUser,
+        );
 
         $files = WorkspaceFileBuilder::buildAll($this->agent);
         foreach ($files as $filename => $content) {
-            $this->writeFileAsUser($client, $openclawDir . '/workspace/' . $filename, $content, $systemUser);
+            $client->writeFileAsUser($openclawDir . '/workspace/' . $filename, $content, $systemUser);
         }
 
         // Container runs as node (UID 1000) — volume-mounted files must be writable by that UID
         $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($openclawDir));
     }
 
-    private function writeFileAsUser(SshClient $client, string $remotePath, string $content, string $systemUser): void
-    {
-        $encoded = base64_encode($content);
-        $client->exec(
-            'echo ' . escapeshellarg($encoded)
-            . ' | base64 -d | sudo tee ' . escapeshellarg($remotePath) . ' > /dev/null'
-            . ' && sudo chown ' . escapeshellarg($systemUser . ':' . $systemUser) . ' ' . escapeshellarg($remotePath)
-        );
-    }
-
     /**
-     * @return array<string, mixed>
+     * Run `docker compose up -d --build` as the agent's Linux user.
+     * Appends EXIT_CODE to detect failures even when Docker writes to stderr.
      */
-    private function buildChannelConfig(): array
+    private function buildAndStart(SshClient $client, AgentDeployment $deployment): void
     {
-        $slackBotToken = $this->app->get(ConfigurationEnum::SLACK_BOT_TOKEN->value);
-        $slackAppToken = $this->app->get(ConfigurationEnum::SLACK_APP_TOKEN->value);
-
-        if (empty($slackBotToken) || empty($slackAppToken)) {
-            return [];
-        }
-
-        return [
-            'slack' => [
-                'botToken' => (string) $slackBotToken,
-                'appToken' => (string) $slackAppToken,
-            ],
-        ];
-    }
-
-    private function buildAndStart(SshClient $client, string $systemUser, string $homeDir): void
-    {
-        $openclawDir = $homeDir . '/.openclaw';
+        $openclawDir = $deployment->home_directory . '/.openclaw';
         $result = $client->exec(
-            'sudo -u ' . escapeshellarg($systemUser)
+            'sudo -u ' . escapeshellarg($deployment->system_user)
             . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d --build 2>&1')
             . '; echo "EXIT_CODE:$?"'
         );

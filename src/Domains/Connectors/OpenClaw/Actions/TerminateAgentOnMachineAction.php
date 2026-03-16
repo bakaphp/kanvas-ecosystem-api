@@ -9,6 +9,14 @@ use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
+/**
+ * Tear down an agent's Docker containers and remove its Linux user.
+ *
+ * Steps:
+ *  1. `docker compose down --rmi local` (stops containers, removes local images)
+ *  2. `sudo userdel -r {user}` (removes Linux user and home directory)
+ *  3. Marks deployment as terminated and resets agent status to pending
+ */
 class TerminateAgentOnMachineAction
 {
     public function __construct(

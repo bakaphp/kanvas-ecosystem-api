@@ -8,6 +8,10 @@ use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
+/**
+ * Check the running state of an agent's Docker container via `docker compose ps --format json`.
+ * Syncs the container state (running/exited) back to the AgentDeployment record.
+ */
 class GetAgentContainerStatusAction
 {
     public function __construct(

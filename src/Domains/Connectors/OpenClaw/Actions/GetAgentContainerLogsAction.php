@@ -7,6 +7,9 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
+/**
+ * Fetch Docker container logs via `docker compose logs --tail {lines}`.
+ */
 class GetAgentContainerLogsAction
 {
     public function __construct(

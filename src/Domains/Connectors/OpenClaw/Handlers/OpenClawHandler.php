@@ -5,10 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\CreateAgentMachineAction;
+use Kanvas\Intelligence\Agents\DataTransferObject\AgentMachine as AgentMachineData;
 use Override;
 
+/**
+ * Integration handler for OpenClaw setup.
+ *
+ * Creates an AgentMachine record from the provided SSH credentials and validates
+ * connectivity. SSH credentials live on the AgentMachine model — the only
+ * company-level settings stored are the default machine ID and gateway token.
+ */
 class OpenClawHandler extends BaseIntegration
 {
     #[Override]
@@ -22,20 +32,32 @@ class OpenClawHandler extends BaseIntegration
             throw new ValidationException('SSH host, user, and private key are required');
         }
 
-        $this->company->set('openclaw_ssh_host', $sshHost);
-        $this->company->set('openclaw_ssh_port', $this->data['ssh_port'] ?? 22);
-        $this->company->set('openclaw_ssh_user', $sshUser);
-        $this->company->set('openclaw_ssh_private_key', $sshPrivateKey);
-        $this->company->set('openclaw_home', $this->data['openclaw_home'] ?? '~/.openclaw');
-        $this->company->set('openclaw_gateway_token', $this->data['gateway_token'] ?? '');
+        $sshPort = (int) ($this->data['ssh_port'] ?? 22);
+        $gatewayToken = (string) ($this->data['gateway_token'] ?? '');
 
-        $client = new SshClient($this->app, $this->company);
-        $status = $client->getGatewayStatus();
+        $machine = new CreateAgentMachineAction(
+            new AgentMachineData(
+                app: $this->app,
+                company: $this->company,
+                name: (string) ($this->data['machine_name'] ?? 'Machine ' . $sshHost),
+                host: $sshHost,
+                ssh_user: $sshUser,
+                ssh_private_key: $sshPrivateKey,
+                ssh_port: $sshPort,
+                region: (string) ($this->data['region'] ?? ''),
+                port_range_start: (int) ($this->data['port_range_start'] ?? 20000),
+                port_range_end: (int) ($this->data['port_range_end'] ?? 30000),
+                max_agents: (int) ($this->data['max_agents'] ?? 100),
+            ),
+        )->execute();
+
+        // Validate SSH connectivity
+        $client = SshClient::fromMachine($machine);
+        $client->exec('echo ok');
         $client->disconnect();
 
-        if (str_contains($status, 'error') || str_contains($status, 'not found')) {
-            throw new ValidationException('OpenClaw gateway is not running: ' . $status);
-        }
+        $this->company->set(ConfigurationEnum::DEFAULT_MACHINE_ID->value, $machine->getId());
+        $this->company->set(ConfigurationEnum::GATEWAY_TOKEN->value, $gatewayToken);
 
         return true;
     }
