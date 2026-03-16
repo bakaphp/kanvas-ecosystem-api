@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -26,6 +27,32 @@ use Kanvas\Users\Models\Users;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property int $agent_type_id
+ * @property int|null $parent_id
+ * @property string|null $path
+ * @property int $user_id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $description
+ * @property array|null $config
+ * @property int|null $company_task_list_id
+ * @property array|null $role
+ * @property string|null $soul
+ * @property string|null $instructions
+ * @property string|null $output_format
+ * @property array|null $identity
+ * @property string|null $user_context
+ * @property string|null $tools_config
+ * @property string|null $deployment_status
+ * @property int|null $agent_model_id
+ * @property bool $is_active
+ * @property bool $is_deleted
+ */
 #[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
 {
@@ -146,6 +173,19 @@ class Agent extends BaseModel
         );
     }
 
+    public function deployments(): HasMany
+    {
+        return $this->hasMany(AgentDeployment::class);
+    }
+
+    public function activeDeployment(): HasOne
+    {
+        return $this->hasOne(AgentDeployment::class)
+            ->where('status', 'running')
+            ->where('is_deleted', 0)
+            ->latestOfMany();
+    }
+
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
@@ -168,6 +208,7 @@ class Agent extends BaseModel
         ];
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();

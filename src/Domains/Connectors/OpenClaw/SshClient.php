@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
@@ -20,9 +21,16 @@ class SshClient
     protected string $configFilename;
 
     public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company,
+        protected ?AppInterface $app = null,
+        protected ?CompanyInterface $company = null,
     ) {
+        if ($this->company !== null) {
+            $this->initFromCompany();
+        }
+    }
+
+    private function initFromCompany(): void
+    {
         $host = $this->company->get(ConfigurationEnum::SSH_HOST->value);
         $port = (int) ($this->company->get(ConfigurationEnum::SSH_PORT->value) ?? 22);
         $user = $this->company->get(ConfigurationEnum::SSH_USER->value);
@@ -46,8 +54,28 @@ class SshClient
         }
     }
 
-    public function exec(string $command): string
+    public static function fromMachine(AgentMachine $machine): self
     {
+        $instance = new self();
+        $instance->sftp = new SFTP($machine->host, (int) $machine->ssh_port);
+
+        /** @var PrivateKey $key */
+        $key = PublicKeyLoader::load($machine->ssh_private_key);
+
+        if (! $instance->sftp->login($machine->ssh_user, $key)) {
+            throw new ValidationException('SSH authentication failed for machine: ' . $machine->name);
+        }
+
+        $instance->openclawHome = '~/.openclaw';
+        $instance->cliPath = 'openclaw';
+        $instance->configFilename = 'openclaw.json';
+
+        return $instance;
+    }
+
+    public function exec(string $command, int $timeout = 30): string
+    {
+        $this->sftp->setTimeout($timeout);
         $result = $this->sftp->exec($command);
 
         return is_string($result) ? $result : '';

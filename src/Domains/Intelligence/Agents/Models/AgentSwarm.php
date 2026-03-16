@@ -16,6 +16,20 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Intelligence\Models\BaseModel;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property int $users_id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $description
+ * @property string|null $status
+ * @property array|null $config
+ * @property bool $is_active
+ * @property bool $is_deleted
+ */
 class AgentSwarm extends BaseModel
 {
     use UuidTrait;
