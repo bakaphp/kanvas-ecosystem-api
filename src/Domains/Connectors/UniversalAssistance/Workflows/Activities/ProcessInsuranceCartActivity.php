@@ -168,7 +168,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     // Return comprehensive results focusing on voucher data and SOAP inputs
                     return $workflowResponse;
                 },
-                additionalParams: $params,
                 company: $order->company,
             );
         } catch (Exception $e) {
