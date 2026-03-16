@@ -1,0 +1,31 @@
+type ScheduleHistory {
+    id: ID!
+    resources_id: ID!
+    resources_type: String!
+    action: String!
+    payload: Mixed
+    user: User @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+extend type Query @guard {
+    scheduleHistory(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "resources_id"
+                    "resources_type"
+                    "action"
+                    "users_id"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [ScheduleHistory!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\ScheduleHistory"
+            defaultCount: 25
+        )
+}

@@ -870,6 +870,65 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderExportQuery@export"
             # scopes: ["fromApp", "notDeleted"]
         )
+    exportOrderTransitionHistory(
+        format: ExportFormat!
+        field_mapper: Mixed
+        metadata: ExportMetadataInput
+        timezone: String
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "order_id"
+                    "transition_id"
+                    "from_status_id"
+                    "to_status_id"
+                    "changed_at"
+                    "ended_at"
+                    "is_current"
+                    "changed_by"
+                    "ended_by"
+                    "duration_in_seconds"
+                ]
+            )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
+        hasOrder: _
+            @whereHasConditions(
+                relation: "order"
+                columns: ["user_email", "user_phone", "status", "reference"]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
+            )
+        paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderTransitionHistoryExportQuery@export"
+        )
     orderStatus(
         search: String @search
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
