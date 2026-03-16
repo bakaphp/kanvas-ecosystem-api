@@ -21,17 +21,13 @@ class CreatePriceHistoryAction
 
     public function execute(): VariantChannelPriceHistory
     {
-        return VariantChannelPriceHistory::firstOrCreate(
-            [
-                'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                'channels_id' => $this->channel->getId(),
-                'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                'price' => $this->price,
-            ],
-            [
-                'from_date' => date('Y-m-d H:i:s'),
-                'users_id' => $this->user?->getId() ?? 0,
-            ]
-        );
+        return VariantChannelPriceHistory::create([
+            'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
+            'channels_id' => $this->channel->getId(),
+            'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+            'price' => $this->price,
+            'from_date' => date('Y-m-d H:i:s'),
+            'users_id' => $this->user?->getId() ?? 0,
+        ]);
     }
 }
