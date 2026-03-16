@@ -447,10 +447,10 @@ class ResourceScheduleTest extends TestCase
         $this->assertTrue($tuesday['active']);
         $this->assertArrayHasKey('periods', $tuesday);
         $this->assertCount(1, $tuesday['periods']);
-        $this->assertEquals('9:00 AM', $tuesday['periods'][0]['open']); // Formatted from day_rrule
-        $this->assertEquals('5:00 PM', $tuesday['periods'][0]['close']); // Formatted from day_rrule
-        $this->assertEquals('9:00 AM', $tuesday['open']); // Backward compatibility
-        $this->assertEquals('5:00 PM', $tuesday['close']); // Backward compatibility
+        $this->assertEquals('09:00', $tuesday['periods'][0]['open']);
+        $this->assertEquals('17:00', $tuesday['periods'][0]['close']);
+        $this->assertEquals('09:00', $tuesday['open']); // Backward compatibility
+        $this->assertEquals('17:00', $tuesday['close']); // Backward compatibility
     }
 
     private function createWeeklySchedule(Products $product, array $days): array
