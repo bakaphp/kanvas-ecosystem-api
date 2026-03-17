@@ -343,8 +343,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
     private function getLeadCreatedAt(Lead $lead): ?string
     {
         $leadCurrentDateIn = null;
-        if ($lead->company->get(CustomFieldEnum::COMPANY->value)) {
-            $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+        $opportunityId = (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value);
+        if ($lead->company->get(CustomFieldEnum::COMPANY->value) && ! empty($opportunityId)) {
+            $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, $opportunityId);
             $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             $leadCurrentDateIn = (string) $lead->get('vin_solution_date_in');
