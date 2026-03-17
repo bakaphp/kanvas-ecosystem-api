@@ -25,7 +25,7 @@ class InitVoiceSessionAction
     /**
      * Build from a Lead and Agent, deriving session ID and context automatically.
      */
-    public static function fromLead(Lead $lead, Agent $agent): self
+    public static function fromLead(Lead $lead, Agent $agent, ?string $instructions = null): self
     {
         $app = $lead->app;
 
@@ -39,7 +39,7 @@ class InitVoiceSessionAction
         $sessionId = VoiceBridgeService::buildOutboundSessionId((string) $lead->getId(), $phone, $companyId);
         $userId = (string) ($lead->leads_owner_id ?: $lead->users_id);
 
-        $initialContext = new BuildLeadVoiceContextAction($lead, $agent)->execute();
+        $initialContext = new BuildLeadVoiceContextAction($lead, $agent, $instructions)->execute();
 
         return new self(
             app: $app,

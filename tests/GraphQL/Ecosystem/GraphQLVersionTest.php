@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 class GraphQLVersionTest extends TestCase
 {
-    protected string $graphqlVersion = 'graphql-2025-01';
+    protected string $graphqlVersion = 'graphql-2026-01';
 
     public function testHelloKanvas(): void
     {
@@ -19,6 +19,6 @@ class GraphQLVersionTest extends TestCase
         ');
         $this->assertArrayHasKey('data', $response);
         $this->assertArrayHasKey('hello', $response['data']);
-        $this->assertEquals('Hello Ecosystem 2025-01!', $response['data']['hello']);
+        $this->assertEquals('Hello Ecosystem 2026-01!', $response['data']['hello']);
     }
 }

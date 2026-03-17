@@ -68,4 +68,5 @@ enum ActionEnum: string
     case CREDIT_UNION_APPLICATION = 'credit-union-application';
     case RED_FLAG_CHECKLIST = 'red-flag-checklist';
     case REFER_ME = 'refer-me';
+    case MESSAGE_VIDEO = 'message-video';
 }
