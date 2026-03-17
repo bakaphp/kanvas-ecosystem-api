@@ -83,6 +83,7 @@ class SendDelayMessageCommand extends Command
                     continue;
                 }
                 if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                    $message->setUnlock();
                     $this->error('AI Mode OFF');
                 }
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
