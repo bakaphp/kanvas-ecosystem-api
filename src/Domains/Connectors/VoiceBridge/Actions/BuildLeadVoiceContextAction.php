@@ -15,6 +15,7 @@ class BuildLeadVoiceContextAction
     public function __construct(
         protected readonly Lead $lead,
         protected readonly Agent $agent,
+        protected readonly ?string $instructions = null,
     ) {
     }
 
@@ -59,6 +60,11 @@ class BuildLeadVoiceContextAction
 
         $leadContext = $this->lead->get(IntelligenceConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [];
 
+        $task = $leadContext;
+        if ($this->instructions !== null) {
+            $task = array_merge(['instructions' => $this->instructions], $task);
+        }
+
         return [
             'company_id' => (string) $app->get(ConfigurationEnum::COMPANY_ID->value),
             'customer' => $customer,
@@ -66,7 +72,7 @@ class BuildLeadVoiceContextAction
                 'background' => $background,
                 'steps' => $steps,
             ],
-            'task' => $leadContext,
+            'task' => $task,
         ];
     }
 }
