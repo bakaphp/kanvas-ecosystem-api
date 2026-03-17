@@ -24,6 +24,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -80,6 +81,9 @@ class SendDelayMessageCommand extends Command
                     $this->error('Message ID ' . $message->getId() . ' is not linked to a Lead entity.');
 
                     continue;
+                }
+                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                    $this->error('AI Mode OFF');
                 }
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
                 $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
