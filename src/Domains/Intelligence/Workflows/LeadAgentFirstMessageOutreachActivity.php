@@ -208,7 +208,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $lead,
                                     $firstLeadMessage['message'],
                                     $communicationChannelNumber,
-                                    $channel ?? null,
                                     $messageType,
                                     $shouldSendFirstMessageNow
                                 );
@@ -223,6 +222,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $params['from'] ?? null,
                                         $firstLeadMessage['title'] ?? null,
                                     );
+
+                                    $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
@@ -245,6 +246,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->set('communicationChannel', $communicationChannel);
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
+
+                                    $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     DailyReportService::track(
                                         $app,
@@ -384,7 +387,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         Lead $lead,
         string $text,
         string $to,
-        ?Channel $channel = null,
         string $messageType = 'twilio-sms',
         bool $runWorkflow = true,
     ): Message {
@@ -417,7 +419,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             ],
             is_public: 1,
             tags: [$to,'first-message'],
-            //slug: Str::slug($text) . '-' . microtime()
         );
 
         $leadSystemModule = SystemModulesRepository::getByModelName(get_class($lead), $lead->app);
@@ -428,19 +429,21 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
         $newMessage->runWorkflow = $runWorkflow;
 
-        $newMessage = $newMessage->execute();
-        //$newMessage = $createMessageAction->execute();
-        //$newMessage->addEntity($lead);
-        if ($channel) {
-            $channel->addCategory(
-                'ai-agent',
-                $lead->app,
-                $lead->user,
-                $lead->company
-            );
-            $channel->addMessage($newMessage);
+        return $newMessage->execute();
+    }
+
+    private function addMessageToChannel(Message $message, ?Channel $channel, Lead $lead): void
+    {
+        if ($channel === null) {
+            return;
         }
 
-        return $newMessage;
+        $channel->addCategory(
+            'ai-agent',
+            $lead->app,
+            $lead->user,
+            $lead->company
+        );
+        $channel->addMessage($message);
     }
 }

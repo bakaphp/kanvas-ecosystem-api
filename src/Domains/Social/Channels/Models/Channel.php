@@ -131,8 +131,9 @@ class Channel extends BaseModel
            'app' => $message->app,
            'company' => $message->company,
         ]);
-
-        ChannelMessageCreatedEvent::dispatch($this, $message);
+        if ($message->isPublic() && ! $message->isLocked()) {
+            ChannelMessageCreatedEvent::dispatch($this, $message);
+        }
     }
 
     /**
