@@ -39,6 +39,11 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 ];
+                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF && ! in_array($triggerType, [7, 8])) {
+                    return [
+                        'message' => 'Currently Lead is in OFF mode',
+                    ];
+                }
                 switch ($triggerType) {
                     case TriggersEnum::NEW_LEAD->value:
                         $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE->value) ?? IntelligenceModeEnum::FULL_ON->value;
