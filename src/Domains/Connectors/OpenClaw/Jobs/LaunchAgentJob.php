@@ -25,23 +25,22 @@ class LaunchAgentJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    protected ?int $deploymentId = null;
+    protected int $deploymentId;
 
     public function __construct(
         protected Agent $agent,
         protected AgentMachine $machine,
         protected AppInterface $app,
         protected CompanyInterface $company,
-        ?AgentDeployment $deployment = null,
+        AgentDeployment $deployment,
     ) {
-        $this->deploymentId = $deployment?->getId();
+        $this->deploymentId = $deployment->getId();
     }
 
     public function handle(): void
     {
-        $existingDeployment = $this->deploymentId
-            ? AgentDeployment::find($this->deploymentId)
-            : null;
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::findOrFail($this->deploymentId);
 
         try {
             $deployment = new LaunchAgentOnMachineAction(
@@ -49,16 +48,12 @@ class LaunchAgentJob implements ShouldQueue
                 $this->machine,
                 $this->app,
                 $this->company,
-                $existingDeployment,
+                $deployment,
             )->execute();
 
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
         } catch (Throwable $e) {
-            $deployment = $existingDeployment ?? $this->agent->activeDeployment;
-
-            if ($deployment !== null) {
-                AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
-            }
+            AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
 
             throw $e;
         }

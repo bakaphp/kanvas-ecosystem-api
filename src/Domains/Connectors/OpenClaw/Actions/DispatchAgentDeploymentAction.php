@@ -24,6 +24,7 @@ class DispatchAgentDeploymentAction
     public function execute(): AgentDeployment
     {
         $systemUser = 'agent-' . $this->agent->slug;
+        $ports = $this->machine->allocatePortPair();
 
         $deployment = AgentDeployment::where('agent_machine_id', $this->machine->getId())
             ->where('system_user', $systemUser)
@@ -33,8 +34,8 @@ class DispatchAgentDeploymentAction
         if ($deployment) {
             $deployment->status = 'provisioning';
             $deployment->error_message = null;
-            $deployment->gateway_port = 0;
-            $deployment->proxy_port = 0;
+            $deployment->gateway_port = $ports['gateway_port'];
+            $deployment->proxy_port = $ports['proxy_port'];
             $deployment->saveOrFail();
         } else {
             $deployment = new AgentDeployment();
@@ -44,8 +45,8 @@ class DispatchAgentDeploymentAction
             $deployment->agent_machine_id = $this->machine->getId();
             $deployment->system_user = $systemUser;
             $deployment->home_directory = '/home/' . $systemUser;
-            $deployment->gateway_port = 0;
-            $deployment->proxy_port = 0;
+            $deployment->gateway_port = $ports['gateway_port'];
+            $deployment->proxy_port = $ports['proxy_port'];
             $deployment->container_name = 'openclaw-' . $this->agent->slug;
             $deployment->status = 'provisioning';
             $deployment->saveOrFail();

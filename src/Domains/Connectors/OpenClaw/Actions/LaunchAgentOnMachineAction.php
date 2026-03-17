@@ -43,7 +43,7 @@ class LaunchAgentOnMachineAction
         protected AgentMachine $machine,
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected ?AgentDeployment $existingDeployment = null,
+        protected AgentDeployment $deployment,
     ) {
     }
 
@@ -53,17 +53,7 @@ class LaunchAgentOnMachineAction
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }
 
-        $deployment = $this->existingDeployment
-            ?? AgentDeployment::where('agent_machine_id', $this->machine->getId())
-                ->where('system_user', 'agent-' . $this->agent->slug)
-                ->where('is_deleted', 0)
-                ->first()
-            ?? new CreateAgentDeploymentAction(
-                $this->agent,
-                $this->machine,
-                $this->app,
-                $this->company,
-            )->execute();
+        $deployment = $this->deployment;
 
         $client = SshClient::fromMachine($this->machine);
 
