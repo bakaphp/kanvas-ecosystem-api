@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -97,6 +98,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                         'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
                     ]
                 );
+                $messageEntity->set(ConfigurationEnum::CONTACTED->value, LeadGroupStatusEnum::CONTACTED->value);
 
                 $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
 
