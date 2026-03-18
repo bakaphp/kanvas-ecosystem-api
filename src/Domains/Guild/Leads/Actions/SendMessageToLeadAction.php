@@ -274,7 +274,7 @@ class SendMessageToLeadAction
             'from' => $from,
         ];
 
-        if (! $fullMessage) {
+        if ($fullMessage) {
             $messageData['body'] = $fullMessage;
         }
 
