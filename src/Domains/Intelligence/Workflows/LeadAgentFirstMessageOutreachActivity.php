@@ -90,6 +90,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
+                $stopTheClockIteration = 0;
                 $sentChannels = [];
                 $stopTheClock = false;
 
@@ -247,6 +248,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
 
+                                    $stopTheClock = false;
                                     $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     DailyReportService::track(
@@ -257,8 +259,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 }
 
                                 //only do the external activity once for the first message
-                                if ($totalSentMessages === 0 && $stopTheClock) {
+                                if ($shouldSendFirstMessageNow && $stopTheClockIteration === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+                                    $stopTheClockIteration++;
                                 }
                             } catch (Exception $e) {
                                 report($e);
