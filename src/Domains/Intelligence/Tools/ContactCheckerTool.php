@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
+use InvalidArgumentException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
@@ -90,7 +91,7 @@ class ContactCheckerTool implements ContextToolInterface
     protected function getLeadFromMessage(Model $message): Lead
     {
         if (! $message instanceof Message) {
-            throw new \InvalidArgumentException('Entity must be a Message instance');
+            throw new InvalidArgumentException('Entity must be a Message instance');
         }
 
         $channel = $message->channels()
@@ -98,7 +99,7 @@ class ContactCheckerTool implements ContextToolInterface
             ->first();
 
         if (! $channel || ! $channel->entity_namespace || ! $channel->entity_id) {
-            throw new \InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
+            throw new InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
         }
 
         $lead = Lead::where('string_id', $channel->entity_id)
