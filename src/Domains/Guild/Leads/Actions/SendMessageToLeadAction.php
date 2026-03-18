@@ -272,8 +272,11 @@ class SendMessageToLeadAction
 
         $messageData = [
             'from' => $from,
-            'body' => $fullMessage,
         ];
+
+        if (! $fullMessage) {
+            $messageData['body'] = $fullMessage;
+        }
 
         $mediaUrls = $this->getMediaUrlsForTwilio();
         if (! empty($mediaUrls)) {
@@ -386,6 +389,7 @@ class SendMessageToLeadAction
 
         return array_merge($sessionResult, $callResult);
     }
+
     /**
      * Get attachment URLs for email.
      */
