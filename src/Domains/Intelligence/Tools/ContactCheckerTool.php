@@ -59,6 +59,10 @@ class ContactCheckerTool implements ContextToolInterface
                     name: 'should_send_first_message',
                     description: 'Whether a first message should be sent to the lead'
                 ),
+                new BooleanSchema(
+                    name: 'note_is_relevant',
+                    description: 'Whether the note is relevant to contact status determination'
+                ),
                 new NumberSchema(
                     name: 'confidence',
                     description: 'Confidence score between 0.0 and 1.0'
@@ -67,12 +71,18 @@ class ContactCheckerTool implements ContextToolInterface
                     name: 'reason',
                     description: 'Brief explanation of the contact status determination'
                 ),
+                new StringSchema(
+                    name: '_thought_process',
+                    description: 'Internal reasoning and analysis process'
+                ),
             ],
             requiredFields: [
                 'already_contacted',
                 'should_send_first_message',
+                'note_is_relevant',
                 'confidence',
                 'reason',
+                '_thought_process',
             ]
         );
 
