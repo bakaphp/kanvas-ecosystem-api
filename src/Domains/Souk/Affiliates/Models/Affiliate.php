@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Affiliates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Affiliates\Enums\AffiliateStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
@@ -29,7 +34,7 @@ use Override;
  * @property int $affiliate_programs_id
  * @property int|null $affiliate_tiers_id
  * @property string $status
- * @property \Illuminate\Support\Carbon|null $approval_date
+ * @property Carbon|null $approval_date
  * @property string|null $rejection_reason
  * @property int|null $approved_by
  * @property string $commission_type
@@ -49,12 +54,13 @@ use Override;
  * @property array|null $paypal_details
  * @property array|null $stripe_details
  * @property array|null $configuration
- * @property \Illuminate\Support\Carbon|null $last_payout_date
- * @property \Illuminate\Support\Carbon|null $last_activity_at
+ * @property Carbon|null $last_payout_date
+ * @property Carbon|null $last_activity_at
  */
 class Affiliate extends BaseModel
 {
     use UuidTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'affiliates';
 
@@ -244,5 +250,19 @@ class Affiliate extends BaseModel
     {
         $this->status = AffiliateStatusEnum::ACTIVE->value;
         $this->saveOrFail();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

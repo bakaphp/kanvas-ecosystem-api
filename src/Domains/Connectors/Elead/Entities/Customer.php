@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Customers\Models\People;
 
 class Customer
@@ -90,17 +91,39 @@ class Customer
             throw new ELeadException($response['message']);
         }
 
+        if ($this->id !== null) {
+            $cache = new EleadCache($this->app, $this->company);
+            $cache->invalidate('customer', $this->id);
+        }
+
         $this->assign($response);
 
         return $this;
     }
 
-    public static function getById(AppInterface $app, Companies $company, string $id): self
+    public static function getById(AppInterface $app, Companies $company, string $id, bool $fresh = false): self
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('customer', $id);
+
+            if ($cached !== null) {
+                $customer = new Customer();
+                $customer->app = $app;
+                $customer->company = $company;
+                $customer->assign($cached);
+
+                return $customer;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v1/elead/customers/' . $id,
         );
+
+        $cache->set('customer', $id, $response);
 
         $customer = new Customer();
         $customer->app = $app;

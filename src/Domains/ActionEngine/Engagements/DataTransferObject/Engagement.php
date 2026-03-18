@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Engagements\DataTransferObject;
 
+use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -34,7 +35,10 @@ class Engagement extends Data
         public ?string $formType = null,
         public array|string $extraField = [],
         public array $extraData = [],
-        public ?string $channelId = null
+        public ?string $channelId = null,
+        public ?EngagementModel $parentEngagement = null,
+        public array $files = [],
+        public array $filesUrl = [],
     ) {
     }
 
@@ -45,6 +49,7 @@ class Engagement extends Data
         Lead $lead,
         array $request,
         ?People $people = null,
+        ?EngagementModel $parentEngagement = null,
     ): self {
         return new self(
             lead: $lead,
@@ -64,6 +69,9 @@ class Engagement extends Data
             app: $app,
             company: $company,
             user: $user,
+            parentEngagement: $parentEngagement,
+            files: $request['files'] ?? [],
+            filesUrl: $request['files_url'] ?? [],
         );
     }
 }

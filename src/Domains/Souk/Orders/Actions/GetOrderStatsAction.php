@@ -1,22 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Enums\DateGroupByEnum;
+use Kanvas\Souk\Orders\Helpers\DateGroupingHelper;
 use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 
 class GetOrderStatsAction
 {
+    protected ?Collection $productVariantIds = null;
+
     public function __construct(
         protected Apps $app,
         protected array $initialStates,
         protected array $finalStates,
         protected array $currentCountStates = [],
+        protected array $productTypeSlugs = [],
+        protected array $orderTypeNames = [],
+        protected ?int $productId = null,
+        protected array $providerCompanyIds = [],
+        protected array $providers = [],
     ) {
+        if ($this->productId) {
+            $this->productVariantIds = DB::connection('inventory')
+                ->table('products_variants')
+                ->where('products_id', $this->productId)
+                ->pluck('id');
+        }
     }
 
     public function execute(
@@ -24,7 +42,8 @@ class GetOrderStatsAction
         ?string $startDate = null,
         ?string $endDate = null,
         ?string $baseDate = null,
-        string $timezone = 'UTC'
+        string $timezone = 'UTC',
+        string $groupBy = 'day'
     ): array {
         if ($date && (! $startDate || ! $endDate)) {
             $start = Carbon::parse($date, $timezone)->startOfDay()->timezone('UTC');
@@ -35,8 +54,15 @@ class GetOrderStatsAction
         }
 
         $currentCount = $this->getCurrentCount($baseDate, $timezone);
-        $dailyTurnover = $this->getDailyTurnover($start, $end);
+        $dailyTurnover = $this->getDailyTurnover($start, $end, $timezone);
         $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+
+        $groupByEnum = DateGroupByEnum::from($groupBy);
+
+        if ($groupByEnum !== DateGroupByEnum::DAY) {
+            $ordersInPeriod = DateGroupingHelper::groupOrdersInPeriod($ordersInPeriod, $groupByEnum, $timezone);
+            $dailyTurnover = DateGroupingHelper::groupTurnoverData($dailyTurnover, $groupByEnum, $timezone);
+        }
 
         return [
             'period' => [
@@ -48,6 +74,8 @@ class GetOrderStatsAction
             'dailyTurnover' => $dailyTurnover,
             'averageRotation' => $this->getAverageRotation($start, $end),
             'orderRotationAvg' => $ordersInPeriod['orderAvg'] > 0 ? ($dailyTurnover['totalExits'] / $ordersInPeriod['orderAvg']) : 0,
+            'groupBy' => $groupBy,
+            'byProvider' => $this->getByProvider($start, $end),
         ];
     }
 
@@ -62,6 +90,25 @@ class GetOrderStatsAction
             ->selectRaw('order_id, MIN(changed_at) as initial_date')
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
+            ->when(! empty($this->orderTypeNames), function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('orderType', function ($typeQuery) {
+                        $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -72,6 +119,25 @@ class GetOrderStatsAction
             ->selectRaw('order_id, MAX(changed_at) as final_date')
             ->whereBetween('changed_at', [$start, $end])
             ->where('apps_id', $this->app->id)
+            ->when(! empty($this->orderTypeNames), function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('orderType', function ($typeQuery) {
+                        $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->finalStates);
             })
@@ -82,7 +148,7 @@ class GetOrderStatsAction
             ->mergeBindings($initialSubQuery)
             ->join(DB::raw("({$finalSubQuery->toSql()}) as final"), 'initial.order_id', '=', 'final.order_id')
             ->mergeBindings($finalSubQuery)
-            ->selectRaw('initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) / 60 as diff_hours')
+            ->selectRaw('initial.order_id, initial.initial_date, final.final_date, TIMESTAMPDIFF(MINUTE, initial.initial_date, final.final_date) as diff_minutes')
             ->get();
 
         return [
@@ -90,9 +156,9 @@ class GetOrderStatsAction
                 'orderId' => $item->order_id,
                 'initialDate' => $item->initial_date,
                 'finalDate' => $item->final_date,
-                'time' => $item->diff_hours,
+                'time' => $item->diff_minutes,
             ]),
-            'averageTime' => $rotationQuery->avg('diff_hours') ?? 0,
+            'averageTime' => $rotationQuery->avg('diff_minutes') ?? 0,
         ];
     }
 
@@ -105,12 +171,45 @@ class GetOrderStatsAction
 
         $dateRangeSub = DB::raw('(SELECT ' . implode(' UNION ALL SELECT ', $dateList) . ') as date_list(date_val)');
 
+        $orderTypeFilter = '';
+        if (! empty($this->orderTypeNames)) {
+            $orderTypeNamesEscaped = array_map(fn ($name) => "'" . addslashes($name) . "'", $this->orderTypeNames);
+            $orderTypeNamesString = implode(', ', $orderTypeNamesEscaped);
+            $orderTypeFilter = "AND EXISTS (
+                SELECT 1 FROM orders
+                INNER JOIN order_types ON orders.order_types_id = order_types.id
+                WHERE orders.id = order_transitions_history.order_id
+                AND order_types.name IN ({$orderTypeNamesString})
+            )";
+        }
+
+        $productFilter = '';
+        if ($this->productVariantIds && $this->productVariantIds->isNotEmpty()) {
+            $variantIdsString = $this->productVariantIds->implode(', ');
+            $productFilter = "AND EXISTS (
+                SELECT 1 FROM order_items
+                WHERE order_items.order_id = order_transitions_history.order_id
+                AND order_items.variant_id IN ({$variantIdsString})
+                AND order_items.is_deleted = 0
+            )";
+        }
+
+        $providerFilter = '';
+        if (! empty($this->providerCompanyIds)) {
+            $db = config('database.connections.commerce.database', 'commerce');
+            $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+            $providerFilter = "AND order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))";
+        }
+
         $activeOrders = DB::raw("
-            (SELECT DISTINCT order_id 
-             FROM order_transitions_history 
-             WHERE apps_id = {$this->app->id} 
-               AND is_deleted = 0 
-               AND changed_at <= '{$end} 23:59:59') AS active_orders
+            (SELECT DISTINCT order_id
+             FROM order_transitions_history
+             WHERE apps_id = {$this->app->id}
+               AND is_deleted = 0
+               AND changed_at <= '{$end} 23:59:59'
+               {$orderTypeFilter}
+               {$productFilter}
+               {$providerFilter}) AS active_orders
         ");
 
         $latestStatus = DB::raw("
@@ -195,18 +294,52 @@ class GetOrderStatsAction
         return Order::query()
             ->where('apps_id', $this->app->id)
             ->when($baseDate, fn ($q) => $q->where('created_at', '>=', Carbon::parse($baseDate, $timezone)->timezone('UTC')))
+            ->when(! empty($this->orderTypeNames), function ($query) {
+                $query->whereHas('orderType', function ($q) {
+                    $q->whereIn('name', $this->orderTypeNames);
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('items', function ($q) {
+                    $q->whereIn('variant_id', $this->productVariantIds);
+                });
+            })
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("orders.id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
             ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
 
-    private function getDailyTurnover($start, $end): array
+    private function getDailyTurnover($start, $end, string $timezone = 'UTC'): array
     {
         $entries = OrderTransitionHistory::query()
-            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
             ->where('apps_id', $this->app->id)
+            ->when(! empty($this->orderTypeNames), function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('orderType', function ($typeQuery) {
+                        $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -214,11 +347,30 @@ class GetOrderStatsAction
             ->keyBy('date');
 
         $exits = OrderTransitionHistory::query()
-            ->selectRaw('COUNT(DISTINCT order_id) as count, DATE(changed_at) as date')
+            ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
             ->where('apps_id', $this->app->id)
+            ->when(! empty($this->orderTypeNames), function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('orderType', function ($typeQuery) {
+                        $typeQuery->whereIn('name', $this->orderTypeNames);
+                    });
+                });
+            })
+            ->when($this->productVariantIds, function ($query) {
+                $query->whereHas('order', function ($q) {
+                    $q->whereHas('items', function ($iq) {
+                        $iq->whereIn('variant_id', $this->productVariantIds);
+                    });
+                });
+            })
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->finalStates);
             })
@@ -260,5 +412,44 @@ class GetOrderStatsAction
             ],
             'data' => $byDates,
         ];
+    }
+
+    private function getByProvider(Carbon $start, Carbon $end): array
+    {
+        if (empty($this->providers)) {
+            return [];
+        }
+
+        $caseStatements = [];
+        $bindings = [];
+        foreach ($this->providers as $provider) {
+            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $bindings[] = $provider['emailPattern'];
+            $bindings[] = $provider['name'];
+        }
+        $caseStatements[] = "ELSE 'other'";
+        $caseExpression = 'CASE ' . implode(' ', $caseStatements) . ' END';
+
+        return Order::query()
+            ->whereBetween('created_at', [$start, $end])
+            ->where('apps_id', $this->app->id)
+            ->when(! empty($this->providerCompanyIds), function ($query) {
+                $db = config('database.connections.commerce.database', 'commerce');
+                $ids = implode(',', array_map('intval', $this->providerCompanyIds));
+                $query->whereRaw("orders.id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
+            ->selectRaw("
+                ({$caseExpression}) AS provider_name,
+                COUNT(DISTINCT orders.id) AS total_count,
+                SUM(orders.total_net_amount) AS total_amount
+            ", $bindings)
+            ->groupByRaw('provider_name')
+            ->get()
+            ->map(fn ($item) => [
+                'name' => $item->provider_name,
+                'count' => (int) $item->total_count,
+                'totalAmount' => (float) ($item->total_amount ?? 0),
+            ])
+            ->toArray();
     }
 }

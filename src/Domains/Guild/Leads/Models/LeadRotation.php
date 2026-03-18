@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection as SupportCollection;
 use Kanvas\Guild\Models\BaseModel;
 use RuntimeException;
 
@@ -38,10 +39,24 @@ class LeadRotation extends BaseModel
         return $this->hasMany(LeadRotationAgent::class, 'leads_rotations_id');
     }
 
+    public function activeAgents(): HasMany
+    {
+        return $this->agents()->where('is_deleted', 0);
+    }
+
+    public function getActiveUsers(): SupportCollection
+    {
+        return $this->activeAgents()
+            ->with('users')
+            ->get()
+            ->pluck('users')
+            ->filter(fn ($user) => $user && ! $user->is_deleted && $user->isActive());
+    }
+
     public function getLeadsRotationsAgents(): Collection
     {
         // Get agents in a consistent order instead of random
-        return $this->agents()->where('is_deleted', 0)->orderBy('id')->get();
+        return $this->activeAgents()->orderBy('id')->get();
     }
 
     public function getAgent(): UserInterface
@@ -54,36 +69,41 @@ class LeadRotation extends BaseModel
         $this->increment('hits');
         $this->save();
 
-        // Calculate current percentage for each agent but don't store it as a model attribute
-        $eligibleAgents = $agents->filter(function ($agent) {
-            $currentPercent = ($agent->hits / $this->hits) * 100;
+        $totalHits = (float) $this->hits;
 
-            return $currentPercent < $agent->percent;
+        // Calculate current percentage for each agent but don't store it as a model attribute
+        $eligibleAgents = $agents->filter(function ($agent) use ($totalHits) {
+            $currentPercent = $totalHits > 0.0 ? ((float) $agent->hits / $totalHits) * 100.0 : 0.0;
+
+            return $currentPercent < (float) $agent->percent;
         });
 
         // If no agents are below their percentage, reset hits to maintain the ratio
         if ($eligibleAgents->isEmpty()) {
             // Reset all agent hits to maintain the ratio going forward
-            $resetRatio = 0.5; // Reset to 50% of current values
+            $resetRatio = 0.5;
             foreach ($agents as $agent) {
-                $agent->hits = intval($agent->hits * $resetRatio);
+                $agent->hits = (int) ((float) $agent->hits * $resetRatio);
                 $agent->save();
             }
-            $this->hits = intval($this->hits * $resetRatio);
+            $totalHits = (float) max(1, (int) ($totalHits * $resetRatio));
+            $this->hits = (int) $totalHits;
             $this->save();
 
             // Now select the agent with the largest deficit compared to their target percentage
-            $agent = $agents->sortBy(function ($agent) {
-                $currentPercent = ($agent->hits / $this->hits) * 100;
+            $agent = $agents->sortBy(function ($agent) use ($totalHits) {
+                $currentPercent = ((float) $agent->hits / $totalHits) * 100.0;
+                $percent = (float) $agent->percent;
 
-                return $currentPercent / $agent->percent;
+                return $percent > 0.0 ? $currentPercent / $percent : PHP_FLOAT_MAX;
             })->first();
         } else {
             // Find the agent with the largest percentage deficit
-            $agent = $eligibleAgents->sortBy(function ($agent) {
-                $currentPercent = ($agent->hits / $this->hits) * 100;
+            $agent = $eligibleAgents->sortBy(function ($agent) use ($totalHits) {
+                $currentPercent = ((float) $agent->hits / $totalHits) * 100.0;
+                $percent = (float) $agent->percent;
 
-                return $currentPercent / $agent->percent;
+                return $percent > 0.0 ? $currentPercent / $percent : PHP_FLOAT_MAX;
             })->first();
         }
 

@@ -16,6 +16,8 @@ use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -55,8 +57,10 @@ class ProductSimpleMutation
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
                 }
 
-                // Quantity will be automatically handled by VariantService::createVariantsFromArray
-                // It checks for 'quantity' in the variant array and passes it to the warehouse
+                // Set max_capacity equal to quantity for simple product flow
+                if (isset($variant['quantity']) && ! isset($variant['max_capacity'])) {
+                    $variant['max_capacity'] = $variant['quantity'];
+                }
             }
         }
 
@@ -101,6 +105,24 @@ class ProductSimpleMutation
                 // Handle channels: findOrCreate channel by name and convert to channels_id
                 if (isset($variant['channels'])) {
                     $variant['channels'] = $this->processChannels($variant['channels'], $company, $app, $user);
+                }
+
+                // Preserve existing warehouse quantity and price when not provided in update input
+                if ((! isset($variant['quantity']) || ! isset($variant['price'])) && isset($variant['sku'])) {
+                    $existingVariant = Variants::fromCompany($company)->fromApp($app)
+                        ->where('sku', $variant['sku'])
+                        ->first();
+                    if ($existingVariant) {
+                        $defaultWarehouse = Warehouses::getDefault($company, $app);
+                        $existingWarehouseData = VariantsWarehouses::where(
+                            'products_variants_id',
+                            $existingVariant->getId()
+                        )->where('warehouses_id', $defaultWarehouse->getId())->first();
+                        if ($existingWarehouseData) {
+                            $variant['quantity'] ??= $existingWarehouseData->quantity;
+                            $variant['price'] ??= $existingWarehouseData->price;
+                        }
+                    }
                 }
             }
 

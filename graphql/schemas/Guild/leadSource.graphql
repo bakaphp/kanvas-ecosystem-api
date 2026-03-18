@@ -14,7 +14,7 @@ input LeadSourceInput {
     name: String!
     description: String
     is_active: Boolean!
-    leads_types_id: ID!
+    leads_types_id: ID
 }
 
 extend type Mutation @guard {
@@ -45,6 +45,17 @@ extend type Query @guard {
                     "description"
                     "is_active"
                     "leads_types_id"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "description"
+                    "is_active"
                     "created_at"
                     "updated_at"
                 ]

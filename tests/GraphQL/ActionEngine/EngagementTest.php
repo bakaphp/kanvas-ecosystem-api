@@ -420,4 +420,321 @@ class EngagementTest extends TestCase
         $this->assertNotNull($firstEngagement['entity_uuid']);
         $this->assertNotNull($firstEngagement['slug']);
     }
+
+    public function testCreateEngagementWithParent(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+        $peopleId = $lead['data']['createLead']['people']['id'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]];
+
+        new Setup($app, $user, $company, $actions)->run();
+
+        // Create parent engagement
+        $parentResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) {
+                    id
+                    uuid
+                    is_complete
+                    completion_progress {
+                        completed
+                        total
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $parentId = $parentResponse->json('data.startLeadEngagement.id');
+        $this->assertNotNull($parentId);
+        $this->assertFalse($parentResponse->json('data.startLeadEngagement.is_complete'));
+        $this->assertEquals(0, $parentResponse->json('data.startLeadEngagement.completion_progress.total'));
+
+        // Create child engagement linked to parent
+        $childResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) {
+                    id
+                    uuid
+                    parent {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+        ])->assertSuccessful();
+
+        $childId = $childResponse->json('data.startLeadEngagement.id');
+        $this->assertNotNull($childId);
+        $this->assertEquals($parentId, $childResponse->json('data.startLeadEngagement.parent.id'));
+    }
+
+    public function testEngagementChildrenAndCompletionProgress(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+        $peopleId = $lead['data']['createLead']['people']['id'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]];
+
+        new Setup($app, $user, $company, $actions)->run();
+
+        // Create parent engagement
+        $parentResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $parentId = $parentResponse->json('data.startLeadEngagement.id');
+
+        // Create two child engagements
+        $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+        ])->assertSuccessful();
+
+        // Query parent with children, stage, and completion progress
+        $response = $this->graphQL('
+            query($where: QueryEngagementsWhereWhereConditions) {
+                engagements(first: 1, where: $where) {
+                    data {
+                        id
+                        children {
+                            id
+                            stage {
+                                id
+                                name
+                            }
+                        }
+                        is_complete
+                        completion_progress {
+                            completed
+                            total
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ID',
+                'operator' => 'EQ',
+                'value' => $parentId,
+            ],
+        ])->assertSuccessful();
+
+        $parent = $response->json('data.engagements.data.0');
+        $this->assertNotNull($parent);
+        $this->assertCount(2, $parent['children']);
+        $this->assertFalse($parent['is_complete']);
+        $this->assertEquals(2, $parent['completion_progress']['total']);
+        $this->assertEquals(0, $parent['completion_progress']['completed']);
+
+        // Verify each child has stage info
+        foreach ($parent['children'] as $child) {
+            $this->assertArrayHasKey('stage', $child);
+        }
+    }
+
+    public function testEngagementStageHistory(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+        $peopleId = $lead['data']['createLead']['people']['id'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]];
+
+        new Setup($app, $user, $company, $actions)->run();
+
+        // Same request_id for the entire journey
+        $requestId = fake()->uuid();
+
+        // Step 1: Send the engagement
+        $sentResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) {
+                    id
+                    entity_uuid
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId,
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $sentId = $sentResponse->json('data.startLeadEngagement.id');
+        $this->assertEquals($requestId, $sentResponse->json('data.startLeadEngagement.entity_uuid'));
+
+        // Step 2: Customer opens it (same request_id)
+        $openedResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                continueLeadEngagement(input: $input) {
+                    id
+                    entity_uuid
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => $requestId,
+                'source' => 'api',
+                'status' => 'opened',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $openedId = $openedResponse->json('data.continueLeadEngagement.id');
+        $this->assertEquals($requestId, $openedResponse->json('data.continueLeadEngagement.entity_uuid'));
+        $this->assertNotEquals($sentId, $openedId);
+
+        // Query the sent engagement and check stage_history
+        $response = $this->graphQL('
+            query($where: QueryEngagementsWhereWhereConditions) {
+                engagements(first: 1, where: $where) {
+                    data {
+                        id
+                        entity_uuid
+                        stage_history {
+                            id
+                            entity_uuid
+                            stage {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ID',
+                'operator' => 'EQ',
+                'value' => $sentId,
+            ],
+        ])->assertSuccessful();
+
+        $engagement = $response->json('data.engagements.data.0');
+        $this->assertNotNull($engagement);
+        $this->assertEquals($requestId, $engagement['entity_uuid']);
+
+        // stage_history should contain both the sent and opened records
+        $this->assertCount(2, $engagement['stage_history']);
+
+        // All records share the same entity_uuid
+        foreach ($engagement['stage_history'] as $history) {
+            $this->assertEquals($requestId, $history['entity_uuid']);
+            $this->assertArrayHasKey('stage', $history);
+        }
+    }
 }

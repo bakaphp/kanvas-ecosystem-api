@@ -99,12 +99,11 @@ class VariantService
                 }
             } else {
                 $warehouse = Warehouses::getDefault($company, $product->app);
-                $variantWarehouseInfo = [];
-
                 $variantWarehouseInfo = array_filter([
                     'price' => $variant['price'] ?? null,
                     'quantity' => $variant['quantity'] ?? null,
-                ]);
+                    'max_capacity' => $variant['max_capacity'] ?? null,
+                ], fn ($v) => $v !== null);
 
                 WarehouseService::addToWarehouses(
                     $variantModel,

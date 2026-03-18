@@ -38,6 +38,8 @@ class FilesystemServices
      */
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
+        $file = $this->optimizeBeforeUpload($file);
+
         $path = $this->app->get('cloud-bucket-path') ?? '/';
         $preserveOriginalName = (bool) ($this->app->get('filesystem-preserve-original-filename') ?? false);
 
@@ -143,6 +145,27 @@ class FilesystemServices
             'use_path_style_endpoint' => (bool) ($this->app->get('use_path_style_endpoint') ?? false),
             'endpoint' => $aws['endpoint'] ?? null,
         ]);
+    }
+
+    protected function optimizeBeforeUpload(UploadedFile $file): UploadedFile
+    {
+        if (! $this->app->get('filesystem-optimize-on-upload')) {
+            return $file;
+        }
+
+        $maxWidth = (int) ($this->app->get('filesystem-optimize-max-width') ?: 0) ?: null;
+        $maxHeight = (int) ($this->app->get('filesystem-optimize-max-height') ?: 0) ?: null;
+        $quality = (int) ($this->app->get('filesystem-optimize-quality') ?: 0) ?: null;
+
+        ImageOptimizerService::optimizeLocalFile(
+            filePath: $file->getRealPath(),
+            optimize: true,
+            maxWidth: $maxWidth,
+            maxHeight: $maxHeight,
+            quality: $quality,
+        );
+
+        return $file;
     }
 
     /**

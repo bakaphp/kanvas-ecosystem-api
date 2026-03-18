@@ -2,7 +2,7 @@ type Region {
     id: ID!
     companies_id: Int!
     currency_id: Int!
-    companies: Company! @belongsTo(relation: "company")
+    companies: Company @belongsTo(relation: "company")
     currencies: Currency! @belongsTo(relation: "currencies")
     uuid: String!
     name: String!
@@ -53,7 +53,7 @@ extend type Query @guard {
     ): [Region!]!
         @paginate(
             builder: "App\\GraphQL\\Inventory\\Builders\\Regions\\Region@all"
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            scopes: ["fromApp", "fromCompanyOrGlobal", "notDeleted"]
             defaultCount: 25
         )
 }

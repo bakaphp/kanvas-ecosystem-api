@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -141,7 +142,7 @@ class MessageTest extends TestCase
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
-                'tags' => [
+                    'tags' => [
                         'data' => [
                             [
                                 'name' => 'tag1',
@@ -151,6 +152,282 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateMessageWithIsLocked(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'is_locked' => 1,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'id' => $id,
+                    'is_locked' => 1,
+                ],
+            ],
+        ]);
+
+        $message = Message::getById((int) $id, app(Apps::class));
+        $this->assertSame(1, (int) $message->is_locked);
+    }
+
+    public function testUpdateMessageAddTags(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'alpha'],
+                    ['name' => 'beta'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'alpha'],
+                            ['name' => 'beta'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateMessageReplaceTags(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'old-tag-one'],
+                    ['name' => 'old-tag-two'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'new-tag'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'new-tag'],
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertJsonMissing(['name' => 'old-tag-one'])
+        ->assertJsonMissing(['name' => 'old-tag-two']);
+    }
+
+    public function testUpdateMessageWithoutTagsKeepsExisting(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'keep-me'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $newMessage = fake()->text();
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    message
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'message' => $newMessage,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'message' => $newMessage,
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'keep-me'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateMessageRemoveOneTagKeepOthers(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) { id }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'tag-a'],
+                    ['name' => 'tag-b'],
+                    ['name' => 'tag-c'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    tags { data { name } }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'tags' => [
+                    ['name' => 'tag-a'],
+                    ['name' => 'tag-c'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'tags' => [
+                        'data' => [
+                            ['name' => 'tag-a'],
+                            ['name' => 'tag-c'],
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertJsonMissing(['name' => 'tag-b']);
     }
 
     public function testUpdateVerbMessage()
@@ -1043,5 +1320,235 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testMessagesDefaultCompanyVisibility(): void
+    {
+        $app = app(Apps::class);
+        $app->set('restrict_messages_by_company', true);
+
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        companies_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        )->assertSuccessful();
+
+        $createdMessageId = $response->json('data.createMessage.id');
+
+        $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $createdMessageId . ' }
+                ) {
+                    data {
+                        id
+                        message
+                    }
+                }
+            }
+            '
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'id' => $createdMessageId,
+                            'message' => $message,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $app->set('restrict_messages_by_company', false);
+    }
+
+    public function testMessagesCompanyVisibilityFiltersOtherCompanies(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $messageType = MessageType::factory()->create();
+
+        $ownMessage = Message::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['text' => 'own-company-msg-' . fake()->uuid()],
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $otherCompanyMessage = Message::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => 99999,
+            'users_id' => $user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['text' => 'other-company-msg-' . fake()->uuid()],
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $app->set('restrict_messages_by_company', true);
+
+        $response = $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $otherCompanyMessage->getId() . ' }
+                ) {
+                    data {
+                        id
+                    }
+                }
+            }
+            '
+        )->assertSuccessful();
+
+        $this->assertEmpty(
+            $response->json('data.messages.data'),
+            'Other company message should NOT be visible when restrict_messages_by_company is on'
+        );
+
+        $response = $this->graphQL(
+            '
+            query {
+                messages(
+                    where: { column: ID, operator: EQ, value: ' . $ownMessage->getId() . ' }
+                ) {
+                    data {
+                        id
+                    }
+                }
+            }
+            '
+        )->assertSuccessful();
+
+        $this->assertNotEmpty(
+            $response->json('data.messages.data'),
+            'Own company message should be visible when restrict_messages_by_company is on'
+        );
+
+        $app->set('restrict_messages_by_company', false);
+    }
+
+    public function testCreateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message,
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'test_field_one', 'data' => 'value_one'],
+                    ['name' => 'test_field_two', 'data' => 'value_two'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                ],
+            ],
+        ]);
+
+        $customFields = $response->json('data.createMessage.custom_fields.data');
+        $fieldNames = array_column($customFields, 'name');
+        $this->assertContains('test_field_one', $fieldNames);
+        $this->assertContains('test_field_two', $fieldNames);
+    }
+
+    public function testUpdateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'initial_value'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'updated_value'],
+                    ['name' => 'new_field', 'data' => 'new_value'],
+                ],
+            ],
+        ])
+        ->assertSuccessful();
+
+        $customFields = $response->json('data.updateMessage.custom_fields.data');
+        $fieldMap = [];
+        foreach ($customFields as $field) {
+            $fieldMap[$field['name']] = $field['value'];
+        }
+
+        $this->assertSame('updated_value', $fieldMap['initial_field']);
+        $this->assertSame('new_value', $fieldMap['new_field']);
     }
 }

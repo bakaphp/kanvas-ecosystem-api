@@ -57,7 +57,8 @@ class SessionChannelService
             $channelSlug = $entity->socialChannels()
                 ->where(function (Builder $query) {
                     $query->where('name', 'like', '%email%')
-                        ->orWhere('name', 'like', '%sms%');
+                        ->orWhere('name', 'like', '%sms%')
+                        ->orWhere('name', 'like', '%whatsapp%');
                 })
                 ->first()?->slug;
         }

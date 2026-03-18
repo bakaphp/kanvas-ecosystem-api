@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Entities\Customer;
 use Kanvas\Connectors\Elead\Entities\Lead;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -69,7 +70,10 @@ class PullLeadAction
             );
 
             try {
-                $eLead = new SyncLeadAction($lead)->execute();
+                $debounce = new EleadDebounce($this->app, $this->company);
+                $isRapidCall = $debounce->shouldSkip('pull_lead', (string) $entityId, 30);
+
+                $eLead = new SyncLeadAction($lead, fresh: ! $isRapidCall)->execute();
                 $this->setContactStatus($lead, $eLead->subStatus);
             } catch (ClientException $e) {
                 // If the opportunity doesn't exist in Elead (404), close the lead and return it

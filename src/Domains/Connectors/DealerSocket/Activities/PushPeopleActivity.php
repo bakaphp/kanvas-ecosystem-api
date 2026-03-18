@@ -18,6 +18,8 @@ class PushPeopleActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
+        sleep(10); // Sleep for 10 seconds to avoid race condition to create the same customer in DealerSocket
+
         return $this->executeIntegration(
             entity: $people,
             app: $app,

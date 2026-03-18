@@ -10,7 +10,7 @@ type ProductType {
         @field(
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
-    companies: Company! @belongsTo(relation: "company")
+    companies: Company @belongsTo(relation: "company")
     is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
     products_attributes: [Attributes!]! @method(name: "getProductsAttributes")
@@ -100,6 +100,6 @@ extend type Query {
         @paginate(
             model: "Kanvas\\Inventory\\ProductsTypes\\Models\\ProductsTypes"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompanyOrGlobal", "notDeleted"]
         )
 }

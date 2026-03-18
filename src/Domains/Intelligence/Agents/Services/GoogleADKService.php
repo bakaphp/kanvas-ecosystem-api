@@ -10,6 +10,7 @@ use Exception;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -28,7 +29,7 @@ class GoogleADKService
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
-        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrate';
+        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrator';
 
         $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
         if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
@@ -49,11 +50,6 @@ class GoogleADKService
         ]);
     }
 
-    /**
-     * Start a new session for a user
-     *
-     * @throws GuzzleException
-     */
     public function startSession(string $userId, string $sessionId): array
     {
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
@@ -66,21 +62,30 @@ class GoogleADKService
             ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
-        } catch (ClientException $e) {
+        } catch (ClientException|ServerException $e) {
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
             $responseData = json_decode($responseBody, true);
 
-            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
-                // Return a specific response or handle as needed
+            if ($e->getResponse() && $this->isSessionAlreadyExistsError($e->getResponse()->getStatusCode(), $responseData)) {
                 return [
                     'error' => true,
-                    'message' => $responseData['detail'],
+                    'message' => $responseData['detail'] ?? 'Session already exists',
                     'session_id' => $sessionId,
                 ];
             }
 
             throw $e;
         }
+    }
+
+    private function isSessionAlreadyExistsError(int $statusCode, ?array $responseData): bool
+    {
+        $detail = $responseData['detail'] ?? '';
+
+        return in_array($statusCode, [400, 409, 500])
+            && (str_contains($detail, 'Session already exists')
+            || str_contains($detail, 'UniqueViolation')
+            || str_contains($detail, 'duplicate key'));
     }
 
     /**
@@ -235,6 +240,27 @@ class GoogleADKService
         $response = $this->client->get($endpoint);
 
         return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    public function sendData(string $userId, string $sessionId, array $data): void
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => $data,
+            ]);
+        } catch (ClientException $e) {
+            $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
+            $responseData = json_decode($responseBody, true);
+
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
+                // Return a specific response or handle as needed
+                return;
+            }
+
+            throw $e;
+        }
     }
 
     /**

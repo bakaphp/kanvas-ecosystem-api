@@ -14,7 +14,7 @@ type Category {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     is_published: Boolean!
-    companies: Company! @belongsTo(relation: "company")
+    companies: Company @belongsTo(relation: "company")
     weight: Float
     users: User! @belongsTo(relation: "user")
     total_products: Int! @method(name: "getTotalProducts")
@@ -130,6 +130,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Categories\\Models\\Categories"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompanyOrGlobal", "notDeleted"]
         )
 }

@@ -76,6 +76,15 @@ class HandOffActivity extends KanvasActivity
                             'trigger_type' => TriggersEnum::HUMAN_HANDOFF->value,
                         ]
                     );
+                } else {
+                    $lead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $app,
+                            'trigger_type' => TriggersEnum::HANDOFF->value,
+                        ]
+                    );
                 }
 
                 if ($handOffType === 'service') {
@@ -84,8 +93,13 @@ class HandOffActivity extends KanvasActivity
                     $lead->saveOrFail();
                 }
 
+                if ($handOffType === 'compliance_internal') {
+                    $lead->people->optOutPhoneContacts();
+                }
+
                 //$communicationChannel = $lead->get(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) ?? 'sms';
                 $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+                $lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, $handOffType);
 
                 $handOffNotification = $this->createHandOffNotification(
                     $lead,

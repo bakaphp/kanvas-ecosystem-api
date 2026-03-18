@@ -18,7 +18,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\AgentMonitoring;
+use NeuronAI\Observability\InspectorObserver;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
@@ -102,7 +102,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
                 new Configuration($this->message->app->get('inspector-key'))
             );
             $currentAgent->observe(
-                new AgentMonitoring($inspector)
+                new InspectorObserver($inspector)
             );
         }
         $whatsAppMessageService = new MessageService(

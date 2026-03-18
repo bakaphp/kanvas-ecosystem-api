@@ -80,20 +80,36 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 try {
                     $remixMessage = Message::find($entity->message['remix_parent_id']);
                     $promptRemixTitle = $remixMessage->message['title'] ?? '';
-                    $newMessageNotification = new MessageOwnerPushNotification(
-                        user: $remixMessage->user,
-                        entity: $entity,
-                        message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
-                        title: 'Your prompt has been remixed!',
-                        via: $endViaList,
-                        templates: [
-                            'email_template' => $params['email_template'],
-                            'push_template' => $params['push_template'],
-                        ],
-                    );
+
+                    if (! $remixMessage->is_premium || ! $remixMessage->is_locked) {
+                        $newMessageNotification = new MessageOwnerPushNotification(
+                            user: $remixMessage->user,
+                            entity: $entity,
+                            message: "Your prompt { $promptRemixTitle } was just remixed by another creator!",
+                            title: 'Your prompt has been remixed!',
+                            via: $endViaList,
+                            templates: [
+                                'email_template' => $params['email_template'],
+                                'push_template' => $params['push_template'],
+                            ],
+                        );
+                    } else {
+                        $newMessageNotification = new MessageOwnerPushNotification(
+                            user: $remixMessage->user,
+                            entity: $entity,
+                            message: " '{$entity->user->displayname}' just unlocked your prompt '{$promptRemixTitle}'!",
+                            title: 'New Unlock! 🔓',
+                            via: $endViaList,
+                            templates: [
+                                'email_template' => "email-new-message-remix-unlocked",
+                                'push_template' => $params['push_template'],
+                            ],
+                        );
+                    }
                     if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
                         $entity->parent->increment('total_children');
-                        $remixMessage->set('remix_count', $remixMessage->childrenByType('memo')->count());
+                        $currentCount = (int) $remixMessage->get('remix_count', 0);
+                        $remixMessage->set('remix_count', $currentCount + 1);
                     }
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {

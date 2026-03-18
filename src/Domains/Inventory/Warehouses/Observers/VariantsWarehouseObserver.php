@@ -15,10 +15,11 @@ class VariantsWarehouseObserver
     public function saved(VariantsWarehouses $variantWarehouse): void
     {
         if ($variantWarehouse->wasChanged('price')) {
-            (new CreatePriceHistoryAction(
+            new CreatePriceHistoryAction(
                 $variantWarehouse,
-                $variantWarehouse->price
-            ))->execute();
+                $variantWarehouse->price,
+                auth()->user(),
+            )->execute();
         }
 
         if ($variantWarehouse->wasChanged('quantity')) {
@@ -33,7 +34,7 @@ class VariantsWarehouseObserver
             );
         }
 
-        if ($variantWarehouse->wasChanged('status_id')) {
+        if ($variantWarehouse->wasChanged('status_id') && $variantWarehouse->status_id !== null) {
             (new CreateStatusHistoryAction(
                 StatusRepository::getById($variantWarehouse->status_id),
                 $variantWarehouse

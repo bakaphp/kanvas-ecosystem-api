@@ -69,14 +69,14 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
      */
     protected function buildFormattedNote(Message $message, string $note, bool $fromAgent): string
     {
-        $channelSlug = $message->channels->first()->slug;
-        $channel = ChannelCategoryEnum::getLeadChannelName($channelSlug);
-        $agentChannel = '(' . ucfirst($channel ?? 'sms') . ') ';
+        $channelSlug = $message->channels->first()?->slug;
+        $channel = $channelSlug ? ChannelCategoryEnum::getLeadChannelName($channelSlug) : 'sms';
+        $agentChannel = '(' . ucfirst($channel) . ') ';
 
         $isNote = strtolower((string)$message->messageType?->verb) === 'note';
         $fromWho = match (true) {
             $isNote => 'Agent Note',
-            $fromAgent => $agentChannel . ' Sally',
+            $fromAgent => $agentChannel . ' ' . ($message->user->firstname . ' ' . $message->user->lastname ?? 'Sally'),
             default => 'Customer',
         };
 
@@ -94,14 +94,14 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             return $note;
         }
 
-        $shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
-        $linkText = "\nView Full Conversation here: {$shortUrl}";
+        //$shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
+        //$linkText = "\nView Full Conversation here: {$shortUrl}";
 
-        if (strlen($note) + strlen($linkText) > 200) {
-            return substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
-        }
+        //if (strlen($note) + strlen($linkText) > 200) {
+        //    return substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
+        //}
 
-        return $note . $linkText;
+        return $note;
     }
 
     /**
@@ -143,6 +143,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 if (empty($note)) {
                     return $this->failWorkflow([
                         'error' => 'Message content is empty',
+                    ]);
+                }
+
+                if ($message->isLocked() || ! $message->isPublic()) {
+                    return $this->failWorkflow([
+                        'error' => 'Message is locked or not public, cannot add comment',
                     ]);
                 }
 

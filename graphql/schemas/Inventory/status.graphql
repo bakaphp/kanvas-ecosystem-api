@@ -34,10 +34,12 @@ input StatusReferenceInput {
 
 extend type Mutation @guard {
     createStatus(input: StatusInput!): Status!
+        @can(ability: "create", model: "Kanvas\\Inventory\\Status\\Models\\Status")
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
         )
     updateStatus(id: ID!, input: StatusInput!): Status!
+        @can(ability: "edit", model: "Kanvas\\Inventory\\Status\\Models\\Status")
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
         )
@@ -50,6 +52,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@updateStatusTranslation"
         )
     deleteStatus(id: ID!): Boolean!
+        @can(ability: "delete", model: "Kanvas\\Inventory\\Status\\Models\\Status")
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@delete"
         )
@@ -81,6 +84,7 @@ extend type Query @guard {
                 ]
             )
     ): [Status!]!
+        @can(ability: "view", model: "Kanvas\\Inventory\\Status\\Models\\Status")
         @paginate(
             model: "Kanvas\\Inventory\\Status\\Models\\Status"
             scopes: ["fromApp", "fromCompany"]
