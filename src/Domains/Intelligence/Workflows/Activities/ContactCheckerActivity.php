@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Tools\ContactCheckerTool;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -40,9 +39,7 @@ class ContactCheckerActivity extends KanvasActivity implements WorkflowActivityI
             ];
         }
 
-        $lead = Lead::where('string_id', $channel->entity_id)
-            ->where('apps_id', $entity->apps_id)
-            ->first();
+        $lead = $entity->entity();
 
         if (! $lead) {
             return [

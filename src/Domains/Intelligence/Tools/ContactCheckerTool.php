@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Tools;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Social\Messages\Models\Message;
@@ -22,11 +21,11 @@ use Prism\Prism\Schema\StringSchema;
 class ContactCheckerTool implements ContextToolInterface
 {
     protected Agent $agent;
-    protected Lead $lead;
+    protected Model $lead;
 
-    public function __construct(protected Model $entity)
+    public function __construct(protected Message $message)
     {
-        $this->lead = $this->getLeadFromMessage($entity);
+        $this->lead = $this->getLeadFromMessage($message);
         $agentName = 'ContactCheckerAgent';
         $this->agent = Agent::fromApp($this->lead->app)
             ->fromCompany($this->lead->company)
@@ -37,7 +36,7 @@ class ContactCheckerTool implements ContextToolInterface
     #[Override]
     public function execute(array $params = []): array
     {
-        $noteContent = $this->getNoteContent();
+        $noteContent = $this->message->message;
 
         $data = [
             'note' => $noteContent,
@@ -88,12 +87,8 @@ class ContactCheckerTool implements ContextToolInterface
         return $response->structured;
     }
 
-    protected function getLeadFromMessage(Model $message): Lead
+    protected function getLeadFromMessage(Message $message): Model
     {
-        if (! $message instanceof Message) {
-            throw new InvalidArgumentException('Entity must be a Message instance');
-        }
-
         $channel = $message->channels()
             ->where('name', 'Notes')
             ->first();
@@ -102,22 +97,8 @@ class ContactCheckerTool implements ContextToolInterface
             throw new InvalidArgumentException('Message is not associated with a Notes channel linked to an entity');
         }
 
-        $lead = Lead::where('string_id', $channel->entity_id)
-            ->where('apps_id', $message->apps_id)
-            ->firstOrFail();
+        $lead = $message->entity();
 
         return $lead;
-    }
-
-    protected function getNoteContent(): string
-    {
-        $messageData = $this->entity->getMessage();
-
-        return $messageData['content'] ?? $messageData['text'] ?? '';
-    }
-
-    public function getLead(): Lead
-    {
-        return $this->lead;
     }
 }
