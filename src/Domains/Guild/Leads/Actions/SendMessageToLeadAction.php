@@ -313,7 +313,11 @@ class SendMessageToLeadAction
             }
 
             $type = $file['type'] ?? null;
-            if ($type === MediaTypeEnum::IMAGE || $type === MediaTypeEnum::AUDIO) {
+            if (
+                $type === MediaTypeEnum::IMAGE
+                || $type === MediaTypeEnum::AUDIO
+                || $type === MediaTypeEnum::DOCUMENT
+            ) {
                 $mediaUrls[] = $file['url'];
             }
         }
