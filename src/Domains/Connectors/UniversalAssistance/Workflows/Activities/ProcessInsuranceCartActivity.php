@@ -37,12 +37,23 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         }
 
         if ($order->get('universal_assistance_processing')) {
-            return [
-                'status' => 'skipped',
-                'message' => 'Order is currently being processed for Universal Assistance',
-                'order_id' => $order->getId(),
-                'skipped_in_progress' => true,
-            ];
+            // Check if the processing flag is stale (older than 5 minutes)
+            // This prevents permanent deadlock when a previous attempt failed via failWorkflow
+            // without clearing the flag (failWorkflow returns array, doesn't throw, so catch block doesn't run)
+            $processingStartedAt = $order->get('universal_assistance_processing_started_at');
+            $isStale = ! $processingStartedAt || Carbon::parse($processingStartedAt)->diffInMinutes(Carbon::now()) >= 5;
+
+            if (! $isStale) {
+                return [
+                    'status' => 'skipped',
+                    'message' => 'Order is currently being processed for Universal Assistance',
+                    'order_id' => $order->getId(),
+                    'skipped_in_progress' => true,
+                ];
+            }
+
+            // Stale flag — clear it and continue processing
+            $order->set('universal_assistance_processing', false);
         }
 
         if ($this->orderHasExistingVouchers($order)) {
@@ -69,6 +80,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $order->refresh();
 
                     if ($order->get('universal_assistance_processed')) {
+                        $order->set('universal_assistance_processing', false);
+
                         return [
                             'status' => 'skipped',
                             'message' => 'Order was processed during wait period',
@@ -79,13 +92,23 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                     $data = $this->getActivityData($order, $params);
 
+                    // If getActivityData returned a failWorkflow result (no insurance data yet),
+                    // clear the processing flag so future webhook-triggered attempts are not blocked
+                    if (! isset($data['all_insurance_data'])) {
+                        $order->set('universal_assistance_processing', false);
+
+                        return $this->failWorkflow([
+                            'message' => 'No insurance data available to process',
+                            'data' => $data,
+                        ]);
+                    }
+
                     // Process each eSIM separately to create individual vouchers OR grouped vouchers by plan
                     $allResults = [];
                     $allVoucherData = [];
 
-                    // Check if we have multiple eSIMs to process
+                    // Process each eSIM separately
                     if (! empty($data['all_insurance_data'])) {
-                        // Process each eSIM separately
                         foreach ($data['all_insurance_data'] as $index => $esimInsuranceData) {
                             // Create separate service instance for each eSIM with its specific message_id
                             $messageId = $esimInsuranceData['message_id'] ?? null;
@@ -105,6 +128,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                             try {
                                 $esimResults = $this->processSIMWithPlanGrouping($service, $esimInsuranceData['insurance'], $index);
                             } catch (ValidationException $e) {
+                                $order->set('universal_assistance_processing', false);
+
                                 return $this->failWorkflow([
                                     'message' => $e->getMessage(),
                                 ]);
@@ -126,12 +151,6 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
                         // Use combined results
                         $results = $allResults;
-                    } else {
-                        // No insurance data found - this should have been caught in getActivityData
-                        return $this->failWorkflow([
-                            'message' => 'No insurance data available to process',
-                            'data' => $data,
-                        ]);
                     }
 
                     // ADDITIONAL: Create separate messages for each eSIM with universal_assistance_data
@@ -162,6 +181,8 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     ];
 
                     if (! $workflowSuccess) {
+                        $order->set('universal_assistance_processing', false);
+
                         return $this->failWorkflow($workflowResponse);
                     }
 
@@ -278,18 +299,56 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         // Fallback: Look in esims metadata (for legacy structure)
         if (empty($insuranceData) && isset($orderMetadata['esims']) && is_array($orderMetadata['esims'])) {
+            // Build lookup maps from insurancePendingData for cross-referencing.
+            // eSimDetails.insurance only has plan/product selection without personal fields
+            // (firstname, lastname, etc.), while insurancePendingData has the complete data.
+            // The webhook always stores messageId as null, so we also index by ICCID.
+            $pendingDataByMessageId = [];
+            $pendingDataByIccid = [];
+            if (isset($orderMetadata['new_data']['data']['insurancePendingData']) &&
+                is_array($orderMetadata['new_data']['data']['insurancePendingData'])) {
+                foreach ($orderMetadata['new_data']['data']['insurancePendingData'] as $pd) {
+                    $pd = $this->convertObjectsToArrays($pd);
+                    if (isset($pd['insurance'])) {
+                        if (! empty($pd['messageId'])) {
+                            $pendingDataByMessageId[(int) $pd['messageId']] = $pd['insurance'];
+                        }
+                        if (! empty($pd['iccid'])) {
+                            $pendingDataByIccid[$pd['iccid']] = $pd['insurance'];
+                        }
+                    }
+                }
+            }
+
             foreach ($orderMetadata['esims'] as $esim) {
                 // Convert esim to array in case it contains nested objects from GraphQL
                 $esim = $this->convertObjectsToArrays($esim);
 
+                $baseMessageId = $esim['message_id'] ?? null;
+                $esimIccid = $esim['data']['iccid'] ?? $esim['iccid'] ?? null;
                 $insurance = null;
-                if (isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
-                    $insurance = $esim['eSimDetails']['insurance'];
+
+                // Priority 1: match insurancePendingData by messageId (has personal fields)
+                if ($baseMessageId && isset($pendingDataByMessageId[(int) $baseMessageId])) {
+                    $insurance = $pendingDataByMessageId[(int) $baseMessageId];
+                }
+
+                // Priority 2: match insurancePendingData by ICCID (webhook flow sets messageId=null)
+                if (! $insurance && $esimIccid && isset($pendingDataByIccid[$esimIccid])) {
+                    $insurance = $pendingDataByIccid[$esimIccid];
+                }
+
+                // Fallback to eSimDetails.insurance (may only have plan/product without personal data)
+                if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
+                    $candidate = $esim['eSimDetails']['insurance'];
+                    // Only use if it has essential personal fields, otherwise it's just plan selection data
+                    if ($this->hasEssentialInsuranceFields($candidate)) {
+                        $insurance = $candidate;
+                    }
                 }
 
                 if ($insurance) {
                     $quantity = (int) ($esim['quantity'] ?? 1);
-                    $baseMessageId = $esim['message_id'] ?? null;
 
                     // Skip if this message already has a voucher
                     if ($baseMessageId && $this->messageHasVoucher((int) $baseMessageId)) {
@@ -430,6 +489,19 @@ class ProcessInsuranceCartActivity extends KanvasActivity
         if (! isset($insuranceData['titular'])) {
             return $this->failWorkflow([
                 'message' => 'Titular data is required in insurance data. Available keys: ' . implode(', ', array_keys($insuranceData)),
+            ]);
+        }
+
+        // Validate that insurance data has essential personal fields (not just plan/product selection)
+        // eSimDetails.insurance only stores plan selection; personal data comes from insurancePendingData
+        if (! $this->hasEssentialInsuranceFields($insuranceData)) {
+            $availableTitularKeys = is_array($insuranceData['titular']) ? implode(', ', array_keys($insuranceData['titular'])) : 'none';
+
+            return $this->failWorkflow([
+                'message' => 'Insurance personal data not yet available - titular has plan/product selection but missing personal fields (firstname, lastname, etc.). '
+                    . 'The insurancePendingData may not have been submitted yet. Available titular keys: ' . $availableTitularKeys,
+                'missing_personal_data' => true,
+                'retryable' => true,
             ]);
         }
 
@@ -1837,6 +1909,16 @@ class ProcessInsuranceCartActivity extends KanvasActivity
      */
     protected function checkSingleEsimSuccess(array $esimResults): bool
     {
+        // Detect failWorkflow patterns (validation errors, missing fields)
+        if (isset($esimResults['missing_fields']) && ! empty($esimResults['missing_fields'])) {
+            return false;
+        }
+
+        // If the result has a 'message' key but no 'titular' key, it's likely a failWorkflow error
+        if (isset($esimResults['message']) && ! isset($esimResults['titular'])) {
+            return false;
+        }
+
         // Check titular voucher
         if (isset($esimResults['titular']['voucher_result']['success'])) {
             if ($esimResults['titular']['voucher_result']['success'] === false) {
