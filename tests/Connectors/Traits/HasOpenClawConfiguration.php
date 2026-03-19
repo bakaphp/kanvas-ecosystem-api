@@ -29,7 +29,7 @@ trait HasOpenClawConfiguration
         );
         $company->set(
             ConfigurationEnum::SSH_PRIVATE_KEY->value,
-            env('TEST_OPENCLAW_SSH_PRIVATE_KEY', '')
+            $this->resolvePrivateKey()
         );
         $company->set(
             ConfigurationEnum::OPENCLAW_HOME->value,
