@@ -152,6 +152,7 @@ use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
+use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
 use Kanvas\Intelligence\Workflows\SendNotificationActivity;
@@ -362,6 +363,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessCalendlyWebhookJob::class,
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
+            ContactCheckerActivity::class,
         ];
 
         $createdActions = [];
