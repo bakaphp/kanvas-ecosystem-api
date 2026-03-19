@@ -33,7 +33,7 @@ class HealthProvider extends ServiceProvider
            DatabaseCheck::new()->name('content_engine')->connectionName('content_engine'),
            DatabaseCheck::new()->name('workflow')->connectionName('workflow'),
            RedisCheck::new()->name('redis'),
-           RedisMemoryUsageCheck::new()->failWhenAboveMb(5000),
+           RedisMemoryUsageCheck::new()->failWhenAboveMb(10000),
            //QueueCheck::new(),
            //MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
            //ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
