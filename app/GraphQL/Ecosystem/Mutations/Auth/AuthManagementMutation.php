@@ -27,6 +27,11 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Sentry\Severity;
+use Sentry\State\Scope;
+
+use function Sentry\captureMessage;
+use function Sentry\withScope;
 
 class AuthManagementMutation
 {
@@ -56,6 +61,25 @@ class AuthManagementMutation
                 'deviceId' => $deviceId,
             ])
         );
+
+        //$userApp = $user->getAppProfile($app);
+        $logLogin = $app->get('log_login_attempts');
+        if ($logLogin) {
+            withScope(function (Scope $scope) use ($user, $app, $email, $request, $deviceId): void {
+                $scope->setLevel(Severity::info());
+                $scope->setContext('2fa_login_triggered', [
+                    'user_id' => $user->getId(),
+                    'email' => $email,
+                    'app_id' => $app->getId(),
+                    'app_name' => $app->name,
+                    'ip' => $request->ip(),
+                    'x_forwarded_for' => $request->header('X-Forwarded-For'),
+                    'device_id' => $deviceId,
+                    'user_agent' => $request->userAgent(),
+                ]);
+                captureMessage('2FA triggered on login - user has phone number and requires verification');
+            });
+        }
 
         return $user->createToken(
             name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(),
