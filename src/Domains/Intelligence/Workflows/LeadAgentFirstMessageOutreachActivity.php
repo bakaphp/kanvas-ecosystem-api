@@ -55,6 +55,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                    return [
+                        'ai_mode is OFF',
+                    ];
+                }
+
                 try {
                     $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
                 } catch (Exception $e) {
