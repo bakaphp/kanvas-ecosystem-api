@@ -26,6 +26,13 @@ class UpdateAgentAction
             'config' => $this->agent->config,
             'agent_model_id' => $this->agent->agentModel?->id,
             'company_task_list_id' => $this->agent->task?->id ?? null,
+            'soul' => $this->agent->soul,
+            'instructions' => $this->agent->instructions,
+            'output_format' => $this->agent->outputFormat,
+            'identity' => $this->agent->identity,
+            'user_context' => $this->agent->userContext,
+            'tools_config' => $this->agent->toolsConfig,
+            'parent_id' => $this->agent->parentAgent?->getId(),
         ]);
         $this->agentModel->communicationChannels()->sync($this->agent->communicationChannel);
 
