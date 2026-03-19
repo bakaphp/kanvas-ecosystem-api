@@ -153,6 +153,7 @@ use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
+use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
 use Kanvas\Intelligence\Workflows\SendNotificationActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -360,6 +361,7 @@ class KanvasWorkflowSynActionCommand extends Command
             IncrementPromptUsageActivity::class,
             ProcessCalendlyWebhookJob::class,
             SendNotificationActivity::class,
+            SaveLeadPreferredChannelActivity::class,
         ];
 
         $createdActions = [];
