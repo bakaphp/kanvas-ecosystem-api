@@ -66,8 +66,10 @@ class ContactCheckerActivity extends KanvasActivity implements WorkflowActivityI
                     'lead_string_id' => $lead->string_id,
                     'already_contacted' => $result['already_contacted'],
                     'should_send_first_message' => $result['should_send_first_message'],
+                    'note_is_relevant' => $result['note_is_relevant'],
                     'confidence' => $result['confidence'],
                     'reason' => $result['reason'],
+                    '_thought_process' => $result['_thought_process'],
                 ];
             },
             company: $lead->company,
