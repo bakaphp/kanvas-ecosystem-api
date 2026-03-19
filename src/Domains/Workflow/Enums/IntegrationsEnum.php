@@ -45,4 +45,5 @@ enum IntegrationsEnum: string
     case CHROMEDATA = 'chromedata';
     case TRIGGER_AI = 'trigger-ai';
     case CALENDLY = 'calendly';
+    case CONTACT_CHECKER = 'contact_checker';
 }
