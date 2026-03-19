@@ -28,11 +28,10 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-use function Sentry\captureMessage;
-
 use Sentry\Severity;
 use Sentry\State\Scope;
 
+use function Sentry\captureMessage;
 use function Sentry\withScope;
 
 class AuthManagementMutation
