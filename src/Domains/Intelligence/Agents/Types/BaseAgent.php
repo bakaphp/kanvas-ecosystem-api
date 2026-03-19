@@ -18,7 +18,7 @@ use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Gemini\Gemini;
-use NeuronAI\Providers\HttpClientOptions;
+use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Embeddings\OpenAIEmbeddingsProvider;
@@ -56,7 +56,7 @@ class BaseAgent extends RAG
         return new Gemini(
             key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
             model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.0-flash-lite',
-            httpOptions: new HttpClientOptions(timeout: 220, connectTimeout: 220),
+            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
         );
     }
 
