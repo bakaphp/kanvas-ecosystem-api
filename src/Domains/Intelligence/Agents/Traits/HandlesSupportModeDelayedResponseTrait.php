@@ -33,8 +33,8 @@ trait HandlesSupportModeDelayedResponseTrait
         $hasHumanMessage = $channel->messages()
             ->where('message->from_human', true)
             ->exists();
-        if (! $hasHumanMessage) {
-            if ($lead->get('ai_mode') !== IntelligenceModeEnum::SUPPORT->value || ! $isWithinWorkingHours) {
+        if ($lead->get('ai_mode') !== IntelligenceModeEnum::SUPPORT->value || ! $isWithinWorkingHours) {
+            if (! $hasHumanMessage) {
                 return null;
             }
         }
