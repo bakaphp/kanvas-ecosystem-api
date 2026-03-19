@@ -25,22 +25,19 @@ class LaunchAgentJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    protected int $deploymentId;
-
     public function __construct(
         protected Agent $agent,
         protected AgentMachine $machine,
         protected AppInterface $app,
         protected CompanyInterface $company,
-        AgentDeployment $deployment,
+        protected AgentDeployment $deployment,
     ) {
-        $this->deploymentId = $deployment->getId();
     }
 
     public function handle(): void
     {
         /** @var AgentDeployment $deployment */
-        $deployment = AgentDeployment::findOrFail($this->deploymentId);
+        $deployment = AgentDeployment::findOrFail($this->deployment->id);
 
         try {
             $deployment = new LaunchAgentOnMachineAction(
