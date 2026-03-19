@@ -50,7 +50,9 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
-                if (empty($content)) {
+                $files = $message->getFiles();
+
+                if (empty($content) && $files->isEmpty()) {
                     return $this->failWorkflow([
                         'message' => 'Message or user not found',
                         'entity' => null,
@@ -120,8 +122,6 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $message->addTag('engagement');
-
-                $files = $message->getFiles();
 
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,
