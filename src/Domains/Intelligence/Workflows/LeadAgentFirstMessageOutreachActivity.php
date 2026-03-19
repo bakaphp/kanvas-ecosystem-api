@@ -363,7 +363,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         $outBoundPhoneCallActivity = null;
         if ($lead->get('downloaded_from_eleads')) {
             $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead, $message)
-            ->execute('Sally Take Over', 'Sally stop the clock');
+            ->execute('Sally Takes Over', 'Sally stops the clock');
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             // To do VinSolution Push Note to Lead
         }
