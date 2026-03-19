@@ -102,6 +102,7 @@ class CreateEngagementAction
                 $messageData['action_link'] = Url::getShortUrl($newLink, $this->app);
                 $message->message = $messageData;
                 $message->saveOrFail();
+                $engagement->refresh();
             }
 
             if ($this->runWorkflow) {
