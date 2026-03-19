@@ -17075,21 +17075,21 @@
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
-            "version": "v2.2.2",
+            "version": "v2.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
-                "reference": "8f7a528eb78cc514e68cc2e7dea75fda18087232"
+                "reference": "b39dc8521b065845f7b6f291efbbd41c401e99a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/8f7a528eb78cc514e68cc2e7dea75fda18087232",
-                "reference": "8f7a528eb78cc514e68cc2e7dea75fda18087232",
+                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/b39dc8521b065845f7b6f291efbbd41c401e99a6",
+                "reference": "b39dc8521b065845f7b6f291efbbd41c401e99a6",
                 "shasum": ""
             },
             "require": {
                 "haydenpierce/class-finder": "^0.4",
-                "laravel/framework": "^9.0 || ^10.0 || ^11.0 || ^12.0",
+                "laravel/framework": "^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0",
                 "nuwave/lighthouse": "^6.0",
                 "php": "^8"
             },
@@ -17127,9 +17127,9 @@
             ],
             "support": {
                 "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
-                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.2.2"
+                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.2.3"
             },
-            "time": "2026-03-13T06:32:57+00:00"
+            "time": "2026-03-19T05:56:17+00:00"
         }
     ],
     "packages-dev": [
