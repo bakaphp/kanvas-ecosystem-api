@@ -1,18 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -58,6 +64,8 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         );
                         // recalculation handled by STATUS_TRANSITION → active event
                     }
+
+                    $this->applyDiscountFromMetadata($order);
 
                     $order->saveQuietly();
                 }
@@ -108,5 +116,35 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
             },
             company: $order->company,
         );
+    }
+
+    private function applyDiscountFromMetadata(Order $order): void
+    {
+        try {
+            $discountId = $order->metadata['data']['discount_id'] ?? null;
+
+            if (empty($discountId) || ! is_numeric($discountId)) {
+                return;
+            }
+
+            $discount = Discount::getByIdFromCompanyApp(
+                (int) $discountId,
+                $order->company,
+                $order->app
+            );
+
+            new ApplyDiscountToOrderAction($order, $discount)->execute();
+
+            $order->metadata = [
+                ...$order->metadata ?? [],
+                'data' => [
+                    ...$order->metadata['data'] ?? [],
+                    'discount_code' => $discount->code,
+                    'discount_name' => $discount->name,
+                ],
+            ];
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }
