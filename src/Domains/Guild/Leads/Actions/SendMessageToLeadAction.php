@@ -125,9 +125,9 @@ class SendMessageToLeadAction
                     company: $this->lead->company,
                     user: $this->lead->user,
                     lead: $this->lead,
-                    action: 'message-video',
+                    action: 'video',
                     requestId: Uuid::uuid4()->toString(),
-                    source: 'video-message',
+                    source: 'video',
                     status: ActionStatusEnum::SENT,
                     files: $filesystems,
                 );
