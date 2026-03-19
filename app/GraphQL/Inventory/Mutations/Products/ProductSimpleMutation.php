@@ -197,19 +197,28 @@ class ProductSimpleMutation
             return;
         }
 
-        $productType = ProductsTypes::firstOrCreate(
-            [
-                'slug' => Str::slug($input['products_types']),
+        $slug = Str::slug($input['products_types']);
+
+        $productType = ProductsTypes::where('slug', $slug)
+            ->where('apps_id', $app->getId())
+            ->where(function ($query) use ($company) {
+                $query->where('companies_id', $company->getId())
+                    ->orWhere('companies_id', 0);
+            })
+            ->notDeleted()
+            ->first();
+
+        if (! $productType) {
+            $productType = ProductsTypes::create([
+                'slug' => $slug,
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
-            ],
-            [
                 'name' => $input['products_types'],
                 'users_id' => $user->getId(),
                 'description' => $input['products_types'] . ' product type',
                 'weight' => 0,
-            ]
-        );
+            ]);
+        }
 
         $input['products_types_id'] = $productType->getId();
         unset($input['products_types']);
