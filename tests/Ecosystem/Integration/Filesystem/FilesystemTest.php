@@ -186,6 +186,36 @@ final class FilesystemTest extends TestCase
         @unlink($tempPath);
     }
 
+    public function testOptimizeLocalFileWithTempPathNoExtension(): void
+    {
+        // Simulates UploadedFile::getRealPath() which returns /tmp/phpXXXXXX (no extension)
+        $tempPath = sys_get_temp_dir() . '/phptest' . uniqid();
+        $img = imagecreatetruecolor(2000, 2000);
+        $red = imagecolorallocate($img, 255, 0, 0);
+        imagefill($img, 0, 0, $red);
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        $this->assertGreaterThan(10000, $originalSize);
+
+        $result = ImageOptimizerService::optimizeLocalFile(
+            filePath: $tempPath,
+            optimize: true,
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 75,
+        );
+
+        $this->assertEquals($tempPath, $result);
+        $this->assertFileExists($result);
+
+        $optimizedSize = filesize($result);
+        $this->assertLessThan($originalSize, $optimizedSize, 'File without extension should still be optimized via MIME detection');
+
+        @unlink($tempPath);
+    }
+
     public function testOptimizeLocalFileSkipsNonImageFiles(): void
     {
         $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
@@ -208,8 +238,20 @@ final class FilesystemTest extends TestCase
         $app->set('filesystem-optimize-on-upload', true);
         $app->set('filesystem-optimize-max-width', 800);
         $app->set('filesystem-optimize-max-height', 800);
+        $app->set('filesystem-optimize-quality', 75);
 
-        $file = UploadedFile::fake()->image('optimized-upload.jpg', 2000, 2000);
+        // Create a real large JPEG so optimization has something to compress
+        $tempPath = sys_get_temp_dir() . '/optimized-upload-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(2000, 2000);
+        $red = imagecolorallocate($img, 255, 0, 0);
+        imagefill($img, 0, 0, $red);
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        $this->assertGreaterThan(10000, $originalSize);
+
+        $file = new UploadedFile($tempPath, 'optimized-upload.jpg', 'image/jpeg', null, true);
         $filesystemService = new FilesystemServices($app);
         $user = Auth::user();
 
@@ -217,10 +259,12 @@ final class FilesystemTest extends TestCase
 
         $this->assertInstanceOf(Filesystem::class, $filesystem);
         $this->assertNotEmpty($filesystem->url);
+        $this->assertLessThan($originalSize, $filesystem->size, 'Optimized upload should be smaller than original');
 
         // Clean up
         $app->set('filesystem-optimize-on-upload', false);
         $filesystemService->delete($filesystem);
+        @unlink($tempPath);
     }
 
     public function testUploadWithOptimizationDisabled(): void
