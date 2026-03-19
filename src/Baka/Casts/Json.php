@@ -32,6 +32,6 @@ class Json implements CastsAttributes
     #[Override]
     public function set(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        return Str::isJson($value) || is_array($value) ? json_encode($value) : $value;
+        return is_array($value) ? json_encode($value) : $value;
     }
 }
