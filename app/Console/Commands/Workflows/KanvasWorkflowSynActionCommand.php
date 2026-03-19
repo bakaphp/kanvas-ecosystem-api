@@ -104,6 +104,7 @@ use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SetLeadAiModeOffIfEmailOnlyActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
@@ -352,6 +353,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesPushLeadNotesActivity::class,
             SalesAssistActivitiesPushLeadActivity::class,
             SalesAssistActivitiesPushPeopleActivity::class,
+            SetLeadAiModeOffIfEmailOnlyActivity::class,
             RestoreUsersAccountContentActivity::class,
             ScheduleEleadActivityFromEventAction::class,
             OAuthCallbackJob::class,
