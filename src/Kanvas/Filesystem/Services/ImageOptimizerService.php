@@ -218,7 +218,7 @@ class ImageOptimizerService
             return $filePath;
         }
 
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $extension = self::resolveExtension($filePath);
         $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
         if (! in_array($extension, $resizableExtensions, true)) {
@@ -276,6 +276,23 @@ class ImageOptimizerService
         }
 
         return $filePath;
+    }
+
+    /**
+     * Resolve file extension using MIME type detection as fallback.
+     * Temp files (e.g. /tmp/phpXXXXXX) have no extension, so we detect via mime_content_type().
+     */
+    private static function resolveExtension(string $filePath): string
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        $mimeType = mime_content_type($filePath);
+
+        return FilesystemServices::getExtensionFromMimeType($mimeType);
     }
 
     private static function isJpeg(string $ext): bool
