@@ -17,4 +17,6 @@ enum ConfigurationEnum: string
     case CHECK_EXPIRED_ORDERS = 'souk_check_expired_orders';
     case ALLOW_NO_PAYMENT_ORDER = 'allow_no_payment_order';
     case VALIDATE_METADATA_DUPLICATED_ENABLED = 'validate_metadata_duplicated_enabled';
+    case CANCEL_STALE_PAYMENTS = 'souk_cancel_stale_payments';
+    case STALE_PAYMENT_TTL_MINUTES = 'souk_stale_payment_ttl_minutes';
 }
