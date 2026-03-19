@@ -18,6 +18,7 @@ use Kanvas\Filesystem\Actions\CreateFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Users\Models\Users;
 use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
+use Symfony\Component\Mime\MimeTypes;
 
 class FilesystemServices
 {
@@ -278,7 +279,7 @@ class FilesystemServices
         // If no filename found in URL, generate one
         if (empty($originalName) || strpos($originalName, '.') === false) {
             $mimeType = mime_content_type($tempFilePath);
-            $extension = $this->getExtensionFromMimeType($mimeType);
+            $extension = self::getExtensionFromMimeType($mimeType);
             $originalName = uniqid('file_') . '.' . $extension;
         }
 
@@ -314,7 +315,7 @@ class FilesystemServices
 
             if (empty($extension)) {
                 $contentType = $response->header('Content-Type');
-                $extension = $this->getExtensionFromMimeType($contentType);
+                $extension = self::getExtensionFromMimeType($contentType);
             }
 
             $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
@@ -340,20 +341,8 @@ class FilesystemServices
     /**
      * Get file extension from MIME type.
      */
-    protected function getExtensionFromMimeType(string $mimeType): string
+    public static function getExtensionFromMimeType(string $mimeType): string
     {
-        $mimeMap = [
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-            'application/pdf' => 'pdf',
-            'text/plain' => 'txt',
-            'application/zip' => 'zip',
-            'application/json' => 'json',
-            'text/csv' => 'csv',
-        ];
-
-        return $mimeMap[$mimeType] ?? 'bin';
+        return MimeTypes::getDefault()->getExtensions($mimeType)[0] ?? 'bin';
     }
 }
