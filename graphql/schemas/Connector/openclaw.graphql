@@ -122,32 +122,6 @@ extend type Query @guardByAdmin {
 }
 
 extend type Mutation @guardByAdmin {
-    openClawRestartGateway: String!
-        @deprecated(reason: "Use restartAgentContainer instead")
-        @field(
-            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@restartGateway"
-        )
-    openClawGatewayLogs(lines: Int): String!
-        @deprecated(reason: "Use agentContainerLogs instead")
-        @field(
-            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@gatewayLogs"
-        )
-    openClawListAgents: String!
-        @deprecated(reason: "Use agentDeployments query instead")
-        @field(
-            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@listAgents"
-        )
-    openClawUsage: String!
-        @deprecated(reason: "Use agentUsageSnapshots query instead")
-        @field(
-            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@usage"
-        )
-    openClawHealth: String!
-        @deprecated(reason: "Use agentContainerStatus instead")
-        @field(
-            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\OpenClawMutation@health"
-        )
-
     createAgentMachine(input: AgentMachineInput!): AgentMachineType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@create"
