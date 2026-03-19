@@ -15,7 +15,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     public function testTwilioMediaUrlsIncludeDocuments(): void
     {
         $lead = Mockery::mock(Lead::class);
-        $action = new class($lead) extends SendMessageToLeadAction {
+        $action = new class ($lead) extends SendMessageToLeadAction {
             public function setProcessedFilesForTest(array $processedFiles): void
             {
                 $this->processedFiles = $processedFiles;
