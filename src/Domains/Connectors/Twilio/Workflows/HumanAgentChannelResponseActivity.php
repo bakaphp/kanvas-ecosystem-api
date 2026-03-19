@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -49,7 +50,9 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
-                if (empty($content)) {
+                $files = $message->getFiles();
+
+                if (empty($content) && $files->isEmpty()) {
                     return $this->failWorkflow([
                         'message' => 'Message or user not found',
                         'entity' => null,
@@ -97,6 +100,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                         'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
                     ]
                 );
+                $messageEntity->set(ConfigurationEnum::CONTACTED->value, LeadGroupStatusEnum::CONTACTED->value);
 
                 $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
 
@@ -118,8 +122,6 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 }
 
                 $message->addTag('engagement');
-
-                $files = $message->getFiles();
 
                 return new SendMessageToLeadAction($lead)->execute(
                     $channelType,

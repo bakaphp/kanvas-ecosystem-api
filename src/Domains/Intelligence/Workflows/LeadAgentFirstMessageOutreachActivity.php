@@ -55,6 +55,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
+                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                    return [
+                        'ai_mode is OFF',
+                    ];
+                }
+
                 try {
                     $createContext = new CreateLeadContextInfoAction($lead)->execute($params);
                 } catch (Exception $e) {
@@ -90,6 +96,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
+                $stopTheClockIteration = 0;
                 $sentChannels = [];
                 $stopTheClock = false;
 
@@ -208,7 +215,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $lead,
                                     $firstLeadMessage['message'],
                                     $communicationChannelNumber,
-                                    $channel ?? null,
                                     $messageType,
                                     $shouldSendFirstMessageNow
                                 );
@@ -223,6 +229,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                         $params['from'] ?? null,
                                         $firstLeadMessage['title'] ?? null,
                                     );
+
+                                    $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
@@ -246,6 +254,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $createMessage->set('from_number', $params['from'] ?? null);
                                     $createMessage->set('title', $firstLeadMessage['title'] ?? null);
 
+                                    $stopTheClock = false;
+                                    $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
+
                                     DailyReportService::track(
                                         $app,
                                         $lead->company,
@@ -254,8 +265,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 }
 
                                 //only do the external activity once for the first message
-                                if ($totalSentMessages === 0 && $stopTheClock) {
+                                if ($shouldSendFirstMessageNow && $stopTheClockIteration === 0 && $stopTheClock) {
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
+                                    $stopTheClockIteration++;
                                 }
                             } catch (Exception $e) {
                                 report($e);
@@ -385,7 +397,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         Lead $lead,
         string $text,
         string $to,
-        ?Channel $channel = null,
         string $messageType = 'twilio-sms',
         bool $runWorkflow = true,
     ): Message {
@@ -418,7 +429,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             ],
             is_public: 1,
             tags: [$to,'first-message'],
-            //slug: Str::slug($text) . '-' . microtime()
         );
 
         $leadSystemModule = SystemModulesRepository::getByModelName(get_class($lead), $lead->app);
@@ -429,19 +439,21 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
         $newMessage->runWorkflow = $runWorkflow;
 
-        $newMessage = $newMessage->execute();
-        //$newMessage = $createMessageAction->execute();
-        //$newMessage->addEntity($lead);
-        if ($channel) {
-            $channel->addCategory(
-                'ai-agent',
-                $lead->app,
-                $lead->user,
-                $lead->company
-            );
-            $channel->addMessage($newMessage);
+        return $newMessage->execute();
+    }
+
+    private function addMessageToChannel(Message $message, ?Channel $channel, Lead $lead): void
+    {
+        if ($channel === null) {
+            return;
         }
 
-        return $newMessage;
+        $channel->addCategory(
+            'ai-agent',
+            $lead->app,
+            $lead->user,
+            $lead->company
+        );
+        $channel->addMessage($message);
     }
 }
