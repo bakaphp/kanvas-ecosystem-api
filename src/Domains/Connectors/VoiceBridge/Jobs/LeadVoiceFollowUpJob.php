@@ -70,8 +70,10 @@ class LeadVoiceFollowUpJob implements ShouldQueue
             InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
             TriggerVoiceCallAction::fromLead($this->lead)->execute();
 
+            $transcriptDelayMinutes = (int) ($this->lead->company->get(VoiceBridgeConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
+
             SaveVoiceTranscriptJob::dispatch($this->lead, $this->app, $sessionId)
-                ->delay(now()->addMinutes(2));
+                ->delay(now()->addMinutes($transcriptDelayMinutes));
         } catch (Throwable $e) {
             report($e);
         }
