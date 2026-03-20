@@ -7400,16 +7400,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.2.8",
+            "version": "3.2.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "36fb9be8a9ea7197decdcf2d14a7190e1a9f8374"
+                "reference": "14585b4658896985be9c125fae10c7d5a1659645"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/36fb9be8a9ea7197decdcf2d14a7190e1a9f8374",
-                "reference": "36fb9be8a9ea7197decdcf2d14a7190e1a9f8374",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/14585b4658896985be9c125fae10c7d5a1659645",
+                "reference": "14585b4658896985be9c125fae10c7d5a1659645",
                 "shasum": ""
             },
             "require": {
@@ -7431,7 +7431,7 @@
                 "laudis/neo4j-php-client": "^3.4",
                 "opensearch-project/opensearch-php": "^2.5",
                 "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^9.0",
+                "phpunit/phpunit": "^10.0",
                 "rector/rector": "^2.0",
                 "spatie/fork": "^1.2",
                 "tomasvotruba/type-coverage": "^2.0",
@@ -7460,7 +7460,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.2.8"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.2.9"
             },
             "funding": [
                 {
@@ -7468,7 +7468,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-19T16:51:41+00:00"
+            "time": "2026-03-20T17:51:45+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
