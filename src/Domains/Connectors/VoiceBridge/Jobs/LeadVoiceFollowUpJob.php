@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Jobs;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -52,6 +54,13 @@ class LeadVoiceFollowUpJob implements ShouldQueue
             return;
         }
 
+        $phone = Str::normalizePhoneNumber($phone);
+        $sessionId = VoiceBridgeService::buildOutboundSessionId(
+            (string) $this->lead->getId(),
+            $phone,
+            (string) $this->app->get(VoiceBridgeConfigurationEnum::COMPANY_ID->value),
+        );
+
         try {
             $agent = Agent::fromApp($this->app)
                 ->fromCompany($this->lead->company)
@@ -60,6 +69,9 @@ class LeadVoiceFollowUpJob implements ShouldQueue
 
             InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
             TriggerVoiceCallAction::fromLead($this->lead)->execute();
+
+            SaveVoiceTranscriptJob::dispatch($this->lead, $this->app, $sessionId)
+                ->delay(now()->addMinutes(2));
         } catch (Throwable $e) {
             report($e);
         }
