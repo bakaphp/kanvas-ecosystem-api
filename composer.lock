@@ -1637,26 +1637,26 @@
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
-            "version": "4.5.0",
+            "version": "4.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/michaeldyrynda/laravel-cascade-soft-deletes.git",
-                "reference": "df5fee4003fc183c8ef46dc9055c1cada4182494"
+                "reference": "9c2dd92c70dcdf4eec61b8fbbf09740c2a8b62b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/michaeldyrynda/laravel-cascade-soft-deletes/zipball/df5fee4003fc183c8ef46dc9055c1cada4182494",
-                "reference": "df5fee4003fc183c8ef46dc9055c1cada4182494",
+                "url": "https://api.github.com/repos/michaeldyrynda/laravel-cascade-soft-deletes/zipball/9c2dd92c70dcdf4eec61b8fbbf09740c2a8b62b4",
+                "reference": "9c2dd92c70dcdf4eec61b8fbbf09740c2a8b62b4",
                 "shasum": ""
             },
             "require": {
-                "illuminate/database": "^11.0 || ^12.0",
-                "illuminate/events": "^11.0 || ^12.0",
-                "php": "^8.2"
+                "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+                "illuminate/events": "^11.0 || ^12.0 || ^13.0",
+                "php": "^8.3"
             },
             "require-dev": {
-                "pestphp/pest": "^2.34 || ^3.7",
-                "pestphp/pest-plugin-drift": "^2.5"
+                "laravel/pint": "^1.29",
+                "pestphp/pest": "^4.4.2"
             },
             "type": "utility",
             "autoload": {
@@ -1678,9 +1678,9 @@
             "description": "Cascading deletes for Eloquent models that implement soft deletes",
             "support": {
                 "issues": "https://github.com/michaeldyrynda/laravel-cascade-soft-deletes/issues",
-                "source": "https://github.com/michaeldyrynda/laravel-cascade-soft-deletes/tree/4.5.0"
+                "source": "https://github.com/michaeldyrynda/laravel-cascade-soft-deletes/tree/4.6.1"
             },
-            "time": "2025-02-26T10:22:40+00:00"
+            "time": "2026-03-20T21:07:23+00:00"
         },
         {
             "name": "echolabsdev/prism",
