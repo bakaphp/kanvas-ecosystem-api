@@ -48,11 +48,11 @@ class ADKAgent
 
         $sessionId = $session ? $session->uuid : $channel->slug;
         $userId = (string) $message->users_id;
-        if($channel->entity_namespace == Lead::class ){
+        if ($channel->entity_namespace == Lead::class) {
             $userId = $channel->entity_id;
         }
         $googleADKService->startSession(
-            ,
+            $userId,
             $sessionId
         );
 
