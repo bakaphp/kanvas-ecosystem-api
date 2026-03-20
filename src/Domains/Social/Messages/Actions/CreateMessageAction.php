@@ -155,15 +155,12 @@ class CreateMessageAction
             return;
         }
 
-        $constrainVerbs = $app->get('filesystem-message-constrain-verbs');
-        if (empty($constrainVerbs)) {
+        $allowedVerbs = (array) $app->get('filesystem-message-constrain-verbs');
+        if (empty($allowedVerbs)) {
             return;
         }
 
-        $allowedVerbs = array_map('trim', explode(',', (string) $constrainVerbs));
-        $messageVerb = $this->messageInput->type->verb;
-
-        if (! in_array($messageVerb, $allowedVerbs, true)) {
+        if (! in_array($this->messageInput->type->verb, $allowedVerbs, true)) {
             return;
         }
 
