@@ -267,6 +267,85 @@ final class FilesystemTest extends TestCase
         @unlink($tempPath);
     }
 
+    public function testConstrainFileSizeReducesLargeImage(): void
+    {
+        // Create a large JPEG with noise to ensure it exceeds our size limit
+        $tempPath = sys_get_temp_dir() . '/test-constrain-' . uniqid() . '.jpg';
+        $width = 4000;
+        $height = 4000;
+        $img = imagecreatetruecolor($width, $height);
+
+        // Fill with random pixel data so JPEG compression can't trivially shrink it
+        for ($y = 0; $y < $height; $y += 2) {
+            for ($x = 0; $x < $width; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        // Set a low max size so the test triggers both quality and dimension reduction
+        $maxFileSize = (int) ($originalSize * 0.20); // 20% of original — forces real work
+        $this->assertGreaterThan($maxFileSize, $originalSize, 'Original must exceed the limit');
+
+        $result = ImageOptimizerService::constrainFileSize(
+            filePath: $tempPath,
+            maxFileSize: $maxFileSize,
+        );
+
+        $this->assertEquals($tempPath, $result);
+        $this->assertFileExists($result);
+
+        clearstatcache(true, $result);
+        $constrainedSize = filesize($result);
+        $this->assertLessThanOrEqual($maxFileSize, $constrainedSize, 'File should be under maxFileSize after constraining');
+
+        @unlink($tempPath);
+    }
+
+    public function testConstrainFileSizeSkipsSmallFile(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/test-constrain-small-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(100, 100);
+        $blue = imagecolorallocate($img, 0, 0, 255);
+        imagefill($img, 0, 0, $blue);
+        imagejpeg($img, $tempPath, 80);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        $result = ImageOptimizerService::constrainFileSize(
+            filePath: $tempPath,
+            maxFileSize: 10 * 1024 * 1024, // 10MB — way above the tiny test image
+        );
+
+        $this->assertEquals($tempPath, $result);
+        clearstatcache(true, $result);
+        // Size should be unchanged (or negligibly different) since it was already under limit
+        $this->assertEquals($originalSize, filesize($result));
+
+        @unlink($tempPath);
+    }
+
+    public function testConstrainFileSizeSkipsNonImageFile(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/test-constrain-doc-' . uniqid() . '.pdf';
+        file_put_contents($tempPath, str_repeat('x', 1000));
+
+        $result = ImageOptimizerService::constrainFileSize(
+            filePath: $tempPath,
+            maxFileSize: 500,
+        );
+
+        $this->assertEquals($tempPath, $result);
+        $this->assertEquals(1000, filesize($result), 'Non-image files should be left untouched');
+
+        @unlink($tempPath);
+    }
+
     public function testUploadWithOptimizationDisabled(): void
     {
         $app = app(Apps::class);
