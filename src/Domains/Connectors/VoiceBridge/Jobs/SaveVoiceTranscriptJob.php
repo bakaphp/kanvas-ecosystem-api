@@ -24,8 +24,8 @@ class SaveVoiceTranscriptJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    const MAX_ATTEMPTS = 22;
-    const POLL_INTERVAL_SECONDS = 30;
+    public const MAX_ATTEMPTS = 22;
+    public const POLL_INTERVAL_SECONDS = 30;
 
     public function __construct(
         protected Lead $lead,
