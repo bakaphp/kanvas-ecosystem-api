@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -16,7 +15,6 @@ class SaveVoiceTranscriptAction
 {
     public function __construct(
         protected readonly Lead $lead,
-        protected readonly Apps $app,
         protected readonly array $transcript,
         protected readonly string $sessionId,
     ) {
@@ -24,9 +22,11 @@ class SaveVoiceTranscriptAction
 
     public function execute(): Message
     {
+        $app = $this->lead->app;
+
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
-                apps_id: $this->app->getId(),
+                apps_id: $app->getId(),
                 name: 'Voice Transcript',
                 verb: 'voice-transcript',
             )
@@ -34,7 +34,7 @@ class SaveVoiceTranscriptAction
 
         $message = new CreateMessageAction(
             new MessageInput(
-                app: $this->app,
+                app: $app,
                 company: $this->lead->company,
                 user: $this->lead->user,
                 type: $messageType,

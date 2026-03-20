@@ -67,7 +67,7 @@ class SendVoiceMessageActivity extends KanvasActivity
 
                 $transcriptDelayMinutes = (int) ($lead->company->get(ConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
 
-                SaveVoiceTranscriptJob::dispatch($lead, $app, $sessionId)
+                SaveVoiceTranscriptJob::dispatch($lead, $sessionId)
                     ->delay(now()->addMinutes($transcriptDelayMinutes));
 
                 return [

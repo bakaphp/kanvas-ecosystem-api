@@ -11,7 +11,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
@@ -31,13 +30,13 @@ class LeadVoiceFollowUpJob implements ShouldQueue
 
     public function __construct(
         protected Lead $lead,
-        protected Apps $app,
     ) {
     }
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $app = $this->lead->app;
+        $this->overwriteAppService($app);
 
         if ($this->lead->get(LeadsConfigurationEnum::IS_ENGAGEMENT->value)) {
             return;
@@ -50,7 +49,7 @@ class LeadVoiceFollowUpJob implements ShouldQueue
             return;
         }
 
-        if (empty($this->app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+        if (empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
             return;
         }
 
@@ -58,11 +57,11 @@ class LeadVoiceFollowUpJob implements ShouldQueue
         $sessionId = VoiceBridgeService::buildOutboundSessionId(
             (string) $this->lead->getId(),
             $phone,
-            (string) $this->app->get(VoiceBridgeConfigurationEnum::COMPANY_ID->value),
+            (string) $app->get(VoiceBridgeConfigurationEnum::COMPANY_ID->value),
         );
 
         try {
-            $agent = Agent::fromApp($this->app)
+            $agent = Agent::fromApp($app)
                 ->fromCompany($this->lead->company)
                 ->where('name', 'voiceOutreachAgent')
                 ->firstOrFail();
@@ -72,7 +71,7 @@ class LeadVoiceFollowUpJob implements ShouldQueue
 
             $transcriptDelayMinutes = (int) ($this->lead->company->get(VoiceBridgeConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
 
-            SaveVoiceTranscriptJob::dispatch($this->lead, $this->app, $sessionId)
+            SaveVoiceTranscriptJob::dispatch($this->lead, $sessionId)
                 ->delay(now()->addMinutes($transcriptDelayMinutes));
         } catch (Throwable $e) {
             report($e);

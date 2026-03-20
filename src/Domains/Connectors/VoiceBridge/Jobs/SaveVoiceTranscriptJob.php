@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\SaveVoiceTranscriptAction;
 use Kanvas\Connectors\VoiceBridge\Client;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,7 +28,6 @@ class SaveVoiceTranscriptJob implements ShouldQueue
 
     public function __construct(
         protected Lead $lead,
-        protected Apps $app,
         protected string $sessionId,
         protected int $attempt = 0,
     ) {
@@ -37,10 +35,11 @@ class SaveVoiceTranscriptJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $app = $this->lead->app;
+        $this->overwriteAppService($app);
 
         try {
-            $stream = Client::getInstance($this->app)->getTranscriptStream($this->sessionId);
+            $stream = Client::getInstance($app)->getTranscriptStream($this->sessionId);
         } catch (Throwable $e) {
             report($e);
 
@@ -49,7 +48,7 @@ class SaveVoiceTranscriptJob implements ShouldQueue
 
         if ($stream['is_active'] ?? true) {
             if ($this->attempt < self::MAX_ATTEMPTS) {
-                self::dispatch($this->lead, $this->app, $this->sessionId, $this->attempt + 1)
+                self::dispatch($this->lead, $this->sessionId, $this->attempt + 1)
                     ->delay(now()->addSeconds(self::POLL_INTERVAL_SECONDS));
             }
 
@@ -64,7 +63,6 @@ class SaveVoiceTranscriptJob implements ShouldQueue
 
         new SaveVoiceTranscriptAction(
             $this->lead,
-            $this->app,
             $transcript,
             $this->sessionId,
         )->execute();
