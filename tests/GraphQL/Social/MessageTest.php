@@ -1581,7 +1581,7 @@ class MessageTest extends TestCase
         // Set a low max so it must constrain
         $maxFileSize = (int) ($originalSize * 0.25);
         $app->set('filesystem-message-max-filesize', $maxFileSize);
-        $app->set('filesystem-message-constrain-verbs', $verb);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
 
         $file = new UploadedFile($tempPath, 'large-photo.jpg', 'image/jpeg', null, true);
 
@@ -1642,7 +1642,7 @@ class MessageTest extends TestCase
 
         // Only constrain twilio verbs, not email
         $app->set('filesystem-message-max-filesize', 100000);
-        $app->set('filesystem-message-constrain-verbs', 'twilio-sms,twilio-mms');
+        $app->set('filesystem-message-constrain-verbs', ['twilio-sms', 'twilio-mms']);
 
         $file = new UploadedFile($tempPath, 'photo.jpg', 'image/jpeg', null, true);
 
