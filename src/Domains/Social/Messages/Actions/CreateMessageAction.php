@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
@@ -92,6 +94,8 @@ class CreateMessageAction
 
             // Upload files before adding to channel so workflow can access them
             if (! empty($this->messageInput->files)) {
+                $this->constrainMessageFiles();
+
                 $this->handleFileUpload(
                     $message,
                     $this->messageInput->app,
@@ -137,5 +141,48 @@ class CreateMessageAction
 
             return $message;
         });
+    }
+
+    /**
+     * Constrain image file sizes for message types that have size limits (e.g., SMS/MMS).
+     */
+    private function constrainMessageFiles(): void
+    {
+        $app = $this->messageInput->app;
+        $maxFileSize = (int) ($app->get('filesystem-message-max-filesize') ?: 0);
+
+        if ($maxFileSize <= 0) {
+            return;
+        }
+
+        $constrainVerbs = $app->get('filesystem-message-constrain-verbs');
+        if (empty($constrainVerbs)) {
+            return;
+        }
+
+        $allowedVerbs = array_map('trim', explode(',', (string) $constrainVerbs));
+        $messageVerb = $this->messageInput->type->verb;
+
+        if (! in_array($messageVerb, $allowedVerbs, true)) {
+            return;
+        }
+
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+
+        foreach ($this->messageInput->files as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (! in_array($extension, $imageExtensions, true)) {
+                continue;
+            }
+
+            ImageOptimizerService::constrainFileSize(
+                $file->getRealPath(),
+                $maxFileSize,
+            );
+        }
     }
 }
