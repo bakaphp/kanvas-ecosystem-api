@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Workflows;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Jobs\SaveVoiceTranscriptJob;
+use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Messages\Models\Message;
@@ -46,9 +49,24 @@ class SendVoiceMessageActivity extends KanvasActivity
                     ->where('name', 'voiceOutreachAgent')
                     ->firstOrFail();
 
+                $phone = Str::normalizePhoneNumber(
+                    $lead->people->getCellPhones()->first()?->value
+                    ?? $lead->people->getAllPhones()->first()?->value
+                    ?? ''
+                );
+
+                $sessionId = VoiceBridgeService::buildOutboundSessionId(
+                    (string) $lead->getId(),
+                    $phone,
+                    (string) $app->get(ConfigurationEnum::COMPANY_ID->value),
+                );
+
                 InitVoiceSessionAction::fromLead($lead, $agent, $messageContent)->execute();
 
                 $result = TriggerVoiceCallAction::fromLead($lead)->execute();
+
+                SaveVoiceTranscriptJob::dispatch($lead, $app, $sessionId)
+                    ->delay(now()->addMinutes(2));
 
                 return [
                     'success' => true,
