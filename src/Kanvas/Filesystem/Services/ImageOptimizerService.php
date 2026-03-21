@@ -337,7 +337,7 @@ class ImageOptimizerService
                 $img = $img->scale($newWidth, $newHeight);
 
                 match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
+                    self::isJpeg($extension) => $img->toJpeg(85)->save($filePath),
                     self::isPng($extension) => $img->toPng()->save($filePath),
                     default => null,
                 };
@@ -367,7 +367,7 @@ class ImageOptimizerService
         $core = $img->core()->native();
         $core->setOption('jpeg:extent', (string) $maxFileSize); // @phpstan-ignore-line
         $core->setImageFormat('jpeg'); // @phpstan-ignore-line
-        $core->writeImage($filePath); // @phpstan-ignore-line
+        $core->writeImage('jpeg:' . $filePath); // @phpstan-ignore-line
 
         clearstatcache(true, $filePath);
     }
@@ -398,8 +398,9 @@ class ImageOptimizerService
     private static function resolveExtension(string $filePath): string
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $knownExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff', 'svg', 'bmp'];
 
-        if ($extension !== '') {
+        if ($extension !== '' && in_array($extension, $knownExtensions, true)) {
             return $extension;
         }
 

@@ -164,15 +164,8 @@ class CreateMessageAction
             return;
         }
 
-        $imageExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
-
         foreach ($this->messageInput->files as $file) {
             if (! $file instanceof UploadedFile) {
-                continue;
-            }
-
-            $extension = strtolower($file->getClientOriginalExtension());
-            if (! in_array($extension, $imageExtensions, true)) {
                 continue;
             }
 
