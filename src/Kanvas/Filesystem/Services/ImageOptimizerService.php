@@ -337,7 +337,7 @@ class ImageOptimizerService
                 $img = $img->scale($newWidth, $newHeight);
 
                 match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
+                    self::isJpeg($extension) => $img->toJpeg(85)->save($filePath),
                     self::isPng($extension) => $img->toPng()->save($filePath),
                     default => null,
                 };
@@ -367,7 +367,7 @@ class ImageOptimizerService
         $core = $img->core()->native();
         $core->setOption('jpeg:extent', (string) $maxFileSize); // @phpstan-ignore-line
         $core->setImageFormat('jpeg'); // @phpstan-ignore-line
-        $core->writeImage($filePath); // @phpstan-ignore-line
+        $core->writeImage('jpeg:' . $filePath); // @phpstan-ignore-line
 
         clearstatcache(true, $filePath);
     }
@@ -392,17 +392,10 @@ class ImageOptimizerService
     }
 
     /**
-     * Resolve file extension using MIME type detection as fallback.
-     * Temp files (e.g. /tmp/phpXXXXXX) have no extension, so we detect via mime_content_type().
+     * Resolve file extension via MIME type detection from file bytes.
      */
     private static function resolveExtension(string $filePath): string
     {
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-
-        if ($extension !== '') {
-            return $extension;
-        }
-
         $mimeType = mime_content_type($filePath);
 
         return FilesystemServices::getExtensionFromMimeType($mimeType);
