@@ -392,18 +392,10 @@ class ImageOptimizerService
     }
 
     /**
-     * Resolve file extension using MIME type detection as fallback.
-     * Temp files (e.g. /tmp/phpXXXXXX) have no extension, so we detect via mime_content_type().
+     * Resolve file extension via MIME type detection from file bytes.
      */
     private static function resolveExtension(string $filePath): string
     {
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $knownExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'tif', 'tiff', 'svg', 'bmp'];
-
-        if ($extension !== '' && in_array($extension, $knownExtensions, true)) {
-            return $extension;
-        }
-
         $mimeType = mime_content_type($filePath);
 
         return FilesystemServices::getExtensionFromMimeType($mimeType);
