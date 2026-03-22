@@ -19,15 +19,23 @@ class AppLevelSharedEntitiesTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
-        // Enable cross-company variants (multi-company orders) for the test app
-        app(Apps::class)->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
-
-        // Ensure test user has Owner role so isAppOwner() returns true with AppKey header
         $app = app(Apps::class);
         $user = auth()->user();
-        $scope = RolesEnums::getScope($app);
-        Bouncer::scope()->to($scope);
-        Bouncer::assign(RolesEnums::OWNER->value)->to($user);
+        $company = $user->getCurrentCompany();
+
+        // Enable cross-company variants (multi-company orders) for the test app
+        $app->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+
+        // Ensure test user has Owner role in all relevant scopes
+        foreach ([
+            RolesEnums::getScope($app),
+            RolesEnums::getScope($app, $company),
+            RolesEnums::getScope($app, global: true),
+        ] as $scope) {
+            Bouncer::scope()->to($scope);
+            Bouncer::assign(RolesEnums::OWNER->value)->to($user);
+        }
+        Bouncer::refreshFor($user);
     }
 
     private function getAppKeyHeader(): array
