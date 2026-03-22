@@ -28,6 +28,11 @@ class PaymentTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+
+        if (empty(env('TEST_ECHO_PAY_CLIENT_ID'))) {
+            $this->markTestSkipped('EchoPay credentials not configured');
+        }
+
         $this->user = Users::factory()->create();
         $this->company = Companies::factory()->create([
             'users_id' => $this->user->id,
