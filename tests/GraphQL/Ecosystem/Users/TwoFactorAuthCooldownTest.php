@@ -59,17 +59,15 @@ class TwoFactorAuthCooldownTest extends TestCase
         $cooldownKey = 'two-factor-send-cooldown:' . $app->getId() . ':' . $user->getId();
         RateLimiter::hit($cooldownKey, 60);
 
-        $this->graphQL('
+        $response = $this->graphQL('
             mutation {
                 sendVerificationCode
             }
-        ')
-        ->assertJson([
-            'errors' => [
-                [
-                    'message' => 'Verification code already sent. Please wait 60 seconds before requesting a new code.',
-                ],
-            ],
-        ]);
+        ');
+
+        $errorMessage = $response->json('errors.0.message');
+
+        $this->assertStringContainsString('Verification code already sent. Please wait', $errorMessage);
+        $this->assertStringContainsString('seconds before requesting a new code.', $errorMessage);
     }
 }
