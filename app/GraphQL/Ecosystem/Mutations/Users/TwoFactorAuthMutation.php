@@ -43,7 +43,7 @@ class TwoFactorAuthMutation
             return true;
         }
 
-        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 2);
+        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 4);
         $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 28800); // 8 hours
         $cooldownSeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_COOLDOWN_SECONDS->value) ?: 60);
 
