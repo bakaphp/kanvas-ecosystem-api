@@ -6,6 +6,7 @@ jobs:
   run-tests:
     name: Tests - ${{ matrix.testsuite }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       extensions: mbstring, intl, json, redis, swoole, igbinary
       APP_ENV: testing
@@ -149,7 +150,12 @@ jobs:
       fail-fast: false
       matrix:
         testsuite:
-          - GraphQL
+          - GraphQL-Ecosystem
+          - GraphQL-Souk
+          - GraphQL-Guild
+          - GraphQL-Social
+          - GraphQL-Inventory
+          - GraphQL-Other
           - Connectors
           - Ecosystem
           - Social

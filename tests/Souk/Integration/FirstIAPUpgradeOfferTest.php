@@ -24,6 +24,9 @@ final class FirstIAPUpgradeOfferTest extends TestCase
     {
         parent::setUp();
 
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);

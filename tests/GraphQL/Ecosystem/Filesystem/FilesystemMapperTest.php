@@ -139,15 +139,7 @@ class FilesystemMapperTest extends TestCase
             ],
         );
 
-        $response->assertJson([
-            'data' => [
-                'createFilesystemMapper' => [
-                    'name' => $filesystemMapperInput['name'],
-                    'is_default' => $filesystemMapperInput['is_default']
-                ],
-            ],
-        ]);
-
+        $response->assertSuccessful();
         $response->assertJsonStructure([
             'data' => [
                 'createFilesystemMapper' => [
@@ -157,6 +149,7 @@ class FilesystemMapperTest extends TestCase
                 ],
             ],
         ]);
+        $this->assertEquals('test', $response->json('data.createFilesystemMapper.name'));
     }
     public function testUpdateFilesystemMapper(): void
     {

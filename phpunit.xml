@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true">
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd" bootstrap="vendor/autoload.php" colors="true" timeoutForSmallTests="60" timeoutForMediumTests="120" timeoutForLargeTests="300" defaultTimeLimit="120">
     <testsuites>
         <testsuite name="Unit">
             <directory suffix="Test.php">./tests/Unit</directory>
@@ -9,6 +9,30 @@
         </testsuite>
         <testsuite name="GraphQL">
             <directory suffix="Test.php">./tests/GraphQL</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Ecosystem">
+            <directory suffix="Test.php">./tests/GraphQL/Ecosystem</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Souk">
+            <directory suffix="Test.php">./tests/GraphQL/Souk</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Guild">
+            <directory suffix="Test.php">./tests/GraphQL/Guild</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Social">
+            <directory suffix="Test.php">./tests/GraphQL/Social</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Inventory">
+            <directory suffix="Test.php">./tests/GraphQL/Inventory</directory>
+        </testsuite>
+        <testsuite name="GraphQL-Other">
+            <directory suffix="Test.php">./tests/GraphQL/ActionEngine</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Connector</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Event</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Intelligence</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Movipass</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Subscription</directory>
+            <directory suffix="Test.php">./tests/GraphQL/Workflow</directory>
         </testsuite>
         <testsuite name="Inventory">
             <directory suffix="Test.php">./tests/Inventory</directory>
