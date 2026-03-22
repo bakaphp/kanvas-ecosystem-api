@@ -152,7 +152,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
             try {
-                $filesystem = new DownloadMessageFileAction($message, $request["MediaUrl{$i}"], $request["MediaContentType{$i}"])->execute();
+                $filesystem = new DownloadMessageFileAction(
+                    $message,
+                    $request["MediaUrl{$i}"],
+                    $request["MediaContentType{$i}"]
+                )->execute();
                 $message->addFilesystem($filesystem['media'], $filesystem['type']);
             } catch (Exception $e) {
                 report($e);
