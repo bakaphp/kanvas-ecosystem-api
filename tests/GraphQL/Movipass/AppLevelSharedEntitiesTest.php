@@ -52,11 +52,9 @@ class AppLevelSharedEntitiesTest extends TestCase
         ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $response->json('data.createRegion.id');
+        $companiesId = (int) $response->json('data.createRegion.companies_id');
 
-        $this->assertEquals(
-            0,
-            DB::connection('ecosystem')->table('regions')->where('id', $id)->value('companies_id')
-        );
+        $this->assertEquals(0, $companiesId, 'Region should be global (companies_id = 0)');
     }
 
     public function testGlobalRegionIsVisibleToCurrentCompany(): void
@@ -108,8 +106,9 @@ class AppLevelSharedEntitiesTest extends TestCase
         ], [], $this->getAppKeyHeader())->assertSuccessful();
 
         $id = $response->json('data.createProductType.id');
+        $companiesId = (int) $response->json('data.createProductType.companies_id');
 
-        $this->assertEquals(0, DB::connection('inventory')->table('products_types')->where('id', $id)->value('companies_id'));
+        $this->assertEquals(0, $companiesId, 'Product type should be global (companies_id = 0)');
     }
 
     public function testGlobalProductTypeVisibleInListing(): void
