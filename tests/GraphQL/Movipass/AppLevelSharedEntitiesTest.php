@@ -11,7 +11,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Products\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Tests\TestCase;
 
