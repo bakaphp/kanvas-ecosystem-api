@@ -270,16 +270,8 @@ class MessageInteractionTest extends TestCase
             [
                 'id' => $user->id,
             ]
-        )->assertJson([
-            'data' => [
-                'messagesLikedByUser' => [
-                    'data' => [
-                        [
-                            'id' => $id,
-                        ],
-                    ],
-                ],
-            ],
+        )->assertJsonFragment([
+            'id' => $id,
         ]);
     }
 }

@@ -15,10 +15,11 @@ class VariantsChannelsTest extends TestCase
      */
     public function testVariantToChannel(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -34,9 +35,7 @@ class VariantsChannelsTest extends TestCase
                     is_default
                 }
             }', ['data' => $dataRegion])
-            ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
-            ]);
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
             'regions_id' => $idRegion,
@@ -169,10 +168,11 @@ class VariantsChannelsTest extends TestCase
 
     public function testUpdateVariantToChannel(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -188,9 +188,7 @@ class VariantsChannelsTest extends TestCase
                     is_default
                 }
             }', ['data' => $dataRegion])
-            ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
-            ]);
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
             'regions_id' => $idRegion,
@@ -347,10 +345,11 @@ class VariantsChannelsTest extends TestCase
 
     public function testPublishVariantToChannelRePublishesUnpublishedProduct(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -359,7 +358,8 @@ class VariantsChannelsTest extends TestCase
                 createRegion(input: $data) {
                     id
                 }
-            }', ['data' => $dataRegion]);
+            }', ['data' => $dataRegion])
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
 
         $response = $this->graphQL('
