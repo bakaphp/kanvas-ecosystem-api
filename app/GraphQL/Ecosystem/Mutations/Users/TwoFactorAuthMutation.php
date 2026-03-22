@@ -43,10 +43,21 @@ class TwoFactorAuthMutation
             return true;
         }
 
-        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 2);
+        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 4);
         $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 28800); // 8 hours
+        $cooldownSeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_COOLDOWN_SECONDS->value) ?: 60);
 
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
+        $cooldownKey = 'two-factor-send-cooldown:' . $app->getId() . ':' . $user->getId();
+
+        if ($cooldownSeconds > 0 && RateLimiter::tooManyAttempts($cooldownKey, 1)) {
+            $availableIn = RateLimiter::availableIn($cooldownKey);
+
+            throw new ValidationException(
+                'Verification code already sent. Please wait ' . $availableIn . ' seconds before requesting a new code.'
+            );
+        }
+
         if (RateLimiter::tooManyAttempts($rateLimitKey, $sendRateLimit)) {
             $this->logRateLimitExceeded('2FA SMS send rate limit exceeded - possible abuse', $user, $app, $phoneNumber);
 
@@ -56,6 +67,9 @@ class TwoFactorAuthMutation
         }
 
         RateLimiter::hit($rateLimitKey, $rateLimitDecaySeconds);
+        if ($cooldownSeconds > 0) {
+            RateLimiter::hit($cooldownKey, $cooldownSeconds);
+        }
 
         $twilio = Client::getInstance($app);
 
@@ -119,6 +133,7 @@ class TwoFactorAuthMutation
                 ]);
 
                 RateLimiter::clear($rateLimitKey);
+                RateLimiter::clear('two-factor-send-cooldown:' . $app->getId() . ':' . $user->getId());
 
                 return true;
             }
