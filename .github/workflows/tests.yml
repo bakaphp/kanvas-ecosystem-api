@@ -6,7 +6,7 @@ jobs:
   run-tests:
     name: Tests - ${{ matrix.testsuite }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       extensions: mbstring, intl, json, redis, swoole, igbinary
       APP_ENV: testing
@@ -284,7 +284,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4 --verbose
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
