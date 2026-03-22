@@ -1233,6 +1233,9 @@ class OrderTest extends TestCase
 
     public function testCalculateTotalSumsMultipleDiscounts()
     {
+        $user = $this->createUser();
+        $this->actingAs($user, 'api');
+
         $app = app(Apps::class);
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
