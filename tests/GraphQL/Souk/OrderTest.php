@@ -1311,7 +1311,8 @@ class OrderTest extends TestCase
             ->create([
                 'value' => 10.00,
                 'is_percentage' => false,
-                'code' => 'FIRST10',
+                'max_discount_amount' => null,
+                'code' => 'FIRST10-' . uniqid(),
             ]);
 
         // Create second discount
@@ -1322,7 +1323,8 @@ class OrderTest extends TestCase
             ->create([
                 'value' => 15.00,
                 'is_percentage' => false,
-                'code' => 'SECOND15',
+                'max_discount_amount' => null,
+                'code' => 'SECOND15-' . uniqid(),
             ]);
 
         // Apply first discount

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class AppLevelSharedEntitiesTest extends TestCase
@@ -19,6 +21,13 @@ class AppLevelSharedEntitiesTest extends TestCase
         parent::setUp();
         // Enable cross-company variants (multi-company orders) for the test app
         app(Apps::class)->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+
+        // Ensure test user has Owner role so isAppOwner() returns true with AppKey header
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $scope = RolesEnums::getScope($app);
+        Bouncer::scope()->to($scope);
+        Bouncer::assign(RolesEnums::OWNER->value)->to($user);
     }
 
     private function getAppKeyHeader(): array
