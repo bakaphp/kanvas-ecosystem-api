@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
