@@ -124,6 +124,10 @@ final class SubscriptionsTest extends TestCase
 
     public function testCreateSubscriptionWithoutTrial()
     {
+        // Use a fresh user so there's no pre-existing trialing subscription
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $paymentMethod = $this->createPaymentMethod();
         $user = auth()->user();
 

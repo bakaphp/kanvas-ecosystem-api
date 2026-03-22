@@ -76,6 +76,10 @@ class RecalculateSlotCapacityAction
             $slots = $newSlots ?? $legacySlots;
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
 
+            if (! $variantWarehouse) {
+                return;
+            }
+
             $activeOrders = new GetSlotAvailabilityAction($variant, $this->app)->countOccupied();
             $available = $slots - $activeOrders;
             $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
