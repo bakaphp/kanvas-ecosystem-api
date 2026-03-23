@@ -6,7 +6,7 @@ jobs:
   run-tests:
     name: Tests - ${{ matrix.testsuite }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       extensions: mbstring, intl, json, redis, swoole, igbinary
       APP_ENV: testing
@@ -65,6 +65,7 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       APP_DEBUG: true
+      GITHUB_ACTIONS: true
 
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
@@ -285,6 +286,11 @@ jobs:
       - name: Run Tests
         if: success()
         run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+
+      - name: Run Filesystem Tests (single process)
+        if: success() && matrix.testsuite == 'GraphQL-Ecosystem'
+        run: vendor/bin/phpunit tests/GraphQL/Ecosystem/FilesystemTest.php
+        timeout-minutes: 5
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
