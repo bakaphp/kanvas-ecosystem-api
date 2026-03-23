@@ -21,7 +21,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "echolabsdev/prism": "^0.99.2",
+        "echolabsdev/prism": "^0.100.1",
         "genealabs/laravel-model-caching": "^13.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
