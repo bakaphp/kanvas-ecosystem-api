@@ -12,10 +12,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
-use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -146,20 +146,11 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
             );
 
             new ApplyDiscountToOrderAction($order, $discount)->execute();
-
-            $order->metadata = [
-                ...$order->metadata ?? [],
-                'data' => [
-                    ...$order->metadata['data'] ?? [],
-                    'discount_code' => $discount->code,
-                    'discount_name' => $discount->name,
-                ],
-            ];
         } catch (Throwable $e) {
             report($e);
         }
     }
-  
+
     private function uploadQrCode(Order $order, AppInterface $app, string $url): ModelsFilesystem
     {
         $filename = 'qr_' . $order->order_number . '.png';
