@@ -199,13 +199,26 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found') && $phone !== null && $phone !== '') {
+                    $hasPhone = $phone !== null && $phone !== '';
+                    $hasEmail = $email !== null && $email !== '';
+
+                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ($hasPhone || $hasEmail)) {
                         /** @var Apps $app */
                         $app = $this->app;
-                        $matchedByPhone = People::getAllByPhoneMatchingValue($phone, $this->company, $app);
-                        $matchedByAnything = People::getAllByMatchingValue($phone, $this->company, $app);
+                        $allMatchedPeople = collect();
 
-                        $allMatchedPeople = $matchedByPhone->merge($matchedByAnything)->unique('id');
+                        if ($hasPhone) {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByPhoneMatchingValue($phone, $this->company, $app))
+                                ->merge(People::getAllByMatchingValue($phone, $this->company, $app));
+                        }
+
+                        if ($email !== null && $email !== '') {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByMatchingValue($email, $this->company, $app));
+                        }
+
+                        $allMatchedPeople = $allMatchedPeople->unique('id');
 
                         /** @var People $matchedPerson */
                         foreach ($allMatchedPeople as $matchedPerson) {
