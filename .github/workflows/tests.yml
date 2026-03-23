@@ -65,6 +65,7 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       APP_DEBUG: true
+      GITHUB_ACTIONS: true
 
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
