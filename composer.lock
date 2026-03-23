@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "81d2ca9b2d013c74047a197e65494645",
+    "content-hash": "17a046e510a612b3cb53bd2cbbbc45b7",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3869,25 +3869,25 @@
         },
         {
             "name": "joelwmale/laravel-cart",
-            "version": "1.2.1",
+            "version": "2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/joelwmale/laravel-cart.git",
-                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce"
+                "reference": "6dfd0ce761ee514d7168eee30cf29f68a9c18865"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
-                "reference": "4c02310bf728acdff5cc65efdaf5cb6684ca99ce",
+                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/6dfd0ce761ee514d7168eee30cf29f68a9c18865",
+                "reference": "6dfd0ce761ee514d7168eee30cf29f68a9c18865",
                 "shasum": ""
             },
             "require": {
-                "illuminate/auth": "^10.0|^11.0|^12.0",
-                "illuminate/container": "^10.0|^11.0|^12.0",
-                "illuminate/database": "^10.0|^11.0|^12.0",
-                "illuminate/support": "^10.0|^11.0|^12.0",
-                "illuminate/validation": "^10.0|^11.0|^12.0",
-                "php": ">=8.2"
+                "illuminate/auth": "^11.0|^12.0|^13.0",
+                "illuminate/container": "^11.0|^12.0|^13.0",
+                "illuminate/database": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "illuminate/validation": "^11.0|^12.0|^13.0",
+                "php": ">=8.3"
             },
             "require-dev": {
                 "larapack/dd": "dev-master",
@@ -3933,9 +3933,9 @@
             ],
             "support": {
                 "issues": "https://github.com/joelwmale/laravel-cart/issues",
-                "source": "https://github.com/joelwmale/laravel-cart/tree/1.2.1"
+                "source": "https://github.com/joelwmale/laravel-cart/tree/v2.0.0"
             },
-            "time": "2025-04-14T06:53:35+00:00"
+            "time": "2026-03-23T06:30:38+00:00"
         },
         {
             "name": "kiwilan/php-xml-reader",

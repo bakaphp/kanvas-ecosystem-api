@@ -32,7 +32,7 @@
         "imdhemy/laravel-purchases": "^1.14",
         "inspector-apm/inspector-php": "^3.12",
         "intervention/image": "^3.11",
-        "joelwmale/laravel-cart": "^1.2",
+        "joelwmale/laravel-cart": "^2.0",
         "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
