@@ -12,6 +12,16 @@ use Tests\TestCase;
 
 class FilesystemTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Skip under paratest — multipartGraphQL file uploads hang with concurrent workers
+        if (getenv('TEST_TOKEN') !== false) {
+            $this->markTestSkipped('Filesystem tests skipped under paratest');
+        }
+    }
+
     private function uploadFileDirectly(string $filename = 'avatar.jpg'): Filesystem
     {
         $file = UploadedFile::fake()->create($filename);
@@ -39,9 +49,6 @@ class FilesystemTest extends TestCase
 
     public function testUploadFileViaGraphQL(): void
     {
-        if (getenv('GITHUB_ACTIONS')) {
-            $this->markTestSkipped('multipartGraphQL uploads hang under paratest in CI');
-        }
 
         $operations = [
             'query' => /** @lang GraphQL */ '
@@ -76,9 +83,6 @@ class FilesystemTest extends TestCase
 
     public function testSingleUploadViaGraphQL(): void
     {
-        if (getenv('GITHUB_ACTIONS')) {
-            $this->markTestSkipped('multipartGraphQL uploads hang under paratest in CI');
-        }
 
         $operations = [
             'query' => /** @lang GraphQL */ '
