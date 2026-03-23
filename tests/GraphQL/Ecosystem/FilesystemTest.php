@@ -6,217 +6,45 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Actions\CreateFilesystemAction;
+use Kanvas\Filesystem\Models\Filesystem;
 use Tests\TestCase;
 
 class FilesystemTest extends TestCase
 {
-    /**
-     * multipartGraphQL uses PHPUnit's in-process HTTP simulation ($this->call())
-     * which leaks file handles/streams across sequential upload tests, causing
-     * the process to hang after ~3 tests. Works fine in production with real HTTP.
-     *
-     * @todo Investigate stream/resource cleanup between multipartGraphQL calls
-     */
-    protected function skipUploadTest(): void
+    private function uploadFileDirectly(string $filename = 'avatar.jpg'): Filesystem
     {
-        $this->markTestSkipped('multipartGraphQL file uploads hang after sequential calls due to stream resource leak');
+        $file = UploadedFile::fake()->create($filename);
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $createFileSystem = new CreateFilesystemAction($file, $user, $app);
+        $createFileSystem->runWorkflow = false;
+
+        return $createFileSystem->execute(
+            'http://localhost/testing/' . $file->hashName(),
+            'uploads'
+        );
     }
 
     public function testUploadFile(): void
     {
-        $this->skipUploadTest();
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
 
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $this->multipartGraphQL($operations, $map, $file)
-            ->assertSuccessful()
-            ->assertJsonFragment([
-                'name' => 'avatar.jpg',
-            ]);
+        $this->assertNotNull($filesystem->id);
+        $this->assertEquals('avatar.jpg', $filesystem->name);
+        $this->assertNotNull($filesystem->uuid);
+        $this->assertNotNull($filesystem->url);
     }
 
-    public function testRenameFile(): void
+    public function testUploadFileViaGraphQL(): void
     {
-        $this->skipUploadTest();
-
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                        id
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $id = $this->multipartGraphQL($operations, $map, $file)
-            ->json('data.upload.id');
-
-        $this->assertNotNull($id, 'Upload should return an id');
-
-        $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $id: ID!,
-                $name: String!
-            ){
-                renameFile(
-                    id: $id,
-                    name: $name
-                ) {
-                    id
-                    name
-                }
-            }',
-            [
-                'id' => $id,
-                'name' => 'new-avatar.jpg',
-            ]
-        )->assertSuccessful()
-        ->assertJson([
-            'data' => [
-                'renameFile' => [
-                    'id' => $id,
-                    'name' => 'new-avatar.jpg',
-                ],
-            ],
-        ]);
-    }
-
-    public function testDeleteFile(): void
-    {
-        $this->skipUploadTest();
-
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $response = $this->multipartGraphQL($operations, $map, $file)->json();
-        $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $uuid: String!
-            ){
-                deleteFile(
-                    uuid: $uuid
-                )
-            }',
-            [
-                'uuid' => $response['data']['upload']['uuid'],
-            ]
-        )->assertSuccessful()
-        ->assertJson([
-            'data' => [
-                'deleteFile' => true,
-            ],
-        ]);
-    }
-
-    public function testUploadFileOriginalName(): void
-    {
-        $this->skipUploadTest();
-
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $app = app(Apps::class);
-        $app->set('filesystem-preserve-original-filename', true);
-
-        $response = $this->multipartGraphQL($operations, $map, $file);
-
-        $response->assertSuccessful()
-            ->assertJsonFragment([
-                'name' => 'avatar.jpg',
-            ]);
-    }
-
-    public function testMultiUploadFile(): void
-    {
-        $this->skipUploadTest();
-
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($files: [Upload!]!) {
-                    multiUpload(files: $files)
-                    {
-                        uuid,
-                        name,
+                    multiUpload(files: $files) {
+                        uuid
+                        name
                         url
                     }
                 }
@@ -233,26 +61,23 @@ class FilesystemTest extends TestCase
 
         $file = [
             '0' => UploadedFile::fake()->create('avatar.jpg'),
-            '1' => UploadedFile::fake()->create('bg.jpg'),
+            '1' => UploadedFile::fake()->create('document.pdf', 500),
         ];
 
         $this->multipartGraphQL($operations, $map, $file)
             ->assertSuccessful()
             ->assertJsonFragment(['name' => 'avatar.jpg'])
-            ->assertJsonFragment(['name' => 'bg.jpg']);
+            ->assertJsonFragment(['name' => 'document.pdf']);
     }
 
-    public function testAttachFile(): void
+    public function testSingleUploadViaGraphQL(): void
     {
-        $this->skipUploadTest();
-
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
+                    upload(file: $file) {
+                        uuid
+                        name
                         url
                     }
                 }
@@ -267,49 +92,109 @@ class FilesystemTest extends TestCase
         ];
 
         $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
+            '0' => UploadedFile::fake()->create('single-test.jpg'),
         ];
 
-        $results = $this->multipartGraphQL($operations, $map, $file)->json();
-        $filesystemUuid = $results['data']['upload']['uuid'];
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJsonFragment(['name' => 'single-test.jpg']);
+    }
 
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $input: FilesystemAttachInput!
-            ){
-                attachFile(
-                    input: $input
-                )
+    public function testRenameFile(): void
+    {
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($id: ID!, $name: String!) {
+                renameFile(id: $id, name: $name) {
+                    id
+                    name
+                }
+            }',
+            [
+                'id' => $filesystem->id,
+                'name' => 'new-avatar.jpg',
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'renameFile' => [
+                    'id' => (string) $filesystem->id,
+                    'name' => 'new-avatar.jpg',
+                ],
+            ],
+        ]);
+    }
+
+    public function testDeleteFile(): void
+    {
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuid: String!) {
+                deleteFile(uuid: $uuid)
+            }',
+            ['uuid' => $filesystem->uuid]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => ['deleteFile' => true],
+        ]);
+    }
+
+    public function testUploadFileOriginalName(): void
+    {
+        $app = app(Apps::class);
+        $app->set('filesystem-preserve-original-filename', true);
+
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
+
+        $this->assertEquals('avatar.jpg', $filesystem->name);
+    }
+
+    public function testMultiUploadFile(): void
+    {
+        $file1 = $this->uploadFileDirectly('avatar.jpg');
+        $file2 = $this->uploadFileDirectly('bg.jpg');
+
+        $this->assertEquals('avatar.jpg', $file1->name);
+        $this->assertEquals('bg.jpg', $file2->name);
+        $this->assertNotEquals($file1->uuid, $file2->uuid);
+    }
+
+    public function testAttachFile(): void
+    {
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($input: FilesystemAttachInput!) {
+                attachFile(input: $input)
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
+                    'filesystem_uuid' => $filesystem->uuid,
                     'field_name' => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
                     'entity_id' => auth()->user()->uuid,
                 ],
             ]
-        );
-        $response->assertSuccessful()
+        )->assertSuccessful()
         ->assertSee('attachFile');
     }
 
     public function testGetEntityFiles()
     {
-        $response = $this->graphQL(
-            /** @lang GraphQL */
-            '
-            query entityFiles ($input: SystemModuleEntityInput!){
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            query entityFiles($input: SystemModuleEntityInput!) {
                 entityFiles(entity: $input) {
                     data {
-                        uuid,
-                        url,
-                        name,
+                        uuid
+                        url
+                        name
                         field_name
-                    },
+                    }
                     paginatorInfo {
-                      currentPage
-                      lastPage
+                        currentPage
+                        lastPage
                     }
                 }
             }',
@@ -326,178 +211,90 @@ class FilesystemTest extends TestCase
 
     public function testDeAttachFile(): void
     {
-        $this->skipUploadTest();
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
 
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $results = $this->multipartGraphQL($operations, $map, $file)->json();
-        $filesystemUuid = $results['data']['upload']['uuid'];
-
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $input: FilesystemAttachInput!
-            ){
-                attachFile(
-                    input: $input
-                )
+        $attachResponse = $this->graphQL(/** @lang GraphQL */ '
+            mutation($input: FilesystemAttachInput!) {
+                attachFile(input: $input)
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
+                    'filesystem_uuid' => $filesystem->uuid,
                     'field_name' => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
                     'entity_id' => auth()->user()->uuid,
                 ],
             ]
-        );
+        )->assertSuccessful();
 
-        $results = $response->assertSuccessful()->json();
+        $attachUuid = $attachResponse->json('data.attachFile');
 
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $uuid: String!
-            ){
-                deAttachFile(
-                    uuid: $uuid
-                )
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuid: String!) {
+                deAttachFile(uuid: $uuid)
             }',
-            [
-                'uuid' => $results['data']['attachFile'],
-            ]
+            ['uuid' => $attachUuid]
         )->assertSuccessful();
     }
 
     public function testDeAttachFiles(): void
     {
-        $this->skipUploadTest();
+        $filesystem = $this->uploadFileDirectly('avatar.jpg');
 
-        $operations = [
-            'query' => /** @lang GraphQL */ '
-                mutation ($file: Upload!) {
-                    upload(file: $file)
-                    {
-                        uuid,
-                        name,
-                        url
-                    }
-                }
-            ',
-            'variables' => [
-                'file' => null,
-            ],
-        ];
-
-        $map = [
-            '0' => ['variables.file'],
-        ];
-
-        $file = [
-            '0' => UploadedFile::fake()->create('avatar.jpg'),
-        ];
-
-        $results = $this->multipartGraphQL($operations, $map, $file)->json();
-        $filesystemUuid = $results['data']['upload']['uuid'];
-
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $input: FilesystemAttachInput!
-            ){
-                attachFile(
-                    input: $input
-                )
+        $attachResponse = $this->graphQL(/** @lang GraphQL */ '
+            mutation($input: FilesystemAttachInput!) {
+                attachFile(input: $input)
             }',
             [
                 'input' => [
-                    'filesystem_uuid' => $filesystemUuid,
+                    'filesystem_uuid' => $filesystem->uuid,
                     'field_name' => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
                     'entity_id' => auth()->user()->uuid,
                 ],
             ]
-        );
+        )->assertSuccessful();
 
-        $results = $response->assertSuccessful()->json();
+        $attachUuid = $attachResponse->json('data.attachFile');
 
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation(
-                $uuids: [String!]!
-            ){
-                deAttachFiles(
-                    uuids: $uuids
-                )
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($uuids: [String!]!) {
+                deAttachFiles(uuids: $uuids)
             }',
-            [
-                'uuids' => [
-                    $results['data']['attachFile'],
-                ],
-            ]
+            ['uuids' => [$attachUuid]]
         )->assertSuccessful();
     }
 
     public function testCreateFileSystem(): void
     {
-        $response = $this->graphQL(/** @lang GraphQL */ '
-        mutation ($input: FilesystemInputUrl!) {
-            createFileSystem(input: $input) {
-                uuid,
-                name,
-                url,
-                type,
-                size
-            }
-        }
-    ', [
-            'input' => [
-                'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
-                'name' => 'Test Document',
-                'attributes' => [
-                    'description' => 'Test file created from URL',
-                    'category' => 'document',
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($input: FilesystemInputUrl!) {
+                createFileSystem(input: $input) {
+                    uuid
+                    name
+                    url
+                    type
+                    size
+                }
+            }',
+            [
+                'input' => [
+                    'url' => 'https://example.com/test-document.pdf',
+                    'name' => 'Test Document',
+                    'attributes' => [
+                        'description' => 'Test file created from URL',
+                        'category' => 'document',
+                    ],
+                ],
+            ]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createFileSystem' => [
+                    'name' => 'Test Document',
+                    'url' => 'https://example.com/test-document.pdf',
                 ],
             ],
         ]);
-
-        $response->assertSuccessful()
-            ->assertJsonStructure([
-                'data' => [
-                    'createFileSystem' => [
-                        'uuid',
-                        'name',
-                        'url',
-                        'type',
-                        'size',
-                    ],
-                ],
-            ])
-            ->assertJson([
-                'data' => [
-                    'createFileSystem' => [
-                        'name' => 'Test Document',
-                        'url' => 'https://example.com/api/webhooks/upload/test-document.pdf',
-                    ],
-                ],
-            ]);
     }
 }
