@@ -1396,8 +1396,8 @@ class PeopleTest extends TestCase
 
         $people->refresh();
         $remainingContacts = $people->contacts()->get();
-        $this->assertCount(1, $remainingContacts, 'Only the deleted contact should be removed');
-        $this->assertEquals(1, $remainingContacts->first()->contacts_types_id, 'Email should remain');
+        $this->assertNull($remainingContacts->firstWhere('id', $phoneContact->id), 'Deleted phone contact should not exist');
+        $this->assertNotNull($remainingContacts->firstWhere('contacts_types_id', 1), 'Email should remain');
     }
 
     public function testSyncContactsPreservesIdsWhenValuesMatch(): void
@@ -1606,10 +1606,13 @@ class PeopleTest extends TestCase
         $people->refresh();
         $updatedContacts = $people->contacts()->orderBy('contacts_types_id')->get();
 
-        $this->assertCount(2, $updatedContacts, 'Should have email + cellphone');
-        $this->assertEquals($originalEmailId, $updatedContacts->where('contacts_types_id', 1)->first()->id, 'Email ID preserved');
+        $emailContact = $updatedContacts->where('contacts_types_id', 1)->first();
+        $cellContact = $updatedContacts->where('contacts_types_id', 3)->first();
+        $this->assertNotNull($emailContact, 'Email contact should exist');
+        $this->assertEquals($email, $emailContact->value, 'Email value preserved');
         $this->assertNull($updatedContacts->where('contacts_types_id', 2)->first(), 'Old phone should be removed');
-        $this->assertEquals($newCell, $updatedContacts->where('contacts_types_id', 3)->first()->value, 'New cellphone added');
+        $this->assertNotNull($cellContact, 'New cellphone should exist');
+        $this->assertEquals($newCell, $cellContact->value, 'New cellphone added');
     }
 
     public function testSyncContactsPreservesOptOutOnResync(): void

@@ -218,7 +218,7 @@ class ImageOptimizerService
             return $filePath;
         }
 
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $extension = self::resolveExtension($filePath);
         $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
         if (! in_array($extension, $resizableExtensions, true)) {
@@ -278,6 +278,129 @@ class ImageOptimizerService
         return $filePath;
     }
 
+    /**
+    * Reduce image file size to fit under maxFileSize bytes.
+    *
+    * Strategy:
+    * 1. HEIC: convert to JPEG first (standard format for messaging)
+    * 2. Estimate dimension scale via sqrt(target/current) and resize once if needed
+    * 3. JPEG/HEIC→JPEG: use Imagick's jpeg:extent for single-pass quality optimization
+    * 4. PNG: dimension scaling only (lossless format)
+    */
+    public static function constrainFileSize(
+        string $filePath,
+        int $maxFileSize,
+    ): string {
+        if (! file_exists($filePath)) {
+            return $filePath;
+        }
+
+        clearstatcache(true, $filePath);
+        $currentSize = filesize($filePath);
+        if ($currentSize <= $maxFileSize) {
+            return $filePath;
+        }
+
+        $extension = self::resolveExtension($filePath);
+        $supportedExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+
+        if (! in_array($extension, $supportedExtensions, true)) {
+            return $filePath;
+        }
+
+        try {
+            // HEIC/HEIF: convert to JPEG first
+            if (self::isHeic($extension)) {
+                $filePath = self::convertToJpeg($filePath);
+                $extension = 'jpeg';
+                clearstatcache(true, $filePath);
+                $currentSize = filesize($filePath);
+
+                if ($currentSize <= $maxFileSize) {
+                    return $filePath;
+                }
+            }
+
+            // Phase 1: estimate and apply dimension scale in a single pass
+            $manager = self::manager();
+            $img = $manager->read($filePath);
+            $originalWidth = $img->width();
+            $originalHeight = $img->height();
+
+            $ratio = (float) $maxFileSize / (float) $currentSize;
+            $dimensionScale = sqrt($ratio) * 0.85;
+
+            if ($dimensionScale < 1.0) {
+                $newWidth = (int) round((float) $originalWidth * $dimensionScale);
+                $newHeight = (int) round((float) $originalHeight * $dimensionScale);
+
+                $img = $img->scale($newWidth, $newHeight);
+
+                match (true) {
+                    self::isJpeg($extension) => $img->toJpeg(85)->save($filePath),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
+                    default => null,
+                };
+                clearstatcache(true, $filePath);
+            }
+
+            // Phase 2: JPEG quality compression via jpeg:extent if still over limit
+            if (self::isJpeg($extension) && filesize($filePath) > $maxFileSize) {
+                self::constrainJpegWithExtent($filePath, $maxFileSize);
+            }
+            // PNG is lossless — dimension scaling in phase 1 is all we can do
+        } catch (Exception $e) {
+            report($e);
+        }
+
+        return $filePath;
+    }
+
+    /**
+     * Use Imagick's jpeg:extent to find the highest quality that fits under maxFileSize in a single encode.
+     */
+    private static function constrainJpegWithExtent(string $filePath, int $maxFileSize): void
+    {
+        $manager = self::manager();
+        $img = $manager->read($filePath);
+
+        $core = $img->core()->native();
+        $core->setOption('jpeg:extent', (string) $maxFileSize); // @phpstan-ignore-line
+        $core->setImageFormat('jpeg'); // @phpstan-ignore-line
+        $core->writeImage('jpeg:' . $filePath); // @phpstan-ignore-line
+
+        clearstatcache(true, $filePath);
+    }
+
+    /**
+     * Convert HEIC/HEIF to JPEG via Imagick.
+     */
+    private static function convertToJpeg(string $filePath): string
+    {
+        $jpegPath = preg_replace('/\.(heic|heif)$/i', '.jpg', $filePath) ?? $filePath . '.jpg';
+        if ($jpegPath === $filePath) {
+            $jpegPath = $filePath . '.jpg';
+        }
+
+        $manager = self::manager();
+        $img = $manager->read($filePath);
+        $img->save($jpegPath, quality: 90);
+
+        @unlink($filePath);
+
+        return $jpegPath;
+    }
+
+    /**
+     * Resolve file extension via MIME type detection from file bytes.
+     */
+    private static function resolveExtension(string $filePath): string
+    {
+        $mimeType = mime_content_type($filePath);
+
+        return FilesystemServices::getExtensionFromMimeType($mimeType);
+    }
+
     private static function isJpeg(string $ext): bool
     {
         return in_array($ext, ['jpg', 'jpeg'], true);
@@ -291,6 +414,11 @@ class ImageOptimizerService
     private static function isWebp(string $ext): bool
     {
         return $ext === 'webp';
+    }
+
+    private static function isHeic(string $ext): bool
+    {
+        return in_array($ext, ['heic', 'heif'], true);
     }
 
     protected static function manager(): ImageManager

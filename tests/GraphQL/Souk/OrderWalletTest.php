@@ -405,9 +405,14 @@ class OrderWalletTest extends TestCase
 
     public function testApplyWalletCreditExceedingBalance()
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
+
+        $this->setupInventory($app, $company, $user);
 
         // Create a product
         $productData = new Product(
@@ -507,9 +512,14 @@ class OrderWalletTest extends TestCase
 
     public function testInsufficientWalletBalanceError()
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
+
+        $this->setupInventory($app, $company, $user);
 
         // Create a product
         $productData = new Product(

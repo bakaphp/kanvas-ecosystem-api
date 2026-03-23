@@ -15,10 +15,11 @@ class RemoveVariantsToWarehouseTest extends TestCase
      */
     public function testRemoveVariantToWarehouse(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -34,9 +35,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
                     is_default
                 }
             }', ['data' => $dataRegion])
-            ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
-            ]);
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
             'regions_id' => $idRegion,

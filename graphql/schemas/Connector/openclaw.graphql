@@ -1,0 +1,167 @@
+type AgentUsageSnapshot {
+    id: ID!
+    uuid: String!
+    agent_deployment_id: ID
+    snapshot_date: String!
+    source: String!
+    input_tokens: Int!
+    output_tokens: Int!
+    total_tokens: Int!
+    cache_read_tokens: Int!
+    cache_write_tokens: Int!
+    provider: String
+    model: String
+    total_sessions: Int!
+    raw_output: String!
+    parsed_data: JSON
+    created_at: DateTime!
+    deployment: AgentDeploymentType @belongsTo
+}
+
+type AgentMachineType {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    host: String!
+    ssh_port: Int!
+    ssh_user: String!
+    region: String
+    port_range_start: Int!
+    port_range_end: Int!
+    max_agents: Int!
+    is_active: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type AgentDeploymentType {
+    id: ID!
+    uuid: String!
+    agent_id: ID!
+    agent_machine_id: ID!
+    system_user: String!
+    home_directory: String!
+    gateway_port: Int!
+    proxy_port: Int!
+    container_name: String!
+    status: String!
+    launched_at: DateTime
+    terminated_at: DateTime
+    last_health_check: DateTime
+    error_message: String
+    created_at: DateTime!
+    updated_at: DateTime!
+    agent: AgentAi! @belongsTo
+    machine: AgentMachineType! @belongsTo
+}
+
+input AgentMachineInput {
+    name: String!
+    host: String!
+    ssh_port: Int
+    ssh_user: String!
+    ssh_private_key: String!
+    region: String
+    port_range_start: Int
+    port_range_end: Int
+    max_agents: Int
+}
+
+input UpdateAgentMachineInput {
+    name: String
+    host: String
+    ssh_port: Int
+    ssh_user: String
+    ssh_private_key: String
+    region: String
+    port_range_start: Int
+    port_range_end: Int
+    max_agents: Int
+    is_active: Boolean
+}
+
+input LaunchAgentInput {
+    agent_id: ID!
+    machine_id: ID!
+}
+
+extend type Query @guardByAdmin {
+    agentUsageSnapshots(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "agent_deployment_id", "snapshot_date", "source", "provider", "model"])
+        orderBy: _ @orderBy(columns: ["id", "snapshot_date", "total_tokens", "created_at"])
+    ): [AgentUsageSnapshot!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
+    agentMachines(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "slug", "region", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
+    ): [AgentMachineType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentMachine"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
+    agentDeployments(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "agent_id", "agent_machine_id", "status"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "launched_at"])
+    ): [AgentDeploymentType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentDeployment"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createAgentMachine(input: AgentMachineInput!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@create"
+        )
+    updateAgentMachine(id: ID!, input: UpdateAgentMachineInput!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@update"
+        )
+    deleteAgentMachine(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@delete"
+        )
+
+    launchAgent(input: LaunchAgentInput!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@launch"
+        )
+    terminateAgent(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@terminate"
+        )
+    restartAgentContainer(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@restart"
+        )
+    agentContainerLogs(deployment_id: ID!, lines: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@logs"
+        )
+    agentContainerStatus(deployment_id: ID!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@status"
+        )
+    collectDeploymentUsage(deployment_id: ID!): AgentUsageSnapshot!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@collectUsage"
+        )
+
+    setAgentSlackTokens(agent_id: ID!, slack_bot_token: String!, slack_app_token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
+        )
+}

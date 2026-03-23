@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Helpers\GenerateQrCode;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -49,11 +55,17 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         $order->reference = $order->reference . ' ' . $order->metadata['data']['vehiclePlate'] ?? '' . ' - #' . $order->order_number;
                     }
 
+                    $qrHost = $app->get(ConfigurationEnum::QR_CODE_HOST->value) ?? 'https://go-parking-web.vercel.app';
+                    $qrUrl = rtrim($qrHost, '/') . '/app/orderPayment/' . $order->getId();
+                    $qrFile = $this->uploadQrCode($order, $app, $qrUrl);
+
                     $order->metadata = [
                         ...$order->metadata ?? [],
                         'data' => [
                             ...$order->metadata['data'] ?? [],
                             'terms_and_conditions' => true,
+                            'qr_code' => $qrFile->url,
+                            'qr_url' => $qrUrl,
                         ],
                     ];
 
@@ -146,5 +158,24 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
         } catch (Throwable $e) {
             report($e);
         }
+    }
+  
+    private function uploadQrCode(Order $order, AppInterface $app, string $url): ModelsFilesystem
+    {
+        $filename = 'qr_' . $order->order_number . '.png';
+        $tempPath = sys_get_temp_dir() . '/' . $filename;
+
+        $qrCode = new GenerateQrCode($url)->execute();
+        file_put_contents($tempPath, $qrCode);
+
+        $uploadedFile = new UploadedFile($tempPath, $filename, 'image/png', null, true);
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $fileEntry = $filesystem->upload($uploadedFile, $order->user);
+
+        unlink($tempPath);
+
+        $order->addFile($fileEntry, $filename);
+
+        return $fileEntry;
     }
 }

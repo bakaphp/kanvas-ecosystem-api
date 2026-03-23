@@ -107,6 +107,9 @@ class CreateContentSessionAction
                 'ai_mode' => $lead->get('ai_mode'),
                 'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
+                'work_hours' => $lead->company->get('work_hours'),
+                'working_holiday_days' => $lead->company->get('working_holiday_days'),
+                'notes_channel_uuid' => $lead->notes?->uuid,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []

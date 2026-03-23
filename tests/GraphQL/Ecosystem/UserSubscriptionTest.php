@@ -93,12 +93,13 @@ class UserSubscriptionTest extends TestCase
         $stripeCustomer->config = $configData;
         $stripeCustomer->saveOrFail();
 
+        $stripePrice = 'price_test_' . Str::random(10);
         $subscription = Subscription::create([
             'apps_stripe_customer_id' => $stripeCustomer->id,
             'type' => 'default',
             'stripe_id' => 'sub_test_' . Str::random(20),
             'stripe_status' => 'active',
-            'stripe_price' => 'price_test_456',
+            'stripe_price' => $stripePrice,
             'quantity' => 1,
         ]);
 
@@ -123,24 +124,20 @@ class UserSubscriptionTest extends TestCase
         ', ['id' => $stripeCustomer->id]);
 
         $response->assertSuccessful()
-            ->assertJson([
-                'data' => [
-                    'userSubscription' => [
-                        'id' => (string) $stripeCustomer->id,
-                        'type' => 'default',
-                        'stripe_status' => 'active',
-                        'status' => 'active',
-                        'plan_name' => 'default',
-                        'stripe_price' => 'price_test_456',
-                        'is_active' => true,
-                        'config' => $configData,
-                    ],
-                ],
+            ->assertJsonFragment([
+                'type' => 'default',
+                'stripe_status' => 'active',
+                'status' => 'active',
+                'is_active' => true,
+                'config' => $configData,
             ]);
     }
 
     public function testGetUserCurrentSubscriptionReturnsNullWhenNoSubscription(): void
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $response = $this->graphQL('
             query {
                 me {

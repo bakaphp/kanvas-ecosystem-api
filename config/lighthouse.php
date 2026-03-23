@@ -37,7 +37,7 @@ return [
             'throttle:graphql',
             // Logs every incoming GraphQL query.
             // \Nuwave\Lighthouse\Support\Http\Middleware\LogGraphQLQueries::class,
-        ],
+            ],
 
         /*
          * The `prefix` and `domain` configuration options are optional.

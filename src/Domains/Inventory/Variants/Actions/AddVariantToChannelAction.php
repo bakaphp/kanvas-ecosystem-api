@@ -52,7 +52,8 @@ class AddVariantToChannelAction
                 new CreatePriceHistoryAction(
                     $this->variantsWarehouses,
                     $this->channel,
-                    $variantChannel->price
+                    $variantChannel->price,
+                    auth()->user(),
                 )->execute();
             }
 

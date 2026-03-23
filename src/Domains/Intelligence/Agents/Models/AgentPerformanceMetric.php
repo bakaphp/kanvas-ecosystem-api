@@ -6,8 +6,18 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Models\BaseModel;
 
+/**
+ * @property int $id
+ * @property int $agent_id
+ * @property int $agent_history_id
+ * @property string $metric_type
+ * @property float $value
+ * @property Carbon|null $period_start
+ * @property Carbon|null $period_end
+ */
 class AgentPerformanceMetric extends BaseModel
 {
     use UuidTrait;

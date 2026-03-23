@@ -36,6 +36,7 @@ enum MediaTypeEnum: string
         'flv',
         'm4v',
         '3gp',
+        'ogg',
     ];
 
     private const AUDIO_EXTENSIONS = [

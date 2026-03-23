@@ -23,7 +23,7 @@ final class AttributesTest extends TestCase
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
-        $sku = 'model_price_01';
+        $sku = 'model_price_' . uniqid();
 
         $productData = new Product(
             app: $app,
@@ -56,7 +56,7 @@ final class AttributesTest extends TestCase
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
-        $sku = 'model_price_01';
+        $sku = 'model_price_' . uniqid();
 
         $productData = new Product(
             app: $app,

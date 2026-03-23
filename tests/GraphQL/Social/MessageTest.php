@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
@@ -142,7 +145,7 @@ class MessageTest extends TestCase
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
-                'tags' => [
+                    'tags' => [
                         'data' => [
                             [
                                 'name' => 'tag1',
@@ -152,6 +155,52 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateMessageWithIsLocked(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    is_locked
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'is_locked' => 1,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'id' => $id,
+                    'is_locked' => 1,
+                ],
+            ],
+        ]);
+
+        $message = Message::getById((int) $id, app(Apps::class));
+        $this->assertSame(1, (int) $message->is_locked);
     }
 
     public function testUpdateMessageAddTags(): void
@@ -1405,5 +1454,279 @@ class MessageTest extends TestCase
         );
 
         $app->set('restrict_messages_by_company', false);
+    }
+
+    public function testCreateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message,
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'test_field_one', 'data' => 'value_one'],
+                    ['name' => 'test_field_two', 'data' => 'value_two'],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                ],
+            ],
+        ]);
+
+        $customFields = $response->json('data.createMessage.custom_fields.data');
+        $fieldNames = array_column($customFields, 'name');
+        $this->assertContains('test_field_one', $fieldNames);
+        $this->assertContains('test_field_two', $fieldNames);
+    }
+
+    public function testUpdateMessageWithCustomFields(): void
+    {
+        $messageType = MessageType::factory()->create();
+
+        $createResponse = $this->graphQL('
+            mutation($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'initial_value'],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessage.id');
+
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: MessageUpdateInput!) {
+                updateMessage(id: $id, input: $input) {
+                    id
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'custom_fields' => [
+                    ['name' => 'initial_field', 'data' => 'updated_value'],
+                    ['name' => 'new_field', 'data' => 'new_value'],
+                ],
+            ],
+        ])
+        ->assertSuccessful();
+
+        $customFields = $response->json('data.updateMessage.custom_fields.data');
+        $fieldMap = [];
+        foreach ($customFields as $field) {
+            $fieldMap[$field['name']] = $field['value'];
+        }
+
+        $this->assertSame('updated_value', $fieldMap['initial_field']);
+        $this->assertSame('new_value', $fieldMap['new_field']);
+    }
+
+    public function testCreateMessageConstrainsLargeImageForMatchingVerb(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $verb = 'twilio-sms-test-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        // Create a large JPEG with noise so it exceeds our limit
+        $tempPath = sys_get_temp_dir() . '/msg-constrain-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(3000, 3000);
+        for ($y = 0; $y < 3000; $y += 2) {
+            for ($x = 0; $x < 3000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // Set a low max so it must constrain
+        $maxFileSize = (int) ($originalSize * 0.25);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
+
+        $file = new UploadedFile($tempPath, 'large-photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'test with large image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // Verify the file was constrained
+        clearstatcache(true, $tempPath);
+        $this->assertLessThanOrEqual(
+            $maxFileSize,
+            filesize($tempPath),
+            'Image should be constrained to max file size'
+        );
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        @unlink($tempPath);
+    }
+
+    public function testCreateMessageSkipsConstrainForNonMatchingVerb(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Disable global optimization so it doesn't interfere
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $messageType = MessageType::factory()->create(['verb' => 'email-test-' . uniqid()]);
+
+        // Create a large JPEG
+        $tempPath = sys_get_temp_dir() . '/msg-no-constrain-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(2000, 2000);
+        for ($y = 0; $y < 2000; $y += 2) {
+            for ($x = 0; $x < 2000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // Only constrain twilio verbs, not email
+        $app->set('filesystem-message-max-filesize', 100000);
+        $app->set('filesystem-message-constrain-verbs', ['twilio-sms', 'twilio-mms']);
+
+        $file = new UploadedFile($tempPath, 'photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'email with large image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // File should NOT have been constrained since verb doesn't match
+        clearstatcache(true, $tempPath);
+        $this->assertEquals(
+            $originalSize,
+            filesize($tempPath),
+            'Image should NOT be constrained for non-matching verb'
+        );
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
+    }
+
+    public function testCreateMessageSkipsConstrainWhenSettingDisabled(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Disable global optimization so it doesn't interfere
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $messageType = MessageType::factory()->create(['verb' => 'twilio-sms-disabled-' . uniqid()]);
+
+        $tempPath = sys_get_temp_dir() . '/msg-disabled-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(1000, 1000);
+        $red = imagecolorallocate($img, 255, 0, 0);
+        imagefill($img, 0, 0, $red);
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // No max filesize set — feature disabled
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+
+        $file = new UploadedFile($tempPath, 'photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'no constrain',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        clearstatcache(true, $tempPath);
+        $this->assertEquals(
+            $originalSize,
+            filesize($tempPath),
+            'Image should NOT be constrained when setting is disabled'
+        );
+
+        // Clean up
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
     }
 }

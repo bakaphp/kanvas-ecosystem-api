@@ -18,8 +18,24 @@ use RuntimeException;
 
 class ImageConversionService
 {
-    protected const array SUPPORTED_TARGET_FORMATS = ['jpg', 'jpeg', 'png', 'webp'];
-    protected const array SUPPORTED_SOURCE_FORMATS = ['heic','heif','jpg','jpeg','png','webp','gif','bmp','tiff','tif'];
+    protected const array SUPPORTED_TARGET_FORMATS = [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+    ];
+    protected const array SUPPORTED_SOURCE_FORMATS = [
+        'heic',
+        'heif',
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+        'bmp',
+        'tiff',
+        'tif',
+    ];
 
     /**
      * Convert an existing Filesystem entity to a different format and update it.

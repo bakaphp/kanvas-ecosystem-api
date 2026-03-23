@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\VoiceBridge\Jobs;
+
+use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
+use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
+use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Throwable;
+
+class LeadVoiceFollowUpJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use KanvasJobsTrait;
+    use Queueable;
+    use SerializesModels;
+
+    public function __construct(
+        protected Lead $lead,
+    ) {
+    }
+
+    public function handle(): void
+    {
+        $app = $this->lead->app;
+        $this->overwriteAppService($app);
+
+        if ($this->lead->get(LeadsConfigurationEnum::IS_ENGAGEMENT->value)) {
+            return;
+        }
+
+        $phone = $this->lead->people->getCellPhones()->first()?->value
+            ?? $this->lead->people->getAllPhones()->first()?->value;
+
+        if (empty($phone)) {
+            return;
+        }
+
+        if (empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+            return;
+        }
+
+        $phone = Str::normalizePhoneNumber($phone);
+        $sessionId = VoiceBridgeService::buildOutboundSessionId(
+            (string) $this->lead->getId(),
+            $phone,
+            (string) $app->get(VoiceBridgeConfigurationEnum::COMPANY_ID->value),
+        );
+
+        try {
+            $agent = Agent::fromApp($app)
+                ->fromCompany($this->lead->company)
+                ->where('name', 'voiceOutreachAgent')
+                ->firstOrFail();
+
+            InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
+            TriggerVoiceCallAction::fromLead($this->lead)->execute();
+
+            $transcriptDelayMinutes = (int) ($this->lead->company->get(VoiceBridgeConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
+
+            SaveVoiceTranscriptJob::dispatch($this->lead, $sessionId)
+                ->delay(now()->addMinutes($transcriptDelayMinutes));
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+}

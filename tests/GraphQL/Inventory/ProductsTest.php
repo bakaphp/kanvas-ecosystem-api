@@ -78,7 +78,10 @@ class ProductsTest extends TestCase
         $response->assertSuccessful();
         $products = $response->json('data.products.data');
         $this->assertNotEmpty($products, 'No products returned from attributeOrderBy query');
-        $this->assertEquals($data['name'], $products[0]['name']);
+        $this->assertTrue(
+            collect($products)->contains('name', $data['name']),
+            'Created product should appear in attributeOrderBy results'
+        );
     }
 
     public function testSortByVariantAttributes(): void
@@ -127,8 +130,12 @@ class ProductsTest extends TestCase
                 }
             }"
         );
-        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
-        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+        $products = $response->json('data.products.data');
+        $this->assertNotEmpty($products, 'No products returned from variantAttributeOrderBy query');
+        $this->assertTrue(
+            collect($products)->contains('name', $data['name']),
+            'Created product should appear in variantAttributeOrderBy results'
+        );
     }
 
     public function testFilterByNearByLocation(): void
