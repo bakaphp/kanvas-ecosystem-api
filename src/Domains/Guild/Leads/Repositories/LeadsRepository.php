@@ -60,7 +60,7 @@ class LeadsRepository
                         ->first();
     }
 
-    public static function getPeopleClosedLead(People $people): ?Lead
+    public static function getPeopleClosedLeads(People $people): Builder
     {
         return Lead::fromApp($people->app)
                     ->fromCompany($people->company)
@@ -69,7 +69,12 @@ class LeadsRepository
                         ->whereHas('status', function ($query) {
                             $query->whereNotIn('name', ['active', 'created']);
                         })
-                        ->orderBy('id', 'desc')
-                        ->first();
+                        ->orderBy('id', 'desc');
+    }
+
+    public static function getPeopleClosedLead(People $people): ?Lead
+    {
+        /** @psalm-suppress LessSpecificReturnStatement */
+        return self::getPeopleClosedLeads($people)->first();
     }
 }

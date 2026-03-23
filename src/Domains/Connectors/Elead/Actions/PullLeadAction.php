@@ -199,53 +199,70 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found') && $phone !== null && $phone !== '') {
+                    $hasPhone = $phone !== null && $phone !== '';
+                    $hasEmail = $email !== null && $email !== '';
+
+                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ($hasPhone || $hasEmail)) {
                         /** @var Apps $app */
                         $app = $this->app;
-                        $matchedByPhone = People::getAllByPhoneMatchingValue($phone, $this->company, $app);
-                        $matchedByAnything = People::getAllByMatchingValue($phone, $this->company, $app);
+                        $allMatchedPeople = collect();
 
-                        $allMatchedPeople = $matchedByPhone->merge($matchedByAnything)->unique('id');
+                        if ($hasPhone) {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByPhoneMatchingValue($phone, $this->company, $app))
+                                ->merge(People::getAllByMatchingValue($phone, $this->company, $app));
+                        }
+
+                        if ($email !== null && $email !== '') {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByMatchingValue($email, $this->company, $app));
+                        }
+
+                        $allMatchedPeople = $allMatchedPeople->unique('id');
 
                         /** @var People $matchedPerson */
                         foreach ($allMatchedPeople as $matchedPerson) {
-                            $internalClosedLead = LeadsRepository::getPeopleClosedLead($matchedPerson);
+                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson);
+                            $closedLeads = LeadsRepository::getPeopleClosedLeads($matchedPerson)->get();
 
-                            if (! $internalClosedLead) {
-                                $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($matchedPerson);
+                            if ($closedLeads->isEmpty()) {
+                                $activeLeads = LeadsRepository::getPeopleActiveLeads($matchedPerson)->get();
 
-                                if ($activeLeadsQuery->count() === 0) {
+                                if ($activeLeads->isEmpty()) {
                                     continue;
                                 }
 
-                                /** @var ModelsLead $internalClosedLead */
-                                $internalClosedLead = $activeLeadsQuery->first();
-                                $internalClosedLead->close();
+                                /** @var ModelsLead $activeLead */
+                                foreach ($activeLeads as $activeLead) {
+                                    $activeLead->close();
+                                    $closedLeads->push($activeLead);
+                                }
                             }
 
-                            if (isset($filterResults[$internalClosedLead->id])) {
-                                continue;
+                            /** @var ModelsLead $closedLead */
+                            foreach ($closedLeads as $closedLead) {
+                                if (isset($filterResults[$closedLead->id])) {
+                                    continue;
+                                }
+
+                                $results[] = [
+                                    'id' => $closedLead->id,
+                                    'uuid' => $closedLead->uuid,
+                                    'people_id' => $closedLead->people->id,
+                                    'firstname' => $closedLead->people->firstname,
+                                    'middlename' => $closedLead->people->middlename,
+                                    'lastname' => $closedLead->people->lastname,
+                                    'email' => $closedLead->people?->getEmails()->first()?->value,
+                                    'phone' => $closedLead->people?->getAllPhones()->first()?->value,
+                                    'status' => strtolower($closedLead->status()?->first()?->name ?? ''),
+                                    'lead_type' => $closedLead->type?->name,
+                                    'owner' => $closedLead->owner?->name,
+                                    'owner_id' => $closedLead->leads_owner_id,
+                                    'custom_fields' => $closedLead->getAllCustomFields(),
+                                    'rank' => $nameRank,
+                                ];
+                                $filterResults[$closedLead->id] = $closedLead->id;
                             }
-
-                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson);
-
-                            $results[] = [
-                                'id' => $internalClosedLead->id,
-                                'uuid' => $internalClosedLead->uuid,
-                                'people_id' => $internalClosedLead->people->id,
-                                'firstname' => $internalClosedLead->people->firstname,
-                                'middlename' => $internalClosedLead->people->middlename,
-                                'lastname' => $internalClosedLead->people->lastname,
-                                'email' => $internalClosedLead->people?->getEmails()->first()?->value,
-                                'phone' => $internalClosedLead->people?->getAllPhones()->first()?->value,
-                                'status' => strtolower($internalClosedLead->status()?->first()?->name ?? ''),
-                                'lead_type' => $internalClosedLead->type?->name,
-                                'owner' => $internalClosedLead->owner?->name,
-                                'owner_id' => $internalClosedLead->leads_owner_id,
-                                'custom_fields' => $internalClosedLead->getAllCustomFields(),
-                                'rank' => $nameRank,
-                            ];
-                            $filterResults[$internalClosedLead->id] = $internalClosedLead->id;
                         }
                     }
 
