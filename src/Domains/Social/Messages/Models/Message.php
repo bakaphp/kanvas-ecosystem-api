@@ -70,6 +70,8 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $total_saved
  *  @property int $total_shared
  *  @property string|null ip_address
+ *  @property bool $response
+ *  @property int|null $response_message_id
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 #[ObservedBy([MessageObserver::class])]
@@ -105,6 +107,8 @@ class Message extends BaseModel
         'message_types_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
+        'response' => 'boolean',
+        'response_message_id' => 'integer',
     ];
 
     #[Override]
