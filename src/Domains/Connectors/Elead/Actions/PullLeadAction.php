@@ -136,6 +136,12 @@ class PullLeadAction
                 }
 
                 try {
+                    $currentCustomer = People::getByCustomField(
+                        CustomFieldEnum::CUSTOMER_ID->value,
+                        $customer['id'],
+                        $this->company
+                    );
+
                     $eLead = Lead::getByCustomerId(
                         $this->app,
                         $this->company,
