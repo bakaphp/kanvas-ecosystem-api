@@ -39,6 +39,10 @@ class FilesystemTest extends TestCase
 
     public function testUploadFileViaGraphQL(): void
     {
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('multipartGraphQL uploads hang under paratest in CI');
+        }
+
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($files: [Upload!]!) {
@@ -72,6 +76,10 @@ class FilesystemTest extends TestCase
 
     public function testSingleUploadViaGraphQL(): void
     {
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('multipartGraphQL uploads hang under paratest in CI');
+        }
+
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($file: Upload!) {
