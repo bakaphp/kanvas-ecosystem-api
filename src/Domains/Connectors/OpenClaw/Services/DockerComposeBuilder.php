@@ -89,7 +89,7 @@ class DockerComposeBuilder
         array $channelConfig = [],
     ): string {
         $slug = $agent->slug;
-        $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-3.1-pro-preview';
+        $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-2.5-pro';
         $geminiApiKey = $app->get(ConfigurationEnum::GEMINI_API_KEY->value) ?? '';
 
         $config = [
@@ -117,16 +117,16 @@ class DockerComposeBuilder
                         'primary' => $model,
                         'fallbacks' => [
                             'google/gemini-3.1-flash-lite-preview',
-                            'google/gemini-2.5-pro',
-                            'google-vertex/gemini-3.1-pro-preview',
+                            'google/gemini-3.1-pro-preview',
+                            'google-vertex/gemini-2.5-pro',
                             'google-vertex/gemini-3-flash-preview',
                         ],
                     ],
                     'models' => [
-                        'google/gemini-3.1-pro-preview' => (object) [],
-                        'google/gemini-3.1-flash-lite-preview' => (object) [],
                         'google/gemini-2.5-pro' => (object) [],
-                        'google-vertex/gemini-3.1-pro-preview' => (object) [],
+                        'google/gemini-3.1-flash-lite-preview' => (object) [],
+                        'google/gemini-3.1-pro-preview' => (object) [],
+                        'google-vertex/gemini-2.5-pro' => (object) [],
                         'google-vertex/gemini-3-flash-preview' => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
@@ -290,6 +290,9 @@ class DockerComposeBuilder
             'slack' => [
                 'enabled' => true,
                 'mode' => 'socket',
+                'allowBots' => true,
+                'streaming' => 'partial',
+                'nativeStreaming' => true,
                 'botToken' => (string) $slackBotToken,
                 'appToken' => (string) $slackAppToken,
                 'dmPolicy' => 'open',
