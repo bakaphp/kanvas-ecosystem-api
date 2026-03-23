@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.373.5",
+            "version": "3.373.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "978964f417f3617a6ced691110af6fc5d496fb4e"
+                "reference": "4402bd10f913e66b7271f44466be8d5ba6c9146e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/978964f417f3617a6ced691110af6fc5d496fb4e",
-                "reference": "978964f417f3617a6ced691110af6fc5d496fb4e",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/4402bd10f913e66b7271f44466be8d5ba6c9146e",
+                "reference": "4402bd10f913e66b7271f44466be8d5ba6c9146e",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.373.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.373.7"
             },
-            "time": "2026-03-18T18:22:37+00:00"
+            "time": "2026-03-20T18:14:19+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -1252,16 +1252,16 @@
         },
         {
             "name": "doctrine/dbal",
-            "version": "4.4.2",
+            "version": "4.4.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/dbal.git",
-                "reference": "476f7f0fa6ea4aa5364926db7fabdf6049075722"
+                "reference": "61e730f1658814821a85f2402c945f3883407dec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/dbal/zipball/476f7f0fa6ea4aa5364926db7fabdf6049075722",
-                "reference": "476f7f0fa6ea4aa5364926db7fabdf6049075722",
+                "url": "https://api.github.com/repos/doctrine/dbal/zipball/61e730f1658814821a85f2402c945f3883407dec",
+                "reference": "61e730f1658814821a85f2402c945f3883407dec",
                 "shasum": ""
             },
             "require": {
@@ -1338,7 +1338,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/dbal/issues",
-                "source": "https://github.com/doctrine/dbal/tree/4.4.2"
+                "source": "https://github.com/doctrine/dbal/tree/4.4.3"
             },
             "funding": [
                 {
@@ -1354,7 +1354,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-02-26T12:12:19+00:00"
+            "time": "2026-03-20T08:52:12+00:00"
         },
         {
             "name": "doctrine/deprecations",
@@ -2680,16 +2680,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v5.34.0",
+            "version": "v5.34.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "1debe453db83159b98a38df5a3737feb1e8ef016"
+                "reference": "da52fbc6bb574bfa6693ee2c86f9096f7b7f003b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/1debe453db83159b98a38df5a3737feb1e8ef016",
-                "reference": "1debe453db83159b98a38df5a3737feb1e8ef016",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/da52fbc6bb574bfa6693ee2c86f9096f7b7f003b",
+                "reference": "da52fbc6bb574bfa6693ee2c86f9096f7b7f003b",
                 "shasum": ""
             },
             "require": {
@@ -2718,9 +2718,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.34.0"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.34.1"
             },
-            "time": "2026-02-25T21:19:40+00:00"
+            "time": "2026-03-19T20:51:56+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -9890,16 +9890,16 @@
         },
         {
             "name": "psy/psysh",
-            "version": "v0.12.21",
+            "version": "v0.12.22",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bobthecow/psysh.git",
-                "reference": "4821fab5b7cd8c49a673a9fd5754dc9162bb9e97"
+                "reference": "3be75d5b9244936dd4ac62ade2bfb004d13acf0f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bobthecow/psysh/zipball/4821fab5b7cd8c49a673a9fd5754dc9162bb9e97",
-                "reference": "4821fab5b7cd8c49a673a9fd5754dc9162bb9e97",
+                "url": "https://api.github.com/repos/bobthecow/psysh/zipball/3be75d5b9244936dd4ac62ade2bfb004d13acf0f",
+                "reference": "3be75d5b9244936dd4ac62ade2bfb004d13acf0f",
                 "shasum": ""
             },
             "require": {
@@ -9963,9 +9963,9 @@
             ],
             "support": {
                 "issues": "https://github.com/bobthecow/psysh/issues",
-                "source": "https://github.com/bobthecow/psysh/tree/v0.12.21"
+                "source": "https://github.com/bobthecow/psysh/tree/v0.12.22"
             },
-            "time": "2026-03-06T21:21:28+00:00"
+            "time": "2026-03-22T23:03:24+00:00"
         },
         {
             "name": "pusher/pusher-php-server",
