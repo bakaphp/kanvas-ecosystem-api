@@ -254,7 +254,8 @@ class UserTest extends TestCase
                         ],
                     ]
         );
-        $addressIdDuplicate = $response->json('data.updateUser.addresses.0.id');
+        $addressesDuplicate = collect($response->json('data.updateUser.addresses'));
+        $addressIdDuplicate = $addressesDuplicate->firstWhere('address', $address['address'])['id'];
         $this->assertEquals($addressId, $addressIdDuplicate);
     }
 
