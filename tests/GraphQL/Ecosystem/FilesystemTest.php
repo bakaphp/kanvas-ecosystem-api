@@ -49,7 +49,6 @@ class FilesystemTest extends TestCase
 
     public function testUploadFileViaGraphQL(): void
     {
-
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($files: [Upload!]!) {
@@ -83,7 +82,6 @@ class FilesystemTest extends TestCase
 
     public function testSingleUploadViaGraphQL(): void
     {
-
         $operations = [
             'query' => /** @lang GraphQL */ '
                 mutation ($file: Upload!) {
