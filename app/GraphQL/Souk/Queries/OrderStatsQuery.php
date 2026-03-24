@@ -33,6 +33,7 @@ class OrderStatsQuery
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
         $providers = $input['providers'] ?? [];
+        $userEmail = $input['user_email'] ?? null;
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -43,7 +44,8 @@ class OrderStatsQuery
             $orderTypeNames,
             $productId,
             $providerCompanyIds,
-            $providers
+            $providers,
+            $userEmail
         )->execute(
             $date,
             $startDate,
@@ -75,6 +77,7 @@ class OrderStatsQuery
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $userEmail = $input['user_email'] ?? null;
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -84,7 +87,8 @@ class OrderStatsQuery
             $orderTypeNames,
             $providers,
             $productId,
-            $providerCompanyIds
+            $providerCompanyIds,
+            $userEmail
         )->execute(
             $date,
             $startDate,

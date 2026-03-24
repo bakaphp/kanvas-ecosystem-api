@@ -28,6 +28,13 @@ class UpdateVariantsAction
     ) {
     }
 
+    public function disableWorkflow(): static
+    {
+        $this->runWorkflow = false;
+
+        return $this;
+    }
+
     /**
      * execute.
      */
