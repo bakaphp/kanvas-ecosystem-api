@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
@@ -1550,5 +1553,180 @@ class MessageTest extends TestCase
 
         $this->assertSame('updated_value', $fieldMap['initial_field']);
         $this->assertSame('new_value', $fieldMap['new_field']);
+    }
+
+    public function testCreateMessageConstrainsLargeImageForMatchingVerb(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $verb = 'twilio-sms-test-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        // Create a large JPEG with noise so it exceeds our limit
+        $tempPath = sys_get_temp_dir() . '/msg-constrain-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(3000, 3000);
+        for ($y = 0; $y < 3000; $y += 2) {
+            for ($x = 0; $x < 3000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // Set a low max so it must constrain
+        $maxFileSize = (int) ($originalSize * 0.25);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
+
+        $file = new UploadedFile($tempPath, 'large-photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'test with large image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // Verify the file was constrained
+        clearstatcache(true, $tempPath);
+        $this->assertLessThanOrEqual(
+            $maxFileSize,
+            filesize($tempPath),
+            'Image should be constrained to max file size'
+        );
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        @unlink($tempPath);
+    }
+
+    public function testCreateMessageSkipsConstrainForNonMatchingVerb(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Disable global optimization so it doesn't interfere
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $messageType = MessageType::factory()->create(['verb' => 'email-test-' . uniqid()]);
+
+        // Create a large JPEG
+        $tempPath = sys_get_temp_dir() . '/msg-no-constrain-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(2000, 2000);
+        for ($y = 0; $y < 2000; $y += 2) {
+            for ($x = 0; $x < 2000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // Only constrain twilio verbs, not email
+        $app->set('filesystem-message-max-filesize', 100000);
+        $app->set('filesystem-message-constrain-verbs', ['twilio-sms', 'twilio-mms']);
+
+        $file = new UploadedFile($tempPath, 'photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'email with large image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // File should NOT have been constrained since verb doesn't match
+        clearstatcache(true, $tempPath);
+        $this->assertEquals(
+            $originalSize,
+            filesize($tempPath),
+            'Image should NOT be constrained for non-matching verb'
+        );
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
+    }
+
+    public function testCreateMessageSkipsConstrainWhenSettingDisabled(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Disable global optimization so it doesn't interfere
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $messageType = MessageType::factory()->create(['verb' => 'twilio-sms-disabled-' . uniqid()]);
+
+        $tempPath = sys_get_temp_dir() . '/msg-disabled-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(1000, 1000);
+        $red = imagecolorallocate($img, 255, 0, 0);
+        imagefill($img, 0, 0, $red);
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+
+        // No max filesize set — feature disabled
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+
+        $file = new UploadedFile($tempPath, 'photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'no constrain',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        clearstatcache(true, $tempPath);
+        $this->assertEquals(
+            $originalSize,
+            filesize($tempPath),
+            'Image should NOT be constrained when setting is disabled'
+        );
+
+        // Clean up
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
     }
 }

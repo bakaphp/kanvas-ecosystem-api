@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use GuzzleHttp\Exception\ClientException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Connectors\Elead\Entities\Customer;
@@ -198,50 +199,70 @@ class PullLeadAction
                 } catch (Throwable $th) {
                     //ignore the error
 
-                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ! empty($phone)) {
-                        $searchForInternalCloseLeadByPhone = People::getByPhoneMatchingValue($phone, $this->company, $this->app);
-                        $searchForInternalCloseLeadByAnything = People::getByMatchingValue($phone, $this->company, $this->app);
+                    $hasPhone = $phone !== null && $phone !== '';
+                    $hasEmail = $email !== null && $email !== '';
 
-                        $searchForInternalCloseLead = $searchForInternalCloseLeadByPhone ?? $searchForInternalCloseLeadByAnything;
+                    if (Str::contains($th->getMessage(), 'No Opportunities found') && ($hasPhone || $hasEmail)) {
+                        /** @var Apps $app */
+                        $app = $this->app;
+                        $allMatchedPeople = collect();
 
-                        if ($searchForInternalCloseLead !== null) {
-                            $internalClosedLeads = LeadsRepository::getPeopleClosedLead($searchForInternalCloseLead);
+                        if ($hasPhone) {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByPhoneMatchingValue($phone, $this->company, $app))
+                                ->merge(People::getAllByMatchingValue($phone, $this->company, $app));
+                        }
 
-                            if ($currentCustomer === null) {
-                                $currentCustomer = $searchForInternalCloseLead;
-                            }
+                        if ($email !== null && $email !== '') {
+                            $allMatchedPeople = $allMatchedPeople
+                                ->merge(People::getAllByMatchingValue($email, $this->company, $app));
+                        }
 
-                            if (! $internalClosedLeads) {
-                                $activeLeadsQuery = LeadsRepository::getPeopleActiveLeads($currentCustomer);
+                        $allMatchedPeople = $allMatchedPeople->unique('id');
 
-                                if ($activeLeadsQuery->count() === 0) {
+                        /** @var People $matchedPerson */
+                        foreach ($allMatchedPeople as $matchedPerson) {
+                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson);
+                            $closedLeads = LeadsRepository::getPeopleClosedLeads($matchedPerson)->get();
+
+                            if ($closedLeads->isEmpty()) {
+                                $activeLeads = LeadsRepository::getPeopleActiveLeads($matchedPerson)->get();
+
+                                if ($activeLeads->isEmpty()) {
                                     continue;
                                 }
 
-                                $internalClosedLeads = $activeLeadsQuery->first();
-                                $internalClosedLeads->close();
+                                /** @var ModelsLead $activeLead */
+                                foreach ($activeLeads as $activeLead) {
+                                    $activeLead->close();
+                                    $closedLeads->push($activeLead);
+                                }
                             }
 
-                            if (isset($filterResults[$internalClosedLeads->id])) {
-                                continue; // Skip if this lead has already been processed
-                            }
+                            /** @var ModelsLead $closedLead */
+                            foreach ($closedLeads as $closedLead) {
+                                if (isset($filterResults[$closedLead->id])) {
+                                    continue;
+                                }
 
-                            $results[] = [
-                                'id' => $internalClosedLeads->id,
-                                'uuid' => $internalClosedLeads->uuid,
-                                'people_id' => $internalClosedLeads->people->id,
-                                'firstname' => $internalClosedLeads->people->firstname,
-                                'middlename' => $internalClosedLeads->people->middlename,
-                                'lastname' => $internalClosedLeads->people->lastname,
-                                'email' => $internalClosedLeads->people?->getEmails()->first()?->value,
-                                'phone' => $internalClosedLeads->people?->getAllPhones()->first()?->value,
-                                'status' => strtolower($internalClosedLeads->status()?->first()?->name ?? ''),
-                                'lead_type' => $internalClosedLeads->type?->name,
-                                'owner' => $internalClosedLeads->owner?->name ,
-                                'owner_id' => $internalClosedLeads->leads_owner_id,
-                                'custom_fields' => $internalClosedLeads->getAllCustomFields(),
-                                'rank' => 1,
-                            ];
+                                $results[] = [
+                                    'id' => $closedLead->id,
+                                    'uuid' => $closedLead->uuid,
+                                    'people_id' => $closedLead->people->id,
+                                    'firstname' => $closedLead->people->firstname,
+                                    'middlename' => $closedLead->people->middlename,
+                                    'lastname' => $closedLead->people->lastname,
+                                    'email' => $closedLead->people?->getEmails()->first()?->value,
+                                    'phone' => $closedLead->people?->getAllPhones()->first()?->value,
+                                    'status' => strtolower($closedLead->status()?->first()?->name ?? ''),
+                                    'lead_type' => $closedLead->type?->name,
+                                    'owner' => $closedLead->owner?->name,
+                                    'owner_id' => $closedLead->leads_owner_id,
+                                    'custom_fields' => $closedLead->getAllCustomFields(),
+                                    'rank' => $nameRank,
+                                ];
+                                $filterResults[$closedLead->id] = $closedLead->id;
+                            }
                         }
                     }
 
@@ -251,6 +272,48 @@ class PullLeadAction
         }
 
         return $results;
+    }
+
+    protected function calculateNameRank(
+        ?string $eLeadFirstname,
+        ?string $eLeadLastname,
+        People $person
+    ): float {
+        $firstScore = 0.0;
+        $lastScore = 0.0;
+
+        $hasFirst = $eLeadFirstname !== null && $eLeadFirstname !== '' && (string) $person->firstname !== '';
+        $hasLast = $eLeadLastname !== null && $eLeadLastname !== '' && (string) $person->lastname !== '';
+
+        if ($hasFirst) {
+            similar_text(
+                strtolower(trim($eLeadFirstname)),
+                strtolower(trim((string) $person->firstname)),
+                $firstScore
+            );
+        }
+
+        if ($hasLast) {
+            similar_text(
+                strtolower(trim($eLeadLastname)),
+                strtolower(trim((string) $person->lastname)),
+                $lastScore
+            );
+        }
+
+        if ($hasFirst && $hasLast) {
+            return (float) round(($firstScore * 0.4 + $lastScore * 0.6) / 100.0, 2);
+        }
+
+        if ($hasFirst) {
+            return (float) round($firstScore / 100.0 * 0.5, 2);
+        }
+
+        if ($hasLast) {
+            return (float) round($lastScore / 100.0 * 0.6, 2);
+        }
+
+        return 0.1;
     }
 
     public function setContactStatus(ModelsLead $lead, string $status): void

@@ -98,7 +98,7 @@ abstract class ResourceBookingBase extends TestCase
                     ],
                 ],
             ],
-            'event_name' => 'Test Resource Booking',
+            'event_name' => 'Test Resource Booking ' . uniqid(),
             'event_description' => 'Test booking description',
             'metadata' => [
                 'category_id' => EventCategory::fromCompany($this->company)->fromApp($this->apps)->first()->getId(),

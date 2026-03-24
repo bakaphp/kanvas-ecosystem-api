@@ -50,7 +50,7 @@ class ResourceBookingCrudTest extends ResourceBookingBase
 
         // Verify the booking was created successfully
         $this->assertNotNull($eventVersion['id']);
-        $this->assertEquals('Test Resource Booking', $eventVersion['name']);
+        $this->assertStringStartsWith('Test Resource Booking', $eventVersion['name']);
         $this->assertNotNull($eventVersion['event']['id']);
         $this->assertEquals($bookingData['resources_id'], $eventVersion['event']['resources_id']);
         $this->assertEquals('Kanvas\\Inventory\\Variants\\Models\\Variants', $eventVersion['event']['resources_type']);

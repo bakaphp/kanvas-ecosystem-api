@@ -55,6 +55,7 @@ class ExportOrderPaymentsAction
         ];
 
         $orders = Order::query()
+            ->select('orders.*')
             ->where('orders.apps_id', $this->app->getId())
             ->whereIn('orders.payment_status', $this->paidStates)
             ->when(! empty($this->orderTypeNames), function ($q) {

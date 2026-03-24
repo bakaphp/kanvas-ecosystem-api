@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Twilio\Actions;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
+use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -48,20 +50,43 @@ class DownloadMessageFileAction
 
     public function execute(): array
     {
-        $content = Http::get($this->fileUrl);
-        $filename = uniqid() . '.' . $this->extension;
+        [$sid, $token] = Client::getKeysFromApp($this->message->app);
 
-        $tempPath = 'temp/' . $filename;
+        $response = Http::withBasicAuth($sid, $token)
+            ->timeout(30)
+            ->throw()
+            ->get($this->fileUrl);
+
+        $filename = uniqid('twilio_') . '.' . $this->extension;
+        $tempPath = sys_get_temp_dir() . '/' . $filename;
+        file_put_contents($tempPath, $response->body());
 
         $agentUser = $this->message->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
-            $user = Users::getById($this->message->user_id);
-        } else {
             $user = Users::getById($agentUser);
+        } else {
+            $user = Users::getById($this->message->user_id);
         }
 
-        $filesystem = $this->filesystemService->uploadFileFromUrl($this->fileUrl, $user);
+        try {
+            $uploadedFile = new UploadedFile(
+                $tempPath,
+                $filename,
+                $this->type,
+                null,
+                true
+            );
 
-        return ['media' => $filesystem, 'type' => $this->type];
+            $filesystem = $this->filesystemService->upload($uploadedFile, $user);
+        } finally {
+            if (file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
+        }
+
+        return [
+            'media' => $filesystem,
+            'type' => $this->type,
+        ];
     }
 }

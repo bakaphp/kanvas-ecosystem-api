@@ -40,6 +40,9 @@ class UserDeviceTest extends TestCase
 
     public function testUnLinkUserDevice()
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $source = Sources::firstOrFail();
         $deviceData = $this->generateDevice();
 

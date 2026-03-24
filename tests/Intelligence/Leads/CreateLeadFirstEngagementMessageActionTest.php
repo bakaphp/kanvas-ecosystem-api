@@ -86,7 +86,12 @@ class CreateLeadFirstEngagementMessageActionTest extends TestCase
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
 
-        // Create the agent with empty role
+        // Ensure agent exists with empty role
+        Agent::fromApp($app)
+            ->fromCompany($company)
+            ->where('name', 'firstMessageEngagerAgent')
+            ->delete();
+
         Agent::factory()->create([
             'name' => 'firstMessageEngagerAgent',
             'apps_id' => $lead->apps_id,
