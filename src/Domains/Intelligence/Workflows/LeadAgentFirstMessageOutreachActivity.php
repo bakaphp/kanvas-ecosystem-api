@@ -89,8 +89,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 }
 
                 $channels = [
-                    'sms' => $cellPhone,
                     'email' => $email,
+                    'sms' => $cellPhone,
                     //'whatsapp' => $cellPhone,
                 ];
 
@@ -158,6 +158,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                             ),
                         ]);
                         $channel = new CreateChannelAction($channel)->execute();
+
+                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
+                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+                        }
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
