@@ -87,6 +87,36 @@ class ZohoService
         return $zohoAgent;
     }
 
+    public function updateAgent(Agent $agent): object
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+
+        $data = [
+            'Sponsor' => ! empty($agent->owner_id) ? (string) $agent->owner_id : '1001',
+        ];
+
+        if ($agent->sponsor_user_id !== null) {
+            $sponsorAgent = Agent::where('users_id', $agent->sponsor_user_id)
+                ->where('apps_id', $this->app->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('is_deleted', false)
+                ->where('status_id', 1)
+                ->first();
+
+            if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
+                $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id; //it the zoho agent uuid
+                $data['Sponsor'] = (string) $sponsorAgent->member_id;
+                $data['Inactive'] = 'Active';
+            }
+        }
+
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            return $this->zohoCrm->agents->update($zohoAgentId, $data);
+        }
+
+        return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
     public function getLeadById(string $leadId): Record
     {
         return $this->zohoCrm->leads->get($leadId);
