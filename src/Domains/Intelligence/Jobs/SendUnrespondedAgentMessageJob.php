@@ -52,11 +52,17 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        $lead = $this->message->entity();
+        $this->message->refresh();
 
-        if (! UnrespondedLeadAgentMessageCache::exists($lead, $this->channel)) {
+        if ($this->message->response) {
             return;
         }
+
+        $lead = $this->message->entity();
+
+        // if (! UnrespondedLeadAgentMessageCache::exists($lead, $this->channel)) {
+        //     return;
+        // }
 
         $aiMode = $lead->get('ai_mode');
         if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
