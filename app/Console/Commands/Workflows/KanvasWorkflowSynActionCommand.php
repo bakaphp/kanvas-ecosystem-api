@@ -63,6 +63,7 @@ use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsP
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncProductCapacityActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
@@ -293,6 +294,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ExtendReservationActivity::class,
             CreateVehicleFromOrderActivity::class,
             SyncMovipassActivity::class,
+            SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             PushLeadNotesActivity::class,

@@ -30,6 +30,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class VariantService
@@ -58,9 +59,9 @@ class VariantService
             $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku);
 
             if (! $existVariantUpdate->exists()) {
-                $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+                $variantModel = (new CreateVariantsAction($variantDto, $user))->disableWorkflow()->execute();
             } else {
-                $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->execute();
+                $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->disableWorkflow()->execute();
             }
 
             $company = $variantDto->product->company;
@@ -140,6 +141,8 @@ class VariantService
 
             $variantsData[] = $variantModel;
         }
+
+        $product->fireWorkflow(WorkflowEnum::UPDATED->value, true);
 
         return $variantsData;
     }
