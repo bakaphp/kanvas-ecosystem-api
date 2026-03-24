@@ -89,7 +89,7 @@ class DockerComposeBuilder
         array $channelConfig = [],
     ): string {
         $slug = $agent->slug;
-        $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-2.5-pro';
+        $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-3.1-pro-preview';
         $geminiApiKey = $app->get(ConfigurationEnum::GEMINI_API_KEY->value) ?? '';
 
         $config = [
