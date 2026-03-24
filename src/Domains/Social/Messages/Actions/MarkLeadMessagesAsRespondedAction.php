@@ -27,7 +27,7 @@ class MarkLeadMessagesAsRespondedAction
 
             $count = 0;
             foreach ($unrespondedMessages as $message) {
-                $message->response = true;
+                $message->un_response = true;
                 $message->response_message_id = $this->responseMessage->getId();
                 $message->saveOrFail();
                 $count++;
