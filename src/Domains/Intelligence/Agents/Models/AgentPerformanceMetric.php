@@ -23,6 +23,7 @@ class AgentPerformanceMetric extends BaseModel
     use UuidTrait;
 
     protected $fillable = [
+        'apps_id',
         'agent_id',
         'agent_history_id',
         'metric_type',
