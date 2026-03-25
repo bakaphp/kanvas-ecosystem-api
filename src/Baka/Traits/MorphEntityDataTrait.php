@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\SystemModules\Models\SystemModules;
 
 trait MorphEntityDataTrait
 {
@@ -16,6 +17,8 @@ trait MorphEntityDataTrait
      */
     public function entityData(): ?Model
     {
-        return $this->entity_namespace::getById($this->entity_id);
+        $entityNamespace = SystemModules::convertLegacySystemModules($this->entity_namespace);
+        
+        return $entityNamespace::getById($this->entity_id);
     }
 }
