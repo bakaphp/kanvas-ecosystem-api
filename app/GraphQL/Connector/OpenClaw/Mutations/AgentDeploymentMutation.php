@@ -7,8 +7,11 @@ namespace App\GraphQL\Connector\OpenClaw\Mutations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
+use Kanvas\Connectors\OpenClaw\Actions\ExecDeploymentCommandAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
+use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
@@ -116,5 +119,42 @@ class AgentDeploymentMutation
         $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $request['slack_app_token']);
 
         return true;
+    }
+
+    public function execCommand(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new ExecDeploymentCommandAction(
+            $deployment,
+            (string) $request['command'],
+            (string) $request['session_id'],
+        )->execute();
+    }
+
+    public function getConfig(mixed $root, array $request): string
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new GetDeploymentConfigAction($deployment)->execute();
+    }
+
+    public function updateConfig(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new UpdateDeploymentConfigAction(
+            $deployment,
+            (string) $request['config'],
+        )->execute();
     }
 }
