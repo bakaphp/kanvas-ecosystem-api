@@ -759,10 +759,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     protected function getVariantsData(): Collection
     {
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
+        $variantCount = $this->variants()->count();
 
-        return $this->variants->count() > $limit
-            ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
-            : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
+        return $variantCount > $limit
+            ? $this->variants()->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
+            : $this->variants()->get()->map(fn ($variant) => $variant->toSearchableArray());
     }
 
     public function getTotalVariants(): int
