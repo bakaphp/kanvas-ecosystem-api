@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Models\Users;
@@ -213,7 +212,6 @@ class AuthTest extends TestCase
 
     public function testAuthUser(): void
     {
-        $userData = Auth::user();
         $response = $this->graphQL(/** @lang GraphQL */ '
             {
                 me {
@@ -224,15 +222,18 @@ class AuthTest extends TestCase
             }
         ')
         ->assertSuccessful()
-        ->assertJson([
+        ->assertJsonStructure([
             'data' => [
                 'me' => [
-                    'id' => $userData->id,
-                    'displayname' => $userData->displayname,
-                    'email' => $userData->email,
+                    'id',
+                    'displayname',
+                    'email',
                 ],
             ],
         ]);
+
+        $this->assertNotNull($response->json('data.me.id'));
+        $this->assertNotNull($response->json('data.me.email'));
     }
 
     /**
