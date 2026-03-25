@@ -1,3 +1,17 @@
+extend type Query @guardByAdmin {
+    agentCurrentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Queries\\AgentTelemetryQuery"
+        )
+}
+
+extend type Subscription {
+    agentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @subscription(
+            class: "App\\GraphQL\\Connector\\OpenClaw\\Subscriptions\\AgentTelemetrySubscription"
+        )
+}
+
 extend type Mutation @guardByAdmin {
     openclawCreateMachine(input: AgentMachineInput!): AgentMachineType!
         @field(
