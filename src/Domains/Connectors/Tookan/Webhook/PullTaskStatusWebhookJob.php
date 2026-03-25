@@ -20,14 +20,14 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
         $tookanSharedSecret = $this->receiver->configuration['tookan_shared_secret'] ?? null;
 
-        // Validate shared secret
-        if (! isset($payload['tookan_shared_secret']) || $payload['tookan_shared_secret'] !== $tookanSharedSecret) {
+        // Validate shared secret only when one is configured on the receiver
+        if ($tookanSharedSecret !== null && ($payload['tookan_shared_secret'] ?? null) !== $tookanSharedSecret) {
             throw new Exception('Invalid shared secret');
         }
 
         // Extract order ID and Tookan task status
         $orderId = $payload['order_id'] ?? null;
-        $tookanJobStatus = $payload['job_status'] ?? null; // Tookan status code
+        $tookanJobStatus = isset($payload['job_status']) ? (int) $payload['job_status'] : null;
 
         if (! $orderId) {
             throw new Exception('Missing order_id in payload');
@@ -70,7 +70,8 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
                     $transitionCompanyStatus = new TransitionOrderStateAction(
                         $order,
-                        $this->receiver->user
+                        $this->receiver->user,
+                        $status
                     );
                     $transitionCompanyStatus->execute();
                     break;
@@ -89,18 +90,27 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 ->where('parent_id', $order->id)
                 ->first();
 
+            if (! $companyOrder) {
+                return [
+                    'message' => 'Tookan webhook processed successfully - no child order found',
+                    'order_id' => $orderId,
+                    'tookan_status' => $tookanJobStatus,
+                    'mapped_status' => $newStatus,
+                ];
+            }
+
             switch ($newStatus) {
                 case OrderStatusEnum::DELIVERED->value:
                 case OrderStatusEnum::DISPATCHED->value:
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
                     $transitionCompanyStatus = new TransitionOrderStateAction(
                         $companyOrder,
-                        $this->receiver->user
+                        $this->receiver->user,
+                        $status
                     );
                     $transitionCompanyStatus->execute();
                     break;
                 default:
-                    // for other statuses we do not update the company order
                     return [
                         'message' => 'Tookan webhook processed successfully - no status update for giftea order',
                         'order_id' => $orderId,
