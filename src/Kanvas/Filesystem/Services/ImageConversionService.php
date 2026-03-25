@@ -275,7 +275,7 @@ class ImageConversionService
     {
         $extension = strtolower($extension);
 
-        return in_array($extension, ['heic', 'heif', 'tiff', 'tif', 'bmp'], true);
+        return in_array($extension, ['heic', 'heif', 'tiff', 'tif', 'bmp', 'avif'], true);
     }
 
     /**
