@@ -18,7 +18,7 @@ trait MorphEntityDataTrait
     public function entityData(): ?Model
     {
         $entityNamespace = SystemModules::convertLegacySystemModules($this->entity_namespace);
-        
+
         return $entityNamespace::getById($this->entity_id);
     }
 }
