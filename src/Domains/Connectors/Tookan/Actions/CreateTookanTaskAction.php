@@ -12,8 +12,8 @@ use Kanvas\Connectors\Tookan\DataTransferObject\PickupDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\TaskDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\TaskMultipleDetail;
 use Kanvas\Connectors\Tookan\Services\TookanService;
-use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class CreateTookanTaskAction
 {
@@ -21,7 +21,7 @@ class CreateTookanTaskAction
         private Order $order,
         private Companies $company,
         private ?Companies $receiverCompany = null,
-        private ?User $receiverUser = null,
+        private ?Users $receiverUser = null,
     ) {
     }
 

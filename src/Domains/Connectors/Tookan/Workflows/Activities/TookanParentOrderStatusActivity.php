@@ -30,7 +30,7 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                 $toStatus = $params['to_status'] ?? null;
 
                 // lets make sure it is a parent order
-                if (! $order->parent_id == null) {
+                if ($order->parent_id !== null) {
                     return [
                         'order' => $order->getId(),
                         'status' => 'success',
