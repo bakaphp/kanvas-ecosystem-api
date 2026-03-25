@@ -55,6 +55,7 @@ use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
+use Kanvas\Connectors\InventorySync\Workflows\Activities\SyncInventoryActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
@@ -218,6 +219,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,
+            SyncInventoryActivity::class,
             ImportProductActivity::class,
             GenerateMessageTagsActivity::class,
             ExtractCompanyNameFromPeopleEmailActivity::class,
