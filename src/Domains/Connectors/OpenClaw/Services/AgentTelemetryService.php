@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Services;
 
+use App\GraphQL\Connector\OpenClaw\Subscriptions\AgentTelemetrySubscription;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\OpenClaw\Events\AgentTelemetryUpdated;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Nuwave\Lighthouse\Subscriptions\Contracts\BroadcastsSubscriptions;
-use App\GraphQL\Connector\OpenClaw\Subscriptions\AgentTelemetrySubscription;
 use Throwable;
 
 class AgentTelemetryService
