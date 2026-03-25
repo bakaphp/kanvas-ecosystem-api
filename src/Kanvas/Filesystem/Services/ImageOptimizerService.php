@@ -302,7 +302,7 @@ class ImageOptimizerService
         }
 
         $extension = self::resolveExtension($filePath);
-        $supportedExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+        $supportedExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'avif'];
 
         if (! in_array($extension, $supportedExtensions, true)) {
             return $filePath;
