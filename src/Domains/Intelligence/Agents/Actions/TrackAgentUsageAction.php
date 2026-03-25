@@ -44,6 +44,7 @@ class TrackAgentUsageAction
         $now = now();
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'duration_ms',
@@ -53,6 +54,7 @@ class TrackAgentUsageAction
         ]);
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'input_chars',
@@ -62,6 +64,7 @@ class TrackAgentUsageAction
         ]);
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'output_chars',
