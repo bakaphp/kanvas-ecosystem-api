@@ -15,6 +15,7 @@ use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Azul\Enums\TransactionTypeEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
 use Kanvas\Connectors\Azul\Services\AzulService;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
@@ -821,6 +822,49 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
         // Already YYYYMM or other format — return as-is
         return $clean;
+    }
+
+    public function updateToken(PaymentMethod $paymentMethod, array $request): PaymentMethod
+    {
+        $oldToken = $paymentMethod->metadata[CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value]
+            ?? $paymentMethod->stripe_card_id;
+
+        if ($oldToken) {
+            $this->deleteToken($oldToken);
+        }
+
+        $tokenizeResult = $this->tokenize(
+            array_merge($request, [
+                'brand' => $request['brand'] ?? $paymentMethod->payment_methods_brand,
+            ]),
+            $paymentMethod->user,
+        );
+
+        if (! $tokenizeResult->success) {
+            throw new AzulException($tokenizeResult->message);
+        }
+
+        return new PaymentMethod(
+            app: $paymentMethod->app,
+            user: $paymentMethod->user,
+            company: $paymentMethod->company,
+            payment_ending_numbers: $tokenizeResult->lastFour,
+            payment_methods_brand: $tokenizeResult->brand,
+            stripe_card_id: $tokenizeResult->token,
+            expiration_date: $request['expiration_date'] ?? $paymentMethod->expiration_date,
+            zip_code: $request['zip_code'] ?? $paymentMethod->zip_code,
+            processor: $paymentMethod->processor,
+            metadata: array_merge($tokenizeResult->raw, [
+                'country' => $request['country'] ?? null,
+                'city' => $request['city'] ?? null,
+                'address' => $request['address'] ?? null,
+                'phone' => $request['phone'] ?? null,
+                'zip_code' => $request['zip_code'] ?? null,
+                'state' => $request['state'] ?? null,
+                'firstname' => $request['firstname'] ?? null,
+                'lastname' => $request['lastname'] ?? null,
+            ]),
+        );
     }
 
     public function deleteToken(string $token): bool
