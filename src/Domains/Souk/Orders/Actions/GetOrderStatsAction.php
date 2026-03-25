@@ -28,6 +28,7 @@ class GetOrderStatsAction
         protected ?int $productId = null,
         protected array $providerCompanyIds = [],
         protected array $providers = [],
+        protected ?string $userEmail = null,
     ) {
         if ($this->productId) {
             $this->productVariantIds = DB::connection('inventory')
@@ -109,6 +110,9 @@ class GetOrderStatsAction
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
             })
+            ->when($this->userEmail, function ($query) {
+                $query->whereHas('order', fn ($q) => $q->where('user_email', $this->userEmail));
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -137,6 +141,9 @@ class GetOrderStatsAction
                 $db = config('database.connections.commerce.database', 'commerce');
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
+            ->when($this->userEmail, function ($query) {
+                $query->whereHas('order', fn ($q) => $q->where('user_email', $this->userEmail));
             })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->finalStates);
@@ -201,6 +208,12 @@ class GetOrderStatsAction
             $providerFilter = "AND order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))";
         }
 
+        $userEmailFilter = '';
+        if ($this->userEmail) {
+            $escapedEmail = addslashes($this->userEmail);
+            $userEmailFilter = "AND order_id IN (SELECT id FROM orders WHERE user_email = '{$escapedEmail}')";
+        }
+
         $activeOrders = DB::raw("
             (SELECT DISTINCT order_id
              FROM order_transitions_history
@@ -209,7 +222,8 @@ class GetOrderStatsAction
                AND changed_at <= '{$end} 23:59:59'
                {$orderTypeFilter}
                {$productFilter}
-               {$providerFilter}) AS active_orders
+               {$providerFilter}
+               {$userEmailFilter}) AS active_orders
         ");
 
         $latestStatus = DB::raw("
@@ -309,6 +323,7 @@ class GetOrderStatsAction
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("orders.id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
             })
+            ->when($this->userEmail, fn ($q) => $q->where('user_email', $this->userEmail))
             ->whereHas('orderStatus', fn ($q) => $q->whereIn('slug', $this->currentCountStates))
             ->count();
     }
@@ -340,6 +355,9 @@ class GetOrderStatsAction
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
             })
+            ->when($this->userEmail, function ($query) {
+                $query->whereHas('order', fn ($q) => $q->where('user_email', $this->userEmail));
+            })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->initialStates);
             })
@@ -370,6 +388,9 @@ class GetOrderStatsAction
                 $db = config('database.connections.commerce.database', 'commerce');
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("order_transitions_history.order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
+            })
+            ->when($this->userEmail, function ($query) {
+                $query->whereHas('order', fn ($q) => $q->where('user_email', $this->userEmail));
             })
             ->whereHas('toStatus', function ($query) {
                 $query->whereIn('slug', $this->finalStates);
@@ -438,6 +459,7 @@ class GetOrderStatsAction
                 $ids = implode(',', array_map('intval', $this->providerCompanyIds));
                 $query->whereRaw("orders.id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))");
             })
+            ->when($this->userEmail, fn ($q) => $q->where('orders.user_email', $this->userEmail))
             ->selectRaw("
                 ({$caseExpression}) AS provider_name,
                 COUNT(DISTINCT orders.id) AS total_count,

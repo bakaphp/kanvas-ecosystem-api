@@ -36,7 +36,8 @@ class OrderPaymentRepository
         string $timezone = 'UTC',
         array $orderTypeNames = [],
         array $productVariantIds = [],
-        array $providerCompanyIds = []
+        array $providerCompanyIds = [],
+        ?string $userEmail = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -77,6 +78,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail))
             ->with(['items'])
             ->where('orders.apps_id', $this->app->id);
 
@@ -140,7 +142,8 @@ class OrderPaymentRepository
         array $providers,
         ?int $variantId = null,
         array $productVariantIds = [],
-        array $providerCompanyIds = []
+        array $providerCompanyIds = [],
+        ?string $userEmail = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -187,7 +190,8 @@ class OrderPaymentRepository
                         ->whereIn('company_id', $providerCompanyIds)
                         ->select('order_id')
                 );
-            });
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail));
 
         // Build CASE WHEN for provider matching
         $caseStatements = [];
@@ -222,7 +226,8 @@ class OrderPaymentRepository
         ?int $variantId = null,
         array $orderTypeNames = [],
         array $productVariantIds = [],
-        array $providerCompanyIds = []
+        array $providerCompanyIds = [],
+        ?string $userEmail = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -257,7 +262,8 @@ class OrderPaymentRepository
                         ->whereIn('company_id', $providerCompanyIds)
                         ->select('order_id')
                 );
-            });
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail));
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -325,7 +331,8 @@ class OrderPaymentRepository
         array $orderTypeNames = [],
         ?int $variantId = null,
         array $productVariantIds = [],
-        array $providerCompanyIds = []
+        array $providerCompanyIds = [],
+        ?string $userEmail = null
     ): Collection {
         $format = match (strtoupper($periodType)) {
             'DAY'   => '%Y-%m-%d',
@@ -375,6 +382,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail))
             ->where('orders.apps_id', $this->app->id)
             ->where(function ($q) {
                 $q->whereNotNull('paid_transition.changed_at')
