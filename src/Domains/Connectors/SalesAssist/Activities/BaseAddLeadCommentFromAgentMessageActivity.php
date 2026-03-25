@@ -15,11 +15,11 @@ use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
-use NotificationChannels\Expo\ExpoChannel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use NotificationChannels\Expo\ExpoChannel;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
