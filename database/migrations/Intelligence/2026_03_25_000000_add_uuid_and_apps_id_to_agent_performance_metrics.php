@@ -8,7 +8,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('intelligence')->table('agent_performance_metrics', function (Blueprint $table) {
-            $table->charUuid('uuid')->nullable()->after('id')->index();
+            $table->char('uuid', 36)->nullable()->after('id')->index();
             $table->unsignedBigInteger('apps_id')->after('id')->index();
         });
     }
