@@ -24,6 +24,7 @@ class GetOrderPaymentStatsAction
         protected array $providers = [],
         protected ?int $productId = null,
         protected array $providerCompanyIds = [],
+        protected ?string $userEmail = null,
     ) {
         $this->repository = new OrderPaymentRepository($app);
 
@@ -82,7 +83,8 @@ class GetOrderPaymentStatsAction
             $timezone,
             $this->orderTypeNames,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -131,7 +133,8 @@ class GetOrderPaymentStatsAction
                 $this->providers,
                 $this->variantId,
                 $this->productVariantIds,
-                $this->providerCompanyIds
+                $this->providerCompanyIds,
+                $this->userEmail
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -167,7 +170,8 @@ class GetOrderPaymentStatsAction
             $this->orderTypeNames,
             $this->variantId,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail
         );
 
         return $rows->map(fn ($row) => [
@@ -214,7 +218,8 @@ class GetOrderPaymentStatsAction
             $this->variantId,
             $this->orderTypeNames,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail
         );
 
         if ($orderIds->isEmpty()) {

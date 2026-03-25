@@ -11,6 +11,8 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
+use Kanvas\Connectors\Azul\Webhook\AzulTermUrlWebhookJob;
 use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
@@ -20,6 +22,7 @@ use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPush
 use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
+use Kanvas\Connectors\EchoPay\Webhook\PullPaymentChallengeWebhookJob;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
@@ -62,6 +65,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncProductCapacityActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
@@ -72,6 +76,8 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawAgentWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
@@ -290,6 +296,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ExtendReservationActivity::class,
             CreateVehicleFromOrderActivity::class,
             SyncMovipassActivity::class,
+            SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             PushLeadNotesActivity::class,
@@ -355,6 +362,9 @@ class KanvasWorkflowSynActionCommand extends Command
             SalesAssistActivitiesPushPeopleActivity::class,
             SetLeadAiModeOffIfEmailOnlyActivity::class,
             RestoreUsersAccountContentActivity::class,
+            PullPaymentChallengeWebhookJob::class,
+            AzulTermUrlWebhookJob::class,
+            AzulMethodNotificationWebhookJob::class,
             ScheduleEleadActivityFromEventAction::class,
             OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,
@@ -366,6 +376,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
             ContactCheckerActivity::class,
+            SyncOpenClawAgentWorkspaceActivity::class,
+            SyncAgentSwarmContextActivity::class,
         ];
 
         $createdActions = [];

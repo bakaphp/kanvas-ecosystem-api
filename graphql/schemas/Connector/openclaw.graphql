@@ -1,0 +1,59 @@
+extend type Mutation @guardByAdmin {
+    openclawCreateMachine(input: AgentMachineInput!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@create"
+        )
+    openclawUpdateMachine(id: ID!, input: UpdateAgentMachineInput!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@update"
+        )
+    openclawDeleteMachine(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@delete"
+        )
+
+    openclawLaunchAgent(input: LaunchAgentInput!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@launch"
+        )
+    openclawTerminateAgent(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@terminate"
+        )
+    openclawRestartContainer(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@restart"
+        )
+    openclawContainerLogs(deployment_id: ID!, lines: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@logs"
+        )
+    openclawContainerStatus(deployment_id: ID!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@status"
+        )
+    openclawCollectUsage(deployment_id: ID!): AgentUsageSnapshot!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@collectUsage"
+        )
+
+    openclawSetSlackTokens(agent_id: ID!, slack_bot_token: String!, slack_app_token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    openclawExecCommand(deployment_id: ID!, command: String!, session_id: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@execCommand"
+        )
+    openclawGetConfig(deployment_id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@getConfig"
+        )
+    openclawUpdateConfig(deployment_id: ID!, config: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@updateConfig"
+        )
+}
