@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -41,7 +42,7 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
                     ]);
                 }
 
-                $messageEntity->set('guild_prefered_channel_uuid', $channel->uuid);
+                $messageEntity->set(ConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
 
                 return [
                     'success' => true,
