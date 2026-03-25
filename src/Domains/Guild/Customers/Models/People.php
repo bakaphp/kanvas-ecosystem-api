@@ -469,6 +469,36 @@ class People extends BaseModel
             ->first();
     }
 
+    /**
+     * Get all people by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getAllByPhoneMatchingValue(string $phone, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                ->whereIn('contacts_types_id', [
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                ])
+        )->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
+          ->where('is_deleted', 0)
+          ->get();
+    }
+
+    public static function getAllByMatchingValue(string $value, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->where('value', $value)
+        )
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->get();
+    }
+
     #[Override]
     public function shouldBeSearchable(): bool
     {

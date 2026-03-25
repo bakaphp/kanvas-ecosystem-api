@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Models\CommunicationChannel;
 use Tests\TestCase;
 
 class AgentAiTest extends TestCase
@@ -70,7 +71,10 @@ class AgentAiTest extends TestCase
                 'company_task_list_id' => $taskListId,
                 'communication_channels' => [
                     [
-                        'communication_channel_id' => 1,
+                        'communication_channel_id' => CommunicationChannel::firstOrCreate(
+                            ['name' => 'test-channel', 'apps_id' => app(Apps::class)->id],
+                            ['description' => 'Test channel', 'handler' => 'test', 'is_active' => true, 'is_published' => true]
+                        )->getId(),
                         'entry_point' => 'test',
                         'config' => json_encode(['key' => 'value']),
                     ],

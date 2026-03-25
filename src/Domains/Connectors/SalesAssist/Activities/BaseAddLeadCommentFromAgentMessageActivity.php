@@ -11,12 +11,15 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use NotificationChannels\Expo\ExpoChannel;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
@@ -228,6 +231,8 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
 
+        $this->configureManagerNotificationChannels($notification, $lead);
+
         // Get managers
         $managers = UsersRepository::getCompanyAppUserByRole(
             $message->company,
@@ -240,6 +245,24 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         // Track notification timestamp if key is provided
         if ($notifiedAtKey !== null) {
             $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
+        }
+    }
+
+    protected function configureManagerNotificationChannels(Blank $notification, Lead $lead): void
+    {
+        $onlySms = (bool) $lead->company->get('ai_manager_notification_only_sms');
+        $onlyMail = (bool) $lead->company->get('ai_manager_notification_only_mail');
+        $onlyPush = (bool) $lead->company->get('ai_manager_notification_only_push');
+
+        if ($onlySms) {
+            $notification->channels = [TwilioSmsChannel::class];
+        } elseif ($onlyMail) {
+            $notification->channels = ['mail'];
+        } elseif ($onlyPush) {
+            $notification->channels = [
+                OneSignalNotificationChannel::class,
+                ExpoChannel::class,
+            ];
         }
     }
 }

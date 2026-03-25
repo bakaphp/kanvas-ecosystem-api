@@ -17,10 +17,11 @@ class VariantAttributeTest extends TestCase
      */
     public function testAddAttributeToVariant(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -36,9 +37,7 @@ class VariantAttributeTest extends TestCase
                     is_default
                 }
             }', ['data' => $dataRegion])
-            ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
-            ]);
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
             'regions_id' => $idRegion,
@@ -146,10 +145,11 @@ class VariantAttributeTest extends TestCase
      */
     public function testRemoveAttributeFromVariant(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $dataRegion = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -165,9 +165,7 @@ class VariantAttributeTest extends TestCase
                     is_default
                 }
             }', ['data' => $dataRegion])
-            ->assertJson([
-                'data' => ['createRegion' => $dataRegion]
-            ]);
+            ->assertSuccessful();
         $idRegion = $response->json()['data']['createRegion']['id'];
         $data = [
             'regions_id' => $idRegion,

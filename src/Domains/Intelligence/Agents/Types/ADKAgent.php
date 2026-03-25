@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Types;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -46,9 +47,12 @@ class ADKAgent
         );
 
         $sessionId = $session ? $session->uuid : $channel->slug;
-
+        $userId = (string) $message->users_id;
+        if ($channel->entity_namespace == Lead::class) {
+            $userId = $channel->entity_id;
+        }
         $googleADKService->startSession(
-            (string) $message->users_id,
+            $userId,
             $sessionId
         );
 

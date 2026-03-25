@@ -25,17 +25,21 @@ class TestCase extends BaseTestCase
 
     protected string $graphqlVersion = 'graphql';
 
+    protected static ?Users $cachedUser = null;
+    protected static bool $domainSetupComplete = false;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->app->instance('env', 'testing');
 
-        Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing
+        Dotenv::createImmutable(base_path())->load();
+
+        if (static::$cachedUser) {
+            $this->actingAs(static::$cachedUser, 'api');
+        }
     }
 
-    /**
-     * createUser.
-     */
     public function createUser(): Users
     {
         $dto = RegisterPostDataDto::from([
@@ -44,9 +48,8 @@ class TestCase extends BaseTestCase
             'firstname' => fake()->firstName,
             'lastname' => fake()->lastName,
         ]);
-        $user = (new RegisterUsersAction($dto))->execute();
 
-        return $user;
+        return new RegisterUsersAction($dto)->execute();
     }
 
     protected function graphQLEndpointUrl(array $routeParams = []): string
@@ -68,71 +71,46 @@ class TestCase extends BaseTestCase
 
         $app->make(Kernel::class)->bootstrap();
 
-        //  $kanvasApp = Apps::factory(1)->create();
-
-        /*    $app->bind(Apps::class, function () use ($kanvasApp) {
-               return $kanvasApp;
-           }); */
-
-        //$user = Users::where('id', '>', 0)->first();
-        //$user = Users::factory(1)->create()->first();
         $this->app = $app;
         $currentApp = app(Apps::class);
 
-        $data = AppInput::from(
-            [
-               'name' => $currentApp->name,
-               'url' => $currentApp->url,
-               'description' => $currentApp->description,
-               'domain' => $currentApp->domain ?? 'kanvas-ecosystem-api.test',
-               'is_actived' => 1,
-               'ecosystem_auth' => 1,
-               'payments_active' => 0,
-               'is_public' => 1,
-               'domain_based' => 0,
-            ]
-        );
-        $createApp = new CreateAppsAction($data, new Users());
-        //$app = $createApp->execute();
-        $createApp->acl($currentApp);
+        if (! static::$domainSetupComplete) {
+            $data = AppInput::from([
+                'name' => $currentApp->name,
+                'url' => $currentApp->url,
+                'description' => $currentApp->description,
+                'domain' => $currentApp->domain ?? 'kanvas-ecosystem-api.test',
+                'is_actived' => 1,
+                'ecosystem_auth' => 1,
+                'payments_active' => 0,
+                'is_public' => 1,
+                'domain_based' => 0,
+            ]);
+            new CreateAppsAction($data, new Users())->acl($currentApp);
 
-        //legacy needs this
-        Roles::firstOrCreate([
-            'name' => 'Admins',
-            'apps_id' => $currentApp->getId(),
-        ], [
-            'companies_id' => 1,
-            'is_active' => 1,
-            'scope' => 0,
-        ]);
+            Roles::firstOrCreate([
+                'name' => 'Admins',
+                'apps_id' => $currentApp->getId(),
+            ], [
+                'companies_id' => 1,
+                'is_active' => 1,
+                'scope' => 0,
+            ]);
 
-        $user = $this->createUser();
-        $this->actingAs($user, 'api');
+            $user = $this->createUser();
 
-        //setup CRM
-        $company = $user->getCurrentCompany();
-        $setupGuild = new Setup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupGuild->run();
+            $company = $user->getCurrentCompany();
+            new Setup($currentApp, $user, $company)->run();
+            new SupportSetup($currentApp, $user, $company)->run();
+            new SocialSupportSetup($currentApp, $user, $company)->run();
 
-        //setup inventory
-        $setupInventory = new SupportSetup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupInventory->run();
+            static::$cachedUser = $user;
+            static::$domainSetupComplete = true;
+        }
 
-        //setup social
-        $setupSocial = new SocialSupportSetup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupSocial->run();
+        if (static::$cachedUser) {
+            $this->actingAs(static::$cachedUser, 'api');
+        }
 
         return $app;
     }

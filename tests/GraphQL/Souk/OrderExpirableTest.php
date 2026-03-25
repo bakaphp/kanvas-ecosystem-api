@@ -145,8 +145,8 @@ class OrderExpirableTest extends TestCase
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'start_at' => now('America/New_York')->subMinutes(2)->toDateTimeString(),
-                    'end_at' => now('America/New_York')->addHours(2)->toDateTimeString(),
+                    'start_at' => now()->addMinutes(30)->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
                 ],
             ],
             'customer' => [
@@ -191,9 +191,14 @@ class OrderExpirableTest extends TestCase
         // variant quantity should decrease (order is active, end_at is in the future)
         $this->assertEquals(99, $variantWarehouse->refresh()->quantity);
 
-        // now set end_at to the past so the order expires
-        $order->metadata = ['data' => ['end_at' => now('America/New_York')->subHours(6)->toDateTimeString()]];
-        $order->save();
+        // simulate expiry by setting end_at far enough in the past to account for timezone parsing
+        $order->metadata = array_merge($order->metadata ?? [], [
+            'data' => [
+                'start_at' => now()->subHours(8)->toDateTimeString(),
+                'end_at' => now()->subHours(6)->toDateTimeString(),
+            ],
+        ]);
+        $order->saveOrFail();
 
         // finish expired order
         Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $app->getId()]);
@@ -255,8 +260,8 @@ class OrderExpirableTest extends TestCase
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'start_at' => now('America/New_York')->subMinutes(2)->toDateTimeString(),
-                    'end_at' => now('America/New_York')->addHours(2)->toDateTimeString(),
+                    'start_at' => now()->addMinutes(30)->toDateTimeString(),
+                    'end_at' => now()->addHours(2)->toDateTimeString(),
                 ],
             ],
             'customer' => [
@@ -303,9 +308,14 @@ class OrderExpirableTest extends TestCase
         $this->assertEquals(49, $variantWarehouse->refresh()->quantity);
         $this->assertEquals(49, $variantProduct->refresh()->getAttributeByName('capacity')->value['availableParkingSpaces']);
 
-        // now set end_at to the past so the order expires
-        $order->metadata = ['data' => ['end_at' => now('America/New_York')->subHours(6)->toDateTimeString()]];
-        $order->save();
+        // simulate expiry by setting end_at far enough in the past to account for timezone parsing
+        $order->metadata = array_merge($order->metadata ?? [], [
+            'data' => [
+                'start_at' => now()->subHours(8)->toDateTimeString(),
+                'end_at' => now()->subHours(6)->toDateTimeString(),
+            ],
+        ]);
+        $order->saveOrFail();
 
         // finish expired order
         Artisan::call('kanvas-souk:order-finish-expired', ['app_id' => $app->getId()]);
