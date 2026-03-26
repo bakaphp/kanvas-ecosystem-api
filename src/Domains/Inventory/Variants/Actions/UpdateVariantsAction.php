@@ -78,8 +78,7 @@ class UpdateVariantsAction
             ]
         );
 
-        //update product searchable index
-        if ($this->variant->product?->shouldBeSearchable() === true) {
+        if ($this->runWorkflow && $this->variant->product?->shouldBeSearchable() === true) {
             $this->variant->product->searchable();
         }
 
