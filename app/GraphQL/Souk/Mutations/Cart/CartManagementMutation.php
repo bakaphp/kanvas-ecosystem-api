@@ -82,7 +82,7 @@ class CartManagementMutation
         $discountCodes = $request['discountCodes'] ?? [];
 
         // Clear existing discount conditions
-        $cart->clearCartConditions('discount');
+        $cart->removeConditionsByType('discount');
 
         if (empty($discountCodes)) {
             $cartService = new CartService($cart);
