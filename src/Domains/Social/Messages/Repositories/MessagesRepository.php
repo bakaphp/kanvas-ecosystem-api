@@ -70,7 +70,7 @@ class MessagesRepository
             ->join('app_module_message', 'messages.id', '=', 'app_module_message.message_id')
             ->where('app_module_message.entity_id', $leadId)
             ->where('app_module_message.system_modules', Lead::class)
-            ->where('messages.un_response', false)
+            ->where('messages.is_un_response', false)
             ->where('messages.is_deleted', 0)
             ->select('messages.*')
             ->get();

@@ -54,7 +54,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
         $this->message->refresh();
 
-        if ($this->message->un_response) {
+        if ($this->message->is_un_response) {
             return;
         }
 

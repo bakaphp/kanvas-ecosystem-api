@@ -9,10 +9,10 @@ class AddResponseFieldsToMessages extends Migration
     public function up(): void
     {
         Schema::connection('social')->table('messages', function (Blueprint $table) {
-            $table->boolean('un_response')->default(false)->after('is_premium');
-            $table->unsignedBigInteger('response_message_id')->nullable()->after('un_response');
+            $table->boolean('is_un_response')->default(false)->after('is_premium');
+            $table->unsignedBigInteger('response_message_id')->nullable()->after('is_un_response');
 
-            $table->index('un_response', 'idx_messages_un_response');
+            $table->index('is_un_response', 'idx_messages_is_un_response');
             $table->index('response_message_id', 'idx_messages_response_message_id');
         });
     }
@@ -20,9 +20,9 @@ class AddResponseFieldsToMessages extends Migration
     public function down(): void
     {
         Schema::connection('social')->table('messages', function (Blueprint $table) {
-            $table->dropIndex('idx_messages_un_response');
+            $table->dropIndex('idx_messages_is_un_response');
             $table->dropIndex('idx_messages_response_message_id');
-            $table->dropColumn(['un_response', 'response_message_id']);
+            $table->dropColumn(['is_un_response', 'response_message_id']);
         });
     }
 }
