@@ -35,24 +35,6 @@ class CreateMessageAction
 
     public function execute(): Message
     {
-        // Constrain and copy files to stable paths before the transaction,
-        // so Swoole/Octane doesn't clean up temp files during processing.
-        if (! empty($this->messageInput->files)) {
-            $this->constrainMessageFiles();
-            $this->messageInput->files = $this->copyToStablePaths($this->messageInput->files);
-        }
-
-        try {
-            return $this->executeTransaction();
-        } finally {
-            if (! empty($this->messageInput->files)) {
-                $this->cleanupStableFiles($this->messageInput->files);
-            }
-        }
-    }
-
-    private function executeTransaction(): Message
-    {
         return DB::connection('social')->transaction(function () {
             $data = [
                 'apps_id' => $this->messageInput->app->getId(),
@@ -112,6 +94,8 @@ class CreateMessageAction
 
             // Upload files before adding to channel so workflow can access them
             if (! empty($this->messageInput->files)) {
+                $this->constrainMessageFiles();
+
                 $this->handleFileUpload(
                     $message,
                     $this->messageInput->app,

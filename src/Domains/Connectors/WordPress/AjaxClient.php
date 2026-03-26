@@ -163,7 +163,7 @@ class AjaxClient
         $vehicles = [];
 
         preg_match_all(
-            '/<article\s+class="inv360VehicleCard"[^>]*data-vehicle-id="(\d+)"(.*?)<\/article>/s',
+            '/<article\s+class="inv360VehicleCard[^"]*"[^>]*data-vehicle-id="(\d+)"(.*?)<\/article>/s',
             $html,
             $matches,
             PREG_SET_ORDER
@@ -192,6 +192,11 @@ class AjaxClient
 
         $title = trim($this->extractMatch('/inv360VehicleCard__title[^>]*>\s*(.+?)\s*<\//s', $card));
         $vin = trim($this->extractMatch('/inv360VehicleCard__icon--vin[^>]*><\/i>\s*<span>\s*(.+?)\s*<\/span>/s', $card));
+
+        // Fallback: extract VIN from URL slug (e.g., "usado-2024-ford-f-150-1ftfw1e85pfb03435-564489")
+        if ($vin === '' && $link !== '') {
+            $vin = $this->extractVinFromUrl($link);
+        }
 
         if ($vin === '') {
             return null;
@@ -267,6 +272,21 @@ class AjaxClient
             'model' => $model,
             'gallery' => ['data' => array_map(fn (string $url) => ['url' => html_entity_decode($url)], $images)],
         ];
+    }
+
+    protected function extractVinFromUrl(string $url): string
+    {
+        // VIN is a 17-character alphanumeric string in the URL path
+        if (preg_match('/\/([a-zA-Z0-9]{17})-\d+\/?$/', $url, $matches)) {
+            return strtoupper($matches[1]);
+        }
+
+        // Also try matching VIN anywhere in the path segments
+        if (preg_match('/[\/\-]([a-zA-Z0-9]{17})(?:[\/\-]|$)/', $url, $matches)) {
+            return strtoupper($matches[1]);
+        }
+
+        return '';
     }
 
     protected function extractMatch(string $pattern, string $subject): string

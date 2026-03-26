@@ -22,19 +22,14 @@ trait HasMutationUploadFiles
         UserInterface $user,
         array $request
     ): Model {
+        // Check if we're dealing with a single file or multiple files
         $files = isset($request['file']) ? [$request['file']] : $request['files'];
-        $stableFiles = $this->copyToStablePaths($files);
 
-        try {
-            return $this->handleFileUpload($model, $app, $user, $stableFiles);
-        } finally {
-            $this->cleanupStableFiles($stableFiles);
-        }
+        return $this->handleFileUpload($model, $app, $user, $files);
     }
 
     /**
      * Handle file upload(s) to the entity.
-     * Files must already be on stable paths (not Swoole temp files).
      *
      * @throws Exception
      */
@@ -51,76 +46,20 @@ trait HasMutationUploadFiles
         );
 
         foreach ($files as $file) {
-            $extension = strtolower($file->getClientOriginalExtension());
-
-            if (! in_array($extension, AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                throw new Exception('Invalid file format ' . $extension);
+            // Validate file extension
+            if (! in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                throw new Exception('Invalid file format ' . $file->extension());
             }
 
+            // Upload file
             $filesystemEntity = $filesystem->upload($file, $user);
 
+            // Attach file to the entity
             $action = new AttachFilesystemAction($filesystemEntity, $model);
             $action->execute($file->getClientOriginalName());
         }
 
         return $model;
-    }
-
-    /**
-     * Copy uploaded files to stable temp paths so Swoole/Octane
-     * doesn't clean them up before processing completes.
-     *
-     * @param UploadedFile[] $files
-     * @return UploadedFile[]
-     */
-    private function copyToStablePaths(array $files): array
-    {
-        $stable = [];
-
-        foreach ($files as $file) {
-            if (! $file instanceof UploadedFile) {
-                $stable[] = $file;
-
-                continue;
-            }
-
-            $originalPath = $file->getRealPath();
-
-            if ($originalPath === false || ! is_readable($originalPath)) {
-                throw new Exception('Uploaded file is no longer available: ' . $file->getClientOriginalName());
-            }
-
-            $stablePath = sys_get_temp_dir() . '/kanvas_' . uniqid('', true) . '.' . $file->getClientOriginalExtension();
-            copy($originalPath, $stablePath);
-
-            $stable[] = new UploadedFile(
-                $stablePath,
-                $file->getClientOriginalName(),
-                $file->getClientMimeType(),
-                $file->getError(),
-                true
-            );
-        }
-
-        return $stable;
-    }
-
-    /**
-     * @param UploadedFile[] $files
-     */
-    private function cleanupStableFiles(array $files): void
-    {
-        foreach ($files as $file) {
-            if (! $file instanceof UploadedFile) {
-                continue;
-            }
-
-            $path = $file->getRealPath();
-
-            if ($path !== false && file_exists($path) && str_starts_with($path, sys_get_temp_dir() . '/kanvas_')) {
-                @unlink($path);
-            }
-        }
     }
 
     public function uploadImageToEntity(
@@ -130,25 +69,16 @@ trait HasMutationUploadFiles
         UploadedFile $file,
         string $fieldName
     ): Model {
-        $extension = strtolower($file->getClientOriginalExtension());
-
-        if (! in_array($extension, AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
-            throw new Exception('Invalid file format ' . $extension);
+        if (! in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
+            throw new Exception('Invalid file format ' . $file->extension());
         }
 
-        $stableFiles = $this->copyToStablePaths([$file]);
-        $stableFile = $stableFiles[0];
-
-        try {
-            $filesystem = new FilesystemServices(
-                $app,
-                isset($model->company) && $model->company instanceof CompanyInterface ? $model->company : null
-            );
-            $filesystemEntity = $filesystem->upload($stableFile, $user);
-            new AttachFilesystemAction($filesystemEntity, $model)->execute($fieldName);
-        } finally {
-            $this->cleanupStableFiles($stableFiles);
-        }
+        $filesystem = new FilesystemServices(
+            $app,
+            isset($model->company) && $model->company instanceof CompanyInterface ? $model->company : null
+        );
+        $filesystemEntity = $filesystem->upload($file, $user);
+        new AttachFilesystemAction($filesystemEntity, $model)->execute($fieldName);
 
         return $model;
     }
