@@ -76,7 +76,9 @@ class ProcessAgentChatAction
                 $this->message
             ) : $currentAgent->chat(new UserMessage($this->message));
 
-        $response = ChatHelper::extractTextFromResponse($responseContent->getContent());
+        $response = $currentAgent instanceof ADKAgent
+            ? $responseContent->getContent()
+            : ChatHelper::extractTextFromResponse($responseContent->getContent());
         $durationMs = (microtime(true) - $startTime) * 1000.0;
 
         $this->trackUsage($response, $durationMs, $sessionId);
