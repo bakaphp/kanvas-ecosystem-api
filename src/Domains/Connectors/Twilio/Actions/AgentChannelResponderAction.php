@@ -8,8 +8,9 @@ use Baka\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Inspector\Configuration;
 use Inspector\Inspector;
-use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -77,18 +78,16 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
         //if its missing a +1 add it
         $to = $this->hijackMessagePhone($to);
 
-        $client = Client::getInstanceByCompany($this->message->company);
-        $onChunk = function ($text, $data) use ($client, $to, $params): void {
+        /** @var Lead $lead */
+        $lead = $this->message->entity();
+        $onChunk = function ($text, $data) use ($to, $params, $lead): void {
             $response = $this->createMessage($text, $to, $this->message, $this->channel, $params['from']);
-            // Use the Twilio client to send a message
 
             if (! $response->is_locked) {
-                $client->messages->create(
-                    $to, // to
-                    [
-                        'from' => $params['from'],
-                        'body' => $text,
-                    ]
+                new SendMessageToLeadAction($lead)->execute(
+                    $this->communicationChannel,
+                    $text,
+                    $params['from']
                 );
             }
         };

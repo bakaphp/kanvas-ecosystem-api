@@ -8,8 +8,9 @@ use Baka\Support\Str;
 use Inspector\Configuration;
 use Inspector\Inspector;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
-use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -105,16 +106,13 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
                 new InspectorObserver($inspector)
             );
         }
-        $whatsAppMessageService = new MessageService(
-            $this->message->app,
-            $this->message->company
-        );
-
+        /** @var Lead $lead */
+        $lead = $this->message->entity();
         // Define the callback to send each chunk in real time
-        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId): void {
+        $onChunk = function ($text, $data) use ($channelId, $lead): void {
             $response = $this->createMessage($text, $channelId, $this->message, $this->channel);
             if (! $response->is_locked) {
-                $whatsAppMessageService->sendTextMessage($channelId, $text);
+                new SendMessageToLeadAction($lead)->execute($this->communicationChannel, $text);
             }
         };
 
@@ -134,10 +132,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
         //if its not an ADKAgent, send the response as a text message
         if (! ($currentAgent instanceof ADKAgent)) {
-            $responseText = $whatsAppMessageService->sendTextMessage(
-                $channelId,
-                $responseText
-            );
+            $onChunk($responseText, []);
         }
 
         return [
