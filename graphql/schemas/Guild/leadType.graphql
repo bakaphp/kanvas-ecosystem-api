@@ -10,7 +10,7 @@ type LeadType {
 }
 
 input LeadTypeInput {
-    companies_id: ID!
+    companies_id: ID
     name: String!
     description: String
     is_active: Boolean
