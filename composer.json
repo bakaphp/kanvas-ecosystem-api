@@ -71,7 +71,7 @@
         "shish/safe": "^2.6",
         "shopify/shopify-api": "^6.0",
         "silber/bouncer": "^1.0",
-        "spatie/laravel-activitylog": "^4.10",
+        "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-data": "^4.5",
         "spatie/laravel-google-calendar": "^3.8",
         "spatie/laravel-google-cloud-storage": "^2.3",
