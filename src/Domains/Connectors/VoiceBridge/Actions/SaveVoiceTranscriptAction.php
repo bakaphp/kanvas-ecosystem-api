@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
 use Kanvas\Connectors\VoiceBridge\Enums\CustomFieldEnum;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\VoiceBridge\Jobs\SaveCallRecordingJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
