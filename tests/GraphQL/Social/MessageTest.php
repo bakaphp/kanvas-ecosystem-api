@@ -1729,4 +1729,47 @@ class MessageTest extends TestCase
         $app->set('filesystem-optimize-on-upload', $prevOptimize);
         @unlink($tempPath);
     }
+
+    public function testCreateMessageWithHeicFile(): void
+    {
+        $heicPath = storage_path('733eddb5528b4d1d3b169a8d00da0aad.HEIC');
+
+        if (! file_exists($heicPath)) {
+            $this->markTestSkipped('HEIC test file not found at ' . $heicPath);
+        }
+
+        $messageType = MessageType::factory()->create();
+
+        $operations = [
+            'query' => '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            'variables' => [
+                'input' => [
+                    'message' => 'test with HEIC image',
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                    'files' => [null],
+                ],
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.input.files.0'],
+        ];
+
+        $file = [
+            '0' => new UploadedFile($heicPath, '733eddb5528b4d1d3b169a8d00da0aad.HEIC', 'image/heic', null, true),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJsonStructure(['data' => ['createMessage' => ['id', 'message']]]);
+    }
 }
