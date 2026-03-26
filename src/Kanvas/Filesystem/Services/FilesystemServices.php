@@ -277,8 +277,8 @@ class FilesystemServices
         $originalName = basename($path);
 
         // If no filename found in URL, generate one
+        $mimeType = mime_content_type($tempFilePath);
         if (empty($originalName) || strpos($originalName, '.') === false) {
-            $mimeType = mime_content_type($tempFilePath);
             $extension = self::getExtensionFromMimeType($mimeType);
             $originalName = uniqid('file_') . '.' . $extension;
         }
@@ -288,7 +288,7 @@ class FilesystemServices
             $uploadedFile = new UploadedFile(
                 $tempFilePath,
                 $originalName,
-                mime_content_type($tempFilePath),
+                $mimeType,
                 null,
                 true
             );
