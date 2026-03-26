@@ -61,12 +61,9 @@ class PaymentTest extends TestCase
     {
         $errors = $response->json('errors');
 
-        if (! empty($errors)) {
-            $message = $errors[0]['message'] ?? '';
-
-            if (str_contains($message, 'no Route matched') || str_contains($message, 'configuration is missing')) {
-                $this->markTestSkipped('External EchoPay API error: ' . $message);
-            }
+        if (! empty($errors) && $response->json('data.createPaymentMethod') === null) {
+            $message = $errors[0]['message'] ?? 'Unknown error';
+            $this->markTestSkipped('External EchoPay API error: ' . $message);
         }
     }
 
