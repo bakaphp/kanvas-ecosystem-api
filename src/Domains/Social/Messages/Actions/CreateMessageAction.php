@@ -111,8 +111,7 @@ class CreateMessageAction
                     ->where('is_deleted', 0)
                     ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
                         $query->where('entity_id', $this->entityId)
-                            ->where('entity_namespace', $this->systemModule->model_name)
-                            ->orWhere('entity_namespace', SystemModules::getLegacyNamespace($this->systemModule->model_name));
+                            ->where('entity_namespace', $this->systemModule->model_name);
                     })
                     ->first();
 
