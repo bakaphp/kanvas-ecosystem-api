@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
@@ -53,17 +54,17 @@ class CreateChannelAction
                 ]);
             }
 
-            // Check if user is already attached to avoid duplicate entry error
-            if (! $channel->users()->where('users_id', $this->channelDto->users->id)->exists()) {
-                $channel->users()->attach(
-                    $this->channelDto->users->id,
-                    [
+            try {
+                $channel->users()->syncWithoutDetaching([
+                    $this->channelDto->users->id => [
                         'roles_id' => RolesRepository::getByNameFromCompany(
                             name: RolesEnums::ADMIN->value,
                             app: $this->channelDto->apps,
                         )->id,
-                    ]
-                );
+                    ],
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // User already attached by a concurrent request
             }
 
             return $channel;
