@@ -112,10 +112,10 @@ class ADKAgent
             $this->app,
             $this->company
         );
-        $googleADKService->sendData(
-            $userId ?? (string) $this->agent->user_id,
-            $sessionId,
-            $data
-        );
+        // $googleADKService->sendData(
+        //     $userId ?? (string) $this->agent->user_id,
+        //     $sessionId,
+        //     $data
+        // );
     }
 }
