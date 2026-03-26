@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -48,7 +50,11 @@ class ADKAgent
 
         $sessionId = $session ? $session->uuid : $channel->slug;
         $userId = (string) $message->users_id;
-        if ($channel->entity_namespace == Lead::class) {
+        $dateAdkUserId = $this->company->get(ConfigurationEnum::DATE_ADK_AGENT_RESPONSES->value) ?? null;
+        $dateParse = $dateAdkUserId ? Carbon::parse($dateAdkUserId) : null;
+        $now = Carbon::now();
+
+        if ($channel->entity_namespace == Lead::class && $dateParse && $now->greaterThan($dateParse)) {
             $userId = $channel->entity_id;
         }
         $googleADKService->startSession(
