@@ -29,6 +29,8 @@ class CreateSocialChannelsAfterPullAction
             return;
         }
 
+        $contacts = $contacts->sortBy('contacts_types_id');
+
         foreach ($contacts as $contact) {
             /**
              * @todo we have to pass the agent not the id
