@@ -183,10 +183,12 @@ class OrderExpirableTest extends TestCase
 
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
+        // addItem() doesn't set is_public, but items() filters by is_public=1
+        $order->allItems()->update(['is_public' => 1]);
         // lets simulate the variant warehouse quantity decrease
         $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
-        // variant quantity should decrease
+        // variant quantity should decrease (order is active, end_at is in the future)
         $this->assertEquals(99, $variantWarehouse->refresh()->quantity);
 
         // simulate expiry by setting end_at far enough in the past to account for timezone parsing
@@ -296,11 +298,13 @@ class OrderExpirableTest extends TestCase
 
         $order = $response->json()['data']['createDraftOrder'];
         $order = Order::fromApp($app)->find($order['id']);
+        // addItem() doesn't set is_public, but items() filters by is_public=1
+        $order->allItems()->update(['is_public' => 1]);
         // lets simulate the variant warehouse quantity decrease
         $activity = new RecalculateSlotCapacityActivity(0, now()->toDateTimeString(), StoredWorkflow::make(), []);
         $activity->execute($order, $app, []);
         $variantProduct = $variant->product;
-        // variant quantity should decrease
+        // variant quantity should decrease (order is active, end_at is in the future)
         $this->assertEquals(49, $variantWarehouse->refresh()->quantity);
         $this->assertEquals(49, $variantProduct->refresh()->getAttributeByName('capacity')->value['availableParkingSpaces']);
 

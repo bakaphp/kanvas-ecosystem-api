@@ -38,15 +38,16 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
 input PaymentMethodInput {
     number: String!
     expiration_date: String!
+    cvv: String
     brand: String
     processor: String
     metadata: Mixed
-    address: String!
-    country: String!
-    city: String!
-    phone: String!
-    zip_code: String!
-    state: String!
+    address: String
+    country: String
+    city: String
+    phone: String
+    zip_code: String
+    state: String
     firstname: String
     lastname: String
 }
@@ -91,6 +92,49 @@ type PaymentActionResult {
     data: Mixed
 }
 
+type PaymentVerifyResult {
+    status: String!
+    message: String!
+    iso_code: String
+    transaction_id: String
+    data: Mixed
+}
+
+type ThreeDSChallengeResult {
+    success: Boolean!
+    message: String!
+    status: String!
+    data: Mixed
+}
+
+input BrowserInfoInput {
+    accept_header: String
+    ip_address: String
+    language: String
+    color_depth: String
+    screen_width: String
+    screen_height: String
+    time_zone: String
+    user_agent: String
+    javascript_enabled: String
+}
+
+input StartChallengeCardInput {
+    number: String!
+    cvv: String
+    processor: String!
+    expiration_date: String!
+    address: String
+    city: String
+    state: String
+    zip_code: String
+    country: String
+    phone: String
+    firstname: String
+    lastname: String
+    browser_info: BrowserInfoInput
+}
+
 enum PaymentMethodTypeEnum {
     MANUAL @enum(value: "manual")
     CARD @enum(value: "card")
@@ -107,6 +151,7 @@ input PaymentInput {
     order_metadata: Mixed
     payment_date: String
     concept: String
+    use_hold: Boolean
 }
 
 type PayerAuthResponse {
@@ -169,13 +214,41 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePaymentByOrder"
         )
-    capturePayment(paymentId: ID!): PaymentActionResult!
+    capturePayment(paymentId: ID!, amount: Float): PaymentActionResult!
         @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@capturePayment"
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@capturePayment"
         )
     reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
+        )
+    processPayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@processPayment"
+        )
+    refundPayment(paymentId: ID!, amount: Float): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@refundPayment"
+        )
+    voidPayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@voidPayment"
+        )
+    verifyPayment(orderId: ID, paymentId: ID): PaymentVerifyResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@verifyPayment"
+        )
+    startPaymentChallenge(paymentId: ID!, browserInfo: BrowserInfoInput): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallenge"
+        )
+    startPaymentChallengeWithCard(orderId: ID!, paymentData: StartChallengeCardInput!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallengeWithCard"
+        )
+    finalizePaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@finalizeChallenge"
         )
 }
 

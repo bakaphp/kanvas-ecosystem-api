@@ -89,8 +89,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 }
 
                 $channels = [
-                    'sms' => $cellPhone,
                     'email' => $email,
+                    'sms' => $cellPhone,
                     //'whatsapp' => $cellPhone,
                 ];
 
@@ -158,6 +158,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                             ),
                         ]);
                         $channel = new CreateChannelAction($channel)->execute();
+
+                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
+                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+                        }
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
@@ -355,8 +359,9 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
     private function getLeadCreatedAt(Lead $lead): ?string
     {
         $leadCurrentDateIn = null;
-        if ($lead->company->get(CustomFieldEnum::COMPANY->value)) {
-            $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value));
+        $opportunityId = (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value);
+        if ($lead->company->get(CustomFieldEnum::COMPANY->value) && ! empty($opportunityId)) {
+            $eLeadOpportunity = EntitiesLead::getById($lead->app, $lead->company, $opportunityId);
             $leadCurrentDateIn = (string) $eLeadOpportunity->dateIn;
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             $leadCurrentDateIn = (string) $lead->get('vin_solution_date_in');
@@ -374,7 +379,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         $outBoundPhoneCallActivity = null;
         if ($lead->get('downloaded_from_eleads')) {
             $outBoundPhoneCallActivity = new AddOutBoundPhoneCallActivityToLeadAction($lead, $message)
-            ->execute('Sally Take Over', 'Sally stop the clock');
+            ->execute('Sally Takes Over', 'Sally stops the clock');
         } elseif ($lead->get('downloaded_from_vin_solution')) {
             // To do VinSolution Push Note to Lead
         }

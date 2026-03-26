@@ -81,7 +81,8 @@ class CompanyBranchManagementMutation
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
-        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
+        $extension = strtolower($file->getClientOriginalExtension());
+        in_array($extension, AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format ' . $extension);
 
         $filesystemEntity = $filesystem->upload($file, $user);
 

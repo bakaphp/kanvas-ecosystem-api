@@ -222,7 +222,7 @@ class PullLeadAction
 
                         /** @var People $matchedPerson */
                         foreach ($allMatchedPeople as $matchedPerson) {
-                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson);
+                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson, $phone, $email);
                             $closedLeads = LeadsRepository::getPeopleClosedLeads($matchedPerson)->get();
 
                             if ($closedLeads->isEmpty()) {
@@ -271,49 +271,80 @@ class PullLeadAction
             }
         }
 
+        usort($results, fn (array $a, array $b) => ($b['rank'] ?? 0) <=> ($a['rank'] ?? 0));
+
         return $results;
     }
 
     protected function calculateNameRank(
         ?string $eLeadFirstname,
         ?string $eLeadLastname,
-        People $person
+        People $person,
+        ?string $searchPhone = null,
+        ?string $searchEmail = null
     ): float {
-        $firstScore = 0.0;
-        $lastScore = 0.0;
+        $totalFields = 0;
+        $matchedFields = 0;
 
-        $hasFirst = $eLeadFirstname !== null && $eLeadFirstname !== '' && (string) $person->firstname !== '';
-        $hasLast = $eLeadLastname !== null && $eLeadLastname !== '' && (string) $person->lastname !== '';
+        $hasFirst = $eLeadFirstname !== null && $eLeadFirstname !== '';
+        $hasLast = $eLeadLastname !== null && $eLeadLastname !== '';
+        $hasPhone = $searchPhone !== null && $searchPhone !== '';
+        $hasEmail = $searchEmail !== null && $searchEmail !== '';
 
         if ($hasFirst) {
-            similar_text(
-                strtolower(trim($eLeadFirstname)),
-                strtolower(trim((string) $person->firstname)),
-                $firstScore
-            );
+            $totalFields++;
+            if ($person->firstname !== null && $person->firstname !== '') {
+                similar_text(
+                    strtolower(trim($eLeadFirstname)),
+                    strtolower(trim($person->firstname)),
+                    $firstScore
+                );
+                if ($firstScore >= 80.0) {
+                    $matchedFields++;
+                }
+            }
         }
 
         if ($hasLast) {
-            similar_text(
-                strtolower(trim($eLeadLastname)),
-                strtolower(trim((string) $person->lastname)),
-                $lastScore
-            );
+            $totalFields++;
+            if ($person->lastname !== null && $person->lastname !== '') {
+                similar_text(
+                    strtolower(trim($eLeadLastname)),
+                    strtolower(trim($person->lastname)),
+                    $lastScore
+                );
+                if ($lastScore >= 80.0) {
+                    $matchedFields++;
+                }
+            }
         }
 
-        if ($hasFirst && $hasLast) {
-            return (float) round(($firstScore * 0.4 + $lastScore * 0.6) / 100.0, 2);
+        if ($hasPhone) {
+            $totalFields++;
+            $personPhones = $person->getAllPhones()->pluck('value')->map(fn ($v) => preg_replace('/\D/', '', (string) $v))->toArray();
+            $normalizedSearch = preg_replace('/\D/', '', $searchPhone);
+            foreach ($personPhones as $personPhone) {
+                if ($personPhone === $normalizedSearch) {
+                    $matchedFields++;
+
+                    break;
+                }
+            }
         }
 
-        if ($hasFirst) {
-            return (float) round($firstScore / 100.0 * 0.5, 2);
+        if ($hasEmail) {
+            $totalFields++;
+            $personEmails = $person->getEmails()->pluck('value')->map(fn ($v) => strtolower(trim((string) $v)))->toArray();
+            if (in_array(strtolower(trim($searchEmail)), $personEmails, true)) {
+                $matchedFields++;
+            }
         }
 
-        if ($hasLast) {
-            return (float) round($lastScore / 100.0 * 0.6, 2);
+        if ($totalFields === 0) {
+            return 0.1;
         }
 
-        return 0.1;
+        return round($matchedFields / $totalFields, 2);
     }
 
     public function setContactStatus(ModelsLead $lead, string $status): void

@@ -151,6 +151,7 @@ input OrderStatsInput {
     groupBy: DateGroupBy # DAY (default), WEEK, or MONTH
     provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
     providers: [ProviderInput!] # Email-pattern byProvider breakdown (same as OrderPaymentStatsInput)
+    user_email: String # Filter by order user email
 }
 
 input ProviderInput {
@@ -173,6 +174,7 @@ input OrderPaymentStatsInput {
     groupPeriods: [PeriodType!] # Period types for averages summary (DAY, WEEK, MONTH, YEAR)
     periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
     provider_company_id: [ID!]   # DB-level filter: only orders linked to these provider companies via order_providers
+    user_email: String # Filter by order user email
 }
 
 input ExportOrderPaymentsInput {

@@ -41,6 +41,7 @@ class VariantChannelBuilder
             $variantsChannel->getTable() . '.discounted_price',
             $variantsChannel->getTable() . '.is_published',
         )
+        ->with(['product', 'variantWarehouses', 'attributes'])
         ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
         ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
         ->where($variantsChannel->getTable() . '.is_deleted', 0)

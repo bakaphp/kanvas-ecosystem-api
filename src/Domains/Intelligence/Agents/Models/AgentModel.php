@@ -10,6 +10,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Intelligence\Agents\Factories\AgentModelFactory;
 use Kanvas\Intelligence\Models\BaseModel;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $app_id
+ * @property string $name
+ * @property array|null $config
+ * @property bool $is_active
+ * @property bool $is_published
+ * @property bool $is_deleted
+ */
 class AgentModel extends BaseModel
 {
     use UuidTrait;

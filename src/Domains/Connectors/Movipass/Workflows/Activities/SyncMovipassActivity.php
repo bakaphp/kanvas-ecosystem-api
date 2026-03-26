@@ -14,6 +14,8 @@ use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
+use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -22,6 +24,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -74,6 +77,8 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         // recalculation handled by STATUS_TRANSITION → active event
                     }
 
+                    $this->applyDiscountFromMetadata($order);
+
                     $order->saveQuietly();
                 }
 
@@ -123,6 +128,27 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
             },
             company: $order->company,
         );
+    }
+
+    private function applyDiscountFromMetadata(Order $order): void
+    {
+        try {
+            $discountId = $order->metadata['data']['discount_id'] ?? null;
+
+            if (empty($discountId) || ! is_numeric($discountId)) {
+                return;
+            }
+
+            $discount = Discount::getByIdFromCompanyApp(
+                (int) $discountId,
+                $order->company,
+                $order->app
+            );
+
+            new ApplyDiscountToOrderAction($order, $discount)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function uploadQrCode(Order $order, AppInterface $app, string $url): ModelsFilesystem

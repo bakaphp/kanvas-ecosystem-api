@@ -95,7 +95,9 @@ class OrderItem extends Data
         }
 
         // Price resolution with multiple fallback strategies
-        if (! isset($request['price'])) {
+        if (isset($request['price'])) {
+            $price = (float) $request['price'];
+        } else {
             $price = 0.0;
 
             // Strategy 1: Try provider's channel if using provider's warehouse
@@ -124,8 +126,6 @@ class OrderItem extends Data
                     $price = (float) $variantWarehouse->price;
                 }
             }
-        } else {
-            $price = (float) $request['price'];
         }
 
         $channelId = $request['channel_id'] ?? $request['attributes']['channel_id'] ?? null;

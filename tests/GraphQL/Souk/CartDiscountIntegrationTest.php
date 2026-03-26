@@ -95,6 +95,10 @@ class CartDiscountIntegrationTest extends TestCase
                 'value' => $value,
                 'is_percentage' => $isPercentage,
                 'is_active' => true,
+                'start_date' => now()->subDay(),
+                'end_date' => now()->addMonth(),
+                'max_discount_amount' => null,
+                'usage_limit' => null,
             ], $extra));
     }
 
