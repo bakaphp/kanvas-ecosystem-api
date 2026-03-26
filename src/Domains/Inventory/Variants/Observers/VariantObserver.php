@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Observers;
 
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
 class VariantObserver
 {
@@ -15,7 +13,6 @@ class VariantObserver
     {
         $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
-        $this->clearVariantChannelCache($variant);
 
         if ($variant->app->get('product_increase_weight_by_image_count')) {
             $variant->product->weight += 0.5;
@@ -38,13 +35,5 @@ class VariantObserver
     public function deleted(Variants $variant): void
     {
         $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
-        $this->clearVariantChannelCache($variant);
-    }
-
-    private function clearVariantChannelCache(Variants $variant): void
-    {
-        $redis = Redis::connection('graph-cache');
-        $hashKey = CacheKeyAndTagsGenerator::PREFIX . ':VariantChannel:' . $variant->getId();
-        $redis->del($hashKey);
     }
 }
