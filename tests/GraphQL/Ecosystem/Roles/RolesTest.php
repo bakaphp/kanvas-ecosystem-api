@@ -157,6 +157,12 @@ class RolesTest extends TestCase
         $roles = $this->getRoles()['data'];
         $user = auth()->user();
 
+        $ownerRole = collect($roles)->firstWhere('name', RolesEnums::OWNER->value);
+        $roleIds = [$roles[0]['id']];
+        if ($ownerRole && ! in_array($ownerRole['id'], $roleIds)) {
+            $roleIds[] = $ownerRole['id'];
+        }
+
         $this->graphQL(
             query: '
             mutation assignRoleToUser($userId: ID!, $roleIds: [ID!]!) {
@@ -165,7 +171,7 @@ class RolesTest extends TestCase
         ',
             variables: [
             'userId' => $user->getId(),
-            'roleIds' => [$roles[0]['id']],
+            'roleIds' => $roleIds,
         ]
         )->assertJson([
             'data' => [

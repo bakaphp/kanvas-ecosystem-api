@@ -3,20 +3,37 @@ type AgentAi {
     company: [Company!]! @belongsTo
     user: [User!]! @belongsTo
     type: agentType! @belongsTo
-    model: AgentAiModel! @belongsTo
-    companyTaskList: TaskList! @belongsTo
+    model: AgentAiModel @belongsTo
+    companyTaskList: TaskList @belongsTo
+    parent: AgentAi @belongsTo(relation: "parent")
+    children: [AgentAi!]! @hasMany(relation: "children")
+    swarms: [AgentSwarm!]! @belongsToMany
     uuid: String!
     name: String!
     description: String
     config: Mixed
     role: Mixed
+    soul: String
+    instructions: String
+    output_format: String
+    identity: Mixed
+    user_context: String
+    tools_config: String
+    deployment_status: String!
+    activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
+    parent_id: ID
     is_active: Boolean!
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     created_at: DateTime!
     updated_at: DateTime!
@@ -39,9 +56,17 @@ input AgentAiInput {
     description: String
     config: Mixed!
     role: Mixed!
+    soul: String
+    instructions: String
+    output_format: String
+    identity: Mixed
+    user_context: String
+    tools_config: String
+    parent_agent_id: ID
     is_active: Boolean!
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
+    swarm_ids: [ID!]
 }
 
 input CommunicationChannelPivot {
@@ -62,6 +87,18 @@ input AgentSessionInput {
     lead_id: ID!
 }
 
+input UserChatInput {
+    agent_id: ID!
+    message: String!
+    session_id: String
+    lead_id: ID
+}
+
+type UserChatResponse {
+    response: String!
+    session_id: String!
+}
+
 extend type Mutation @guard {
     createAiAgent(input: AgentAiInput!): AgentAi!
         @field(
@@ -77,11 +114,15 @@ extend type Mutation @guard {
         )
     aiAgentCreateSession(input: AgentSessionInput!): String!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@createSession"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@createSession"
         )
     aiAgentChat(input: ChatSimpleInput!): String!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@chat"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@chat"
+        )
+    aiAgentUserChat(input: UserChatInput!): UserChatResponse!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
         )
 }
 
@@ -126,5 +167,12 @@ extend type Query @guard {
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentModel"
             defaultCount: 25
             scopes: ["fromApp"]
+        )
+}
+
+extend type Subscription @guard {
+    agentChatResponse(agent_id: ID!, session_id: String!): JSON
+        @subscription(
+            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
         )
 }

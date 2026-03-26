@@ -887,7 +887,7 @@ class LeadTest extends TestCase
         )->assertJson([
             'data' => [
                 'createMessage' => [
-                    'message' => json_encode($lead['data']['createLead']),
+                    'message' => $lead['data']['createLead'],
                 ],
             ],
         ]);
