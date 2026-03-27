@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
-use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Tests\TestCase;
