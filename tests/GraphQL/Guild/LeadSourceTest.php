@@ -15,20 +15,7 @@ class LeadSourceTest extends TestCase
 {
     public function testCreateLeadSource(): void
     {
-        $companies = $this->graphQL('
-                query{
-                    me {
-                        companies {
-                            id,
-                            uuid
-                        }
-                    }
-                }
-            ');
-        $companiesId = json_decode($companies->decodeResponseJson()->json);
-        $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'name' => fake()->name,
             'description' => fake()->text,
             'is_active' => fake()->boolean,
@@ -48,7 +35,6 @@ class LeadSourceTest extends TestCase
         $leadType = json_decode($leadType->decodeResponseJson()->json);
         $leadType = $leadType->data->createLeadType->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'leads_types_id' => $leadType,
             'name' => fake()->name,
             'description' => fake()->text,
@@ -80,22 +66,7 @@ class LeadSourceTest extends TestCase
 
     public function testUpdateLeadSource(): void
     {
-        $companies = $this->graphQL(
-            '
-                query{
-                    me {
-                        companies {
-                            id,
-                            uuid
-                        }
-                    }
-                }
-        '
-        );
-        $companiesId = json_decode($companies->decodeResponseJson()->json);
-        $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'name' => fake()->name,
             'description' => fake()->text,
             'is_active' => fake()->boolean,
@@ -115,7 +86,6 @@ class LeadSourceTest extends TestCase
         $leadType = json_decode($leadType->decodeResponseJson()->json);
         $leadType = $leadType->data->createLeadType->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'leads_types_id' => $leadType,
             'name' => fake()->name,
             'description' => fake()->text,
@@ -138,7 +108,6 @@ class LeadSourceTest extends TestCase
         $leadSourceId = $leadSource->data->createLeadSource->uuid;
 
         $input = [
-            'companies_id' => $companiesId,
             'leads_types_id' => $leadType,
             'name' => fake()->name,
             'description' => fake()->text,
@@ -172,22 +141,7 @@ class LeadSourceTest extends TestCase
 
     public function testDeleteLeadSource(): void
     {
-        $companies = $this->graphQL(
-            '
-                query{
-                    me {
-                        companies {
-                            id,
-                            uuid
-                        }
-                    }
-                }
-        '
-        );
-        $companiesId = json_decode($companies->decodeResponseJson()->json);
-        $companiesId = $companiesId->data->me->companies[0]->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'name' => fake()->name,
             'description' => fake()->text,
             'is_active' => fake()->boolean,
@@ -207,7 +161,6 @@ class LeadSourceTest extends TestCase
         $leadType = json_decode($leadType->decodeResponseJson()->json);
         $leadType = $leadType->data->createLeadType->uuid;
         $input = [
-            'companies_id' => $companiesId,
             'leads_types_id' => $leadType,
             'name' => fake()->name,
             'description' => fake()->text,
@@ -263,7 +216,7 @@ class LeadSourceTest extends TestCase
                             }
                         }
                     }
-                }   
+                }
             '
         )->assertJsonStructure([
             'data' => [
