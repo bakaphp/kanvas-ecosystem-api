@@ -164,15 +164,27 @@ class CreateMessageAction
             return;
         }
 
-        foreach ($this->messageInput->files as $file) {
+        foreach ($this->messageInput->files as $key => $file) {
             if (! $file instanceof UploadedFile) {
                 continue;
             }
 
-            ImageOptimizerService::constrainFileSize(
+            $convertedPath = ImageOptimizerService::constrainFileSize(
                 $file->getRealPath(),
                 $maxFileSize,
             );
+
+            // constrainFileSize may convert HEIC to JPEG at a new path,
+            // so we need to update the file reference
+            if ($convertedPath !== $file->getRealPath()) {
+                $this->messageInput->files[$key] = new UploadedFile(
+                    $convertedPath,
+                    pathinfo($convertedPath, PATHINFO_BASENAME),
+                    (string) mime_content_type($convertedPath),
+                    $file->getError(),
+                    true
+                );
+            }
         }
     }
 }

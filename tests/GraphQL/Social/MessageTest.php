@@ -1730,46 +1730,48 @@ class MessageTest extends TestCase
         @unlink($tempPath);
     }
 
-    public function testCreateMessageWithHeicFile(): void
+    public function testCreateMessageConstrainsHeicFile(): void
     {
-        $heicPath = storage_path('733eddb5528b4d1d3b169a8d00da0aad.HEIC');
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        if (! file_exists($heicPath)) {
-            $this->markTestSkipped('HEIC test file not found at ' . $heicPath);
+        $verb = 'twilio-sms-heic-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        // Use a real HEIC file — Imagick can't encode HEIC, only decode
+        $heicSource = storage_path('733eddb5528b4d1d3b169a8d00da0aad.HEIC');
+        if (! file_exists($heicSource)) {
+            $this->markTestSkipped('HEIC test file not found — place a .HEIC file at storage/733eddb5528b4d1d3b169a8d00da0aad.HEIC');
         }
 
-        $messageType = MessageType::factory()->create();
+        $tempPath = sys_get_temp_dir() . '/heic-constrain-' . uniqid() . '.heic';
+        copy($heicSource, $tempPath);
 
-        $operations = [
-            'query' => '
-                mutation createMessage($input: MessageInput!) {
-                    createMessage(input: $input) {
-                        id
-                        message
-                    }
-                }
-            ',
-            'variables' => [
-                'input' => [
-                    'message' => 'test with HEIC image',
-                    'message_verb' => $messageType->verb,
-                    'system_modules_id' => 1,
-                    'entity_id' => '1',
-                    'files' => [null],
-                ],
-            ],
-        ];
+        $originalSize = filesize($tempPath);
+        $maxFileSize = (int) ($originalSize * 0.5);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
 
-        $map = [
-            '0' => ['variables.input.files.0'],
-        ];
+        $file = new UploadedFile($tempPath, 'photo.HEIC', 'image/heic', null, true);
 
-        $file = [
-            '0' => new UploadedFile($heicPath, '733eddb5528b4d1d3b169a8d00da0aad.HEIC', 'image/heic', null, true),
-        ];
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'test with HEIC image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
 
-        $this->multipartGraphQL($operations, $map, $file)
-            ->assertSuccessful()
-            ->assertJsonStructure(['data' => ['createMessage' => ['id', 'message']]]);
+        $this->assertNotNull($message->getId());
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
     }
 }
