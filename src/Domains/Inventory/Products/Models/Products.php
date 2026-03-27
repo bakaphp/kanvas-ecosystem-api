@@ -59,8 +59,8 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Class Products.
@@ -137,7 +137,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         ];
     }
 
-    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -356,14 +355,14 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     )
                 )) AS distance
             ", [$lat, $long, $lat])
-            ->whereRaw("JSON_VALID(value)")
+            ->whereRaw('JSON_VALID(value)')
             ->whereRaw("JSON_EXTRACT(value, '$.en') IS NOT NULL")
             ->whereRaw("JSON_VALID({$innerJson})")
             ->whereRaw("JSON_EXTRACT({$innerJson}, '$.lat') IS NOT NULL")
             ->whereRaw("JSON_EXTRACT({$innerJson}, '$.long') IS NOT NULL")
             ->whereRaw("{$latExtract} != 0")
             ->whereRaw("{$longExtract} != 0")
-            ->havingRaw("distance <= ?", [$radius]);
+            ->havingRaw('distance <= ?', [$radius]);
 
         return $query
             ->where('products.is_deleted', 0)

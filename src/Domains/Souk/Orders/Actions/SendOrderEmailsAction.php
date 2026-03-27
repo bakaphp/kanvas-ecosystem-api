@@ -5,20 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum as TookanConfigEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Notifications\OrderNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Users\Models\Users;
 
 class SendOrderEmailsAction
 {
-    private array $channels = ['mail'];
-
     public function __construct(
         private Order $order,
         private string $emailTemplate,
-        private array $data = []
+        private array $data = [],
+        private array $channels = ['mail'],
+        private ?string $subject = null,
     ) {
     }
 
@@ -41,6 +44,8 @@ class SendOrderEmailsAction
 
         $externalCompany = $this->getExternalCompany();
 
+        $tzName = $this->order->app->get(TookanConfigEnum::TIMEZONE->value) ?? 'UTC';
+
         $payload = [
             'template' => $this->emailTemplate,
             'order' => $this->order,
@@ -50,6 +55,12 @@ class SendOrderEmailsAction
             'company_name' => $this->order->company->name ?? '',
             'recipient_name' => $recipientData['name'] ?? '',
             'external_company' => $externalCompany['name'] ?? null,
+            'estimated_delivery_time' => $this->order->estimate_shipping_date
+                ? Carbon::parse($this->order->estimate_shipping_date)->timezone($tzName)->format('d/m/Y H:i')
+                : null,
+            'delivered_time' => $this->order->shipped_date
+                ? Carbon::parse($this->order->shipped_date)->timezone($tzName)->format('d/m/Y H:i')
+                : null,
             ...$this->data,
         ];
 
@@ -136,8 +147,46 @@ class SendOrderEmailsAction
             'template' => $emailTemplateName,
         ])->name);
 
-        $notification->channels = $this->channels;
+        if ($this->subject !== null) {
+            $notification->setSubject($this->subject);
+        }
 
-        Notification::route('mail', $email)->notify($notification);
+        if (in_array('mail', $this->channels)) {
+            $mailNotification = clone $notification;
+            $mailNotification->channels = ['mail'];
+            Notification::route('mail', $email)->notify($mailNotification);
+        }
+
+        if (in_array('database', $this->channels)) {
+            $user = $this->getNotifiableUser();
+            if ($user) {
+                $dbNotification = clone $notification;
+                $dbNotification->channels = ['database'];
+                $user->notify($dbNotification);
+            }
+        }
+    }
+
+    private function getNotifiableUser(): ?Users
+    {
+        if (str_starts_with($this->emailTemplate, 'user-') && $this->order->users_id) {
+            return Users::getById($this->order->users_id);
+        }
+
+        if (str_starts_with($this->emailTemplate, 'provider-')) {
+            $externalItem = $this->order->items->first(
+                fn ($item) => $item->variant->companies_id !== $this->order->companies_id
+            );
+
+            if ($externalItem?->variant?->company?->user) {
+                return $externalItem->variant->company->user;
+            }
+        }
+
+        if (str_starts_with($this->emailTemplate, 'owner-')) {
+            return $this->order->company->user ?? null;
+        }
+
+        return null;
     }
 }

@@ -8,12 +8,13 @@ enum ConfigurationEnum: string
 {
     case API_KEY = 'TOOKAN_API_KEY';
     case BASE_URL = 'TOOKAN_BASE_URL';
+    case TIMEZONE = 'TOOKAN_TIMEZONE';  // PHP timezone name e.g. "America/Santo_Domingo"
     case SANDBOX_URL = 'https://api.tookanapp.com';
 
     // API Endpoints
     case CREATE_TASK_PATH = '/v2/create_task';
     case CREATE_MULTIPLE_TASKS_PATH = '/v2/create_multiple_tasks';
-    case UPDATE_TASK_PATH = '/v2/update_task';
+    case UPDATE_TASK_PATH = '/v2/update_task_status';
     case GET_TASK_DETAILS_PATH = '/v2/get_task_details';
     case GET_JOB_DETAILS_PATH = '/v2/get_job_details';
     case DELETE_TASK_PATH = '/v2/delete_task';

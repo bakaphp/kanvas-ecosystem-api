@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Tookan\Actions;
 
+use DateTime;
+use DateTimeZone;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Tookan\DataTransferObject\CustomerDetail;
@@ -11,9 +13,10 @@ use Kanvas\Connectors\Tookan\DataTransferObject\DeliveryDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\PickupDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\TaskDetail;
 use Kanvas\Connectors\Tookan\DataTransferObject\TaskMultipleDetail;
+use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Services\TookanService;
-use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class CreateTookanTaskAction
 {
@@ -21,7 +24,7 @@ class CreateTookanTaskAction
         private Order $order,
         private Companies $company,
         private ?Companies $receiverCompany = null,
-        private ?User $receiverUser = null,
+        private ?Users $receiverUser = null,
     ) {
     }
 
@@ -48,23 +51,27 @@ class CreateTookanTaskAction
             latitude: $destinationAddress?->latitude,
             longitude: $destinationAddress?->longitude,
         );
+        $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
+        $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
+        $estimatedDelivery = now()->timezone($tzName)->addHours(1)->format('Y-m-d H:i:s');
+
         $task = new TaskDetail(
             job_description: 'Pickup order from ' . $this->company->name,
             team_id: 0,
-            timezone: '330',
+            timezone: (string) $tzOffset,
             customer: $customer,
             order_id: $this->order->id,
             job_pickup_address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
             job_pickup_latitude: $companyAddress?->latitude,
             job_pickup_longitude: $companyAddress?->longitude,
-            job_pickup_datetime: now()->addMinutes(30)->format('Y-m-d H:i:s'),
+            job_pickup_datetime: now()->timezone($tzName)->addMinutes(30)->format('Y-m-d H:i:s'),
             job_pickup_phone: $this->company->phone,
             job_pickup_name: $this->company->name,
             job_pickup_email: $this->company->email,
             has_pickup: true,
             has_delivery: true,
             auto_assignment: false,
-            job_delivery_datetime: now()->addHours(1)->format('Y-m-d H:i:s'),
+            job_delivery_datetime: $estimatedDelivery,
         );
 
         $tookanService = new TookanService($this->order->app, $this->order->company);
@@ -72,6 +79,7 @@ class CreateTookanTaskAction
             $taskResponse = $tookanService->createTask($task);
             $this->order->set("tookan_task_id", $taskResponse['job_id']);
             $this->order->set("tookan_tracking_link", $taskResponse['tracking_link']);
+            $this->order->updateQuietly(['estimate_shipping_date' => $estimatedDelivery]);
             activity()
                 ->causedBy($this->order->user)
                 ->performedOn($this->order)
@@ -88,6 +96,9 @@ class CreateTookanTaskAction
 
     public function createMulti(): array
     {
+        $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
+        $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
+
         $companyAddress = $this->company->defaultAddress;
 
         $pickups = [
@@ -95,7 +106,7 @@ class CreateTookanTaskAction
                 address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
                 latitude: (float) $companyAddress?->latitude,
                 longitude: (float) $companyAddress?->longitude,
-                time: now()->addHour()->format('Y-m-d H:i:s'),
+                time: now()->timezone($tzName)->addHour()->format('Y-m-d H:i:s'),
                 phone: $this->company->phone,
                 job_description: 'Pick up order from ' . $this->company->name,
                 name: $this->company->name,
@@ -113,7 +124,7 @@ class CreateTookanTaskAction
                 address: $destinationAddress?->address . ' ' . $destinationAddress?->address_2,
                 latitude: $destinationAddress?->latitude,
                 longitude: $destinationAddress?->longitude,
-                time: now()->addHours(2)->format('Y-m-d H:i:s'),
+                time: now()->timezone($tzName)->addHours(2)->format('Y-m-d H:i:s'),
                 phone: $phoneNumber,
                 job_description: 'Deliver order to ' . $destinationName,
                 name: $destinationName,
@@ -126,7 +137,7 @@ class CreateTookanTaskAction
             pickups: $pickups,
             deliveries: $deliveries,
             team_id: 0,
-            timezone: '330',
+            timezone: (string) $tzOffset,
             has_pickup: true,
             has_delivery: true,
             auto_assignment: false

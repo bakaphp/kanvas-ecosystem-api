@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Tookan\Webhook;
 
 use Exception;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
@@ -20,14 +21,14 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
         $tookanSharedSecret = $this->receiver->configuration['tookan_shared_secret'] ?? null;
 
-        // Validate shared secret
-        if (! isset($payload['tookan_shared_secret']) || $payload['tookan_shared_secret'] !== $tookanSharedSecret) {
+        // Validate shared secret only when one is configured on the receiver
+        if ($tookanSharedSecret !== null && ($payload['tookan_shared_secret'] ?? null) !== $tookanSharedSecret) {
             throw new Exception('Invalid shared secret');
         }
 
         // Extract order ID and Tookan task status
         $orderId = $payload['order_id'] ?? null;
-        $tookanJobStatus = $payload['job_status'] ?? null; // Tookan status code
+        $tookanJobStatus = isset($payload['job_status']) ? (int) $payload['job_status'] : null;
 
         if (! $orderId) {
             throw new Exception('Missing order_id in payload');
@@ -52,30 +53,63 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         if (! $isGifteaOrder && $newStatus) {
             $gifteaOrder = Order::fromApp($this->receiver->app)
                 ->where('id', $order->parent_id)
+                ->with('items.variant')
                 ->first();
 
+            $hasPackaging = $gifteaOrder?->items->contains(
+                fn ($item) => $item->variant->companies_id === $gifteaOrder->companies_id
+            ) ?? false;
 
             switch ($newStatus) {
-                case OrderStatusEnum::DELIVERED->value:
-                    $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
-
-                    $transitionCompanyStatus = new TransitionOrderStateAction(
-                        $gifteaOrder,
-                        $this->receiver->user,
-                        $status
-                    );
-                    $transitionCompanyStatus->execute();
-                    break;
                 case OrderStatusEnum::DISPATCHED->value:
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
-                    $transitionCompanyStatus = new TransitionOrderStateAction(
-                        $order,
-                        $this->receiver->user
-                    );
-                    $transitionCompanyStatus->execute();
+                    $transitionChildStatus = new TransitionOrderStateAction($order, $this->receiver->user, $status);
+                    $transitionChildStatus->execute();
+
+                    if ($gifteaOrder && $hasPackaging) {
+                        // Rider heading to Giftea for custom wrapping
+                        $notification = new SendOrderEmailsAction(
+                            $gifteaOrder,
+                            'owner-ready_for_pickup',
+                            [],
+                            ['mail'],
+                            "Ready for Wrapping · Orden #{$gifteaOrder->order_number}",
+                        );
+                        $notification->execute();
+                    } elseif ($gifteaOrder) {
+                        // No wrapping — rider heading directly to end user, transition parent to dispatched
+                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                        $transitionParentStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $parentStatus
+                        );
+                        $transitionParentStatus->execute();
+                    }
+                    break;
+                case OrderStatusEnum::DELIVERED->value:
+                    if ($hasPackaging) {
+                        // Rider arrived at Giftea with the product for wrapping
+                        $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
+                        $transitionCompanyStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $status
+                        );
+                        $transitionCompanyStatus->execute();
+                    } elseif ($gifteaOrder) {
+                        // No wrapping — rider delivered directly to end user
+                        $gifteaOrder->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
+                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
+                        $transitionParentStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $parentStatus
+                        );
+                        $transitionParentStatus->execute();
+                    }
                     break;
                 default:
-                    // for other statuses we do not update the company order
                     return [
                         'message' => 'Tookan webhook processed successfully - no status update for giftea order',
                         'order_id' => $orderId,
@@ -89,18 +123,38 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 ->where('parent_id', $order->id)
                 ->first();
 
+            if (! $companyOrder) {
+                return [
+                    'message' => 'Tookan webhook processed successfully - no child order found',
+                    'order_id' => $orderId,
+                    'tookan_status' => $tookanJobStatus,
+                    'mapped_status' => $newStatus,
+                ];
+            }
+
             switch ($newStatus) {
-                case OrderStatusEnum::DELIVERED->value:
                 case OrderStatusEnum::DISPATCHED->value:
+                    // Rider picked up from Giftea, heading to end customer — move child to dispatched
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
                     $transitionCompanyStatus = new TransitionOrderStateAction(
                         $companyOrder,
-                        $this->receiver->user
+                        $this->receiver->user,
+                        $status
                     );
                     $transitionCompanyStatus->execute();
                     break;
+                case OrderStatusEnum::DELIVERED->value:
+                    // Rider delivered to end customer — move parent to delivered (cascades to child + fires notifications)
+                    $order->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
+                    $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
+                    $transitionParentStatus = new TransitionOrderStateAction(
+                        $order,
+                        $this->receiver->user,
+                        $parentStatus
+                    );
+                    $transitionParentStatus->execute();
+                    break;
                 default:
-                    // for other statuses we do not update the company order
                     return [
                         'message' => 'Tookan webhook processed successfully - no status update for giftea order',
                         'order_id' => $orderId,
