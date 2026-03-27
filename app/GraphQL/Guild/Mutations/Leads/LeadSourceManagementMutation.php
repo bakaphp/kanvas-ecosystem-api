@@ -6,7 +6,6 @@ namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Leads\Models\LeadSource as LeadSourceModel;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
@@ -30,11 +29,9 @@ class LeadSourceManagementMutation
         $input = $request['input'];
         $company = auth()->user()->getCurrentCompany();
 
-        $leadSource = LeadSourceModel::getByUuidFromCompanyApp(
-            $request['id'],
-            company: $company,
-            app: $app
-        );
+        $leadSource = is_numeric($request['id'])
+            ? LeadSourceModel::getByIdFromCompanyApp((int) $request['id'], $company, $app)
+            : LeadSourceModel::getByUuidFromCompanyApp($request['id'], company: $company, app: $app);
 
         $dto = new LeadSource(
             app: $app,
@@ -59,8 +56,9 @@ class LeadSourceManagementMutation
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        $leadSource = LeadSourceModel::getByUuidFromCompanyApp($request['id'], company: $company, app: $app);
-        CompaniesRepository::userAssociatedToCompany($leadSource->company, auth()->user());
+        $leadSource = is_numeric($request['id'])
+            ? LeadSourceModel::getByIdFromCompanyApp((int) $request['id'], $company, $app)
+            : LeadSourceModel::getByUuidFromCompanyApp($request['id'], company: $company, app: $app);
 
         return $leadSource->delete();
     }
