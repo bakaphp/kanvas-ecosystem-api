@@ -7,12 +7,15 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Connectors\SalesAssist\Actions\CreateCrmNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -115,8 +118,37 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
                 if ($modsCurrent['ai_mode'] !== $modsPrevious['ai_mode']) {
-                    $note = 'AI Mode changed from ' . ($modsPrevious['ai_mode'] ?? 'N/A') . ' to ' . $modsCurrent['ai_mode'];
-                    new CreateCrmNoteAction($lead, $app)->execute($note);
+                    $notesChannel = $lead->notes;
+
+                    if ($notesChannel) {
+                        $noteContent = 'AI Mode changed from ' . ($modsPrevious['ai_mode'] ?? 'N/A') . ' to ' . $modsCurrent['ai_mode'];
+
+                        $messageTypeInput = new MessageTypeInput(
+                            apps_id: $app->getId(),
+                            languages_id: 1,
+                            name: 'Note',
+                            verb: 'note',
+                            template: '{{message}}',
+                            templates_plura: '{{message}}',
+                        );
+                        $messageType = new CreateMessageTypeAction($messageTypeInput)->execute();
+
+                        $messageInput = new MessageInput(
+                            app: $lead->app,
+                            company: $lead->company,
+                            user: $lead->user,
+                            type: $messageType,
+                            message: [
+                                'content' => $noteContent,
+                                'from_me' => true,
+                            ],
+                        );
+
+                        $createMessageAction = new CreateMessageAction($messageInput);
+                        $createMessageAction->runWorkflow = true;
+                        $message = $createMessageAction->execute();
+                        $notesChannel->addMessage($message, $lead->user);
+                    }
                 }
 
                 return [
