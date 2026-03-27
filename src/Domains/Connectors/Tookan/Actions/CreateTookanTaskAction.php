@@ -62,23 +62,25 @@ class CreateTookanTaskAction
         $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
         $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
         $estimatedDelivery = now()->timezone($tzName)->addHours(1)->format('Y-m-d H:i:s');
+        $teamId = (int) ($this->order->app->get(ConfigurationEnum::TEAM_ID->value) ?? 0);
+        $autoAssignment = (bool) ($this->order->app->get(ConfigurationEnum::AUTO_ASSIGNMENT->value) ?? true);
 
         $task = new TaskDetail(
             job_description: 'Pickup order from ' . $this->company->name,
-            team_id: 0,
+            team_id: $teamId,
             timezone: (string) $tzOffset,
             customer: $customer,
             order_id: $this->order->id,
             job_pickup_address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
             job_pickup_latitude: $companyAddress?->latitude,
             job_pickup_longitude: $companyAddress?->longitude,
-            job_pickup_datetime: now()->timezone($tzName)->addMinutes(30)->format('Y-m-d H:i:s'),
+            job_pickup_datetime: now()->timezone($tzName)->format('Y-m-d H:i:s'),
             job_pickup_phone: $this->company->phone,
             job_pickup_name: $this->company->name,
             job_pickup_email: $this->company->email,
             has_pickup: true,
             has_delivery: true,
-            auto_assignment: false,
+            auto_assignment: $autoAssignment,
             job_delivery_datetime: $estimatedDelivery,
         );
 
@@ -114,7 +116,7 @@ class CreateTookanTaskAction
                 address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
                 latitude: (float) $companyAddress?->latitude,
                 longitude: (float) $companyAddress?->longitude,
-                time: now()->timezone($tzName)->addHour()->format('Y-m-d H:i:s'),
+                time: now()->timezone($tzName)->format('Y-m-d H:i:s'),
                 phone: $this->company->phone,
                 job_description: 'Pick up order from ' . $this->company->name,
                 name: $this->company->name,
@@ -126,12 +128,24 @@ class CreateTookanTaskAction
         $destinationAddress = $this->receiverCompany?->defaultAddress ?? $this->receiverUser?->defaultAddress;
         $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
         $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
+
+        $orderMetadata = $this->order->metadata['data'] ?? [];
+        $destinationLatitude = $this->receiverUser
+            ? ($orderMetadata['latitude'] ?? $destinationAddress?->latitude)
+            : $destinationAddress?->latitude;
+        $destinationLongitude = $this->receiverUser
+            ? ($orderMetadata['longitude'] ?? $destinationAddress?->longitude)
+            : $destinationAddress?->longitude;
+        $destinationAddressStr = $destinationAddress
+            ? trim($destinationAddress->address . ' ' . $destinationAddress->address_2)
+            : ($orderMetadata['address'] ?? null);
+
         // Create delivery location (customer)
         $deliveries = [
             new DeliveryDetail(
-                address: $destinationAddress?->address . ' ' . $destinationAddress?->address_2,
-                latitude: $destinationAddress?->latitude,
-                longitude: $destinationAddress?->longitude,
+                address: $destinationAddressStr,
+                latitude: $destinationLatitude,
+                longitude: $destinationLongitude,
                 time: now()->timezone($tzName)->addHours(2)->format('Y-m-d H:i:s'),
                 phone: $phoneNumber,
                 job_description: 'Deliver order to ' . $destinationName,
@@ -141,20 +155,27 @@ class CreateTookanTaskAction
             ),
         ];
 
+        $teamId = (int) ($this->order->app->get(ConfigurationEnum::TEAM_ID->value) ?? 0);
+        $autoAssignment = (bool) ($this->order->app->get(ConfigurationEnum::AUTO_ASSIGNMENT->value) ?? true);
+
         $task = new TaskMultipleDetail(
             pickups: $pickups,
             deliveries: $deliveries,
-            team_id: 0,
+            team_id: $teamId,
             timezone: (string) $tzOffset,
             has_pickup: true,
             has_delivery: true,
-            auto_assignment: false
+            auto_assignment: $autoAssignment
         );
 
         $tookanService = new TookanService($this->order->app, $this->order->company);
         try {
             $taskResponse = $tookanService->createMultipleTasks($task);
-            $this->order->set("tookan_task_id", $taskResponse['job_id']);
+            // Multi-task response can be a flat object or an array of job objects
+            $jobId = $taskResponse['job_id']
+                ?? (is_array($taskResponse[0] ?? null) ? $taskResponse[0]['job_id'] : null)
+                ?? null;
+            $this->order->set("tookan_task_id", $jobId);
             activity()
                 ->causedBy($this->order->user)
                 ->performedOn($this->order)
