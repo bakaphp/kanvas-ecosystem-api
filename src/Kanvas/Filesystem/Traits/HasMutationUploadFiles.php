@@ -46,13 +46,10 @@ trait HasMutationUploadFiles
         );
 
         foreach ($files as $file) {
-            $extension = strtolower($file->getClientOriginalExtension());
-
-            if (! in_array($extension, AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                throw new Exception('Invalid file format ' . $extension);
+            // Validate file extension
+            if (! in_array($file->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                throw new Exception('Invalid file format ' . $file->extension());
             }
-
-            $file = $this->ensureFileIsReadable($file);
 
             // Upload file
             $filesystemEntity = $filesystem->upload($file, $user);
@@ -65,21 +62,6 @@ trait HasMutationUploadFiles
         return $model;
     }
 
-    /**
-     * Ensure the uploaded file is still readable on disk.
-     * Under Swoole/Octane, temp files can be cleaned up before processing completes.
-     */
-    private function ensureFileIsReadable(UploadedFile $file): UploadedFile
-    {
-        $path = $file->getRealPath();
-
-        if ($path !== false && is_readable($path)) {
-            return $file;
-        }
-
-        throw new Exception('Uploaded file is no longer available: ' . $file->getClientOriginalName());
-    }
-
     public function uploadImageToEntity(
         Model $model,
         AppInterface $app,
@@ -87,13 +69,9 @@ trait HasMutationUploadFiles
         UploadedFile $file,
         string $fieldName
     ): Model {
-        $extension = strtolower($file->getClientOriginalExtension());
-
-        if (! in_array($extension, AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
-            throw new Exception('Invalid file format ' . $extension);
+        if (! in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
+            throw new Exception('Invalid file format ' . $file->extension());
         }
-
-        $file = $this->ensureFileIsReadable($file);
 
         $filesystem = new FilesystemServices(
             $app,
