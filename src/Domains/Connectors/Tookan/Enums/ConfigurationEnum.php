@@ -8,6 +8,7 @@ enum ConfigurationEnum: string
 {
     case API_KEY = 'TOOKAN_API_KEY';
     case BASE_URL = 'TOOKAN_BASE_URL';
+    case TIMEZONE = 'TOOKAN_TIMEZONE';  // PHP timezone name e.g. "America/Santo_Domingo"
     case SANDBOX_URL = 'https://api.tookanapp.com';
 
     // API Endpoints

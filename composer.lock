@@ -3603,16 +3603,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.16.15",
+            "version": "3.16.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "38e76f5f6883745094d641f86a09001a1d7b5eea"
+                "reference": "1ae543cc6953da0f68ed4ac810de36696e91438e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/38e76f5f6883745094d641f86a09001a1d7b5eea",
-                "reference": "38e76f5f6883745094d641f86a09001a1d7b5eea",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/1ae543cc6953da0f68ed4ac810de36696e91438e",
+                "reference": "1ae543cc6953da0f68ed4ac810de36696e91438e",
                 "shasum": ""
             },
             "require": {
@@ -3659,9 +3659,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.15"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.16"
             },
-            "time": "2026-02-26T11:18:52+00:00"
+            "time": "2026-03-26T18:13:38+00:00"
         },
         {
             "name": "intervention/gif",
@@ -4332,16 +4332,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.4.0",
+            "version": "v0.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "ed3af79e00437828c18088dcc4a8a55898dfe654"
+                "reference": "7a4ac9fac32e652ebd2f2cc9d44216eee543c5da"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/ed3af79e00437828c18088dcc4a8a55898dfe654",
-                "reference": "ed3af79e00437828c18088dcc4a8a55898dfe654",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/7a4ac9fac32e652ebd2f2cc9d44216eee543c5da",
+                "reference": "7a4ac9fac32e652ebd2f2cc9d44216eee543c5da",
                 "shasum": ""
             },
             "require": {
@@ -4394,7 +4394,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-03-25T14:11:27+00:00"
+            "time": "2026-03-26T16:51:27+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -4486,16 +4486,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.55.1",
+            "version": "v12.56.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "6d9185a248d101b07eecaf8fd60b18129545fd33"
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/6d9185a248d101b07eecaf8fd60b18129545fd33",
-                "reference": "6d9185a248d101b07eecaf8fd60b18129545fd33",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/dac16d424b59debb2273910dde88eb7050a2a709",
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709",
                 "shasum": ""
             },
             "require": {
@@ -4704,7 +4704,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-03-18T14:28:59+00:00"
+            "time": "2026-03-26T14:51:54+00:00"
         },
         {
             "name": "laravel/octane",
@@ -7401,16 +7401,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.2.11",
+            "version": "3.2.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "d56213b85a7cd991e83bcc2f0fc35cdc8ccb8175"
+                "reference": "4353ee6b046a975619954ffe955d0d8429a9544d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/d56213b85a7cd991e83bcc2f0fc35cdc8ccb8175",
-                "reference": "d56213b85a7cd991e83bcc2f0fc35cdc8ccb8175",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/4353ee6b046a975619954ffe955d0d8429a9544d",
+                "reference": "4353ee6b046a975619954ffe955d0d8429a9544d",
                 "shasum": ""
             },
             "require": {
@@ -7461,7 +7461,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.2.11"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.2.12"
             },
             "funding": [
                 {
@@ -7469,7 +7469,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-23T14:16:11+00:00"
+            "time": "2026-03-26T15:03:36+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",

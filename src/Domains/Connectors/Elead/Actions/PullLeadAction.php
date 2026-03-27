@@ -293,7 +293,7 @@ class PullLeadAction
 
         if ($hasFirst) {
             $totalFields++;
-            if ($person->firstname !== '') {
+            if ($person->firstname !== null && $person->firstname !== '') {
                 similar_text(
                     strtolower(trim($eLeadFirstname)),
                     strtolower(trim($person->firstname)),
@@ -307,7 +307,7 @@ class PullLeadAction
 
         if ($hasLast) {
             $totalFields++;
-            if ($person->lastname !== '') {
+            if ($person->lastname !== null && $person->lastname !== '') {
                 similar_text(
                     strtolower(trim($eLeadLastname)),
                     strtolower(trim($person->lastname)),
