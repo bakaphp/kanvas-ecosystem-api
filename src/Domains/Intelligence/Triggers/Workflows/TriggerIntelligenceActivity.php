@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Actions\CreateCrmNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -113,7 +114,10 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
                 $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
-                // Post handoff note with state changes
+                if ($modsCurrent['ai_mode'] !== $modsPrevious['ai_mode']) {
+                    $note = 'AI Mode changed from ' . ($modsPrevious['ai_mode'] ?? 'N/A') . ' to ' . $modsCurrent['ai_mode'];
+                    new CreateCrmNoteAction($lead, $app)->execute($note);
+                }
 
                 return [
                     'Trigger IA executed',
