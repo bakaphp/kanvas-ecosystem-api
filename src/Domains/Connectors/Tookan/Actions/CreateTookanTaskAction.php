@@ -43,13 +43,21 @@ class CreateTookanTaskAction
         $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
         $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
 
+        $orderMetadata = $this->order->metadata['data'] ?? [];
+        $destinationLatitude = $this->receiverUser
+            ? ($orderMetadata['latitude'] ?? $destinationAddress?->latitude)
+            : $destinationAddress?->latitude;
+        $destinationLongitude = $this->receiverUser
+            ? ($orderMetadata['longitude'] ?? $destinationAddress?->longitude)
+            : $destinationAddress?->longitude;
+
         $customer = new CustomerDetail(
             name: $destinationName,
             email: $this->receiverCompany?->email ?? $this->receiverUser?->email,
             phone: $phoneNumber,
-            address: $destinationAddress->address . ' ' . $destinationAddress->address_2,
-            latitude: $destinationAddress?->latitude,
-            longitude: $destinationAddress?->longitude,
+            address: $destinationAddress?->address . ' ' . $destinationAddress?->address_2,
+            latitude: $destinationLatitude,
+            longitude: $destinationLongitude,
         );
         $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
         $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
