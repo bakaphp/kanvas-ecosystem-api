@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Facebook;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Facebook\Actions\CreateLeadFromFacebookAction;
 use Kanvas\Connectors\Facebook\Enums\ConfigurationEnum;
