@@ -60,6 +60,8 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 fn ($item) => $item->variant->companies_id === $gifteaOrder->companies_id
             ) ?? false;
 
+            $gifteaOrderRepository = $gifteaOrder ? new OrderRepository($gifteaOrder) : null;
+
             switch ($newStatus) {
                 case OrderStatusEnum::DISPATCHED->value:
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
@@ -78,7 +80,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                         $notification->execute();
                     } elseif ($gifteaOrder) {
                         // No wrapping — rider heading directly to end user, transition parent to dispatched
-                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                        $parentStatus = $gifteaOrderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
                         $transitionParentStatus = new TransitionOrderStateAction(
                             $gifteaOrder,
                             $this->receiver->user,
@@ -90,7 +92,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 case OrderStatusEnum::DELIVERED->value:
                     if ($hasPackaging) {
                         // Rider arrived at Giftea with the product for wrapping
-                        $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
+                        $status = $gifteaOrderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
                         $transitionCompanyStatus = new TransitionOrderStateAction(
                             $gifteaOrder,
                             $this->receiver->user,
@@ -100,7 +102,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                     } elseif ($gifteaOrder) {
                         // No wrapping — rider delivered directly to end user
                         $gifteaOrder->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
-                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
+                        $parentStatus = $gifteaOrderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
                         $transitionParentStatus = new TransitionOrderStateAction(
                             $gifteaOrder,
                             $this->receiver->user,
@@ -132,27 +134,34 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                 ];
             }
 
+            $companyOrderRepository = new OrderRepository($companyOrder);
+
             switch ($newStatus) {
                 case OrderStatusEnum::DISPATCHED->value:
-                    // Rider picked up from Giftea, heading to end customer — move child to dispatched
-                    $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
-                    $transitionCompanyStatus = new TransitionOrderStateAction(
+                    // Rider picked up from Giftea, heading to end customer — move both orders to dispatched
+                    $childStatus = $companyOrderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                    new TransitionOrderStateAction(
                         $companyOrder,
                         $this->receiver->user,
-                        $status
-                    );
-                    $transitionCompanyStatus->execute();
+                        $childStatus
+                    )->execute();
+
+                    $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                    new TransitionOrderStateAction(
+                        $order,
+                        $this->receiver->user,
+                        $parentStatus
+                    )->execute();
                     break;
                 case OrderStatusEnum::DELIVERED->value:
                     // Rider delivered to end customer — move parent to delivered (cascades to child + fires notifications)
                     $order->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
                     $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
-                    $transitionParentStatus = new TransitionOrderStateAction(
+                    new TransitionOrderStateAction(
                         $order,
                         $this->receiver->user,
                         $parentStatus
-                    );
-                    $transitionParentStatus->execute();
+                    )->execute();
                     break;
                 default:
                     return [
