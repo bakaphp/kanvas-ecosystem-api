@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Tookan\Webhook;
 
 use Exception;
 use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
@@ -52,31 +53,63 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
         if (! $isGifteaOrder && $newStatus) {
             $gifteaOrder = Order::fromApp($this->receiver->app)
                 ->where('id', $order->parent_id)
+                ->with('items.variant')
                 ->first();
 
+            $hasPackaging = $gifteaOrder?->items->contains(
+                fn ($item) => $item->variant->companies_id === $gifteaOrder->companies_id
+            ) ?? false;
 
             switch ($newStatus) {
-                case OrderStatusEnum::DELIVERED->value:
-                    $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
-
-                    $transitionCompanyStatus = new TransitionOrderStateAction(
-                        $gifteaOrder,
-                        $this->receiver->user,
-                        $status
-                    );
-                    $transitionCompanyStatus->execute();
-                    break;
                 case OrderStatusEnum::DISPATCHED->value:
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
-                    $transitionCompanyStatus = new TransitionOrderStateAction(
-                        $order,
-                        $this->receiver->user,
-                        $status
-                    );
-                    $transitionCompanyStatus->execute();
+                    $transitionChildStatus = new TransitionOrderStateAction($order, $this->receiver->user, $status);
+                    $transitionChildStatus->execute();
+
+                    if ($gifteaOrder && $hasPackaging) {
+                        // Rider heading to Giftea for custom wrapping
+                        $notification = new SendOrderEmailsAction(
+                            $gifteaOrder,
+                            'owner-ready_for_pickup',
+                            [],
+                            ['mail'],
+                            "Ready for Wrapping · Orden #{$gifteaOrder->order_number}",
+                        );
+                        $notification->execute();
+                    } elseif ($gifteaOrder) {
+                        // No wrapping — rider heading directly to end user, transition parent to dispatched
+                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
+                        $transitionParentStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $parentStatus
+                        );
+                        $transitionParentStatus->execute();
+                    }
+                    break;
+                case OrderStatusEnum::DELIVERED->value:
+                    if ($hasPackaging) {
+                        // Rider arrived at Giftea with the product for wrapping
+                        $status = $orderRepository->getStatus(OrderStatusEnum::PREPARING_PACKAGING->value);
+                        $transitionCompanyStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $status
+                        );
+                        $transitionCompanyStatus->execute();
+                    } elseif ($gifteaOrder) {
+                        // No wrapping — rider delivered directly to end user
+                        $gifteaOrder->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
+                        $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
+                        $transitionParentStatus = new TransitionOrderStateAction(
+                            $gifteaOrder,
+                            $this->receiver->user,
+                            $parentStatus
+                        );
+                        $transitionParentStatus->execute();
+                    }
                     break;
                 default:
-                    // for other statuses we do not update the company order
                     return [
                         'message' => 'Tookan webhook processed successfully - no status update for giftea order',
                         'order_id' => $orderId,
@@ -100,8 +133,8 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
             }
 
             switch ($newStatus) {
-                case OrderStatusEnum::DELIVERED->value:
                 case OrderStatusEnum::DISPATCHED->value:
+                    // Rider picked up from Giftea, heading to end customer — move child to dispatched
                     $status = $orderRepository->getStatus(OrderStatusEnum::DISPATCHED->value);
                     $transitionCompanyStatus = new TransitionOrderStateAction(
                         $companyOrder,
@@ -109,6 +142,17 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                         $status
                     );
                     $transitionCompanyStatus->execute();
+                    break;
+                case OrderStatusEnum::DELIVERED->value:
+                    // Rider delivered to end customer — move parent to delivered (cascades to child + fires notifications)
+                    $order->updateQuietly(['shipped_date' => now()->toDateTimeString()]);
+                    $parentStatus = $orderRepository->getStatus(OrderStatusEnum::DELIVERED->value);
+                    $transitionParentStatus = new TransitionOrderStateAction(
+                        $order,
+                        $this->receiver->user,
+                        $parentStatus
+                    );
+                    $transitionParentStatus->execute();
                     break;
                 default:
                     return [
