@@ -82,8 +82,8 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
         $lead = $this->message->entity();
         $onChunk = function ($text, $data) use ($to, $params, $lead): void {
             $response = $this->createMessage($text, $to, $this->message, $this->channel, $params['from']);
-
-            if (! $response->is_locked) {
+            $this->message->refresh();
+            if (! $response->is_locked && $this->message->is_un_response) {
                 new SendMessageToLeadAction($lead)->execute(
                     $this->communicationChannel,
                     $text,

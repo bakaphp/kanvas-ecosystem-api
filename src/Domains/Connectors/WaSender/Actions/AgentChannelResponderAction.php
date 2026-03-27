@@ -111,7 +111,8 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
         // Define the callback to send each chunk in real time
         $onChunk = function ($text, $data) use ($channelId, $lead): void {
             $response = $this->createMessage($text, $channelId, $this->message, $this->channel);
-            if (! $response->is_locked) {
+            $this->message->refresh();
+            if (! $response->is_locked && $this->message->is_un_response) {
                 new SendMessageToLeadAction($lead)->execute($this->communicationChannel, $text);
             }
         };

@@ -52,7 +52,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $request = $this->webhookRequest->payload;
 
         $this->batchDelaySeconds = $this->receiver->company->get('twilio_batch_delay_seconds', 3) ?? 3;
-
+        sleep(2);
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
         ) {
