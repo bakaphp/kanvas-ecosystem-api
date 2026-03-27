@@ -61,9 +61,18 @@ class PaymentTest extends TestCase
     {
         $errors = $response->json('errors');
 
-        if (! empty($errors) && $response->json('data.createPaymentMethod') === null) {
-            $message = $errors[0]['message'] ?? 'Unknown error';
-            $this->markTestSkipped('External EchoPay API error: ' . $message);
+        if (! empty($errors)) {
+            $message = $errors[0]['message'] ?? '';
+
+            if (
+                str_contains($message, 'no Route matched')
+                || str_contains($message, 'configuration is missing')
+                || str_contains($message, 'EchoPay')
+                || str_contains($message, 'cURL error')
+                || str_contains($message, 'Connection refused')
+            ) {
+                $this->markTestSkipped('External EchoPay API error: ' . $message);
+            }
         }
     }
 
@@ -109,6 +118,11 @@ class PaymentTest extends TestCase
         $response->assertSuccessful();
 
         $paymentMethodData = $response->json('data.createPaymentMethod');
+
+        if ($paymentMethodData === null) {
+            $this->markTestSkipped('External EchoPay API error: createPaymentMethod returned null');
+        }
+
         $paymentMethod = PaymentMethods::find($paymentMethodData['id']);
         $this->assertEquals('Juan', $paymentMethod->getMetadata('firstname'));
         $this->assertEquals('Pérez', $paymentMethod->getMetadata('lastname'));

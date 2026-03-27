@@ -529,6 +529,71 @@ class LeadTest extends TestCase
         ]);
     }
 
+    public function testUpdateLeadWithoutTitle()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => 'Original Title ' . fake()->word(),
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+        $leadId = $response['data']['createLead']['id'];
+        $peopleId = $response['data']['createLead']['people']['id'];
+
+        $updateInput = [
+            'branch_id' => $branch->getId(),
+            'people_id' => $peopleId,
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: LeadUpdateInput!) {
+                updateLead(id: $id, input: $input) {
+                    id
+                    title
+                }
+            }
+        ', [
+            'id' => $leadId,
+            'input' => $updateInput,
+        ])->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateLead' => [
+                    'id' => $leadId,
+                    'title' => $input['title'],
+                ],
+            ],
+        ]);
+    }
+
     public function testDeleteLead()
     {
         $user = auth()->user();
