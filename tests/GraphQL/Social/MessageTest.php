@@ -1730,7 +1730,7 @@ class MessageTest extends TestCase
         @unlink($tempPath);
     }
 
-    public function testCreateMessageWithHeicFile(): void
+    public function testCreateMessageConstrainsHeicFile(): void
     {
         $heicPath = storage_path('733eddb5528b4d1d3b169a8d00da0aad.HEIC');
 
@@ -1738,38 +1738,42 @@ class MessageTest extends TestCase
             $this->markTestSkipped('HEIC test file not found at ' . $heicPath);
         }
 
-        $messageType = MessageType::factory()->create();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        $operations = [
-            'query' => '
-                mutation createMessage($input: MessageInput!) {
-                    createMessage(input: $input) {
-                        id
-                        message
-                    }
-                }
-            ',
-            'variables' => [
-                'input' => [
-                    'message' => 'test with HEIC image',
-                    'message_verb' => $messageType->verb,
-                    'system_modules_id' => 1,
-                    'entity_id' => '1',
-                    'files' => [null],
-                ],
-            ],
-        ];
+        $verb = 'twilio-sms-heic-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
 
-        $map = [
-            '0' => ['variables.input.files.0'],
-        ];
+        // Copy HEIC to temp so the test doesn't destroy the fixture
+        $tempPath = sys_get_temp_dir() . '/heic-constrain-' . uniqid() . '.HEIC';
+        copy($heicPath, $tempPath);
 
-        $file = [
-            '0' => new UploadedFile($heicPath, '733eddb5528b4d1d3b169a8d00da0aad.HEIC', 'image/heic', null, true),
-        ];
+        // Set max filesize so constrainFileSize triggers HEIC→JPEG conversion
+        $originalSize = filesize($tempPath);
+        $maxFileSize = (int) ($originalSize * 0.5);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
 
-        $this->multipartGraphQL($operations, $map, $file)
-            ->assertSuccessful()
-            ->assertJsonStructure(['data' => ['createMessage' => ['id', 'message']]]);
+        $file = new UploadedFile($tempPath, 'photo.HEIC', 'image/heic', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'test with HEIC image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
     }
 }
