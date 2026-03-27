@@ -119,6 +119,7 @@ class OrderStatsQuery
             endDate: $input['endDate'] ?? null,
             fieldMapper: isset($input['fieldMapper']) ? (array) $input['fieldMapper'] : null,
             language: $input['language'] ?? 'en',
+            userEmail: $input['user_email'] ?? null,
         )->execute();
     }
 }
