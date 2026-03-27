@@ -156,6 +156,7 @@ input EventUpdateInput {
     description: String
     resources_id: ID
     resources_type: String
+    dates: [EventVersionDateInput!]
 }
 
 type EventResource {
