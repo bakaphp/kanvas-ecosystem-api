@@ -27,8 +27,11 @@ class LeadTypeManagementMutation
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $input = $req['input'];
+        unset($input['companies_id']);
 
-        $leadType = LeadTypeModel::getByUuidFromCompanyApp($req['id'], company: $company, app: $app);
+        $leadType = is_numeric($req['id'])
+            ? LeadTypeModel::getByIdFromCompanyApp((int) $req['id'], $company, $app)
+            : LeadTypeModel::getByUuidFromCompanyApp($req['id'], company: $company, app: $app);
         $leadType->update($input);
 
         return $leadType;
@@ -38,7 +41,9 @@ class LeadTypeManagementMutation
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        $leadType = LeadTypeModel::getByUuidFromCompanyApp($req['id'], company: $company, app: $app);
+        $leadType = is_numeric($req['id'])
+            ? LeadTypeModel::getByIdFromCompanyApp((int) $req['id'], $company, $app)
+            : LeadTypeModel::getByUuidFromCompanyApp($req['id'], company: $company, app: $app);
 
         return $leadType->delete();
     }
