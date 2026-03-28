@@ -161,6 +161,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     $filesystem['media'],
                     $filesystem['media']->name
                 );
+
+                if (isset($lead)) {
+                    $lead->addFile(
+                        $filesystem['media'],
+                        $filesystem['media']->name
+                    );
+                }
             } catch (Exception $e) {
                 report($e);
             }
