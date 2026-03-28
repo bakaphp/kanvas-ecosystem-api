@@ -4275,16 +4275,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.71",
+            "version": "1.0.72",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "68e47cdbf47ea34bc6b2423f45691819c4e5620d"
+                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/68e47cdbf47ea34bc6b2423f45691819c4e5620d",
-                "reference": "68e47cdbf47ea34bc6b2423f45691819c4e5620d",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
+                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
                 "shasum": ""
             },
             "require": {
@@ -4326,9 +4326,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.71"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.72"
             },
-            "time": "2026-03-20T01:59:58+00:00"
+            "time": "2026-03-27T19:50:28+00:00"
         },
         {
             "name": "laravel/ai",
