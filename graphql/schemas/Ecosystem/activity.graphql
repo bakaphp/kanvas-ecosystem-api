@@ -40,7 +40,6 @@ extend type Query @guard {
                 "subject_id"
                 "causer_id"
                 "event"
-                "batch_uuid"
             ]
         )
         orderBy: _@orderBy(
