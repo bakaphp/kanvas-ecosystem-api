@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "51719c8eb532e0a28ca0a34f7d248c2a",
+    "content-hash": "2b41ec2402b6864364634a470cef2119",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.374.0",
+            "version": "3.374.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "18525c8cc2a3aa2c1db23ceca5f57c5f8380d9c4"
+                "reference": "67b6b6210af47319c74c5666388d71bc1bc58276"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/18525c8cc2a3aa2c1db23ceca5f57c5f8380d9c4",
-                "reference": "18525c8cc2a3aa2c1db23ceca5f57c5f8380d9c4",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/67b6b6210af47319c74c5666388d71bc1bc58276",
+                "reference": "67b6b6210af47319c74c5666388d71bc1bc58276",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.374.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.374.2"
             },
-            "time": "2026-03-25T18:05:48+00:00"
+            "time": "2026-03-27T18:05:55+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2860,20 +2860,20 @@
         },
         {
             "name": "grpc/grpc",
-            "version": "1.74.0",
+            "version": "1.78.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/grpc/grpc-php.git",
-                "reference": "32bf4dba256d60d395582fb6e4e8d3936bcdb713"
+                "reference": "9891a9aa0de41c4ceb07a50dbb5a3aa96c229082"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/32bf4dba256d60d395582fb6e4e8d3936bcdb713",
-                "reference": "32bf4dba256d60d395582fb6e4e8d3936bcdb713",
+                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/9891a9aa0de41c4ceb07a50dbb5a3aa96c229082",
+                "reference": "9891a9aa0de41c4ceb07a50dbb5a3aa96c229082",
                 "shasum": ""
             },
             "require": {
-                "php": ">=7.0.0"
+                "php": ">=7.1.0"
             },
             "require-dev": {
                 "google/auth": "^v1.3.0"
@@ -2898,9 +2898,9 @@
                 "rpc"
             ],
             "support": {
-                "source": "https://github.com/grpc/grpc-php/tree/v1.74.0"
+                "source": "https://github.com/grpc/grpc-php/tree/v1.78.0"
             },
-            "time": "2025-07-24T20:02:16+00:00"
+            "time": "2026-03-25T08:47:43+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -3867,77 +3867,6 @@
                 "source": "https://github.com/Jean85/pretty-package-versions/tree/2.1.1"
             },
             "time": "2025-03-19T14:43:43+00:00"
-        },
-        {
-            "name": "joelwmale/laravel-cart",
-            "version": "2.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/joelwmale/laravel-cart.git",
-                "reference": "6dfd0ce761ee514d7168eee30cf29f68a9c18865"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/joelwmale/laravel-cart/zipball/6dfd0ce761ee514d7168eee30cf29f68a9c18865",
-                "reference": "6dfd0ce761ee514d7168eee30cf29f68a9c18865",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/auth": "^11.0|^12.0|^13.0",
-                "illuminate/container": "^11.0|^12.0|^13.0",
-                "illuminate/database": "^11.0|^12.0|^13.0",
-                "illuminate/support": "^11.0|^12.0|^13.0",
-                "illuminate/validation": "^11.0|^12.0|^13.0",
-                "php": ">=8.3"
-            },
-            "require-dev": {
-                "larapack/dd": "dev-master",
-                "laravel/pint": "^1.21",
-                "mockery/mockery": "^1.6",
-                "pestphp/pest": "^3.0"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "aliases": {
-                        "Cart": "Joelwmale\\Cart\\Facades\\CartFacade"
-                    },
-                    "providers": [
-                        "Joelwmale\\Cart\\CartServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Joelwmale\\Cart\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Darryl Fernandez",
-                    "email": "engrdarrylfernandez@gmail.com"
-                },
-                {
-                    "name": "Joel Male",
-                    "email": "joel@joelmale.com"
-                }
-            ],
-            "description": "A cart implementation for Laravel",
-            "keywords": [
-                "cart",
-                "laravel",
-                "shopping cart"
-            ],
-            "support": {
-                "issues": "https://github.com/joelwmale/laravel-cart/issues",
-                "source": "https://github.com/joelwmale/laravel-cart/tree/v2.0.0"
-            },
-            "abandoned": "wearepixel/laravel-cart",
-            "time": "2026-03-23T06:30:38+00:00"
         },
         {
             "name": "kiwilan/php-xml-reader",
@@ -16821,6 +16750,76 @@
             "time": "2024-11-21T01:49:47+00:00"
         },
         {
+            "name": "wearepixel/laravel-cart",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/wearepixel/laravel-cart.git",
+                "reference": "6638f812c89283867d6b434190d81b5a5580db5b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/wearepixel/laravel-cart/zipball/6638f812c89283867d6b434190d81b5a5580db5b",
+                "reference": "6638f812c89283867d6b434190d81b5a5580db5b",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/auth": "^11.0|^12.0|^13.0",
+                "illuminate/container": "^11.0|^12.0|^13.0",
+                "illuminate/database": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "illuminate/validation": "^11.0|^12.0|^13.0",
+                "php": ">=8.3"
+            },
+            "require-dev": {
+                "larapack/dd": "dev-master",
+                "laravel/pint": "^1.21",
+                "mockery/mockery": "^2.0",
+                "pestphp/pest": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Cart": "Wearepixel\\Cart\\Facades\\CartFacade"
+                    },
+                    "providers": [
+                        "Wearepixel\\Cart\\CartServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Wearepixel\\Cart\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Darryl Fernandez",
+                    "email": "engrdarrylfernandez@gmail.com"
+                },
+                {
+                    "name": "Joel Male",
+                    "email": "joel@joelmale.com"
+                }
+            ],
+            "description": "A cart implementation for Laravel",
+            "keywords": [
+                "cart",
+                "laravel",
+                "shopping cart"
+            ],
+            "support": {
+                "issues": "https://github.com/wearepixel/laravel-cart/issues",
+                "source": "https://github.com/wearepixel/laravel-cart/tree/v2.1.0"
+            },
+            "time": "2026-03-24T04:06:08+00:00"
+        },
+        {
             "name": "weble/zohoclient",
             "version": "4.3.1",
             "source": {
@@ -19904,5 +19903,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

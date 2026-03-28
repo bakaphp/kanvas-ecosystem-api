@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use Joelwmale\Cart\CartServiceProvider as CartCartServiceProvider;
 use Kanvas\Souk\Cart\Services\CustomCart;
 use Kanvas\Souk\Cart\Support\RedisStorage;
 use Override;
+use Wearepixel\Cart\CartServiceProvider as CartCartServiceProvider;
 
 class CartServiceProvider extends CartCartServiceProvider
 {
