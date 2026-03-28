@@ -25,6 +25,8 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
+    latitude: Float
+    longitude: Float
     config: Mixed
     status_history: [StatusHistoryRelationship!]!
         @method(name: "getStatusHistory")
@@ -48,6 +50,8 @@ input VariantsWarehousesInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
+    latitude: Float
+    longitude: Float
 }
 
 extend type Mutation @guard {
