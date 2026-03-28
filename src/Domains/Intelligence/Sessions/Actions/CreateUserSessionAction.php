@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -22,17 +23,8 @@ class CreateUserSessionAction
 
     public function execute(): Session
     {
-        $uuid = implode('-', [
-            'user-chat',
-            $this->user->getId(),
-            $this->agent->getId(),
-            $this->app->getId(),
-            $this->company->getId(),
-            now()->timestamp,
-        ]);
-
         return Session::create([
-            'uuid' => $uuid,
+            'uuid' => Str::uuid()->toString(),
             'apps_id' => $this->app->getId(),
             'agents_id' => $this->agent->getId(),
             'companies_id' => $this->company->getId(),
