@@ -60,6 +60,10 @@ class ProductBuilder
             $query->filterByNearLocation($args['nearByLocation']);
         }
 
+        if (! empty($args['nearByWarehouseLocation'])) {
+            $query->filterByNearWarehouseLocation($args['nearByWarehouseLocation']);
+        }
+
         $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
         $query = $roleBasedBuilder->applyRoleScope($query, $args);
 

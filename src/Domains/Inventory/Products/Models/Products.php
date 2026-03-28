@@ -377,6 +377,53 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->orderByRaw('location_distance.distance ASC');
     }
 
+    public function scopeFilterByNearWarehouseLocation(Builder $query, array $location): Builder
+    {
+        $earthRadius = 6371; // km
+        $lat = (float) $location['lat'];
+        $long = (float) $location['long'];
+        $radius = (float) $location['radius'];
+
+        // Bounding box pre-filter
+        $latDelta = $radius / 111.0;
+        $longDelta = $radius / (111.0 * cos(deg2rad($lat)));
+        $minLat = $lat - $latDelta;
+        $maxLat = $lat + $latDelta;
+        $minLong = $long - $longDelta;
+        $maxLong = $long + $longDelta;
+
+        $distanceSubquery = DB::connection('inventory')->table('products_variants_warehouses as pvw')
+            ->join('products_variants as pv', 'pv.id', '=', 'pvw.products_variants_id')
+            ->selectRaw("
+                pv.products_id,
+                MIN({$earthRadius} * acos(
+                    least(1, cos(radians(?)) *
+                    cos(radians(pvw.latitude)) *
+                    cos(radians(pvw.longitude) - radians(?)) +
+                    sin(radians(?)) *
+                    sin(radians(pvw.latitude))
+                    )
+                )) AS distance
+            ", [$lat, $long, $lat])
+            ->whereNotNull('pvw.latitude')
+            ->whereNotNull('pvw.longitude')
+            ->where('pvw.is_deleted', 0)
+            ->where('pv.is_deleted', 0)
+            ->whereBetween('pvw.latitude', [$minLat, $maxLat])
+            ->whereBetween('pvw.longitude', [$minLong, $maxLong])
+            ->groupBy('pv.products_id')
+            ->havingRaw("distance <= ?", [$radius]);
+
+        return $query
+            ->where('products.is_deleted', 0)
+            ->joinSub($distanceSubquery, 'warehouse_location', function ($join) {
+                $join->on('products.id', '=', 'warehouse_location.products_id');
+            })
+            ->select('products.*', 'warehouse_location.distance')
+            ->reorder()
+            ->orderByRaw('warehouse_location.distance ASC');
+    }
+
     /**
      * variants.
      */
