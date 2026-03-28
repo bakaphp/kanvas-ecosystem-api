@@ -35,7 +35,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 10,
                 'price' => 0.29,
@@ -141,7 +141,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 100,
                 'price' => 100,
@@ -306,7 +306,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 100,
                 'price' => 100,
@@ -420,7 +420,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 100,
                 'price' => 200,
@@ -527,7 +527,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 100,
                 'price' => 100,
@@ -594,7 +594,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 10,
                 'price' => 0.29,
@@ -691,7 +691,7 @@ class OrderWalletTest extends TestCase
             company: $company,
             user: $user,
             name: 'Wallet Coin Pack ' . fake()->word(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 100,
                 'price' => 9.99,
@@ -966,7 +966,7 @@ class OrderWalletTest extends TestCase
                 company: $company,
                 user: $user,
                 name: fake()->name(),
-                sku: fake()->unique()->word(),
+                sku: fake()->unique()->uuid(),
                 warehouses: [[
                     'quantity' => 10,
                     'price' => 100.00,

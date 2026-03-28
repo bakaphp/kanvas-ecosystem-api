@@ -176,6 +176,7 @@ class UserAgentChatTest extends TestCase
         ]);
 
         $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
 
         $sessionId = $response->json('data.aiAgentUserChat.session_id');
         $this->assertNotEmpty($sessionId);
@@ -262,6 +263,7 @@ class UserAgentChatTest extends TestCase
         ]);
 
         $createSessionResponse->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $createSessionResponse->json(), 'GraphQL errors: ' . $createSessionResponse->getContent());
         $sessionId = $createSessionResponse->json('data.aiAgentCreateSession');
         $this->assertNotEmpty($sessionId);
 
