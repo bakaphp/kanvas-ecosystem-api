@@ -5,6 +5,7 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\Actions\CalculateOrderCommissionAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
@@ -67,6 +68,9 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
 
                     $order->status = OrderStatusEnum::PENDING->value;
                     $order->saveQuietly();
+
+                    $order->refresh();
+                    new CalculateOrderCommissionAction($order)->execute();
                 }
 
                 if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {

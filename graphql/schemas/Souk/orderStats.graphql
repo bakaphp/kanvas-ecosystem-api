@@ -188,7 +188,23 @@ input ExportOrderPaymentsInput {
     user_email: String # Filter by order user email (supports LIKE patterns)
 }
 
+type OrderCommissionStats {
+    total_revenue: Float!
+    total_commission: Float!
+    total_provider_amount: Float!
+    order_count: Int!
+}
+
 extend type Query @guard {
+    orderCommissionStats(
+        from: DateTime!
+        to: DateTime!
+        company_id: ID
+        order_type: String
+    ): OrderCommissionStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@commissionStats"
+        )
     orderStats(input: OrderStatsInput): OrderStats!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"

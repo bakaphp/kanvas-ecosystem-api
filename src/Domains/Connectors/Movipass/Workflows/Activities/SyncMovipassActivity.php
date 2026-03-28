@@ -9,6 +9,7 @@ use Baka\Helpers\GenerateQrCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\CalculateOrderCommissionAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -80,6 +81,11 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                     $this->applyDiscountFromMetadata($order);
 
                     $order->saveQuietly();
+
+                    if (! ($order->metadata['data']['is_manual'] ?? false)) {
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
+                    }
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
@@ -93,6 +99,9 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                             MovipassOrderStatusEnum::COMPLETED->value
                         );
                         $order->saveQuietly();
+
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
                     } elseif (! $isManual && $endAt
                         && $order->payment_status === PaymentStatusEnum::PAID->value
                         && $order->orderStatus?->slug === MovipassOrderStatusEnum::CREATED->value
