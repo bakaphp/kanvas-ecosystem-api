@@ -15,6 +15,7 @@ type People {
     address: [Address!]! @hasMany
     created_at: DateTime!
     updated_at: DateTime
+    photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
@@ -261,5 +262,9 @@ extend type Mutation @guard {
     deleteContact(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deleteContact"
+        )
+    updatePeoplePhoto(id: ID!, file: Upload!): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updatePeoplePhoto"
         )
 }
