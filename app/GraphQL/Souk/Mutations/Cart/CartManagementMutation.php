@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Joelwmale\Cart\CartCondition;
+use Wearepixel\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;

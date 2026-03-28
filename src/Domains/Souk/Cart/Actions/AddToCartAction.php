@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Actions;
 
-use Joelwmale\Cart\Cart;
+use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;

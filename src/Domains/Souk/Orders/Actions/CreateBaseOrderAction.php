@@ -9,7 +9,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Joelwmale\Cart\Cart;
+use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
