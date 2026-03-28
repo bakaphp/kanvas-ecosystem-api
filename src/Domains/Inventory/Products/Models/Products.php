@@ -329,25 +329,30 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $query;
     }
 
-    // @TODO: optimize this using another engine
     public function scopeFilterByNearLocation(Builder $query, array $location): Builder
     {
-        $EarthRadius = 6371; // km
-        $lat = $location['lat'];
-        $long = $location['long'];
-        $radius = $location['radius'];
+        $earthRadius = 6371; // km
+        $lat = (float) $location['lat'];
+        $long = (float) $location['long'];
+        $radius = (float) $location['radius'];
 
-        // Data is stored as double-encoded JSON: {"en": "{\"lat\": \"18.560100\",\"long\": \"-68.372500\"}"}
-        // First JSON_UNQUOTE(JSON_EXTRACT(value, '$.en')) gives us the inner JSON string
-        // Then we extract lat/long from that inner JSON
-        $innerJson = "JSON_UNQUOTE(JSON_EXTRACT(value, '$.en'))";
-        $latExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.lat')) AS DECIMAL(10,6))";
-        $longExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.long')) AS DECIMAL(10,6))";
+        // Bounding box pre-filter: approximate degree offsets to eliminate distant rows early
+        $latDelta = $radius / 111.0;
+        $longDelta = $radius / (111.0 * cos(deg2rad($lat)));
+        $minLat = $lat - $latDelta;
+        $maxLat = $lat + $latDelta;
+        $minLong = $long - $longDelta;
+        $maxLong = $long + $longDelta;
 
-        $distanceSubquery = DB::connection('inventory')->table('products_attributes')
+        // Data is stored as JSON: {"en": {"lat": 18.560100, "long": -68.372500}}
+        $latExtract = "CAST(JSON_EXTRACT(pa.value, '$.en.lat') AS DECIMAL(10,6))";
+        $longExtract = "CAST(JSON_EXTRACT(pa.value, '$.en.long') AS DECIMAL(10,6))";
+
+        $distanceSubquery = DB::connection('inventory')->table('products_attributes as pa')
+            ->join('attributes as a', 'a.id', '=', 'pa.attributes_id')
             ->selectRaw("
-                products_id,
-                ({$EarthRadius} * acos(
+                pa.products_id,
+                ({$earthRadius} * acos(
                     least(1, cos(radians(?)) *
                     cos(radians({$latExtract})) *
                     cos(radians({$longExtract}) - radians(?)) +
@@ -356,13 +361,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     )
                 )) AS distance
             ", [$lat, $long, $lat])
-            ->whereRaw("JSON_VALID(value)")
-            ->whereRaw("JSON_EXTRACT(value, '$.en') IS NOT NULL")
-            ->whereRaw("JSON_VALID({$innerJson})")
-            ->whereRaw("JSON_EXTRACT({$innerJson}, '$.lat') IS NOT NULL")
-            ->whereRaw("JSON_EXTRACT({$innerJson}, '$.long') IS NOT NULL")
-            ->whereRaw("{$latExtract} != 0")
-            ->whereRaw("{$longExtract} != 0")
+            ->where('a.slug', 'coordinates')
+            ->whereRaw("JSON_VALID(pa.value)")
+            ->whereRaw("JSON_EXTRACT(pa.value, '$.en.lat') IS NOT NULL")
+            ->whereRaw("{$latExtract} BETWEEN ? AND ?", [$minLat, $maxLat])
+            ->whereRaw("{$longExtract} BETWEEN ? AND ?", [$minLong, $maxLong])
             ->havingRaw("distance <= ?", [$radius]);
 
         return $query
