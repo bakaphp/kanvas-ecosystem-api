@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Services;
 
+use Kanvas\Souk\Cart\Support\RedisStorage;
 use Wearepixel\Cart\Cart;
 use Wearepixel\Cart\CartSession;
-use Kanvas\Souk\Cart\Support\RedisStorage;
 
 class CustomCart extends Cart
 {
