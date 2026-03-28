@@ -20,4 +20,5 @@ enum ConfigurationEnum: string
     case GIF_DURATION_SECONDS = 'engagement_gif_duration_seconds';
     case ENABLE_VIDEO_GIF_GENERATION = 'engagement_enable_video_gif_generation';
     case DATE_ADK_AGENT_RESPONSES = 'date_adk_agent_responses';
+    case CHANNEL_ORDER = 'guild_channel_order';
 }

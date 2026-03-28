@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -88,11 +89,22 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     ]);
                 }
 
-                $channels = [
-                    'email' => $email,
+                $channelOrder = $lead->company->get(
+                    CompanyConfigurationEnum::CHANNEL_ORDER->value
+                ) ?? ['sms', 'email'];
+
+                $availableChannels = [
                     'sms' => $cellPhone,
+                    'email' => $email,
                     //'whatsapp' => $cellPhone,
                 ];
+
+                $channels = [];
+                foreach ($channelOrder as $ch) {
+                    if (isset($availableChannels[$ch])) {
+                        $channels[$ch] = $availableChannels[$ch];
+                    }
+                }
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
                 $totalSentMessages = 0;
