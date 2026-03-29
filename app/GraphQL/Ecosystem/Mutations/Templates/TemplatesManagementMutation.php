@@ -21,6 +21,7 @@ class TemplatesManagementMutation
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
 
+        $app = app(Apps::class);
         $user = auth()->user();
 
         //We need to save the subject and content into email_template_variables
@@ -28,34 +29,35 @@ class TemplatesManagementMutation
         //The subject, content and template should be then used for notifications
 
         $templateData = TemplateInput::from([
-            'app' => app(Apps::class),
+            'app' => $app,
             'name' => $request['name'],
             'template' => $request['template'],
             'subject' => $request['subject'] ?? null,
             'title' => $request['title'] ?? null,
             'isSystem' => $request['is_system'] ?? false,
+            'parentTemplateId' => $request['parent_template_id'] ?? null,
             'company' => $user->getCurrentCompany(),
             'user' => $user,
         ]);
 
-        $template = (new CreateTemplateAction(
+        $template = new CreateTemplateAction(
             $templateData
-        ))->execute();
+        )->execute();
 
         foreach ($request['template_variables'] as $templateVariable) {
             $templateVariablesDto = new TemplatesVariablesDto(
                 $templateVariable['key'],
                 $templateVariable['value'],
                 $template->id,
-                app(Apps::class),
+                $app,
                 $user->getCurrentCompany(),
                 $user
             );
 
             //Create the template variable here
-            $createTemplateVariableAction = (new CreateTemplateVariableAction(
+            new CreateTemplateVariableAction(
                 $templateVariablesDto
-            ))->execute();
+            )->execute();
         }
 
         return $template;
@@ -78,11 +80,12 @@ class TemplatesManagementMutation
         );
 
         $templateData = TemplateInput::from([
-            'app' => app(Apps::class),
+            'app' => $app,
             'name' => $request['name'],
             'template' => $request['template'],
             'subject' => $request['subject'] ?? null,
             'title' => $request['title'] ?? null,
+            'parentTemplateId' => $request['parent_template_id'] ?? null,
             'isSystem' => $request['is_system'] ?? false,
             'company' => $user->getCurrentCompany(),
             'user' => $user,
@@ -102,15 +105,15 @@ class TemplatesManagementMutation
                 $templateVariable['key'],
                 $templateVariable['value'],
                 $template->id,
-                app(Apps::class),
+                $app,
                 $user->getCurrentCompany(),
                 $user
             );
 
             //Create the template variable here
-            $createTemplateVariableAction = (new CreateTemplateVariableAction(
+            new CreateTemplateVariableAction(
                 $templateVariablesDto
-            ))->execute();
+            )->execute();
         }
 
         return $template;

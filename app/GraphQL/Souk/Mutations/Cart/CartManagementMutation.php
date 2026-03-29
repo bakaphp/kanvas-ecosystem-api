@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
@@ -15,6 +14,7 @@ use Kanvas\Souk\Cart\Enums\CartConditionEnum;
 use Kanvas\Souk\Cart\Services\CartService;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
+use Wearepixel\Cart\CartCondition;
 
 class CartManagementMutation
 {

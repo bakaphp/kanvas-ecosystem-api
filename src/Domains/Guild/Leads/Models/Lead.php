@@ -204,14 +204,16 @@ class Lead extends BaseModel implements EventResourceInterface
     public function socialChannels(): HasMany
     {
         return $this->hasMany(Channel::class, 'entity_id', 'string_id')
-            ->whereIn(
-                'entity_namespace',
-                [
-                    self::class,
-                    SystemModules::getLegacyNamespace(self::class),
-                ]
-            )
+            ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)])
             ->where('is_deleted', 0);
+            ->orderByRaw("
+                CASE
+                    WHEN slug LIKE 'email%' THEN 1
+                    WHEN slug LIKE 'sms%' THEN 2
+                    WHEN slug LIKE 'whatsapp%' THEN 3
+                    ELSE 4
+                END
+            ");
     }
 
     public function aiSession(): HasMany

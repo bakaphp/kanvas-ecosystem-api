@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
-use Joelwmale\Cart\Cart;
-use Joelwmale\Cart\CartCondition;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Wearepixel\Cart\Cart;
+use Wearepixel\Cart\CartCondition;
 
 class AddCostToCartAction
 {

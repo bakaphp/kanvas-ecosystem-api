@@ -78,7 +78,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
-            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail))
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
             ->with(['items'])
             ->where('orders.apps_id', $this->app->id);
 
@@ -191,7 +191,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
-            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail));
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
 
         // Build CASE WHEN for provider matching
         $caseStatements = [];
@@ -263,7 +263,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
-            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail));
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -382,7 +382,7 @@ class OrderPaymentRepository
                         ->select('order_id')
                 );
             })
-            ->when($userEmail, fn ($q) => $q->where('orders.user_email', $userEmail))
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
             ->where('orders.apps_id', $this->app->id)
             ->where(function ($q) {
                 $q->whereNotNull('paid_transition.changed_at')
