@@ -25,7 +25,9 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Services\DailyReportService;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -185,6 +187,24 @@ class SendDelayMessageCommand extends Command
                         LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value,
                         $message->created_at
                     );
+
+                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+                    }
+
+                    if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
+                        $communicationChannelNumber = $message->message['chat_jid'] ?? null;
+                        if ($communicationChannelNumber) {
+                            $channelSlug = SessionChannelService::createChannelSlug($communicationChannel, $communicationChannelNumber);
+                            $existingChannel = Channel::fromApp($lead->app)
+                                ->fromCompany($lead->company)
+                                ->where('slug', $channelSlug)
+                                ->first();
+                            if ($existingChannel) {
+                                $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $existingChannel->uuid);
+                            }
+                        }
+                    }
 
                     //dispatch workflow
                     $message->fireWorkflow(
