@@ -30,7 +30,7 @@ class CreateTemplateAction
         $attributes = [
             'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
             'template' => $this->template->template,
-            'parent_template_id' => $this->template->parentTemplateId ?? $parent?->getKey(),
+            'parent_template_id' => $this->template->parentTemplateId ?? $parent?->getKey() ?? 0,
             'is_system' => $this->template->isSystem,
         ];
 
