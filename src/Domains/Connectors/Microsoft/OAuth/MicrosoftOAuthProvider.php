@@ -44,6 +44,7 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
             'response_mode' => 'query',
             'scope' => $scopes,
             'state' => $nonce,
+            'prompt' => 'select_account',
         ]);
     }
 
