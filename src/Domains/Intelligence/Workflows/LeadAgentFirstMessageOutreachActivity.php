@@ -171,8 +171,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         ]);
                         $channel = new CreateChannelAction($channel)->execute();
 
-                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
-                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
+                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value, $channel->uuid);
                         }
 
                         $sessionDto = Session::from([
