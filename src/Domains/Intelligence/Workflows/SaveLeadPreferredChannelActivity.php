@@ -28,6 +28,13 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
             ]);
         }
 
+        if ($message->message['from_ia'] ?? false) {
+            return [
+                'success' => true,
+                'message' => 'Skipped: message is from agent (Sally)',
+            ];
+        }
+
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
@@ -43,6 +50,7 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
                 }
 
                 $messageEntity->set(ConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+                $messageEntity->set(ConfigurationEnum::LAST_CHANNEL_USED->value, $channel->uuid);
 
                 return [
                     'success' => true,

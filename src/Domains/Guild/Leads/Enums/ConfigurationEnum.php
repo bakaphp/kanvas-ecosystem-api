@@ -16,5 +16,6 @@ enum ConfigurationEnum: string
     case FOLLOW_UP_LEAD_TYPE = 'guild_follow_up_lead_type';
     case PREFERRED_CHANNEL = 'guild_preferred_channel';
     case IS_FROM_WHATSAPP = 'guild_is_from_whatsapp';
+    case LAST_CHANNEL_USED = 'guild_last_channel_used';
     case GUILD_PREFERED_CHANNEL_UUID = 'guild_prefered_channel_uuid';
 }
