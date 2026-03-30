@@ -338,6 +338,20 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                     $insurance = $pendingDataByIccid[$esimIccid];
                 }
 
+                // Priority 3: check esim-level new_data.data.insurancePendingData
+                // (structure varies: sometimes stored per-esim instead of at order metadata level)
+                if (! $insurance &&
+                    isset($esim['new_data']['data']['insurancePendingData']) &&
+                    is_array($esim['new_data']['data']['insurancePendingData'])) {
+                    foreach ($esim['new_data']['data']['insurancePendingData'] as $pd) {
+                        $pd = $this->convertObjectsToArrays($pd);
+                        if (isset($pd['insurance']) && $this->hasEssentialInsuranceFields($pd['insurance'])) {
+                            $insurance = $pd['insurance'];
+                            break;
+                        }
+                    }
+                }
+
                 // Fallback to eSimDetails.insurance (may only have plan/product without personal data)
                 if (! $insurance && isset($esim['eSimDetails']['insurance']) && ! is_null($esim['eSimDetails']['insurance'])) {
                     $candidate = $esim['eSimDetails']['insurance'];
