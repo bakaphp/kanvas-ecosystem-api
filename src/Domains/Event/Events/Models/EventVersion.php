@@ -64,6 +64,11 @@ class EventVersion extends BaseModel
         return $this->hasMany(EventVersionParticipant::class, 'event_version_id');
     }
 
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(EventReminder::class, 'event_version_id');
+    }
+
     #[Override]
     protected function casts(): array
     {

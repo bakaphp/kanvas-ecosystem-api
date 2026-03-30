@@ -10,4 +10,5 @@ enum EmailTemplateEnum: string
     case BOOKING_CREATED = 'booking_created';
     case BOOKING_UPDATED = 'booking_updated';
     case BOOKING_CANCELLED = 'booking_cancelled';
+    case BOOKING_REMINDER = 'booking_reminder';
 }
