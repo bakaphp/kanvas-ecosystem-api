@@ -6,7 +6,6 @@ use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
-use App\Console\Commands\Event\SendBookingRemindersCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -38,7 +37,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
-        $schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
+        //$schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
         #$schedule->command(ImportPromptsFromDocsCommand::class)->weeklyOn(1, '00:00');
