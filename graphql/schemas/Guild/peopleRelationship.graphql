@@ -1,0 +1,29 @@
+input PeopleRelationshipInput {
+    name: String!
+    description: String
+}
+
+input UpdatePeopleRelationshipInput {
+    name: String
+    description: String
+}
+
+extend type Mutation @guard {
+    createPeopleRelationship(
+        input: PeopleRelationshipInput!
+    ): PeopleRelationship!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleRelationshipMutation@create"
+        )
+    updatePeopleRelationship(
+        id: ID!
+        input: UpdatePeopleRelationshipInput!
+    ): PeopleRelationship!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleRelationshipMutation@update"
+        )
+    deletePeopleRelationship(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleRelationshipMutation@delete"
+        )
+}

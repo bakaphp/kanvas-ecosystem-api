@@ -11,7 +11,6 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ServerException;
-use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -128,24 +127,25 @@ class GoogleADKService
         string $message,
         ?callable $onChunk = null
     ): string {
-        $response = Http::withHeaders([
-            'Accept' => 'text/event-stream',
-            'Content-Type' => 'application/json',
-        ])->withOptions([
-            'stream' => true,
-        ])->post($this->baseUrl . '/run_sse', [
-            'app_name' => $this->appName,
-            'user_id' => $userId,
-            'session_id' => $sessionId,
-            'new_message' => [
-                'role' => 'user',
-                'parts' => [['text' => $message]],
+        $response = $this->client->post('/run_sse', [
+            'headers' => [
+                'Accept' => 'text/event-stream',
             ],
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                ],
+            ],
+            'stream' => true,
         ]);
 
         $completeResponse = '';
-        $buffer = ''; // Buffer to handle incomplete JSON across chunks
-        $stream = $response->toPsrResponse()->getBody();
+        $buffer = '';
+        $stream = $response->getBody();
 
         while (! $stream->eof()) {
             $chunk = $stream->read(1024);

@@ -73,6 +73,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use NotificationChannels\Expo\ExpoPushToken;
 use Override;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -884,8 +885,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
-        $user = $this->getAppProfile($app ?? app(Apps::class));
+        $app = $app ?? app(Apps::class);
+        $user = $this->getAppProfile($app);
         $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
+
+        if ($app && ! $app->get('DISABLE_TWO_FACTOR_AUTH')) {
+            return false;
+        }
 
         if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
             return false;
@@ -1158,12 +1164,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getRolesToArray(): array
     {
-        // Check if roles are already loaded to avoid N+1
+        //$app = app(Apps::class);
+        //Bouncer::scope()->to(RolesEnums::getScope($app));
+
         if ($this->relationLoaded('roles')) {
             return $this->roles->toArray();
         }
 
-        // If not loaded, load them efficiently
         return $this->getRoles()->toArray();
     }
 

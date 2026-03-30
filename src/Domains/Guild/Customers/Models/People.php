@@ -15,6 +15,9 @@ use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -768,5 +771,13 @@ class People extends BaseModel
             'driversLicenseNumber' => $licenseNumber,
             'driversLicenseState' => $licenseState,
         ];
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 }

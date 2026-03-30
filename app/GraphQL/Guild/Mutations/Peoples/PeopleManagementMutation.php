@@ -227,4 +227,24 @@ class PeopleManagementMutation
 
         return $deleted;
     }
+
+    public function updatePeoplePhoto(mixed $root, array $req): ModelsPeople
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        /** @var ModelsPeople $people */
+        $people = ModelsPeople::getByIdFromCompanyApp((int) $req['id'], $company, $app);
+
+        $this->uploadImageToEntity(
+            $people,
+            $app,
+            $user,
+            $req['file'],
+            'photo'
+        );
+
+        return $people;
+    }
 }
