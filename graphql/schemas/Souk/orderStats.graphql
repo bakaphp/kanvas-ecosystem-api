@@ -185,6 +185,7 @@ input ExportOrderPaymentsInput {
     timezone: String
     language: String # "en" (default) or "es"
     fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
+    user_email: String # Filter by order user email (supports LIKE patterns)
 }
 
 extend type Query @guard {

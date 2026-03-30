@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Models\Languages;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -450,5 +452,77 @@ class ProductsTest extends TestCase
             $productData['slug'] . '-copy',
             $response->json()['data']['duplicateProduct']['slug']
         );
+    }
+
+    public function testFilterByNearByWarehouseLocation(): void
+    {
+        $productResponse = $this->createProduct([
+            'name' => 'Warehouse Location Test ' . fake()->word(),
+            'description' => fake()->text,
+            'sku' => fake()->time,
+        ])->json();
+
+        $productId = $productResponse['data']['createProduct']['id'];
+        $product = Products::find($productId);
+        $variant = $product->variants()->first();
+
+        $this->setupInventory();
+        $warehouse = Warehouses::getDefault($product->company);
+
+        // Add variant to warehouse with lat/long coordinates
+        $this->graphQL('
+            mutation addVariantToWarehouse($id: ID!, $data: WarehouseReferenceInput!) {
+                addVariantToWarehouse(id: $id, input: $data) {
+                    id
+                    warehouses {
+                        latitude
+                        longitude
+                    }
+                }
+            }
+        ', [
+            'id' => $variant->getId(),
+            'data' => [
+                'id' => $warehouse->getId(),
+                'price' => 100,
+                'quantity' => 10,
+                'latitude' => 18.463449,
+                'longitude' => -66.117866,
+            ],
+        ])->assertSuccessful();
+
+        // Search with a small radius — should NOT find the product
+        $response = $this->graphQL('
+            query {
+                products(
+                    nearByWarehouseLocation: { lat: 18.5, long: -66.15, radius: 1 }
+                ) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $matchingIds = collect($response->json('data.products.data'))->pluck('id')->toArray();
+        $this->assertNotContains($productId, $matchingIds);
+
+        // Search with a larger radius — SHOULD find the product
+        $response = $this->graphQL('
+            query {
+                products(
+                    nearByWarehouseLocation: { lat: 18.5, long: -66.15, radius: 10 }
+                ) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $matchingIds = collect($response->json('data.products.data'))->pluck('id')->toArray();
+        $this->assertContains($productId, $matchingIds);
     }
 }

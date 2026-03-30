@@ -32,7 +32,7 @@ class CreateCrmNoteAction
      * Create a note in the CRM system if the company setting is enabled.
      * Detects which CRM the lead is from (DriveCentric, eLead, VinSolution, or DealerSocket).
      */
-    public function execute(): ?array
+    public function execute(?string $note = null): ?array
     {
         $company = $this->lead->company;
 
@@ -43,7 +43,7 @@ class CreateCrmNoteAction
 
         // Generate the AI chat link
         $aiChatLink = SessionChannelService::generateChannelLink($this->lead, $this->app);
-        $note = $this->buildCrmNote($aiChatLink);
+        $note = $note ?? $this->buildCrmNote($aiChatLink);
 
         // Detect which CRM the lead is from
         $crm = match (true) {

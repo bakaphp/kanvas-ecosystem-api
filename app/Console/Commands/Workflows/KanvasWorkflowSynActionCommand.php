@@ -55,10 +55,13 @@ use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
+use Kanvas\Connectors\InventorySync\Workflows\Activities\SyncInventoryActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
@@ -136,6 +139,10 @@ use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Tookan\Webhook\PullTaskStatusWebhookJob;
+use Kanvas\Connectors\Tookan\Workflows\Activities\CreateTookanOrderActivity;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanChildOrderStatusActivity;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanParentOrderStatusActivity;
 use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Connectors\UniversalAssistance\Webhooks\ProcessUniversalAssistanceOrderWebhookJob;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
@@ -218,6 +225,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,
+            SyncInventoryActivity::class,
             ImportProductActivity::class,
             GenerateMessageTagsActivity::class,
             ExtractCompanyNameFromPeopleEmailActivity::class,
@@ -295,6 +303,10 @@ class KanvasWorkflowSynActionCommand extends Command
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
             CreateVehicleFromOrderActivity::class,
+            PullTaskStatusWebhookJob::class,
+            CreateTookanOrderActivity::class,
+            TookanParentOrderStatusActivity::class,
+            TookanChildOrderStatusActivity::class,
             SyncMovipassActivity::class,
             SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
@@ -378,6 +390,8 @@ class KanvasWorkflowSynActionCommand extends Command
             ContactCheckerActivity::class,
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
+            MicrosoftAgentChannelResponderActivity::class,
+            SyncMicrosoftEmailActivity::class,
         ];
 
         $createdActions = [];
