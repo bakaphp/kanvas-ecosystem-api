@@ -6,13 +6,13 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
-use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
+use Wearepixel\Cart\Cart;
 
 class ProcessOrderItemAction
 {
