@@ -227,6 +227,13 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('name', 'Notes');
     }
 
+    public function systemNotes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('uuid', $this->uuid);
+    }
+
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(LeadReceiver::class, 'leads_receivers_id', 'id');
