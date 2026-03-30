@@ -107,6 +107,22 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 }
 
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
+                $workingHoursDefaultMode = $lead->company->get(CompanyConfigurationEnum::AI_WORKING_HOURS_DEFAULT_MODE->value);
+                $disableSending = false;
+
+                if ($workingHoursDefaultMode !== null) {
+                    try {
+                        $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
+                    } catch (InvalidArgumentException $e) {
+                        $isWithinWorkingHours = false;
+                    }
+
+                    if ($isWithinWorkingHours) {
+                        $lead->set('ai_mode', $workingHoursDefaultMode);
+                        $disableSending = $workingHoursDefaultMode === IntelligenceModeEnum::OFF->value;
+                    }
+                }
+
                 $totalSentMessages = 0;
                 $stopTheClockIteration = 0;
                 $sentChannels = [];
@@ -210,7 +226,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     //send the first message
-                    if (! isset($params['disable_sending'])) {
+                    if (! isset($params['disable_sending']) && ! $disableSending) {
                         $leadCurrentDateIn = $this->getLeadCreatedAt($lead);
 
                         $messageType = match ($communicationChannel) {
