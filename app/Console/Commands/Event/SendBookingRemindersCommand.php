@@ -6,12 +6,12 @@ namespace App\Console\Commands\Event;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Throwable;
 use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\EventReminder;
+use Throwable;
 
 class SendBookingRemindersCommand extends Command
 {
