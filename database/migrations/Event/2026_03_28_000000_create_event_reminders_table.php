@@ -24,6 +24,7 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(0);
             $table->timestamps();
 
+            $table->index(['notification_type', 'status', 'send_at'], 'event_reminders_due_lookup_index');
             $table->unique(['event_version_id', 'notification_type'], 'event_reminders_event_version_type_unique');
         });
     }
