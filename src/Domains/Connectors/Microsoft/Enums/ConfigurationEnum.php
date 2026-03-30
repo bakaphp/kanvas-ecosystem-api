@@ -12,4 +12,5 @@ enum ConfigurationEnum: string
     case ACCESS_TOKEN = 'microsoft_access_token';
     case REFRESH_TOKEN = 'microsoft_refresh_token';
     case TOKEN_EXPIRES_AT = 'microsoft_token_expires_at';
+    case LAST_SYNC_AT = 'microsoft_last_sync_at';
 }

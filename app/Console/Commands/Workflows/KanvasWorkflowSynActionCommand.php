@@ -60,6 +60,8 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
@@ -388,6 +390,8 @@ class KanvasWorkflowSynActionCommand extends Command
             ContactCheckerActivity::class,
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
+            MicrosoftAgentChannelResponderActivity::class,
+            SyncMicrosoftEmailActivity::class,
         ];
 
         $createdActions = [];
