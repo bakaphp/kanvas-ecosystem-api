@@ -4,11 +4,50 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Microsoft;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Microsoft\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
 {
+    /**
+     * Get a valid access token for a company, refreshing if expired.
+     */
+    public static function getValidAccessToken(AppInterface $app, CompanyInterface $company): string
+    {
+        $configPrefix = '-' . $app->getId() . '-' . $company->getId();
+
+        $accessToken = (string) $company->get(ConfigurationEnum::ACCESS_TOKEN->value . $configPrefix);
+        $refreshToken = (string) $company->get(ConfigurationEnum::REFRESH_TOKEN->value . $configPrefix);
+        $expiresAt = (string) $company->get(ConfigurationEnum::TOKEN_EXPIRES_AT->value . $configPrefix);
+
+        if ($accessToken === '' || $refreshToken === '') {
+            throw new ValidationException('Microsoft OAuth tokens not configured for this company');
+        }
+
+        if ($expiresAt !== '' && Carbon::parse($expiresAt)->isFuture()) {
+            return $accessToken;
+        }
+
+        $clientId = (string) ($company->get(ConfigurationEnum::CLIENT_ID->value) ?? $app->get(ConfigurationEnum::CLIENT_ID->value));
+        $clientSecret = (string) ($company->get(ConfigurationEnum::CLIENT_SECRET->value) ?? $app->get(ConfigurationEnum::CLIENT_SECRET->value));
+        $tenantId = (string) ($company->get(ConfigurationEnum::TENANT_ID->value) ?? $app->get(ConfigurationEnum::TENANT_ID->value));
+
+        $tokenData = self::refreshAccessToken($clientId, $clientSecret, $tenantId, $refreshToken);
+
+        $company->set(ConfigurationEnum::ACCESS_TOKEN->value . $configPrefix, $tokenData['access_token']);
+        $company->set(ConfigurationEnum::REFRESH_TOKEN->value . $configPrefix, $tokenData['refresh_token']);
+        $company->set(
+            ConfigurationEnum::TOKEN_EXPIRES_AT->value . $configPrefix,
+            Carbon::now()->addSeconds($tokenData['expires_in'])->toIso8601String()
+        );
+
+        return $tokenData['access_token'];
+    }
+
     /**
      * Exchange an authorization code for access and refresh tokens.
      *
