@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VoiceBridge\Jobs\SaveVoiceTranscriptJob;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -64,6 +65,10 @@ class SendVoiceMessageActivity extends KanvasActivity
                 InitVoiceSessionAction::fromLead($lead, $agent, $messageContent)->execute();
 
                 $result = TriggerVoiceCallAction::fromLead($lead)->execute();
+
+                if (! empty($result['call_sid'])) {
+                    $lead->set(CustomFieldEnum::CALL_SID->value, $result['call_sid']);
+                }
 
                 $transcriptDelayMinutes = (int) ($lead->company->get(ConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
 
