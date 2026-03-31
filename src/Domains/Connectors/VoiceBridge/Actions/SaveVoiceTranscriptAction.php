@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
+use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 
 class SaveVoiceTranscriptAction
 {
@@ -17,6 +20,7 @@ class SaveVoiceTranscriptAction
         protected readonly Lead $lead,
         protected readonly array $transcript,
         protected readonly string $sessionId,
+        protected readonly ?string $recordingUrl = null,
     ) {
     }
 
@@ -41,12 +45,20 @@ class SaveVoiceTranscriptAction
                 message: [
                     'transcript' => $this->transcript,
                     'session_id' => $this->sessionId,
+                    'recording_url' => $this->recordingUrl,
                 ],
                 is_public: 1,
             ),
         )->execute();
 
         $message->addEntity($this->lead);
+
+        if (! empty($this->recordingUrl)) {
+            $user = Users::getById($this->lead->users_id);
+            $filesystem = new FilesystemServices($app);
+            $file = $filesystem->uploadFileFromUrl($this->recordingUrl, $user);
+            new AttachFilesystemAction($file, $message)->execute('voice-recording');
+        }
 
         return $message;
     }
