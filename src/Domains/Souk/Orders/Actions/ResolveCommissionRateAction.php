@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Actions;
+namespace Kanvas\Souk\Orders\Actions;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;

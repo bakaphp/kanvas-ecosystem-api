@@ -9,7 +9,7 @@ use Baka\Helpers\GenerateQrCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Actions\CalculateOrderCommissionAction;
+use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
