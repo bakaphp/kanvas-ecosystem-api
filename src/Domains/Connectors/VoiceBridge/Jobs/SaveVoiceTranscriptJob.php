@@ -61,10 +61,18 @@ class SaveVoiceTranscriptJob implements ShouldQueue
             return;
         }
 
+        try {
+            $session = Client::getInstance($app)->getSessionTranscript($this->sessionId);
+        } catch (Throwable $e) {
+            report($e);
+            $session = [];
+        }
+
         new SaveVoiceTranscriptAction(
             $this->lead,
             $transcript,
             $this->sessionId,
+            $session['session']['recording_url'] ?? null,
         )->execute();
     }
 }
