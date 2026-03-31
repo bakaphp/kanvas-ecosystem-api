@@ -284,10 +284,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             return null;
         }
 
-        if (is_string($rules)) {
-            $rules = json_decode($rules, true) ?? [];
-        }
-
         if (! is_array($rules)) {
             return null;
         }
