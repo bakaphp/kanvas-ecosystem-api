@@ -335,7 +335,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $long = (float) $location['long'];
         $radius = (float) $location['radius'];
 
-        // Bounding box pre-filter: approximate degree offsets to eliminate distant rows early
         $latDelta = $radius / 111.0;
         $longDelta = $radius / (111.0 * cos(deg2rad($lat)));
         $minLat = $lat - $latDelta;
@@ -343,9 +342,10 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $minLong = $long - $longDelta;
         $maxLong = $long + $longDelta;
 
-        // Data is stored as JSON: {"en": {"lat": 18.560100, "long": -68.372500}}
-        $latExtract = "CAST(JSON_EXTRACT(pa.value, '$.en.lat') AS DECIMAL(10,6))";
-        $longExtract = "CAST(JSON_EXTRACT(pa.value, '$.en.long') AS DECIMAL(10,6))";
+        // Data is double-encoded JSON: {"en": "{\"lat\": \"18.560100\",\"long\": \"-68.372500\"}"}
+        $innerJson = "JSON_UNQUOTE(JSON_EXTRACT(pa.value, '$.en'))";
+        $latExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.lat')) AS DECIMAL(10,6))";
+        $longExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.long')) AS DECIMAL(10,6))";
 
         $distanceSubquery = DB::connection('inventory')->table('products_attributes as pa')
             ->join('attributes as a', 'a.id', '=', 'pa.attributes_id')
@@ -362,9 +362,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ", [$lat, $long, $lat])
             ->where('a.slug', 'coordinates')
             ->whereRaw("JSON_VALID(pa.value)")
-            ->whereRaw("JSON_EXTRACT(pa.value, '$.en.lat') IS NOT NULL")
+            ->whereRaw("JSON_EXTRACT(pa.value, '$.en') IS NOT NULL")
+            ->whereRaw("JSON_VALID({$innerJson})")
             ->whereRaw("{$latExtract} BETWEEN ? AND ?", [$minLat, $maxLat])
             ->whereRaw("{$longExtract} BETWEEN ? AND ?", [$minLong, $maxLong])
+            ->whereRaw("{$latExtract} != 0")
+            ->whereRaw("{$longExtract} != 0")
             ->havingRaw("distance <= ?", [$radius]);
 
         return $query
