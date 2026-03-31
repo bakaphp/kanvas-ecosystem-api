@@ -10,6 +10,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
 use Kanvas\Filesystem\Models\Filesystem;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
@@ -416,7 +417,7 @@ class ImageOptimizerService
      * (e.g. /tmp/phpXXXXXX from uploads) need explicit format encoding.
      */
     protected static function saveWithFormat(
-        \Intervention\Image\Interfaces\ImageInterface $img,
+        ImageInterface $img,
         string $filePath,
         string $extension,
         ?int $quality = null,
