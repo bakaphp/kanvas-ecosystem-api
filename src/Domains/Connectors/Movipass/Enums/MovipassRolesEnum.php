@@ -8,4 +8,5 @@ enum MovipassRolesEnum: string
     case FINANCE = 'FinanzasOperaciones';
     case AGENT = 'agente';
     case TRUCK_DRIVER = 'gruero';
+    case OPERATOR = 'operador';
 }
