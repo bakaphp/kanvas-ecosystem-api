@@ -231,12 +231,7 @@ class ImageOptimizerService
                 $img = $manager->decodePath($filePath);
                 $img = $img->scale($maxWidth, $maxHeight);
 
-                match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 90),
-                    self::isPng($extension) => $img->save($filePath),
-                    self::isWebp($extension) => $img->save($filePath, quality: 90),
-                    default => null,
-                };
+                self::saveWithFormat($img, $filePath, $extension, 90);
             } catch (Exception $e) {
                 report($e);
             }
@@ -263,12 +258,7 @@ class ImageOptimizerService
                 $manager = self::manager();
                 $img = $manager->decodePath($filePath);
 
-                match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: $quality),
-                    self::isPng($extension) => $img->save($filePath),
-                    self::isWebp($extension) => $img->save($filePath, quality: $quality),
-                    default => null,
-                };
+                self::saveWithFormat($img, $filePath, $extension, $quality);
             } catch (Exception $e) {
                 report($e);
             }
@@ -418,6 +408,36 @@ class ImageOptimizerService
     private static function isHeic(string $ext): bool
     {
         return in_array($ext, ['heic', 'heif'], true);
+    }
+
+    /**
+     * Save image with explicit format encoding.
+     * In v4, save() infers format from file extension — files without extensions
+     * (e.g. /tmp/phpXXXXXX from uploads) need explicit format encoding.
+     */
+    protected static function saveWithFormat(
+        \Intervention\Image\Interfaces\ImageInterface $img,
+        string $filePath,
+        string $extension,
+        ?int $quality = null,
+    ): void {
+        $fileExtension = pathinfo($filePath, PATHINFO_EXTENSION);
+
+        if ($fileExtension !== '') {
+            $img->save($filePath, quality: $quality);
+
+            return;
+        }
+
+        $format = match (true) {
+            self::isJpeg($extension) => 'jpg',
+            self::isPng($extension) => 'png',
+            self::isWebp($extension) => 'webp',
+            default => 'jpg',
+        };
+
+        $encoded = $img->encodeUsingFileExtension($format, quality: $quality);
+        file_put_contents($filePath, (string) $encoded);
     }
 
     protected static function manager(): ImageManager
