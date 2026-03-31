@@ -118,7 +118,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
                 if ($modsCurrent['ai_mode'] !== $modsPrevious['ai_mode']) {
-                    $notesChannel = $lead->notes;
+                    $notesChannel = $lead->systemNotes;
 
                     if ($notesChannel) {
                         $noteContent = 'AI Mode changed from ' . ($modsPrevious['ai_mode'] ?? 'N/A') . ' to ' . $modsCurrent['ai_mode'];
