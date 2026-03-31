@@ -231,7 +231,7 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
-            ->where('uuid', $this->uuid);
+            ->where('slug', $this->uuid);
     }
 
     public function receiver(): BelongsTo
