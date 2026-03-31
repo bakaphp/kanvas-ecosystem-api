@@ -41,7 +41,7 @@ class GetAvailableMechanicsAction
             ->join('roles', 'roles.id', '=', 'assigned_roles.role_id')
             ->where('users_associated_apps.apps_id', $this->app->getId())
             ->where('users_associated_apps.is_active', 1)
-            ->where('roles.name', MovipassRolesEnum::OPERATOR->value)
+            ->where('roles.name', MovipassRolesEnum::ROADSIDE_ASSISTANCE_OPERATOR->value)
             ->where('assigned_roles.entity_type', Users::class)
             ->where('assigned_roles.scope', 'like', $appScopePrefix)
             ->when(
