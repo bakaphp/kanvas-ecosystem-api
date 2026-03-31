@@ -78,18 +78,18 @@ class AssignMechanicToOrderAction
 
         return $mechanics
             ->sortBy(function (Users $mechanic) use ($orderLocation) {
-                $rawLocation = $mechanic->get(CustomFieldEnum::MECHANIC_LOCATION->value);
-                $mechanicLocation = is_array($rawLocation) ? $rawLocation : json_decode((string) ($rawLocation ?? ''), true);
+                $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
+                $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
 
-                if (! is_array($mechanicLocation) || ! isset($mechanicLocation['lat'], $mechanicLocation['lng'])) {
+                if ($lat === null || $lng === null) {
                     return PHP_INT_MAX;
                 }
 
                 return $this->haversineDistance(
                     (float) $orderLocation['lat'],
                     (float) $orderLocation['lng'],
-                    (float) $mechanicLocation['lat'],
-                    (float) $mechanicLocation['lng'],
+                    (float) $lat,
+                    (float) $lng,
                 );
             })
             ->first();
@@ -97,8 +97,8 @@ class AssignMechanicToOrderAction
 
     protected function buildMechanicBlock(Users $mechanic): array
     {
-        $rawLocation = $mechanic->get(CustomFieldEnum::MECHANIC_LOCATION->value);
-        $location = is_array($rawLocation) ? $rawLocation : json_decode((string) ($rawLocation ?? ''), true);
+        $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
+        $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
 
         $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
@@ -111,7 +111,7 @@ class AssignMechanicToOrderAction
             'email' => $mechanic->email,
             'company_id' => $mechanic->default_company,
             'company_name' => $mechanic->getCurrentCompany()?->name ?? null,
-            'location' => $location ?: null,
+            'location' => $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null,
             'vehicle_info' => $vehicleInfo ?: null,
         ];
     }

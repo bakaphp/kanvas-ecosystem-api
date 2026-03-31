@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Jobs\AutoAssignMechanicJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -83,7 +83,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
         if (empty($mechanic['user_id'])) {
-            AutoAssignMechanicJob::dispatch($order, $app);
+            new NotifyAvailableMechanicsAction($order, $app)->execute();
         }
 
         return [
@@ -175,6 +175,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
             match ($toStatus) {
+                MovipassOrderStatusEnum::AWAITING_OPERATOR->value => $assistanceCase['awaiting_operator_at'] = $timestamp,
                 MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => (function () use ($order, &$assistanceCase, $timestamp) {
                     $assistanceCase['provider_assigned_at'] = $timestamp;
                     $pin = new GenerateRoadsideAssistancePinAction($order)->execute();

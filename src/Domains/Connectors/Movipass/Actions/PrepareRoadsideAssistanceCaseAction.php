@@ -83,8 +83,9 @@ class PrepareRoadsideAssistanceCaseAction
             throw new ValidationException("Mechanic user with ID {$userId} not found");
         }
 
-        $rawLocation = $mechanic->get(CustomFieldEnum::MECHANIC_LOCATION->value);
-        $location = is_array($rawLocation) ? $rawLocation : json_decode((string) ($rawLocation ?? ''), true);
+        $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
+        $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
+        $profileLocation = $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
 
         $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
@@ -99,7 +100,7 @@ class PrepareRoadsideAssistanceCaseAction
             'email' => $mechanicData['email'] ?? $mechanic->email,
             'company_id' => $mechanicData['company_id'] ?? $mechanic->default_company,
             'company_name' => $mechanicData['company_name'] ?? $mechanic->getCurrentCompany()?->name ?? null,
-            'location' => (is_array($mechanicData['location'] ?? null) ? $mechanicData['location'] : null) ?? ($location ?: null),
+            'location' => (is_array($mechanicData['location'] ?? null) ? $mechanicData['location'] : null) ?? $profileLocation,
             'vehicle_info' => (is_array($mechanicData['vehicle_info'] ?? null) ? $mechanicData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
     }
