@@ -121,7 +121,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     $notesChannel = $lead->systemNotes;
 
                     if ($notesChannel) {
-                        $noteContent = 'AI Mode changed from ' . ($modsPrevious['ai_mode'] ?? 'N/A') . ' to ' . $modsCurrent['ai_mode'];
+                        $noteContent = 'Sally turned to Support Mode ' . $modsCurrent['ai_mode'];
 
                         $messageTypeInput = new MessageTypeInput(
                             apps_id: $app->getId(),
