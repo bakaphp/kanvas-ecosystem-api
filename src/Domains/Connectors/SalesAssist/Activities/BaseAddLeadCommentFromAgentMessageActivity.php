@@ -344,4 +344,3 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         );
     }
 }
-
