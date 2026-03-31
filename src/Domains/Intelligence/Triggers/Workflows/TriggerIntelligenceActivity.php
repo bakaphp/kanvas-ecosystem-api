@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
+use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
@@ -121,7 +122,8 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     $notesChannel = $lead->systemNotes;
 
                     if ($notesChannel) {
-                        $noteContent = 'Sally turned to Support Mode ' . $modsCurrent['ai_mode'];
+                        $carbon = Carbon::now($lead->company->timezone);
+                        $noteContent = $carbon->format('Y-m-d H:i:s') . 'Sally Mode set to ' . $modsCurrent['ai_mode'];
 
                         $messageTypeInput = new MessageTypeInput(
                             apps_id: $app->getId(),
