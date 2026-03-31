@@ -486,16 +486,16 @@
         },
         {
             "name": "azuyalabs/yasumi",
-            "version": "2.10.0",
+            "version": "2.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/azuyalabs/yasumi.git",
-                "reference": "b9b26a70c3e0ba0b39723e7b756787bff4348536"
+                "reference": "e24bc345d2dd0b9425ff19abf7f11574bbb1d7be"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/azuyalabs/yasumi/zipball/b9b26a70c3e0ba0b39723e7b756787bff4348536",
-                "reference": "b9b26a70c3e0ba0b39723e7b756787bff4348536",
+                "url": "https://api.github.com/repos/azuyalabs/yasumi/zipball/e24bc345d2dd0b9425ff19abf7f11574bbb1d7be",
+                "reference": "e24bc345d2dd0b9425ff19abf7f11574bbb1d7be",
                 "shasum": ""
             },
             "require": {
@@ -508,7 +508,7 @@
                 "mikey179/vfsstream": "^1.6",
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
-                "phpunit/phpunit": "^8.5 || ^9.6"
+                "phpunit/phpunit": "^11.5"
             },
             "suggest": {
                 "ext-calendar": "For calculating the date of Easter"
@@ -555,7 +555,7 @@
                     "type": "other"
                 }
             ],
-            "time": "2026-01-22T12:18:00+00:00"
+            "time": "2026-03-30T13:35:38+00:00"
         },
         {
             "name": "bacon/bacon-qr-code",
