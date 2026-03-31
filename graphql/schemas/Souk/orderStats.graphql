@@ -195,13 +195,15 @@ type OrderCommissionStats {
     order_count: Int!
 }
 
+input OrderCommissionStatsInput {
+    from: DateTime!
+    to: DateTime!
+    company_id: ID
+    order_type: String
+}
+
 extend type Query @guard {
-    orderCommissionStats(
-        from: DateTime!
-        to: DateTime!
-        company_id: ID
-        order_type: String
-    ): OrderCommissionStats!
+    orderCommissionStats(input: OrderCommissionStatsInput!): OrderCommissionStats!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@commissionStats"
         )

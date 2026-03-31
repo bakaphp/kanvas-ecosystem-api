@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
-use Kanvas\Souk\Enums\ConfigurationEnum;
-use Kanvas\Souk\Orders\Enums\CommissionEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Orders\Enums\CommissionEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 class ResolveCommissionRateAction
