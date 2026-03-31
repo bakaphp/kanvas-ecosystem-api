@@ -11,6 +11,7 @@ use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Jobs\AutoAssignMechanicJob;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -78,6 +79,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $photos = $metadata['assistance_case']['photos'] ?? [];
         if ($photos !== []) {
             new AttachRoadsideAssistancePhotosAction()->execute($order, $photos, $app);
+        }
+
+        $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
+        if (empty($mechanic['user_id'])) {
+            AutoAssignMechanicJob::dispatch($order, $app);
         }
 
         return [

@@ -6,7 +6,9 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
 
@@ -24,7 +26,10 @@ class PrepareRoadsideAssistanceCaseAction
             throw new ValidationException('Roadside assistance service is required');
         }
 
-        if ($providerId === null && $providerName === '') {
+        $mechanic = $this->resolveMechanic($assistanceCase);
+
+        // provider_id/provider_name only required when no mechanic is pre-identified
+        if ($mechanic === null && $providerId === null && $providerName === '') {
             throw new ValidationException('Roadside assistance provider is required');
         }
 
@@ -49,6 +54,7 @@ class PrepareRoadsideAssistanceCaseAction
             'provider_id' => $providerId,
             'provider_name' => $providerName !== '' ? $providerName : null,
             'photos' => $photos,
+            'mechanic' => $mechanic,
         ];
 
         return [
@@ -58,6 +64,43 @@ class PrepareRoadsideAssistanceCaseAction
                 ...(is_array($metadata['data'] ?? null) ? $metadata['data'] : []),
                 'assistance_case' => $caseData,
             ],
+        ];
+    }
+
+    protected function resolveMechanic(array $assistanceCase): ?array
+    {
+        $mechanicData = $assistanceCase['mechanic'] ?? null;
+
+        if (! is_array($mechanicData) || empty($mechanicData['user_id'])) {
+            return null;
+        }
+
+        $userId = (int) $mechanicData['user_id'];
+
+        try {
+            $mechanic = Users::getById($userId);
+        } catch (ModelNotFoundException) {
+            throw new ValidationException("Mechanic user with ID {$userId} not found");
+        }
+
+        $rawLocation = $mechanic->get(CustomFieldEnum::MECHANIC_LOCATION->value);
+        $location = is_array($rawLocation) ? $rawLocation : json_decode((string) ($rawLocation ?? ''), true);
+
+        $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
+        $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
+
+        return [
+            'user_id' => $mechanic->getId(),
+            'uuid' => $mechanic->uuid,
+            'name' => isset($mechanicData['name']) && $mechanicData['name'] !== ''
+                ? $mechanicData['name']
+                : trim($mechanic->firstname . ' ' . $mechanic->lastname),
+            'phone' => $mechanicData['phone'] ?? $mechanic->phone_number ?? null,
+            'email' => $mechanicData['email'] ?? $mechanic->email,
+            'company_id' => $mechanicData['company_id'] ?? $mechanic->default_company,
+            'company_name' => $mechanicData['company_name'] ?? $mechanic->getCurrentCompany()?->name ?? null,
+            'location' => (is_array($mechanicData['location'] ?? null) ? $mechanicData['location'] : null) ?? ($location ?: null),
+            'vehicle_info' => (is_array($mechanicData['vehicle_info'] ?? null) ? $mechanicData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
     }
 
