@@ -27,6 +27,9 @@ enum ConfigurationEnum: string
     case FIRST_MESSAGE_ONLY_DURING_BUSINESS_HOURS = 'ai_agent_first_message_only_during_business_hours';
     case FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS = 'ai_agent_first_message_only_during_off_business_hours';
     case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
+    case AI_ENGAGEMENT_MANAGER_NOTIFICATION_RULES = 'ai_engagement_manager_notification_rules';
+    case AI_MANAGER_FIRST_CUSTOMER_ENGAGEMENT_NOTIFIED_AT = 'ai_manager_first_customer_engagement_notified_at';
+    case AI_MANAGER_CUSTOMER_ENGAGEMENT_NOTIFICATION_COUNT = 'ai_manager_customer_engagement_notification_count';
     case AI_MODE = 'ai_mode';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
 }

@@ -242,6 +242,8 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
         Notification::send($managers, $notification);
 
+        $this->markManagerNotificationSent($lead);
+
         // Track notification timestamp if key is provided
         if ($notifiedAtKey !== null) {
             $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
@@ -250,6 +252,14 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
     protected function configureManagerNotificationChannels(Blank $notification, Lead $lead): void
     {
+        $configuredChannels = $this->resolveManagerNotificationChannels($lead);
+
+        if ($configuredChannels !== null) {
+            $notification->channels = $configuredChannels;
+
+            return;
+        }
+
         $onlySms = (bool) $lead->company->get('ai_manager_notification_only_sms');
         $onlyMail = (bool) $lead->company->get('ai_manager_notification_only_mail');
         $onlyPush = (bool) $lead->company->get('ai_manager_notification_only_push');
@@ -265,4 +275,77 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             ];
         }
     }
+
+    protected function resolveManagerNotificationChannels(Lead $lead): ?array
+    {
+        $rules = $lead->company->get(IntelligenceConfigurationEnum::AI_ENGAGEMENT_MANAGER_NOTIFICATION_RULES->value);
+
+        if (empty($rules)) {
+            return null;
+        }
+
+        if (is_string($rules)) {
+            $rules = json_decode($rules, true) ?? [];
+        }
+
+        if (! is_array($rules)) {
+            return null;
+        }
+
+        $mode = $rules['mode'] ?? null;
+        if ($mode !== 'first_push_sms_then_email') {
+            return null;
+        }
+
+        $isFirstEngagement = $this->getLeadManagerEngagementNotificationCount($lead) === 0;
+        $channels = $isFirstEngagement
+            ? ($rules['first_engagement_channels'] ?? ['push', 'sms'])
+            : ($rules['subsequent_engagement_channels'] ?? ['email']);
+
+        return $this->mapManagerNotificationChannels((array) $channels);
+    }
+
+    protected function mapManagerNotificationChannels(array $channels): array
+    {
+        $resolvedChannels = [];
+
+        foreach ($channels as $channel) {
+            switch ($channel) {
+                case 'sms':
+                    $resolvedChannels[] = TwilioSmsChannel::class;
+                    break;
+                case 'email':
+                case 'mail':
+                    $resolvedChannels[] = 'mail';
+                    break;
+                case 'push':
+                    $resolvedChannels[] = OneSignalNotificationChannel::class;
+                    $resolvedChannels[] = ExpoChannel::class;
+                    break;
+            }
+        }
+
+        return array_values(array_unique($resolvedChannels));
+    }
+
+    protected function getLeadManagerEngagementNotificationCount(Lead $lead): int
+    {
+        return (int) ($lead->get(IntelligenceConfigurationEnum::AI_MANAGER_CUSTOMER_ENGAGEMENT_NOTIFICATION_COUNT->value) ?? 0);
+    }
+
+    protected function markManagerNotificationSent(Lead $lead): void
+    {
+        if (! $lead->get(IntelligenceConfigurationEnum::AI_MANAGER_FIRST_CUSTOMER_ENGAGEMENT_NOTIFIED_AT->value)) {
+            $lead->set(
+                IntelligenceConfigurationEnum::AI_MANAGER_FIRST_CUSTOMER_ENGAGEMENT_NOTIFIED_AT->value,
+                date('Y-m-d H:i:s')
+            );
+        }
+
+        $lead->set(
+            IntelligenceConfigurationEnum::AI_MANAGER_CUSTOMER_ENGAGEMENT_NOTIFICATION_COUNT->value,
+            $this->getLeadManagerEngagementNotificationCount($lead) + 1
+        );
+    }
 }
+
