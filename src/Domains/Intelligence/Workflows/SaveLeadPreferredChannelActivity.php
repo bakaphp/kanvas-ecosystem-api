@@ -22,10 +22,34 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
         $message = $params['message'] ?? null;
 
         if (! $message instanceof Message) {
-            return $this->failWorkflow([
-                'message' => 'Message not found',
-                'entity' => null,
-            ]);
+            $messagesId = $params['messages_id'] ?? null;
+
+            if (! $messagesId) {
+                return $this->failWorkflow([
+                    'message' => 'Message not found',
+                    'entity' => null,
+                ]);
+            }
+
+            $message = Message::find((int) $messagesId);
+
+            if (! $message instanceof Message) {
+                return $this->failWorkflow([
+                    'message' => 'Message not found by messages_id',
+                    'entity' => null,
+                ]);
+            }
+
+            $belongsToChannel = $channel->messages()
+                ->wherePivot('messages_id', $message->id)
+                ->exists();
+
+            if (! $belongsToChannel) {
+                return $this->failWorkflow([
+                    'message' => 'Message does not belong to the channel',
+                    'entity' => null,
+                ]);
+            }
         }
 
         if ($message->message['from_ia'] ?? false) {
