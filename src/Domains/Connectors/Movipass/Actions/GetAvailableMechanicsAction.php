@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Collection;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MechanicAvailabilityEnum;
