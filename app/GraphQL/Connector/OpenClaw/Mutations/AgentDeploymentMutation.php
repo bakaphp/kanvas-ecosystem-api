@@ -121,6 +121,19 @@ class AgentDeploymentMutation
         return true;
     }
 
+    public function setTelegramToken(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $agent->set(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value, $request['telegram_bot_token']);
+
+        return true;
+    }
+
     public function execCommand(mixed $root, array $request): bool
     {
         $app = app(Apps::class);

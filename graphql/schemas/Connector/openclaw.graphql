@@ -41,6 +41,11 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
         )
+
+    openclawSetTelegramToken(agent_id: ID!, telegram_bot_token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setTelegramToken"
+        )
 }
 
 extend type Mutation @guardByAppKey {

@@ -150,6 +150,7 @@ class DockerComposeBuilder
                     'enabled' => true,
                     'allowFrom' => [
                         'slack' => ['*'],
+                        'telegram' => ['*'],
                     ],
                 ],
             ],
@@ -229,10 +230,15 @@ class DockerComposeBuilder
 
         if (! empty($channelConfig)) {
             $config['channels'] = $channelConfig;
+            $entries = [];
             if (isset($channelConfig['slack'])) {
-                $config['plugins']['entries'] = [
-                    'slack' => ['enabled' => true],
-                ];
+                $entries['slack'] = ['enabled' => true];
+            }
+            if (isset($channelConfig['telegram'])) {
+                $entries['telegram'] = ['enabled' => true];
+            }
+            if (! empty($entries)) {
+                $config['plugins']['entries'] = $entries;
             }
         }
 
@@ -279,15 +285,13 @@ class DockerComposeBuilder
      */
     public static function buildChannelConfig(Agent $agent): array
     {
+        $channels = [];
+
         $slackBotToken = $agent->get(CustomFieldEnum::SLACK_BOT_TOKEN->value);
         $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
 
-        if (empty($slackBotToken) || empty($slackAppToken)) {
-            return [];
-        }
-
-        return [
-            'slack' => [
+        if (! empty($slackBotToken) && ! empty($slackAppToken)) {
+            $channels['slack'] = [
                 'enabled' => true,
                 'mode' => 'socket',
                 'allowBots' => true,
@@ -302,8 +306,22 @@ class DockerComposeBuilder
                     'groupEnabled' => true,
                 ],
                 'groupPolicy' => 'open',
-            ],
-        ];
+            ];
+        }
+
+        $telegramBotToken = $agent->get(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value);
+
+        if (! empty($telegramBotToken)) {
+            $channels['telegram'] = [
+                'enabled' => true,
+                'botToken' => (string) $telegramBotToken,
+                'dmPolicy' => 'pairing',
+                'groupPolicy' => 'allowlist',
+                'streaming' => 'partial',
+            ];
+        }
+
+        return $channels;
     }
 
     /**
