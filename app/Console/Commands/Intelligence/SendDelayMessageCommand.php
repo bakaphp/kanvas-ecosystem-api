@@ -192,7 +192,7 @@ class SendDelayMessageCommand extends Command
                         $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
                     }
 
-                    if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
+                    if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
                         $communicationChannelNumber = $message->message['chat_jid'] ?? null;
                         if ($communicationChannelNumber) {
                             $channelSlug = SessionChannelService::createChannelSlug($communicationChannel, $communicationChannelNumber);
@@ -202,7 +202,7 @@ class SendDelayMessageCommand extends Command
                                 ->first();
                             if ($existingChannel) {
                                 $lead->set(
-                                    LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value,
+                                    LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value,
                                     $existingChannel->uuid
                                 );
                             }
