@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\Actions\AcceptOrderAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
@@ -18,6 +19,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -53,7 +55,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
-                    return $this->handleUpdated($order);
+                    return $this->handleUpdated($order, $app);
                 }
 
                 return [
@@ -78,7 +80,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $photos = $metadata['assistance_case']['photos'] ?? [];
         if ($photos !== []) {
-            new AttachRoadsideAssistancePhotosAction()->execute($order, $photos, $app);
+            $attachAction = new AttachRoadsideAssistancePhotosAction();
+            $attachedPhotos = $attachAction->execute($order, $photos, $app);
+            $metadata['assistance_case']['photos'] = $attachedPhotos;
+            $metadata['data']['assistance_case']['photos'] = $attachedPhotos;
+            $order->metadata = $metadata;
+            $order->saveQuietly();
         }
 
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
@@ -95,63 +102,156 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         ];
     }
 
-    private function handleUpdated($order): array
+    private function handleUpdated($order, AppInterface $app): array
     {
         $currentStatusSlug = $order->orderStatus?->slug;
-
-        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
-            return [
-                'order' => $order->getId(),
-                'status' => 'success',
-                'message' => 'PIN validation only applies in provider_assigned status',
-            ];
-        }
-
         $metadata = $order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
-        $pinAttempt = $assistanceCase['pin_attempt'] ?? null;
 
-        if ($pinAttempt === null || trim((string) $pinAttempt) === '') {
-            return [
-                'order' => $order->getId(),
-                'status' => 'success',
-                'message' => 'No pin_attempt found in metadata, skipping',
-            ];
+        // 1. Mechanic acceptance — AWAITING_OPERATOR + mechanic_accept flag
+        if ($currentStatusSlug === MovipassOrderStatusEnum::AWAITING_OPERATOR->value) {
+            $mechanicAccept = $assistanceCase['mechanic_accept'] ?? null;
+            $mechanicUserId = is_array($mechanicAccept) ? ($mechanicAccept['user_id'] ?? null) : null;
+
+            if ($mechanicUserId !== null) {
+                unset($assistanceCase['mechanic_accept']);
+                $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
+
+                try {
+                    $mechanic = Users::getById((int) $mechanicUserId, $app);
+                    new AcceptOrderAssignmentAction(
+                        order: $order,
+                        mechanic: $mechanic,
+                    )->execute();
+                } catch (ValidationException $e) {
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'error',
+                        'message' => 'Order acceptance failed: ' . $e->getMessage(),
+                    ];
+                }
+
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'Order accepted, transitioned to provider_assigned',
+                ];
+            }
         }
 
-        try {
-            new ValidateRoadsideAssistancePinAction(
-                order: $order,
-                pin: (string) $pinAttempt,
-            )->execute();
-        } catch (ValidationException $e) {
-            $assistanceCase['pin_validation_error'] = $e->getMessage();
-            $assistanceCase['pin_validation_attempted_at'] = Carbon::now()->toISOString();
-            unset($assistanceCase['pin_attempt']);
+        // 2. PIN validation — PROVIDER_ASSIGNED + pin_attempt
+        if ($currentStatusSlug === MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+            $pinAttempt = $assistanceCase['pin_attempt'] ?? null;
+
+            if ($pinAttempt !== null && trim((string) $pinAttempt) !== '') {
+                try {
+                    new ValidateRoadsideAssistancePinAction(
+                        order: $order,
+                        pin: (string) $pinAttempt,
+                    )->execute();
+                } catch (ValidationException $e) {
+                    $assistanceCase['pin_validation_error'] = $e->getMessage();
+                    $assistanceCase['pin_validation_attempted_at'] = Carbon::now()->toISOString();
+                    unset($assistanceCase['pin_attempt']);
+                    $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
+
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'error',
+                        'message' => 'PIN validation failed: ' . $e->getMessage(),
+                    ];
+                }
+
+                $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
+                unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
+                $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
+
+                $order->transitionToStatus(
+                    auth()->user(),
+                    MovipassOrderStatusEnum::DISPATCHED->value,
+                );
+
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'PIN validated, order transitioned to dispatched',
+                ];
+            }
+        }
+
+        // 3. Status metadata sync — idempotent, runs on every UPDATED for any status
+        if ($assistanceCase !== []) {
+            $timestamp = $this->getFormattedTimestamp();
+            $needsFulfill = false;
+            $needsCancelFulfill = false;
+
+            match ($currentStatusSlug) {
+                MovipassOrderStatusEnum::AWAITING_OPERATOR->value => $assistanceCase['awaiting_operator_at'] ??= $timestamp,
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => (function () use ($order, &$assistanceCase, $timestamp) {
+                    if (isset($assistanceCase['provider_assigned_at'])) {
+                        return;
+                    }
+                    $assistanceCase['provider_assigned_at'] = $timestamp;
+                    $pin = new GenerateRoadsideAssistancePinAction($order)->execute();
+                    $order->refresh();
+                    $assistanceCase = array_merge($assistanceCase, [
+                        'pin_hash' => $order->metadata['assistance_case']['pin_hash'] ?? null,
+                        'pin_generated_at' => $order->metadata['assistance_case']['pin_generated_at'] ?? null,
+                    ]);
+                    $assistanceCase['pin'] = $pin;
+                })(),
+                MovipassOrderStatusEnum::DISPATCHED->value => $assistanceCase['dispatched_at'] ??= $timestamp,
+                MovipassOrderStatusEnum::ON_SITE->value => $assistanceCase['arrived_at'] ??= $timestamp,
+                MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => $assistanceCase['service_started_at'] ??= $timestamp,
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->value => (function () use (&$assistanceCase, $timestamp, &$needsFulfill) {
+                    if (isset($assistanceCase['completed_at'])) {
+                        return;
+                    }
+                    $assistanceCase['completed_at'] = $timestamp;
+                    $assistanceCase['resolved'] = true;
+                    $assistanceCase['pin_hash'] = null;
+                    $assistanceCase['pin_invalidated_at'] = $timestamp;
+                    $needsFulfill = true;
+                })(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => (function () use (&$assistanceCase, $timestamp, &$needsFulfill) {
+                    if (isset($assistanceCase['completed_at'])) {
+                        return;
+                    }
+                    $assistanceCase['completed_at'] = $timestamp;
+                    $assistanceCase['resolved'] = false;
+                    $assistanceCase['pin_hash'] = null;
+                    $assistanceCase['pin_invalidated_at'] = $timestamp;
+                    $needsFulfill = true;
+                })(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->value => (function () use (&$assistanceCase, $timestamp, &$needsCancelFulfill) {
+                    if (isset($assistanceCase['cancelled_at'])) {
+                        return;
+                    }
+                    $assistanceCase['cancelled_at'] = $timestamp;
+                    $assistanceCase['pin_hash'] = null;
+                    $assistanceCase['pin_invalidated_at'] = $timestamp;
+                    $needsCancelFulfill = true;
+                })(),
+                default => null,
+            };
 
             $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
-            return [
-                'order' => $order->getId(),
-                'status' => 'error',
-                'message' => 'PIN validation failed: ' . $e->getMessage(),
-            ];
+            if ($needsFulfill) {
+                $order->fulfill();
+            }
+
+            if ($needsCancelFulfill) {
+                $order->fulfillCancelled();
+            }
         }
-
-        // PIN is valid — clean up metadata and transition to DISPATCHED
-        $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
-        unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
-        $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
-
-        $order->transitionToStatus(
-            auth()->user(),
-            MovipassOrderStatusEnum::DISPATCHED->value,
-        );
 
         return [
             'order' => $order->getId(),
             'status' => 'success',
-            'message' => 'PIN validated, order transitioned to dispatched',
+            'message' => 'Roadside assistance order updated',
+            'data' => $order->toArray(),
+            'response' => $order->toArray(),
         ];
     }
 
