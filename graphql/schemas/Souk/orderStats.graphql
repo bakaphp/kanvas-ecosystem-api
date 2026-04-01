@@ -190,8 +190,8 @@ input ExportOrderPaymentsInput {
 
 type OrderCommissionStats {
     total_revenue: Float!
-    total_commission: Float!
-    total_provider_amount: Float!
+    total_commission: Money!
+    total_provider_amount: Money!
     order_count: Int!
 }
 
