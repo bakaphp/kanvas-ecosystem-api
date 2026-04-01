@@ -411,7 +411,7 @@ type OrderTransitionHistory {
     changedBy: User @belongsTo(relation: "changedBy")
     endedBy: User @belongsTo(relation: "endedBy")
     description: String
-    metadata: String
+    metadata: Mixed
     is_current: Boolean
     changed_at: String
     ended_at: String

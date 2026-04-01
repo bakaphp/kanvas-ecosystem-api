@@ -47,4 +47,6 @@ enum IntegrationsEnum: string
     case TRIGGER_AI = 'trigger-ai';
     case CALENDLY = 'calendly';
     case CONTACT_CHECKER = 'contact_checker';
+    case OPENCLAW = 'openclaw';
+    case MICROSOFT = 'microsoft';
 }

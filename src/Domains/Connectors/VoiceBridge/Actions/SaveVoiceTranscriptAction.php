@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -35,6 +35,8 @@ class SaveVoiceTranscriptAction
                 verb: 'voice-transcript',
             )
         )->execute();
+
+        $this->lead->refresh();
 
         $message = new CreateMessageAction(
             new MessageInput(

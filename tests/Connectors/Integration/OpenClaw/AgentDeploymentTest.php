@@ -100,7 +100,7 @@ class AgentDeploymentTest extends TestCase
 
         $response = $this->graphQL('
             mutation($input: LaunchAgentInput!) {
-                launchAgent(input: $input) {
+                openclawLaunchAgent(input: $input) {
                     id
                     status
                     system_user
@@ -115,7 +115,7 @@ class AgentDeploymentTest extends TestCase
         ])
         ->assertSuccessful();
 
-        $data = $response->json('data.launchAgent');
+        $data = $response->json('data.openclawLaunchAgent');
         $this->assertEquals('provisioning', $data['status']);
         $this->assertStringContainsString('agent-', $data['system_user']);
     }
@@ -140,11 +140,11 @@ class AgentDeploymentTest extends TestCase
 
         $this->graphQL('
             mutation($deployment_id: ID!) {
-                terminateAgent(deployment_id: $deployment_id)
+                openclawTerminateAgent(deployment_id: $deployment_id)
             }
         ', ['deployment_id' => $deployment->getId()])
         ->assertSuccessful()
-        ->assertJson(['data' => ['terminateAgent' => true]]);
+        ->assertJson(['data' => ['openclawTerminateAgent' => true]]);
     }
 
     public function testChatWithAgentOnMachineRequiresDeployment(): void

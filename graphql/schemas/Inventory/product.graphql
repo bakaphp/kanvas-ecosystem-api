@@ -227,6 +227,7 @@ extend type Query @guard {
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
+        nearByWarehouseLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [

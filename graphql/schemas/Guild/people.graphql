@@ -15,6 +15,7 @@ type People {
     address: [Address!]! @hasMany
     created_at: DateTime!
     updated_at: DateTime
+    photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
@@ -77,6 +78,8 @@ type PeopleRelationship {
     name: String!
     description: String
     company: Company! @belongsTo
+    created_at: DateTime!
+    updated_at: DateTime
 }
 
 input PeopleInput {
@@ -194,12 +197,14 @@ extend type Query @guard {
             defaultCount: 25
         )
     peopleRelationships(
+        search: String @search
         where: _ @whereConditions(columns: ["name", "description", "id"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [PeopleRelationship!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
 
     peopleCount: Int
@@ -257,5 +262,9 @@ extend type Mutation @guard {
     deleteContact(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deleteContact"
+        )
+    updatePeoplePhoto(id: ID!, file: Upload!): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updatePeoplePhoto"
         )
 }

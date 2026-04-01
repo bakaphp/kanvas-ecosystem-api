@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Workflows;
 
+use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
@@ -12,6 +13,10 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -39,7 +44,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     'ai_mode' => $lead->get('ai_mode'),
                     'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 ];
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value && ! in_array($triggerType, [7, 8])) {
+                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value && ! in_array($triggerType, [7, 8, 9])) {
                     return [
                         'message' => 'Currently Lead is in OFF mode',
                     ];
@@ -113,7 +118,40 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 ];
                 $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
 
-                // Post handoff note with state changes
+                if ($modsCurrent['ai_mode'] !== $modsPrevious['ai_mode']) {
+                    $notesChannel = $lead->systemNotes;
+
+                    if ($notesChannel) {
+                        $carbon = Carbon::now($lead->company->timezone);
+                        $noteContent = $carbon->format('Y-m-d H:i:s') . 'Sally Mode set to ' . $modsCurrent['ai_mode'];
+
+                        $messageTypeInput = new MessageTypeInput(
+                            apps_id: $app->getId(),
+                            languages_id: 1,
+                            name: 'Note',
+                            verb: 'note',
+                            template: '{{message}}',
+                            templates_plura: '{{message}}',
+                        );
+                        $messageType = new CreateMessageTypeAction($messageTypeInput)->execute();
+
+                        $messageInput = new MessageInput(
+                            app: $lead->app,
+                            company: $lead->company,
+                            user: $lead->user,
+                            type: $messageType,
+                            message: [
+                                'content' => $noteContent,
+                                'from_me' => true,
+                            ],
+                        );
+
+                        $createMessageAction = new CreateMessageAction($messageInput);
+                        $createMessageAction->runWorkflow = true;
+                        $message = $createMessageAction->execute();
+                        $notesChannel->addMessage($message, $lead->user);
+                    }
+                }
 
                 return [
                     'Trigger IA executed',

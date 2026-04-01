@@ -53,8 +53,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Override;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Class Attributes.
@@ -148,7 +148,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return 'variant-' . $this->companies_id . '-' . $this->apps_id;
     }
 
-    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

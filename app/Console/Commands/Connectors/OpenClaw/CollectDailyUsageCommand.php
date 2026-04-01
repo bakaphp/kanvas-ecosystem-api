@@ -8,11 +8,8 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesSettings;
-use Kanvas\Connectors\OpenClaw\Actions\CollectDailyUsageAction;
-use Kanvas\Connectors\OpenClaw\Actions\CollectHealthSnapshotAction;
-use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
-use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 
 class CollectDailyUsageCommand extends Command
@@ -21,7 +18,7 @@ class CollectDailyUsageCommand extends Command
 
     protected $signature = 'kanvas:openclaw-collect-usage {app_id}';
 
-    protected $description = 'Collect daily usage data from OpenClaw for all configured companies';
+    protected $description = 'Collect daily usage data from all running OpenClaw deployments';
 
     public function handle(): void
     {
@@ -29,36 +26,29 @@ class CollectDailyUsageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        $appCompanyIds = UserCompanyApps::where('apps_id', $app->getId())
-            ->select('companies_id')
-            ->distinct()
-            ->pluck('companies_id');
+        $deployments = AgentDeployment::where('apps_id', $app->getId())
+            ->where('status', 'running')
+            ->where('is_deleted', 0)
+            ->get();
 
-        $companyIds = CompaniesSettings::where(
-            'name',
-            ConfigurationEnum::SSH_HOST->value
-        )
-            ->whereIn('companies_id', $appCompanyIds)
-            ->whereNotNull('value')
-            ->where('value', '!=', '')
-            ->select('companies_id')
-            ->distinct()
-            ->pluck('companies_id');
+        $this->info('Found ' . $deployments->count() . ' running deployments');
 
-        $this->info('Found ' . $companyIds->count() . ' companies with OpenClaw configured');
-
-        foreach ($companyIds as $companyId) {
-            /** @var Companies $company */
-            $company = Companies::getById((int) $companyId);
-
+        foreach ($deployments as $deployment) {
             try {
-                $usageSnapshot = new CollectDailyUsageAction($app, $company)->execute();
-                $this->info("Collected usage for company {$company->name} (ID: {$companyId}): snapshot #{$usageSnapshot->getId()}");
+                $company = Companies::getById((int) $deployment->companies_id);
 
-                $healthSnapshot = new CollectHealthSnapshotAction($app, $company)->execute();
-                $this->info("Collected health for company {$company->name} (ID: {$companyId}): snapshot #{$healthSnapshot->getId()}");
+                $snapshot = new CollectDeploymentUsageAction(
+                    $deployment,
+                    $app,
+                    $company,
+                )->execute();
+
+                $this->info(
+                    "Collected usage for {$deployment->container_name}"
+                    . " (company: {$deployment->companies_id}): snapshot #{$snapshot->getId()}"
+                );
             } catch (Throwable $e) {
-                $this->error("Failed for company {$companyId}: {$e->getMessage()}");
+                $this->error("Failed for {$deployment->container_name}: {$e->getMessage()}");
             }
         }
     }

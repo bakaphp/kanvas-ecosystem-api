@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Http\UploadedFile;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
@@ -1704,5 +1705,60 @@ class PeopleTest extends TestCase
         $updatedPhone = $updatedContacts->where('contacts_types_id', 2)->first();
         $this->assertEquals($phoneContact->id, $updatedPhone->id, 'Phone ID should be preserved');
         $this->assertEquals(1, $updatedPhone->is_opt_out, 'Opt-out should be preserved when source does not send is_opt_out');
+    }
+
+    public function testUpdatePeoplePhoto(): void
+    {
+        $createResponse = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+        ])->assertSuccessful();
+
+        $peopleId = $createResponse->json('data.createPeople.id');
+
+        $operations = [
+            'query' => '
+                mutation updatePeoplePhoto($id: ID!, $file: Upload!) {
+                    updatePeoplePhoto(id: $id, file: $file) {
+                        id
+                        name
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'id' => $peopleId,
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('people-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updatePeoplePhoto' => [
+                        'id' => $peopleId,
+                    ],
+                ],
+            ]);
     }
 }

@@ -234,10 +234,16 @@ class CreateEngagementAction
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
         $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
+        $newActionPageV4 = $this->app->get('new-action-page-v4') ?? [];
         $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
+        $isNewActionPage = is_array($newActionPageV4) && in_array($this->actionSlug, $newActionPageV4);
 
         if ($isCheckoutAction) {
             return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
+        }
+
+        if ($isNewActionPage) {
+            return (string) $this->app->get('NEW_ACTION_PAGE_V4') . '/' . $engagement->uuid;
         }
 
         $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];

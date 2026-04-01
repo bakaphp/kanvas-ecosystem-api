@@ -189,10 +189,15 @@ class HandOffActivity extends KanvasActivity
         string $handOffType
     ): void {
         $companyHumanHandOffOnlySms = (bool) $lead->company->get('ai_human_handoff_only_sms');
+        $companyHumanHandOffOnlyMail = (bool) $lead->company->get('ai_human_handoff_only_mail');
         $companyComplianceHandOffOnlyPush = (bool) $lead->company->get('ai_compliance_handoff_only_push');
 
         if ($companyHumanHandOffOnlySms && $handOffType === 'human') {
             $notification->channels = [TwilioSmsChannel::class];
+        }
+
+        if ($companyHumanHandOffOnlyMail && $handOffType === 'human') {
+            $notification->channels = ['mail'];
         }
 
         if ($handOffType === 'compliance_internal') {

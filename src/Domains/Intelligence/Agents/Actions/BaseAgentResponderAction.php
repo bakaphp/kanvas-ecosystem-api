@@ -7,11 +7,13 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -102,6 +104,11 @@ class BaseAgentResponderAction
              ]
         );
         $channel->addMessage($newMessage);
+
+        $lead = $message->entity();
+        if ($lead instanceof Lead) {
+            new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
+        }
 
         return $newMessage;
     }

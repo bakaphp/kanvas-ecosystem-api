@@ -27,6 +27,12 @@ class SetupRoadsideAssistanceCaseCommand extends Command
             MovipassOrderStatusEnum::REQUEST_SUBMITTED->value => [
                 'is_default' => true,
                 'transitions' => [
+                    MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
+                    $cancelled,
+                ],
+            ],
+            MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
+                'transitions' => [
                     MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
                     $cancelled,
                 ],

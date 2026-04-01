@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\SaveVoiceTranscriptAction;
 use Kanvas\Connectors\VoiceBridge\Client;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -26,6 +27,8 @@ class SaveVoiceTranscriptJob implements ShouldQueue
     public const MAX_ATTEMPTS = 22;
     public const POLL_INTERVAL_SECONDS = 30;
 
+    public int $tries = 1;
+
     public function __construct(
         protected Lead $lead,
         protected string $sessionId,
@@ -35,7 +38,7 @@ class SaveVoiceTranscriptJob implements ShouldQueue
 
     public function handle(): void
     {
-        $app = $this->lead->app;
+        $app = Apps::getById($this->lead->apps_id);
         $this->overwriteAppService($app);
 
         try {

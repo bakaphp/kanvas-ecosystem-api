@@ -87,7 +87,7 @@ class CreateLeadFromFacebookAction
                     $pageAccessToken,
                     $graphVersion
                 );
-                $fields = $this->extractFieldData($leadData['field_data'] ?? []);
+                $fields = $this->extractFieldData($leadData['field_data'] ?? [], $company);
 
                 if (empty($fields)) {
                     /** @var string $rawResponse */
@@ -168,22 +168,74 @@ class CreateLeadFromFacebookAction
     }
 
     /**
-     * Extract field_data array into key-value pairs.
+     * Extract field_data array into key-value pairs, normalizing localized field names.
      *
      * @param list<array{name: string, values: list<string>}> $fieldData
      * @return array<string, string>
      */
-    protected function extractFieldData(array $fieldData): array
+    protected function extractFieldData(array $fieldData, Companies $company): array
     {
         $fields = [];
+        $fieldMapping = $this->getFieldMapping($company);
 
         foreach ($fieldData as $field) {
             $name = $field['name'] ?? '';
             $values = $field['values'] ?? [];
-            $fields[$name] = $values[0] ?? '';
+            $normalized = $this->normalizeFieldName($name, $fieldMapping);
+            $fields[$normalized] = $values[0] ?? '';
         }
 
         return $fields;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function getFieldMapping(Companies $company): array
+    {
+        $defaultMap = [
+            'nombre_completo' => 'full_name',
+            'nombre' => 'first_name',
+            'apellido' => 'last_name',
+            'apellidos' => 'last_name',
+            'número_de_teléfono' => 'phone_number',
+            'numero_de_teléfono' => 'phone_number',
+            'numero_de_telefono' => 'phone_number',
+            'teléfono' => 'phone_number',
+            'telefono' => 'phone_number',
+            'correo_electrónico' => 'email',
+            'correo_electronico' => 'email',
+            'correo' => 'email',
+            'ciudad' => 'city',
+            'estado' => 'state',
+            'país' => 'country',
+            'pais' => 'country',
+            'dirección' => 'street_address',
+            'direccion' => 'street_address',
+            'código_postal' => 'zip_code',
+            'codigo_postal' => 'zip_code',
+        ];
+
+        /** @var array<string, string>|null $companyMapping */
+        $companyMapping = $company->get(ConfigurationEnum::LEAD_FIELD_MAPPING->value);
+
+        if (is_array($companyMapping) && ! empty($companyMapping)) {
+            return array_merge($defaultMap, $companyMapping);
+        }
+
+        return $defaultMap;
+    }
+
+    /**
+     * @param array<string, string> $fieldMapping
+     */
+    protected function normalizeFieldName(string $name, array $fieldMapping): string
+    {
+        $cleaned = strtolower(trim($name));
+        $cleaned = str_replace(['¿', '?'], '', $cleaned);
+        $cleaned = trim($cleaned);
+
+        return $fieldMapping[$cleaned] ?? $name;
     }
 
     protected function resolveSourceId(AppInterface $app, Companies $company, array $config): int

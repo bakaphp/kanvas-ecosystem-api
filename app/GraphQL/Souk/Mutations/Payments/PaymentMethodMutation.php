@@ -129,7 +129,7 @@ class PaymentMethodMutation
 
         if ($paymentMethod->processor) {
             $processor = app("payment.{$paymentMethod->processor}");
-            $paymentMethodUpdateData = $processor->updateCardFromRequest(PaymentMethod::from([
+            $paymentMethodUpdateData = $processor->updateToken(PaymentMethod::from([
                 ...$paymentMethod->toArray(),
                 'app' => $app,
                 'user' => $user,
