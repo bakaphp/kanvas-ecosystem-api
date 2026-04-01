@@ -16,10 +16,10 @@ use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
