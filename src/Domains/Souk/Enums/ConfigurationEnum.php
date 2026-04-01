@@ -19,4 +19,5 @@ enum ConfigurationEnum: string
     case VALIDATE_METADATA_DUPLICATED_ENABLED = 'validate_metadata_duplicated_enabled';
     case CANCEL_STALE_PAYMENTS = 'souk_cancel_stale_payments';
     case STALE_PAYMENT_TTL_MINUTES = 'souk_stale_payment_ttl_minutes';
+    case DEFAULT_COMMISSION_RATE = 'default_commission_rate';
 }
