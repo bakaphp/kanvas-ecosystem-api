@@ -123,13 +123,13 @@ class TriggerIntelligenceActivity extends KanvasActivity
 
                     if ($notesChannel) {
                         $carbon = Carbon::now($lead->company->timezone);
-                        $noteContent = $carbon->format('Y-m-d H:i:s') . 'Sally Mode set to ' . $modsCurrent['ai_mode'];
+                        $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $modsCurrent['ai_mode'];
 
                         $messageTypeInput = new MessageTypeInput(
                             apps_id: $app->getId(),
                             languages_id: 1,
-                            name: 'Note',
-                            verb: 'note',
+                            name: 'ai-control',
+                            verb: 'ai-control',
                             template: '{{message}}',
                             templates_plura: '{{message}}',
                         );
