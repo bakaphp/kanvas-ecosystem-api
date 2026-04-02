@@ -78,7 +78,7 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
     protected function buildAdfXml(Lead $lead, array $params): string
     {
         return (new BuildLeadAdfXmlAction())->execute($lead, [
-            'source' => $params['source'] ?? 'Kanvas',
+            'source' => $params['source'] ?? 'Sales Assist',
             'providerName' => $params['provider_name'] ?? 'SalesAssist',
             'service' => $params['service'] ?? 'SalesAssist Lead Delivery',
         ]);
