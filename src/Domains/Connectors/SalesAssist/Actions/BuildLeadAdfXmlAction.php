@@ -28,8 +28,8 @@ class BuildLeadAdfXmlAction
             'leadId' => (string) ($lead->uuid ?? $lead->getId()),
             'requestDate' => $lead->created_at?->format('Y-m-d\TH:i:s.vP') ?? now()->format('Y-m-d\TH:i:s.vP'),
             'source' => $this->getLeadSource($lead),
-            'providerName' => 'SalesAssist',
-            'service' => 'SalesAssist Lead Delivery',
+            'providerName' => 'Sales Assist',
+            'service' => 'Sales Assist Lead Delivery',
             'vendorId' => (string) $lead->company->getId(),
             'vendorName' => $lead->company->name,
             'salesPerson' => $this->getSalesPerson($lead),
@@ -53,7 +53,7 @@ class BuildLeadAdfXmlAction
     protected function buildXml(array $data): string
     {
         $leadId = $this->escape((string) ($data['leadId'] ?? uniqid('lead_', true)));
-        $source = $this->escape((string) ($data['source'] ?? 'Kanvas'));
+        $source = $this->escape((string) ($data['source'] ?? 'Sales Assist'));
         $requestDate = $this->escape((string) ($data['requestDate'] ?? now()->format('Y-m-d\TH:i:s.vP')));
         $interest = $this->escape((string) ($data['interest'] ?? 'buy'));
         $status = $this->escape((string) ($data['status'] ?? 'used'));
@@ -71,8 +71,8 @@ class BuildLeadAdfXmlAction
         $vendorId = $this->cdata((string) ($data['vendorId'] ?? ''));
         $vendorName = $this->cdata((string) ($data['vendorName'] ?? ''));
         $salesPerson = $this->cdata((string) ($data['salesPerson'] ?? ''));
-        $providerName = $this->cdata((string) ($data['providerName'] ?? 'SalesAssist'));
-        $service = $this->cdata((string) ($data['service'] ?? 'SalesAssist Lead Delivery'));
+        $providerName = $this->cdata((string) ($data['providerName'] ?? 'Sales Assist'));
+        $service = $this->cdata((string) ($data['service'] ?? 'Sales Assist Lead Delivery'));
 
         $xml = <<<XML
 <?xml version="1.0"?>
@@ -208,9 +208,9 @@ XML;
     protected function getLeadSource(Lead $lead): string
     {
         try {
-            return $lead->source?->name ?? 'Kanvas';
+            return $lead->source?->name ?? 'Sales Assist';
         } catch (Throwable) {
-            return 'Kanvas';
+            return 'Sales Assist';
         }
     }
 
