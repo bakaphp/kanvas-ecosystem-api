@@ -72,18 +72,6 @@ class TriggerIntelligenceActivity extends KanvasActivity
 
                         // Logic for AI takeover trigger
                         break;
-                    case TriggersEnum::SOLD_LEAD->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::SOLD_LEAD_FOLLOW_UP->value);
-
-                        // Logic for sold lead trigger
-                        break;
-                    case TriggersEnum::CLOSE_LEAD->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
-
-                        // Logic for close lead trigger
-                        break;
                     case TriggersEnum::MANUAL_OFF->value:
                         $lead->set('ai_mode', IntelligenceModeEnum::OFF->value);
                         $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
