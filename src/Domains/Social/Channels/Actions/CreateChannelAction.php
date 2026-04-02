@@ -9,7 +9,9 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Events\ChannelCreatedEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -52,6 +54,10 @@ class CreateChannelAction
                 'name' => $this->channelDto->name,
                 'description' => $this->channelDto->description,
                 ]);
+
+                if ($this->channelDto->entity_namespace === Lead::class) {
+                    ChannelCreatedEvent::dispatch($channel);
+                }
             }
 
             try {
