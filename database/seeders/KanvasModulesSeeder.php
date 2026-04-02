@@ -13,7 +13,6 @@ class KanvasModulesSeeder extends Seeder
      */
     public function run(): void
     {
-
         KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::ECOSYSTEM->value,
