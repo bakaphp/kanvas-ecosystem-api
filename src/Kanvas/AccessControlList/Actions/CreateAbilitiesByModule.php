@@ -38,18 +38,27 @@ class CreateAbilitiesByModule
             foreach ($subModule as $model => $abilities) {
                 $systemModule = SystemModulesRepository::getByModelName($model, $this->app);
                 foreach ($abilities as $ability) {
-                    $ability = Bouncer::ability()->firstOrCreate([
-                        'name' => $ability,
-                        'title' => ucfirst($ability),
-                        'entity_type' => $model,
-                    ]);
-                    AbilitiesModules::firstOrCreate(
+                    $ability = Bouncer::ability()->firstOrCreate(
                         [
-                            'system_modules_id' => $systemModule->getId(),
-                            'abilities_id' => $ability->id,
-                            'scope' => $scope,
+                            'name' => $ability,
+                            'entity_type' => $model,
+                        ],
+                        [
+                            'title' => ucfirst($ability),
+                        ]
+                    );
+
+                    // Update or create abilities_modules, ensuring no stale entries
+                    AbilitiesModules::updateOrCreate(
+                        [
                             'module_id' => $module,
                             'apps_id' => $this->app->getId(),
+                            'scope' => $scope,
+                            'system_modules_id' => $systemModule->getId(),
+                            'abilities_id' => $ability->id,
+                        ],
+                        [
+                            'is_deleted' => 0,
                         ]
                     );
                 }
