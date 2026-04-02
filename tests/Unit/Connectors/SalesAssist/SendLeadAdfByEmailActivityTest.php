@@ -114,9 +114,10 @@ class SendLeadAdfByEmailActivityTest extends TestCase
                 string $to,
                 string $subject,
                 string $xml,
-                string $attachmentName
+                string $attachmentName,
+                bool $sendAsAttachment = false
             ): void {
-                if ($to === 'adf@example.com' && $subject === 'ADF Subject' && $xml === '<adf></adf>' && $attachmentName === 'lead-88.xml') {
+                if ($to === 'adf@example.com' && $subject === 'ADF Subject' && $xml === '<adf></adf>' && $attachmentName === 'lead-88.xml' && $sendAsAttachment === false) {
                     $this->sent = true;
                 }
             }
@@ -134,6 +135,54 @@ class SendLeadAdfByEmailActivityTest extends TestCase
         $this->assertTrue($activity->sent);
         $this->assertTrue($response['success']);
         $this->assertSame('adf@example.com', $response['to']);
-        $this->assertSame('lead-88.xml', $response['attachment']);
+        $this->assertNull($response['attachment']);
+        $this->assertSame('body', $response['delivery_mode']);
+    }
+
+    public function testSendLeadAdfByEmailActivityCanSendAsAttachment(): void
+    {
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getId')->andReturn(89);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
+
+        $app = Mockery::mock(AppInterface::class);
+        $storedWorkflow = Mockery::mock(StoredWorkflow::class);
+        $storedWorkflow->shouldReceive('workflowOptions')->andReturn(new WorkflowOptions());
+
+        $activity = new class (1, '2026-04-02T00:00:00+00:00', $storedWorkflow) extends SendLeadAdfByEmailActivity {
+            public bool $sent = false;
+
+            protected function bootstrapAppService(AppInterface $app): void
+            {
+            }
+
+            protected function buildAdfXml(Lead $lead, array $params): string
+            {
+                return '<adf></adf>';
+            }
+
+            protected function sendAdfEmail(
+                Lead $lead,
+                AppInterface $app,
+                string $to,
+                string $subject,
+                string $xml,
+                string $attachmentName,
+                bool $sendAsAttachment = false
+            ): void {
+                if ($attachmentName === 'lead-89.xml' && $sendAsAttachment === true) {
+                    $this->sent = true;
+                }
+            }
+        };
+
+        $response = $activity->execute($lead, $app, [
+            'to' => 'adf@example.com',
+            'send_as_attachment' => true,
+        ]);
+
+        $this->assertTrue($activity->sent);
+        $this->assertSame('lead-89.xml', $response['attachment']);
+        $this->assertSame('attachment', $response['delivery_mode']);
     }
 }

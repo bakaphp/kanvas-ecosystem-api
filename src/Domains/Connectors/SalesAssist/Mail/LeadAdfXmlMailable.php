@@ -12,7 +12,8 @@ class LeadAdfXmlMailable extends KanvasMailable
         array $mailerConfig,
         string $emailContent,
         protected string $attachmentName,
-        protected string $xmlContent
+        protected string $xmlContent,
+        protected bool $sendAsAttachment = false
     ) {
         parent::__construct($mailerConfig, $emailContent);
     }
@@ -20,6 +21,10 @@ class LeadAdfXmlMailable extends KanvasMailable
     public function build(): self
     {
         parent::build();
+
+        if (! $this->sendAsAttachment) {
+            return $this;
+        }
 
         return $this->attachData(
             $this->xmlContent,

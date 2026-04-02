@@ -51,6 +51,8 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
         $xml = $this->buildAdfXml($lead, $params);
         $attachmentName = 'lead-' . $lead->getId() . '.xml';
 
+        $sendAsAttachment = (bool) ($params['send_as_attachment'] ?? false);
+
         $this->sendAdfEmail(
             lead: $lead,
             app: $app,
@@ -58,6 +60,7 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
             subject: (string) $subject,
             xml: $xml,
             attachmentName: $attachmentName,
+            sendAsAttachment: $sendAsAttachment,
         );
 
         return [
@@ -66,7 +69,8 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
             'lead_id' => $lead->getId(),
             'to' => $to,
             'subject' => $subject,
-            'attachment' => $attachmentName,
+            'attachment' => $sendAsAttachment ? $attachmentName : null,
+            'delivery_mode' => $sendAsAttachment ? 'attachment' : 'body',
         ];
     }
 
@@ -90,17 +94,23 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
         string $to,
         string $subject,
         string $xml,
-        string $attachmentName
+        string $attachmentName,
+        bool $sendAsAttachment = false
     ): void {
         $smtpRuntime = new SmtpRuntimeConfiguration($app, $lead->company);
         $mailConfig = $smtpRuntime->loadSmtpSettings();
         $fromMail = $smtpRuntime->getFromEmail();
 
+        $emailContent = $sendAsAttachment
+            ? '<p>Please find attached the ADF lead XML export.</p>'
+            : '<pre>' . e($xml) . '</pre>';
+
         $mailable = new LeadAdfXmlMailable(
             $mailConfig,
-            '<p>Please find attached the ADF lead XML export.</p>',
+            $emailContent,
             $attachmentName,
-            $xml
+            $xml,
+            $sendAsAttachment
         );
 
         $mailable
