@@ -12,6 +12,7 @@ use Kanvas\Connectors\SalesAssist\Actions\BuildLeadAdfXmlAction;
 use Kanvas\Connectors\SalesAssist\Mail\LeadAdfXmlMailable;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -53,25 +54,34 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
 
         $sendAsAttachment = (bool) ($params['send_as_attachment'] ?? false);
 
-        $this->sendAdfEmail(
-            lead: $lead,
+        return $this->executeIntegration(
+            entity: $lead,
             app: $app,
-            to: $to,
-            subject: (string) $subject,
-            xml: $xml,
-            attachmentName: $attachmentName,
-            sendAsAttachment: $sendAsAttachment,
-        );
+            integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
+            integrationOperation: function (Lead $lead, AppInterface $app, mixed $integrationCompany, array $additionalParams) use ($to, $subject, $xml, $attachmentName, $sendAsAttachment): array {
+                $this->sendAdfEmail(
+                    lead: $lead,
+                    app: $app,
+                    to: $to,
+                    subject: (string) $subject,
+                    xml: $xml,
+                    attachmentName: $attachmentName,
+                    sendAsAttachment: $sendAsAttachment,
+                );
 
-        return [
-            'success' => true,
-            'message' => 'ADF lead email sent successfully',
-            'lead_id' => $lead->getId(),
-            'to' => $to,
-            'subject' => $subject,
-            'attachment' => $sendAsAttachment ? $attachmentName : null,
-            'delivery_mode' => $sendAsAttachment ? 'attachment' : 'body',
-        ];
+                return [
+                    'success' => true,
+                    'message' => 'ADF lead email sent successfully',
+                    'lead_id' => $lead->getId(),
+                    'to' => $to,
+                    'subject' => $subject,
+                    'attachment' => $sendAsAttachment ? $attachmentName : null,
+                    'delivery_mode' => $sendAsAttachment ? 'attachment' : 'body',
+                ];
+            },
+            company: $lead->company,
+        );
     }
 
     protected function bootstrapAppService(AppInterface $app): void
