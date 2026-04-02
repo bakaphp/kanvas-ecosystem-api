@@ -8,7 +8,6 @@ use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class RoleAbilitiesTest extends TestCase
