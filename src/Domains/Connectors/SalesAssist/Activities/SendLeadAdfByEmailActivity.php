@@ -96,12 +96,14 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
         $mailConfig = $smtpRuntime->loadSmtpSettings();
         $fromMail = $smtpRuntime->getFromEmail();
 
-        $mailable = (new LeadAdfXmlMailable(
+        $mailable = new LeadAdfXmlMailable(
             $mailConfig,
             '<p>Please find attached the ADF lead XML export.</p>',
             $attachmentName,
             $xml
-        ))
+        );
+
+        $mailable
             ->from($fromMail['address'], $fromMail['name'])
             ->to($to)
             ->subject($subject);
