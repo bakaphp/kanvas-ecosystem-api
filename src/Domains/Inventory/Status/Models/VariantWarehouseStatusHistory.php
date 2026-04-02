@@ -24,7 +24,7 @@ class VariantWarehouseStatusHistory extends BaseModel
     use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'products_variants_warehouse_status_history';
     protected $guarded = [];
     protected $primaryKey = ['products_variants_warehouse_id', 'status_id'];

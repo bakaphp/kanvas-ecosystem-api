@@ -6,12 +6,10 @@ namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-
 
 /**
  * Filesystem Model.

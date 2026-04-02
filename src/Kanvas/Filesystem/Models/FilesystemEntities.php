@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-
 
 /**
  * FilesystemEntities Model.

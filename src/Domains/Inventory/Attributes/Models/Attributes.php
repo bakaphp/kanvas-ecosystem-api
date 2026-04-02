@@ -24,7 +24,6 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 
-
 /**
  * Class Attributes.
  *
