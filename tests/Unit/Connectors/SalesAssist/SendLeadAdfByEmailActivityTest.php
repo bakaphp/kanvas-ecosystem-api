@@ -10,6 +10,8 @@ use Kanvas\Connectors\SalesAssist\Activities\SendLeadAdfByEmailActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use PHPUnit\Framework\TestCase;
+use Workflow\Models\StoredWorkflow;
+use Workflow\WorkflowOptions;
 
 class SendLeadAdfByEmailActivityTest extends TestCase
 {
@@ -84,14 +86,15 @@ class SendLeadAdfByEmailActivityTest extends TestCase
 
     public function testSendLeadAdfByEmailActivitySendsUsingWorkflowParams(): void
     {
-        $lead = new Lead();
-        $lead->id = 88;
-        $lead->setRelation('people', new \stdClass());
-        $lead->setRelation('company', new \stdClass());
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getId')->andReturn(88);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
 
         $app = Mockery::mock(AppInterface::class);
+        $storedWorkflow = Mockery::mock(StoredWorkflow::class);
+        $storedWorkflow->shouldReceive('workflowOptions')->andReturn(new WorkflowOptions());
 
-        $activity = new class () extends SendLeadAdfByEmailActivity {
+        $activity = new class (1, '2026-04-02T00:00:00+00:00', $storedWorkflow) extends SendLeadAdfByEmailActivity {
             public bool $bootstrapped = false;
             public bool $sent = false;
 
