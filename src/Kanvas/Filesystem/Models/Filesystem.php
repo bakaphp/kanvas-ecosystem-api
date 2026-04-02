@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Rennokki\QueryCache\Traits\QueryCacheable;
+
 
 /**
  * Filesystem Model.
@@ -35,10 +35,6 @@ class Filesystem extends BaseModel
     use UuidTrait;
     use HashTableTrait;
     use CanUseWorkflow;
-    //use Cachable;
-    // use QueryCacheable;
-
-    public $cacheFor = 604800; //1 week
     public $cacheTags = ['filesystem'];
     public $cachePrefix = 'filesystem_';
     public $cacheDriver = 'redis';

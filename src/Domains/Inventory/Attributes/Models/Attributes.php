@@ -23,7 +23,7 @@ use Kanvas\Inventory\Products\Models\ProductsAttributes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
-use Rennokki\QueryCache\Traits\QueryCacheable;
+
 
 /**
  * Class Attributes.
@@ -49,8 +49,6 @@ class Attributes extends BaseModel
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
-    //use QueryCacheable;
-
     public $table = 'attributes';
     public $translatable = ['name'];
 

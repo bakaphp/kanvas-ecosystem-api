@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baka\Support;
 
 use Baka\Contracts\AppInterface;
-use GrantHolle\UsernameGenerator\Username;
 use InvalidArgumentException;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
@@ -65,14 +64,10 @@ class Random
 
     private static function generatePrivateRelayUsername(): string
     {
-        $username = (new Username())
-            ->withAdjectiveCount(1)
-            ->withNounCount(1)
-            ->withDigitCount(0)
-            ->withCasing('lower')
-            ->generate();
+        $adjective = fake()->word();
+        $noun = fake()->word();
 
-        return str_replace(' ', '', $username);
+        return strtolower($adjective . $noun);
     }
 
     private static function cleanupEmailUsername(string $username): ?string

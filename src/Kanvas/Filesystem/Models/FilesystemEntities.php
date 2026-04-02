@@ -11,7 +11,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
-use Rennokki\QueryCache\Traits\QueryCacheable;
+
 
 /**
  * FilesystemEntities Model.
@@ -31,10 +31,6 @@ class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
-    //use Cachable;
-    // use QueryCacheable;
-
-    public $cacheFor = 604800; //1 week
     public $cacheTags = ['filesystemEntity'];
     public $cachePrefix = 'filesystemEntity_';
     public $cacheDriver = 'redis';
