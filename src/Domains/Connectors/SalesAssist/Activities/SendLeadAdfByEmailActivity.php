@@ -47,7 +47,7 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
             ]);
         }
 
-        $subject = $params['subject'] ?? 'New ADF Lead from Kanvas';
+        $subject = $params['subject'] ?? 'New ADF Lead from Sales Assist';
         $xml = $this->buildAdfXml($lead, $params);
         $attachmentName = 'lead-' . $lead->getId() . '.xml';
 
@@ -83,8 +83,8 @@ class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActiv
     {
         return (new BuildLeadAdfXmlAction())->execute($lead, [
             'source' => $params['source'] ?? 'Sales Assist',
-            'providerName' => $params['provider_name'] ?? 'SalesAssist',
-            'service' => $params['service'] ?? 'SalesAssist Lead Delivery',
+            'providerName' => $params['provider_name'] ?? 'Sales Assist',
+            'service' => $params['service'] ?? 'Sales Assist Lead Delivery',
         ]);
     }
 
