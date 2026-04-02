@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Connectors\SalesAssist;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Actions\BuildLeadAdfXmlAction;
 use Kanvas\Connectors\SalesAssist\Activities\SendLeadAdfByEmailActivity;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Mockery;
 use PHPUnit\Framework\TestCase;
@@ -88,7 +91,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
     public function testSendLeadAdfByEmailActivitySendsUsingWorkflowParams(): void
     {
         $lead = Mockery::mock(Lead::class);
-        $company = Mockery::mock(\Kanvas\Companies\Models\Companies::class);
+        $company = Mockery::mock(Companies::class);
 
         $lead->shouldReceive('getId')->andReturn(88);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
@@ -114,13 +117,13 @@ class SendLeadAdfByEmailActivityTest extends TestCase
             }
 
             public function executeIntegration(
-                \Illuminate\Database\Eloquent\Model $entity,
+                Model $entity,
                 AppInterface $app,
                 IntegrationsEnum $integration,
                 callable $integrationOperation,
                 array $additionalParams = [],
-                ?\Kanvas\Regions\Models\Regions $region = null,
-                ?\Kanvas\Companies\Models\Companies $company = null,
+                ?Regions $region = null,
+                ?Companies $company = null,
                 bool $throwException = false
             ): array {
                 $this->usedIntegrationWrapper = true;
@@ -163,7 +166,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
     public function testSendLeadAdfByEmailActivityCanSendAsAttachment(): void
     {
         $lead = Mockery::mock(Lead::class);
-        $company = Mockery::mock(\Kanvas\Companies\Models\Companies::class);
+        $company = Mockery::mock(Companies::class);
 
         $lead->shouldReceive('getId')->andReturn(89);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
@@ -187,13 +190,13 @@ class SendLeadAdfByEmailActivityTest extends TestCase
             }
 
             public function executeIntegration(
-                \Illuminate\Database\Eloquent\Model $entity,
+                Model $entity,
                 AppInterface $app,
                 IntegrationsEnum $integration,
                 callable $integrationOperation,
                 array $additionalParams = [],
-                ?\Kanvas\Regions\Models\Regions $region = null,
-                ?\Kanvas\Companies\Models\Companies $company = null,
+                ?Regions $region = null,
+                ?Companies $company = null,
                 bool $throwException = false
             ): array {
                 $this->usedIntegrationWrapper = true;
