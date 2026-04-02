@@ -1,0 +1,111 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\SalesAssist\Activities;
+
+use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Mail;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
+use Kanvas\Connectors\SalesAssist\Actions\BuildLeadAdfXmlAction;
+use Kanvas\Connectors\SalesAssist\Mail\LeadAdfXmlMailable;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\KanvasActivity;
+use Override;
+
+class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActivityInterface
+{
+    #[Override]
+    public function execute(Model $entity, AppInterface $app, array $params): array
+    {
+        $this->bootstrapAppService($app);
+
+        if (! $entity instanceof Lead) {
+            return $this->failWorkflow([
+                'message' => 'Entity must be a Lead',
+                'entity_type' => get_class($entity),
+            ]);
+        }
+
+        $lead = $entity;
+        $to = $params['to'] ?? null;
+
+        if (! is_string($to) || trim($to) === '') {
+            return $this->failWorkflow([
+                'message' => 'Missing required workflow param: to',
+                'lead_id' => $lead->getId(),
+                'data' => $params,
+            ]);
+        }
+
+        if (! $lead->people) {
+            return $this->failWorkflow([
+                'message' => 'Lead must have people relation to build ADF email',
+                'lead_id' => $lead->getId(),
+            ]);
+        }
+
+        $subject = $params['subject'] ?? 'New ADF Lead from Kanvas';
+        $xml = $this->buildAdfXml($lead, $params);
+        $attachmentName = 'lead-' . $lead->getId() . '.xml';
+
+        $this->sendAdfEmail(
+            lead: $lead,
+            app: $app,
+            to: $to,
+            subject: (string) $subject,
+            xml: $xml,
+            attachmentName: $attachmentName,
+        );
+
+        return [
+            'success' => true,
+            'message' => 'ADF lead email sent successfully',
+            'lead_id' => $lead->getId(),
+            'to' => $to,
+            'subject' => $subject,
+            'attachment' => $attachmentName,
+        ];
+    }
+
+    protected function bootstrapAppService(AppInterface $app): void
+    {
+        $this->overwriteAppService($app);
+    }
+
+    protected function buildAdfXml(Lead $lead, array $params): string
+    {
+        return (new BuildLeadAdfXmlAction())->execute($lead, [
+            'source' => $params['source'] ?? 'Kanvas',
+            'providerName' => $params['provider_name'] ?? 'SalesAssist',
+            'service' => $params['service'] ?? 'SalesAssist Lead Delivery',
+        ]);
+    }
+
+    protected function sendAdfEmail(
+        Lead $lead,
+        AppInterface $app,
+        string $to,
+        string $subject,
+        string $xml,
+        string $attachmentName
+    ): void {
+        $smtpRuntime = new SmtpRuntimeConfiguration($app, $lead->company);
+        $mailConfig = $smtpRuntime->loadSmtpSettings();
+        $fromMail = $smtpRuntime->getFromEmail();
+
+        $mailable = (new LeadAdfXmlMailable(
+            $mailConfig,
+            '<p>Please find attached the ADF lead XML export.</p>',
+            $attachmentName,
+            $xml
+        ))
+            ->from($fromMail['address'], $fromMail['name'])
+            ->to($to)
+            ->subject($subject);
+
+        Mail::send($mailable);
+    }
+}
