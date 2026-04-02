@@ -22,8 +22,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
 
     public function testBuildLeadAdfXmlContainsExpectedBlocks(): void
     {
-        $builder = new class extends BuildLeadAdfXmlAction
-        {
+        $builder = new class () extends BuildLeadAdfXmlAction {
             public function build(array $data): string
             {
                 return $this->buildXml($data);
@@ -61,8 +60,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
 
     public function testBuildLeadAdfXmlNormalizesInvalidPhoneValues(): void
     {
-        $builder = new class extends BuildLeadAdfXmlAction
-        {
+        $builder = new class () extends BuildLeadAdfXmlAction {
             public function build(array $data): string
             {
                 return $this->buildXml($data);
@@ -93,8 +91,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
 
         $app = Mockery::mock(AppInterface::class);
 
-        $activity = new class extends SendLeadAdfByEmailActivity
-        {
+        $activity = new class () extends SendLeadAdfByEmailActivity {
             public bool $bootstrapped = false;
             public bool $sent = false;
 
