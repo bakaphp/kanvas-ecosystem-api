@@ -254,10 +254,6 @@ XML;
         try {
             $vehicle = $lead->get('vehicle_of_interest');
 
-            if (is_string($vehicle)) {
-                $vehicle = json_decode($vehicle, true);
-            }
-
             if (! is_array($vehicle)) {
                 return null;
             }
@@ -280,10 +276,6 @@ XML;
     {
         try {
             $vehicle = $lead->get('vehicle_of_interest');
-
-            if (is_string($vehicle)) {
-                $vehicle = json_decode($vehicle, true);
-            }
 
             if (! is_array($vehicle)) {
                 return 'used';
