@@ -50,7 +50,7 @@ class ADKAgent
 
         $sessionId = $session ? $session->uuid : $channel->slug;
         $userId = (string) $message->users_id;
-        $dateAdkUserId = $message->app->get(AppSettingsEnums::DATE_ADK_AGENT_RESPONSES->value) ?? null;
+        $dateAdkUserId = $message->app->get(AppSettingsEnums::DATE_ADK_AGENT_RESPONSES->getValue()) ?? null;
         $dateParse = $dateAdkUserId ? Carbon::parse($dateAdkUserId) : null;
         $now = Carbon::now();
 
