@@ -53,179 +53,7 @@ class SendDelayMessageCommand extends Command
             $messages = $this->getLockedFirstMessages($app, $company, $delayMinutes);
 
             foreach ($messages as $message) {
-<<<<<<< Updated upstream
-                if (! $message->entity() || get_class($message->entity()) !== Lead::class) {
-                    $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
-                    $message->setUnlock();
-
-                    continue;
-                }
-
-                if (! $message->hasTag(['first-message'])) {
-                    $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
-                    $message->setUnlock();
-
-                    continue;
-                }
-
-                $communicationChannel = $message->get('communicationChannel');
-                $fromNumber = $message->get('from_number');
-                $title = $message->get('title');
-                $lead = $message->entity();
-
-                $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
-                if (! $lead instanceof Lead) {
-                    $this->error('Message ID ' . $message->getId() . ' is not linked to a Lead entity.');
-
-                    continue;
-                }
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
-                    $message->setUnlock();
-                    $this->error('AI Mode OFF');
-                }
-                $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
-                $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
-                $hasBeenContacted = $lead->hasBeenContacted();
-                if ($isElead) {
-                    // for now only work with elead, missing determining if lead was contacted
-                    if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
-                        $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping message ID ' . $message->getId() . '.');
-                        $message->setUnlock();
-                        //$message->setPublic();
-
-                        continue;
-                    }
-
-                    try {
-                        $hasBeenContacted = SalesActivities::hasSalesAgentReachedOut(
-                            $lead->app,
-                            $lead->company,
-                            $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                        ) || $lead->hasBeenContacted();
-                    } catch (Exception $e) {
-                        $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-                    }
-                }
-
-                try {
-                    if (
-                        $hasBeenContacted
-                    ) {
-                        $message->setUnlock();
-                        //$message->setPublic();
-                        $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping message ID ' . $message->getId() . '.');
-
-                        continue;
-                    }
-                } catch (Exception $e) {
-                    $this->error('Error checking sales activity for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-
-                    continue;
-                }
-                // @todo we need to determine if the lead was contacted for vin solution
-                $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
-
-                if ($messageContent === '' || empty($messageContent)) {
-                    $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping message ID ' . $message->getId() . '.');
-
-                    $message->setUnlock();
-
-                    continue;
-                }
-
-                if (! $lead->get('delay_message_sent')) {
-                    try {
-                        $note = 'Sally sent the first message after the lead had been open for ' . $minutedMessages . ' minutes with no contact from a sales agent.';
-                        if ($isElead) {
-                            $eLeadOpportunity = EntitiesLead::getById(
-                                $lead->app,
-                                $lead->company,
-                                (string) $lead->get(CustomFieldEnum::OPPORTUNITY_ID->value)
-                            );
-                            $eLeadOpportunity->addComment($note);
-                        } elseif ($isVinSolutions) {
-                            new PushNoteToLeadAction(
-                                lead: $lead,
-                                message: $message,
-                            )->execute($note);
-                        }
-                        $lead->set('delay_message_sent', true);
-                    } catch (ClientException $e) {
-                        if (Str::contains($e->getMessage(), 'not active')
-                            || Str::contains($e->getMessage(), 'InactiveOpportunity')) {
-                            $lead->close();
-                            $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
-                        } else {
-                            $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-                        }
-
-                        continue;
-                    } catch (Exception $e) {
-                        $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-
-                        continue;
-                    }
-                }
-
-                try {
-                    new SendMessageToLeadAction($lead)->execute(
-                        $communicationChannel,
-                        $messageContent,
-                        $fromNumber,
-                        $title,
-                    );
-                    $message->setUnlock();
-                    $message->setPublic();
-                    $message->created_at = date('Y-m-d H:i:s');
-                    $message->saveOrFail();
-                    $lead->set(
-                        LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value,
-                        $message->created_at
-                    );
-
-                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-                    }
-
-                    if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
-                        $communicationChannelNumber = $message->message['chat_jid'] ?? null;
-                        if ($communicationChannelNumber) {
-                            $channelSlug = SessionChannelService::createChannelSlug($communicationChannel, $communicationChannelNumber);
-                            $existingChannel = Channel::fromApp($lead->app)
-                                ->fromCompany($lead->company)
-                                ->where('slug', $channelSlug)
-                                ->first();
-                            if ($existingChannel) {
-                                $lead->set(
-                                    LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value,
-                                    $existingChannel->uuid
-                                );
-                            }
-                        }
-                    }
-
-                    //dispatch workflow
-                    $message->fireWorkflow(
-                        WorkflowEnum::CREATED->value,
-                        true,
-                        [
-                           'app' => $message->app,
-                        ]
-                    );
-
-                    $this->info('Sent delayed message for Lead ID ' . $lead->getId() . ' for message ID ' . $message->getId());
-
-                    DailyReportService::track(
-                        $lead->app,
-                        $lead->company,
-                        'ai_delayed_message_sent'
-                    );
-                } catch (Exception $e) {
-                    $this->error('Error sending message for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
-                }
-=======
-                $this->processMessage($app, $company, $message, $delayMinutes);
->>>>>>> Stashed changes
+                $this->processMessage($company, $message, $delayMinutes);
             }
 
             $this->info('Processed messages for company: ' . $company->name);
@@ -239,14 +67,21 @@ class SendDelayMessageCommand extends Command
             ->where('is_locked', 1)
             ->whereHas(
                 'messageType',
-                fn ($query) => $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image'])
+                fn ($query) => $query->whereIn('verb', [
+                    'mailgun-email',
+                    'twilio-sms',
+                    'whatsapp-contact',
+                    'whatsapp',
+                    'whatsapp-text',
+                    'whatsapp-image',
+                ])
             )
             ->whereDate('created_at', now()->toDateString())
             ->whereRaw("DATE_ADD(created_at, INTERVAL {$delayMinutes} MINUTE) <= NOW()")
             ->cursor();
     }
 
-    protected function processMessage(Apps $app, Companies $company, Message $message, int $delayMinutes): void
+    protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
         $lead = $message->entity();
 
@@ -264,14 +99,14 @@ class SendDelayMessageCommand extends Command
             return;
         }
 
+        $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
+
         if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
             $message->setUnlock();
             $this->error('AI Mode OFF for Lead ID ' . $lead->getId());
 
             return;
         }
-
-        $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
 
         if ($this->hasBeenContactedBySalesAgent($lead, $company)) {
             $message->setUnlock();
@@ -298,13 +133,15 @@ class SendDelayMessageCommand extends Command
     protected function hasBeenContactedBySalesAgent(Lead $lead, Companies $company): bool
     {
         $hasBeenContacted = $lead->hasBeenContacted();
-
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+
         if (! $isElead) {
             return $hasBeenContacted;
         }
 
         if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
+            $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping.');
+
             return true;
         }
 
@@ -321,14 +158,19 @@ class SendDelayMessageCommand extends Command
         }
     }
 
-    protected function sendCrmDelayNote(Lead $lead, Message $message, Companies $company, int $delayMinutes): bool
-    {
+    protected function sendCrmDelayNote(
+        Lead $lead,
+        Message $message,
+        Companies $company,
+        int $delayMinutes
+    ): bool {
         if ($lead->get('delay_message_sent')) {
             return true;
         }
 
         $crmIntegration = $this->resolveCrmIntegration($company);
-        $note = 'Sally sent the first message after the lead had been open for ' . $delayMinutes . ' minutes with no contact from a sales agent.';
+        $note = 'Sally sent the first message after the lead had been open for '
+            . $delayMinutes . ' minutes with no contact from a sales agent.';
 
         try {
             $this->addDelayNoteToCrm($lead, $message, $crmIntegration, $note);
@@ -341,12 +183,12 @@ class SendDelayMessageCommand extends Command
                 $lead->close();
                 $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
             } else {
-                $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+                $this->error('Error adding CRM note for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
             }
 
             return false;
         } catch (Exception $e) {
-            $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+            $this->error('Error adding CRM note for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
 
             return false;
         }
@@ -388,8 +230,11 @@ class SendDelayMessageCommand extends Command
         }
     }
 
-    protected function setPreferredChannel(Lead $lead, Message $message, string $communicationChannel): void
-    {
+    protected function setPreferredChannel(
+        Lead $lead,
+        Message $message,
+        string $communicationChannel
+    ): void {
         if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
             $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
         }
