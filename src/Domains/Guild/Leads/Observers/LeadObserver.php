@@ -126,13 +126,21 @@ class LeadObserver
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
             if (strtolower($leadStatus->name) === 'sold') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
+                    ]
+                );
             } elseif (strtolower($leadStatus->name) === 'close') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
+                    ]
+                );
             }
         }
         //$lead->clearLightHouseCacheJob();
