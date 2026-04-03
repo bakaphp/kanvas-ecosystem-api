@@ -56,7 +56,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 $this->sendDataToOrchestration($lead, $currentMode);
 
                 if ($currentMode !== $previousMode) {
-                    $this->logModeChangeNote($lead, $app, $currentMode);
+                    $this->logModeChangeNote($lead, $currentMode);
                 }
 
                 return [
@@ -123,7 +123,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
         $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, $followUp->value);
     }
 
-    protected function logModeChangeNote(Lead $lead, Apps $app, string $newMode): void
+    protected function logModeChangeNote(Lead $lead, string $newMode): void
     {
         $notesChannel = $lead->systemNotes;
         if (! $notesChannel) {
@@ -135,7 +135,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
-                apps_id: $app->getId(),
+                apps_id: $lead->app->getId(),
                 languages_id: 1,
                 name: 'ai-control',
                 verb: 'ai-control',
