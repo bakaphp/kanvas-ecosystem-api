@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Event;
 
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
 use Kanvas\Event\Events\Models\EventReminder;
@@ -100,13 +99,22 @@ class BookingReminderCommandTest extends ResourceBookingBase
 
     public function testSendBookingRemindersCommandMarksReminderAsSentOnce(): void
     {
-        Notification::fake();
+        Carbon::setTestNow(Carbon::parse('2026-04-01 09:00:00'));
 
-        $booking = $this->createBooking($this->getBasicBookingData());
+        $bookingData = $this->getBasicBookingData();
+        $bookingData['start_at'] = '2026-04-02 10:00:00';
+        $bookingData['end_at'] = '2026-04-02 12:00:00';
+
+        $booking = $this->createBooking($bookingData);
         $reminder = EventReminder::where('event_version_id', $booking['id'])->firstOrFail();
 
+        // Cancel any pre-existing pending reminders from other tests to avoid interference
+        EventReminder::where('status', EventReminderStatusEnum::PENDING->value)
+            ->where('id', '!=', $reminder->id)
+            ->update(['status' => EventReminderStatusEnum::CANCELED->value]);
+
         $reminder->update([
-            'send_at' => now()->subMinute(),
+            'send_at' => Carbon::parse('2026-04-01 08:00:00'),
         ]);
 
         $this->artisan('kanvas:events:send-booking-reminders --limit=10')
