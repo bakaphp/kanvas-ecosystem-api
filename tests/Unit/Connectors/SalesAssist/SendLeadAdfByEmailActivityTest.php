@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Tests\Unit\Connectors\SalesAssist;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Actions\BuildLeadAdfXmlAction;
 use Kanvas\Connectors\SalesAssist\Activities\SendLeadAdfByEmailActivity;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 use Workflow\Models\StoredWorkflow;
@@ -87,8 +91,11 @@ class SendLeadAdfByEmailActivityTest extends TestCase
     public function testSendLeadAdfByEmailActivitySendsUsingWorkflowParams(): void
     {
         $lead = Mockery::mock(Lead::class);
+        $company = Mockery::mock(Companies::class);
+
         $lead->shouldReceive('getId')->andReturn(88);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
         $app = Mockery::mock(AppInterface::class);
         $storedWorkflow = Mockery::mock(StoredWorkflow::class);
@@ -97,6 +104,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
         $activity = new class (1, '2026-04-02T00:00:00+00:00', $storedWorkflow) extends SendLeadAdfByEmailActivity {
             public bool $bootstrapped = false;
             public bool $sent = false;
+            public bool $usedIntegrationWrapper = false;
 
             protected function bootstrapAppService(AppInterface $app): void
             {
@@ -106,6 +114,21 @@ class SendLeadAdfByEmailActivityTest extends TestCase
             protected function buildAdfXml(Lead $lead, array $params): string
             {
                 return '<adf></adf>';
+            }
+
+            public function executeIntegration(
+                Model $entity,
+                AppInterface $app,
+                IntegrationsEnum $integration,
+                callable $integrationOperation,
+                array $additionalParams = [],
+                ?Regions $region = null,
+                ?Companies $company = null,
+                bool $throwException = false
+            ): array {
+                $this->usedIntegrationWrapper = true;
+
+                return $integrationOperation($entity, $app, null, $additionalParams);
             }
 
             protected function sendAdfEmail(
@@ -132,6 +155,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
         ]);
 
         $this->assertTrue($activity->bootstrapped);
+        $this->assertTrue($activity->usedIntegrationWrapper);
         $this->assertTrue($activity->sent);
         $this->assertTrue($response['success']);
         $this->assertSame('adf@example.com', $response['to']);
@@ -142,8 +166,11 @@ class SendLeadAdfByEmailActivityTest extends TestCase
     public function testSendLeadAdfByEmailActivityCanSendAsAttachment(): void
     {
         $lead = Mockery::mock(Lead::class);
+        $company = Mockery::mock(Companies::class);
+
         $lead->shouldReceive('getId')->andReturn(89);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(new \stdClass());
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
         $app = Mockery::mock(AppInterface::class);
         $storedWorkflow = Mockery::mock(StoredWorkflow::class);
@@ -151,6 +178,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
 
         $activity = new class (1, '2026-04-02T00:00:00+00:00', $storedWorkflow) extends SendLeadAdfByEmailActivity {
             public bool $sent = false;
+            public bool $usedIntegrationWrapper = false;
 
             protected function bootstrapAppService(AppInterface $app): void
             {
@@ -159,6 +187,21 @@ class SendLeadAdfByEmailActivityTest extends TestCase
             protected function buildAdfXml(Lead $lead, array $params): string
             {
                 return '<adf></adf>';
+            }
+
+            public function executeIntegration(
+                Model $entity,
+                AppInterface $app,
+                IntegrationsEnum $integration,
+                callable $integrationOperation,
+                array $additionalParams = [],
+                ?Regions $region = null,
+                ?Companies $company = null,
+                bool $throwException = false
+            ): array {
+                $this->usedIntegrationWrapper = true;
+
+                return $integrationOperation($entity, $app, null, $additionalParams);
             }
 
             protected function sendAdfEmail(
@@ -181,6 +224,7 @@ class SendLeadAdfByEmailActivityTest extends TestCase
             'send_as_attachment' => true,
         ]);
 
+        $this->assertTrue($activity->usedIntegrationWrapper);
         $this->assertTrue($activity->sent);
         $this->assertSame('lead-89.xml', $response['attachment']);
         $this->assertSame('attachment', $response['delivery_mode']);
