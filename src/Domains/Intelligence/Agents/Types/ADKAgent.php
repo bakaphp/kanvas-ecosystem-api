@@ -64,7 +64,7 @@ class ADKAgent
         );
 
         $this->content = $googleADKService->chat(
-            (string) $message->users_id,
+            (string) $userId,
             $sessionId,
             $messageContent,
             $onChunk
