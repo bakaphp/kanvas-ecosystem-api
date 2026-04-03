@@ -187,10 +187,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         ]);
                         $channel = new CreateChannelAction($channel)->execute();
 
-                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
-                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value, $channel->uuid);
-                        }
-
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
                             'channel' => $channel,
@@ -267,10 +263,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                     $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
-                                    // Set preferred channel to the first channel that successfully sent a message
-                                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-                                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-                                    }
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 

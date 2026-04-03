@@ -56,6 +56,91 @@ class EventTest extends TestCase
         ]);
     }
 
+    public function testUpdateEventDates(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $setup = new Setup($app, $user, $company);
+        $setup->run();
+
+        $input = [
+            'name' => 'Event To Update',
+            'description' => 'Original description',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '10:00',
+                    'end_time' => '12:00',
+                ],
+            ],
+        ];
+
+        $createResponse = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) {
+                    id
+                    name
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $eventId = $createResponse->json('data.createEvent.id');
+
+        $newDate = date('Y-m-d', strtotime('+7 days'));
+
+        $this->graphQL('
+            mutation($id: ID!, $input: EventUpdateInput!) {
+                updateEvent(id: $id, input: $input) {
+                    id
+                    versions {
+                        data {
+                            dates {
+                                date
+                                start_time
+                                end_time
+                            }
+                        }
+                    }
+                }
+            }
+        ', [
+            'id' => $eventId,
+            'input' => [
+                'dates' => [
+                    [
+                        'date' => $newDate,
+                        'start_time' => '14:00',
+                        'end_time' => '16:00',
+                    ],
+                ],
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateEvent' => [
+                    'versions' => [
+                        'data' => [
+                            [
+                                'dates' => [
+                                    [
+                                        'date' => $newDate,
+                                        'start_time' => '14:00:00',
+                                        'end_time' => '16:00:00',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function testGetEvent(): void
     {
         $this->graphQL('

@@ -31,7 +31,7 @@
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
         "inspector-apm/inspector-php": "^3.12",
-        "intervention/image": "^3.11",
+        "intervention/image": "^4.0",
         "wearepixel/laravel-cart": "^2.0",
         "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",

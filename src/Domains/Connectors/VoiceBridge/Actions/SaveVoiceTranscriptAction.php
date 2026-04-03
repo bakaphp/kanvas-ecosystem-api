@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VoiceBridge\Actions;
 
-use Kanvas\Connectors\VoiceBridge\Enums\CustomFieldEnum;
-use Kanvas\Connectors\VoiceBridge\Jobs\SaveCallRecordingJob;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 
 class SaveVoiceTranscriptAction
 {
@@ -19,6 +20,7 @@ class SaveVoiceTranscriptAction
         protected readonly Lead $lead,
         protected readonly array $transcript,
         protected readonly string $sessionId,
+        protected readonly ?string $recordingUrl = null,
     ) {
     }
 
@@ -35,7 +37,6 @@ class SaveVoiceTranscriptAction
         )->execute();
 
         $this->lead->refresh();
-        $callSid = (string) $this->lead->get(CustomFieldEnum::CALL_SID->value);
 
         $message = new CreateMessageAction(
             new MessageInput(
@@ -46,8 +47,7 @@ class SaveVoiceTranscriptAction
                 message: [
                     'transcript' => $this->transcript,
                     'session_id' => $this->sessionId,
-                    'call_sid' => $callSid,
-                    'recordings' => [],
+                    'recording_url' => $this->recordingUrl,
                 ],
                 is_public: 1,
             ),
@@ -55,10 +55,11 @@ class SaveVoiceTranscriptAction
 
         $message->addEntity($this->lead);
 
-
-        if (! empty($callSid)) {
-            SaveCallRecordingJob::dispatch($this->lead, $message, $callSid)
-                ->delay(now()->addMinutes(5));
+        if (! empty($this->recordingUrl)) {
+            $user = Users::getById($this->lead->users_id);
+            $filesystem = new FilesystemServices($app);
+            $file = $filesystem->uploadFileFromUrl($this->recordingUrl, $user);
+            new AttachFilesystemAction($file, $message)->execute('voice-recording');
         }
 
         return $message;
