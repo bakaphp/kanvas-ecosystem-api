@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Event;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
 use Kanvas\Event\Events\Models\EventReminder;
@@ -99,6 +100,8 @@ class BookingReminderCommandTest extends ResourceBookingBase
 
     public function testSendBookingRemindersCommandMarksReminderAsSentOnce(): void
     {
+        Notification::fake();
+
         $booking = $this->createBooking($this->getBasicBookingData());
         $reminder = EventReminder::where('event_version_id', $booking['id'])->firstOrFail();
 
