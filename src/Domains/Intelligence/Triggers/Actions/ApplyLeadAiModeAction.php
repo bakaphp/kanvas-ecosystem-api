@@ -68,10 +68,10 @@ class ApplyLeadAiModeAction
                 $this->lead->company->get(ConfigurationEnum::AI_MODE->value) ?? IntelligenceModeEnum::FULL_ON->value,
                 FollowUpTypeEnum::LEAD_FOLLOW_UP
             ),
-            TriggersEnum::HUMAN_HANDOFF->value,
-            TriggersEnum::HUMAN_TAKEOVER->value,
-            TriggersEnum::HANDOFF->value,
-            TriggersEnum::AI_TAKEOVER->value,
+            TriggersEnum::AI_TAKEOVER->value => null,
+            TriggersEnum::HUMAN_HANDOFF->value => null,
+            TriggersEnum::HUMAN_TAKEOVER->value => null,
+            TriggersEnum::HANDOFF->value => null,
             TriggersEnum::MANUAL_OFF->value => $this->setMode(
                 IntelligenceModeEnum::OFF->value,
                 FollowUpTypeEnum::NO_FOLLOW_UP
