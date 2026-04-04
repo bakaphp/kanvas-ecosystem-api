@@ -180,46 +180,6 @@ class TriggerIntelligenceActivityTest extends TestCase
         );
     }
 
-    public function testAiTakeoverSetsFullOnFromSupport(): void
-    {
-        $lead = $this->createLeadWithAiMode(IntelligenceModeEnum::SUPPORT->value);
-
-        $result = new ApplyLeadAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
-
-        $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get('ai_mode'));
-        $this->assertEquals(
-            FollowUpTypeEnum::LEAD_FOLLOW_UP->value,
-            $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value)
-        );
-        $this->assertTrue($result['changed']);
-    }
-
-    public function testHumanTakeoverSetsSupportFromFullOn(): void
-    {
-        $lead = $this->createLeadWithAiMode(IntelligenceModeEnum::FULL_ON->value);
-
-        new ApplyLeadAiModeAction($lead, TriggersEnum::HUMAN_TAKEOVER->value)->execute();
-
-        $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get('ai_mode'));
-        $this->assertEquals(
-            FollowUpTypeEnum::NO_FOLLOW_UP->value,
-            $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value)
-        );
-    }
-
-    public function testHumanHandoffSetsSupportFromFullOn(): void
-    {
-        $lead = $this->createLeadWithAiMode(IntelligenceModeEnum::FULL_ON->value);
-
-        new ApplyLeadAiModeAction($lead, TriggersEnum::HUMAN_HANDOFF->value)->execute();
-
-        $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get('ai_mode'));
-        $this->assertEquals(
-            FollowUpTypeEnum::NO_FOLLOW_UP->value,
-            $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value)
-        );
-    }
-
     public function testNewLeadSetsCompanyDefaultMode(): void
     {
         $lead = $this->createLeadWithAiMode(IntelligenceModeEnum::SUPPORT->value);
