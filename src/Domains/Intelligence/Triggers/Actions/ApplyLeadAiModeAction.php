@@ -70,14 +70,8 @@ class ApplyLeadAiModeAction
             ),
             TriggersEnum::HUMAN_HANDOFF->value,
             TriggersEnum::HUMAN_TAKEOVER->value,
-            TriggersEnum::HANDOFF->value => $this->setMode(
-                IntelligenceModeEnum::SUPPORT->value,
-                FollowUpTypeEnum::NO_FOLLOW_UP
-            ),
-            TriggersEnum::AI_TAKEOVER->value => $this->setMode(
-                IntelligenceModeEnum::FULL_ON->value,
-                FollowUpTypeEnum::LEAD_FOLLOW_UP
-            ),
+            TriggersEnum::HANDOFF->value,
+            TriggersEnum::AI_TAKEOVER->value,
             TriggersEnum::MANUAL_OFF->value => $this->setMode(
                 IntelligenceModeEnum::OFF->value,
                 FollowUpTypeEnum::NO_FOLLOW_UP
