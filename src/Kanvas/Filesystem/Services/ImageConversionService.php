@@ -181,7 +181,7 @@ class ImageConversionService
 
         try {
             $manager = self::manager();
-            $image = $manager->decodePath($sourcePath);
+            $image = $manager->read($sourcePath);
 
             // Generate target filename
             $pathInfo = pathinfo($sourcePath);
@@ -189,9 +189,9 @@ class ImageConversionService
 
             // Convert and save to target format
             match ($targetFormat) {
-                'jpg', 'jpeg' => $image->save($targetPath, quality: $quality),
-                'png' => $image->save($targetPath),
-                'webp' => $image->save($targetPath, quality: $quality),
+                'jpg', 'jpeg' => $image->toJpeg($quality)->save($targetPath),
+                'png' => $image->toPng()->save($targetPath),
+                'webp' => $image->toWebp($quality)->save($targetPath),
                 default => throw new RuntimeException("Unsupported target format: $targetFormat"),
             };
 
@@ -293,6 +293,6 @@ class ImageConversionService
 
     protected static function manager(): ImageManager
     {
-        return new ImageManager(Driver::class);
+        return new ImageManager(new Driver());
     }
 }

@@ -10,7 +10,6 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
-use Intervention\Image\Interfaces\ImageInterface;
 use Kanvas\Filesystem\Models\Filesystem;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
@@ -116,16 +115,16 @@ class ImageOptimizerService
 
         /**
          * ----------------------------
-         * 1) RESIZE (Intervention v4)
+         * 1) RESIZE (Intervention v3)
          * ----------------------------
          */
         if (($maxWidth !== null || $maxHeight !== null)
             && in_array($extension, $resizableExtensions, true)) {
             try {
                 $manager = self::manager();
-                $img = $manager->decodePath($imagePath);
+                $img = $manager->read($imagePath);
 
-                // scale() keeps aspect ratio automatically
+                // scale() keeps aspect ratio automatically in v3
                 $img = $img->scale($maxWidth, $maxHeight);
 
                 // Format-aware save
@@ -136,11 +135,11 @@ class ImageOptimizerService
 
                         break;
                     case 'png':
-                        $img->save($imagePath);
+                        $img->toPng()->save($imagePath);
 
                         break;
                     case 'webp':
-                        $img->save($imagePath, quality: 90);
+                        $img->toWebp(90)->save($imagePath);
 
                         break;
                 }
@@ -186,14 +185,15 @@ class ImageOptimizerService
         if ($quality !== null && $quality >= 1 && $quality <= 100) {
             try {
                 $manager = self::manager();
-                $img = $manager->decodePath($imagePath);
+                $img = $manager->read($imagePath);
 
                 if (self::isJpeg($extension)) {
                     $img->save($imagePath, quality: $quality);
                 } elseif (self::isPng($extension)) {
-                    $img->save($imagePath);
+                    // PNG compression level (0-9), convert quality to compression
+                    $img->toPng()->save($imagePath);
                 } elseif (self::isWebp($extension)) {
-                    $img->save($imagePath, quality: $quality);
+                    $img->toWebp($quality)->save($imagePath);
                 }
             } catch (Exception $e) {
                 report($e);
@@ -229,10 +229,15 @@ class ImageOptimizerService
         if ($maxWidth !== null || $maxHeight !== null) {
             try {
                 $manager = self::manager();
-                $img = $manager->decodePath($filePath);
+                $img = $manager->read($filePath);
                 $img = $img->scale($maxWidth, $maxHeight);
 
-                self::saveWithFormat($img, $filePath, $extension, 90);
+                match (true) {
+                    self::isJpeg($extension) => $img->save($filePath, quality: 90),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
+                    self::isWebp($extension) => $img->toWebp(90)->save($filePath),
+                    default => null,
+                };
             } catch (Exception $e) {
                 report($e);
             }
@@ -257,9 +262,14 @@ class ImageOptimizerService
         if ($quality !== null && $quality >= 1 && $quality <= 100) {
             try {
                 $manager = self::manager();
-                $img = $manager->decodePath($filePath);
+                $img = $manager->read($filePath);
 
-                self::saveWithFormat($img, $filePath, $extension, $quality);
+                match (true) {
+                    self::isJpeg($extension) => $img->save($filePath, quality: $quality),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
+                    self::isWebp($extension) => $img->toWebp($quality)->save($filePath),
+                    default => null,
+                };
             } catch (Exception $e) {
                 report($e);
             }
@@ -313,7 +323,7 @@ class ImageOptimizerService
 
             // Phase 1: estimate and apply dimension scale in a single pass
             $manager = self::manager();
-            $img = $manager->decodePath($filePath);
+            $img = $manager->read($filePath);
             $originalWidth = $img->width();
             $originalHeight = $img->height();
 
@@ -327,8 +337,8 @@ class ImageOptimizerService
                 $img = $img->scale($newWidth, $newHeight);
 
                 match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
-                    self::isPng($extension) => $img->save($filePath),
+                    self::isJpeg($extension) => $img->toJpeg(85)->save($filePath),
+                    self::isPng($extension) => $img->toPng()->save($filePath),
                     default => null,
                 };
                 clearstatcache(true, $filePath);
@@ -352,7 +362,7 @@ class ImageOptimizerService
     private static function constrainJpegWithExtent(string $filePath, int $maxFileSize): void
     {
         $manager = self::manager();
-        $img = $manager->decodePath($filePath);
+        $img = $manager->read($filePath);
 
         $core = $img->core()->native();
         $core->setOption('jpeg:extent', (string) $maxFileSize); // @phpstan-ignore-line
@@ -373,7 +383,7 @@ class ImageOptimizerService
         }
 
         $manager = self::manager();
-        $img = $manager->decodePath($filePath);
+        $img = $manager->read($filePath);
         $img->save($jpegPath, quality: 90);
 
         @unlink($filePath);
@@ -411,38 +421,8 @@ class ImageOptimizerService
         return in_array($ext, ['heic', 'heif'], true);
     }
 
-    /**
-     * Save image with explicit format encoding.
-     * In v4, save() infers format from file extension — files without extensions
-     * (e.g. /tmp/phpXXXXXX from uploads) need explicit format encoding.
-     */
-    protected static function saveWithFormat(
-        ImageInterface $img,
-        string $filePath,
-        string $extension,
-        ?int $quality = null,
-    ): void {
-        $fileExtension = pathinfo($filePath, PATHINFO_EXTENSION);
-
-        if ($fileExtension !== '') {
-            $img->save($filePath, quality: $quality);
-
-            return;
-        }
-
-        $format = match (true) {
-            self::isJpeg($extension) => 'jpg',
-            self::isPng($extension) => 'png',
-            self::isWebp($extension) => 'webp',
-            default => 'jpg',
-        };
-
-        $encoded = $img->encodeUsingFileExtension($format, quality: $quality);
-        file_put_contents($filePath, (string) $encoded);
-    }
-
     protected static function manager(): ImageManager
     {
-        return new ImageManager(Driver::class);
+        return new ImageManager(new Driver());
     }
 }
