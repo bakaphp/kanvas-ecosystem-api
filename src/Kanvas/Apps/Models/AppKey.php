@@ -6,6 +6,7 @@ namespace Kanvas\Apps\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -29,6 +30,7 @@ use Override;
 class AppKey extends BaseModel
 {
     use UuidTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.
