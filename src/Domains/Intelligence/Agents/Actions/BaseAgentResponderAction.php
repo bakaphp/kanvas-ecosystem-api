@@ -72,6 +72,7 @@ class BaseAgentResponderAction
             is_public: 1,
             tags: [$to],
             type: $type,
+            is_un_response: 1,
             //slug: Str::slug($text) . '-' . microtime()
         );
 
