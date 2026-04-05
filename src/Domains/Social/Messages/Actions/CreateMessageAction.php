@@ -54,6 +54,7 @@ class CreateMessageAction
                 'is_public' => $this->messageInput->is_public,
                 'slug' => $this->messageInput->slug,
                 'is_locked' => $this->messageInput->is_locked,
+                'is_un_response' => $this->messageInput->is_un_response,
             ];
 
             $validator = Validator::make($data, [
