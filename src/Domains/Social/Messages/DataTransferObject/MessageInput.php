@@ -39,7 +39,6 @@ class MessageInput extends Data
         public array $categories = [],
         public int $is_locked = 0,
         public array $custom_fields = [],
-        public int $is_un_response = 0,
     ) {
     }
 
@@ -87,7 +86,6 @@ class MessageInput extends Data
             $data['categories'] ?? [],
             $data['is_locked'] ?? 0,
             $data['custom_fields'] ?? [],
-            $data['is_un_response'] ?? 0,
         );
     }
 }
