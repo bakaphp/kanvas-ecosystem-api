@@ -73,7 +73,7 @@ class SaveLeadPreferredChannelActivity extends KanvasActivity
                     ]);
                 }
 
-                $messageEntity->set(ConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+                $messageEntity->set(ConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value, $channel->uuid);
                 $messageEntity->set(ConfigurationEnum::LAST_CHANNEL_USED->value, $channel->uuid);
 
                 return [

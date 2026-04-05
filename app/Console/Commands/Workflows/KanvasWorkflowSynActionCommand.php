@@ -113,6 +113,7 @@ use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SendLeadAdfByEmailActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SetLeadAiModeOffIfEmailOnlyActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
@@ -165,6 +166,7 @@ use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
+use Kanvas\Intelligence\Sessions\Activities\InjectADKSessionEventsActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
@@ -392,6 +394,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncAgentSwarmContextActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
+            SendLeadAdfByEmailActivity::class,
+            InjectADKSessionEventsActivity::class,
         ];
 
         $createdActions = [];

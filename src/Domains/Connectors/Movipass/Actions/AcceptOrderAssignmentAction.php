@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -63,10 +64,10 @@ class AcceptOrderAssignmentAction
     {
         $mechanic = $this->mechanic;
 
-        $lat = $mechanic->get(\Kanvas\Connectors\Movipass\Enums\CustomFieldEnum::MECHANIC_LAT->value);
-        $lng = $mechanic->get(\Kanvas\Connectors\Movipass\Enums\CustomFieldEnum::MECHANIC_LNG->value);
+        $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
+        $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
 
-        $rawVehicleInfo = $mechanic->get(\Kanvas\Connectors\Movipass\Enums\CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
+        $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
 
         return [

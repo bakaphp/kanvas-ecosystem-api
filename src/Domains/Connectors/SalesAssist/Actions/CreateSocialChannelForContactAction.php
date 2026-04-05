@@ -77,8 +77,8 @@ class CreateSocialChannelForContactAction
         if (! $lead->get(LeadsConfigurationEnum::PREFERRED_CHANNEL->value)) {
             $lead->set(LeadsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
         }
-        if (! $lead->get(LeadsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
-            $lead->set(LeadsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
+        if (! $lead->get(LeadsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
+            $lead->set(LeadsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value, $channel->uuid);
         }
 
         if (! empty($this->params['create_whatsapp'])) {
