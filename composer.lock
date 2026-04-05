@@ -389,16 +389,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.376.1",
+            "version": "3.376.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "475b367bb518fdfafd44b0848534f6636e0886e9"
+                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/475b367bb518fdfafd44b0848534f6636e0886e9",
-                "reference": "475b367bb518fdfafd44b0848534f6636e0886e9",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2081f8db174df4bb8842aed3b7b513590ee9d219",
+                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219",
                 "shasum": ""
             },
             "require": {
@@ -480,9 +480,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.3"
             },
-            "time": "2026-04-01T18:11:20+00:00"
+            "time": "2026-04-03T18:07:33+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4208,16 +4208,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.72",
+            "version": "1.0.73",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b"
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
-                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
                 "shasum": ""
             },
             "require": {
@@ -4259,9 +4259,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.72"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.73"
             },
-            "time": "2026-03-27T19:50:28+00:00"
+            "time": "2026-04-05T03:55:47+00:00"
         },
         {
             "name": "laravel/ai",
