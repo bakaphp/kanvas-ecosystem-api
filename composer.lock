@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b216ede4f424768a41844b2e185f94e2",
+    "content-hash": "c8fd2f9d0a28dfb8fc00f87e38913595",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -382,16 +382,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.376.1",
+            "version": "3.376.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "475b367bb518fdfafd44b0848534f6636e0886e9"
+                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/475b367bb518fdfafd44b0848534f6636e0886e9",
-                "reference": "475b367bb518fdfafd44b0848534f6636e0886e9",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2081f8db174df4bb8842aed3b7b513590ee9d219",
+                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219",
                 "shasum": ""
             },
             "require": {
@@ -473,9 +473,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.3"
             },
-            "time": "2026-04-01T18:11:20+00:00"
+            "time": "2026-04-03T18:07:33+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4128,16 +4128,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.72",
+            "version": "1.0.73",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b"
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
-                "reference": "0f4b774d02c67b12f5daa7fd7466cedf0dc87f2b",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
                 "shasum": ""
             },
             "require": {
@@ -4179,9 +4179,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.72"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.73"
             },
-            "time": "2026-03-27T19:50:28+00:00"
+            "time": "2026-04-05T03:55:47+00:00"
         },
         {
             "name": "laravel/ai",
@@ -7327,16 +7327,16 @@
         },
         {
             "name": "nevadskiy/laravel-tree",
-            "version": "0.6.1",
+            "version": "dev-fix/laravel-13-boot-nested-instantiation",
             "source": {
                 "type": "git",
-                "url": "https://github.com/xalaida/laravel-tree.git",
-                "reference": "f17ac83e20c23124e33970a41c26acdd53e1227b"
+                "url": "https://github.com/illambo/laravel-tree.git",
+                "reference": "70c6d4d1e5caf87dc2e10b71b8c34b03da0b3c81"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/xalaida/laravel-tree/zipball/f17ac83e20c23124e33970a41c26acdd53e1227b",
-                "reference": "f17ac83e20c23124e33970a41c26acdd53e1227b",
+                "url": "https://api.github.com/repos/illambo/laravel-tree/zipball/70c6d4d1e5caf87dc2e10b71b8c34b03da0b3c81",
+                "reference": "70c6d4d1e5caf87dc2e10b71b8c34b03da0b3c81",
                 "shasum": ""
             },
             "require": {
@@ -7364,7 +7364,11 @@
                     "Nevadskiy\\Tree\\": "src/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Nevadskiy\\Tree\\Tests\\": "tests/"
+                }
+            },
             "license": [
                 "MIT"
             ],
@@ -7385,10 +7389,9 @@
                 "tree"
             ],
             "support": {
-                "issues": "https://github.com/xalaida/laravel-tree/issues",
-                "source": "https://github.com/xalaida/laravel-tree/tree/0.6.1"
+                "source": "https://github.com/illambo/laravel-tree/tree/fix/laravel-13-boot-nested-instantiation"
             },
-            "time": "2025-06-14T18:14:24+00:00"
+            "time": "2026-04-01T11:43:11+00:00"
         },
         {
             "name": "nikic/php-parser",
@@ -11364,16 +11367,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.20.1",
+            "version": "4.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "5490cb15de6fc8b35a8cd2f661fac072d987a1ad"
+                "reference": "27ad502f84a684e1ec94ebee95c5adaea99bef96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/5490cb15de6fc8b35a8cd2f661fac072d987a1ad",
-                "reference": "5490cb15de6fc8b35a8cd2f661fac072d987a1ad",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/27ad502f84a684e1ec94ebee95c5adaea99bef96",
+                "reference": "27ad502f84a684e1ec94ebee95c5adaea99bef96",
                 "shasum": ""
             },
             "require": {
@@ -11434,7 +11437,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.20.1"
+                "source": "https://github.com/spatie/laravel-data/tree/4.21.0"
             },
             "funding": [
                 {
@@ -11442,7 +11445,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-18T07:44:01+00:00"
+            "time": "2026-04-02T14:36:45+00:00"
         },
         {
             "name": "spatie/laravel-google-calendar",
@@ -19482,10 +19485,18 @@
             "time": "2025-12-08T11:19:18+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "nevadskiy/laravel-tree",
+            "version": "dev-fix/laravel-13-boot-nested-instantiation",
+            "alias": "0.6.0",
+            "alias_normalized": "0.6.0.0"
+        }
+    ],
     "minimum-stability": "stable",
     "stability-flags": {
-        "maatwebsite/excel": 20
+        "maatwebsite/excel": 20,
+        "nevadskiy/laravel-tree": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

@@ -54,7 +54,7 @@
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
         "neuron-core/neuron-ai": "^3.0",
-        "nevadskiy/laravel-tree": "^0.6.0",
+        "nevadskiy/laravel-tree": "dev-fix/laravel-13-boot-nested-instantiation as 0.6.0",
         "nuwave/lighthouse": "^6.0",
         "openai-php/client": "^0.19.0",
         "php-ffmpeg/php-ffmpeg": "*",
@@ -189,7 +189,12 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
-    "repositories": [],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/illambo/laravel-tree.git"
+        }
+    ],
     "extra": {
         "laravel": {
             "dont-discover": []
