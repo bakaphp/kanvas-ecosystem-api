@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Search\Algolia;
 
-use Algolia\AlgoliaSearch\SearchClient;
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 
 class DeleteIndexRecordsCommand extends Command
@@ -49,14 +50,13 @@ class DeleteIndexRecordsCommand extends Command
             config('scout.algolia.secret')
         );
 
-        $index = $client->initIndex($indexName);
-
         try {
-            $index->deleteBy([
-                'filters' => $filter
-            ]);
+            $client->deleteBy(
+                $indexName,
+                ['filters' => $filter]
+            );
             $this->info("Records deleted from index '{$indexName}' with filter '{$filter}'.");
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error("Error: " . $e->getMessage());
         }
     }
