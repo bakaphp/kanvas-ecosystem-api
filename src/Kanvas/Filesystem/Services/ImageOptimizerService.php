@@ -422,9 +422,10 @@ class ImageOptimizerService
         string $extension,
         ?int $quality = null,
     ): void {
-        $fileExtension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $fileExtension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $knownExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif', 'avif'];
 
-        if ($fileExtension !== '') {
+        if (in_array($fileExtension, $knownExtensions, true)) {
             $img->save($filePath, quality: $quality);
 
             return;
