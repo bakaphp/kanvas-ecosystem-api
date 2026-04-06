@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Tookan\Actions;
 
+use DateTimeZone;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Tookan\DataTransferObject\CustomerDetail;
@@ -33,12 +34,25 @@ class CreateTookanTaskAction
         return $this->createSingle();
     }
 
+    private function getCompanyTimezone(): string
+    {
+        return $this->company->timezone ?? 'America/Santo_Domingo';
+    }
+
+    private function getTookanTimezoneOffset(): string
+    {
+        $tz = new DateTimeZone($this->getCompanyTimezone());
+
+        return (string) ($tz->getOffset(now()) / 60);
+    }
+
     public function createSingle(): array
     {
         $companyAddress = $this->company->defaultAddress;
         $destinationAddress = $this->receiverCompany?->defaultAddress ?? $this->receiverUser?->defaultAddress;
         $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
         $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
+        $timezone = $this->getCompanyTimezone();
 
         $customer = new CustomerDetail(
             name: $destinationName,
@@ -51,20 +65,20 @@ class CreateTookanTaskAction
         $task = new TaskDetail(
             job_description: 'Pickup order from ' . $this->company->name,
             team_id: 0,
-            timezone: '330',
+            timezone: $this->getTookanTimezoneOffset(),
             customer: $customer,
             order_id: $this->order->id,
             job_pickup_address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
             job_pickup_latitude: $companyAddress?->latitude,
             job_pickup_longitude: $companyAddress?->longitude,
-            job_pickup_datetime: now()->addMinutes(30)->format('Y-m-d H:i:s'),
+            job_pickup_datetime: now($timezone)->addMinutes(30)->format('Y-m-d H:i:s'),
             job_pickup_phone: $this->company->phone,
             job_pickup_name: $this->company->name,
             job_pickup_email: $this->company->email,
             has_pickup: true,
             has_delivery: true,
             auto_assignment: false,
-            job_delivery_datetime: now()->addHours(1)->format('Y-m-d H:i:s'),
+            job_delivery_datetime: now($timezone)->addHours(1)->format('Y-m-d H:i:s'),
         );
 
         $tookanService = new TookanService($this->order->app, $this->order->company);
@@ -89,13 +103,14 @@ class CreateTookanTaskAction
     public function createMulti(): array
     {
         $companyAddress = $this->company->defaultAddress;
+        $timezone = $this->getCompanyTimezone();
 
         $pickups = [
             new PickupDetail(
                 address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
                 latitude: (float) $companyAddress?->latitude,
                 longitude: (float) $companyAddress?->longitude,
-                time: now()->addHour()->format('Y-m-d H:i:s'),
+                time: now($timezone)->addHour()->format('Y-m-d H:i:s'),
                 phone: $this->company->phone,
                 job_description: 'Pick up order from ' . $this->company->name,
                 name: $this->company->name,
@@ -113,7 +128,7 @@ class CreateTookanTaskAction
                 address: $destinationAddress?->address . ' ' . $destinationAddress?->address_2,
                 latitude: $destinationAddress?->latitude,
                 longitude: $destinationAddress?->longitude,
-                time: now()->addHours(2)->format('Y-m-d H:i:s'),
+                time: now($timezone)->addHours(2)->format('Y-m-d H:i:s'),
                 phone: $phoneNumber,
                 job_description: 'Deliver order to ' . $destinationName,
                 name: $destinationName,
@@ -126,7 +141,7 @@ class CreateTookanTaskAction
             pickups: $pickups,
             deliveries: $deliveries,
             team_id: 0,
-            timezone: '330',
+            timezone: $this->getTookanTimezoneOffset(),
             has_pickup: true,
             has_delivery: true,
             auto_assignment: false
