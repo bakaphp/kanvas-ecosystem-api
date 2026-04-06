@@ -17,8 +17,12 @@ class CustomOrderNotification extends Notification
     ) {
         parent::__construct($order, $data);
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setTemplateName($data['email_template']);
-        $this->setPushTemplateName($data['push_template']);
+        if ($data['email_template'] !== null) {
+            $this->setTemplateName($data['email_template']);
+        }
+        if ($data['push_template'] !== null) {
+            $this->setPushTemplateName($data['push_template']);
+        }
         $this->setData($data);
         $this->setFromUser($data['fromUser'] ?? $order->user);
         $this->channels = $via;

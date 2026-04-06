@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -78,6 +79,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $photos = $metadata['assistance_case']['photos'] ?? [];
         if ($photos !== []) {
             new AttachRoadsideAssistancePhotosAction()->execute($order, $photos, $app);
+        }
+
+        $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
+        if (empty($mechanic['user_id'])) {
+            new NotifyAvailableMechanicsAction($order, $app)->execute();
         }
 
         return [
@@ -169,6 +175,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
             match ($toStatus) {
+                MovipassOrderStatusEnum::AWAITING_OPERATOR->value => $assistanceCase['awaiting_operator_at'] = $timestamp,
                 MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => (function () use ($order, &$assistanceCase, $timestamp) {
                     $assistanceCase['provider_assigned_at'] = $timestamp;
                     $pin = new GenerateRoadsideAssistancePinAction($order)->execute();

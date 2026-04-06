@@ -61,11 +61,9 @@ class BuildLeadVoiceContextAction
         $leadContext = $this->lead->get(IntelligenceConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [];
 
         $task = $leadContext;
-        if ($this->instructions !== null) {
-            $task = array_merge(['instructions' => $this->instructions], $task);
-        }
+        unset($task['instructions']);
 
-        return [
+        $context = [
             'company_id' => (string) $app->get(ConfigurationEnum::COMPANY_ID->value),
             'customer' => $customer,
             'kanvas_prompts' => [
@@ -74,5 +72,11 @@ class BuildLeadVoiceContextAction
             ],
             'task' => $task,
         ];
+
+        if ($this->instructions !== null) {
+            $context['call_mission'] = $this->instructions;
+        }
+
+        return $context;
     }
 }

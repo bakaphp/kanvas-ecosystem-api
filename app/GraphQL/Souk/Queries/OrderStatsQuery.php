@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Queries;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrderPaymentsAction;
+use Kanvas\Souk\Orders\Actions\GetOrderCommissionStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
+use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -99,6 +103,25 @@ class OrderStatsQuery
         );
 
         return $orderStats;
+    }
+
+    public function commissionStats(mixed $rootValue, array $request): CommissionStats
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $input = $request['input'];
+
+        $company = isset($input['company_id'])
+            ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
+            : ($user->isAppOwner() ? null : $user->getCurrentCompany());
+
+        return new GetOrderCommissionStatsAction(
+            app: $app,
+            company: $company,
+            from: Carbon::parse($input['from']),
+            to: Carbon::parse($input['to']),
+            orderType: $input['order_type'] ?? null,
+        )->execute();
     }
 
     public function exportPayments(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
