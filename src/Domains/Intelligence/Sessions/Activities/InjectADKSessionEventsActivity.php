@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Activities;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -68,6 +69,8 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                 }
 
                 $injected = 0;
+                $eligible = 0;
+                $errors = [];
 
                 foreach ($sessions as $session) {
                     if (! $session->agent || ! $session->agent->type) {
@@ -80,31 +83,58 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                         continue;
                     }
 
+                    $eligible++;
+
                     $adkService = new GoogleADKService(
                         $channel->app,
                         $channel->company
                     );
 
-                    $userId = (string) $session->entity_id;
-
-                    $adkService->injectSessionEvents(
-                        $userId,
-                        $session->uuid,
-                        [
+                    try {
+                        $adkService->injectSessionEvents(
+                            (string) $session->entity_id,
+                            $session->uuid,
                             [
-                                'role' => 'salesperson',
-                                'text' => $content,
-                            ],
-                        ]
-                    );
+                                [
+                                    'role' => 'salesperson',
+                                    'text' => $content,
+                                ],
+                            ]
+                        );
 
-                    $injected++;
+                        $injected++;
+                    } catch (ClientException $e) {
+                        $errors[] = "Failed to inject events into ADK session {$session->uuid}: " . $e->getMessage();
+                    }
                 }
 
+                if ($eligible === 0) {
+                    return [
+                        'message' => 'No eligible ADK sessions found for entity',
+                        'entity' => $entity,
+                        'sessions_injected' => 0,
+                        'errors' => [],
+                    ];
+                }
+
+                if ($injected === 0) {
+                    return $this->failWorkflow([
+                        'message' => 'Failed to inject events into any ADK sessions',
+                        'entity' => $entity,
+                        'sessions_injected' => 0,
+                        'errors' => $errors,
+                    ]);
+                }
+
+                $message = $injected === $eligible
+                    ? "Successfully injected events into all {$injected} ADK session(s)"
+                    : "Injected events into {$injected} of {$eligible} ADK session(s) with some errors";
+
                 return [
-                    'message' => "Injected events into {$injected} ADK session(s)",
+                    'message' => $message,
                     'entity' => $entity,
                     'sessions_injected' => $injected,
+                    'errors' => $errors,
                 ];
             },
             company: $channel->company,
