@@ -9,7 +9,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
