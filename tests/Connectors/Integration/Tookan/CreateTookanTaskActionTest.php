@@ -6,10 +6,10 @@ namespace Tests\Connectors\Integration\Tookan;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Connectors\Tookan\Actions\CreateTookanTaskAction;
 use Kanvas\Connectors\Tookan\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Tookan\Handlers\TookanHandler;
-use Kanvas\Companies\Models\CompaniesAddress;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
