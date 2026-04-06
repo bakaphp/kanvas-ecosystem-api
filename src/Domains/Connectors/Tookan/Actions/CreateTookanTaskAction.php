@@ -36,12 +36,27 @@ class CreateTookanTaskAction
         return $this->createSingle();
     }
 
+    private function getTimezone(): string
+    {
+        return $this->order->app->get(ConfigurationEnum::TIMEZONE->value)
+            ?? $this->company->timezone
+            ?? 'America/Santo_Domingo';
+    }
+
+    private function getTookanTimezoneOffset(): string
+    {
+        $tz = new DateTimeZone($this->getTimezone());
+
+        return (string) (int) ($tz->getOffset(new DateTime()) / 60);
+    }
+
     public function createSingle(): array
     {
         $companyAddress = $this->company->defaultAddress;
         $destinationAddress = $this->receiverCompany?->defaultAddress ?? $this->receiverUser?->defaultAddress;
         $phoneNumber = $this->receiverCompany?->phone ?? $this->receiverUser?->phone_number;
         $destinationName = $this->receiverCompany?->name ?? $this->receiverUser?->firstname . ' ' . $this->receiverUser?->lastname;
+        $tzName = $this->getTimezone();
 
         $orderMetadata = $this->order->metadata['data'] ?? [];
         $destinationLatitude = $this->receiverUser
@@ -59,8 +74,6 @@ class CreateTookanTaskAction
             latitude: $destinationLatitude,
             longitude: $destinationLongitude,
         );
-        $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
-        $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
         $estimatedDelivery = now()->timezone($tzName)->addHours(1)->format('Y-m-d H:i:s');
         $teamId = (int) ($this->order->app->get(ConfigurationEnum::TEAM_ID->value) ?? 0);
         $autoAssignment = (bool) ($this->order->app->get(ConfigurationEnum::AUTO_ASSIGNMENT->value) ?? true);
@@ -68,7 +81,7 @@ class CreateTookanTaskAction
         $task = new TaskDetail(
             job_description: 'Pickup order from ' . $this->company->name,
             team_id: $teamId,
-            timezone: (string) $tzOffset,
+            timezone: $this->getTookanTimezoneOffset(),
             customer: $customer,
             order_id: $this->order->id,
             job_pickup_address: $companyAddress?->address . ' ' . $companyAddress?->address_2,
@@ -106,9 +119,7 @@ class CreateTookanTaskAction
 
     public function createMulti(): array
     {
-        $tzName = $this->order->app->get(ConfigurationEnum::TIMEZONE->value) ?? 'UTC';
-        $tzOffset = (int) ((new DateTimeZone($tzName))->getOffset(new DateTime()) / 60);
-
+        $tzName = $this->getTimezone();
         $companyAddress = $this->company->defaultAddress;
 
         $pickups = [
@@ -162,7 +173,7 @@ class CreateTookanTaskAction
             pickups: $pickups,
             deliveries: $deliveries,
             team_id: $teamId,
-            timezone: (string) $tzOffset,
+            timezone: $this->getTookanTimezoneOffset(),
             has_pickup: true,
             has_delivery: true,
             auto_assignment: $autoAssignment
