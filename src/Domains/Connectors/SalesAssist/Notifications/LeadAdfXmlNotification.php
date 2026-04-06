@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Notifications;
 
 use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Connectors\SalesAssist\Mail\LeadAdfXmlMailable;
@@ -46,8 +47,13 @@ class LeadAdfXmlNotification extends Notification
             $this->sendAsAttachment,
         );
 
+        $toEmail = $notifiable instanceof AnonymousNotifiable
+            ? $notifiable->routes['mail']
+            : $notifiable->email;
+
         $mailable
             ->from($fromMail['address'], $fromMail['name'])
+            ->to($toEmail)
             ->subject($this->subject ?? 'New ADF Lead from Sales Assist');
 
         return $mailable;
