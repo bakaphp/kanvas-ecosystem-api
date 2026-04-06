@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -86,6 +87,8 @@ class CreateMessageFromEmailAction
                 $leadSystemModule,
                 $this->lead->getId()
             )->execute();
+
+            new MarkLeadMessagesAsRespondedAction($this->lead, $newMessage, true)->execute();
         } else {
             $newMessage = new CreateMessageAction(
                 $messageInput

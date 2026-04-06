@@ -32,6 +32,7 @@ use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -146,6 +147,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
             $message->addTag('engagement');
+
+            if (! $isFromMe) {
+                new MarkLeadMessagesAsRespondedAction($lead, $message, true)->execute();
+            }
         }
 
         $channel->addMessage($message);

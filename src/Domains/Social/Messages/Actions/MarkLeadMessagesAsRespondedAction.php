@@ -14,6 +14,7 @@ class MarkLeadMessagesAsRespondedAction
     public function __construct(
         protected Lead $lead,
         protected Message $responseMessage,
+        protected bool $includeFromMe = false,
     ) {
     }
 
@@ -22,7 +23,8 @@ class MarkLeadMessagesAsRespondedAction
         return DB::connection('social')->transaction(function () {
             $unrespondedMessages = MessagesRepository::getUnrespondedMessagesByLead(
                 $this->lead->getId(),
-                $this->lead->app
+                $this->lead->app,
+                $this->includeFromMe
             );
 
             $count = 0;

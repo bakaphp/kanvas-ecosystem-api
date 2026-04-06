@@ -37,6 +37,7 @@ use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -278,6 +279,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                 // Associate the message with the lead
                 $message->addEntity($lead);
                 $message->addTag('engagement');
+
+                if (! $isFromMe) {
+                    new MarkLeadMessagesAsRespondedAction($lead, $message, true)->execute();
+                }
             }
 
             // Associate message with channel

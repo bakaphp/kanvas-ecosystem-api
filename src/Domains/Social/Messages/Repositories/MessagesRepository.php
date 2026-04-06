@@ -64,15 +64,20 @@ class MessagesRepository
         return $appModuleMessage?->message;
     }
 
-    public static function getUnrespondedMessagesByLead(int $leadId, AppInterface $app): Collection
+    public static function getUnrespondedMessagesByLead(int $leadId, AppInterface $app, bool $includeFromMe = false): Collection
     {
-        return Message::fromApp($app)
+        $query = Message::fromApp($app)
             ->join('app_module_message', 'messages.id', '=', 'app_module_message.message_id')
             ->where('app_module_message.entity_id', $leadId)
             ->where('app_module_message.system_modules', Lead::class)
             ->where('messages.is_un_response', false)
             ->where('messages.is_deleted', 0)
-            ->select('messages.*')
-            ->get();
+            ->select('messages.*');
+
+        if ($includeFromMe) {
+            $query->whereJsonContains('messages.message->from_me', true);
+        }
+
+        return $query->get();
     }
 }
