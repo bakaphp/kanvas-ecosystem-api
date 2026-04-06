@@ -26,6 +26,7 @@ class ExportOrderPaymentsAction
         protected readonly ?string $endDate = null,
         protected readonly ?array $fieldMapper = null,
         protected readonly string $language = 'en',
+        protected readonly ?string $userEmail = null,
     ) {
     }
 
@@ -43,6 +44,7 @@ class ExportOrderPaymentsAction
             app: $this->app,
             paidStates: $this->paidStates,
             orderTypeNames: $this->orderTypeNames,
+            userEmail: $this->userEmail,
         )->execute(
             startDate: $this->startDate,
             endDate: $this->endDate,
@@ -65,6 +67,7 @@ class ExportOrderPaymentsAction
             ->where('orders.total_net_amount', '>', 0)
             ->when($start, fn ($q) => $q->where('orders.created_at', '>=', $start))
             ->when($end, fn ($q) => $q->where('orders.created_at', '<=', $end))
+            ->when($this->userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $this->userEmail))
             ->with('user')
             ->orderBy('orders.created_at', 'asc')
             ->get();

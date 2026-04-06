@@ -35,11 +35,13 @@ class VariantsWarehouseObserver
         }
 
         if ($variantWarehouse->wasChanged('status_id') && $variantWarehouse->status_id !== null) {
-            (new CreateStatusHistoryAction(
+            new CreateStatusHistoryAction(
                 StatusRepository::getById($variantWarehouse->status_id),
                 $variantWarehouse
-            ))->execute();
+            )->execute();
         }
+
+        $variantWarehouse->variant->clearLightHouseCacheJob();
 
         $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
             ->where('warehouses_id', $variantWarehouse->warehouses_id)

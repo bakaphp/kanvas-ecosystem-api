@@ -56,6 +56,14 @@ class AddToWarehouseAction
             $updateData['max_capacity'] = $this->variantsWarehousesDto->max_capacity;
         }
 
+        if ($this->variantsWarehousesDto->latitude !== null) {
+            $updateData['latitude'] = $this->variantsWarehousesDto->latitude;
+        }
+
+        if ($this->variantsWarehousesDto->longitude !== null) {
+            $updateData['longitude'] = $this->variantsWarehousesDto->longitude;
+        }
+
         $variantsWarehouses = VariantsWarehouses::updateOrCreate($search, $updateData);
 
         return $variantsWarehouses;

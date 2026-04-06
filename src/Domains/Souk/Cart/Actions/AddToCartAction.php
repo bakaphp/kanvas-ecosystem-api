@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Actions;
 
-use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -12,6 +11,7 @@ use Kanvas\Inventory\Variants\Services\VariantPriceService;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Users\Models\Users;
+use Wearepixel\Cart\Cart;
 
 class AddToCartAction
 {

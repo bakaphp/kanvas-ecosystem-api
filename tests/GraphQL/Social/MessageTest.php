@@ -1729,4 +1729,49 @@ class MessageTest extends TestCase
         $app->set('filesystem-optimize-on-upload', $prevOptimize);
         @unlink($tempPath);
     }
+
+    public function testCreateMessageConstrainsHeicFile(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $verb = 'twilio-sms-heic-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        // Use a real HEIC file — Imagick can't encode HEIC, only decode
+        $heicSource = storage_path('733eddb5528b4d1d3b169a8d00da0aad.HEIC');
+        if (! file_exists($heicSource)) {
+            $this->markTestSkipped('HEIC test file not found — place a .HEIC file at storage/733eddb5528b4d1d3b169a8d00da0aad.HEIC');
+        }
+
+        $tempPath = sys_get_temp_dir() . '/heic-constrain-' . uniqid() . '.heic';
+        copy($heicSource, $tempPath);
+
+        $originalSize = filesize($tempPath);
+        $maxFileSize = (int) ($originalSize * 0.5);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
+
+        $file = new UploadedFile($tempPath, 'photo.HEIC', 'image/heic', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'test with HEIC image',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $message = $action->execute();
+
+        $this->assertNotNull($message->getId());
+
+        // Clean up
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+    }
 }

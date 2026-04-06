@@ -14,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -67,7 +68,11 @@ class LeadVoiceFollowUpJob implements ShouldQueue
                 ->firstOrFail();
 
             InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();
-            TriggerVoiceCallAction::fromLead($this->lead)->execute();
+            $result = TriggerVoiceCallAction::fromLead($this->lead)->execute();
+
+            if (! empty($result['call_sid'])) {
+                $this->lead->set(CustomFieldEnum::CALL_SID->value, $result['call_sid']);
+            }
 
             $transcriptDelayMinutes = (int) ($this->lead->company->get(VoiceBridgeConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
 

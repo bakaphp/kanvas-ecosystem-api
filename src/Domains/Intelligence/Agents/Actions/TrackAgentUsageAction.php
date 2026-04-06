@@ -20,6 +20,7 @@ class TrackAgentUsageAction
         protected string $response,
         protected float $durationMs,
         protected ?string $sessionId = null,
+        protected ?int $userId = null,
     ) {
     }
 
@@ -29,6 +30,7 @@ class TrackAgentUsageAction
             'agent_id' => $this->agent->getId(),
             'companies_id' => $this->company->getId(),
             'apps_id' => $this->app->getId(),
+            'users_id' => $this->userId,
             'entity_namespace' => Agent::class,
             'entity_id' => $this->agent->getId(),
             'context' => $this->sessionId ?? '',
@@ -44,6 +46,7 @@ class TrackAgentUsageAction
         $now = now();
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'duration_ms',
@@ -53,6 +56,7 @@ class TrackAgentUsageAction
         ]);
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'input_chars',
@@ -62,6 +66,7 @@ class TrackAgentUsageAction
         ]);
 
         AgentPerformanceMetric::create([
+            'apps_id' => $this->app->getId(),
             'agent_id' => $this->agent->getId(),
             'agent_history_id' => $history->getId(),
             'metric_type' => 'output_chars',

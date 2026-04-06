@@ -6,11 +6,11 @@ namespace Kanvas\Apps\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Override;
-use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * AppPlan Model.
@@ -30,7 +30,7 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
 class AppKey extends BaseModel
 {
     use UuidTrait;
-    use QueryCacheable;
+    use Cachable;
 
     /**
      * The table associated with the model.
@@ -49,12 +49,6 @@ class AppKey extends BaseModel
     protected $primaryKey = 'client_id';
     public $incrementing = false;
     protected $keyType = 'string';
-
-    public $cacheFor = 86400; //1 day
-    public $cacheTags = ['appkeys'];
-    public $cachePrefix = 'appkeys_';
-    public $cacheDriver = 'redis';
-    protected static $flushCacheOnUpdate = true;
 
     /**
      * Boot function from laravel.

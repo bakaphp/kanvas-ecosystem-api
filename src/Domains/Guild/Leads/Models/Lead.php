@@ -204,7 +204,14 @@ class Lead extends BaseModel implements EventResourceInterface
     public function socialChannels(): HasMany
     {
         return $this->hasMany(Channel::class, 'entity_id', 'string_id')
-            ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ]
+            )
+            ->where('is_deleted', 0);
     }
 
     public function aiSession(): HasMany
@@ -218,6 +225,13 @@ class Lead extends BaseModel implements EventResourceInterface
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
             ->where('name', 'Notes');
+    }
+
+    public function systemNotes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('slug', $this->uuid);
     }
 
     public function receiver(): BelongsTo

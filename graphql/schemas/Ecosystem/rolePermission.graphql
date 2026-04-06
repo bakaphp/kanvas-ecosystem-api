@@ -34,6 +34,8 @@ enum AppModule {
     SOCIAL @enum(value: 4)
     WORKFLOW @enum(value: 5)
     ACTION_ENGINE @enum(value: 6)
+    AI @enum(value: 10)
+    COMMERCE @enum(value: 11)
 }
 extend type Query @guard {
     roles(

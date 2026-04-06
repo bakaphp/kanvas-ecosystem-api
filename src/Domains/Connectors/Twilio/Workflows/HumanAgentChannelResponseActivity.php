@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -123,7 +124,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                return new SendMessageToLeadAction($lead)->execute(
+                $result = new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
@@ -131,6 +132,10 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     false,
                     $files->isNotEmpty() ? $files : null
                 );
+
+                new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
+
+                return $result;
             },
             company: $channel->company,
         );

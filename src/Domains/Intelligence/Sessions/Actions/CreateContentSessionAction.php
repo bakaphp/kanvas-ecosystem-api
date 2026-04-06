@@ -39,7 +39,7 @@ use Yasumi\Exception\UnknownLocaleException;
 
 class CreateContentSessionAction
 {
-    protected Lead|People $entity;
+    protected Lead|People|Users $entity;
 
     public function __construct(
         protected Session|DataTransferObjectSession $session
@@ -48,6 +48,7 @@ class CreateContentSessionAction
         $this->entity = match ($this->session->entity_namespace) {
             People::class => People::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
             Lead::class => Lead::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
+            Users::class => Users::getById($this->session->entity_id),
         };
     }
 
@@ -56,6 +57,7 @@ class CreateContentSessionAction
         $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
+            Users::class => $this->mapUser($this->entity),
             default => [],
         };
 
@@ -66,7 +68,10 @@ class CreateContentSessionAction
 
     protected function generateBackground(array $data): mixed
     {
-        $data = array_merge($data, $this->generateValuesForRole($this->entity instanceof Lead ? $this->entity : null));
+        $roleData = $this->entity instanceof Lead
+            ? $this->generateValuesForRole($this->entity)
+            : [];
+        $data = array_merge($data, $roleData);
 
         try {
             $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
@@ -161,6 +166,25 @@ class CreateContentSessionAction
         ];
 
         return array_merge($data, $result);
+    }
+
+    protected function mapUser(Users $user): array
+    {
+        $company = $user->getCurrentCompany();
+        $branch = $company->branch;
+
+        return [
+            'user_id' => $user->id,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'email' => $user->email,
+            'company_name' => $company->name,
+            'branch' => $branch,
+            'branch_city' => $branch?->city,
+            'branch_state' => $branch?->state,
+            'branch_address' => $branch ? ($branch->address . ' ' . $branch->address2) : null,
+            'company_timezone' => $company->get('timezone', 'UTC'),
+        ];
     }
 
     /**

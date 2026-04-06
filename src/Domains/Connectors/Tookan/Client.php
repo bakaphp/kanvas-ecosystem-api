@@ -53,7 +53,7 @@ class Client
             return json_decode($body, true);
         } catch (ClientException $e) {
             $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+            $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
 
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
@@ -95,7 +95,7 @@ class Client
             return $result;
         } catch (ClientException $e) {
             $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+            $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
 
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
@@ -135,7 +135,7 @@ class Client
             return $result;
         } catch (ClientException $e) {
             $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+            $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
 
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 
@@ -175,7 +175,7 @@ class Client
             return $result;
         } catch (ClientException $e) {
             $response = $e->getResponse();
-            $errorBody = json_decode($response->getBody()->getContents(), true);
+            $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
 
             $errorMessage = $errorBody['message'] ?? $e->getMessage();
 

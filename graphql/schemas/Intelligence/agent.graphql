@@ -87,6 +87,18 @@ input AgentSessionInput {
     lead_id: ID!
 }
 
+input UserChatInput {
+    agent_id: ID!
+    message: String!
+    session_id: String
+    lead_id: ID
+}
+
+type UserChatResponse {
+    response: String!
+    session_id: String!
+}
+
 extend type Mutation @guard {
     createAiAgent(input: AgentAiInput!): AgentAi!
         @field(
@@ -107,6 +119,10 @@ extend type Mutation @guard {
     aiAgentChat(input: ChatSimpleInput!): String!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@chat"
+        )
+    aiAgentUserChat(input: UserChatInput!): UserChatResponse!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
         )
 }
 

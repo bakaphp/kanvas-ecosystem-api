@@ -10,10 +10,10 @@ class PickupDetail extends Data
 {
     public function __construct(
         public string $address,
-        public float|string $latitude,
-        public float|string $longitude,
+        public float|string|null $latitude,
+        public float|string|null $longitude,
         public string $time,
-        public string $phone,
+        public ?string $phone,
         public string $job_description,
         public string $name,
         public string $order_id,
