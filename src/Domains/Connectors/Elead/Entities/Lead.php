@@ -31,6 +31,8 @@ class Lead
     public array $tradeIns = [];
     public array $address = [];
     public array $salesTeam = [];
+    public ?object $customer = null;
+    public array $links = [];
     public ?Companies $company = null;
     public ?AppInterface $app = null;
     public static array $defaultLeadType = ['Unknown', 'Campaign', 'Internet', 'Phone', 'Showroom'];
