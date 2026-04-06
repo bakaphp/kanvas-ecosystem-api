@@ -88,7 +88,10 @@ final class Client
             );
         }
 
-        return [(string) $sid, (string) $token];
+        return [
+            (string) $sid,
+            (string) $token,
+        ];
     }
 
     /**

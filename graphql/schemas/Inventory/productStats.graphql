@@ -9,6 +9,7 @@ input ProductStatsInput {
     product_type_slug: String
     product_ids: [ID!]
     warehouse_id: ID
+    companies_id: ID
 }
 
 extend type Query @guard {

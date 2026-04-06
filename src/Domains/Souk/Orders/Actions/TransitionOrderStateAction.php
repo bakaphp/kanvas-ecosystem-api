@@ -52,7 +52,18 @@ class TransitionOrderStateAction
         }
 
         try {
-            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate) {
+            $transitioned = false;
+
+            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
+                // Lock the order row to prevent concurrent transitions
+                $locked = Order::lockForUpdate()->find($this->order->id);
+
+                if ($locked->order_status_id !== $currentOrderStatus->id) {
+                    return; // another process already transitioned, skip
+                }
+
+                $transitioned = true;
+
                 // Update the order status transition
                 $current = OrderTransitionHistory::where('order_id', $this->order->id)
                 ->where('is_current', true)
@@ -90,8 +101,9 @@ class TransitionOrderStateAction
                 ]);
             });
 
-            // Fire workflow after successful transaction
-            $this->fireWorkflow($currentOrderStatus);
+            if ($transitioned) {
+                $this->fireWorkflow($currentOrderStatus);
+            }
 
 
             return [

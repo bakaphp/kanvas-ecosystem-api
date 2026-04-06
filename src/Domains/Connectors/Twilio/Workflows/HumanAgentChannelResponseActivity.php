@@ -6,12 +6,15 @@ namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -46,9 +49,11 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $channel,
             app: $app,
-            integration: IntegrationsEnum::TWILIO,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $content, $fromPhone, $fromHumanAgent, $params) {
-                if (empty($content)) {
+                $files = $message->getFiles();
+
+                if (empty($content) && $files->isEmpty()) {
                     return $this->failWorkflow([
                         'message' => 'Message or user not found',
                         'entity' => null,
@@ -96,6 +101,9 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                         'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
                     ]
                 );
+                $messageEntity->set(ConfigurationEnum::CONTACTED->value, LeadGroupStatusEnum::CONTACTED->value);
+
+                $lead->setContactStatus(LeadGroupStatusEnum::CONTACTED);
 
                 $channelType = match ($message->messageType->verb) {
                     ChannelCategoryEnum::WHATSAPP->value => LeadCommunicationChannelEnum::WHATSAPP->value,
@@ -116,13 +124,18 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                return new SendMessageToLeadAction($lead)->execute(
+                $result = new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
                     $params['title'] ?? null,
-                    false
+                    false,
+                    $files->isNotEmpty() ? $files : null
                 );
+
+                new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
+
+                return $result;
             },
             company: $channel->company,
         );

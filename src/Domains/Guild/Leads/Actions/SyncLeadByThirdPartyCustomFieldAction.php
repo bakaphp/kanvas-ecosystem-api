@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
+use Kanvas\Guild\Leads\Events\LeadCompanySyncEvent;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 
 class SyncLeadByThirdPartyCustomFieldAction
@@ -73,6 +74,8 @@ class SyncLeadByThirdPartyCustomFieldAction
                     $follower->follow($lead);
                 }
             }
+
+            LeadCompanySyncEvent::dispatch($lead);
 
             return $lead;
         });

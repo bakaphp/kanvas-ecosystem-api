@@ -64,8 +64,11 @@ class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
         if (! $appsStripeCustomer) {
             return [
                 'message' => 'No matching Google Play subscription found',
-                'purchase_token' => substr($purchaseToken, 0, 20) . '...',
+                'purchase_token' => $purchaseToken,
                 'notification_type' => $notificationType,
+                'subscription_id' => $subscriptionId,
+                'package_name' => $packageName,
+                'type_enum' => $typeEnum->name,
             ];
         }
 

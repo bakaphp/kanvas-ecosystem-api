@@ -14,7 +14,7 @@ type Category {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     is_published: Boolean!
-    companies: Company! @belongsTo(relation: "company")
+    companies: Company @belongsTo(relation: "company")
     weight: Float
     users: User! @belongsTo(relation: "user")
     total_products: Int! @method(name: "getTotalProducts")

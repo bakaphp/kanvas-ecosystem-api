@@ -19,10 +19,12 @@ class CreateProductTypeAttributeAction
 
     public function execute(): ProductsTypesAttributes
     {
-        CompaniesRepository::userAssociatedToCompany(
-            $this->data->productsTypes->company,
-            $this->user
-        );
+        if ($this->data->productsTypes->companies_id > 0) {
+            CompaniesRepository::userAssociatedToCompany(
+                $this->data->productsTypes->company,
+                $this->user
+            );
+        }
 
         return ProductsTypesAttributes::firstOrCreate([
             'products_types_id' => $this->data->productsTypes->getId(),

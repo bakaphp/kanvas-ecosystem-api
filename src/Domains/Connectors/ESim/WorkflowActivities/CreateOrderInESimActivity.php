@@ -124,7 +124,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                                     : ActionsCreateEsimOrderAction::class;
 
                                 // Pass the variant to the action for this specific eSim creation
-                                $esim = (new $actionClass($order, null, $variant))->execute();
+                                $esim = new $actionClass(
+                                    $order,
+                                    null,
+                                    $variant
+                                )->execute();
 
                                 // Send to WooCommerce only once and only for mobile orders
                                 if ($fromMobile && ! $woocommerceSent) {

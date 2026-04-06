@@ -38,7 +38,8 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
                     ];
                 }
 
-                // Provider (child order company) notifications
+                $orderNumber = $order->parent?->order_number ?? $order->order_number;
+
                 $companyNotificationsStatuses = [
                     OrderStatusEnum::RECEIVED->value,
                     OrderStatusEnum::PREPARING->value,
@@ -48,32 +49,42 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
                     OrderStatusEnum::CANCELLED->value,
                 ];
 
+                $providerSubjects = [
+                    OrderStatusEnum::RECEIVED->value         => "New Order · #{$orderNumber}",
+                    OrderStatusEnum::PREPARING->value        => "Order confirmed · Orden #{$orderNumber}",
+                    OrderStatusEnum::READY_FOR_PICKUP->value => "Pickup in Progress · Orden #{$orderNumber}",
+                    OrderStatusEnum::DISPATCHED->value       => "Shipped · Orden #{$orderNumber}",
+                    OrderStatusEnum::DELIVERED->value        => "Order Delivered · Orden #{$orderNumber}",
+                    OrderStatusEnum::CANCELLED->value        => "Order Canceled · #{$orderNumber}",
+                ];
 
                 if ($toStatus == OrderStatusEnum::READY_FOR_PICKUP->value) {
-                    // Load parent order to get parent company address
                     $parentOrder = $order->parent;
-                    $hasPackaging = $parentOrder->items->contains(function ($item) use ($parentOrder) {
-                        return $item->variant->companies_id === $parentOrder->companies_id;
-                    });
-
-                    $companyRecipient = $hasPackaging ? $parentOrder->company : null;
-                    $userRecipient = $hasPackaging ? null : $parentOrder->user;
 
                     if ($parentOrder) {
-                        // Create Tookan task for delivery from provider to parent company
+                        $hasPackaging = $parentOrder->items->contains(
+                            fn ($item) => $item->variant->companies_id === $parentOrder->companies_id
+                        );
+
                         new CreateTookanTaskAction(
                             $order,
                             $order->company,
-                            $companyRecipient,
-                            $userRecipient
+                            $hasPackaging ? $parentOrder->company : null,
+                            $hasPackaging ? null : $parentOrder->user
                         )->execute();
                     }
                 }
 
-                // Send notifications to provider (child order's company)
+                // Send notifications to provider (child order's company) — email + in-app
                 if (in_array($toStatus, $companyNotificationsStatuses)) {
                     $template = 'provider-' . strtolower($toStatus);
-                    (new SendOrderEmailsAction($order, $template, []))->execute();
+                    (new SendOrderEmailsAction(
+                        $order,
+                        $template,
+                        [],
+                        ['mail', 'database'],
+                        $providerSubjects[$toStatus] ?? null,
+                    ))->execute();
                 }
 
                 // Update parent order status based on child order progress

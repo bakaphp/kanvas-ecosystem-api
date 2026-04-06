@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -120,16 +121,26 @@ class LeadObserver
         //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
+        LeadCompanyUpdateEvent::dispatch($lead);
+
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
             if (strtolower($leadStatus->name) === 'sold') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
+                    ]
+                );
             } elseif (strtolower($leadStatus->name) === 'close') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
+                    ]
+                );
             }
         }
         //$lead->clearLightHouseCacheJob();

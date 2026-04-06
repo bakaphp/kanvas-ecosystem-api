@@ -15,6 +15,9 @@ use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -41,9 +44,9 @@ use Override;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $firstname
+ * @property string|null $firstname
  * @property string|null $middlename = null
- * @property string $lastname
+ * @property string|null $lastname
  * @property string $license_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
@@ -277,43 +280,62 @@ class People extends BaseModel
         return $address;
     }
 
-    public function addEmail(string $email): Contact
+    public function addEmail(string $email, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $email,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
-
-        return $contact;
     }
 
-    public function addPhone(string $phone): Contact
+    public function addPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
-
-        return $contact;
     }
 
-    public function addCellPhone(string $phone): Contact
+    public function addCellPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        $contact = Contact::updateOrCreate(
+        return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
+    }
 
-        return $contact;
+    public function optOutPhoneContacts(): int
+    {
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+            ContactTypeEnum::WORK_PHONE->value,
+        ];
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', $phoneTypes)
+            ->update(['is_opt_out' => 1]);
     }
 
     public static function findByEmailOrCreate(
@@ -448,6 +470,36 @@ class People extends BaseModel
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
             ->first();
+    }
+
+    /**
+     * Get all people by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getAllByPhoneMatchingValue(string $phone, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                ->whereIn('contacts_types_id', [
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                ])
+        )->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
+          ->where('is_deleted', 0)
+          ->get();
+    }
+
+    public static function getAllByMatchingValue(string $value, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->where('value', $value)
+        )
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->get();
     }
 
     #[Override]
@@ -719,5 +771,13 @@ class People extends BaseModel
             'driversLicenseNumber' => $licenseNumber,
             'driversLicenseState' => $licenseState,
         ];
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 }

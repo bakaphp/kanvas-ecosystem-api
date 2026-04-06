@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\EchoPay\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\EchoPay\Client;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
@@ -17,8 +19,10 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
+use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
+use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 
-class EchoPayService
+class EchoPayService implements TokenizationProcessorInterface
 {
     protected Client $client;
     protected MerchantDetail $merchant;
@@ -68,6 +72,42 @@ class EchoPayService
         ];
     }
 
+    public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult
+    {
+        try {
+            $card = CardTokenization::fromRequest($cardDetails, $this->app, $user);
+            $tokenizedCard = $this->addCard($card);
+
+            return new TokenizeResult(
+                success: true,
+                message: 'Card tokenized successfully.',
+                token: $tokenizedCard['paymentInstrumentId'],
+                lastFour: substr($cardDetails['number'], -4),
+                brand: $cardDetails['brand'] ?? '',
+                raw: $tokenizedCard,
+            );
+        } catch (Exception $e) {
+            return new TokenizeResult(
+                success: false,
+                message: $e->getMessage(),
+                token: '',
+                lastFour: '',
+                brand: '',
+            );
+        }
+    }
+
+    public function deleteToken(string $token): bool
+    {
+        try {
+            $this->deleteCard($token);
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     public function addCardFromRequest(array $request, $user): PaymentMethod
     {
         $card = CardTokenization::fromRequest($request, $this->app, $user);
@@ -115,7 +155,7 @@ class EchoPayService
         ];
     }
 
-    public function updateCardFromRequest(PaymentMethod $paymentMethod, array $request): PaymentMethod
+    public function updateToken(PaymentMethod $paymentMethod, array $request): PaymentMethod
     {
         $card = CardTokenization::fromRequest($request, $this->app, $paymentMethod->user);
         $cardId = $paymentMethod->metadata['instrumentIdentifierId'] ?? $paymentMethod->instrument_identifier_id;

@@ -7,6 +7,7 @@ namespace App\GraphQL\Event\Mutations\Schedule;
 use App\GraphQL\Event\Traits\ResolvesScheduleResource;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\BuildScheduleResponseAction;
+use Kanvas\Event\Events\Actions\CreateScheduleHistoryAction;
 use Kanvas\Event\Events\Actions\SetResourceScheduleAction;
 use Kanvas\Event\Events\Enums\ScheduleTypeEnum;
 
@@ -40,6 +41,20 @@ class ResourceScheduleMutation
             scheduleType: $scheduleType,
             slotDurationMin: $input['slot_duration_min'] ?? 60,
             capacityOverride: $input['capacity_override'] ?? null,
+        )->execute();
+
+        new CreateScheduleHistoryAction(
+            app: $app,
+            company: $company,
+            user: $user,
+            resource: $resource,
+            action: 'set_resource_schedule',
+            payload: [
+                'schedule_type' => $input['schedule_type'],
+                'days' => $input['days'],
+                'slot_duration_min' => $input['slot_duration_min'] ?? 60,
+                'capacity_override' => $input['capacity_override'] ?? null,
+            ],
         )->execute();
 
         return new BuildScheduleResponseAction($resource, $app, $rules)->execute();

@@ -70,7 +70,7 @@ class FollowUpEngagementCommand extends Command
             $this->info('Processing stage ID ' . $stage->id . ' - ' . $stage->name . ' for leads ' . count($leads->toArray()));
             foreach ($leads as $lead) {
                 $this->overwriteAppService($lead->app);
-                $this->reSyncLead($lead);
+                // $this->reSyncLead($lead);
                 $lead->refresh();
 
                 $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);

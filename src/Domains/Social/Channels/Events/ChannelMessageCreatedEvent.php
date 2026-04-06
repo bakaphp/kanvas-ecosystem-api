@@ -37,7 +37,8 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): Channel
     {
-        $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($this->channel->entity_namespace);
+        $entityNamespace = SystemModules::convertLegacySystemModules($this->channel->entity_namespace);
+        $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
 
         return new Channel('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id));
     }

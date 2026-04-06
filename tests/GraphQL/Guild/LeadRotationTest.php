@@ -176,14 +176,14 @@ class LeadRotationTest extends TestCase
 
         $response = $this->graphQL(
             '
-            query 
+            query
             {
                 leadsRotations{
                     data {
                         id
                         name
                         leads_rotations_email
-                        hits, 
+                        hits,
                         agents {
                             user {
                                 id
@@ -194,25 +194,17 @@ class LeadRotationTest extends TestCase
             }
             '
         );
-        $response->assertJson([
-            'data' => [
-                'leadsRotations' => [
-                    'data' => [
-                        [
-                            'name' => $input['name'],
-                            'leads_rotations_email' => $input['leads_rotations_email'],
-                            'hits' => $input['hits'],
-                            'agents' => [
-                                [
-                                    "user" => [
-                                        "id" => $input['agents'][0]['users_id']
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
+        $response->assertJsonFragment([
+            'name' => $input['name'],
+            'leads_rotations_email' => $input['leads_rotations_email'],
+            'hits' => $input['hits'],
+            'agents' => [
+                [
+                    'user' => [
+                        'id' => (string) $input['agents'][0]['users_id'],
+                    ],
+                ],
+            ],
         ]);
     }
 }

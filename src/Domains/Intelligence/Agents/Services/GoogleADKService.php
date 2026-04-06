@@ -10,7 +10,8 @@ use Exception;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -28,7 +29,7 @@ class GoogleADKService
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
-        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrate';
+        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrator';
 
         $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
         if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
@@ -49,11 +50,6 @@ class GoogleADKService
         ]);
     }
 
-    /**
-     * Start a new session for a user
-     *
-     * @throws GuzzleException
-     */
     public function startSession(string $userId, string $sessionId): array
     {
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
@@ -66,24 +62,30 @@ class GoogleADKService
             ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
-        } catch (ClientException $e) {
+        } catch (ClientException|ServerException $e) {
             $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
             $responseData = json_decode($responseBody, true);
 
-            if ($e->getResponse()
-                && in_array($e->getResponse()->getStatusCode(), [400, 409])
-                && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')
-            ) {
-                // Return a specific response or handle as needed
+            if ($e->getResponse() && $this->isSessionAlreadyExistsError($e->getResponse()->getStatusCode(), $responseData)) {
                 return [
                     'error' => true,
-                    'message' => $responseData['detail'],
+                    'message' => $responseData['detail'] ?? 'Session already exists',
                     'session_id' => $sessionId,
                 ];
             }
 
             throw $e;
         }
+    }
+
+    private function isSessionAlreadyExistsError(int $statusCode, ?array $responseData): bool
+    {
+        $detail = $responseData['detail'] ?? '';
+
+        return in_array($statusCode, [400, 409, 500])
+            && (str_contains($detail, 'Session already exists')
+            || str_contains($detail, 'UniqueViolation')
+            || str_contains($detail, 'duplicate key'));
     }
 
     /**
@@ -126,24 +128,25 @@ class GoogleADKService
         string $message,
         ?callable $onChunk = null
     ): string {
-        $response = Http::withHeaders([
-            'Accept' => 'text/event-stream',
-            'Content-Type' => 'application/json',
-        ])->withOptions([
-            'stream' => true,
-        ])->post($this->baseUrl . '/run_sse', [
-            'app_name' => $this->appName,
-            'user_id' => $userId,
-            'session_id' => $sessionId,
-            'new_message' => [
-                'role' => 'user',
-                'parts' => [['text' => $message]],
+        $response = $this->client->post('/run_sse', [
+            'headers' => [
+                'Accept' => 'text/event-stream',
             ],
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                ],
+            ],
+            'stream' => true,
         ]);
 
         $completeResponse = '';
-        $buffer = ''; // Buffer to handle incomplete JSON across chunks
-        $stream = $response->toPsrResponse()->getBody();
+        $buffer = '';
+        $stream = $response->getBody();
 
         while (! $stream->eof()) {
             $chunk = $stream->read(1024);
@@ -285,6 +288,39 @@ class GoogleADKService
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions";
 
         $response = $this->client->get($endpoint);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Inject messages into an existing session without triggering an agent reply.
+     * Use this to sync conversations that happened while the AI was disabled
+     * (e.g. direct salesperson↔lead exchanges), so the agent has full context on the next turn.
+     *
+     * @param array<int, array{role: string, text: string}> $messages
+     */
+    public function injectSessionEvents(string $userId, string $sessionId, array $messages): array
+    {
+        $validator = Validator::make(
+            ['messages' => $messages],
+            [
+                'messages' => 'required|array|min:1',
+                'messages.*.role' => 'required|string',
+                'messages.*.text' => 'required|string',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->errors()->first());
+        }
+
+        $response = $this->client->post('/events/session', [
+            'json' => [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'messages' => $messages,
+            ],
+        ]);
 
         return json_decode($response->getBody()->getContents(), true) ?? [];
     }

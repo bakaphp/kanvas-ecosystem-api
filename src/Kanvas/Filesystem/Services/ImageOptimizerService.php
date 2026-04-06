@@ -10,6 +10,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
+use Intervention\Image\Interfaces\ImageInterface;
 use Kanvas\Filesystem\Models\Filesystem;
 use RuntimeException;
 use Spatie\ImageOptimizer\OptimizerChain;
@@ -115,16 +116,16 @@ class ImageOptimizerService
 
         /**
          * ----------------------------
-         * 1) RESIZE (Intervention v3)
+         * 1) RESIZE (Intervention v4)
          * ----------------------------
          */
         if (($maxWidth !== null || $maxHeight !== null)
             && in_array($extension, $resizableExtensions, true)) {
             try {
                 $manager = self::manager();
-                $img = $manager->read($imagePath);
+                $img = $manager->decodePath($imagePath);
 
-                // scale() keeps aspect ratio automatically in v3
+                // scale() keeps aspect ratio automatically
                 $img = $img->scale($maxWidth, $maxHeight);
 
                 // Format-aware save
@@ -135,11 +136,11 @@ class ImageOptimizerService
 
                         break;
                     case 'png':
-                        $img->toPng()->save($imagePath);
+                        $img->save($imagePath);
 
                         break;
                     case 'webp':
-                        $img->toWebp(90)->save($imagePath);
+                        $img->save($imagePath, quality: 90);
 
                         break;
                 }
@@ -185,15 +186,14 @@ class ImageOptimizerService
         if ($quality !== null && $quality >= 1 && $quality <= 100) {
             try {
                 $manager = self::manager();
-                $img = $manager->read($imagePath);
+                $img = $manager->decodePath($imagePath);
 
                 if (self::isJpeg($extension)) {
                     $img->save($imagePath, quality: $quality);
                 } elseif (self::isPng($extension)) {
-                    // PNG compression level (0-9), convert quality to compression
-                    $img->toPng()->save($imagePath);
+                    $img->save($imagePath);
                 } elseif (self::isWebp($extension)) {
-                    $img->toWebp($quality)->save($imagePath);
+                    $img->save($imagePath, quality: $quality);
                 }
             } catch (Exception $e) {
                 report($e);
@@ -201,6 +201,194 @@ class ImageOptimizerService
         }
 
         return $imagePath;
+    }
+
+    /**
+     * Optimize a local file in-place before upload.
+     * Unlike optimizeImageFromUrl(), this does not download — it works directly on the local path.
+     */
+    public static function optimizeLocalFile(
+        string $filePath,
+        bool $optimize = true,
+        ?int $maxWidth = null,
+        ?int $maxHeight = null,
+        ?int $quality = null,
+    ): string {
+        if (! file_exists($filePath)) {
+            return $filePath;
+        }
+
+        $extension = self::resolveExtension($filePath);
+        $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        if (! in_array($extension, $resizableExtensions, true)) {
+            return $filePath;
+        }
+
+        // 1) Resize
+        if ($maxWidth !== null || $maxHeight !== null) {
+            try {
+                $manager = self::manager();
+                $img = $manager->decodePath($filePath);
+                $img = $img->scale($maxWidth, $maxHeight);
+
+                self::saveWithFormat($img, $filePath, $extension, 90);
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        // 2) Spatie optimization
+        if ($optimize) {
+            try {
+                $optimizerChain = new OptimizerChain();
+                $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
+                $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
+                $optimizerChain
+                    ->useLogger(Log::channel())
+                    ->setTimeout(60)
+                    ->optimize($filePath);
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        // 3) Quality compression
+        if ($quality !== null && $quality >= 1 && $quality <= 100) {
+            try {
+                $manager = self::manager();
+                $img = $manager->decodePath($filePath);
+
+                self::saveWithFormat($img, $filePath, $extension, $quality);
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        return $filePath;
+    }
+
+    /**
+    * Reduce image file size to fit under maxFileSize bytes.
+    *
+    * Strategy:
+    * 1. HEIC: convert to JPEG first (standard format for messaging)
+    * 2. Estimate dimension scale via sqrt(target/current) and resize once if needed
+    * 3. JPEG/HEIC→JPEG: use Imagick's jpeg:extent for single-pass quality optimization
+    * 4. PNG: dimension scaling only (lossless format)
+    */
+    public static function constrainFileSize(
+        string $filePath,
+        int $maxFileSize,
+    ): string {
+        if (! file_exists($filePath)) {
+            return $filePath;
+        }
+
+        clearstatcache(true, $filePath);
+        $currentSize = filesize($filePath);
+        if ($currentSize <= $maxFileSize) {
+            return $filePath;
+        }
+
+        $extension = self::resolveExtension($filePath);
+        $supportedExtensions = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'avif'];
+
+        if (! in_array($extension, $supportedExtensions, true)) {
+            return $filePath;
+        }
+
+        try {
+            // HEIC/HEIF: convert to JPEG first
+            if (self::isHeic($extension)) {
+                $filePath = self::convertToJpeg($filePath);
+                $extension = 'jpeg';
+                clearstatcache(true, $filePath);
+                $currentSize = filesize($filePath);
+
+                if ($currentSize <= $maxFileSize) {
+                    return $filePath;
+                }
+            }
+
+            // Phase 1: estimate and apply dimension scale in a single pass
+            $manager = self::manager();
+            $img = $manager->decodePath($filePath);
+            $originalWidth = $img->width();
+            $originalHeight = $img->height();
+
+            $ratio = (float) $maxFileSize / (float) $currentSize;
+            $dimensionScale = sqrt($ratio) * 0.85;
+
+            if ($dimensionScale < 1.0) {
+                $newWidth = (int) round((float) $originalWidth * $dimensionScale);
+                $newHeight = (int) round((float) $originalHeight * $dimensionScale);
+
+                $img = $img->scale($newWidth, $newHeight);
+
+                match (true) {
+                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
+                    self::isPng($extension) => $img->save($filePath),
+                    default => null,
+                };
+                clearstatcache(true, $filePath);
+            }
+
+            // Phase 2: JPEG quality compression via jpeg:extent if still over limit
+            if (self::isJpeg($extension) && filesize($filePath) > $maxFileSize) {
+                self::constrainJpegWithExtent($filePath, $maxFileSize);
+            }
+            // PNG is lossless — dimension scaling in phase 1 is all we can do
+        } catch (Exception $e) {
+            report($e);
+        }
+
+        return $filePath;
+    }
+
+    /**
+     * Use Imagick's jpeg:extent to find the highest quality that fits under maxFileSize in a single encode.
+     */
+    private static function constrainJpegWithExtent(string $filePath, int $maxFileSize): void
+    {
+        $manager = self::manager();
+        $img = $manager->decodePath($filePath);
+
+        $core = $img->core()->native();
+        $core->setOption('jpeg:extent', (string) $maxFileSize); // @phpstan-ignore-line
+        $core->setImageFormat('jpeg'); // @phpstan-ignore-line
+        $core->writeImage('jpeg:' . $filePath); // @phpstan-ignore-line
+
+        clearstatcache(true, $filePath);
+    }
+
+    /**
+     * Convert HEIC/HEIF to JPEG via Imagick.
+     */
+    private static function convertToJpeg(string $filePath): string
+    {
+        $jpegPath = preg_replace('/\.(heic|heif)$/i', '.jpg', $filePath) ?? $filePath . '.jpg';
+        if ($jpegPath === $filePath) {
+            $jpegPath = $filePath . '.jpg';
+        }
+
+        $manager = self::manager();
+        $img = $manager->decodePath($filePath);
+        $img->save($jpegPath, quality: 90);
+
+        @unlink($filePath);
+
+        return $jpegPath;
+    }
+
+    /**
+     * Resolve file extension via MIME type detection from file bytes.
+     */
+    private static function resolveExtension(string $filePath): string
+    {
+        $mimeType = mime_content_type($filePath);
+
+        return FilesystemServices::getExtensionFromMimeType($mimeType);
     }
 
     private static function isJpeg(string $ext): bool
@@ -218,8 +406,43 @@ class ImageOptimizerService
         return $ext === 'webp';
     }
 
+    private static function isHeic(string $ext): bool
+    {
+        return in_array($ext, ['heic', 'heif'], true);
+    }
+
+    /**
+     * Save image with explicit format encoding.
+     * In v4, save() infers format from file extension — files without extensions
+     * (e.g. /tmp/phpXXXXXX from uploads) need explicit format encoding.
+     */
+    protected static function saveWithFormat(
+        ImageInterface $img,
+        string $filePath,
+        string $extension,
+        ?int $quality = null,
+    ): void {
+        $fileExtension = pathinfo($filePath, PATHINFO_EXTENSION);
+
+        if ($fileExtension !== '') {
+            $img->save($filePath, quality: $quality);
+
+            return;
+        }
+
+        $format = match (true) {
+            self::isJpeg($extension) => 'jpg',
+            self::isPng($extension) => 'png',
+            self::isWebp($extension) => 'webp',
+            default => 'jpg',
+        };
+
+        $encoded = $img->encodeUsingFileExtension($format, quality: $quality);
+        file_put_contents($filePath, (string) $encoded);
+    }
+
     protected static function manager(): ImageManager
     {
-        return new ImageManager(new Driver());
+        return new ImageManager(Driver::class);
     }
 }

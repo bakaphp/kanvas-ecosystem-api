@@ -278,6 +278,9 @@ class ImportOrderItemsCsvTest extends TestCase
 
     public function testImportOrderItemsWithAvailableGlobalStock(): void
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $app = app(Apps::class);
         $regionResponse = $this->createRegion()->json()['data']['createRegion'];
         $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
@@ -297,6 +300,20 @@ class ImportOrderItemsCsvTest extends TestCase
             warehouseData: $warehouseData
         )->json()['data']['createVariant'];
 
+        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse2['id'],
+            channelId: $channelResponse['id'],
+            warehouseData: $warehouseData
+        );
+
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
@@ -308,8 +325,6 @@ class ImportOrderItemsCsvTest extends TestCase
             warehouseId: $warehouseResponse['id'],
             amount: 10
         );
-
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $operations = [
             'query' =>

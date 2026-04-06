@@ -52,7 +52,8 @@ final class FollowTest extends TestCase
 
     public function testSocialCounterReset(): void
     {
-        $user = auth()->user();
+        $user = $this->createUser();
+        $this->actingAs($user, 'api');
         $userToFollow = Users::factory()->create();
         $user->follow($userToFollow);
         $app = app(Apps::class);

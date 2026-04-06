@@ -21,6 +21,7 @@ class CreateLeadSourceAction
         $attributes = [
             'companies_id' => $this->leadSource->company->getId(),
             'name' => $this->leadSource->name,
+            'apps_id' => $this->leadSource->app->getId(),
         ];
 
         // If description is not null, include it in the search criteria
@@ -31,9 +32,9 @@ class CreateLeadSourceAction
         return LeadSourceModel::updateOrCreate(
             $attributes,
             [
-                'companies_id' => $this->leadSource->company->getId(),
-                'apps_id' => $this->leadSource->app->getId(),
-                'name' => $this->leadSource->name,
+                //'companies_id' => $this->leadSource->company->getId(),
+                //'apps_id' => $this->leadSource->app->getId(),
+                //'name' => $this->leadSource->name,
                 'description' => $this->leadSource->description,
                 'is_active' => $this->leadSource->is_active,
                 'leads_types_id' => $this->leadSource->leads_types_id,

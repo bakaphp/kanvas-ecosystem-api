@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Queries;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Actions\ExportOrderPaymentsAction;
+use Kanvas\Souk\Orders\Actions\GetOrderCommissionStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
+use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -17,7 +21,6 @@ class OrderStatsQuery
     public function getOrderStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $initialStates = $input['initialStates'] ?? [];
@@ -32,6 +35,9 @@ class OrderStatsQuery
         $timezone = $input['timezone'] ?? null;
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providers = $input['providers'] ?? [];
+        $userEmail = $input['user_email'] ?? null;
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -40,7 +46,10 @@ class OrderStatsQuery
             $currentCountStates,
             $productTypeSlugs,
             $orderTypeNames,
-            $productId
+            $productId,
+            $providerCompanyIds,
+            $providers,
+            $userEmail
         )->execute(
             $date,
             $startDate,
@@ -56,7 +65,6 @@ class OrderStatsQuery
     public function getPaymentStats(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
 
         $input = $args['input'];
         $paidStates = $input['paidStates'] ?? ['paid'];
@@ -72,6 +80,8 @@ class OrderStatsQuery
         $baseDate = $input['baseDate'] ?? null;
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $userEmail = $input['user_email'] ?? null;
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -80,7 +90,9 @@ class OrderStatsQuery
             $productTypeSlugs,
             $orderTypeNames,
             $providers,
-            $productId
+            $productId,
+            $providerCompanyIds,
+            $userEmail
         )->execute(
             $date,
             $startDate,
@@ -91,6 +103,25 @@ class OrderStatsQuery
         );
 
         return $orderStats;
+    }
+
+    public function commissionStats(mixed $rootValue, array $request): CommissionStats
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $input = $request['input'];
+
+        $company = isset($input['company_id'])
+            ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
+            : ($user->isAppOwner() ? null : $user->getCurrentCompany());
+
+        return new GetOrderCommissionStatsAction(
+            app: $app,
+            company: $company,
+            from: Carbon::parse($input['from']),
+            to: Carbon::parse($input['to']),
+            orderType: $input['order_type'] ?? null,
+        )->execute();
     }
 
     public function exportPayments(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): array
@@ -111,6 +142,7 @@ class OrderStatsQuery
             endDate: $input['endDate'] ?? null,
             fieldMapper: isset($input['fieldMapper']) ? (array) $input['fieldMapper'] : null,
             language: $input['language'] ?? 'en',
+            userEmail: $input['user_email'] ?? null,
         )->execute();
     }
 }

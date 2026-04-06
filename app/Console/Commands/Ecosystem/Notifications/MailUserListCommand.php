@@ -29,7 +29,8 @@ class MailUserListCommand extends Command
                             {email_template_name : The name of the email template to use} 
                             {subject : The subject of the email} 
                             {csv : Path to the CSV file containing recipient emails}
-                            {--field=email : The CSV field containing email addresses}';
+                            {--field=email : The CSV field containing email addresses}
+                            {--skip=0 : Number of rows to skip (for resuming after a crash)}';
 
     /**
      * The console command description.
@@ -73,13 +74,24 @@ class MailUserListCommand extends Command
 
         $emailField = $this->option('field');
         $nameField = 'name';
+        $skip = (int) $this->option('skip');
         $totalProcessed = 0;
+        $skipped = 0;
         $successCount = 0;
         $failCount = 0;
 
-        $this->output->progressStart(count($csv));
+        $totalRows = count($csv);
+        if ($skip > 0) {
+            $this->info("Skipping first {$skip} rows, sending to remaining " . ($totalRows - $skip) . " recipients.");
+        }
+        $this->output->progressStart($totalRows - $skip);
 
         foreach ($csv as $record) {
+            if ($skipped < $skip) {
+                $skipped++;
+
+                continue;
+            }
             if (! isset($record[$emailField])) {
                 $this->error("CSV is missing the '{$emailField}' field. Aborting.");
 

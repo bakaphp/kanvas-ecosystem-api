@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Observers;
 
+use Kanvas\Guild\Customers\Events\PeopleCompanyUpdateEvent;
 use Kanvas\Guild\Customers\Events\PeopleUpdateEvent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -35,5 +36,6 @@ class PeopleObserver
 
         //$people->clearLightHouseCacheJob();
         PeopleUpdateEvent::dispatch($people);
+        PeopleCompanyUpdateEvent::dispatch($people);
     }
 }

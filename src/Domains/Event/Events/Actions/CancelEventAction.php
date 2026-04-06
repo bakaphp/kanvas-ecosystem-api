@@ -41,6 +41,7 @@ class CancelEventAction
         ]]);
 
         $this->eventVersion->refresh();
+        new ScheduleEventReminderAction($this->eventVersion)->execute();
         new SendEventEmailsAction($this->eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
 
         return $this->eventVersion;

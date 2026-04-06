@@ -86,7 +86,12 @@ class CompletionStatusTool implements ContextToolInterface
                    ->withSchema($schema)
                    ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
                    ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
-                    ->withMaxTokens(7000)
+                   ->withMaxTokens(7000)
+                   ->withClientOptions([
+                       'timeout' => 220,
+                       'connect_timeout' => 220,
+                       'read_timeout' => 220,
+                   ])
                    ->asStructured();
 
         return $response->structured;

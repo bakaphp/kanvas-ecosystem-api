@@ -84,6 +84,14 @@ class LeadManagementMutation
         );
         $attempt = $leadAttempt->execute();
 
+        if (empty($req['input']['title'])) {
+            $req['input']['title'] = $lead->title ?? ($lead->people?->name ? $lead->people->name . ' Opp' : 'No title');
+        }
+
+        if (empty($req['input']['branch_id'])) {
+            $req['input']['branch_id'] = $lead->companies_branches_id;
+        }
+
         $leadInputData = LeadUpdateInput::from($req['input']);
         $updateLeadAction = new UpdateLeadAction(
             $lead,
@@ -106,6 +114,7 @@ class LeadManagementMutation
         );
 
         $lead->deleteAllCustomFields();
+
         return $lead->softDelete();
     }
 

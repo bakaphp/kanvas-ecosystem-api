@@ -8,6 +8,13 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Models\BaseModel;
 
+/**
+ * @property int $id
+ * @property int $agent_history_id
+ * @property int $user_id
+ * @property int $rating
+ * @property string|null $feedback_text
+ */
 class AgentFeedback extends BaseModel
 {
     use UuidTrait;

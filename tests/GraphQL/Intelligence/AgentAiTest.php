@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Models\CommunicationChannel;
 use Tests\TestCase;
 
 class AgentAiTest extends TestCase
@@ -70,7 +71,10 @@ class AgentAiTest extends TestCase
                 'company_task_list_id' => $taskListId,
                 'communication_channels' => [
                     [
-                        'communication_channel_id' => 1,
+                        'communication_channel_id' => CommunicationChannel::firstOrCreate(
+                            ['name' => 'test-channel', 'apps_id' => app(Apps::class)->id],
+                            ['description' => 'Test channel', 'handler' => 'test', 'is_active' => true, 'is_published' => true]
+                        )->getId(),
                         'entry_point' => 'test',
                         'config' => json_encode(['key' => 'value']),
                     ],
@@ -159,6 +163,193 @@ class AgentAiTest extends TestCase
             'role' => 'updated-role',
             'is_active' => false,
         ]);
+    }
+
+    public function testCreateAgentWithNewFields()
+    {
+        $mutation = '
+            mutation CreateAgent($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    uuid
+                    name
+                    description
+                    soul
+                    instructions
+                    output_format
+                    identity
+                    user_context
+                    tools_config
+                    deployment_status
+                    is_active
+                }
+            }';
+
+        $agentTypeId = $this->createAgentType()->getId();
+        $agentModel = $this->createAgentModel()->getId();
+        $taskListId = $this->createTaskList()->getId();
+
+        $input = [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'OpenClaw Test Agent',
+                'description' => 'An agent with all new fields',
+                'config' => ['key' => 'value'],
+                'role' => ['name' => 'test-role'],
+                'agent_model_id' => $agentModel,
+                'is_active' => true,
+                'company_task_list_id' => $taskListId,
+                'soul' => 'You are a helpful sales assistant.',
+                'instructions' => 'Step 1: Greet the user. Step 2: Ask about needs.',
+                'output_format' => 'Always respond in JSON format.',
+                'identity' => ['name' => 'SalesBot', 'emoji' => '🤖', 'vibe' => 'professional'],
+                'user_context' => 'The user is a potential customer.',
+                'tools_config' => 'Use CRM lookup for customer info.',
+            ],
+        ];
+
+        $response = $this->graphQL($mutation, $input);
+        $response->assertJsonFragment([
+            'name' => 'OpenClaw Test Agent',
+            'soul' => 'You are a helpful sales assistant.',
+            'instructions' => 'Step 1: Greet the user. Step 2: Ask about needs.',
+            'output_format' => 'Always respond in JSON format.',
+            'identity' => ['name' => 'SalesBot', 'emoji' => '🤖', 'vibe' => 'professional'],
+            'user_context' => 'The user is a potential customer.',
+            'tools_config' => 'Use CRM lookup for customer info.',
+            'deployment_status' => 'pending',
+        ]);
+    }
+
+    public function testCreateAgentWithParent()
+    {
+        $mutation = '
+            mutation CreateAgent($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    name
+                    parent_id
+                    parent {
+                        id
+                        name
+                    }
+                }
+            }';
+
+        $agentTypeId = $this->createAgentType()->getId();
+
+        $parentInput = [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Parent Orchestrator',
+                'description' => 'Root agent',
+                'config' => '{}',
+                'role' => 'orchestrator',
+                'is_active' => true,
+            ],
+        ];
+
+        $parentResponse = $this->graphQL($mutation, $parentInput);
+        $parentId = $parentResponse->json('data.createAiAgent.id');
+
+        $childInput = [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Child Specialist',
+                'description' => 'Sub-agent',
+                'config' => '{}',
+                'role' => 'specialist',
+                'is_active' => true,
+                'parent_agent_id' => $parentId,
+            ],
+        ];
+
+        $childResponse = $this->graphQL($mutation, $childInput);
+        $childResponse->assertJsonFragment([
+            'name' => 'Child Specialist',
+            'parent_id' => $parentId,
+        ]);
+        $childResponse->assertJsonFragment([
+            'name' => 'Parent Orchestrator',
+        ]);
+    }
+
+    public function testGetAgentWithChildren()
+    {
+        $createMutation = '
+            mutation CreateAgent($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    name
+                }
+            }';
+
+        $agentTypeId = $this->createAgentType()->getId();
+
+        $parentResponse = $this->graphQL($createMutation, [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Swarm Leader',
+                'description' => 'Root',
+                'config' => '{}',
+                'role' => 'leader',
+                'is_active' => true,
+            ],
+        ]);
+        $parentId = $parentResponse->json('data.createAiAgent.id');
+
+        $this->graphQL($createMutation, [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Worker A',
+                'description' => 'Worker',
+                'config' => '{}',
+                'role' => 'worker',
+                'is_active' => true,
+                'parent_agent_id' => $parentId,
+            ],
+        ]);
+
+        $this->graphQL($createMutation, [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Worker B',
+                'description' => 'Worker',
+                'config' => '{}',
+                'role' => 'worker',
+                'is_active' => true,
+                'parent_agent_id' => $parentId,
+            ],
+        ]);
+
+        $query = '
+            query GetAgents($where: QueryAgentsAiWhereWhereConditions) {
+                agentsAi(where: $where) {
+                    data {
+                        id
+                        name
+                        children {
+                            id
+                            name
+                        }
+                    }
+                }
+            }';
+
+        $response = $this->graphQL($query, [
+            'where' => [
+                'column' => 'ID',
+                'operator' => 'EQ',
+                'value' => $parentId,
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $agents = $response->json('data.agentsAi.data');
+        $this->assertNotEmpty($agents, 'Expected the parent agent in response');
+        $data = $agents[0];
+        $this->assertEquals('Swarm Leader', $data['name']);
+        $this->assertCount(2, $data['children']);
     }
 
     public function testGetAgents()

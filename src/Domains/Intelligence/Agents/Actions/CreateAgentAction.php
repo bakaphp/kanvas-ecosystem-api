@@ -28,6 +28,14 @@ class CreateAgentAction
             'description' => $this->agent->description,
             'config' => $this->agent->config,
             'company_task_list_id' => $this->agent->task?->id ?? null,
+            'soul' => $this->agent->soul,
+            'instructions' => $this->agent->instructions,
+            'output_format' => $this->agent->outputFormat,
+            'identity' => $this->agent->identity,
+            'user_context' => $this->agent->userContext,
+            'tools_config' => $this->agent->toolsConfig,
+            'parent_id' => $this->agent->parentAgent?->getId(),
+            'deployment_status' => 'pending',
         ]);
 
         if ($this->agent->communicationChannel) {

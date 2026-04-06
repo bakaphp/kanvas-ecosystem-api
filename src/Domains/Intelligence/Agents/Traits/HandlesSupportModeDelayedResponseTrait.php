@@ -30,8 +30,17 @@ trait HandlesSupportModeDelayedResponseTrait
         ?Session $session = null
     ): ?array {
         $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
+        $hasHumanMessage = $channel->messages()
+            ->where('message->from_human', true)
+            ->exists();
 
-        if ($lead->get('ai_mode') !== IntelligenceModeEnum::SUPPORT->value || ! $isWithinWorkingHours) {
+        if (! $isWithinWorkingHours && ! $hasHumanMessage) {
+            return null;
+        }
+
+        $supportMode = $lead->get('ai_mode') == IntelligenceModeEnum::SUPPORT->value;
+
+        if (! $supportMode) {
             return null;
         }
 

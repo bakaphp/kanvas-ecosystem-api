@@ -108,7 +108,8 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                     }
                     if ($entity->message_types_id == MessagesTypesRepository::getByVerb('memo', $entity->app)->getId()) {
                         $entity->parent->increment('total_children');
-                        $remixMessage->set('remix_count', $remixMessage->childrenByType('memo')->count());
+                        $currentCount = (int) $remixMessage->get('remix_count', 0);
+                        $remixMessage->set('remix_count', $currentCount + 1);
                     }
                     $remixMessage->user->notify($newMessageNotification);
                 } catch (Throwable $th) {

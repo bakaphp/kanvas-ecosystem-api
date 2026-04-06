@@ -92,13 +92,16 @@ class BuildScheduleResponseAction
 
             // Normalize to periods format for consistency
             if (! $periods || count($periods) === 1) {
-                // Single or legacy period: use formatted times from RRUle
-                [$open, $close] = $this->parseHoursFromRule($rule);
-                if ($open && $close) {
-                    $periods = [['open' => $open, 'close' => $close]];
-                } elseif ($periods) {
+                if ($periods && count($periods) === 1) {
+                    // Use stored period directly to preserve exact open/close minutes
                     $open = $periods[0]['open'];
                     $close = $periods[0]['close'];
+                } else {
+                    // Legacy rules without periods in metadata: fall back to RRULE parsing
+                    [$open, $close] = $this->parseHoursFromRule($rule);
+                    if ($open && $close) {
+                        $periods = [['open' => $open, 'close' => $close]];
+                    }
                 }
             }
             // Multi-period: open/close stay null, only use periods

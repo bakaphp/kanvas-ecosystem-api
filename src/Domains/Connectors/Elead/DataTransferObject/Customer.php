@@ -51,19 +51,19 @@ class Customer extends Data
 
     private static function extractNameParts(People $people): array
     {
-        $name = $people->getFirstAndLastName();
-        $words = explode(' ', $name['lastName']);
-        $middleName = null;
+        /*  $name = $people->getFirstAndLastName();
+         $words = explode(' ', $name['lastName']);
+         $middleName = null;
 
-        if (count($words) >= 2) {
-            $middleName = $words[0];
-            $name['lastName'] = implode(' ', array_slice($words, 1));
-        }
+         if (count($words) >= 2) {
+             $middleName = $words[0];
+             $name['lastName'] = implode(' ', array_slice($words, 1));
+         } */
 
         return [
-            'firstName' => $name['firstName'],
-            'middleName' => $name['middleName'] ?? $middleName ?? '',
-            'lastName' => $name['lastName'] ?? $people->lastname,
+            'firstName' => $people->firstname, //$name['firstName'],
+            'middleName' => $people->middlename,
+            'lastName' => $people->lastname,
         ];
     }
 
@@ -115,11 +115,14 @@ class Customer extends Data
 
             $phoneValue = preg_replace('/\D+/', '', $phone->value);
 
+            $isOptOut = $phone->is_opt_out === 1;
+
             $phonesData[] = [
                 'number' => $phoneValue,
                 'phoneType' => 'Cellular',
                 'preferredTimeToContact' => 'Unspecified',
-                'doNotText' => $phone->is_opt_out === 1,
+                //'doNotCall' => $isOptOut,
+                'doNotText' => $isOptOut,
             ];
 
             // Only add first valid phone

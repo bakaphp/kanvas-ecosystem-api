@@ -21,7 +21,7 @@ class EleadCache
 
     public function getEntityTtl(): int
     {
-        return (int) ($this->app->get(ConfigurationEnum::ELEAD_CACHE_TTL->value) ?? 300);
+        return (int) ($this->app->get(ConfigurationEnum::ELEAD_CACHE_TTL->value) ?? 600);
     }
 
     public function getReferenceTtl(): int
