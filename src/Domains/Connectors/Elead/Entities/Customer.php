@@ -26,6 +26,8 @@ class Customer
     public array $emails = [];
     public array $phones = [];
     public array $address = [];
+    public ?array $privacySettings = null;
+    public array $links = [];
     public ?Companies $company = null;
     public ?AppInterface $app = null;
 
