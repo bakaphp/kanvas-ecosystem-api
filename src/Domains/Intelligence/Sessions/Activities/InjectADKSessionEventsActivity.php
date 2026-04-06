@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Activities;
 
-use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -55,86 +54,54 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($app, $channel, $entity, $content) {
-                $sessions = Session::where('entity_namespace', get_class($entity))
-                    ->where('entity_id', $entity->getId())
+                $session = Session::where('channel_id', $channel->getId())
                     ->where('is_deleted', 0)
                     ->fromApp($app)
-                    ->get();
+                    ->first();
 
-                if ($sessions->isEmpty()) {
+                if (! $session) {
                     return [
-                        'message' => 'No active sessions found for entity',
+                        'message' => 'No active session found for channel',
                         'entity' => $entity,
                     ];
                 }
 
-                $injected = 0;
-                $eligible = 0;
-                $errors = [];
-
-                foreach ($sessions as $session) {
-                    if (! $session->agent || ! $session->agent->type) {
-                        continue;
-                    }
-
-                    $handler = new $session->agent->type->handler();
-
-                    if (! $handler instanceof ADKAgent) {
-                        continue;
-                    }
-
-                    $eligible++;
-
-                    $adkService = new GoogleADKService(
-                        $channel->app,
-                        $channel->company
-                    );
-
-                    try {
-                        $adkService->injectSessionEvents(
-                            (string) $session->entity_id,
-                            $session->uuid,
-                            [
-                                [
-                                    'role' => 'salesperson',
-                                    'text' => $content,
-                                ],
-                            ]
-                        );
-
-                        $injected++;
-                    } catch (ClientException $e) {
-                        $errors[] = "Failed to inject events into ADK session {$session->uuid}: " . $e->getMessage();
-                    }
-                }
-
-                if ($eligible === 0) {
+                if (! $session->agent || ! $session->agent->type) {
                     return [
-                        'message' => 'No eligible ADK sessions found for entity',
+                        'message' => 'Session has no agent or agent type configured',
                         'entity' => $entity,
-                        'sessions_injected' => 0,
-                        'errors' => [],
                     ];
                 }
 
-                if ($injected === 0) {
-                    return $this->failWorkflow([
-                        'message' => 'Failed to inject events into any ADK sessions',
+                $handler = new $session->agent->type->handler();
+
+                if (! $handler instanceof ADKAgent) {
+                    return [
+                        'message' => 'Session agent is not an ADK agent',
                         'entity' => $entity,
-                        'sessions_injected' => 0,
-                        'errors' => $errors,
-                    ]);
+                    ];
                 }
 
-                $message = $injected === $eligible
-                    ? "Successfully injected events into all {$injected} ADK session(s)"
-                    : "Injected events into {$injected} of {$eligible} ADK session(s) with some errors";
+                $adkService = new GoogleADKService(
+                    $channel->app,
+                    $channel->company
+                );
+
+                $adkService->injectSessionEvents(
+                    (string) $session->entity_id,
+                    $session->uuid,
+                    [
+                        [
+                            'role' => 'salesperson',
+                            'text' => $content,
+                        ],
+                    ]
+                );
 
                 return [
-                    'message' => $message,
+                    'message' => "Successfully injected events into ADK session {$session->uuid}",
                     'entity' => $entity,
-                    'sessions_injected' => $injected,
-                    'errors' => $errors,
+                    'session_uuid' => $session->uuid,
                 ];
             },
             company: $channel->company,
