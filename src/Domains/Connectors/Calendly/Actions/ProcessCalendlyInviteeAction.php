@@ -85,12 +85,44 @@ class ProcessCalendlyInviteeAction
         }
 
         $questionsAndAnswers = $inviteePayload['questions_and_answers'] ?? [];
+
+        /** @var array<string, array{type: string, field?: string, contact_type?: string}> $questionMapping */
+        $questionMapping = $config['question_mapping'] ?? [];
+
+        $descriptionParts = [];
+        $qaCustomFields = [];
+
+        /** @var array<string, string> $qa */
         foreach ($questionsAndAnswers as $qa) {
-            $answer = $qa['answer'] ?? '';
-            if (filter_var($answer, FILTER_VALIDATE_EMAIL)) {
+            $answer = trim($qa['answer'] ?? '');
+            $question = trim($qa['question'] ?? '');
+
+            if ($answer === '') {
+                continue;
+            }
+
+            $mapping = $questionMapping[$question] ?? null;
+
+            if ($mapping !== null) {
+                $this->applyMappedAnswer(
+                    $mapping,
+                    $answer,
+                    $contacts,
+                    $qaCustomFields,
+                    $descriptionParts,
+                    $question,
+                );
+            } elseif (filter_var($answer, FILTER_VALIDATE_EMAIL)) {
                 $contacts[] = ['type' => 'email', 'value' => $answer];
+            } elseif ($phone === '' && preg_match('/^\+?[\d\s\-().]{7,20}$/', $answer)) {
+                $phone = $answer;
+                $contacts[] = ['type' => 'phone', 'value' => $phone];
+            } else {
+                $descriptionParts[] = $question !== '' ? "{$question}: {$answer}" : $answer;
             }
         }
+
+        $description = implode("\n", $descriptionParts);
 
         $pipelineStageId = (int) ($config['pipeline_stage_id'] ?? 0);
         $sourceId = $this->resolveSourceId($app, $company, $config);
@@ -102,6 +134,7 @@ class ProcessCalendlyInviteeAction
             user: $user,
             title: $title,
             pipeline_stage_id: $pipelineStageId,
+            description: $description !== '' ? $description : null,
             people: People::from([
                 'app' => $app,
                 'branch' => $branch,
@@ -122,6 +155,7 @@ class ProcessCalendlyInviteeAction
                     CustomFieldEnum::CALENDLY_EVENT_NAME->value => $eventName,
                     'calendly_questions_and_answers' => $questionsAndAnswers,
                 ],
+                $qaCustomFields,
                 (array) ($config['custom_fields'] ?? [])
             ),
         );
@@ -133,6 +167,32 @@ class ProcessCalendlyInviteeAction
             'event' => $eventType,
             'invitee_email' => $email,
         ];
+    }
+
+    /**
+     * @param array{type: string, field?: string, contact_type?: string} $mapping
+     * @param list<array{type: string, value: string}> $contacts
+     * @param array<string, string> $customFields
+     * @param list<string> $descriptionParts
+     */
+    protected function applyMappedAnswer(
+        array $mapping,
+        string $answer,
+        array &$contacts,
+        array &$customFields,
+        array &$descriptionParts,
+        string $question,
+    ): void {
+        $type = $mapping['type'] ?? 'description';
+
+        match ($type) {
+            'contact' => $contacts[] = [
+                'type' => $mapping['contact_type'] ?? 'phone',
+                'value' => $answer,
+            ],
+            'custom_field' => $customFields[$mapping['field'] ?? $question] = $answer,
+            default => $descriptionParts[] = $question !== '' ? "{$question}: {$answer}" : $answer,
+        };
     }
 
     protected function resolveSourceId(AppInterface $app, Companies $company, array $config): int
