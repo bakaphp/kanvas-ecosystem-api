@@ -26,6 +26,7 @@ class CreateOrderStatusesAction
         ], [
             'slug' => Str::slug($this->orderTypeName),
             'is_default' => false,
+            'companies_id' => 0,
         ]);
 
         $createdStatuses = [];
@@ -47,6 +48,7 @@ class CreateOrderStatusesAction
                 'is_default' => $isDefault,
                 'is_final' => $isFinal,
                 'sequence' => $sequence,
+                'companies_id' => 0,
             ]);
 
             $sequenceIndex++;
@@ -70,6 +72,7 @@ class CreateOrderStatusesAction
                             'to_status_id' => $toStatus->getId(),
                         ], [
                             'name' => "{$fromStatus->name} to {$toStatus->name}",
+                            'companies_id' => 0,
                         ]);
                     }
                 }

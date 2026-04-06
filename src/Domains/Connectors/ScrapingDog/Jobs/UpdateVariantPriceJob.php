@@ -187,7 +187,7 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 'description' => $variant->getTranslation('description', 'es'),
             ];
 
-            $variantData['customization_options'] = $product['customization_options'];
+            $variantData['customization_options'] = $product['customization_options'] ?? [];
             $variantData['product_information'] = $customDict['product_information'] ?? [];
             $variantData['feature_bullets'] = $customDict['feature_bullets'] ?? [];
 

@@ -49,6 +49,12 @@ class PushPeopleAction
             $contactPhone = $this->preparePhones($this->people, ! $exist);
             $contactAddress = $this->prepareAddresses($this->people, ! $exist);
 
+            // Determine opt-out preferences
+            $hasEmailOptOut = $this->people->getEmails()->contains(fn ($email) => $email->is_opt_out === 1);
+            $hasPhoneOptOut = $this->people->getPhones()
+                ->merge($this->people->getCellPhones())
+                ->contains(fn ($phone) => $phone->is_opt_out === 1);
+
             if (! $exist) {
                 // Create new contact
                 $contact = [
@@ -59,6 +65,8 @@ class PushPeopleAction
                         'Emails' => $contactEmail,
                         'Phones' => $contactPhone,
                         'Addresses' => $contactAddress,
+                        'DoNotEmail' => $hasEmailOptOut,
+                        'DoNotCall' => $hasPhoneOptOut,
                     ],
                     'LeadInformation' => [
                         'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
@@ -88,7 +96,9 @@ class PushPeopleAction
                         $contactPhone,
                         $contactAddress,
                         (int) $this->people->get($contactId),
-                        $this->people
+                        $this->people,
+                        $hasEmailOptOut,
+                        $hasPhoneOptOut
                     );
                 }
             } else {
@@ -98,7 +108,9 @@ class PushPeopleAction
                     $contactPhone,
                     $contactAddress,
                     (int) $this->people->get($contactId),
-                    $this->people
+                    $this->people,
+                    $hasEmailOptOut,
+                    $hasPhoneOptOut
                 );
             }
 
@@ -256,7 +268,9 @@ class PushPeopleAction
         array $phone,
         array $address,
         int $contactId,
-        People $people
+        People $people,
+        bool $hasEmailOptOut = false,
+        bool $hasPhoneOptOut = false
     ): Contact {
         $vinContactService = new ContactService(
             $this->vinCredential,
@@ -268,6 +282,10 @@ class PushPeopleAction
         $contact->information['LastName'] = $this->people->lastname;
         $contact->emails = $emails;
         $contact->phones = $phone;
+
+        // Set opt-out preferences from people contacts
+        $contact->information['DoNotEmail'] = $hasEmailOptOut;
+        $contact->information['DoNotCall'] = $hasPhoneOptOut;
 
         // Check if customer already has address in Vin
         $customHasAddressInVin = ! empty($contact->addresses) && ! empty($contact->addresses[0]['StreetAddress']);

@@ -23,12 +23,25 @@ class LeadIntentTool implements ContextToolInterface
     public function execute(array $params = []): array
     {
         $sources = $this->entity->company->get('adf_sources') ?? [];
+
         if (empty($sources)) {
-            throw new Exception('No ADF sources found for this company');
+            //throw new Exception('No ADF sources found for this company');
+            return [
+                'lead_intent' => 'ADVANCED_REQUEST',
+                'intent_completion_status' => 'Incomplete',
+            ];
         }
+
         $sources = collect($sources);
-        $leadSource = $this->entity->source->name;
+        $leadSource = $this->entity->source?->name;
         $subSource = $this->entity->get('sub_source');
+
+        if ($leadSource === null) {
+            return [
+                'lead_intent' => 'ADVANCED_REQUEST',
+                'intent_completion_status' => 'Incomplete',
+            ];
+        }
 
         /**
          * @todo standardize source and subsource names to lowercase to avoid issues like this

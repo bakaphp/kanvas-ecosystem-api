@@ -223,7 +223,10 @@ class RolesManagementMutation
 
         // Remove existing entity permissions
         foreach ($permissions as $permission) {
-            Bouncer::disallow($input['name'])->to($permission->title, $permission->entity_type);
+            Bouncer::disallow($input['name'])->to(
+                $permission->name,
+                $permission->entity_type
+            );
         }
 
         // Remove existing module permissions
@@ -233,11 +236,13 @@ class RolesManagementMutation
         }
 
         $permissions = $input['permissions'];
-        (new BulkAllowRoleToPermissionAction(
+        new BulkAllowRoleToPermissionAction(
             app(Apps::class),
             $role,
             $permissions
-        ))->execute();
+        )->execute();
+
+        Bouncer::refreshFor($user);
 
         return KanvasRole::find($role->id);
     }

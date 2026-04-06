@@ -157,7 +157,7 @@ class ExportOrdersAction
 
         // For Builder objects, execute query once for metadata
         $ordersForMetadata = $orders instanceof Builder ?
-            $orders->with('orderStatus')->take(1000)->get() :
+            (clone $orders)->with('orderStatus')->get() :
             $orders;
 
         // Header information with logos and company details

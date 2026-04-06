@@ -125,14 +125,20 @@ class Channel extends BaseModel
         $this->last_message_id = $message->id;
         $this->saveOrFail();
 
-        $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
-           'message' => $message,
-           'user' => $user,
-           'app' => $message->app,
-           'company' => $message->company,
-        ]);
+        $this->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'message' => $message,
+                'user' => $user,
+                'app' => $message->app,
+                'company' => $message->company,
+            ]
+        );
 
-        ChannelMessageCreatedEvent::dispatch($this, $message);
+        if ($message->isPublic() && ! $message->isLocked()) {
+            ChannelMessageCreatedEvent::dispatch($this, $message);
+        }
     }
 
     /**

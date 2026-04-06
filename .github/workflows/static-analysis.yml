@@ -137,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.4"]
+        php-versions: ["8.5"]
     services:
       mysql:
         image: mysql:8.0

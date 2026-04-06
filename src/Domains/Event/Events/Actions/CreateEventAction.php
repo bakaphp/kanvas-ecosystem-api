@@ -144,6 +144,8 @@ class CreateEventAction
                 )->execute();
             }
 
+            new ScheduleEventReminderAction($eventVersion)->execute();
+
             return $event;
         });
 

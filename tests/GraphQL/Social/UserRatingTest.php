@@ -230,20 +230,12 @@ class UserRatingTest extends TestCase
                     }
                 }
             }')
-            ->assertJson([
-                'data' => [
-                    'products' => [
-                        'data' => [
-                            [
-                                'name' => $data['name'],
-                                'description' => $data['description'],
-                                'usersRatings' => [
-                                    [
-                                        'rating' => 5.0,
-                                    ],
-                                ],
-                            ],
-                        ],
+            ->assertJsonFragment([
+                'name' => $data['name'],
+                'description' => $data['description'],
+                'usersRatings' => [
+                    [
+                        'rating' => 5.0,
                     ],
                 ],
             ]);

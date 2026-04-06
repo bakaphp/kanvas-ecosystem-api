@@ -54,6 +54,8 @@ class SubscriptionMutation
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
                 if ($subscriptionInput->price->plan->free_trial_dates) {
                     $subscription->trialDays($subscriptionInput->price->plan->free_trial_dates);
+                } else {
+                    $subscription->skipTrial();
                 }
 
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);

@@ -16,7 +16,8 @@ class ProductStatsRepository
         CompanyInterface $company,
         ?string $productTypeSlug = null,
         ?array $productIds = null,
-        ?int $warehouseId = null
+        ?int $warehouseId = null,
+        ?int $companiesId = null
     ): CapacityStats {
         $query = VariantsWarehouses::query()
             ->join(
@@ -35,7 +36,11 @@ class ProductStatsRepository
             ->where('products_variants.is_deleted', 0)
             ->where('products.is_deleted', 0)
             ->where('products.apps_id', $app->getId())
-            ->where('products.companies_id', $company->getId());
+            ->when(
+                $companiesId !== null,
+                fn ($q) => $q->where('products.companies_id', $companiesId),
+                fn ($q) => $q->where('products.companies_id', $company->getId())
+            );
 
         if ($productTypeSlug) {
             $query->join(

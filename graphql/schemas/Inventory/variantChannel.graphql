@@ -28,6 +28,7 @@ type VariantChannel {
 type ChannelsPricesHistoryRelationship {
     price: Money!
     from_date: String!
+    user: User @belongsTo(relation: "user")
 }
 
 type VariantChannelRelationship {

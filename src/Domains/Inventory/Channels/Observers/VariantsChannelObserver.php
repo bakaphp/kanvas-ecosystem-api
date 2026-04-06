@@ -12,11 +12,12 @@ class VariantsChannelObserver
     public function saved(VariantsChannels $variantChannel): void
     {
         if ($variantChannel->wasChanged('price')) {
-            (new CreatePriceHistoryAction(
+            new CreatePriceHistoryAction(
                 $variantChannel->productVariantWarehouse,
                 $variantChannel->channel,
-                $variantChannel->price
-            ))->execute();
+                $variantChannel->price,
+                auth()->user(),
+            )->execute();
         }
     }
 }

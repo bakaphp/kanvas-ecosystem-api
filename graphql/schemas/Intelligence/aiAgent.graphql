@@ -8,6 +8,8 @@ type AIAgentSession {
     company_config: Mixed
     content: Mixed
     channel: String
+    system_modules_id: ID
+    channel_slugs: [String!]!
 }
 
 extend type Query @guard {

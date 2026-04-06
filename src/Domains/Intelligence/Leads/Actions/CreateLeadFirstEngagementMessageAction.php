@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Leads\Actions;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -67,6 +68,8 @@ class CreateLeadFirstEngagementMessageAction
         $data['customerName'] = $this->lead->people->name;
         $data['leadEmail'] = $this->lead->people->getEmails()->first()?->value ?? '';
         $data['leadOwnerName'] = $this->lead->owner?->firstname . ' ' . $this->lead->owner?->lastname;
+        $data['voice_enabled'] = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
+        $data['available_channels'] = $this->resolveAvailableChannels();
 
         // Define the schema for the structured response
         $schema = new ObjectSchema(
@@ -89,6 +92,28 @@ class CreateLeadFirstEngagementMessageAction
 
         // Return the structured data containing title and message
         return [...$response->structured ?? [], ['background' => $prompt]];
+    }
+
+    protected function resolveAvailableChannels(): array
+    {
+        $channels = [];
+        $hasPhone = ! empty($this->lead->people->getCellPhones()->first()?->value)
+            || ! empty($this->lead->people->getAllPhones()->first()?->value);
+        $hasEmail = ! empty($this->lead->people->getEmails()->first()?->value);
+        $voiceEnabled = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
+
+        if ($hasPhone) {
+            $channels[] = 'sms';
+            if ($voiceEnabled) {
+                $channels[] = 'voice';
+            }
+        }
+
+        if ($hasEmail) {
+            $channels[] = 'email';
+        }
+
+        return $channels;
     }
 
     public function callPrism(ObjectSchema $schema, string $prompt): Response

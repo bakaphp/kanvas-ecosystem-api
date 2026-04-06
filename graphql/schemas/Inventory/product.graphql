@@ -23,7 +23,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    created_at: DateTime
+    created_at: DateTime!
     message: [Message] @hasMany(relation: "getIntegrationMessage")
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
@@ -185,6 +185,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
         )
+    addAttributeToProduct(id: ID!, input: ProductAttributesInput!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttributeToProduct"
+        )
     removeAttribute(id: ID!, attribute_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
@@ -227,6 +231,7 @@ extend type Query @guard {
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
+        nearByWarehouseLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [

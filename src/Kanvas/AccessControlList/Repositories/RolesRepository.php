@@ -18,16 +18,24 @@ use Silber\Bouncer\Database\Ability;
 
 class RolesRepository
 {
-    public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null, ?AppInterface $app = null): Role
-    {
-        return is_numeric($param) ? RolesRepository::getByIdFromCompany((int) $param, $company, $app) : RolesRepository::getByNameFromCompany($param, $company, $app);
+    public static function getByMixedParamFromCompany(
+        int|string $param,
+        ?Companies $company = null,
+        ?AppInterface $app = null
+    ): Role {
+        return is_numeric($param)
+            ? RolesRepository::getByIdFromCompany((int) $param, $company, $app)
+            : RolesRepository::getByNameFromCompany($param, $company, $app);
     }
 
     /**
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByNameFromCompany(string $name, ?Companies $company = null, ?AppInterface $app = null): Role
-    {
+    public static function getByNameFromCompany(
+        string $name,
+        ?Companies $company = null,
+        ?AppInterface $app = null
+    ): Role {
         $app = $app ?? app(Apps::class);
 
         return Role::where('name', $name)
@@ -40,6 +48,7 @@ class RolesRepository
         $app = $app ?? app(Apps::class);
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
+
         return Role::where('name', $name)
         ->firstOrFail();
     }
@@ -77,21 +86,27 @@ class RolesRepository
         return Role::where('scope', RolesEnums::getScope($app))->get();
     }
 
-    public static function getMapAbilityInModules(string $roleName): array
+    public static function getMapAbilityInModules(string $roleName, ?Apps $app = null): array
     {
-        $roles = Bouncer::role()->where('name', $roleName)->firstOrFail();
+        $app = $app ?? app(Apps::class);
+        $scope = RolesEnums::getScope($app, null);
+
+        $roles = Bouncer::role()->where('name', $roleName)->where('scope', $scope)->firstOrFail();
         $subQuery = DB::table('permissions')
                     ->where('entity_type', 'roles')
                     ->where('permissions.entity_id', $roles->id)
                     ->select('permissions.*');
+
         $abilities = Ability::join('abilities_modules', 'abilities.id', '=', 'abilities_modules.abilities_id')
             ->leftJoinSub($subQuery, 'permissions', function ($join) {
                 $join->on('abilities.id', '=', 'permissions.ability_id');
             })
             ->join('kanvas_modules as modules', 'modules.id', '=', 'abilities_modules.module_id')
+            ->where('abilities_modules.apps_id', $app->getId())
             ->orderBy('modules.id')
             ->select('abilities.*', 'abilities_modules.system_modules_id', 'permissions.entity_id as roleId', 'modules.id', 'modules.name')
             ->get();
+
         $roles = self::mapPermissionsToStructure($abilities);
 
         return $roles;
@@ -110,7 +125,7 @@ class RolesRepository
             ->leftJoin('abilities', 'permissions.ability_id', 'abilities.id')
             ->where('permissions.entity_type', 'roles')
             ->where('permissions.entity_id', $roles->id)
-            ->select('abilities.title', 'abilities.entity_type')
+            ->select('abilities.name', 'abilities.title', 'abilities.entity_type')
             ->get();
     }
 
@@ -122,6 +137,7 @@ class RolesRepository
                 'title' => $permission->title,
                 'roleId' => (bool) $permission->roleId,
             ];
+
             if (! isset($modules[$permission['name']])) {
                 $modules[$permission['name']] = [
                     'id' => $permission->id,
@@ -129,6 +145,7 @@ class RolesRepository
                     'systemModules' => [],
                 ];
             }
+
             $systemModule = $permission->entity_type;
             if (empty($modules[$permission['name']]['systemModules'])) {
                 $modules[$permission['name']]['systemModules'][] = [
@@ -139,7 +156,8 @@ class RolesRepository
 
                 continue;
             }
-            Log::debug('Ability', $ability);
+
+            //Log::debug('Ability', $ability);
             $found = false;
             foreach ($modules[$permission['name']]['systemModules'] as $key => $systemModules) {
                 if ($systemModules['name'] == $systemModule) {
@@ -150,6 +168,7 @@ class RolesRepository
                     break;
                 }
             }
+
             if (! $found) {
                 $modules[$permission['name']]['systemModules'][] = [
                     'id' => $permission->system_modules_id,

@@ -11,6 +11,9 @@ use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
+use Kanvas\Connectors\Azul\Webhook\AzulTermUrlWebhookJob;
+use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
@@ -19,6 +22,7 @@ use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPush
 use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
+use Kanvas\Connectors\EchoPay\Webhook\PullPaymentChallengeWebhookJob;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
@@ -30,6 +34,7 @@ use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleAct
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
+use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\CovertMapsCoordinatesToImageActivity;
 use Kanvas\Connectors\Google\Activities\GenerateMessageTagsWithAiActivity;
@@ -41,37 +46,47 @@ use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
-use Kanvas\Connectors\Internal\Activities\CalculateWarehouseQuantityActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
+use Kanvas\Connectors\Internal\Activities\RecalculateSlotCapacityActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
+use Kanvas\Connectors\InventorySync\Workflows\Activities\SyncInventoryActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
+use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncProductCapacityActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteQuoteWebhookJob;
 use Kanvas\Connectors\NetSuite\Webhooks\PullNetSuiteStockWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\PushOrderToNetsuiteActivity;
+use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyChannelsActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawAgentWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
 use Kanvas\Connectors\PromptMine\Webhooks\PremiumPromptApprovalWebhookJob;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\CheckNuggetGenerationCountActivity;
+use Kanvas\Connectors\PromptMine\Workflows\Activities\IncrementPromptUsageActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\LLMMessageResponseActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PremiumPromptFlagActivity;
 use Kanvas\Connectors\PromptMine\Workflows\Activities\PromptIAPOrderActivity;
@@ -99,6 +114,8 @@ use Kanvas\Connectors\SalesAssist\Activities\PullUserFromCRMActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadActivity as SalesAssistActivitiesPushLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushLeadNotesActivity as ActivitiesPushLeadNotesActivity;
 use Kanvas\Connectors\SalesAssist\Activities\PushPeopleActivity as SalesAssistActivitiesPushPeopleActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SendLeadAdfByEmailActivity;
+use Kanvas\Connectors\SalesAssist\Activities\SetLeadAiModeOffIfEmailOnlyActivity;
 use Kanvas\Connectors\SalesAssist\Activities\SyncLeadWithLegacyCRMActivity;
 use Kanvas\Connectors\SalesAssist\Webhooks\CreateLeadFromADFWebhookJob;
 use Kanvas\Connectors\SalesAssist\Webhooks\ProcessADFAgentInboundLeadJob;
@@ -124,6 +141,10 @@ use Kanvas\Connectors\Stripe\Webhooks\StripePaymentLinkWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetOrderPaymentIntentActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Tookan\Webhook\PullTaskStatusWebhookJob;
+use Kanvas\Connectors\Tookan\Workflows\Activities\CreateTookanOrderActivity;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanChildOrderStatusActivity;
+use Kanvas\Connectors\Tookan\Workflows\Activities\TookanParentOrderStatusActivity;
 use Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity;
 use Kanvas\Connectors\UniversalAssistance\Webhooks\ProcessUniversalAssistanceOrderWebhookJob;
 use Kanvas\Connectors\UniversalAssistance\Workflows\Activities\CreateUniversalAssistanceQuoteActivity;
@@ -145,8 +166,13 @@ use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
+use Kanvas\Intelligence\Sessions\Activities\InjectADKSessionEventsActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
+use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
+use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
+use Kanvas\Intelligence\Workflows\SendNotificationActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
@@ -189,6 +215,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateLeadsFromReceiverJob::class,
             CreateMessageFromReceiverJob::class,
             UpdatePeopleStripeSubscriptionJob::class,
+            SyncCompanyChannelsActivity::class,
             SyncCompanyWithNetSuiteActivity::class,
             SyncPeopleWithNetSuiteActivity::class,
             GenerateMessageSlugActivity::class,
@@ -201,6 +228,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,
+            SyncInventoryActivity::class,
             ImportProductActivity::class,
             GenerateMessageTagsActivity::class,
             ExtractCompanyNameFromPeopleEmailActivity::class,
@@ -257,7 +285,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncExternalWooCommerceUserWebhookJob::class,
             PullLeadActivity::class,
             PullPeopleActivity::class,
-            CalculateWarehouseQuantityActivity::class,
+            RecalculateSlotCapacityActivity::class,
             PremiumPromptFlagActivity::class,
             SetOrderPaymentIntentActivity::class,
             ProcessWaSenderWebhookJob::class,
@@ -277,6 +305,13 @@ class KanvasWorkflowSynActionCommand extends Command
             B2BCompanyPriceConfigurationActivity::class,
             CheckNuggetGenerationCountActivity::class,
             ExtendReservationActivity::class,
+            CreateVehicleFromOrderActivity::class,
+            PullTaskStatusWebhookJob::class,
+            CreateTookanOrderActivity::class,
+            TookanParentOrderStatusActivity::class,
+            TookanChildOrderStatusActivity::class,
+            SyncMovipassActivity::class,
+            SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             PushLeadNotesActivity::class,
@@ -305,6 +340,7 @@ class KanvasWorkflowSynActionCommand extends Command
             WorkflowPushLeadNotesActivity::class,
             LeadAgentFirstMessageOutreachActivity::class,
             CreateLeadFromADFWebhookJob::class,
+            ProcessFacebookLeadWebhookJob::class,
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
@@ -340,12 +376,28 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesPushLeadNotesActivity::class,
             SalesAssistActivitiesPushLeadActivity::class,
             SalesAssistActivitiesPushPeopleActivity::class,
+            SetLeadAiModeOffIfEmailOnlyActivity::class,
             RestoreUsersAccountContentActivity::class,
+            PullPaymentChallengeWebhookJob::class,
+            AzulTermUrlWebhookJob::class,
+            AzulMethodNotificationWebhookJob::class,
             ScheduleEleadActivityFromEventAction::class,
             OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,
             ProcessGoogleSubscriptionWebhookJob::class,
+            FollowUpPromptActivity::class,
             ModelWizardReceiverJob::class,
+            IncrementPromptUsageActivity::class,
+            ProcessCalendlyWebhookJob::class,
+            SendNotificationActivity::class,
+            SaveLeadPreferredChannelActivity::class,
+            ContactCheckerActivity::class,
+            SyncOpenClawAgentWorkspaceActivity::class,
+            SyncAgentSwarmContextActivity::class,
+            MicrosoftAgentChannelResponderActivity::class,
+            SyncMicrosoftEmailActivity::class,
+            SendLeadAdfByEmailActivity::class,
+            InjectADKSessionEventsActivity::class,
         ];
 
         $createdActions = [];

@@ -39,12 +39,12 @@ class SendRotationEmailsAction
             // determine notification user mode: just owner or rotation users + owner
             $notificationUserMode = isset($this->leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($this->leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_OWNER;
 
-            $shouldNotifyRotationUsers = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $this->leadReceiver->rotation?->agents?->count() > 0;
+            $activeUsers = $this->leadReceiver->rotation?->getActiveUsers() ?? collect();
+            $shouldNotifyRotationUsers = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $activeUsers->isNotEmpty();
             // get the users/agents to notify
             $users = $shouldNotifyRotationUsers
             ? collect([$emailReceiverUser])
-            ->merge($this->leadReceiver->rotation->agents?->pluck('users') ?? [])
-            ->flatten()
+            ->merge($activeUsers)
             ->all()
             : [$emailReceiverUser];
 

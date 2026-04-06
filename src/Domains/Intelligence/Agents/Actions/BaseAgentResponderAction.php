@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
-use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -105,6 +105,11 @@ class BaseAgentResponderAction
         );
         $channel->addMessage($newMessage);
 
+        $lead = $message->entity();
+        if ($lead instanceof Lead) {
+            new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
+        }
+
         return $newMessage;
     }
 
@@ -131,16 +136,8 @@ class BaseAgentResponderAction
         return [];
     }
 
-    public function getMessageType(Apps $apps): MessageType
+    public function getMessageType(Apps $app): MessageType
     {
-        $messageTypeInput = MessageTypeInput::from([
-            'apps_id' => $apps->getId(),
-            'verb' => $this->messageTypeVerb,
-            'name' => Str::title($this->messageTypeVerb),
-        ]);
-
-        $messageTypeAction = new CreateMessageTypeAction($messageTypeInput);
-
-        return $messageTypeAction->execute();
+        return MessageTypeService::getOrCreate($app, $this->messageTypeVerb);
     }
 }

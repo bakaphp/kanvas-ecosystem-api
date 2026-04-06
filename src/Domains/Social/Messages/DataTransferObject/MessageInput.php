@@ -38,6 +38,7 @@ class MessageInput extends Data
         public array $files = [],
         public array $categories = [],
         public int $is_locked = 0,
+        public array $custom_fields = [],
     ) {
     }
 
@@ -84,6 +85,7 @@ class MessageInput extends Data
             $data['files'] ?? [],
             $data['categories'] ?? [],
             $data['is_locked'] ?? 0,
+            $data['custom_fields'] ?? [],
         );
     }
 }

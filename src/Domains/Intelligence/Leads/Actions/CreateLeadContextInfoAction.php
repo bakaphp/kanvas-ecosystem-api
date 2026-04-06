@@ -47,10 +47,14 @@ class CreateLeadContextInfoAction
             throw new Exception('No configuration found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
         }
 
+        if (! array_key_exists('actions', $pipelineStageConfig)) {
+            throw new Exception('No actions found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
+        }
+
         $contextInvocableActions = $pipelineStageConfig['actions'];
 
         if (empty($contextInvocableActions)) {
-            throw new Exception('No actions found for pipeline stage ' . $firstPipelineStage->name . ', please configure it.');
+            return [];
         }
 
         $leadContext = [];

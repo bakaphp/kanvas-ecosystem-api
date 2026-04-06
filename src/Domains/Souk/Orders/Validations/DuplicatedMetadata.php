@@ -8,28 +8,33 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Override;
 
 class DuplicatedMetadata implements ValidationRule
 {
     public function __construct(
         private AppInterface $app,
-        private CompanyInterface $company
+        private CompanyInterface $company,
+        private ?OrderTypes $orderType = null,
     ) {
     }
 
     #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $enabled = $this->app->get('validate_metadata_duplicated_enabled');
-        if (! $enabled || $enabled !== 1) {
+        if (! $this->app->get(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value)) {
             return;
         }
 
-        $settings = $this->getConfigFromAppSettings();
+        $settings = $this->resolveSettings($this->orderType?->config ?? []);
+
+        if (! $settings['field']) {
+            return;
+        }
 
         $fieldValue = $this->extractFieldValue($value, $settings['field']);
 
@@ -42,12 +47,14 @@ class DuplicatedMetadata implements ValidationRule
         }
     }
 
-    private function getConfigFromAppSettings(): array
+    private function resolveSettings(array $config): array
     {
+        $cooldown = $config['validate_metadata_duplicated_cooldown_hours'] ?? null;
+
         return [
-            'field' => $this->app->get('validate_metadata_duplicated_field', 'data.tracking_id'),
-            'cooldown_hours' => (int) $this->app->get('validate_metadata_duplicated_cooldown_hours', 24),
-            'blocking_statuses' => $this->app->get('validate_metadata_duplicated_exclude_statuses', ''),
+            'field' => $config['validate_metadata_duplicated_field'] ?? null,
+            'cooldown_hours' => $cooldown !== null ? (int) $cooldown : null,
+            'blocking_statuses' => $config['validate_metadata_duplicated_blocking_statuses'] ?? null,
         ];
     }
 
@@ -55,45 +62,23 @@ class DuplicatedMetadata implements ValidationRule
     {
         $normalizedValue = is_string($value) ? strtolower($value) : $value;
 
-        return $this->isWithinCoolDown($normalizedValue, $settings);
-    }
-
-    private function baseMetadataQuery(mixed $value, string $jsonPath): Builder
-    {
-        return Order::fromApp($this->app)
+        $query = Order::fromApp($this->app)
             ->whereNotNull('metadata')
             ->where('metadata', '!=', '')
             ->whereRaw('JSON_VALID(metadata)')
             ->whereRaw('JSON_LENGTH(metadata) > 0')
-            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$jsonPath}'))) = ?", [strtolower($value)]);
-    }
+            ->whereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.{$settings['field']}'))) = ?", [$normalizedValue]);
 
-    private function isBlockedByStatus(mixed $value, array $settings): bool
-    {
-        if (empty($settings['blocking_statuses'])) {
-            return false;
+        if ($settings['cooldown_hours'] !== null) {
+            $query->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']));
         }
 
-        $blockingStatuses = array_map('trim', explode(',', $settings['blocking_statuses']));
-
-        return $this->baseMetadataQuery($value, $settings['field'])
-            ->whereHas('orderStatus', function ($q) use ($blockingStatuses) {
-                $q->whereIn('slug', $blockingStatuses);
-            })
-            ->exists();
-    }
-
-    private function isWithinCoolDown(mixed $value, array $settings): bool
-    {
-        $query = $this->baseMetadataQuery($value, $settings['field'])
-            ->where('created_at', '>=', Carbon::now()->subHours($settings['cooldown_hours']));
-
-        // Exclude orders already caught by the status check to avoid double-counting
-        if (! empty($settings['blocking_statuses'])) {
+        if ($settings['blocking_statuses'] !== null) {
             $blockingStatuses = array_map('trim', explode(',', $settings['blocking_statuses']));
-            $query->whereDoesntHave('orderStatus', function ($q) use ($blockingStatuses) {
-                $q->whereIn('slug', $blockingStatuses);
-            });
+            $query->whereHas(
+                'orderStatus',
+                fn ($q) => $q->whereIn('slug', $blockingStatuses)
+            );
         }
 
         return $query->exists();

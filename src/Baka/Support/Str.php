@@ -47,8 +47,45 @@ class Str extends IlluminateStr
         return (string) preg_replace('/^\+?1/', '', $phone);
     }
 
+    /**
+     * Ensure a phone number has the international '+' prefix (E.164 format) for API calls.
+     */
+    public static function ensurePhonePrefix(string $phone): string
+    {
+        $phone = ltrim($phone);
+
+        if (! self::startsWith($phone, '+')) {
+            $phone = '+' . $phone;
+        }
+
+        return $phone;
+    }
+
     public static function sanitizeEmail(string $email): string
     {
         return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
+    }
+
+    /**
+     * Split a full name string into firstname and lastname.
+     * If firstname or lastname are already provided, returns them as-is.
+     *
+     * @return array{firstname: string, lastname: string}
+     */
+    public static function parseFullName(
+        string $fullName,
+        string $firstname = '',
+        string $lastname = ''
+    ): array {
+        if ($firstname !== '' || $lastname !== '' || $fullName === '') {
+            return ['firstname' => $firstname, 'lastname' => $lastname];
+        }
+
+        $parts = explode(' ', $fullName, 2);
+
+        return [
+            'firstname' => $parts[0],
+            'lastname' => $parts[1] ?? '',
+        ];
     }
 }

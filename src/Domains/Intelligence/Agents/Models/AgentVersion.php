@@ -7,9 +7,20 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
+/**
+ * @property int $id
+ * @property int $agent_id
+ * @property string $version
+ * @property array|null $config
+ * @property string|null $changes
+ * @property int $created_by
+ * @property Carbon|null $created_at
+ * @property bool $is_active
+ */
 class AgentVersion extends BaseModel
 {
     use UuidTrait;

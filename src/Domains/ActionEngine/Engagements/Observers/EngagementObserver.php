@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Engagements\Observers;
 
+use Kanvas\ActionEngine\Engagements\Events\EngagementCompanyUpdateEvent;
 use Kanvas\ActionEngine\Engagements\Events\EngagementStatusChangedEvent;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 
@@ -21,6 +22,7 @@ class EngagementObserver
         }
 
         EngagementStatusChangedEvent::dispatch($engagement);
+        EngagementCompanyUpdateEvent::dispatch($engagement);
     }
 
     public function created(Engagement $engagement): void

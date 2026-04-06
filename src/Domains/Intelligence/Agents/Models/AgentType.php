@@ -12,6 +12,20 @@ use Kanvas\Intelligence\Agents\Factories\AgentTypeFactory;
 use Kanvas\Intelligence\Models\BaseModel;
 use Override;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $app_id
+ * @property string $name
+ * @property string|null $description
+ * @property array|null $config
+ * @property string|null $role
+ * @property bool $is_active
+ * @property bool $is_published
+ * @property bool $is_multi_agent
+ * @property array|null $multi_agent_list
+ * @property bool $is_deleted
+ */
 class AgentType extends BaseModel
 {
     use SoftDeletesTrait;

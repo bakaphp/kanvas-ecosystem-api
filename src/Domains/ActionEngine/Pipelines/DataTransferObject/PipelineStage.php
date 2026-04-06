@@ -12,6 +12,7 @@ class PipelineStage extends Data
     public function __construct(
         public readonly Pipeline $pipeline,
         public readonly string $name,
+        public readonly ?string $slug = null,
         public readonly ?int $has_rotting_days = null,
         public readonly ?int $rotting_days = null,
         public readonly ?int $weight = null,

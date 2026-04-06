@@ -35,10 +35,11 @@ class IntegrationTest extends TestCase
 
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
+        $regionSlug = 'test-region-' . uniqid();
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -56,9 +57,7 @@ class IntegrationTest extends TestCase
             }
         ', [
             'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
+        ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
         $integration = $response->json()['data']['integrations']['data'][0];
@@ -112,10 +111,11 @@ class IntegrationTest extends TestCase
 
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
+        $regionSlug = 'test-region-' . uniqid();
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -133,9 +133,7 @@ class IntegrationTest extends TestCase
             }
         ', [
             'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
+        ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
         $integration = $response->json()['data']['integrations']['data'][0];

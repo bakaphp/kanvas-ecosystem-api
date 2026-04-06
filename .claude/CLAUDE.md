@@ -26,6 +26,7 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
+- **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
 ## Domain CRUD Pattern
 
@@ -892,7 +893,7 @@ public static function search($query = '', $callback = null)
 ## Key Conventions
 
 ### No Inline Fully-Qualified Class Names
-Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations.
+Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations, **and** catch blocks.
 
 ```php
 // WRONG — inline FQCN
@@ -901,12 +902,18 @@ $this->next_retry_at = \Illuminate\Support\Carbon::parse($retryAt);
 // WRONG — FQCN in docblock
 /** @property \Illuminate\Support\Carbon|null $approved_at */
 
+// WRONG — inline FQCN in catch block
+} catch (\Throwable $e) {
+
 // CORRECT — use import + short name everywhere
 use Illuminate\Support\Carbon;
+use Throwable;
 
 /** @property Carbon|null $approved_at */
 
 $this->next_retry_at = Carbon::parse($retryAt);
+
+} catch (Throwable $e) {
 ```
 
 ### PHP 8.4 Syntax

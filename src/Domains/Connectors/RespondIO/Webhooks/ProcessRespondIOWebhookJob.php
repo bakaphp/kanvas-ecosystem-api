@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\RespondIO\Webhooks;
 
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\RespondIO\Client;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum;
 use Kanvas\Connectors\RespondIO\Enums\WebhookEventEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -28,6 +30,7 @@ use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -50,10 +53,10 @@ class ProcessRespondIOWebhookJob extends ProcessWebhookJob
         $result = match ($eventType) {
             WebhookEventEnum::NEW_INCOMING_MESSAGE->value => $this->handleIncomingMessage($payload),
             WebhookEventEnum::NEW_OUTGOING_MESSAGE->value => $this->handleOutgoingMessage($payload),
-            WebhookEventEnum::CONVERSATION_OPENED->value,
-            WebhookEventEnum::CONVERSATION_CLOSED->value,
-            WebhookEventEnum::CONTACT_UPDATED->value,
-            WebhookEventEnum::CONTACT_CREATED->value => $this->handleGenericEvent($payload),
+            WebhookEventEnum::CONVERSATION_CLOSED->value => $this->handleConversationClosed($payload),
+            WebhookEventEnum::CONVERSATION_OPENED->value => $this->handleConversationOpened($payload),
+            WebhookEventEnum::CONTACT_UPDATED->value => $this->handleContactUpdated($payload),
+            WebhookEventEnum::CONTACT_CREATED->value => $this->handleContactCreated($payload),
             default => $this->handleGenericEvent($payload),
         };
 
@@ -239,12 +242,201 @@ class ProcessRespondIOWebhookJob extends ProcessWebhookJob
         ];
     }
 
+    protected function handleConversationClosed(array $payload): array
+    {
+        $data = $payload['data'] ?? [];
+        $contact = $data['contact'] ?? [];
+        $phone = $contact['phone'] ?? null;
+        $contactId = (string) ($contact['id'] ?? '');
+        $identifier = $phone ?? $contactId;
+
+        if ($identifier === '') {
+            return ['error' => 'Missing contact identifier'];
+        }
+
+        $cleanedPhone = Str::normalizePhoneNumber($identifier);
+        $slug = 'respondio-' . $cleanedPhone;
+
+        $channel = Channel::where('slug', $slug)
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
+
+        if (! $channel) {
+            return ['status' => 'no_channel_found', 'identifier' => $identifier];
+        }
+
+        $lead = $channel->entity_id
+            ? Lead::where('id', $channel->entity_id)
+                ->where('companies_id', $this->receiver->company->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->where('is_deleted', 0)
+                ->first()
+            : null;
+
+        if ($lead instanceof Lead) {
+            $lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
+            $lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, 'conversation_closed');
+
+            $lead->fireWorkflow(
+                WorkflowEnum::TRIGGER_AI->value,
+                true,
+                [
+                    'app' => $this->receiver->app,
+                    'trigger_type' => TriggersEnum::HUMAN_TAKEOVER->value,
+                ]
+            );
+        }
+
+        return [
+            'status' => 'conversation_closed',
+            'channel_id' => $channel->getId(),
+            'lead_id' => $lead?->getId(),
+            'identifier' => $identifier,
+        ];
+    }
+
+    protected function handleConversationOpened(array $payload): array
+    {
+        $data = $payload['data'] ?? [];
+        $contact = $data['contact'] ?? [];
+        $phone = $contact['phone'] ?? null;
+        $contactId = (string) ($contact['id'] ?? '');
+        $identifier = $phone ?? $contactId;
+
+        if ($identifier === '') {
+            return ['error' => 'Missing contact identifier'];
+        }
+
+        $cleanedPhone = Str::normalizePhoneNumber($identifier);
+        $slug = 'respondio-' . $cleanedPhone;
+
+        $channel = Channel::where('slug', $slug)
+            ->where('companies_id', $this->receiver->company->getId())
+            ->where('apps_id', $this->receiver->app->getId())
+            ->first();
+
+        return [
+            'status' => 'conversation_opened',
+            'channel_id' => $channel?->getId(),
+            'identifier' => $identifier,
+        ];
+    }
+
+    protected function handleContactUpdated(array $payload): array
+    {
+        $data = $payload['data'] ?? [];
+        $contact = $data['contact'] ?? $data;
+        /** @var array<string, mixed> $contact */
+        $phone = $contact['phone'] ?? null;
+        $contactId = (string) ($contact['id'] ?? '');
+        $firstName = $contact['firstName'] ?? null;
+        $lastName = $contact['lastName'] ?? null;
+
+        $identifier = $phone ?? $contactId;
+
+        if ($identifier === '') {
+            return ['error' => 'Missing contact identifier'];
+        }
+
+        $phoneNumber = Str::normalizePhoneNumber($identifier);
+        $phoneNumberWithCountryCode = str_replace('+', '', $identifier);
+
+        $existingPeople = PeoplesRepository::getByPhoneNumber(
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            phoneNumbers: [$phoneNumber, $phoneNumberWithCountryCode]
+        )->first();
+
+        if (! $existingPeople) {
+            return ['status' => 'contact_not_found', 'identifier' => $identifier];
+        }
+
+        $updated = false;
+
+        if ($firstName !== null && $existingPeople->firstname !== $firstName) {
+            $existingPeople->firstname = $firstName;
+            $updated = true;
+        }
+
+        if ($lastName !== null && $existingPeople->lastname !== $lastName) {
+            $existingPeople->lastname = $lastName;
+            $updated = true;
+        }
+
+        if ($updated) {
+            $existingPeople->saveOrFail();
+        }
+
+        return [
+            'status' => 'contact_updated',
+            'people_id' => $existingPeople->getId(),
+            'updated' => $updated,
+        ];
+    }
+
+    protected function handleContactCreated(array $payload): array
+    {
+        $data = $payload['data'] ?? [];
+        /** @var array<string, mixed> $contact */
+        $contact = $data['contact'] ?? $data;
+        $phone = $contact['phone'] ?? null;
+        $contactId = (string) ($contact['id'] ?? '');
+        $firstName = $contact['firstName'] ?? null;
+        $lastName = $contact['lastName'] ?? null;
+
+        $identifier = $phone ?? $contactId;
+
+        if ($identifier === '') {
+            return ['error' => 'Missing contact identifier'];
+        }
+
+        $people = $this->processContactFromMessage(
+            $identifier,
+            $firstName,
+            $lastName
+        );
+
+        if (! $people) {
+            return ['error' => 'Failed to create contact'];
+        }
+
+        $this->syncContactToRespondIO($people, $identifier);
+
+        return [
+            'status' => 'contact_created',
+            'people_id' => $people->getId(),
+        ];
+    }
+
     protected function handleGenericEvent(array $payload): array
     {
         return [
             'event' => $payload['event'] ?? 'unknown',
             'status' => 'acknowledged',
         ];
+    }
+
+    protected function syncContactToRespondIO(People $people, string $identifier): void
+    {
+        try {
+            $client = new Client($this->receiver->app, $this->receiver->company);
+            $phone = Str::ensurePhonePrefix($identifier);
+
+            $data = [
+                'firstName' => $people->firstname,
+                'lastName' => $people->lastname,
+            ];
+
+            $email = $people->getEmails()->first()?->value;
+            if ($email !== null) {
+                $data['email'] = $email;
+            }
+
+            $client->createOrUpdateContact("phone:{$phone}", $data);
+        } catch (Exception $e) {
+            // Contact sync is best-effort, don't fail the webhook
+        }
     }
 
     protected function processContactFromMessage(

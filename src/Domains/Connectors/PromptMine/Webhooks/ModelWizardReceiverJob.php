@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\PromptMine\Webhooks;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\ModelWizardModelChooserAction;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -23,9 +24,17 @@ class ModelWizardReceiverJob extends ProcessWebhookJob
             throw new InvalidArgumentException('Model wizard answers and users_id are required to execute the model wizard receiver job.');
         }
 
+        $userAssoc = UsersAssociatedApps::fromApp($app)
+            ->where('users_id', $payload['users_id'])
+            ->where('companies_id', 0)
+            ->first();
+        if (! $userAssoc) {
+            throw new InvalidArgumentException('User not found for the provided users_id in the payload.');
+        }
+
         return (new ModelWizardModelChooserAction(
             $payload['model_wizard_answers'],
-            $payload['users_id'],
+            $userAssoc->user,
             $app
         ))->execute();
     }

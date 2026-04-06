@@ -46,6 +46,7 @@ class PipelineTest extends TestCase
                 createActionPipelineStage(input: $input) {
                     id
                     name
+                    slug
                     has_rotting_days
                     rotting_days
                     weight
@@ -240,6 +241,7 @@ class PipelineTest extends TestCase
                 updateActionPipelineStage(id: $id, input: $input) {
                     id
                     name
+                    slug
                     weight
                 }
             }
@@ -257,6 +259,72 @@ class PipelineTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testUpdateActionPipelineStageWithSlug(): void
+    {
+        $pipeline = $this->createPipeline();
+        $stage = $this->createPipelineStage((int) $pipeline['id']);
+
+        $customSlug = 'custom-slug-' . fake()->word();
+        $updateInput = [
+            'name' => 'Updated Stage ' . fake()->word(),
+            'slug' => $customSlug,
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdatePipelineStageInput!) {
+                updateActionPipelineStage(id: $id, input: $input) {
+                    id
+                    name
+                    slug
+                }
+            }
+        ', [
+            'id' => $stage['id'],
+            'input' => $updateInput,
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateActionPipelineStage' => [
+                    'id' => $stage['id'],
+                    'slug' => $customSlug,
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateActionPipelineStagePreservesSlugWhenNotSent(): void
+    {
+        $pipeline = $this->createPipeline();
+        $stage = $this->createPipelineStage((int) $pipeline['id']);
+
+        // Get current slug
+        $currentSlug = $this->graphQL('
+            mutation($id: ID!, $input: UpdatePipelineStageInput!) {
+                updateActionPipelineStage(id: $id, input: $input) { slug }
+            }
+        ', [
+            'id' => $stage['id'],
+            'input' => ['name' => $stage['name']],
+        ])->json('data.updateActionPipelineStage.slug');
+
+        // Update name without sending slug
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: UpdatePipelineStageInput!) {
+                updateActionPipelineStage(id: $id, input: $input) {
+                    id
+                    name
+                    slug
+                }
+            }
+        ', [
+            'id' => $stage['id'],
+            'input' => ['name' => 'New Name ' . fake()->word()],
+        ])->assertSuccessful();
+
+        $this->assertEquals($currentSlug, $response->json('data.updateActionPipelineStage.slug'));
     }
 
     public function testDeleteActionPipelineStage(): void

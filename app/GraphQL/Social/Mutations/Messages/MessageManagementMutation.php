@@ -89,15 +89,6 @@ class MessageManagementMutation
         $action->runWorkflow = false;
         $message = $action->execute();
 
-        if (! empty($data->files)) {
-            $this->handleFileUpload(
-                model: $message,
-                app: $app,
-                user: $user,
-                files: $data->files
-            );
-        }
-
         $message->fireWorkflow(
             WorkflowEnum::CREATED->value,
             true,
@@ -163,6 +154,8 @@ class MessageManagementMutation
                 is_public: $input['is_public'] ?? $message->is_public,
                 tags: $input['tags'] ?? [],
                 categories: $input['categories'] ?? [],
+                is_locked: $input['is_locked'] ?? $message->is_locked,
+                custom_fields: $input['custom_fields'] ?? [],
             ),
         )->execute();
     }

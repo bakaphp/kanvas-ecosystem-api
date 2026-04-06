@@ -24,7 +24,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Prism\Prism\Enums\Provider;
@@ -45,6 +45,8 @@ class CreateMessageFollowUpAction
         protected Session $session,
         protected string $messageTemplate,
         protected float $day,
+        protected string $communicationChannel = 'sms',
+        protected bool $onlyPrompt = false,
         protected ?FollowUpLog $log = null
     ) {
         $agentName = 'FollowUpEngagerAgent';
@@ -64,61 +66,14 @@ class CreateMessageFollowUpAction
         }
 
         if ($this->messageTemplate === null) {
-            // throw new Exception('Template is not configured for channel ' . $this->messageTemplateChannel);
-
             return null;
         }
 
-        $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
-        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
-        $contentSession = new CreateContentSessionAction($this->session);
+        $prompt = $this->buildPrompt();
 
-        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
-        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
-
-        if (isset($vehicleInterest['uuid'])) {
-            $relatedUuid[] = $vehicleInterest['uuid'];
+        if ($this->onlyPrompt) {
+            return $prompt;
         }
-
-        $channel = Channels::getDefault($this->lead->company);
-
-        $engagementDto = Engagement::from(
-            app: $this->lead->app,
-            company: $this->lead->company,
-            user: $this->lead->company->user,
-            lead: $this->lead,
-            request: [
-                        'action' => 'view-vehicle',
-                        'request_id' => (string) Str::uuid(),
-                        'source' => 'ai',
-                        'status' => ActionStatusEnum::SENT->value,
-                        'data' => [
-                            'product_id' => $relatedUuid,
-                            'channel_id' => $channel->uuid,
-                        ],
-                    ],
-            people: $this->lead->people,
-        );
-
-        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
-
-        $data = [
-            'templates' => $this->messageTemplate,
-            'conversation_history' => $this->mapConversationHistory(),
-            'context' => [
-                'company' => $this->lead->company,
-                'lead' => $this->lead,
-                'lead_owner' => $this->lead->owner,
-            ],
-            'work_hours_status' => $companyWorkHour,
-            'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
-            'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
-            'agent' => $this->session->agent,
-            'vehicle_interest' => $vehicleInterest,
-            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
-            'day' => $this->day,
-        ];
-        $prompt = Blade::render(implode(' ', $this->agent->role['background']), $data);
 
         $responseText = $this->generateResponseWithRetry($prompt);
 
@@ -134,7 +89,7 @@ class CreateMessageFollowUpAction
                         'ai_response' => [
                             'should_respond' => $shouldRespond,
                             'has_message' => isset($responseText['message']),
-                        ]
+                        ],
                     ]
                 ),
             ]);
@@ -145,13 +100,10 @@ class CreateMessageFollowUpAction
             return null;
         }
 
-        $messageType = MessageType::firstOrCreate([
-            'apps_id' => $this->session->apps_id,
-            //'languages_id' => 1,
-            //'name' => 'AI Generated Message',
-            'name' => 'twilio-sms',
-            'verb' => 'twilio-sms',
-        ]);
+        $messageType = MessageTypeService::getOrCreate(
+            $this->session->app,
+            $this->getMessageTypeVerb()
+        );
 
         $agentUser = $this->lead->company->get('ai-agent-user-id');
         if ($agentUser !== null) {
@@ -200,6 +152,61 @@ class CreateMessageFollowUpAction
         return $responseText['message'];
     }
 
+    public function buildPrompt(): string
+    {
+        $companyWorkHour = new CompanyWorkHoursTool($this->lead)->execute();
+        $vehicleInterest = new VehicleInterestTool($this->lead)->execute();
+        $contentSession = new CreateContentSessionAction($this->session);
+
+        $relatedVehicles = $contentSession->getRelatedVehicles($vehicleInterest, 3);
+        $relatedUuid = collect($relatedVehicles)->pluck('uuid')->toArray();
+
+        if (isset($vehicleInterest['uuid'])) {
+            $relatedUuid[] = $vehicleInterest['uuid'];
+        }
+
+        $channel = Channels::getDefault($this->lead->company);
+
+        $engagementDto = Engagement::from(
+            app: $this->lead->app,
+            company: $this->lead->company,
+            user: $this->lead->company->user,
+            lead: $this->lead,
+            request: [
+                'action' => 'view-vehicle',
+                'request_id' => (string) Str::uuid(),
+                'source' => 'ai',
+                'status' => ActionStatusEnum::SENT->value,
+                'data' => [
+                    'product_id' => $relatedUuid,
+                    'channel_id' => $channel->uuid,
+                ],
+            ],
+            people: $this->lead->people,
+        );
+
+        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
+
+        $data = [
+            'templates' => $this->messageTemplate,
+            'conversation_history' => $this->mapConversationHistory(),
+            'context' => [
+                'company' => $this->lead->company,
+                'lead' => $this->lead,
+                'lead_owner' => $this->lead->owner,
+            ],
+            'work_hours_status' => $companyWorkHour,
+            'is_engagement' => $this->lead->get(ConfigurationEnum::IS_ENGAGEMENT->value) ? 1 : 0,
+            'holiday_status' => new CompanyIsHolidayTool($this->lead)->execute(),
+            'agent' => $this->session->agent,
+            'vehicle_interest' => $vehicleInterest,
+            'shareMyVehicle' => $engagement->message->message['action_link'] ?? null,
+            'day' => $this->day,
+        ];
+
+        return Blade::render(implode(' ', $this->agent->role['background']), $data);
+    }
+
     private function generateResponseWithRetry(string $prompt): array
     {
         $schema = new ObjectSchema(
@@ -244,6 +251,15 @@ class CreateMessageFollowUpAction
                 self::MAX_RETRY_ATTEMPTS
             )
         );
+    }
+
+    protected function getMessageTypeVerb(): string
+    {
+        return match ($this->communicationChannel) {
+            'whatsapp' => 'whatsapp',
+            'email' => 'email',
+            default => 'twilio-sms',
+        };
     }
 
     public function mapConversationHistory(): array

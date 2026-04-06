@@ -57,7 +57,11 @@ class CreatePaymentAction
             'currency' => $this->order->currency,
             'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value,
             'payment_method' => $paymentMethodType ?? 'card',
-            'metadata' => $paymentMethodType ? ['payment_method_type' => $paymentMethodType] : null,
+            'processor' => $paymentMethod?->processor,
+            'metadata' => array_filter([
+                'payment_method_type' => $paymentMethodType ?: null,
+                'use_hold' => isset($formData['use_hold']) ? (bool) $formData['use_hold'] : null,
+            ]),
         ];
 
         $payment = $this->order->payments()->create($paymentFormData);
