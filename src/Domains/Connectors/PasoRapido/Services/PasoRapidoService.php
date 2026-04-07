@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\PasoRapido\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\CancelPaymentResponse;
@@ -15,6 +17,7 @@ use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyPaymentResponse;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class PasoRapidoService
 {
@@ -35,6 +38,24 @@ class PasoRapidoService
      */
     public function verifyCustomer(string $tag): VerifyCustomerResponse
     {
+        $user = auth()->user();
+        $userId = $user?->getId() ?? 0;
+        $rateLimitKey = "paso-rapido-verify:{$this->app->getId()}:{$userId}";
+        $maxAttempts = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_ATTEMPTS->value) ?? 15);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            report(new TooManyRequestsHttpException(
+                message: "PasoRapido tag verification rate limit exceeded - user:{$userId} app:{$this->app->getId()}"
+            ));
+            throw new TooManyRequestsHttpException(
+                message: 'Too many tag verification requests. Please try again later.'
+            );
+        }
+
+        RateLimiter::hit($rateLimitKey, 60);
+
+        $this->logTagVerification($user, $tag);
+
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::from([
@@ -102,5 +123,17 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return CancelPaymentResponse::from($response);
+    }
+
+    private function logTagVerification(UserInterface $user, string $tag): void
+    {
+        activity()
+            ->causedBy($user)
+            ->withProperties([
+                'tag' => $tag,
+                'app_id' => $this->app->getId(),
+                'ip' => request()->ip(),
+            ])
+            ->log('PasoRapido tag verification');
     }
 }

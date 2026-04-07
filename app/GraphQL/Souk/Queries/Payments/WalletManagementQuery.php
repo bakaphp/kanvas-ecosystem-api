@@ -115,6 +115,8 @@ class WalletManagementQuery
                 'data' => $customer->toArray(),
             ];
         } catch (RequestException $e) {
+            report($e);
+
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
                 $body = json_decode((string) $response->getBody());
@@ -128,6 +130,8 @@ class WalletManagementQuery
                 'data' => null,
             ];
         } catch (Exception $e) {
+            report($e);
+
             return [
                 'message' => $e->getMessage(),
                 'data' => null,
