@@ -6,5 +6,5 @@ namespace Kanvas\Souk\Orders\Enums;
 
 enum CommissionEnum: string
 {
-    case COMMISSION_RATE = 'commission_rate';
+    case COMMISSION_RATE = 'commission-rate';
 }
