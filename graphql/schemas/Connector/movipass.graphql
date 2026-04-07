@@ -1,0 +1,15 @@
+extend type Query @guard {
+    mechanicOrders(
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Connector\\Movipass\\Queries\\MechanicOrdersQuery@getAssignedOrders"
+            defaultCount: 25
+        )
+}
