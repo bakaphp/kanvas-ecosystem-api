@@ -12,6 +12,7 @@ type AgentTelemetryData {
     security_critical: Int
     security_warn: Int
     raw: String
+    tools: String
 }
 
 type AgentUsageSnapshot {
