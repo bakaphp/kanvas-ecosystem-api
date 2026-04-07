@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-
 use Kanvas\Inventory\Attributes\Models\AttributesValues;
 
 class ImportVehicleAttributesCommand extends Command
