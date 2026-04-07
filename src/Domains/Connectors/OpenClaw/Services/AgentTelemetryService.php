@@ -50,17 +50,28 @@ class AgentTelemetryService
     public function collectForDeployment(AgentDeployment $deployment): void
     {
         try {
+            // Ensure both relations are loaded — machine for SSH creds, agent for slug (tools lookup).
+            $deployment->loadMissing(['machine', 'agent']);
+
             // One SSH connection, one exec channel — all commands run in a single shell pipeline.
             // This is far gentler on the server's sshd than opening separate channels per command.
             $ssh      = SshClient::fromMachine($deployment->machine);
             $sections = $ssh->getAllTelemetry();
+
+            // Per-agent tools: extract unique tool names from this agent's own session JSONL files.
+            // Uses a separate exec call after getAllTelemetry so it doesn't inflate the pipeline timeout.
+            $agentSlug  = $deployment->agent?->slug;
+            $systemUser = $deployment->system_user;
+            $tools      = ($agentSlug && $systemUser)
+                ? $ssh->getAgentTools($systemUser, $agentSlug)
+                : null;
+
             $ssh->disconnect();
 
             $health        = $this->parseJson($sections['health']);
             $gatewayStatus = $this->parseJson($sections['gateway']);
             $memoryStats   = $this->parseMemoryStatus($sections['memory']);
             $version       = $this->parseVersion(trim($sections['version']));
-            $skills        = $this->parseSkills($sections['skills']);
 
             if ($health === null) {
                 return;
@@ -72,7 +83,7 @@ class AgentTelemetryService
                 $gatewayStatus,
                 $memoryStats,
                 $version,
-                $skills,
+                $tools,
             );
 
             $this->detectAndStoreChanges($deployment, $payload);
@@ -254,32 +265,6 @@ class AgentTelemetryService
         }
 
         return $result;
-    }
-
-    /**
-     * Parse `openclaw skills list --json` output and return the names of all
-     * eligible (installed + not blocked) skills as a JSON-encoded array string.
-     * Returns null when the output contains no parseable JSON.
-     */
-    protected function parseSkills(string $raw): ?string
-    {
-        $data = $this->parseJson($raw);
-
-        if ($data === null) {
-            return null;
-        }
-
-        /** @var array<int, array<string, mixed>> $list */
-        $list = $data['skills'] ?? [];
-
-        $eligible = array_values(
-            array_map(
-                fn (array $s) => $s['name'],
-                array_filter($list, fn (array $s) => (bool) ($s['eligible'] ?? false))
-            )
-        );
-
-        return $eligible ? json_encode($eligible) : null;
     }
 
     /**

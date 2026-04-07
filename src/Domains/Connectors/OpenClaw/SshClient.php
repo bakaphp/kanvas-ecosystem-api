@@ -282,8 +282,8 @@ class SshClient
     {
         // Each command is wrapped with `timeout N` so a single hanging command
         // cannot consume the entire exec budget.
-        // Individual budgets: health 10s, version 3s, gateway 15s (--deep adds service check), memory 15s, skills 10s.
-        // Worst-case total: ~53s. The outer exec timeout (70s) is the final safety net.
+        // Individual budgets: health 10s, version 3s, gateway 15s (--deep adds service check), memory 15s.
+        // Worst-case total: ~43s. The outer exec timeout (70s) is the final safety net.
         // Job timeout is 120s, giving ample headroom above the 70s outer cap.
         $script = implode('; ', [
             "echo '__SECTION__health'",
@@ -294,14 +294,12 @@ class SshClient
             "timeout 15 openclaw gateway status --json --deep 2>/dev/null",
             "echo '__SECTION__memory'",
             "timeout 15 openclaw memory status 2>&1",
-            "echo '__SECTION__skills'",
-            "timeout 10 openclaw skills list --json 2>/dev/null",
         ]);
 
         // Outer safety net: kill the channel if the whole script exceeds 70 s.
         $raw = $this->exec($script, 70);
 
-        $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => '', 'skills' => ''];
+        $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => ''];
         $current  = null;
 
         foreach (explode("\n", $raw) as $line) {
@@ -318,6 +316,67 @@ class SshClient
         }
 
         return $sections;
+    }
+
+    /**
+     * Extract the unique set of tools this agent has actually called across its recent sessions.
+     *
+     * Reads the 10 most recently modified session JSONL files for the agent and collects
+     * unique tool names from toolCall content blocks in assistant messages. Unlike
+     * `openclaw skills list`, which shows what's installed on the host, this reflects
+     * what the specific agent has actually used.
+     *
+     * @param  string  $systemUser  Linux user for the deployment (e.g. "agent-whitco")
+     * @param  string  $agentSlug   Openclaw agent slug matching the agents/ sub-dir
+     * @return string|null  JSON-encoded array of unique tool names, or null if none found
+     */
+    public function getAgentTools(string $systemUser, string $agentSlug): ?string
+    {
+        $sessionsDir = '/home/' . $systemUser . '/.openclaw/agents/' . $agentSlug . '/sessions';
+
+        // Read the 10 most recent session files to get a representative sample.
+        // xargs cat feeds all files to a single cat call — one exec channel total.
+        $raw = $this->exec(
+            'sudo find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null'
+            . ' | sort -rn | head -10 | awk \'{print $2}\''
+            . ' | xargs sudo cat 2>/dev/null',
+            15
+        );
+
+        if (trim($raw) === '') {
+            return null;
+        }
+
+        $tools = [];
+
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+
+            if ($line === '') {
+                continue;
+            }
+
+            $event = json_decode($line, true);
+
+            if (! is_array($event) || ($event['type'] ?? '') !== 'message') {
+                continue;
+            }
+
+            /** @var array<string, mixed> $msg */
+            $msg = $event['message'] ?? [];
+
+            if (($msg['role'] ?? '') !== 'assistant') {
+                continue;
+            }
+
+            foreach ($this->extractToolNames($msg['content'] ?? []) as $name) {
+                $tools[$name] = true;
+            }
+        }
+
+        $toolList = array_keys($tools);
+
+        return $toolList !== [] ? json_encode(array_values($toolList)) : null;
     }
 
     /**
