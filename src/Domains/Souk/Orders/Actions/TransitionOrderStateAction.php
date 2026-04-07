@@ -24,6 +24,13 @@ class TransitionOrderStateAction
     {
         $currentOrderStatus = $this->order->orderStatus;
 
+        if ($currentOrderStatus && $this->newOrderStatus && $currentOrderStatus->id === $this->newOrderStatus->id) {
+            return [
+                'status' => 'skipped',
+                'message' => "Order is already in status {$currentOrderStatus->name}",
+            ];
+        }
+
         if (! $currentOrderStatus) {
             if ($processQuietly) {
                 return [
