@@ -23,7 +23,7 @@ trait PublicAppScopeTrait
         $company = $company instanceof Companies
             ? $company
             : auth()->user()->getCurrentCompany();
-    
+
         return $query->whereIn('companies_id', [0, $company->getId()]);
     }
 }
