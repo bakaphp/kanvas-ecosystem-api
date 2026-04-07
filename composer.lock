@@ -4274,16 +4274,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.3.0",
+            "version": "v13.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "118b7063c44a2f3421d1646f5ddf08defcfd1db3"
+                "reference": "912de244f88a69742b76e8a2807f6765947776da"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/118b7063c44a2f3421d1646f5ddf08defcfd1db3",
-                "reference": "118b7063c44a2f3421d1646f5ddf08defcfd1db3",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/912de244f88a69742b76e8a2807f6765947776da",
+                "reference": "912de244f88a69742b76e8a2807f6765947776da",
                 "shasum": ""
             },
             "require": {
@@ -4492,7 +4492,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-04-01T15:39:53+00:00"
+            "time": "2026-04-07T13:38:26+00:00"
         },
         {
             "name": "laravel/octane",
@@ -4787,16 +4787,16 @@
         },
         {
             "name": "laravel/serializable-closure",
-            "version": "v2.0.10",
+            "version": "v2.0.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/serializable-closure.git",
-                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669"
+                "reference": "d1af40ac4a6ccc12bd062a7184f63c9995a63bdd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/serializable-closure/zipball/870fc81d2f879903dfc5b60bf8a0f94a1609e669",
-                "reference": "870fc81d2f879903dfc5b60bf8a0f94a1609e669",
+                "url": "https://api.github.com/repos/laravel/serializable-closure/zipball/d1af40ac4a6ccc12bd062a7184f63c9995a63bdd",
+                "reference": "d1af40ac4a6ccc12bd062a7184f63c9995a63bdd",
                 "shasum": ""
             },
             "require": {
@@ -4844,7 +4844,7 @@
                 "issues": "https://github.com/laravel/serializable-closure/issues",
                 "source": "https://github.com/laravel/serializable-closure"
             },
-            "time": "2026-02-20T19:59:49+00:00"
+            "time": "2026-04-07T13:32:18+00:00"
         },
         {
             "name": "laravel/slack-notification-channel",
@@ -6436,16 +6436,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.0.6",
+            "version": "13.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d"
+                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d",
-                "reference": "e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/b16d2a95ec9171b76a77a638e580ae27441103af",
+                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af",
                 "shasum": ""
             },
             "require": {
@@ -6464,15 +6464,25 @@
                 "mikebronner/laravel-model-caching": "self.version"
             },
             "require-dev": {
+                "aws/aws-sdk-php": "^3.322.9",
+                "barryvdh/laravel-debugbar": "^3.15",
+                "barryvdh/laravel-ide-helper": "^3.5",
                 "doctrine/dbal": "^3.3|^4.2",
                 "fakerphp/faker": "^1.11",
                 "larastan/larastan": "^2.0|^3.0",
+                "laravel/boost": "^2.0",
                 "laravel/pint": "^1.27",
+                "mikebronner/development-settings": "^0.1.15",
                 "orchestra/testbench": "^9.0|^10.0|^11.0",
-                "phpunit/phpunit": "^10.5|^11.5.3|^12.5.12",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0",
+                "phpunit/phpunit": "^10.5|^11.5|^12.5",
                 "slevomat/coding-standard": "^7.0|^8.14",
                 "squizlabs/php_codesniffer": "^3.6|^4.0",
                 "symfony/thanks": "^1.2"
+            },
+            "suggest": {
+                "aws/aws-sdk-php": "Required for DynamoDB cache store support (^3.322)"
             },
             "type": "library",
             "extra": {
@@ -6500,9 +6510,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.0.6"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.0"
             },
-            "time": "2026-04-06T23:38:36+00:00"
+            "time": "2026-04-07T00:34:13+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -6996,16 +7006,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.11.3",
+            "version": "3.11.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "6a7e652845bb018c668220c2a545aded8594fbbf"
+                "reference": "e890471a3494740f7d9326d72ce6a8c559ffee60"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/6a7e652845bb018c668220c2a545aded8594fbbf",
-                "reference": "6a7e652845bb018c668220c2a545aded8594fbbf",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/e890471a3494740f7d9326d72ce6a8c559ffee60",
+                "reference": "e890471a3494740f7d9326d72ce6a8c559ffee60",
                 "shasum": ""
             },
             "require": {
@@ -7097,7 +7107,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-03-11T17:23:39+00:00"
+            "time": "2026-04-07T09:57:54+00:00"
         },
         {
             "name": "nette/schema",
