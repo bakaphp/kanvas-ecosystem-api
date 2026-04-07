@@ -330,53 +330,83 @@ class SshClient
      * @param  string  $agentSlug   Openclaw agent slug matching the agents/ sub-dir
      * @return string|null  JSON-encoded array of unique tool names, or null if none found
      */
-    public function getAgentTools(string $systemUser, string $agentSlug): ?string
+    public function getAgentTools(string $containerName, string $agentSlug): ?string
     {
-        $sessionsDir = '/home/' . $systemUser . '/.openclaw/agents/' . $agentSlug . '/sessions';
+        // ── Primary: extract unique tool names from this agent's session JSONL files ──
+        // Session files live inside the Docker container that runs the agent.
+        // The system_user directory on the host mirrors agent metadata but the
+        // actual JSONL conversation logs are written inside the container under
+        // /home/node/.openclaw/agents/<slug>/sessions/.
+        $sessionsDir = '/home/node/.openclaw/agents/' . $agentSlug . '/sessions';
+        $container   = $containerName;
 
-        // Read the 10 most recent session files to get a representative sample.
-        // xargs cat feeds all files to a single cat call — one exec channel total.
         $raw = $this->exec(
-            'sudo find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null'
-            . ' | sort -rn | head -10 | awk \'{print $2}\''
-            . ' | xargs sudo cat 2>/dev/null',
+            'docker exec ' . escapeshellarg($container)
+            . ' find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" 2>/dev/null'
+            . ' | xargs -r cat 2>/dev/null',
             15
         );
 
-        if (trim($raw) === '') {
-            return null;
+        if (trim($raw) !== '') {
+            $tools = [];
+
+            foreach (explode("\n", $raw) as $line) {
+                $line = trim($line);
+
+                if ($line === '') {
+                    continue;
+                }
+
+                $event = json_decode($line, true);
+
+                if (! is_array($event) || ($event['type'] ?? '') !== 'message') {
+                    continue;
+                }
+
+                /** @var array<string, mixed> $msg */
+                $msg = $event['message'] ?? [];
+
+                if (($msg['role'] ?? '') !== 'assistant') {
+                    continue;
+                }
+
+                foreach ($this->extractToolNames($msg['content'] ?? []) as $name) {
+                    $tools[$name] = true;
+                }
+            }
+
+            if ($tools !== []) {
+                return json_encode(array_values(array_keys($tools)));
+            }
         }
 
-        $tools = [];
+        // ── Fallback: skills installed on this machine (eligible = installed + usable) ──
+        // Used when the agent has no recorded session activity yet (e.g. heartbeat-only).
+        $skillsRaw = $this->exec('timeout 5 openclaw skills list --json 2>/dev/null', 10);
 
-        foreach (explode("\n", $raw) as $line) {
-            $line = trim($line);
+        $start = strpos($skillsRaw, '{');
+        $end   = strrpos($skillsRaw, '}');
 
-            if ($line === '') {
-                continue;
-            }
+        if ($start !== false && $end !== false && $end > $start) {
+            /** @var array<string, mixed>|null $data */
+            $data = json_decode(substr($skillsRaw, $start, $end - $start + 1), true);
 
-            $event = json_decode($line, true);
+            if (is_array($data)) {
+                /** @var array<int, array<string, mixed>> $list */
+                $list = $data['skills'] ?? [];
 
-            if (! is_array($event) || ($event['type'] ?? '') !== 'message') {
-                continue;
-            }
+                $eligible = array_values(array_map(
+                    fn (array $s) => (string) $s['name'],
+                    array_filter($list, fn (array $s) => (bool) ($s['eligible'] ?? false))
+                ));
 
-            /** @var array<string, mixed> $msg */
-            $msg = $event['message'] ?? [];
-
-            if (($msg['role'] ?? '') !== 'assistant') {
-                continue;
-            }
-
-            foreach ($this->extractToolNames($msg['content'] ?? []) as $name) {
-                $tools[$name] = true;
+                if ($eligible !== []) {
+                    return json_encode($eligible);
+                }
             }
         }
 
-        $toolList = array_keys($tools);
-
-        return $toolList !== [] ? json_encode(array_values($toolList)) : null;
+        return null;
     }
 
     /**

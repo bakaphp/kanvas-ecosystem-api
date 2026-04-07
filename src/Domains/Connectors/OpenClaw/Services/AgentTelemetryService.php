@@ -59,11 +59,12 @@ class AgentTelemetryService
             $sections = $ssh->getAllTelemetry();
 
             // Per-agent tools: extract unique tool names from this agent's own session JSONL files.
+            // Falls back to the machine-level skills list when no session data exists yet.
             // Uses a separate exec call after getAllTelemetry so it doesn't inflate the pipeline timeout.
-            $agentSlug  = $deployment->agent?->slug;
-            $systemUser = $deployment->system_user;
-            $tools      = ($agentSlug && $systemUser)
-                ? $ssh->getAgentTools($systemUser, $agentSlug)
+            $agentSlug     = $deployment->agent?->slug;
+            $containerName = $deployment->container_name;
+            $tools         = ($agentSlug && $containerName)
+                ? $ssh->getAgentTools($containerName, $agentSlug)
                 : null;
 
             $ssh->disconnect();
