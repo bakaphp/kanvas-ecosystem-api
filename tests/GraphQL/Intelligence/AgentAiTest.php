@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Intelligence;
 
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Models\CommunicationChannel;
@@ -430,5 +431,62 @@ class AgentAiTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testDeleteAgentCascadesDeployments(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $createMutation = '
+            mutation CreateAgent($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    name
+                }
+            }';
+
+        $agentTypeId = $this->createAgentType()->getId();
+
+        $response = $this->graphQL($createMutation, [
+            'input' => [
+                'agent_type_id' => $agentTypeId,
+                'name' => 'Agent With Deployment ' . fake()->word(),
+                'description' => 'Test cascade delete',
+                'config' => '{}',
+                'role' => 'test',
+                'is_active' => true,
+            ],
+        ]);
+
+        $agentId = $response->json('data.createAiAgent.id');
+
+        $deployment = new AgentDeployment();
+        $deployment->apps_id = $app->getId();
+        $deployment->companies_id = $company->getId();
+        $deployment->agent_id = $agentId;
+        $deployment->agent_machine_id = 0;
+        $deployment->system_user = 'test-user';
+        $deployment->home_directory = '/tmp/test';
+        $deployment->gateway_port = 8080;
+        $deployment->proxy_port = 8081;
+        $deployment->container_name = 'test-container-' . fake()->word();
+        $deployment->status = 'running';
+        $deployment->saveOrFail();
+
+        $deploymentId = $deployment->getId();
+
+        $this->graphQL('
+            mutation($id: ID!) {
+                deleteAiAgent(id: $id)
+            }
+        ', ['id' => $agentId])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['deleteAiAgent' => true]]);
+
+        $deletedDeployment = AgentDeployment::find($deploymentId);
+        $this->assertNotNull($deletedDeployment);
+        $this->assertTrue((bool) $deletedDeployment->is_deleted);
     }
 }

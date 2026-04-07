@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Traits\KanvasCascadeSoftDeletesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -57,6 +58,7 @@ use Override;
 class Agent extends BaseModel
 {
     use AsTree;
+    use KanvasCascadeSoftDeletesTrait;
     use SlugTrait;
     use UuidTrait;
     use HasFilesystemTrait;
@@ -64,6 +66,8 @@ class Agent extends BaseModel
         search as public traitSearch;
     }
     use HasLightHouseCache;
+
+    protected array $cascadeSoftDeletes = ['deployments'];
 
     protected $fillable = [
         'uuid',
