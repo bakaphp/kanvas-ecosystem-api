@@ -200,6 +200,7 @@ input OrderCommissionStatsInput {
     to: DateTime!
     company_id: ID
     order_type: String
+    provider_company_id: [ID!]
 }
 
 extend type Query @guard {

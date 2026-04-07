@@ -121,6 +121,7 @@ class OrderStatsQuery
             from: Carbon::parse($input['from']),
             to: Carbon::parse($input['to']),
             orderType: $input['order_type'] ?? null,
+            providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
         )->execute();
     }
 
