@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "496370fc6674641bf94b4fc213b8e874",
+    "content-hash": "a829a61312738b0f7f74df28b3ceeb7d",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -382,16 +382,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.376.3",
+            "version": "3.376.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219"
+                "reference": "fe7773b1e069a45aa74e09cdd65219af6039ff6b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2081f8db174df4bb8842aed3b7b513590ee9d219",
-                "reference": "2081f8db174df4bb8842aed3b7b513590ee9d219",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/fe7773b1e069a45aa74e09cdd65219af6039ff6b",
+                "reference": "fe7773b1e069a45aa74e09cdd65219af6039ff6b",
                 "shasum": ""
             },
             "require": {
@@ -473,9 +473,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.4"
             },
-            "time": "2026-04-03T18:07:33+00:00"
+            "time": "2026-04-06T18:18:41+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2004,72 +2004,6 @@
             "time": "2025-12-03T09:33:47+00:00"
         },
         {
-            "name": "genealabs/laravel-model-caching",
-            "version": "13.0.4",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/mikebronner/laravel-model-caching.git",
-                "reference": "0bcc5488fb8fc94210271afb577002f0e449cc1c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/0bcc5488fb8fc94210271afb577002f0e449cc1c",
-                "reference": "0bcc5488fb8fc94210271afb577002f0e449cc1c",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/cache": "^11.0|^12.0|^13.0",
-                "illuminate/config": "^11.0|^12.0|^13.0",
-                "illuminate/console": "^11.0|^12.0|^13.0",
-                "illuminate/container": "^11.0|^12.0|^13.0",
-                "illuminate/database": "^11.0|^12.0|^13.0",
-                "illuminate/http": "^11.0|^12.0|^13.0",
-                "illuminate/support": "^11.0|^12.0|^13.0",
-                "mikebronner/laravel-pivot-events": "*",
-                "php": ">=8.2"
-            },
-            "require-dev": {
-                "doctrine/dbal": "^3.3|^4.2",
-                "fakerphp/faker": "^1.11",
-                "larastan/larastan": "^2.0|^3.0",
-                "laravel/pint": "^1.27",
-                "orchestra/testbench": "^9.0|^10.0|^11.0",
-                "phpunit/phpunit": "^10.5|^11.5.3|^12.5.12",
-                "slevomat/coding-standard": "^7.0|^8.14",
-                "squizlabs/php_codesniffer": "^3.6|^4.0",
-                "symfony/thanks": "^1.2"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "GeneaLabs\\LaravelModelCaching\\Providers\\Service"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "GeneaLabs\\LaravelModelCaching\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mike Bronner",
-                    "email": "hello@genealabs.com"
-                }
-            ],
-            "description": "Automatic caching for Eloquent models.",
-            "support": {
-                "issues": "https://github.com/mikebronner/laravel-model-caching/issues",
-                "source": "https://github.com/mikebronner/laravel-model-caching/tree/13.0.4"
-            },
-            "time": "2026-03-29T15:19:25+00:00"
-        },
-        {
             "name": "google/apiclient",
             "version": "v2.19.2",
             "source": {
@@ -2143,16 +2077,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.435.0",
+            "version": "v0.436.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "1edf0f5f2876945c372366107b4d7a387b17a6b9"
+                "reference": "42493f9565963a0456b1edace1eb5f1cc53f2f73"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/1edf0f5f2876945c372366107b4d7a387b17a6b9",
-                "reference": "1edf0f5f2876945c372366107b4d7a387b17a6b9",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/42493f9565963a0456b1edace1eb5f1cc53f2f73",
+                "reference": "42493f9565963a0456b1edace1eb5f1cc53f2f73",
                 "shasum": ""
             },
             "require": {
@@ -2181,9 +2115,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.435.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.436.0"
             },
-            "time": "2026-03-01T01:14:26+00:00"
+            "time": "2026-04-06T01:28:26+00:00"
         },
         {
             "name": "google/auth",
@@ -6499,6 +6433,76 @@
                 "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.16.1"
             },
             "time": "2025-09-18T10:15:45+00:00"
+        },
+        {
+            "name": "mike-bronner/laravel-model-caching",
+            "version": "13.0.6",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mike-bronner/laravel-model-caching.git",
+                "reference": "e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d",
+                "reference": "e7a30a0b6ffd95e9b2ab40660ab4a0c6579f421d",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/cache": "^11.0|^12.0|^13.0",
+                "illuminate/config": "^11.0|^12.0|^13.0",
+                "illuminate/console": "^11.0|^12.0|^13.0",
+                "illuminate/container": "^11.0|^12.0|^13.0",
+                "illuminate/database": "^11.0|^12.0|^13.0",
+                "illuminate/http": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "mikebronner/laravel-pivot-events": "*",
+                "php": ">=8.2"
+            },
+            "replace": {
+                "genealabs/laravel-model-caching": "self.version",
+                "mikebronner/laravel-model-caching": "self.version"
+            },
+            "require-dev": {
+                "doctrine/dbal": "^3.3|^4.2",
+                "fakerphp/faker": "^1.11",
+                "larastan/larastan": "^2.0|^3.0",
+                "laravel/pint": "^1.27",
+                "orchestra/testbench": "^9.0|^10.0|^11.0",
+                "phpunit/phpunit": "^10.5|^11.5.3|^12.5.12",
+                "slevomat/coding-standard": "^7.0|^8.14",
+                "squizlabs/php_codesniffer": "^3.6|^4.0",
+                "symfony/thanks": "^1.2"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "GeneaLabs\\LaravelModelCaching\\Providers\\Service"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "GeneaLabs\\LaravelModelCaching\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mike Bronner",
+                    "email": "hello@genealabs.com"
+                }
+            ],
+            "description": "Automatic caching for Eloquent models.",
+            "support": {
+                "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.0.6"
+            },
+            "time": "2026-04-06T23:38:36+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
