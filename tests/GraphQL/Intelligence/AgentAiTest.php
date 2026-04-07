@@ -485,7 +485,7 @@ class AgentAiTest extends TestCase
             ->assertSuccessful()
             ->assertJson(['data' => ['deleteAiAgent' => true]]);
 
-        $deletedDeployment = AgentDeployment::find($deploymentId);
+        $deletedDeployment = AgentDeployment::withTrashed()->find($deploymentId);
         $this->assertNotNull($deletedDeployment);
         $this->assertTrue((bool) $deletedDeployment->is_deleted);
     }

@@ -1044,6 +1044,38 @@ extend type Mutation @guard {
 ### Soft Deletes
 All models use `is_deleted` boolean flag (not Laravel's `SoftDeletes` trait). Use `$model->softDelete()` and the `notDeleted` scope.
 
+### Cascade Soft Deletes
+
+Use `dyrynda/laravel-cascade-soft-deletes` to automatically soft-delete related records when a parent is deleted:
+
+```php
+use Dyrynda\Database\Support\CascadeSoftDeletes;
+
+class Agent extends BaseModel
+{
+    use CascadeSoftDeletes;
+
+    protected $cascadeDeletes = ['deployments'];
+}
+```
+
+**Requirement:** The domain's BaseModel must use `Baka\Traits\SoftDeletesTrait` and override `trashed()`:
+```php
+use Baka\Traits\SoftDeletesTrait;
+
+class BaseModel extends EloquentModel
+{
+    use SoftDeletesTrait;
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
+}
+```
+
+**Delete call:** Use `$model->delete()` (not `softDelete()`) — `SoftDeletesTrait` makes `delete()` perform a soft delete via `runSoftDelete()`, which triggers the `deleting` event that `CascadeSoftDeletes` listens on.
+
 ### Scoping Patterns
 - **Global entities** (companies_id = 0): scope queries with `fromApp` + `notDeleted`
 - **Company-scoped entities**: scope queries with `fromCompany` + `fromApp` + `notDeleted`

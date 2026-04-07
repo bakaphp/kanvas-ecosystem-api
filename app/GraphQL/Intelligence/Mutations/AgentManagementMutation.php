@@ -117,7 +117,7 @@ class AgentManagementMutation
             company: auth()->user()->getCurrentCompany()
         );
 
-        return $agent->softDelete();
+        return (bool) $agent->delete();
     }
 
     /**
