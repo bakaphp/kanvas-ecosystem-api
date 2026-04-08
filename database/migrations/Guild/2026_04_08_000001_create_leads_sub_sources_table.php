@@ -9,6 +9,7 @@ return new class () extends Migration {
     {
         Schema::connection('crm')->create('leads_sub_sources', function (Blueprint $table) {
             $table->bigIncrements('id');
+            $table->uuid('uuid')->unique();
             $table->integer('apps_id')->index();
             $table->bigInteger('companies_id')->index();
             $table->bigInteger('leads_sources_id')->index();
@@ -16,7 +17,6 @@ return new class () extends Migration {
             $table->dateTime('created_at')->index();
             $table->dateTime('updated_at')->nullable()->index();
             $table->boolean('is_deleted')->default(false)->index();
-
             $table->index(['apps_id', 'companies_id', 'is_deleted']);
         });
     }
