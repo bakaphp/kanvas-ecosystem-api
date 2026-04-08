@@ -42,6 +42,10 @@ class BaseAgentResponderAction
         if ($aiMode == IntelligenceModeEnum::OFF->value) {
             throw new Exception('Ai Agent Off for this lead');
         }
+
+        if ($message->is_un_response) {
+            throw new Exception('Message was responded');
+        }
     }
 
     protected function createMessage(
