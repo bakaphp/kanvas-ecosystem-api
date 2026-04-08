@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Inventory;
+namespace App\Console\Commands\Connectors\SalesAssist;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
