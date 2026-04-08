@@ -207,17 +207,22 @@ class DockerComposeBuilder
                 'entries' => (object) [],
             ],
             'plugins' => [
-                'entries' => (object) [],
+                'entries' => [],
             ],
         ];
 
+        $pluginEntries = [];
+
         if (! empty($geminiApiKey)) {
-            $config['tools']['web'] = [
-                'search' => [
-                    'enabled' => true,
-                    'provider' => 'gemini',
-                    'gemini' => [
-                        'apiKey' => $geminiApiKey,
+            $pluginEntries['web-search'] = [
+                'enabled' => true,
+                'config' => [
+                    'webSearch' => [
+                        'enabled' => true,
+                        'provider' => 'gemini',
+                        'gemini' => [
+                            'apiKey' => $geminiApiKey,
+                        ],
                     ],
                 ],
             ];
@@ -230,17 +235,15 @@ class DockerComposeBuilder
 
         if (! empty($channelConfig)) {
             $config['channels'] = $channelConfig;
-            $entries = [];
             if (isset($channelConfig['slack'])) {
-                $entries['slack'] = ['enabled' => true];
+                $pluginEntries['slack'] = ['enabled' => true];
             }
             if (isset($channelConfig['telegram'])) {
-                $entries['telegram'] = ['enabled' => true];
-            }
-            if (! empty($entries)) {
-                $config['plugins']['entries'] = $entries;
+                $pluginEntries['telegram'] = ['enabled' => true];
             }
         }
+
+        $config['plugins']['entries'] = ! empty($pluginEntries) ? $pluginEntries : (object) [];
 
         return (string) json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
