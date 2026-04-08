@@ -163,12 +163,14 @@ class LaunchAgentOnMachineAction
         $result = $client->exec(
             'sudo -u ' . escapeshellarg($deployment->system_user)
             . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d --build 2>&1')
-            . '; echo "EXIT_CODE:$?"'
+            . '; echo "EXIT_CODE:$?"',
+            900,
         );
 
         $hasExitError = str_contains($result, 'EXIT_CODE:1')
             || str_contains($result, 'unknown user')
-            || str_contains($result, 'Error response from daemon');
+            || str_contains($result, 'Error response from daemon')
+            || ! str_contains($result, 'EXIT_CODE:0');
 
         if ($hasExitError) {
             throw new ValidationException('Docker build/start failed: ' . $result);
