@@ -65,7 +65,7 @@ class ZohoAgentsCreateAndSyncCommand extends Command
         foreach ($records as $record) {
             $email = trim($record['Email'] ?? '');
             $name = trim($record['Finance Agents Name'] ?? '');
-            $sponsorMemberNumber = $record['Sponsor'] ?? null;
+            $sponsorMemberNumber = isset($record['Sponsor']) ? (string) $record['Sponsor'] : null;
             $isInactive = trim($record['Inactive?'] ?? '') === 'No Success';
 
             if (empty($email)) {
@@ -77,20 +77,21 @@ class ZohoAgentsCreateAndSyncCommand extends Command
             }
 
             try {
+                $agentData = null;
+                $needsZohoSync = false;
+
                 $result = DB::transaction(function () use (
                     $app,
                     $company,
                     $email,
                     $name,
-                    $sponsorMemberNumber,
                     $isInactive,
                     &$created,
                     &$existing,
-                    &$zohoSynced,
-                    $record
+                    &$agentData,
+                    &$needsZohoSync,
                 ) {
                     $user = Users::where('email', $email)->lockForUpdate()->first();
-                    $isNew = false;
 
                     if (! $user) {
                         $nameParts = explode(' ', $name ?: 'Unknown User');
@@ -109,7 +110,6 @@ class ZohoAgentsCreateAndSyncCommand extends Command
                             $app
                         )->execute();
 
-                        $isNew = true;
                         $created++;
                     } else {
                         $existing++;
@@ -141,28 +141,40 @@ class ZohoAgentsCreateAndSyncCommand extends Command
                             'status_id' => $isInactive ? 0 : 1,
                         ];
 
-                        $this->syncWithZoho(
-                            $app,
-                            $company,
-                            $email,
-                            $agentData,
-                            $zohoSynced
-                        );
-
-                        $agent = Agent::create($agentData);
+                        $needsZohoSync = true;
                     }
 
+                    return ['user' => $user, 'agent' => $agent];
+                }, 5);
+
+                /** @var Users $user */
+                $user = $result['user'];
+                /** @var ?Agent $agent */
+                $agent = $result['agent'];
+
+                if ($needsZohoSync && is_array($agentData)) {
+                    $this->syncWithZoho(
+                        $app,
+                        $company,
+                        $email,
+                        $agentData,
+                        $zohoSynced
+                    );
+
+                    $agent = Agent::create($agentData);
+                }
+
+                if ($agent instanceof Agent) {
+                    $this->syncExistingAgentWithZoho($agent, $app, $company, $email, $zohoSynced);
                     $user->set('member_number_' . $company->getId(), $agent->member_id);
 
                     if ($isInactive) {
                         $agent->status_id = 0;
                         $agent->softDelete();
-                    } elseif ($sponsorMemberNumber) {
+                    } elseif ($sponsorMemberNumber !== null && $sponsorMemberNumber !== '') {
                         $this->updateSponsor($agent, $sponsorMemberNumber, $app, $company);
                     }
-
-                    return $agent;
-                }, 5);
+                }
             } catch (Exception $e) {
                 $errors++;
                 Log::error('Error processing agent ' . $email . ': ' . $e->getMessage());
@@ -210,6 +222,49 @@ class ZohoAgentsCreateAndSyncCommand extends Command
             $zohoSynced++;
         } catch (Exception $e) {
             Log::info('Agent not found in Zoho (' . $email . '), creating locally only: ' . $e->getMessage());
+        }
+    }
+
+    protected function syncExistingAgentWithZoho(
+        Agent $agent,
+        Apps $app,
+        Companies $company,
+        string $email,
+        int &$zohoSynced
+    ): void {
+        try {
+            $zohoService = new ZohoService($app, $company);
+            $zohoRecord = $zohoService->getAgentByEmail($email);
+
+            $needsSave = false;
+
+            if (! $agent->users_linked_source_id) {
+                $agent->users_linked_source_id = $zohoRecord->id;
+                $needsSave = true;
+            }
+
+            if (! $agent->owner_linked_source_id && isset($zohoRecord->Owner['id'])) {
+                $agent->owner_linked_source_id = $zohoRecord->Owner['id'];
+                $needsSave = true;
+            }
+
+            if (! $agent->owner_id && $zohoRecord->Sponsor) {
+                $agent->owner_id = $zohoRecord->Sponsor;
+                $needsSave = true;
+            }
+
+            if ($needsSave) {
+                $agent->saveOrFail();
+            }
+
+            // Push member number to Zoho if the agent has one
+            if ($agent->member_id !== '' && (string) $agent->users_linked_source_id !== '') {
+                $zohoService->updateAgentMemberNumber($agent);
+            }
+
+            $zohoSynced++;
+        } catch (Exception $e) {
+            Log::warning('Could not sync existing agent with Zoho (' . $email . '): ' . $e->getMessage());
         }
     }
 
