@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
@@ -80,7 +81,7 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Default Channel',
+                        ChannelNameEnum::DEFAULT->value,
                         ! empty($lead->description) ? $lead->description : $lead->uuid->toString(),
                         $lead->uuid->toString()
                     )
@@ -97,7 +98,7 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Notes',
+                        ChannelNameEnum::NOTES->value,
                         'AI Notes Channel',
                         Str::uuid()->toString()
                     )
