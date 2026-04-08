@@ -142,7 +142,7 @@ class DockerComposeBuilder
                 ],
             ],
             'tools' => [
-                'profile' => 'coding',
+                'profile' => 'full',
                 'exec' => [
                     'security' => 'full',
                 ],
