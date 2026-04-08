@@ -20,6 +20,7 @@ use Kanvas\Event\Events\Contracts\EventResourceInterface;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
@@ -247,6 +248,11 @@ class Lead extends BaseModel implements EventResourceInterface
     public function source(): BelongsTo
     {
         return $this->belongsTo(LeadSource::class, 'leads_sources_id', 'id');
+    }
+
+    public function subSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSubSource::class, 'leads_sub_sources_id', 'id');
     }
 
     public function type(): BelongsTo

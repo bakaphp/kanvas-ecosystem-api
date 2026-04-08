@@ -18,6 +18,7 @@ class LeadUpdateInput extends Data
         public readonly ?int $status_id = null,
         public readonly ?int $type_id = null,
         public readonly ?int $source_id = null,
+        public readonly ?int $sub_source_id = null,
         public readonly ?int $pipeline_stage_id = null,
         public readonly ?int $leads_owner_id = null,
         public readonly ?int $receiver_id = null,
