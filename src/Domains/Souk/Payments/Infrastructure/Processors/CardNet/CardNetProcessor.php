@@ -6,16 +6,18 @@ namespace Kanvas\Souk\Payments\Infrastructure\Processors\CardNet;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use DomainException;
 use Kanvas\Connectors\CardNet\Client;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardDetail;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
+use Kanvas\Souk\Payments\DataTransferObject\ActivateResult;
 use Kanvas\Souk\Payments\DataTransferObject\AuthorizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
@@ -38,7 +40,7 @@ use Kanvas\Souk\Payments\Models\Payments;
  *                           capture()   = Commit to settle funds (PAID status);
  *                           void()      = refund to cancel (CANCELLED status).
  */
-class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface
+class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcessorInterface, ActivationProcessorInterface
 {
     protected CardNetService $service;
 
@@ -498,12 +500,14 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
 
             $tokenResponse = $this->service->tokenizeDirect($cardDetail);
 
-            $commerceToken = (string) ($tokenResponse['CommerceToken'] ?? $tokenResponse['Token'] ?? '');
+            $token = (string) ($tokenResponse['TokenId'] ?? '');
 
-            if (empty($commerceToken)) {
+            if (empty($token)) {
+                $errorMessage = $tokenResponse['Error']['Message'] ?? 'CardNet tokenization failed — no token returned.';
+
                 return new TokenizeResult(
                     success: false,
-                    message: 'CardNet tokenization failed — no token returned.',
+                    message: $errorMessage,
                     token: '',
                     lastFour: '',
                     brand: '',
@@ -514,12 +518,12 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             return new TokenizeResult(
                 success: true,
                 message: 'Card tokenized successfully.',
-                token: $commerceToken,
+                token: $token,
                 lastFour: substr($cardNumber, -4),
-                brand: strtolower($cardDetails['brand'] ?? ''),
+                brand: strtolower($tokenResponse['Brand'] ?? $cardDetails['brand'] ?? ''),
                 raw: array_merge($tokenResponse, [
                     CustomFieldEnum::CUSTOMER_ID->value => $customerId,
-                    CustomFieldEnum::TOKEN->value => $commerceToken,
+                    CustomFieldEnum::TOKEN->value => $token,
                 ]),
             );
         } catch (CardNetException $e) {
@@ -534,33 +538,66 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         }
     }
 
-    /**
-     * Delete a stored token from CardNet.
-     *
-     * CardNet requires both a customerId and a paymentProfileId to delete a payment
-     * profile — a bare token string is not sufficient. Use deleteTokenWithCustomer()
-     * when both identifiers are available from the payment method metadata.
-     */
     public function deleteToken(string $token): bool
     {
-        throw new DomainException(
-            'CardNet requires both a customerId and a paymentProfileId to delete a token. '
-            . 'Use deleteTokenWithCustomer() instead.'
-        );
-    }
+        $paymentMethod = PaymentMethods::where('stripe_card_id', $token)
+            ->whereNotNull('metadata')
+            ->first();
 
-    /**
-     * Delete a stored payment profile when both the customer ID and profile ID are known.
-     * Call this instead of deleteToken() when you have the full CardNet metadata.
-     */
-    public function deleteTokenWithCustomer(int $customerId, int $paymentProfileId): bool
-    {
+        if (! $paymentMethod) {
+            return true;
+        }
+
+        $customerId = (int) ($paymentMethod->getMetadata(CustomFieldEnum::CUSTOMER_ID->value) ?? 0);
+        $paymentProfileId = (int) ($paymentMethod->getMetadata(CustomFieldEnum::PAYMENT_PROFILE_ID->value) ?? 0);
+
+        if ($customerId === 0 || $paymentProfileId === 0) {
+            return true;
+        }
+
         try {
             $this->service->deletePaymentProfile($customerId, $paymentProfileId);
 
             return true;
         } catch (CardNetException) {
             return false;
+        }
+    }
+
+    public function activatePaymentMethod(PaymentMethods $paymentMethod, string $activationCode): ActivateResult
+    {
+        $customerId = (int) ($paymentMethod->getMetadata(CustomFieldEnum::CUSTOMER_ID->value) ?? 0);
+        $token = $paymentMethod->stripe_card_id;
+
+        if ($customerId === 0 || empty($token)) {
+            return new ActivateResult(
+                success: false,
+                message: 'Missing CardNet customer ID or token in payment method metadata.',
+            );
+        }
+
+        try {
+            $response = $this->service->activatePaymentProfile($customerId, $token, $activationCode);
+
+            $paymentProfileId = (int) ($response['PaymentProfileId'] ?? 0);
+
+            if ($paymentProfileId > 0) {
+                $metadata = $paymentMethod->metadata ?? [];
+                $metadata[CustomFieldEnum::PAYMENT_PROFILE_ID->value] = $paymentProfileId;
+                $paymentMethod->update(['metadata' => $metadata]);
+            }
+
+            return new ActivateResult(
+                success: true,
+                message: 'Payment method activated successfully.',
+                raw: $response,
+            );
+        } catch (CardNetException $e) {
+            return new ActivateResult(
+                success: false,
+                message: $e->getMessage(),
+                raw: $e->responseBody,
+            );
         }
     }
 
@@ -588,23 +625,29 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
     }
 
     /**
-     * Normalize expiration to MMYYYY format expected by CardNet Secure Token API.
-     * Accepts MM/YY, MMYY, MM/YYYY, or MMYYYY.
+     * Normalize expiration to MM/YY format expected by CardNet Secure Token API.
+     * Accepts MM/YY, MMYY, MM/YYYY, MMYYYY, or YYYYMM.
      */
     private function normalizeExpiration(string $expiration): string
     {
         $clean = str_replace(['/', '-', ' '], '', $expiration);
 
         if (strlen($clean) === 4) {
-            // MMYY → MM20YY
-            return substr($clean, 0, 2) . '20' . substr($clean, 2, 2);
+            // MMYY → MM/YY
+            return substr($clean, 0, 2) . '/' . substr($clean, 2, 2);
         }
 
         if (strlen($clean) === 6) {
-            // MMYYYY or YYYYMM — return as-is and let CardNet validate
-            return $clean;
+            // Could be MMYYYY or YYYYMM
+            $first2 = (int) substr($clean, 0, 2);
+            if ($first2 >= 1 && $first2 <= 12) {
+                // MMYYYY → MM/YY
+                return substr($clean, 0, 2) . '/' . substr($clean, 4, 2);
+            }
+            // YYYYMM → MM/YY
+            return substr($clean, 4, 2) . '/' . substr($clean, 2, 2);
         }
 
-        return $clean;
+        return $expiration;
     }
 }

@@ -10,6 +10,6 @@ enum ConfigurationEnum: string
     case PUBLIC_KEY = 'CARDNET_PUBLIC_KEY';
     case BASE_URL = 'CARDNET_BASE_URL';
 
-    case SANDBOX_URL = 'https://lab.cardnet.com.do/servicios/tokens';
+    case SANDBOX_URL = 'https://labservicios.cardnet.com.do/servicios/tokens';
     case PROD_URL = 'https://servicios.cardnet.com.do/servicios/tokens';
 }

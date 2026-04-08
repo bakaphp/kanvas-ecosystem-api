@@ -31,10 +31,10 @@ class Client
 
         $this->client = new GuzzleClient([
             'base_uri' => rtrim($this->baseUrl, '/') . '/',
-            'auth' => [$this->privateKey, ''],
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
+                'Authorization' => 'Basic ' . $this->privateKey,
             ],
             'timeout' => 90,
             'connect_timeout' => 15,
@@ -71,7 +71,7 @@ class Client
             }
 
             throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['message'] ?? $e->getMessage(),
+                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
                 $statusCode,
                 $e,
                 $errorBody,
@@ -103,7 +103,7 @@ class Client
             }
 
             throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['message'] ?? $e->getMessage(),
+                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
                 $statusCode,
                 $e,
                 $errorBody,
@@ -164,7 +164,7 @@ class Client
             }
 
             throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['message'] ?? $e->getMessage(),
+                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
                 $statusCode,
                 $e,
                 $errorBody,

@@ -39,11 +39,11 @@ trait HasCardNetConfiguration
     protected function getTestCardDetail(int $customerId): CardDetail
     {
         return new CardDetail(
-            email: 'test@example.com',
-            pan: '4507650000000048',
-            cvv: '123',
-            expiration: '202812',
-            titular: 'TEST USER',
+            email: env('CARDNET_TEST_EMAIL', 'test@example.com'),
+            pan: env('CARDNET_TEST_PAN'),
+            cvv: env('CARDNET_TEST_CVV'),
+            expiration: env('CARDNET_TEST_EXPIRATION'),
+            titular: env('CARDNET_TEST_TITULAR', 'Test User'),
             customerId: $customerId,
         );
     }
@@ -51,7 +51,7 @@ trait HasCardNetConfiguration
     protected function createTestCustomer(): array
     {
         return $this->getCardNetService()->createCustomer(
-            email: 'test-' . time() . '@cardnettest.com',
+            email: 'test@example.com',
             firstName: 'Test',
             lastName: 'User',
         );

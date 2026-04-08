@@ -37,23 +37,29 @@ class CardNetService
             fn ($value) => $value !== null,
         );
 
-        return $this->client->post('v1/api/customer', $body);
+        $response = $this->client->post('v1/api/customer', $body);
+
+        return $response['Response'] ?? $response;
     }
 
     public function getCustomer(int $customerId): array
     {
-        return $this->client->get("v1/api/customer/{$customerId}");
+        $response = $this->client->get("v1/api/customer/{$customerId}");
+
+        return $response['Response'] ?? $response;
     }
 
     public function activatePaymentProfile(int $customerId, string $token, string $activationCode): array
     {
-        return $this->client->post(
+        $response = $this->client->post(
             "v1/api/customer/{$customerId}/activate",
             [
                 'Token' => $token,
                 'ActivationCode' => $activationCode,
             ],
         );
+
+        return $response['Response'] ?? $response;
     }
 
     public function updatePaymentProfile(
@@ -85,10 +91,6 @@ class CardNetService
         );
     }
 
-    /**
-     * Direct tokenization uses a different auth mechanism — the private key is passed
-     * as a query param instead of Basic Auth, so we bypass the standard client auth.
-     */
     public function tokenizeDirect(CardDetail $cardDetail): array
     {
         return $this->client->postWithQueryKeyAuth(

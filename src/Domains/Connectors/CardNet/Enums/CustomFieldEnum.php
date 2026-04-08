@@ -11,4 +11,5 @@ enum CustomFieldEnum: string
     case TOKEN = 'cardnet_token';
     case CUSTOMER_ID = 'cardnet_customer_id';
     case ORDER_NUMBER = 'cardnet_order_number';
+    case PAYMENT_PROFILE_ID = 'cardnet_payment_profile_id';
 }

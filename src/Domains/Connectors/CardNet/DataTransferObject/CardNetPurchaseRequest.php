@@ -35,10 +35,10 @@ class CardNetPurchaseRequest extends Data
             'Currency'     => $this->currency,
             'Capture'      => $this->capture,
             'Installments' => $this->installments,
-            'DataDo'       => [
+            'DataDo'       => array_filter([
                 'Invoice' => $this->invoice,
                 'Tax'     => $this->tax,
-            ],
+            ], fn ($v) => $v !== null),
         ];
 
         if ($this->tip !== null) {

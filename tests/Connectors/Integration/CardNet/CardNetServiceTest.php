@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\CardNet;
 
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
+use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Tests\TestCase;
 
 final class CardNetServiceTest extends TestCase
@@ -81,13 +82,7 @@ final class CardNetServiceTest extends TestCase
     public function testPurchaseWithToken(): void
     {
         $service = $this->getCardNetService();
-
-        $customer = $this->createTestCustomer();
-        $customerId = (int) $customer['CustomerId'];
-
-        $cardDetail = $this->getTestCardDetail($customerId);
-        $tokenResponse = $service->tokenizeDirect($cardDetail);
-        $token = $tokenResponse['TokenId'];
+        $token = $this->tokenizeTestCard();
 
         $purchaseRequest = new CardNetPurchaseRequest(
             trxToken: $token,
@@ -106,13 +101,7 @@ final class CardNetServiceTest extends TestCase
     public function testHoldAndCommit(): void
     {
         $service = $this->getCardNetService();
-
-        $customer = $this->createTestCustomer();
-        $customerId = (int) $customer['CustomerId'];
-
-        $cardDetail = $this->getTestCardDetail($customerId);
-        $tokenResponse = $service->tokenizeDirect($cardDetail);
-        $token = $tokenResponse['TokenId'];
+        $token = $this->tokenizeTestCard();
 
         $holdRequest = new CardNetPurchaseRequest(
             trxToken: $token,
@@ -136,13 +125,7 @@ final class CardNetServiceTest extends TestCase
     public function testRefund(): void
     {
         $service = $this->getCardNetService();
-
-        $customer = $this->createTestCustomer();
-        $customerId = (int) $customer['CustomerId'];
-
-        $cardDetail = $this->getTestCardDetail($customerId);
-        $tokenResponse = $service->tokenizeDirect($cardDetail);
-        $token = $tokenResponse['TokenId'];
+        $token = $this->tokenizeTestCard();
 
         $purchaseRequest = new CardNetPurchaseRequest(
             trxToken: $token,
@@ -164,13 +147,7 @@ final class CardNetServiceTest extends TestCase
     public function testGetPurchase(): void
     {
         $service = $this->getCardNetService();
-
-        $customer = $this->createTestCustomer();
-        $customerId = (int) $customer['CustomerId'];
-
-        $cardDetail = $this->getTestCardDetail($customerId);
-        $tokenResponse = $service->tokenizeDirect($cardDetail);
-        $token = $tokenResponse['TokenId'];
+        $token = $this->tokenizeTestCard();
 
         $purchaseRequest = new CardNetPurchaseRequest(
             trxToken: $token,
@@ -188,5 +165,19 @@ final class CardNetServiceTest extends TestCase
         $retrieved = $service->getPurchase($purchaseId);
 
         $this->assertEquals($purchaseId, $retrieved->getPurchaseId());
+    }
+
+    private function tokenizeTestCard(): string
+    {
+        $service = $this->getCardNetService();
+        $customer = $this->createTestCustomer();
+        $customerId = (int) $customer['CustomerId'];
+
+        $cardDetail = $this->getTestCardDetail($customerId);
+        $response = $service->tokenizeDirect($cardDetail);
+
+        $this->assertNotEmpty($response['TokenId'], 'Tokenization failed: ' . ($response['Error']['Message'] ?? 'unknown'));
+
+        return $response['TokenId'];
     }
 }
