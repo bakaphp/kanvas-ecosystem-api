@@ -29,14 +29,13 @@ class CollectDeploymentUsageJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = 'openclaw';
-
     public function __construct(
         protected AgentDeployment $deployment,
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected ?string $date = null,
     ) {
+        $this->onQueue('openclaw');
     }
 
     public function handle(): void

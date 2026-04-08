@@ -22,13 +22,12 @@ class ExecDeploymentCommandJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = 'openclaw';
-
     public function __construct(
         protected AgentDeployment $deployment,
         protected string $command,
         protected string $sessionId,
     ) {
+        $this->onQueue('openclaw');
     }
 
     /**

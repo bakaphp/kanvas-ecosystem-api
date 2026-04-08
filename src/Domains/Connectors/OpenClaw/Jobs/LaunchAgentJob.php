@@ -25,8 +25,6 @@ class LaunchAgentJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = 'openclaw';
-
     public function __construct(
         protected Agent $agent,
         protected AgentMachine $machine,
@@ -34,6 +32,7 @@ class LaunchAgentJob implements ShouldQueue
         protected CompanyInterface $company,
         protected AgentDeployment $deployment,
     ) {
+        $this->onQueue('openclaw');
     }
 
     public function handle(): void

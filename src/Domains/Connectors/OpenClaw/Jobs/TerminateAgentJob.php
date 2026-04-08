@@ -21,11 +21,10 @@ class TerminateAgentJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public $queue = 'openclaw';
-
     public function __construct(
         protected AgentDeployment $deployment,
     ) {
+        $this->onQueue('openclaw');
     }
 
     public function handle(): void
