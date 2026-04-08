@@ -20,6 +20,7 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -175,5 +176,15 @@ class Channel extends BaseModel
             ->where('apps_id', $app->getId())
             ->notDeleted()
             ->first();
+    }
+
+    public function isNoteChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::NOTES->value;
+    }
+
+    public function isDefaultChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::DEFAULT->value;
     }
 }

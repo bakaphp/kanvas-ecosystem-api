@@ -33,6 +33,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
         $messageData = $message->message;
         $content = $messageData['content'] ?? '';
         $fromHumanAgent = $messageData['from_human'] ?? false;
+        $fromMe = $messageData['from_me'] ?? false;
 
         if (empty($content) || empty($fromHumanAgent)) {
             return $this->failWorkflow([
@@ -54,7 +55,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function () use ($app, $channel, $entity, $content) {
+            integrationOperation: function () use ($app, $channel, $entity, $content, $fromMe, $fromHumanAgent) {
                 $session = Session::where('channel_id', $channel->getId())
                     ->where('is_deleted', 0)
                     ->fromApp($app)
@@ -100,12 +101,19 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                     }
                 }
 
+                $role = match (true) {
+                    $fromMe => 'user',
+                    $fromHumanAgent => 'salesperson',
+                    $channel->isNoteChannel() => 'notes',
+                    default => 'salesperson',
+                };
+
                 $adkService->injectSessionEvents(
                     (string) $session->entity_id,
                     $session->uuid,
                     [
                         [
-                            'role' => 'salesperson',
+                            'role' => $role,
                             'text' => $content,
                         ],
                     ]
