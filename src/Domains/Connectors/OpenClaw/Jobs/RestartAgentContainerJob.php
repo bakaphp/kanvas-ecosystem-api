@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\RestartAgentContainerAction;
 use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Throwable;
 
 class RestartAgentContainerJob implements ShouldQueue
 {
@@ -19,6 +20,8 @@ class RestartAgentContainerJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    public $queue = 'openclaw';
 
     public function __construct(
         protected AgentDeployment $deployment,
@@ -29,8 +32,14 @@ class RestartAgentContainerJob implements ShouldQueue
     {
         $previousStatus = $this->deployment->status;
 
-        $deployment = new RestartAgentContainerAction($this->deployment)->execute();
+        try {
+            $deployment = new RestartAgentContainerAction($this->deployment)->execute();
 
-        AgentDeploymentStatusChanged::dispatch($deployment, $previousStatus);
+            AgentDeploymentStatusChanged::dispatch($deployment, $previousStatus);
+        } catch (Throwable $e) {
+            report($e);
+
+            throw $e;
+        }
     }
 }

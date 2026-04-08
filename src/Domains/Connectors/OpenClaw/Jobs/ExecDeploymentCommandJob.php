@@ -22,6 +22,8 @@ class ExecDeploymentCommandJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public $queue = 'openclaw';
+
     public function __construct(
         protected AgentDeployment $deployment,
         protected string $command,
@@ -58,6 +60,7 @@ class ExecDeploymentCommandJob implements ShouldQueue
                 0,
             );
         } catch (Throwable $e) {
+            report($e);
             DeploymentCommandCompletedEvent::dispatch(
                 $this->deployment->apps_id,
                 $this->deployment->companies_id,

@@ -25,6 +25,8 @@ class LaunchAgentJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public $queue = 'openclaw';
+
     public function __construct(
         protected Agent $agent,
         protected AgentMachine $machine,
@@ -50,6 +52,7 @@ class LaunchAgentJob implements ShouldQueue
 
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
         } catch (Throwable $e) {
+            report($e);
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
 
             throw $e;

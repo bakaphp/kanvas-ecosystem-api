@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Throwable;
 
 /**
  * Queued job to collect usage data from a Docker-deployed OpenClaw agent.
@@ -28,6 +29,8 @@ class CollectDeploymentUsageJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    public $queue = 'openclaw';
+
     public function __construct(
         protected AgentDeployment $deployment,
         protected AppInterface $app,
@@ -38,11 +41,17 @@ class CollectDeploymentUsageJob implements ShouldQueue
 
     public function handle(): void
     {
-        new CollectDeploymentUsageAction(
-            $this->deployment,
-            $this->app,
-            $this->company,
-            $this->date,
-        )->execute();
+        try {
+            new CollectDeploymentUsageAction(
+                $this->deployment,
+                $this->app,
+                $this->company,
+                $this->date,
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+
+            throw $e;
+        }
     }
 }
