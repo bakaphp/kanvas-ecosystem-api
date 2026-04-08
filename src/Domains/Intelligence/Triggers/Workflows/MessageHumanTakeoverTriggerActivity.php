@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -57,10 +56,6 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                 }
 
                 $channel = $message->channels()->first();
-                if ($channel && $channel->name != 'Notes') {
-                    UnrespondedLeadAgentMessageCache::clear($lead, $channel);
-                }
-
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,

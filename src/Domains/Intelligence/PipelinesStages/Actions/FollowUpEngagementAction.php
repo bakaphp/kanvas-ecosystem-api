@@ -14,7 +14,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
+use Kanvas\Intelligence\Services\LeadTypeConfigurationService;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
@@ -36,8 +38,16 @@ class FollowUpEngagementAction
         ?FollowUpLog $log = null
     ) {
         $this->log = $log;
+        $followUpKey = LeadTypeConfigurationService::getFollowUpModeKey($lead->type()->first());
+        $followUpValue = $lead->get($followUpKey);
+
+        if ($followUpValue == FollowUpValueEnum::OFF()->value) {
+            throw new FollowUpException('Follow up is disabled for this lead type');
+        }
+
         $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
 
+        // @todo: create new logic for old field IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE
         if (! $aiFollowUpType) {
             $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE->value)
                 ?? FollowUpTypeEnum::LEAD_FOLLOW_UP->value;

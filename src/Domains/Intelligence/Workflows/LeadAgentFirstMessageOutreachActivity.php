@@ -250,6 +250,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 $sentChannels[] = $communicationChannel;
                                 $totalSentMessages++;
 
+                                if (isset($stageConfig['first_message_default']) && ! $stageConfig['first_message_default']) {
+                                    $createMessage->setPrivate();
+                                    $createMessage->setLock();
+
+                                    continue;
+                                }
+
                                 if ($shouldSendFirstMessageNow) {
                                     new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
