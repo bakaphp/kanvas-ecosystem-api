@@ -88,13 +88,13 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                     $channel->company
                 );
 
-                if (! $entity->get('adk_session_started')) {
+                if (! $entity->get('adk_session_started_' . (string) $session->getId())) {
                     try {
                         $adkService->startSession(
                             (string) $session->entity_id,
                             $session->uuid
                         );
-                        $entity->set('adk_session_started', true);
+                        $entity->set('adk_session_started_' . (string) $session->getId(), true);
                     } catch (Throwable $e) {
                         report($e);
                     }
