@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Activities;
 
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -56,75 +57,130 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($app, $channel, $entity, $content, $fromMe) {
-                $session = Session::where('channel_id', $channel->getId())
-                    ->where('is_deleted', 0)
-                    ->fromApp($app)
-                    ->first();
-
-                if (! $session) {
-                    return [
-                        'message' => 'No active session found for channel',
-                        'entity' => $entity,
-                    ];
-                }
-
-                if (! $session->agent || ! $session->agent->type) {
-                    return [
-                        'message' => 'Session has no agent or agent type configured',
-                        'entity' => $entity,
-                    ];
-                }
-
-                $handler = new $session->agent->type->handler();
-
-                if (! $handler instanceof ADKAgent) {
-                    return [
-                        'message' => 'Session agent is not an ADK agent',
-                        'entity' => $entity,
-                    ];
-                }
-
                 $adkService = new GoogleADKService(
                     $channel->app,
                     $channel->company
                 );
 
-                if (! $entity->get('adk_session_started_' . (string) $session->getId())) {
-                    try {
-                        $adkService->startSession(
-                            (string) $session->entity_id,
-                            $session->uuid
-                        );
-                        $entity->set('adk_session_started_' . (string) $session->getId(), true);
-                    } catch (Throwable $e) {
-                        report($e);
-                    }
+                if ($channel->isNoteChannel()) {
+                    return $this->injectNoteChannelEvents($adkService, $channel, $entity, $content);
                 }
 
-                $role = match (true) {
-                    ! $fromMe => 'user',
-                    $channel->isNoteChannel() => 'notes',
-                    default => 'salesperson',
-                };
-
-                $adkService->injectSessionEvents(
-                    (string) $session->entity_id,
-                    $session->uuid,
-                    [
-                        [
-                            'role' => $role,
-                            'text' => $content,
-                        ],
-                    ]
-                );
-
-                return [
-                    'message' => "Successfully injected events into ADK session {$session->uuid}",
-                    'entity' => $entity,
-                    'session_uuid' => $session->uuid,
-                ];
+                return $this->injectSessionChannelEvents($adkService, $app, $channel, $entity, $content, $fromMe);
             },
             company: $channel->company,
         );
+    }
+
+    private function injectNoteChannelEvents(
+        GoogleADKService $adkService,
+        Channel $channel,
+        Model $entity,
+        string $content
+    ): array {
+        $entityId = (string) $channel->entity_id;
+        $sessionUuid = 'notes';
+
+        $this->ensureAdkSessionStarted($adkService, $entity, $entityId, $sessionUuid, 'adk_session_started_notes');
+
+        $adkService->injectSessionEvents(
+            $entityId,
+            $sessionUuid,
+            [
+                [
+                    'role' => 'notes',
+                    'text' => $content,
+                ],
+            ]
+        );
+
+        return [
+            'message' => "Successfully injected notes into ADK session {$sessionUuid}",
+            'entity' => $entity,
+            'session_uuid' => $sessionUuid,
+        ];
+    }
+
+    private function injectSessionChannelEvents(
+        GoogleADKService $adkService,
+        Apps $app,
+        Channel $channel,
+        Model $entity,
+        string $content,
+        bool $fromMe
+    ): array {
+        $session = Session::where('channel_id', $channel->getId())
+            ->where('is_deleted', 0)
+            ->fromApp($app)
+            ->first();
+
+        if (! $session) {
+            return [
+                'message' => 'No active session found for channel',
+                'entity' => $entity,
+            ];
+        }
+
+        if (! $session->agent || ! $session->agent->type) {
+            return [
+                'message' => 'Session has no agent or agent type configured',
+                'entity' => $entity,
+            ];
+        }
+
+        $handler = new $session->agent->type->handler();
+
+        if (! $handler instanceof ADKAgent) {
+            return [
+                'message' => 'Session agent is not an ADK agent',
+                'entity' => $entity,
+            ];
+        }
+
+        $this->ensureAdkSessionStarted(
+            $adkService,
+            $entity,
+            (string) $session->entity_id,
+            $session->uuid,
+            'adk_session_started_' . (string) $session->getId()
+        );
+
+        $role = $fromMe ? 'salesperson' : 'user';
+
+        $adkService->injectSessionEvents(
+            (string) $session->entity_id,
+            $session->uuid,
+            [
+                [
+                    'role' => $role,
+                    'text' => $content,
+                ],
+            ]
+        );
+
+        return [
+            'message' => "Successfully injected events into ADK session {$session->uuid}",
+            'entity' => $entity,
+            'session_uuid' => $session->uuid,
+        ];
+    }
+
+    private function ensureAdkSessionStarted(
+        GoogleADKService $adkService,
+        Model $entity,
+        string $entityId,
+        string $sessionUuid,
+        string $customFieldKey
+    ): void {
+        if ($entity->get($customFieldKey)) {
+            return;
+        }
+
+        try {
+            $adkService->startSession($entityId, $sessionUuid);
+            $entity->set($customFieldKey, true);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }
