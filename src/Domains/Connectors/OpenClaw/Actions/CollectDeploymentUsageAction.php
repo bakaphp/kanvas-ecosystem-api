@@ -44,7 +44,7 @@ class CollectDeploymentUsageAction
             $rawOutput = $client->exec(
                 'docker exec ' . escapeshellarg($this->deployment->container_name)
                 . ' node /app/dist/index.js status --usage --json 2>&1',
-                30,
+                60,
             );
         } finally {
             $client->disconnect();

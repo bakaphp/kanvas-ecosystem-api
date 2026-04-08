@@ -49,7 +49,8 @@ class SyncAgentWorkspaceAction
             $openclawDir = $this->deployment->home_directory . '/.openclaw';
             $client->exec(
                 'sudo -u ' . escapeshellarg($systemUser)
-                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose restart 2>&1')
+                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose restart 2>&1'),
+                120,
             );
 
             return [
