@@ -12,6 +12,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class InjectADKSessionEventsActivity extends KanvasActivity
 {
@@ -31,9 +32,10 @@ class InjectADKSessionEventsActivity extends KanvasActivity
 
         $messageData = $message->message;
         $content = $messageData['content'] ?? '';
-        $fromHumanAgent = $messageData['from_human'] ?? false;
+        $fromHumanAgent = (bool) ($messageData['from_human'] ?? false);
+        $fromMe = (bool) ($messageData['from_me'] ?? false);
 
-        if (empty($content) || empty($fromHumanAgent)) {
+        if (empty($content) || ! $fromHumanAgent) {
             return $this->failWorkflow([
                 'message' => 'Message has no content or is not from a human agent',
                 'entity' => null,
@@ -53,7 +55,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function () use ($app, $channel, $entity, $content) {
+            integrationOperation: function () use ($app, $channel, $entity, $content, $fromMe) {
                 $session = Session::where('channel_id', $channel->getId())
                     ->where('is_deleted', 0)
                     ->fromApp($app)
@@ -87,12 +89,30 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                     $channel->company
                 );
 
+                if (! $entity->get('adk_session_started_' . (string) $session->getId())) {
+                    try {
+                        $adkService->startSession(
+                            (string) $session->entity_id,
+                            $session->uuid
+                        );
+                        $entity->set('adk_session_started_' . (string) $session->getId(), true);
+                    } catch (Throwable $e) {
+                        report($e);
+                    }
+                }
+
+                $role = match (true) {
+                    ! $fromMe => 'user',
+                    $channel->isNoteChannel() => 'notes',
+                    default => 'salesperson',
+                };
+
                 $adkService->injectSessionEvents(
                     (string) $session->entity_id,
                     $session->uuid,
                     [
                         [
-                            'role' => 'salesperson',
+                            'role' => $role,
                             'text' => $content,
                         ],
                     ]

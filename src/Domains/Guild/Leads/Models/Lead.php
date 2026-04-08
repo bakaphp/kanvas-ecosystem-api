@@ -31,6 +31,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -224,7 +225,7 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
-            ->where('name', 'Notes');
+            ->where('name', ChannelNameEnum::NOTES->value);
     }
 
     public function systemNotes(): HasOne

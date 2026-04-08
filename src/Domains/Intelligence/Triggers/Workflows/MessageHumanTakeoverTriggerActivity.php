@@ -57,7 +57,7 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                 }
 
                 $channel = $message->channels()->first();
-                if ($channel && $channel->name != 'Notes') {
+                if ($channel && ! $channel->isNoteChannel()) {
                     UnrespondedLeadAgentMessageCache::clear($lead, $channel);
                 }
 

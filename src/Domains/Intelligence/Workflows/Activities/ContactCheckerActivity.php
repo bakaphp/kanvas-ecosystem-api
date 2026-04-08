@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Intelligence\Tools\ContactCheckerTool;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -29,7 +30,7 @@ class ContactCheckerActivity extends KanvasActivity implements WorkflowActivityI
         }
 
         $channel = $entity->channels()
-            ->where('name', 'Notes')
+            ->where('name', ChannelNameEnum::NOTES->value)
             ->first();
 
         if (! $channel) {
