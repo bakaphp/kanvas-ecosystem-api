@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -63,10 +64,23 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                 );
 
                 if ($channel->isNoteChannel()) {
-                    return $this->injectNoteChannelEvents($adkService, $channel, $entity, $content);
+                    return $this->injectNoteChannelEvents(
+                        $adkService,
+                        $channel,
+                        $app,
+                        $entity,
+                        $content
+                    );
                 }
 
-                return $this->injectSessionChannelEvents($adkService, $app, $channel, $entity, $content, $fromMe);
+                return $this->injectSessionChannelEvents(
+                    $adkService,
+                    $app,
+                    $channel,
+                    $entity,
+                    $content,
+                    $fromMe
+                );
             },
             company: $channel->company,
         );
@@ -75,17 +89,49 @@ class InjectADKSessionEventsActivity extends KanvasActivity
     private function injectNoteChannelEvents(
         GoogleADKService $adkService,
         Channel $channel,
+        Apps $app,
         Model $entity,
         string $content
     ): array {
-        $entityId = (string) $channel->entity_id;
-        $sessionUuid = 'notes';
+        $communicationChannel = Channel::where('entity_id', $channel->entity_id)
+            ->where('entity_namespace', $channel->entity_namespace)
+            ->where('name', '!=', ChannelNameEnum::NOTES->value)
+            ->where('is_deleted', 0)
+            ->fromApp($app)
+            ->latest()
+            ->first();
 
-        $this->ensureAdkSessionStarted($adkService, $entity, $entityId, $sessionUuid, 'adk_session_started_notes');
+        if (! $communicationChannel) {
+            return [
+                'message' => 'No communication channel found for notes channel entity',
+                'entity' => $entity,
+            ];
+        }
+
+        $session = Session::where('channel_id', $communicationChannel->getId())
+            ->where('is_deleted', 0)
+            ->fromApp($app)
+            ->latest()
+            ->first();
+
+        if (! $session) {
+            return [
+                'message' => 'No active session found for communication channel',
+                'entity' => $entity,
+            ];
+        }
+
+        $this->ensureAdkSessionStarted(
+            $adkService,
+            $entity,
+            (string) $session->entity_id,
+            $session->uuid,
+            'adk_session_started_' . (string) $session->getId()
+        );
 
         $adkService->injectSessionEvents(
-            $entityId,
-            $sessionUuid,
+            (string) $session->entity_id,
+            $session->uuid,
             [
                 [
                     'role' => 'notes',
@@ -95,9 +141,9 @@ class InjectADKSessionEventsActivity extends KanvasActivity
         );
 
         return [
-            'message' => "Successfully injected notes into ADK session {$sessionUuid}",
+            'message' => "Successfully injected notes into ADK session {$session->uuid}",
             'entity' => $entity,
-            'session_uuid' => $sessionUuid,
+            'session_uuid' => $session->uuid,
         ];
     }
 
