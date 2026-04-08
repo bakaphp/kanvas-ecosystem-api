@@ -12,6 +12,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class InjectADKSessionEventsActivity extends KanvasActivity
 {
@@ -86,6 +87,18 @@ class InjectADKSessionEventsActivity extends KanvasActivity
                     $channel->app,
                     $channel->company
                 );
+
+                if (! $entity->get('adk_session_started')) {
+                    try {
+                        $adkService->startSession(
+                            (string) $session->entity_id,
+                            $session->uuid
+                        );
+                        $entity->set('adk_session_started', true);
+                    } catch (Throwable $e) {
+                        report($e);
+                    }
+                }
 
                 $adkService->injectSessionEvents(
                     (string) $session->entity_id,
