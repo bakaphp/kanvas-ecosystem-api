@@ -25,7 +25,7 @@ class GetOrdersByUserCustomFieldAction
             null,
             false
         )
-            ->where('apps_id', $this->app->getId())
-            ->where('is_deleted', 0);
+            ->where('orders.apps_id', $this->app->getId())
+            ->where('orders.is_deleted', 0);
     }
 }

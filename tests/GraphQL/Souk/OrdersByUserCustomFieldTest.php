@@ -46,17 +46,21 @@ class OrdersByUserCustomFieldTest extends OrderBase
         $order = $this->createOrderFromCart([], $this->variantId);
         $order->set($customFieldName, (string) $user->getId());
 
-        $this->graphQL('
+        $response = $this->graphQL('
             query($custom_field_name: String!) {
-                ordersByUserCustomField(custom_field_name: $custom_field_name) {
+                ordersByUserCustomField(first: 25, custom_field_name: $custom_field_name) {
                     data {
                         id
                     }
                 }
             }
-        ', ['custom_field_name' => $customFieldName])
-        ->assertSuccessful()
-        ->assertJsonStructure(['data' => ['ordersByUserCustomField' => ['data' => [['id']]]]]);
+        ', ['custom_field_name' => $customFieldName]);
+
+        $response->assertSuccessful();
+        $data = $response->json('data.ordersByUserCustomField.data');
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+        $this->assertEquals((string) $order->getId(), $data[0]['id']);
     }
 
     public function testOrdersByUserCustomFieldWithUserId(): void
@@ -67,9 +71,9 @@ class OrdersByUserCustomFieldTest extends OrderBase
         $order = $this->createOrderFromCart([], $this->variantId);
         $order->set($customFieldName, (string) $user->getId());
 
-        $this->graphQL('
+        $response = $this->graphQL('
             query($custom_field_name: String!, $user_id: ID) {
-                ordersByUserCustomField(custom_field_name: $custom_field_name, user_id: $user_id) {
+                ordersByUserCustomField(first: 25, custom_field_name: $custom_field_name, user_id: $user_id) {
                     data {
                         id
                     }
@@ -78,8 +82,12 @@ class OrdersByUserCustomFieldTest extends OrderBase
         ', [
             'custom_field_name' => $customFieldName,
             'user_id' => $user->getId(),
-        ])
-        ->assertSuccessful()
-        ->assertJsonStructure(['data' => ['ordersByUserCustomField' => ['data' => [['id']]]]]);
+        ]);
+
+        $response->assertSuccessful();
+        $data = $response->json('data.ordersByUserCustomField.data');
+        $this->assertIsArray($data);
+        $this->assertNotEmpty($data);
+        $this->assertEquals((string) $order->getId(), $data[0]['id']);
     }
 }
