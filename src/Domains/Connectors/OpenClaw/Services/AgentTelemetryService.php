@@ -6,7 +6,11 @@ namespace Kanvas\Connectors\OpenClaw\Services;
 
 use App\GraphQL\Connector\OpenClaw\Subscriptions\AgentTelemetrySubscription;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Events\AgentTelemetryUpdated;
 use Kanvas\Connectors\OpenClaw\Jobs\CollectAgentTelemetryJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -105,6 +109,7 @@ class AgentTelemetryService
                 AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::AGENT_UNREACHABLE, [
                     'error' => $e->getMessage(),
                 ]);
+                $this->sendSlackAlert($deployment, AgentDeploymentEvent::AGENT_UNREACHABLE, $e->getMessage());
             } catch (Throwable) {
                 // Don't let event recording swallow the original warning
             }
@@ -143,11 +148,13 @@ class AgentTelemetryService
                 'previous' => $prevGateway,
                 'current'  => $newGateway,
             ]);
+            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_DOWN);
         } elseif (! $prevGateway && $newGateway) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_UP, [
                 'previous' => $prevGateway,
                 'current'  => $newGateway,
             ]);
+            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_UP);
         }
 
         // ── Service health (gateway service + node service both running) ──────
@@ -198,6 +205,68 @@ class AgentTelemetryService
         $nodeRunning    = str_contains((string) ($raw['nodeService']['runtimeShort'] ?? ''), 'running');
 
         return $gatewayRunning && $nodeRunning;
+    }
+
+    /**
+     * Send gateway alert via Slack webhook and/or email, depending on what
+     * is configured in app settings (key-value).
+     *
+     * App setting keys:
+     *   openclaw_slack_webhook_url  → Slack incoming webhook URL
+     *   openclaw_alert_email        → email address to notify
+     *
+     * Set them via: $app->set('openclaw_slack_webhook_url', 'https://hooks.slack.com/...')
+     * Silently no-ops when neither key is configured.
+     */
+    protected function sendSlackAlert(AgentDeployment $deployment, string $eventType, string $detail = ''): void
+    {
+        try {
+            $app  = Apps::find($deployment->apps_id);
+
+            if (! $app) {
+                return;
+            }
+
+            $agentName = $deployment->agent?->name ?? $deployment->container_name;
+
+            $emoji = match ($eventType) {
+                AgentDeploymentEvent::GATEWAY_DOWN      => ':red_circle:',
+                AgentDeploymentEvent::AGENT_UNREACHABLE => ':warning:',
+                AgentDeploymentEvent::GATEWAY_UP        => ':large_green_circle:',
+                default                                  => ':information_source:',
+            };
+
+            $title = match ($eventType) {
+                AgentDeploymentEvent::GATEWAY_DOWN      => 'Gateway offline',
+                AgentDeploymentEvent::AGENT_UNREACHABLE => 'Agent unreachable',
+                AgentDeploymentEvent::GATEWAY_UP        => 'Gateway back online',
+                default                                  => $eventType,
+            };
+
+            $text = "{$emoji} *{$title}* — `{$agentName}`";
+
+            if ($detail !== '') {
+                $text .= "\n_{$detail}_";
+            }
+
+            // ── Slack ────────────────────────────────────────────────────────
+            $webhookUrl = $app->get(ConfigurationEnum::SLACK_WEBHOOK_URL->value);
+
+            if ($webhookUrl) {
+                Http::post($webhookUrl, ['text' => $text]);
+            }
+
+            // ── Email ────────────────────────────────────────────────────────
+            $alertEmail = $app->get(ConfigurationEnum::ALERT_EMAIL->value);
+
+            if ($alertEmail) {
+                Mail::raw(strip_tags(str_replace(['*', '`', '_'], '', $text)), function ($m) use ($alertEmail, $title, $agentName) {
+                    $m->to($alertEmail)->subject("OpenClaw alert: {$title} — {$agentName}");
+                });
+            }
+        } catch (Throwable $e) {
+            Log::warning("OpenClaw telemetry: alert failed — {$e->getMessage()}");
+        }
     }
 
     /**
