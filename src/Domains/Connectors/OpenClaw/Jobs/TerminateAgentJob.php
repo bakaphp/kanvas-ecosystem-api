@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\TerminateAgentOnMachineAction;
 use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Throwable;
 
 class TerminateAgentJob implements ShouldQueue
 {
@@ -23,14 +24,21 @@ class TerminateAgentJob implements ShouldQueue
     public function __construct(
         protected AgentDeployment $deployment,
     ) {
+        $this->onQueue('openclaw');
     }
 
     public function handle(): void
     {
         $previousStatus = $this->deployment->status;
 
-        new TerminateAgentOnMachineAction($this->deployment)->execute();
+        try {
+            new TerminateAgentOnMachineAction($this->deployment)->execute();
 
-        AgentDeploymentStatusChanged::dispatch($this->deployment->fresh(), $previousStatus);
+            AgentDeploymentStatusChanged::dispatch($this->deployment->fresh(), $previousStatus);
+        } catch (Throwable $e) {
+            report($e);
+
+            throw $e;
+        }
     }
 }
