@@ -29,15 +29,15 @@ class CardNetPurchaseRequest extends Data
     public function toArray(): array
     {
         $data = [
-            'TrxToken'     => $this->trxToken,
-            'Order'        => $this->order,
-            'Amount'       => $this->amount,
-            'Currency'     => $this->currency,
-            'Capture'      => $this->capture,
+            'TrxToken' => $this->trxToken,
+            'Order' => $this->order,
+            'Amount' => $this->amount,
+            'Currency' => $this->currency,
+            'Capture' => $this->capture,
             'Installments' => $this->installments,
-            'DataDo'       => array_filter([
+            'DataDo' => array_filter([
                 'Invoice' => $this->invoice,
-                'Tax'     => $this->tax,
+                'Tax' => $this->tax,
             ], fn ($v) => $v !== null),
         ];
 

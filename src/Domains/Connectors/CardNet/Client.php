@@ -55,27 +55,9 @@ class Client
 
             return json_decode($body, true) ?? [];
         } catch (ConnectException $e) {
-            throw new CardNetException(
-                'Connection failed (check TLS 1.2 and network access): ' . $e->getMessage(),
-                0,
-                $e,
-            );
+            $this->handleConnectException($e);
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($response !== null) {
-                $statusCode = $response->getStatusCode();
-                $errorBody = json_decode((string) $response->getBody(), true) ?? [];
-            }
-
-            throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody,
-            );
+            $this->handleRequestException($e);
         }
     }
 
@@ -87,27 +69,9 @@ class Client
 
             return json_decode($body, true) ?? [];
         } catch (ConnectException $e) {
-            throw new CardNetException(
-                'Connection failed (check TLS 1.2 and network access): ' . $e->getMessage(),
-                0,
-                $e,
-            );
+            $this->handleConnectException($e);
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($response !== null) {
-                $statusCode = $response->getStatusCode();
-                $errorBody = json_decode((string) $response->getBody(), true) ?? [];
-            }
-
-            throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody,
-            );
+            $this->handleRequestException($e);
         }
     }
 
@@ -148,27 +112,37 @@ class Client
 
             return json_decode($body, true) ?? [];
         } catch (ConnectException $e) {
-            throw new CardNetException(
-                'Connection failed (check TLS 1.2 and network access): ' . $e->getMessage(),
-                0,
-                $e,
-            );
+            $this->handleConnectException($e);
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-            $errorBody = [];
-            $statusCode = 0;
-
-            if ($response !== null) {
-                $statusCode = $response->getStatusCode();
-                $errorBody = json_decode((string) $response->getBody(), true) ?? [];
-            }
-
-            throw new CardNetException(
-                $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
-                $statusCode,
-                $e,
-                $errorBody,
-            );
+            $this->handleRequestException($e);
         }
+    }
+
+    private function handleConnectException(ConnectException $e): never
+    {
+        throw new CardNetException(
+            'Connection failed (check TLS 1.2 and network access): ' . $e->getMessage(),
+            0,
+            $e,
+        );
+    }
+
+    private function handleRequestException(RequestException $e): never
+    {
+        $response = $e->getResponse();
+        $errorBody = [];
+        $statusCode = 0;
+
+        if ($response !== null) {
+            $statusCode = $response->getStatusCode();
+            $errorBody = json_decode((string) $response->getBody(), true) ?? [];
+        }
+
+        throw new CardNetException(
+            $errorBody['Description'] ?? $errorBody['description'] ?? $errorBody['message'] ?? $e->getMessage(),
+            $statusCode,
+            $e,
+            $errorBody,
+        );
     }
 }

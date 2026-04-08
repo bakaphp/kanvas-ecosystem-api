@@ -523,6 +523,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
     public function deleteToken(string $token): bool
     {
         $paymentMethod = PaymentMethods::where('stripe_card_id', $token)
+            ->where('apps_id', $this->app->getId())
             ->whereNotNull('metadata')
             ->first();
 
