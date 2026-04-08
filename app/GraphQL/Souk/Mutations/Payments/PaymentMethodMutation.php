@@ -8,11 +8,11 @@ use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 
 class PaymentMethodMutation
 {

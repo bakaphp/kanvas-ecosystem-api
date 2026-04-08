@@ -11,8 +11,8 @@ use Kanvas\Connectors\CardNet\DataTransferObject\CardDetail;
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
 use Kanvas\Connectors\CardNet\Enums\CustomFieldEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
-use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Connectors\CardNet\Services\CardNetService;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
@@ -463,25 +463,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
     public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult
     {
         try {
-            $customerResponse = $this->service->createCustomer(
-                email: $user->email,
-                firstName: $cardDetails['firstname'] ?? null,
-                lastName: $cardDetails['lastname'] ?? null,
-                phoneNumber: $cardDetails['phone'] ?? null,
-            );
-
-            $customerId = (int) ($customerResponse['CustomerId'] ?? 0);
-
-            if ($customerId === 0) {
-                return new TokenizeResult(
-                    success: false,
-                    message: 'CardNet customer creation failed — no CustomerId returned.',
-                    token: '',
-                    lastFour: '',
-                    brand: '',
-                    raw: $customerResponse,
-                );
-            }
+            $customerId = $this->getOrCreateCustomerId($user, $cardDetails);
 
             $cardNumber = preg_replace('/\s+/', '', $cardDetails['number'] ?? '');
 
@@ -599,6 +581,32 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 raw: $e->responseBody,
             );
         }
+    }
+
+    private function getOrCreateCustomerId(UserInterface $user, array $cardDetails): int
+    {
+        $customerId = (int) ($user->get(CustomFieldEnum::CUSTOMER_ID->value) ?? 0);
+
+        if ($customerId > 0) {
+            return $customerId;
+        }
+
+        $customerResponse = $this->service->createCustomer(
+            email: $user->email,
+            firstName: $cardDetails['firstname'] ?? null,
+            lastName: $cardDetails['lastname'] ?? null,
+            phoneNumber: $cardDetails['phone'] ?? null,
+        );
+
+        $customerId = (int) ($customerResponse['CustomerId'] ?? 0);
+
+        if ($customerId === 0) {
+            throw new CardNetException('CardNet customer creation failed — no CustomerId returned.');
+        }
+
+        $user->set(CustomFieldEnum::CUSTOMER_ID->value, $customerId);
+
+        return $customerId;
     }
 
     private function buildPurchaseRequest(Payments $payment, Order $order, bool $capture = true): CardNetPurchaseRequest

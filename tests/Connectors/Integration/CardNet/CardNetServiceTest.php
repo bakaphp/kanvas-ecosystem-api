@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\CardNet;
 
 use Kanvas\Connectors\CardNet\DataTransferObject\CardNetPurchaseRequest;
-use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Tests\TestCase;
 
 final class CardNetServiceTest extends TestCase
