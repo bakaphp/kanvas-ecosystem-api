@@ -111,9 +111,11 @@ class OrderStatsQuery
         $app = app(Apps::class);
         $input = $request['input'];
 
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+
         $company = isset($input['company_id'])
             ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
-            : ($user->isAppOwner() ? null : $user->getCurrentCompany());
+            : (! empty($providerCompanyIds) || $user->isAppOwner() ? null : $user->getCurrentCompany());
 
         return new GetOrderCommissionStatsAction(
             app: $app,
@@ -121,7 +123,7 @@ class OrderStatsQuery
             from: Carbon::parse($input['from']),
             to: Carbon::parse($input['to']),
             orderType: $input['order_type'] ?? null,
-            providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
+            providerCompanyIds: $providerCompanyIds,
         )->execute();
     }
 
