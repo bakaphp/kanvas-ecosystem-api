@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
